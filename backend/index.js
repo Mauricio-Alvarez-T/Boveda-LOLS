@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const errorHandler = require('./src/middleware/errorHandler');
+const dashboardService = require('./src/services/dashboard.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -137,8 +138,17 @@ app.use('/api/tipos-ausencia', (() => {
 })());
 
 // ============================================
-// Health Check
+// Health Check & Dashboard
 // ============================================
+
+// Dashboard KPIs
+app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, res, next) => {
+  try {
+    const summary = await dashboardService.getSummary();
+    res.json({ data: summary });
+  } catch (err) { next(err); }
+});
+
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
