@@ -3,12 +3,14 @@ import {
     Users,
     Search,
     UserPlus,
+    Trash2,
+    UserPen,
+    Filter,
     ArrowUpDown,
     FilePlus,
     Loader2,
-    UserPen,
-    Trash2,
-    Filter
+    FileText,
+    X
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -17,6 +19,8 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { WorkerForm } from '../components/workers/WorkerForm';
+import { DocumentUploader } from '../components/documents/DocumentUploader';
+import { DocumentList } from '../components/documents/DocumentList';
 import api from '../services/api';
 import type { Trabajador } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -25,8 +29,11 @@ const WorkersPage: React.FC = () => {
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
-    const [isModalOpen, setIsModalOpen] = useState(false);
+
+    // Modal states
+    const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     const fetchWorkers = async () => {
         setLoading(true);
@@ -74,7 +81,7 @@ const WorkersPage: React.FC = () => {
                 <Button
                     onClick={() => {
                         setSelectedWorker(null);
-                        setIsModalOpen(true);
+                        setModalType('form');
                     }}
                     leftIcon={<UserPlus className="h-5 w-5" />}
                 >
@@ -163,13 +170,21 @@ const WorkersPage: React.FC = () => {
                                                 <div className="h-1.5 w-12 bg-white/10 rounded-full overflow-hidden">
                                                     <div className="h-full bg-emerald-500 w-[75%]" />
                                                 </div>
-                                                <span className="text-[10px] text-emerald-400 font-medium">8 / 10</span>
+                                                <span className="text-[10px] text-emerald-400 font-medium font-bold">75%</span>
                                             </div>
                                         </td>
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10">
-                                                    <FilePlus className="h-4 w-4" />
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
+                                                    onClick={() => {
+                                                        setSelectedWorker(worker);
+                                                        setModalType('docs');
+                                                    }}
+                                                >
+                                                    <FileText className="h-4 w-4" />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
@@ -177,7 +192,7 @@ const WorkersPage: React.FC = () => {
                                                     className="h-8 w-8 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
                                                     onClick={() => {
                                                         setSelectedWorker(worker);
-                                                        setIsModalOpen(true);
+                                                        setModalType('form');
                                                     }}
                                                 >
                                                     <UserPen className="h-4 w-4" />
@@ -200,21 +215,62 @@ const WorkersPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal with Form */}
+            {/* Unified Modal */}
             <Modal
-                isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                title={selectedWorker ? "Editar Trabajador" : "Registrar Nuevo Trabajador"}
-                size="lg"
+                isOpen={modalType !== null}
+                onClose={() => {
+                    setModalType(null);
+                    setIsUploading(false);
+                }}
+                title={
+                    modalType === 'form'
+                        ? (selectedWorker ? "Editar Trabajador" : "Registrar Nuevo Trabajador")
+                        : `Documentos: ${selectedWorker?.nombres} ${selectedWorker?.apellido_paterno}`
+                }
+                size={modalType === 'docs' ? 'lg' : 'md'}
             >
-                <WorkerForm
-                    initialData={selectedWorker}
-                    onCancel={() => setIsModalOpen(false)}
-                    onSuccess={() => {
-                        setIsModalOpen(false);
-                        fetchWorkers();
-                    }}
-                />
+                {modalType === 'form' && (
+                    <WorkerForm
+                        initialData={selectedWorker}
+                        onCancel={() => setModalType(null)}
+                        onSuccess={() => {
+                            setModalType(null);
+                            fetchWorkers();
+                        }}
+                    />
+                )}
+
+                {modalType === 'docs' && selectedWorker && (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10">
+                            <div>
+                                <h4 className="text-sm font-bold text-white">Bóveda de Documentos</h4>
+                                <p className="text-xs text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
+                            </div>
+                            <Button
+                                size="sm"
+                                variant={isUploading ? 'glass' : 'primary'}
+                                onClick={() => setIsUploading(!isUploading)}
+                                leftIcon={isUploading ? <X className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                            >
+                                {isUploading ? 'Volver a la lista' : 'Subir Documento'}
+                            </Button>
+                        </div>
+
+                        {isUploading ? (
+                            <DocumentUploader
+                                trabajadorId={selectedWorker.id}
+                                onCancel={() => setIsUploading(false)}
+                                onSuccess={() => {
+                                    setIsUploading(true); // Toggle to refresh DocumentList (forcing re-render)
+                                    setIsUploading(false);
+                                }}
+                            />
+                        ) : (
+                            <DocumentList trabajadorId={selectedWorker.id} />
+                        )}
+                    </div>
+                )}
             </Modal>
         </div>
     );

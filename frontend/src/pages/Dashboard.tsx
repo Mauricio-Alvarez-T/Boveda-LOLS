@@ -1,7 +1,7 @@
 import React from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Button } from '../components/ui/Button';
-import { LogOut, LayoutDashboard, Users, FileText, CheckSquare, Settings } from 'lucide-react';
+import { LogOut, Users, FileText, CheckSquare, Settings } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 const Dashboard: React.FC = () => {
