@@ -3,25 +3,23 @@ import {
     Users,
     Search,
     UserPlus,
-    FileText,
-    MoreVertical,
-    Trash2,
-    UserPen,
-    Filter,
     ArrowUpDown,
     FilePlus,
-    Loader2
+    Loader2,
+    UserPen,
+    Trash2,
+    Filter
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
+import { WorkerForm } from '../components/workers/WorkerForm';
 import api from '../services/api';
-import { Trabajador } from '../types/entities';
-import { ApiResponse } from '../types';
-import { cn } from '../utils/cn';
+import type { Trabajador } from '../types/entities';
+import type { ApiResponse } from '../types';
 
 const WorkersPage: React.FC = () => {
     const [workers, setWorkers] = useState<Trabajador[]>([]);
@@ -39,6 +37,17 @@ const WorkersPage: React.FC = () => {
             toast.error('Error al cargar trabajadores');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handleDelete = async (id: number) => {
+        if (!window.confirm('¿Estás seguro de desactivar este trabajador?')) return;
+        try {
+            await api.delete(`/trabajadores/${id}`);
+            toast.success('Trabajador desactivado');
+            fetchWorkers();
+        } catch (err) {
+            toast.error('Error al eliminar trabajador');
         }
     };
 
@@ -132,7 +141,7 @@ const WorkersPage: React.FC = () => {
                                         <td className="px-6 py-4">
                                             <div className="flex items-center gap-3">
                                                 <div className="h-10 w-10 rounded-full premium-gradient flex items-center justify-center text-white font-bold text-xs">
-                                                    {worker.nombres[0]}{worker.apellido_paterno[0]}
+                                                    {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                 </div>
                                                 <div>
                                                     <p className="text-sm font-semibold text-white">{worker.nombres} {worker.apellido_paterno}</p>
@@ -162,10 +171,23 @@ const WorkersPage: React.FC = () => {
                                                 <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10">
                                                     <FilePlus className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+                                                    onClick={() => {
+                                                        setSelectedWorker(worker);
+                                                        setIsModalOpen(true);
+                                                    }}
+                                                >
                                                     <UserPen className="h-4 w-4" />
                                                 </Button>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-400/10">
+                                                <Button
+                                                    variant="ghost"
+                                                    size="icon"
+                                                    className="h-8 w-8 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-400/10"
+                                                    onClick={() => handleDelete(worker.id)}
+                                                >
                                                     <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
@@ -178,15 +200,21 @@ const WorkersPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Modal Placeholder */}
+            {/* Modal with Form */}
             <Modal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 title={selectedWorker ? "Editar Trabajador" : "Registrar Nuevo Trabajador"}
+                size="lg"
             >
-                <div className="space-y-4">
-                    <p className="text-muted-foreground text-sm italic">Formulario de registro (Próximamente)...</p>
-                </div>
+                <WorkerForm
+                    initialData={selectedWorker}
+                    onCancel={() => setIsModalOpen(false)}
+                    onSuccess={() => {
+                        setIsModalOpen(false);
+                        fetchWorkers();
+                    }}
+                />
             </Modal>
         </div>
     );
