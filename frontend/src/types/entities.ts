@@ -65,3 +65,28 @@ export interface Documento {
     subido_por: number;
     activo: boolean;
 }
+
+export type AsistenciaEstado = 'Presente' | 'Ausente' | 'Atraso' | 'Licencia';
+
+export interface TipoAusencia {
+    id: number;
+    nombre: string;
+    es_justificada: boolean;
+    activo: boolean;
+}
+
+export interface Asistencia {
+    id?: number;
+    trabajador_id: number;
+    rut?: string;
+    nombres?: string;
+    apellido_paterno?: string;
+    obra_id: number;
+    fecha: string;
+    estado: AsistenciaEstado;
+    tipo_ausencia_id: number | null;
+    tipo_ausencia_nombre?: string;
+    observacion: string | null;
+    registrado_por: number;
+    registrado_por_nombre?: string;
+}

@@ -4,6 +4,7 @@ import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import WorkersPage from './pages/Workers';
+import AttendancePage from './pages/Attendance';
 import { MainLayout } from './components/layout/MainLayout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -41,6 +42,7 @@ const App: React.FC = () => {
         >
           <Route index element={<Dashboard />} />
           <Route path="trabajadores" element={<WorkersPage />} />
+          <Route path="asistencia" element={<AttendancePage />} />
           {/* Add more module routes here */}
         </Route>
 
