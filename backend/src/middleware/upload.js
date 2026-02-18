@@ -29,13 +29,14 @@ const fileFilter = (req, file, cb) => {
         'application/pdf',
         'image/jpeg',
         'image/png',
-        'image/webp'
+        'image/webp',
+        'text/plain'
     ];
 
     if (allowedTypes.includes(file.mimetype)) {
         cb(null, true);
     } else {
-        cb(new Error(`Formato no permitido: ${file.mimetype}. Solo se aceptan PDF, JPG, PNG y WEBP.`), false);
+        cb(new Error(`Formato no permitido: ${file.mimetype}. Solo se aceptan PDF, JPG, PNG, WEBP y TXT.`), false);
     }
 };
 
