@@ -37,7 +37,7 @@ export const ObraSelector: React.FC = () => {
                     "flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all text-sm font-medium max-w-[240px] w-full",
                     isOpen
                         ? "bg-violet-500/10 border-violet-500/30 text-white"
-                        : "bg-white/5 border-white/10 text-muted-foreground hover:text-white hover:border-white/20"
+                        : "bg-white/10 border-white/20 text-muted-foreground hover:text-white hover:border-white/30"
                 )}
             >
                 <HardHat className="h-4 w-4 shrink-0 text-brand-primary" />
@@ -54,7 +54,7 @@ export const ObraSelector: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.97 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full mt-1.5 left-0 w-full min-w-[220px] z-50 glass-morphism rounded-xl border border-white/10 shadow-2xl shadow-black/30 overflow-hidden"
+                        className="absolute top-full mt-1.5 left-0 w-full min-w-[220px] z-50 glass-morphism-dense rounded-xl border border-white/10 shadow-2xl shadow-black/40 overflow-hidden"
                     >
                         <div className="p-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
                             {/* "All Obras" option */}
