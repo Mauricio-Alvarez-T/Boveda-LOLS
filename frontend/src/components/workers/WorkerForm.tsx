@@ -45,7 +45,6 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     const {
         register,
         handleSubmit,
-        watch,
         formState: { errors },
     } = useForm<WorkerFormData>({
         resolver: zodResolver(workerSchema),
@@ -63,17 +62,19 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         } : {},
     });
 
-    const selectedEmpresa = watch('empresa_id');
+
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const [empRes, cargoRes] = await Promise.all([
+                const [empRes, obraRes, cargoRes] = await Promise.all([
                     api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
+                    api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
                     api.get<ApiResponse<Cargo[]>>('/cargos?activo=true'),
                 ]);
 
                 setEmpresas(empRes.data.data.map(e => ({ value: e.id, label: `${e.razon_social} (${e.rut})` })));
+                setObras(obraRes.data.data.map(o => ({ value: o.id, label: o.nombre })));
                 setCargos(cargoRes.data.data.map(c => ({ value: c.id, label: c.nombre })));
             } catch (err) {
                 toast.error('Error al cargar datos base');
@@ -83,23 +84,6 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         };
         fetchData();
     }, []);
-
-    // Fetch obras when empresa changes
-    useEffect(() => {
-        const fetchObras = async () => {
-            if (!selectedEmpresa) {
-                setObras([]);
-                return;
-            }
-            try {
-                const res = await api.get<ApiResponse<Obra[]>>(`/obras?empresa_id=${selectedEmpresa}&activa=true`);
-                setObras(res.data.data.map(o => ({ value: o.id, label: o.nombre })));
-            } catch (err) {
-                console.error('Error al cargar obras');
-            }
-        };
-        fetchObras();
-    }, [selectedEmpresa]);
 
     const onSubmit = async (data: WorkerFormData) => {
         setLoading(true);
@@ -187,7 +171,6 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     options={obras}
                     error={errors.obra_id?.message}
                     {...register('obra_id')}
-                    disabled={!selectedEmpresa}
                 />
                 <Select
                     label="Cargo"

@@ -40,6 +40,7 @@ interface CrudTableProps<T extends { id: number }> {
     canCreate?: boolean;
     canEdit?: boolean;
     canDelete?: boolean;
+    queryParams?: Record<string, string | number | boolean>;
 }
 
 export function CrudTable<T extends { id: number; activo?: boolean }>({
@@ -52,6 +53,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
     canCreate = true,
     canEdit = true,
     canDelete = true,
+    queryParams = {},
 }: CrudTableProps<T>) {
     const [rows, setRows] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
@@ -64,7 +66,18 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
     const fetchData = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await api.get<ApiResponse<T[]>>(`${endpoint}?q=${search}&page=${page}&limit=15`);
+            const params = new URLSearchParams({
+                q: search,
+                page: page.toString(),
+                limit: '15'
+            });
+
+            // Add extra params
+            Object.entries(queryParams).forEach(([k, v]) => {
+                if (v !== undefined) params.append(k, String(v));
+            });
+
+            const res = await api.get<ApiResponse<T[]>>(`${endpoint}?${params.toString()}`);
             setRows(res.data.data);
             if (res.data.pagination) {
                 setPagination({ total: res.data.pagination.total, pages: res.data.pagination.pages });
@@ -74,7 +87,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
         } finally {
             setLoading(false);
         }
-    }, [endpoint, search, page, entityNamePlural]);
+    }, [endpoint, search, page, entityNamePlural, JSON.stringify(queryParams)]);
 
     useEffect(() => {
         const timer = setTimeout(fetchData, 400);

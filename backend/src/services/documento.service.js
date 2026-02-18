@@ -40,7 +40,7 @@ const documentoService = {
         const relativePath = path.relative(path.join(__dirname, '../../uploads'), finalPath);
         const [result] = await db.query(
             `INSERT INTO documentos (trabajador_id, tipo_documento_id, nombre_archivo, ruta_archivo, rut_empresa_al_subir, fecha_vencimiento, subido_por)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+           VALUES (?, ?, ?, ?, ?, ?, ?)`,
             [trabajadorId, tipoDocumentoId, fileName, relativePath, rut_empresa || 'SIN-EMPRESA', fechaVencimiento, userId]
         );
 
@@ -135,7 +135,14 @@ const documentoService = {
             result[row.trabajador_id] = Math.round((row.uploaded / totalObligatorios) * 100);
         });
         return result;
-    }
+    },
+    async delete(id) {
+        const [result] = await db.query('UPDATE documentos SET activo = FALSE WHERE id = ?', [id]);
+        if (result.affectedRows === 0) {
+            throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
+        }
+        return { message: 'Documento eliminado correctamente' };
+    },
 };
 
 module.exports = documentoService;

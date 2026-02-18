@@ -23,7 +23,7 @@ export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchObras = useCallback(async () => {
         setIsLoading(true);
         try {
-            const res = await api.get<ApiResponse<Obra[]>>('/obras');
+            const res = await api.get<ApiResponse<Obra[]>>('/obras?activo=true');
             const list = res.data.data;
             setObras(list);
 

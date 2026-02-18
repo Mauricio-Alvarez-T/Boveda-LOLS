@@ -59,7 +59,6 @@ const empresaCols: ColumnDef<any>[] = [
 
 const obraCols: ColumnDef<any>[] = [
     { key: 'nombre', label: 'Nombre' },
-    { key: 'empresa_nombre', label: 'Empresa', render: (v) => v || '—' },
     { key: 'direccion', label: 'Dirección', render: (v) => v || '—' },
     {
         key: 'activa', label: 'Estado',
@@ -191,6 +190,7 @@ const SettingsPage: React.FC = () => {
                         entityNamePlural="Empresas"
                         FormComponent={EmpresaForm}
                         searchPlaceholder="Buscar por RUT o razón social..."
+                        queryParams={{ activo: true }}
                     />
                 )}
                 {activeTab === 'obras' && (
@@ -200,6 +200,7 @@ const SettingsPage: React.FC = () => {
                         entityName="Obra"
                         entityNamePlural="Obras"
                         FormComponent={ObraForm}
+                        queryParams={{ activo: true }}
                     />
                 )}
                 {activeTab === 'cargos' && (
@@ -209,6 +210,7 @@ const SettingsPage: React.FC = () => {
                         entityName="Cargo"
                         entityNamePlural="Cargos"
                         FormComponent={CargoForm}
+                        queryParams={{ activo: true }}
                     />
                 )}
                 {activeTab === 'tipos_doc' && (
@@ -218,6 +220,7 @@ const SettingsPage: React.FC = () => {
                         entityName="Tipo de Documento"
                         entityNamePlural="Tipos de Documento"
                         FormComponent={TipoDocumentoForm}
+                        queryParams={{ activo: true }}
                     />
                 )}
                 {activeTab === 'usuarios' && (

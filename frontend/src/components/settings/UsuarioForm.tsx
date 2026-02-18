@@ -72,7 +72,7 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
 
     useEffect(() => {
         api.get<ApiResponse<Role[]>>('/usuarios/roles/list').then(res => setRoles(res.data.data)).catch(() => { });
-        api.get<ApiResponse<Obra[]>>('/obras').then(res => setObras(res.data.data)).catch(() => { });
+        api.get<ApiResponse<Obra[]>>('/obras?activo=true').then(res => setObras(res.data.data)).catch(() => { });
     }, []);
 
     const onSubmit = async (data: FormData) => {
