@@ -47,17 +47,15 @@
 
 /* Custom Component Classes */
 .glass-morphism {
-  background-color: rgba(255, 255, 255, 0.15);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.2);
+  background-color: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
 }
 
 .glass-morphism-dense {
-  background-color: rgba(30, 41, 59, 0.8);
-  backdrop-filter: blur(12px);
+  background-color: #111827;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
 }
 
 .premium-gradient {
@@ -65,8 +63,7 @@
 }
 
 .premium-card {
-  background-color: rgba(30, 41, 59, 0.5);
-  backdrop-filter: blur(16px);
+  background-color: #1e293b;
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 1rem;
   padding: 1.5rem;

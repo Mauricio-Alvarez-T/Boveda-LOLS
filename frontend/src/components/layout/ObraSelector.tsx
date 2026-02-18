@@ -37,7 +37,7 @@ export const ObraSelector: React.FC = () => {
                     "flex items-center gap-2.5 px-3.5 py-2 rounded-xl border transition-all text-sm font-medium max-w-[240px] w-full",
                     isOpen
                         ? "bg-violet-500/10 border-violet-500/30 text-white"
-                        : "bg-white/10 border-white/20 text-muted-foreground hover:text-white hover:border-white/30"
+                        : "bg-secondary border-white/10 text-muted-foreground hover:text-white hover:border-white/20"
                 )}
             >
                 <HardHat className="h-4 w-4 shrink-0 text-brand-primary" />
