@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
-import { Bell, Search, ChevronDown } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ObraSelector } from './ObraSelector';
+import { Bell } from 'lucide-react';
 
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
@@ -26,15 +26,7 @@ export const MainLayout: React.FC = () => {
                             <div className="absolute top-2 right-2 h-2 w-2 bg-rose-500 rounded-full border-2 border-slate-950" />
                         </button>
                         <div className="h-8 w-px bg-white/10 mx-2" />
-                        <div className="flex items-center gap-3">
-                            <div className="text-right hidden sm:block">
-                                <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-bold">Obra Seleccionada</p>
-                                <div className="flex items-center gap-1 text-white font-semibold text-xs transition-colors hover:text-brand-primary cursor-pointer">
-                                    Edificio Los Olmos
-                                    <ChevronDown className="h-3 w-3" />
-                                </div>
-                            </div>
-                        </div>
+                        <ObraSelector />
                     </div>
                 </header>
 
@@ -46,3 +38,4 @@ export const MainLayout: React.FC = () => {
         </div>
     );
 };
+
