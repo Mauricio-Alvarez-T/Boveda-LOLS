@@ -363,6 +363,7 @@ const Dashboard: React.FC = () => {
                             </div>
                         </div>
                         <Button
+                            variant="ghost"
                             className="w-full bg-white text-brand-primary hover:bg-slate-100 mt-2 font-bold py-4 rounded-2xl"
                             onClick={() => toast.info('Módulo de configuración próximamente disponible.')}
                         >
