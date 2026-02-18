@@ -60,7 +60,7 @@ router.post('/upload/:trabajadorId', auth, checkPermission('documentos', 'puede_
 router.get('/trabajador/:trabajadorId', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
     try {
         const docs = await documentoService.getByTrabajador(req.params.trabajadorId);
-        res.json(docs);
+        res.json({ data: docs });
     } catch (err) { next(err); }
 });
 
@@ -69,6 +69,14 @@ router.get('/download/:id', auth, checkPermission('documentos', 'puede_ver'), as
     try {
         const { fullPath, fileName } = await documentoService.getFilePath(req.params.id);
         res.download(fullPath, fileName);
+    } catch (err) { next(err); }
+});
+
+// Delete (Soft Delete)
+router.delete('/:id', auth, checkPermission('documentos', 'puede_eliminar'), async (req, res, next) => {
+    try {
+        await documentoService.delete(req.params.id);
+        res.json({ message: 'Documento eliminado' });
     } catch (err) { next(err); }
 });
 

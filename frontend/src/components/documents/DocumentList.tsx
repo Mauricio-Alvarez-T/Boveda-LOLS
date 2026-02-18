@@ -44,7 +44,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
 
     const handleDownload = async (doc: Documento) => {
         try {
-            const response = await api.get(`/documentos/descargar/${doc.id}`, {
+            const response = await api.get(`/documentos/download/${doc.id}`, {
                 responseType: 'blob',
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -112,10 +112,10 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                             isExpired(doc.fecha_vencimiento) && "border-rose-500/30"
                         )}
                     >
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-center gap-3">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-3 overflow-hidden">
                                 <div className={cn(
-                                    "h-10 w-10 rounded-xl flex items-center justify-center",
+                                    "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
                                     isExpired(doc.fecha_vencimiento) ? "bg-rose-500/10 text-rose-500" : "bg-brand-primary/10 text-brand-primary"
                                 )}>
                                     <FileText className="h-6 w-6" />
@@ -125,7 +125,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                     <p className="text-[10px] text-muted-foreground truncate">{doc.nombre_archivo}</p>
                                 </div>
                             </div>
-                            <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex gap-1 shrink-0">
                                 <Button variant="glass" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
                                     <Download className="h-4 w-4" />
                                 </Button>
