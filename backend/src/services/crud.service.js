@@ -9,7 +9,7 @@ const db = require('../config/db');
  * @param {string} options.selectFields - Campos a seleccionar (default: tableName.*)
  */
 const createCrudService = (tableName, options = {}) => {
-    const { searchFields = [], joins = '', selectFields = `${tableName}.*` } = options;
+    const { searchFields = [], joins = '', selectFields = `${tableName}.*`, activeColumn = 'activo' } = options;
 
     return {
         async getAll(query = {}) {
@@ -20,7 +20,7 @@ const createCrudService = (tableName, options = {}) => {
 
             // Filter by active status
             if (activo !== undefined) {
-                where.push(`${tableName}.activo = ?`);
+                where.push(`${tableName}.${activeColumn} = ?`);
                 params.push(activo === 'true' || activo === true ? 1 : 0);
             }
 
@@ -94,13 +94,13 @@ const createCrudService = (tableName, options = {}) => {
 
         async softDelete(id) {
             const [result] = await db.query(
-                `UPDATE ${tableName} SET activo = FALSE WHERE id = ?`,
+                `UPDATE ${tableName} SET ${activeColumn} = FALSE WHERE id = ?`,
                 [id]
             );
             if (result.affectedRows === 0) {
                 throw Object.assign(new Error('Registro no encontrado'), { statusCode: 404 });
             }
-            return { id, activo: false };
+            return { id, [activeColumn]: false };
         }
     };
 };

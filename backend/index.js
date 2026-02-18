@@ -54,7 +54,8 @@ app.use('/api/obras', (() => {
   const service = createCrudService('obras', {
     searchFields: ['nombre', 'direccion'],
     joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
-    selectFields: 'obras.*, e.razon_social as empresa_nombre'
+    selectFields: 'obras.*, e.razon_social as empresa_nombre',
+    activeColumn: 'activa'
   });
   const ctrl = createCrudController(service);
 
