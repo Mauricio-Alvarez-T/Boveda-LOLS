@@ -35,6 +35,10 @@ const WorkersPage: React.FC = () => {
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
+    // Sort & Filter states
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [showFilters, setShowFilters] = useState(false);
+
     const fetchWorkers = async () => {
         setLoading(true);
         try {
@@ -101,14 +105,41 @@ const WorkersPage: React.FC = () => {
                     <Search className="absolute left-4 top-3 h-5 w-5 text-muted-foreground" />
                 </div>
                 <div className="flex gap-2">
-                    <Button variant="glass" leftIcon={<Filter className="h-4 w-4" />}>
+                    <Button
+                        variant={showFilters ? 'primary' : 'glass'}
+                        leftIcon={<Filter className="h-4 w-4" />}
+                        onClick={() => setShowFilters(!showFilters)}
+                    >
                         Filtros
                     </Button>
-                    <Button variant="glass" leftIcon={<ArrowUpDown className="h-4 w-4" />}>
-                        Ordenar
+                    <Button
+                        variant="glass"
+                        leftIcon={<ArrowUpDown className="h-4 w-4" />}
+                        onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    >
+                        {sortOrder === 'asc' ? 'A-Z' : 'Z-A'}
                     </Button>
                 </div>
             </div>
+
+            {/* Expanded Filters Panel */}
+            {showFilters && (
+                <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    className="premium-card p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
+                >
+                    <div className="space-y-2">
+                        <label className="text-xs text-muted-foreground">Estado Documental</label>
+                        <select className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                            <option value="all" className="bg-slate-900">Todos</option>
+                            <option value="complete" className="bg-slate-900">Completos</option>
+                            <option value="incomplete" className="bg-slate-900">Incompletos</option>
+                        </select>
+                    </div>
+                    {/* Add more filters here as needed */}
+                </motion.div>
+            )}
 
             {/* Table Section */}
             <div className="premium-card p-0 overflow-hidden">
@@ -138,77 +169,83 @@ const WorkersPage: React.FC = () => {
                                     </td>
                                 </tr>
                             ) : (
-                                workers.map((worker) => (
-                                    <motion.tr
-                                        key={worker.id}
-                                        initial={{ opacity: 0 }}
-                                        animate={{ opacity: 1 }}
-                                        className="hover:bg-white/5 transition-colors group"
-                                    >
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-3">
-                                                <div className="h-10 w-10 rounded-full premium-gradient flex items-center justify-center text-white font-bold text-xs">
-                                                    {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
+                                [...workers]
+                                    .sort((a, b) => {
+                                        const nameA = `${a.nombres} ${a.apellido_paterno}`.toLowerCase();
+                                        const nameB = `${b.nombres} ${b.apellido_paterno}`.toLowerCase();
+                                        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+                                    })
+                                    .map((worker) => (
+                                        <motion.tr
+                                            key={worker.id}
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="hover:bg-white/5 transition-colors group"
+                                        >
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="h-10 w-10 rounded-full premium-gradient flex items-center justify-center text-white font-bold text-xs">
+                                                        {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-semibold text-white">{worker.nombres} {worker.apellido_paterno}</p>
+                                                        <p className="text-xs text-muted-foreground">{worker.rut}</p>
+                                                    </div>
                                                 </div>
-                                                <div>
-                                                    <p className="text-sm font-semibold text-white">{worker.nombres} {worker.apellido_paterno}</p>
-                                                    <p className="text-xs text-muted-foreground">{worker.rut}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <p className="text-xs text-white font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
+                                                <p className="text-[10px] text-muted-foreground">{worker.obra_nombre || 'Sin Obra'}</p>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <span className="text-xs px-2 py-1 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                                    {worker.cargo_nombre || 'N/A'}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="h-1.5 w-12 bg-white/10 rounded-full overflow-hidden">
+                                                        <div className="h-full bg-emerald-500 w-[75%]" />
+                                                    </div>
+                                                    <span className="text-[10px] text-emerald-400 font-medium font-bold">75%</span>
                                                 </div>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <p className="text-xs text-white font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
-                                            <p className="text-[10px] text-muted-foreground">{worker.obra_nombre || 'Sin Obra'}</p>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <span className="text-xs px-2 py-1 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
-                                                {worker.cargo_nombre || 'N/A'}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4">
-                                            <div className="flex items-center gap-2">
-                                                <div className="h-1.5 w-12 bg-white/10 rounded-full overflow-hidden">
-                                                    <div className="h-full bg-emerald-500 w-[75%]" />
+                                            </td>
+                                            <td className="px-6 py-4 text-right">
+                                                <div className="flex justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
+                                                        onClick={() => {
+                                                            setSelectedWorker(worker);
+                                                            setModalType('docs');
+                                                        }}
+                                                    >
+                                                        <FileText className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+                                                        onClick={() => {
+                                                            setSelectedWorker(worker);
+                                                            setModalType('form');
+                                                        }}
+                                                    >
+                                                        <UserPen className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        className="h-8 w-8 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-400/10"
+                                                        onClick={() => handleDelete(worker.id)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
                                                 </div>
-                                                <span className="text-[10px] text-emerald-400 font-medium font-bold">75%</span>
-                                            </div>
-                                        </td>
-                                        <td className="px-6 py-4 text-right">
-                                            <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
-                                                    onClick={() => {
-                                                        setSelectedWorker(worker);
-                                                        setModalType('docs');
-                                                    }}
-                                                >
-                                                    <FileText className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
-                                                    onClick={() => {
-                                                        setSelectedWorker(worker);
-                                                        setModalType('form');
-                                                    }}
-                                                >
-                                                    <UserPen className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    className="h-8 w-8 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-400/10"
-                                                    onClick={() => handleDelete(worker.id)}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
-                                            </div>
-                                        </td>
-                                    </motion.tr>
-                                ))
+                                            </td>
+                                        </motion.tr>
+                                    ))
                             )}
                         </tbody>
                     </table>

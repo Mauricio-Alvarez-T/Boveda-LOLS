@@ -29,7 +29,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
         setLoading(true);
         try {
             const res = await api.get<ApiResponse<Documento[]>>(`/documentos/trabajador/${trabajadorId}`);
-            setDocuments(res.data.data);
+            const data = Array.isArray(res.data.data) ? res.data.data : [];
+            setDocuments(data);
         } catch (err) {
             toast.error('Error al cargar documentos');
         } finally {
