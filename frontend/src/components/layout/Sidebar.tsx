@@ -9,7 +9,8 @@ import {
     ChevronLeft,
     ChevronRight,
     LogOut,
-    ChevronDown
+    ChevronDown,
+    Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -29,6 +30,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
         { icon: Users, label: 'Trabajadores', path: '/trabajadores' },
         { icon: CheckSquare, label: 'Asistencia', path: '/asistencia' },
         { icon: FileText, label: 'Fiscalización', path: '/fiscalizacion' },
+        { icon: Settings, label: 'Configuración', path: '/configuracion' },
     ];
 
     return (

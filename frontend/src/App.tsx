@@ -6,6 +6,7 @@ import Dashboard from './pages/Dashboard';
 import WorkersPage from './pages/Workers';
 import AttendancePage from './pages/Attendance';
 import FiscalizacionPage from './pages/Fiscalizacion';
+import SettingsPage from './pages/Settings';
 import { MainLayout } from './components/layout/MainLayout';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -45,7 +46,7 @@ const App: React.FC = () => {
           <Route path="trabajadores" element={<WorkersPage />} />
           <Route path="asistencia" element={<AttendancePage />} />
           <Route path="fiscalizacion" element={<FiscalizacionPage />} />
-          {/* Add more module routes here */}
+          <Route path="configuracion" element={<SettingsPage />} />
         </Route>
 
         <Route path="*" element={<Navigate to="/" replace />} />
