@@ -15,16 +15,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
-import { Select } from '../components/ui/Select';
 import { Input } from '../components/ui/Input';
 import api from '../services/api';
-import type { Trabajador, Obra, Asistencia, AsistenciaEstado, TipoAusencia } from '../types/entities';
+import type { Trabajador, Asistencia, AsistenciaEstado, TipoAusencia } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 
+import { useObra } from '../context/ObraContext';
+
 const AttendancePage: React.FC = () => {
-    const [obras, setObras] = useState<{ value: number; label: string }[]>([]);
-    const [selectedObra, setSelectedObra] = useState<number>(0);
+    const { selectedObra } = useObra();
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -33,15 +33,6 @@ const AttendancePage: React.FC = () => {
     const [absenceTypes, setAbsenceTypes] = useState<TipoAusencia[]>([]);
 
     useEffect(() => {
-        const fetchObras = async () => {
-            try {
-                const res = await api.get<ApiResponse<Obra[]>>('/obras?activa=true');
-                setObras(res.data.data.map(o => ({ value: o.id, label: o.nombre })));
-                if (res.data.data.length > 0) setSelectedObra(res.data.data[0].id);
-            } catch (err) {
-                toast.error('Error al cargar obras');
-            }
-        };
         const fetchAbsenceTypes = async () => {
             try {
                 const res = await api.get<ApiResponse<TipoAusencia[]>>('/tipos-ausencia?activo=true');
@@ -50,7 +41,6 @@ const AttendancePage: React.FC = () => {
                 console.error('Error absence types');
             }
         };
-        fetchObras();
         fetchAbsenceTypes();
     }, []);
 
@@ -59,12 +49,12 @@ const AttendancePage: React.FC = () => {
         setLoading(true);
         try {
             // 1. Get workers for this obra
-            const workersRes = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra}`);
+            const workersRes = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}`);
             const workerList = workersRes.data.data;
             setWorkers(workerList);
 
             // 2. Get existing attendance for this date/obra
-            const attendanceRes = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra}?fecha=${date}`);
+            const attendanceRes = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`);
             const existing = attendanceRes.data.data;
 
             // 3. Merge: Default to 'Presente' if no record exists
@@ -76,7 +66,7 @@ const AttendancePage: React.FC = () => {
                 } else {
                     newAttendance[w.id] = {
                         trabajador_id: w.id,
-                        obra_id: selectedObra,
+                        obra_id: selectedObra.id,
                         fecha: date,
                         estado: 'Presente',
                         tipo_ausencia_id: null,
@@ -104,10 +94,11 @@ const AttendancePage: React.FC = () => {
     };
 
     const handleSave = async () => {
+        if (!selectedObra) return;
         setSaving(true);
         try {
             const payload = Object.values(attendance);
-            await api.post(`/asistencias/bulk/${selectedObra}`, { registros: payload });
+            await api.post(`/asistencias/bulk/${selectedObra.id}`, { registros: payload });
             toast.success('Asistencia guardada correctamente');
             fetchAttendanceInfo();
         } catch (err) {
@@ -124,6 +115,20 @@ const AttendancePage: React.FC = () => {
         'Licencia': { icon: Stethoscope, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
     };
 
+    if (!selectedObra) {
+        return (
+            <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
+                <div className="h-16 w-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                    <CheckSquare className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Selecciona una Obra</h2>
+                <p className="text-muted-foreground mt-2 max-w-md">
+                    Para gestionar la asistencia, primero debes seleccionar una obra en el menú superior.
+                </p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header Section */}
@@ -134,7 +139,7 @@ const AttendancePage: React.FC = () => {
                         Control de Asistencia
                     </h1>
                     <p className="text-muted-foreground mt-1">
-                        Registra la asistencia diaria de los trabajadores en terreno.
+                        Registrando asistencia para <span className="text-white font-semibold">{selectedObra.nombre}</span>
                     </p>
                 </div>
                 <Button
@@ -149,14 +154,6 @@ const AttendancePage: React.FC = () => {
 
             {/* Control Bar */}
             <div className="premium-card p-4 flex flex-col md:flex-row gap-4 items-center">
-                <div className="flex-1 w-full md:w-auto">
-                    <Select
-                        label="Seleccionar Obra"
-                        options={obras}
-                        value={selectedObra}
-                        onChange={(e) => setSelectedObra(Number(e.target.value))}
-                    />
-                </div>
                 <div className="flex-1 w-full md:w-auto">
                     <Input
                         label="Fecha"

@@ -12,16 +12,16 @@ import {
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
-import { Select } from '../components/ui/Select';
 import { Input } from '../components/ui/Input';
 import api from '../services/api';
-import type { Obra, Asistencia } from '../types/entities';
+import type { Asistencia } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 
+import { useObra } from '../context/ObraContext';
+
 const FiscalizacionPage: React.FC = () => {
-    const [obras, setObras] = useState<{ value: number; label: string }[]>([]);
-    const [selectedObra, setSelectedObra] = useState<number>(0);
+    const { selectedObra } = useObra();
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [email, setEmail] = useState('');
 
@@ -30,24 +30,11 @@ const FiscalizacionPage: React.FC = () => {
     const [sending, setSending] = useState(false);
     const [report, setReport] = useState<Asistencia[]>([]);
 
-    useEffect(() => {
-        const fetchObras = async () => {
-            try {
-                const res = await api.get<ApiResponse<Obra[]>>('/obras?activa=true');
-                setObras(res.data.data.map(o => ({ value: o.id, label: o.nombre })));
-                if (res.data.data.length > 0) setSelectedObra(res.data.data[0].id);
-            } catch (err) {
-                toast.error('Error al cargar obras');
-            }
-        };
-        fetchObras();
-    }, []);
-
     const fetchStatus = async () => {
         if (!selectedObra) return;
         setLoading(true);
         try {
-            const res = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra}?fecha=${date}`);
+            const res = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`);
             setReport(res.data.data);
         } catch (err) {
             toast.error('Error al cargar reporte de asistencia');
@@ -61,15 +48,16 @@ const FiscalizacionPage: React.FC = () => {
     }, [selectedObra, date]);
 
     const handleExport = async () => {
+        if (!selectedObra) return;
         setExporting(true);
         try {
-            const response = await api.get(`/fiscalizacion/exportar-obra?obra_id=${selectedObra}&fecha=${date}`, {
+            const response = await api.get(`/fiscalizacion/exportar-obra?obra_id=${selectedObra.id}&fecha=${date}`, {
                 responseType: 'blob',
             });
             const url = window.URL.createObjectURL(new Blob([response.data]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Fiscalizacion-Obra-${selectedObra}-${date}.zip`);
+            link.setAttribute('download', `Fiscalizacion-Obra-${selectedObra.id}-${date}.zip`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -82,6 +70,7 @@ const FiscalizacionPage: React.FC = () => {
     };
 
     const handleSendEmail = async () => {
+        if (!selectedObra) return;
         if (!email) {
             toast.error('Especifica un correo destinatario');
             return;
@@ -89,7 +78,7 @@ const FiscalizacionPage: React.FC = () => {
         setSending(true);
         try {
             await api.post('/fiscalizacion/enviar-obra', {
-                obra_id: selectedObra,
+                obra_id: selectedObra.id,
                 fecha: date,
                 email: email
             });
@@ -103,6 +92,20 @@ const FiscalizacionPage: React.FC = () => {
 
     const presentCount = report.filter(r => r.estado === 'Presente' || r.estado === 'Atraso').length;
 
+    if (!selectedObra) {
+        return (
+            <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
+                <div className="h-16 w-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
+                    <Archive className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h2 className="text-xl font-bold text-white">Selecciona una Obra</h2>
+                <p className="text-muted-foreground mt-2 max-w-md">
+                    Para gestionar fiscalizaciones, primero debes seleccionar una obra en el menú superior.
+                </p>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
             {/* Header */}
@@ -113,7 +116,7 @@ const FiscalizacionPage: React.FC = () => {
                         Fiscalización y Exportación
                     </h1>
                     <p className="text-muted-foreground mt-1">
-                        Genera paquetes de cumplimiento para presentar a fiscalizadores externos.
+                        Proyecto activo: <span className="text-white font-semibold">{selectedObra.nombre}</span>
                     </p>
                 </div>
                 <div className="h-14 w-14 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center">
@@ -131,12 +134,6 @@ const FiscalizacionPage: React.FC = () => {
                         </h3>
 
                         <div className="space-y-4">
-                            <Select
-                                label="Obra / Proyecto"
-                                options={obras}
-                                value={selectedObra}
-                                onChange={(e) => setSelectedObra(Number(e.target.value))}
-                            />
                             <Input
                                 label="Fecha de Auditoría"
                                 type="date"
