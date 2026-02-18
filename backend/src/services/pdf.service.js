@@ -1,7 +1,7 @@
+const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+const sharp = require('sharp');
 const fs = require('fs');
 const path = require('path');
-const { PDFDocument } = require('pdf-lib');
-const sharp = require('sharp');
 
 const pdfService = {
     /**
@@ -24,6 +24,11 @@ const pdfService = {
         if (mimetype === 'application/pdf') {
             // Already PDF, just rename
             fs.renameSync(filePath, finalPath);
+        } else if (mimetype === 'text/plain') {
+            // Text → PDF conversion
+            await this.textToPdf(filePath, finalPath);
+            // Remove original text file
+            if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
         } else {
             // Image → PDF conversion
             await this.imageToPdf(filePath, finalPath);
@@ -66,6 +71,75 @@ const pdfService = {
             width: image.width,
             height: image.height
         });
+
+        const pdfBytes = await pdfDoc.save();
+        fs.writeFileSync(outputPath, pdfBytes);
+    },
+
+    /**
+     * Converts a text file to PDF
+     */
+    async textToPdf(textPath, outputPath) {
+        const { PDFDocument, StandardFonts, rgb } = require('pdf-lib');
+        const fs = require('fs');
+
+        const pdfDoc = await PDFDocument.create();
+        const font = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+        const fontSize = 12;
+        const margin = 50;
+        const content = fs.readFileSync(textPath, 'utf-8');
+
+        let page = pdfDoc.addPage();
+        let { width, height } = page.getSize();
+        let y = height - margin;
+        const maxWidth = width - (margin * 2);
+
+        // Split text into paragraphs (handling various line endings)
+        const paragraphs = content.split(/\r?\n/);
+
+        for (const paragraph of paragraphs) {
+            // Check if paragraph is empty (just a newline)
+            if (paragraph.trim() === '') {
+                y -= fontSize + 2;
+                if (y < margin) {
+                    page = pdfDoc.addPage();
+                    y = height - margin;
+                }
+                continue;
+            }
+
+            // Word wrap logic
+            const words = paragraph.split(' ');
+            let line = '';
+
+            for (const word of words) {
+                const testLine = line + word + ' ';
+                const textWidth = font.widthOfTextAtSize(testLine, fontSize);
+
+                if (textWidth > maxWidth) {
+                    // Draw current line and move to next
+                    if (y < margin) {
+                        page = pdfDoc.addPage();
+                        y = height - margin;
+                    }
+                    page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
+                    y -= fontSize + 2;
+                    line = word + ' ';
+                } else {
+                    line = testLine;
+                }
+            }
+
+            // Draw remaining part of the paragraph
+            if (line.length > 0) {
+                if (y < margin) {
+                    page = pdfDoc.addPage();
+                    y = height - margin;
+                }
+                page.drawText(line, { x: margin, y, size: fontSize, font, color: rgb(0, 0, 0) });
+                y -= fontSize + 2;
+            }
+        }
 
         const pdfBytes = await pdfDoc.save();
         fs.writeFileSync(outputPath, pdfBytes);
