@@ -27,6 +27,18 @@ router.get('/kpi/faltantes', auth, checkPermission('documentos', 'puede_ver'), a
     } catch (err) { next(err); }
 });
 
+// Document completion percentage per worker
+router.post('/kpi/completitud', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+    try {
+        const { trabajador_ids } = req.body;
+        if (!trabajador_ids || !Array.isArray(trabajador_ids)) {
+            return res.status(400).json({ error: 'trabajador_ids es requerido (array de IDs)' });
+        }
+        const result = await documentoService.getCompletionByTrabajadores(trabajador_ids);
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
 // Upload
 router.post('/upload/:trabajadorId', auth, checkPermission('documentos', 'puede_crear'), upload.single('archivo'), async (req, res, next) => {
     try {

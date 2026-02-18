@@ -95,6 +95,46 @@ const documentoService = {
        ORDER BY t.apellido_paterno, td.nombre`
         );
         return rows;
+    },
+
+    async getCompletionByTrabajadores(trabajadorIds) {
+        if (!trabajadorIds || trabajadorIds.length === 0) return {};
+
+        // Count total mandatory document types
+        const [totalRows] = await db.query(
+            'SELECT COUNT(*) as total FROM tipos_documento WHERE obligatorio = TRUE AND activo = TRUE'
+        );
+        const totalObligatorios = totalRows[0].total;
+
+        if (totalObligatorios === 0) {
+            // No mandatory docs defined; everyone is at 100%
+            const result = {};
+            trabajadorIds.forEach(id => { result[id] = 100; });
+            return result;
+        }
+
+        // Count how many mandatory docs each worker has uploaded
+        const placeholders = trabajadorIds.map(() => '?').join(',');
+        const [rows] = await db.query(
+            `SELECT d.trabajador_id, COUNT(DISTINCT d.tipo_documento_id) as uploaded
+             FROM documentos d
+             JOIN tipos_documento td ON d.tipo_documento_id = td.id
+             WHERE d.trabajador_id IN (${placeholders})
+               AND d.activo = TRUE
+               AND td.obligatorio = TRUE
+               AND td.activo = TRUE
+             GROUP BY d.trabajador_id`,
+            trabajadorIds
+        );
+
+        const result = {};
+        // Default everyone to 0
+        trabajadorIds.forEach(id => { result[id] = 0; });
+        // Set actual percentages
+        rows.forEach(row => {
+            result[row.trabajador_id] = Math.round((row.uploaded / totalObligatorios) * 100);
+        });
+        return result;
     }
 };
 
