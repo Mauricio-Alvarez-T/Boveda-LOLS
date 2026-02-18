@@ -26,7 +26,7 @@ const createCrudService = (tableName, options = {}) => {
 
             // Search
             if (q && searchFields.length > 0) {
-                const searchConditions = searchFields.map(f => `${f} LIKE ?`).join(' OR ');
+                const searchConditions = searchFields.map(f => `${tableName}.${f} LIKE ?`).join(' OR ');
                 where.push(`(${searchConditions})`);
                 searchFields.forEach(() => params.push(`%${q}%`));
             }

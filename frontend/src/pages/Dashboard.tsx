@@ -9,7 +9,8 @@ import {
     Calendar,
     ArrowRight,
     ShieldCheck,
-    Loader2
+    Loader2,
+    CheckCircle2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
@@ -26,6 +27,7 @@ import {
 } from 'recharts';
 import { toast } from 'sonner';
 
+import { Button } from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';

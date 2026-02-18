@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { User, AuthResponse } from '../types';
-import api from '../services/api';
+import type { User, AuthResponse } from '../types';
 
 interface AuthContextType {
     user: User | null;
@@ -20,14 +19,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        const savedToken = localStorage.getItem('sgdl_token');
-        const savedUser = localStorage.getItem('sgdl_user');
+        try {
+            const savedToken = localStorage.getItem('sgdl_token');
+            const savedUser = localStorage.getItem('sgdl_user');
 
-        if (savedToken && savedUser) {
-            setToken(savedToken);
-            setUser(JSON.parse(savedUser));
+            if (savedToken && savedUser && savedUser !== 'undefined') {
+                setToken(savedToken);
+                setUser(JSON.parse(savedUser));
+            }
+        } catch (error) {
+            console.error('Error loading auth state:', error);
+            localStorage.removeItem('sgdl_token');
+            localStorage.removeItem('sgdl_user');
+        } finally {
+            setIsLoading(false);
         }
-        setIsLoading(false);
     }, []);
 
     const login = (data: AuthResponse) => {

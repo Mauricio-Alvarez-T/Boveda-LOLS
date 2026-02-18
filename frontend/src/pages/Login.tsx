@@ -11,11 +11,11 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
-import { AuthResponse } from '../types';
+import type { AuthResponse } from '../types';
 
 const loginSchema = z.object({
     email: z.string().email({ message: "Email inválido" }),
-    password: z.string().min(6, { message: "La contraseña debe tener al menos 6 caracteres" }),
+    password: z.string().min(5, { message: "La contraseña debe tener al menos 5 caracteres" }),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
