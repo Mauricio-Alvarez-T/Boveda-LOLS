@@ -12,24 +12,25 @@ const asistenciaService = {
             await conn.beginTransaction();
 
             for (const reg of registros) {
+                // Normalizar fecha para evitar problemas con strings ISO que incluyen hora
+                const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
+
                 const [existing] = await conn.query(
                     'SELECT id FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
-                    [reg.trabajador_id, obraId, reg.fecha]
+                    [reg.trabajador_id, obraId, fechaNormalizada]
                 );
 
                 if (existing.length > 0) {
-                    // Update existing
                     await conn.query(
                         'UPDATE asistencias SET estado = ?, tipo_ausencia_id = ?, observacion = ? WHERE id = ?',
                         [reg.estado, reg.tipo_ausencia_id || null, reg.observacion || null, existing[0].id]
                     );
                     results.push({ trabajador_id: reg.trabajador_id, action: 'updated', id: existing[0].id });
                 } else {
-                    // Create new
                     const [result] = await conn.query(
                         `INSERT INTO asistencias (trabajador_id, obra_id, fecha, estado, tipo_ausencia_id, observacion, registrado_por)
              VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                        [reg.trabajador_id, obraId, reg.fecha, reg.estado, reg.tipo_ausencia_id || null, reg.observacion || null, registradoPor]
+                        [reg.trabajador_id, obraId, fechaNormalizada, reg.estado, reg.tipo_ausencia_id || null, reg.observacion || null, registradoPor]
                     );
                     results.push({ trabajador_id: reg.trabajador_id, action: 'created', id: result.insertId });
                 }
