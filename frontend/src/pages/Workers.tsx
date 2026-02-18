@@ -30,6 +30,9 @@ const WorkersPage: React.FC = () => {
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
 
+    // Document completion data: { [workerId]: percentage }
+    const [completion, setCompletion] = useState<Record<number, number>>({});
+
     // Modal states
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
@@ -38,12 +41,25 @@ const WorkersPage: React.FC = () => {
     // Sort & Filter states
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [showFilters, setShowFilters] = useState(false);
+    const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
 
     const fetchWorkers = async () => {
         setLoading(true);
         try {
             const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}`);
-            setWorkers(response.data.data);
+            const data = response.data.data;
+            setWorkers(data);
+
+            // Fetch completion percentages for all workers
+            if (data.length > 0) {
+                const ids = data.map(w => w.id);
+                try {
+                    const compRes = await api.post('/documentos/kpi/completitud', { trabajador_ids: ids });
+                    setCompletion(compRes.data);
+                } catch {
+                    // Silently fail — completion will show 0%
+                }
+            }
         } catch (err) {
             toast.error('Error al cargar trabajadores');
         } finally {
@@ -68,6 +84,28 @@ const WorkersPage: React.FC = () => {
         }, 500);
         return () => clearTimeout(timer);
     }, [search]);
+
+    // Helper function for completion color
+    const getCompletionColor = (pct: number) => {
+        if (pct >= 80) return { bar: 'bg-emerald-500', text: 'text-emerald-400' };
+        if (pct >= 50) return { bar: 'bg-amber-500', text: 'text-amber-400' };
+        return { bar: 'bg-rose-500', text: 'text-rose-400' };
+    };
+
+    // Filtered and sorted workers
+    const filteredWorkers = [...workers]
+        .filter(worker => {
+            if (filterStatus === 'all') return true;
+            const pct = completion[worker.id] ?? 0;
+            if (filterStatus === 'complete') return pct >= 80;
+            if (filterStatus === 'incomplete') return pct < 80;
+            return true;
+        })
+        .sort((a, b) => {
+            const nameA = `${a.nombres} ${a.apellido_paterno}`.toLowerCase();
+            const nameB = `${b.nombres} ${b.apellido_paterno}`.toLowerCase();
+            return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+        });
 
     return (
         <div className="space-y-8 animate-in fade-in duration-500">
@@ -110,7 +148,7 @@ const WorkersPage: React.FC = () => {
                         leftIcon={<Filter className="h-4 w-4" />}
                         onClick={() => setShowFilters(!showFilters)}
                     >
-                        Filtros
+                        {filterStatus !== 'all' ? 'Filtros (1)' : 'Filtros'}
                     </Button>
                     <Button
                         variant="glass"
@@ -131,13 +169,16 @@ const WorkersPage: React.FC = () => {
                 >
                     <div className="space-y-2">
                         <label className="text-xs text-muted-foreground">Estado Documental</label>
-                        <select className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-primary">
+                        <select
+                            value={filterStatus}
+                            onChange={(e) => setFilterStatus(e.target.value as any)}
+                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                        >
                             <option value="all" className="bg-slate-900">Todos</option>
-                            <option value="complete" className="bg-slate-900">Completos</option>
-                            <option value="incomplete" className="bg-slate-900">Incompletos</option>
+                            <option value="complete" className="bg-slate-900">Completos (≥80%)</option>
+                            <option value="incomplete" className="bg-slate-900">Incompletos (&lt;80%)</option>
                         </select>
                     </div>
-                    {/* Add more filters here as needed */}
                 </motion.div>
             )}
 
@@ -162,20 +203,18 @@ const WorkersPage: React.FC = () => {
                                         <p className="text-muted-foreground">Cargando trabajadores...</p>
                                     </td>
                                 </tr>
-                            ) : workers.length === 0 ? (
+                            ) : filteredWorkers.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-20 text-center text-muted-foreground">
                                         No se encontraron trabajadores.
                                     </td>
                                 </tr>
                             ) : (
-                                [...workers]
-                                    .sort((a, b) => {
-                                        const nameA = `${a.nombres} ${a.apellido_paterno}`.toLowerCase();
-                                        const nameB = `${b.nombres} ${b.apellido_paterno}`.toLowerCase();
-                                        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-                                    })
-                                    .map((worker) => (
+                                filteredWorkers.map((worker) => {
+                                    const pct = completion[worker.id] ?? 0;
+                                    const colors = getCompletionColor(pct);
+
+                                    return (
                                         <motion.tr
                                             key={worker.id}
                                             initial={{ opacity: 0 }}
@@ -204,10 +243,13 @@ const WorkersPage: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-12 bg-white/10 rounded-full overflow-hidden">
-                                                        <div className="h-full bg-emerald-500 w-[75%]" />
+                                                    <div className="h-1.5 w-16 bg-white/10 rounded-full overflow-hidden">
+                                                        <div
+                                                            className={`h-full ${colors.bar} transition-all duration-500`}
+                                                            style={{ width: `${pct}%` }}
+                                                        />
                                                     </div>
-                                                    <span className="text-[10px] text-emerald-400 font-medium font-bold">75%</span>
+                                                    <span className={`text-[10px] ${colors.text} font-bold`}>{pct}%</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -245,7 +287,8 @@ const WorkersPage: React.FC = () => {
                                                 </div>
                                             </td>
                                         </motion.tr>
-                                    ))
+                                    );
+                                })
                             )}
                         </tbody>
                     </table>
@@ -299,8 +342,8 @@ const WorkersPage: React.FC = () => {
                                 trabajadorId={selectedWorker.id}
                                 onCancel={() => setIsUploading(false)}
                                 onSuccess={() => {
-                                    setIsUploading(true); // Toggle to refresh DocumentList (forcing re-render)
                                     setIsUploading(false);
+                                    fetchWorkers(); // Refresh completion data
                                 }}
                             />
                         ) : (

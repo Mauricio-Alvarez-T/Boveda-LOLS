@@ -13,7 +13,7 @@ import type { TipoDocumento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 
 const uploadSchema = z.object({
-    tipo_documento_id: z.number().min(1, 'Selecciona un tipo de documento'),
+    tipo_documento_id: z.coerce.number().min(1, 'Selecciona un tipo de documento'),
     fecha_vencimiento: z.string().optional(),
 });
 
