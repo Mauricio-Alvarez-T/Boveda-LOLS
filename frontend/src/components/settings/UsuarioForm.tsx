@@ -118,9 +118,9 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-muted-foreground ml-1">Rol</label>
                     <select {...register('rol_id')} className={selectClass}>
-                        <option value={0} className="bg-slate-900">Seleccionar rol...</option>
+                        <option value={0} className="bg-white text-[#1D1D1F]">Seleccionar rol...</option>
                         {roles.map(r => (
-                            <option key={r.id} value={r.id} className="bg-slate-900">{r.nombre}</option>
+                            <option key={r.id} value={r.id} className="bg-white text-[#1D1D1F]">{r.nombre}</option>
                         ))}
                     </select>
                     {errors.rol_id && <p className="text-xs text-destructive font-medium ml-1">{errors.rol_id.message}</p>}
@@ -128,9 +128,9 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-muted-foreground ml-1">Obra Asignada</label>
                     <select {...register('obra_id')} className={selectClass}>
-                        <option value={0} className="bg-slate-900">Oficina Central</option>
+                        <option value={0} className="bg-white text-[#1D1D1F]">Oficina Central</option>
                         {obras.map(o => (
-                            <option key={o.id} value={o.id} className="bg-slate-900">{o.nombre}</option>
+                            <option key={o.id} value={o.id} className="bg-white text-[#1D1D1F]">{o.nombre}</option>
                         ))}
                     </select>
                 </div>

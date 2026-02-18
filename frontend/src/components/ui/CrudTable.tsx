@@ -72,7 +72,6 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                 limit: '15'
             });
 
-            // Add extra params
             Object.entries(queryParams).forEach(([k, v]) => {
                 if (v !== undefined) params.append(k, String(v));
             });
@@ -130,7 +129,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                         onChange={(e) => { setSearch(e.target.value); setPage(1); }}
                         className="pl-10 h-9 text-xs"
                     />
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A1A1A6]" />
                 </div>
                 {canCreate && (
                     <Button size="sm" onClick={openCreate} leftIcon={<Plus className="h-4 w-4" />}>
@@ -140,34 +139,34 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             </div>
 
             {/* Table */}
-            <div className="premium-card p-0 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-white/5 border-b border-white/10 uppercase text-[10px] tracking-widest text-muted-foreground">
+                            <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-[10px] tracking-widest text-[#6E6E73]">
                                 {columns.map(col => (
-                                    <th key={String(col.key)} className={cn("px-5 py-3 font-semibold", col.className)}>
+                                    <th key={String(col.key)} className={cn("px-5 py-3.5 font-semibold", col.className)}>
                                         {col.label}
                                     </th>
                                 ))}
                                 {(canEdit || canDelete) && (
-                                    <th className="px-5 py-3 font-semibold text-right">Acciones</th>
+                                    <th className="px-5 py-3.5 font-semibold text-right">Acciones</th>
                                 )}
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-[#E8E8ED]">
                             {loading ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">
-                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-brand-primary mb-2" />
-                                        <p className="text-xs text-muted-foreground">Cargando...</p>
+                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#0071E3] mb-2" />
+                                        <p className="text-xs text-[#6E6E73]">Cargando...</p>
                                     </td>
                                 </tr>
                             ) : rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">
-                                        <AlertCircle className="h-6 w-6 mx-auto text-muted-foreground mb-2" />
-                                        <p className="text-xs text-muted-foreground">No se encontraron registros.</p>
+                                        <AlertCircle className="h-5 w-5 mx-auto text-[#A1A1A6] mb-2" />
+                                        <p className="text-xs text-[#6E6E73]">No se encontraron registros.</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -176,10 +175,10 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         key={row.id}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        className="hover:bg-white/5 transition-colors"
+                                        className="hover:bg-[#F5F5F7]/50 transition-colors"
                                     >
                                         {columns.map(col => (
-                                            <td key={String(col.key)} className={cn("px-5 py-3 text-sm text-white", col.className)}>
+                                            <td key={String(col.key)} className={cn("px-5 py-3.5 text-sm text-[#1D1D1F]", col.className)}>
                                                 {col.render
                                                     ? col.render(getNestedValue(row, String(col.key)), row)
                                                     : String(getNestedValue(row, String(col.key)) ?? '—')
@@ -187,12 +186,12 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                             </td>
                                         ))}
                                         {(canEdit || canDelete) && (
-                                            <td className="px-5 py-3 text-right">
+                                            <td className="px-5 py-3.5 text-right">
                                                 <div className="flex justify-end gap-1">
                                                     {canEdit && (
                                                         <Button
                                                             variant="ghost" size="icon"
-                                                            className="h-7 w-7 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
+                                                            className="h-7 w-7 rounded-full text-[#0071E3] hover:bg-[#0071E3]/8"
                                                             onClick={() => openEdit(row)}
                                                         >
                                                             <Pencil className="h-3.5 w-3.5" />
@@ -201,7 +200,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                                     {canDelete && (
                                                         <Button
                                                             variant="ghost" size="icon"
-                                                            className="h-7 w-7 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-400/10"
+                                                            className="h-7 w-7 rounded-full text-[#FF3B30] hover:bg-[#FF3B30]/8"
                                                             onClick={() => handleDelete(row.id)}
                                                         >
                                                             <Trash2 className="h-3.5 w-3.5" />
@@ -220,23 +219,23 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
 
             {/* Pagination */}
             {pagination.pages > 1 && (
-                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <div className="flex items-center justify-between text-xs text-[#6E6E73]">
                     <span>{pagination.total} registro{pagination.total !== 1 ? 's' : ''}</span>
                     <div className="flex items-center gap-2">
                         <Button
                             variant="ghost" size="icon"
-                            className="h-7 w-7"
+                            className="h-7 w-7 rounded-full"
                             disabled={page <= 1}
                             onClick={() => setPage(p => p - 1)}
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-white font-medium">
+                        <span className="text-[#1D1D1F] font-medium">
                             {page} / {pagination.pages}
                         </span>
                         <Button
                             variant="ghost" size="icon"
-                            className="h-7 w-7"
+                            className="h-7 w-7 rounded-full"
                             disabled={page >= pagination.pages}
                             onClick={() => setPage(p => p + 1)}
                         >

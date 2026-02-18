@@ -8,24 +8,24 @@ export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
 
     return (
-        <div className="flex min-h-screen bg-slate-950">
+        <div className="flex min-h-screen bg-[#F5F5F7]">
             {/* Sidebar */}
             <Sidebar isCollapsed={isCollapsed} setIsCollapsed={setIsCollapsed} />
 
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0">
                 {/* Top Navbar */}
-                <header className="h-20 border-b border-white/5 bg-slate-950/50 backdrop-blur-xl flex items-center justify-between px-8 sticky top-0 z-30">
+                <header className="h-16 border-b border-[#D2D2D7] bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 sticky top-0 z-30">
                     <div className="flex-1 max-w-xl">
                         {/* Optional Global Search Placeholder */}
                     </div>
 
-                    <div className="flex items-center gap-4">
-                        <button className="h-10 w-10 flex items-center justify-center rounded-xl hover:bg-white/5 text-muted-foreground relative">
+                    <div className="flex items-center gap-3">
+                        <button className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-[#F5F5F7] text-[#6E6E73] relative transition-colors">
                             <Bell className="h-5 w-5" />
-                            <div className="absolute top-2 right-2 h-2 w-2 bg-rose-500 rounded-full border-2 border-slate-950" />
+                            <div className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#FF3B30] rounded-full border-2 border-white" />
                         </button>
-                        <div className="h-8 w-px bg-white/10 mx-2" />
+                        <div className="h-6 w-px bg-[#D2D2D7] mx-1" />
                         <ObraSelector />
                     </div>
                 </header>
@@ -38,4 +38,3 @@ export const MainLayout: React.FC = () => {
         </div>
     );
 };
-

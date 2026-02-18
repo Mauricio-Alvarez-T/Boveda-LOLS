@@ -39,7 +39,7 @@ export const Modal: React.FC<ModalProps> = ({
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm"
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
                     />
 
                     {/* Modal Content */}
@@ -48,15 +48,15 @@ export const Modal: React.FC<ModalProps> = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className={cn(
-                            "relative w-full glass-morphism rounded-3xl overflow-hidden flex flex-col max-h-[90vh]",
+                            "relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]",
                             sizes[size]
                         )}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between p-6 border-b border-white/10">
-                            <h3 className="text-xl font-bold text-white">{title}</h3>
-                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full">
-                                <X className="h-5 w-5" />
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-[#D2D2D7]">
+                            <h3 className="text-lg font-semibold text-[#1D1D1F]">{title}</h3>
+                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F]">
+                                <X className="h-4 w-4" />
                             </Button>
                         </div>
 
@@ -67,7 +67,7 @@ export const Modal: React.FC<ModalProps> = ({
 
                         {/* Footer */}
                         {footer && (
-                            <div className="p-6 border-t border-white/10 bg-white/5 flex justify-end gap-3">
+                            <div className="px-6 py-4 border-t border-[#D2D2D7] bg-[#F5F5F7] flex justify-end gap-3">
                                 {footer}
                             </div>
                         )}

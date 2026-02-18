@@ -95,11 +95,11 @@ const FiscalizacionPage: React.FC = () => {
     if (!selectedObra) {
         return (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
-                <div className="h-16 w-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                    <Archive className="h-8 w-8 text-muted-foreground" />
+                <div className="h-14 w-14 bg-[#F5F5F7] rounded-full flex items-center justify-center mb-4">
+                    <Archive className="h-7 w-7 text-[#6E6E73]" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Selecciona una Obra</h2>
-                <p className="text-muted-foreground mt-2 max-w-md">
+                <h2 className="text-lg font-semibold text-[#1D1D1F]">Selecciona una Obra</h2>
+                <p className="text-[#6E6E73] mt-2 max-w-md text-sm">
                     Para gestionar fiscalizaciones, primero debes seleccionar una obra en el menú superior.
                 </p>
             </div>
@@ -107,29 +107,29 @@ const FiscalizacionPage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <Archive className="h-8 w-8 text-brand-primary" />
+                    <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
+                        <Archive className="h-7 w-7 text-[#0071E3]" />
                         Fiscalización y Exportación
                     </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Proyecto activo: <span className="text-white font-semibold">{selectedObra.nombre}</span>
+                    <p className="text-[#6E6E73] mt-1 text-sm">
+                        Proyecto activo: <span className="text-[#1D1D1F] font-semibold">{selectedObra.nombre}</span>
                     </p>
                 </div>
-                <div className="h-14 w-14 rounded-2xl bg-brand-primary/10 border border-brand-primary/20 flex items-center justify-center">
-                    <ShieldCheck className="h-8 w-8 text-brand-primary" />
+                <div className="h-12 w-12 rounded-2xl bg-[#0071E3]/8 flex items-center justify-center">
+                    <ShieldCheck className="h-6 w-6 text-[#0071E3]" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Configuration Card */}
-                <div className="lg:col-span-1 space-y-6">
-                    <div className="premium-card p-6 space-y-6">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <Search className="h-5 w-5 text-brand-primary" />
+                <div className="lg:col-span-1 space-y-5">
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6 space-y-5">
+                        <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2">
+                            <Search className="h-4 w-4 text-[#0071E3]" />
                             Configurar Paquete
                         </h3>
 
@@ -142,17 +142,17 @@ const FiscalizacionPage: React.FC = () => {
                             />
                         </div>
 
-                        <div className="p-4 rounded-xl bg-white/5 border border-white/5 space-y-3">
+                        <div className="p-4 rounded-xl bg-[#F5F5F7] space-y-3">
                             <div className="flex justify-between items-center text-xs">
-                                <span className="text-muted-foreground">Trabajadores en nómina:</span>
-                                <span className="text-white font-bold">{report.length}</span>
+                                <span className="text-[#6E6E73]">Trabajadores en nómina:</span>
+                                <span className="text-[#1D1D1F] font-semibold">{report.length}</span>
                             </div>
                             <div className="flex justify-between items-center text-xs">
-                                <span className="text-muted-foreground">Presentes para exportar:</span>
-                                <span className="text-emerald-400 font-bold">{presentCount}</span>
+                                <span className="text-[#6E6E73]">Presentes para exportar:</span>
+                                <span className="text-[#34C759] font-semibold">{presentCount}</span>
                             </div>
-                            <div className="h-px bg-white/10" />
-                            <p className="text-[10px] text-muted-foreground italic leading-relaxed">
+                            <div className="h-px bg-[#D2D2D7]" />
+                            <p className="text-[10px] text-[#A1A1A6] italic leading-relaxed">
                                 * El ZIP incluirá automáticamente los documentos vigentes de todos los trabajadores marcados como 'Presente' o 'Atraso' en la fecha seleccionada.
                             </p>
                         </div>
@@ -163,15 +163,15 @@ const FiscalizacionPage: React.FC = () => {
                             isLoading={exporting}
                             disabled={loading || presentCount === 0}
                             variant="primary"
-                            leftIcon={<Download className="h-5 w-5" />}
+                            leftIcon={<Download className="h-4 w-4" />}
                         >
                             Descargar ZIP
                         </Button>
                     </div>
 
-                    <div className="premium-card p-6 space-y-6 border-brand-secondary/30">
-                        <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                            <Mail className="h-5 w-5 text-brand-secondary" />
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6 space-y-5">
+                        <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2">
+                            <Mail className="h-4 w-4 text-[#5856D6]" />
                             Enviar por Correo
                         </h3>
                         <Input
@@ -181,11 +181,12 @@ const FiscalizacionPage: React.FC = () => {
                             onChange={(e) => setEmail(e.target.value)}
                         />
                         <Button
-                            className="w-full bg-brand-secondary hover:bg-brand-secondary/80 text-white"
+                            className="w-full"
+                            variant="secondary"
                             onClick={handleSendEmail}
                             isLoading={sending}
                             disabled={loading || presentCount === 0 || !email}
-                            leftIcon={<Mail className="h-5 w-5" />}
+                            leftIcon={<Mail className="h-4 w-4" />}
                         >
                             Enviar Paquete
                         </Button>
@@ -194,53 +195,53 @@ const FiscalizacionPage: React.FC = () => {
 
                 {/* Status Breakdown */}
                 <div className="lg:col-span-2">
-                    <div className="premium-card p-0 overflow-hidden min-h-[400px]">
-                        <div className="p-6 border-b border-white/5 flex items-center justify-between">
-                            <h3 className="text-white font-bold">Estado de los Trabajadores ({date})</h3>
-                            {loading && <Loader2 className="h-5 w-5 animate-spin text-brand-primary" />}
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[400px]">
+                        <div className="px-6 py-5 border-b border-[#D2D2D7] flex items-center justify-between">
+                            <h3 className="text-[#1D1D1F] font-semibold">Estado de los Trabajadores ({date})</h3>
+                            {loading && <Loader2 className="h-5 w-5 animate-spin text-[#0071E3]" />}
                         </div>
 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-white/5 uppercase text-[10px] tracking-widest text-muted-foreground">
-                                        <th className="px-6 py-4 font-semibold">Trabajador</th>
-                                        <th className="px-6 py-4 font-semibold">Estado</th>
-                                        <th className="px-6 py-4 font-semibold">Inclusión en ZIP</th>
+                                    <tr className="bg-[#F5F5F7] uppercase text-[10px] tracking-widest text-[#6E6E73]">
+                                        <th className="px-6 py-3.5 font-semibold">Trabajador</th>
+                                        <th className="px-6 py-3.5 font-semibold">Estado</th>
+                                        <th className="px-6 py-3.5 font-semibold">Inclusión en ZIP</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-white/5">
+                                <tbody className="divide-y divide-[#E8E8ED]">
                                     {report.length === 0 ? (
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-20 text-center text-muted-foreground italic">
+                                            <td colSpan={3} className="px-6 py-20 text-center text-[#6E6E73] italic text-sm">
                                                 No hay registros de asistencia para esta fecha.
                                                 Pasa lista primero en el módulo de Asistencia.
                                             </td>
                                         </tr>
                                     ) : (
                                         report.map((item) => (
-                                            <tr key={item.trabajador_id} className="hover:bg-white/5 transition-colors">
+                                            <tr key={item.trabajador_id} className="hover:bg-[#F5F5F7]/50 transition-colors">
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm font-semibold text-white">{item.nombres} {item.apellido_paterno}</p>
-                                                    <p className="text-[10px] text-muted-foreground">{item.rut}</p>
+                                                    <p className="text-sm font-semibold text-[#1D1D1F]">{item.nombres} {item.apellido_paterno}</p>
+                                                    <p className="text-[10px] text-[#6E6E73]">{item.rut}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className={cn(
-                                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase",
-                                                        item.estado === 'Presente' ? "bg-emerald-500/10 text-emerald-400" :
-                                                            item.estado === 'Atraso' ? "bg-amber-500/10 text-amber-400" :
-                                                                "bg-rose-500/10 text-rose-400"
+                                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase",
+                                                        item.estado === 'Presente' ? "bg-[#34C759]/10 text-[#34C759]" :
+                                                            item.estado === 'Atraso' ? "bg-[#FF9F0A]/10 text-[#FF9F0A]" :
+                                                                "bg-[#FF3B30]/10 text-[#FF3B30]"
                                                     )}>
                                                         {item.estado}
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     {(item.estado === 'Presente' || item.estado === 'Atraso') ? (
-                                                        <div className="flex items-center gap-2 text-emerald-400 text-xs font-medium">
+                                                        <div className="flex items-center gap-2 text-[#34C759] text-xs font-medium">
                                                             <CheckCircle2 className="h-4 w-4" /> Incluido
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-2 text-muted-foreground text-xs font-medium italic">
+                                                        <div className="flex items-center gap-2 text-[#A1A1A6] text-xs font-medium italic">
                                                             <AlertCircle className="h-4 w-4" /> Excluido
                                                         </div>
                                                     )}

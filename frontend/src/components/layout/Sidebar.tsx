@@ -35,13 +35,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
 
     return (
         <motion.aside
-            animate={{ width: isCollapsed ? '80px' : '280px' }}
-            className="h-screen sticky top-0 bg-slate-950 border-r border-white/5 flex flex-col z-40 transition-all duration-300"
+            animate={{ width: isCollapsed ? '72px' : '260px' }}
+            className="h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-[#D2D2D7] flex flex-col z-40 transition-all duration-300"
         >
             {/* Logo Section */}
-            <div className="p-6 flex items-center gap-3">
-                <div className="h-10 w-10 shrink-0 premium-gradient rounded-xl flex items-center justify-center shadow-lg shadow-violet-500/20">
-                    <ShieldCheck className="h-6 w-6 text-white" />
+            <div className="px-5 py-6 flex items-center gap-3">
+                <div className="h-9 w-9 shrink-0 bg-[#0071E3] rounded-xl flex items-center justify-center shadow-sm">
+                    <ShieldCheck className="h-5 w-5 text-white" />
                 </div>
                 {!isCollapsed && (
                     <motion.div
@@ -49,23 +49,23 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                         animate={{ opacity: 1, x: 0 }}
                         className="flex flex-col"
                     >
-                        <span className="font-bold text-lg text-white leading-none">Bóveda</span>
-                        <span className="text-xs text-brand-primary font-bold tracking-widest uppercase mt-0.5">LOLS</span>
+                        <span className="font-semibold text-base text-[#1D1D1F] leading-none">Bóveda</span>
+                        <span className="text-[10px] text-[#0071E3] font-bold tracking-[0.2em] uppercase mt-0.5">LOLS</span>
                     </motion.div>
                 )}
             </div>
 
             {/* Navigation */}
-            <nav className="flex-1 px-4 mt-8 space-y-2">
+            <nav className="flex-1 px-3 mt-4 space-y-1">
                 {menuItems.map((item) => (
                     <NavLink
                         key={item.path}
                         to={item.path}
                         className={({ isActive }) => cn(
-                            "flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative",
+                            "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative text-sm",
                             isActive
-                                ? "bg-violet-500/10 text-brand-primary"
-                                : "text-muted-foreground hover:bg-white/5 hover:text-white"
+                                ? "bg-[#0071E3]/8 text-[#0071E3] font-semibold"
+                                : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
                         )}
                         title={isCollapsed ? item.label : ''}
                     >
@@ -74,41 +74,32 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                             <motion.span
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="text-sm font-semibold"
+                                className="font-medium"
                             >
                                 {item.label}
                             </motion.span>
                         )}
-                        {/* Active Indicator */}
-                        <NavLink to={item.path}>
-                            {({ isActive }) => isActive && (
-                                <motion.div
-                                    layoutId="active-nav"
-                                    className="absolute left-[-16px] w-1.5 h-6 bg-brand-primary rounded-r-full"
-                                />
-                            )}
-                        </NavLink>
                     </NavLink>
                 ))}
             </nav>
 
             {/* User Section */}
-            <div className="p-4 border-t border-white/5">
+            <div className="p-3 border-t border-[#E8E8ED]">
                 <div className={cn(
-                    "flex items-center gap-3 p-3 rounded-2xl bg-white/5 border border-white/10 transition-all",
+                    "flex items-center gap-3 p-2.5 rounded-xl bg-[#F5F5F7] transition-all",
                     isCollapsed ? "justify-center" : "justify-start"
                 )}>
-                    <div className="h-9 w-9 shrink-0 rounded-lg premium-gradient flex items-center justify-center text-xs font-bold text-white shadow-xl">
+                    <div className="h-8 w-8 shrink-0 rounded-full bg-[#0071E3] flex items-center justify-center text-xs font-semibold text-white">
                         {user?.nombre?.[0]}
                     </div>
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-white truncate">{user?.nombre}</p>
-                            <p className="text-[10px] text-muted-foreground truncate">{user?.rol}</p>
+                            <p className="text-xs font-semibold text-[#1D1D1F] truncate">{user?.nombre}</p>
+                            <p className="text-[10px] text-[#6E6E73] truncate">{user?.rol}</p>
                         </div>
                     )}
                     {!isCollapsed && (
-                        <button onClick={logout} className="p-1.5 hover:bg-white/10 rounded-lg text-rose-400">
+                        <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-[#FF3B30] transition-colors">
                             <LogOut className="h-4 w-4" />
                         </button>
                     )}
@@ -117,9 +108,9 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                 {/* Collapse Toggle */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute right-[-14px] top-24 h-7 w-7 bg-slate-900 border border-white/10 rounded-full flex items-center justify-center text-white hover:bg-slate-800 transition-colors z-50 shadow-xl"
+                    className="absolute right-[-14px] top-20 h-7 w-7 bg-white border border-[#D2D2D7] rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] hover:border-[#B0B0B5] transition-colors z-50 shadow-sm"
                 >
-                    {isCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+                    {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
                 </button>
             </div>
         </motion.aside>

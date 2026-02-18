@@ -85,11 +85,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
 
     if (documents.length === 0) {
         return (
-            <div className="py-16 text-center premium-card bg-white/5 border-dashed">
-                <div className="h-16 w-16 rounded-full bg-white/5 flex items-center justify-center mx-auto mb-4">
+            <div className="py-16 text-center premium-card border-dashed">
+                <div className="h-16 w-16 rounded-full bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
                     <FileText className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h4 className="text-lg font-semibold text-white">Sin documentos</h4>
+                <h4 className="text-lg font-semibold text-[#1D1D1F]">Sin documentos</h4>
                 <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-1">
                     Este trabajador no tiene archivos registrados actualmente.
                 </p>
@@ -140,7 +140,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] mt-2 bg-white/5 p-2 rounded-lg">
+                        <div className="flex items-center justify-between text-[10px] mt-2 bg-[#F5F5F7] p-2 rounded-lg">
                             <div className="flex items-center gap-1.5 text-muted-foreground">
                                 <Calendar className="h-3 w-3" />
                                 Subido: {new Date(doc.fecha_subida).toLocaleDateString()}
@@ -159,7 +159,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                         </div>
 
                         {!doc.activo && (
-                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-slate-800 text-muted-foreground text-[8px] font-bold uppercase tracking-wider">
+                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[#E8E8ED] text-[#6E6E73] text-[8px] font-bold uppercase tracking-wider">
                                 Archivado
                             </div>
                         )}

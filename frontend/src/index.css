@@ -1,38 +1,39 @@
 @import "tailwindcss";
 
 @theme {
-  /* Brand Colors */
-  --color-brand-primary: #8b5cf6;
-  --color-brand-secondary: #d946ef;
-  --color-brand-dark: #0f172a;
-  --color-brand-accent: #10b981;
+  /* Apple-Inspired Color System */
+  --color-brand-primary: #0071E3;
+  --color-brand-secondary: #147CE5;
+  --color-brand-dark: #1D1D1F;
+  --color-brand-accent: #34C759;
 
-  /* Semantic UI Colors (used across all components) */
-  --color-background: #0f172a;
-  --color-foreground: #f8fafc;
-  --color-primary: #8b5cf6;
-  --color-primary-foreground: #f8fafc;
-  --color-secondary: #1e293b;
-  --color-secondary-foreground: #f8fafc;
-  --color-muted: #334155;
-  --color-muted-foreground: #94a3b8;
-  --color-accent: #1e293b;
-  --color-accent-foreground: #f8fafc;
-  --color-destructive: #ef4444;
-  --color-destructive-foreground: #fef2f2;
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-input: rgba(255, 255, 255, 0.1);
-  --color-ring: #8b5cf6;
-  --color-card: #0f172a;
-  --color-card-foreground: #f8fafc;
-  --color-popover: #0f172a;
-  --color-popover-foreground: #f8fafc;
+  /* Semantic UI Colors */
+  --color-background: #F5F5F7;
+  --color-foreground: #1D1D1F;
+  --color-primary: #0071E3;
+  --color-primary-foreground: #FFFFFF;
+  --color-secondary: #F5F5F7;
+  --color-secondary-foreground: #1D1D1F;
+  --color-muted: #E8E8ED;
+  --color-muted-foreground: #6E6E73;
+  --color-accent: #F5F5F7;
+  --color-accent-foreground: #1D1D1F;
+  --color-destructive: #FF3B30;
+  --color-destructive-foreground: #FFFFFF;
+  --color-border: #D2D2D7;
+  --color-input: #D2D2D7;
+  --color-ring: #0071E3;
+  --color-card: #FFFFFF;
+  --color-card-foreground: #1D1D1F;
+  --color-popover: #FFFFFF;
+  --color-popover-foreground: #1D1D1F;
 }
 
 @layer base {
   body {
-    background-color: #0f172a;
-    color: #f8fafc;
+    background-color: #F5F5F7;
+    color: #1D1D1F;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "rlig" 1, "calt" 1;
@@ -40,38 +41,68 @@
   }
 
   ::selection {
-    background-color: rgba(139, 92, 246, 0.3);
-    color: #8b5cf6;
+    background-color: rgba(0, 113, 227, 0.15);
+    color: #0071E3;
   }
 }
 
-/* Custom Component Classes */
-.glass-morphism {
-  background-color: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.4);
+/* Apple-Style Component Classes */
+.apple-card {
+  background-color: #FFFFFF;
+  border-radius: 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  transition: all 0.3s ease;
 }
 
-.glass-morphism-dense {
-  background-color: #111827;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
+.apple-card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
 }
 
 .premium-gradient {
-  background: linear-gradient(135deg, #8b5cf6 0%, #d946ef 100%);
+  background: #0071E3;
 }
 
 .premium-card {
-  background-color: #1e293b;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 1rem;
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  border-radius: 1.25rem;
   padding: 1.5rem;
   transition: all 0.3s ease;
 }
 
 .premium-card:hover {
-  transform: scale(1.02);
-  border-color: rgba(139, 92, 246, 0.3);
-  box-shadow: 0 0 20px rgba(139, 92, 246, 0.2);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
+  border-color: #B0B0B5;
+}
+
+/* Glass morphism — now Apple frosted glass */
+.glass-morphism {
+  background-color: rgba(255, 255, 255, 0.72);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.glass-morphism-dense {
+  background-color: #FFFFFF;
+  border: 1px solid #D2D2D7;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Custom scrollbar — subtle Apple style */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #C7C7CC;
+  border-radius: 3px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #A1A1A6;
 }

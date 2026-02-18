@@ -48,29 +48,25 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#0f172a] overflow-hidden relative">
-            {/* Background Abstract Shapes */}
-            <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-violet-600/20 blur-[120px] rounded-full" />
-            <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-fuchsia-600/20 blur-[120px] rounded-full" />
-
+        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F5F5F7]">
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="w-full max-w-md"
+                className="w-full max-w-sm"
             >
-                <div className="premium-card space-y-8">
-                    <div className="flex flex-col items-center space-y-2">
-                        <div className="h-16 w-16 premium-gradient rounded-2xl flex items-center justify-center shadow-2xl">
-                            <ShieldCheck className="h-10 w-10 text-white" />
+                <div className="bg-white rounded-2xl shadow-lg p-8 space-y-8">
+                    <div className="flex flex-col items-center space-y-3">
+                        <div className="h-14 w-14 bg-[#0071E3] rounded-2xl flex items-center justify-center shadow-sm">
+                            <ShieldCheck className="h-8 w-8 text-white" />
                         </div>
-                        <h1 className="text-3xl font-bold tracking-tight text-white mt-4">Bóveda LOLS</h1>
-                        <p className="text-muted-foreground text-center">
+                        <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">Bóveda LOLS</h1>
+                        <p className="text-[#6E6E73] text-sm text-center">
                             Gestión Documental y Control de Asistencia
                         </p>
                     </div>
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                         <div className="space-y-4">
                             <div className="relative">
                                 <Input
@@ -79,9 +75,9 @@ const LoginPage: React.FC = () => {
                                     type="email"
                                     error={errors.email?.message}
                                     {...register('email')}
-                                    className="pl-11"
+                                    className="pl-10"
                                 />
-                                <Mail className="absolute left-4 top-[38px] h-5 w-5 text-muted-foreground" />
+                                <Mail className="absolute left-3.5 top-[36px] h-4 w-4 text-[#A1A1A6]" />
                             </div>
 
                             <div className="relative">
@@ -91,9 +87,9 @@ const LoginPage: React.FC = () => {
                                     type="password"
                                     error={errors.password?.message}
                                     {...register('password')}
-                                    className="pl-11"
+                                    className="pl-10"
                                 />
-                                <Lock className="absolute left-4 top-[38px] h-5 w-5 text-muted-foreground" />
+                                <Lock className="absolute left-3.5 top-[36px] h-4 w-4 text-[#A1A1A6]" />
                             </div>
                         </div>
 
@@ -101,14 +97,14 @@ const LoginPage: React.FC = () => {
                             type="submit"
                             className="w-full"
                             isLoading={isLoading}
-                            rightIcon={<LogIn className="h-5 w-5" />}
+                            rightIcon={<LogIn className="h-4 w-4" />}
                         >
                             Iniciar Sesión
                         </Button>
                     </form>
 
                     <div className="text-center">
-                        <p className="text-xs text-muted-foreground">
+                        <p className="text-xs text-[#A1A1A6]">
                             Sistema de Prevención de Riesgos y Documentación Laboral
                         </p>
                     </div>

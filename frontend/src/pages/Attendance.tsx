@@ -48,16 +48,13 @@ const AttendancePage: React.FC = () => {
         if (!selectedObra) return;
         setLoading(true);
         try {
-            // 1. Get workers for this obra
             const workersRes = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}`);
             const workerList = workersRes.data.data;
             setWorkers(workerList);
 
-            // 2. Get existing attendance for this date/obra
             const attendanceRes = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`);
             const existing = attendanceRes.data.data;
 
-            // 3. Merge: Default to 'Presente' if no record exists
             const newAttendance: Record<number, Partial<Asistencia>> = {};
             workerList.forEach(w => {
                 const record = existing.find(a => a.trabajador_id === w.id);
@@ -108,21 +105,21 @@ const AttendancePage: React.FC = () => {
         }
     };
 
-    const statusConfig: Record<AsistenciaEstado, { icon: any, color: string, bg: string, border: string }> = {
-        'Presente': { icon: CheckCircle2, color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20' },
-        'Ausente': { icon: XCircle, color: 'text-rose-400', bg: 'bg-rose-500/10', border: 'border-rose-500/20' },
-        'Atraso': { icon: Clock, color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20' },
-        'Licencia': { icon: Stethoscope, color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20' },
+    const statusConfig: Record<AsistenciaEstado, { icon: any, color: string, bg: string, activeColor: string }> = {
+        'Presente': { icon: CheckCircle2, color: 'text-[#34C759]', bg: 'bg-[#34C759]/8', activeColor: 'border-[#34C759]' },
+        'Ausente': { icon: XCircle, color: 'text-[#FF3B30]', bg: 'bg-[#FF3B30]/8', activeColor: 'border-[#FF3B30]' },
+        'Atraso': { icon: Clock, color: 'text-[#FF9F0A]', bg: 'bg-[#FF9F0A]/8', activeColor: 'border-[#FF9F0A]' },
+        'Licencia': { icon: Stethoscope, color: 'text-[#5856D6]', bg: 'bg-[#5856D6]/8', activeColor: 'border-[#5856D6]' },
     };
 
     if (!selectedObra) {
         return (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
-                <div className="h-16 w-16 bg-white/5 rounded-full flex items-center justify-center mb-4">
-                    <CheckSquare className="h-8 w-8 text-muted-foreground" />
+                <div className="h-14 w-14 bg-[#F5F5F7] rounded-full flex items-center justify-center mb-4">
+                    <CheckSquare className="h-7 w-7 text-[#6E6E73]" />
                 </div>
-                <h2 className="text-xl font-bold text-white">Selecciona una Obra</h2>
-                <p className="text-muted-foreground mt-2 max-w-md">
+                <h2 className="text-lg font-semibold text-[#1D1D1F]">Selecciona una Obra</h2>
+                <p className="text-[#6E6E73] mt-2 max-w-md text-sm">
                     Para gestionar la asistencia, primero debes seleccionar una obra en el menú superior.
                 </p>
             </div>
@@ -130,30 +127,30 @@ const AttendancePage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <CheckSquare className="h-8 w-8 text-brand-primary" />
+                    <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
+                        <CheckSquare className="h-7 w-7 text-[#0071E3]" />
                         Control de Asistencia
                     </h1>
-                    <p className="text-muted-foreground mt-1">
-                        Registrando asistencia para <span className="text-white font-semibold">{selectedObra.nombre}</span>
+                    <p className="text-[#6E6E73] mt-1 text-sm">
+                        Registrando asistencia para <span className="text-[#1D1D1F] font-semibold">{selectedObra.nombre}</span>
                     </p>
                 </div>
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     disabled={loading || workers.length === 0}
-                    leftIcon={<Save className="h-5 w-5" />}
+                    leftIcon={<Save className="h-4 w-4" />}
                 >
                     Guardar Cambios
                 </Button>
             </div>
 
             {/* Control Bar */}
-            <div className="premium-card p-4 flex flex-col md:flex-row gap-4 items-center">
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-4 items-center">
                 <div className="flex-1 w-full md:w-auto">
                     <Input
                         label="Fecha"
@@ -163,14 +160,14 @@ const AttendancePage: React.FC = () => {
                     />
                 </div>
                 <div className="flex gap-2 self-end mb-1">
-                    <Button variant="glass" size="icon" onClick={() => {
+                    <Button variant="glass" size="icon" className="h-10 w-10" onClick={() => {
                         const d = new Date(date);
                         d.setDate(d.getDate() - 1);
                         setDate(d.toISOString().split('T')[0]);
                     }}>
                         <ChevronLeft className="h-4 w-4" />
                     </Button>
-                    <Button variant="glass" size="icon" onClick={() => {
+                    <Button variant="glass" size="icon" className="h-10 w-10" onClick={() => {
                         const d = new Date(date);
                         d.setDate(d.getDate() + 1);
                         setDate(d.toISOString().split('T')[0]);
@@ -183,13 +180,13 @@ const AttendancePage: React.FC = () => {
             {/* Attendance Grid */}
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center">
-                    <Loader2 className="h-10 w-10 animate-spin text-brand-primary" />
-                    <p className="text-muted-foreground mt-4">Cargando nómina...</p>
+                    <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
+                    <p className="text-[#6E6E73] mt-4 text-sm">Cargando nómina...</p>
                 </div>
             ) : workers.length === 0 ? (
-                <div className="premium-card py-20 text-center">
-                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4 opacity-20" />
-                    <p className="text-muted-foreground">No hay trabajadores asignados a esta obra.</p>
+                <div className="bg-white rounded-2xl border border-[#D2D2D7] py-20 text-center">
+                    <Users className="h-10 w-10 text-[#A1A1A6] mx-auto mb-4 opacity-40" />
+                    <p className="text-[#6E6E73] text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
@@ -206,18 +203,17 @@ const AttendancePage: React.FC = () => {
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     className={cn(
-                                        "premium-card p-4 flex flex-col gap-4 border-2 transition-all",
-                                        config.border,
-                                        config.bg
+                                        "bg-white rounded-2xl border-2 p-4 flex flex-col gap-4 transition-all shadow-sm",
+                                        config.activeColor
                                     )}
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-white truncate">{worker.nombres} {worker.apellido_paterno}</p>
-                                            <p className="text-[10px] text-muted-foreground">{worker.rut}</p>
+                                            <p className="text-sm font-semibold text-[#1D1D1F] truncate">{worker.nombres} {worker.apellido_paterno}</p>
+                                            <p className="text-[10px] text-[#6E6E73]">{worker.rut}</p>
                                         </div>
-                                        <div className={cn("p-2 rounded-lg bg-white/5", config.color)}>
-                                            <Icon className="h-5 w-5" />
+                                        <div className={cn("p-2 rounded-lg", config.bg, config.color)}>
+                                            <Icon className="h-4 w-4" />
                                         </div>
                                     </div>
 
@@ -237,12 +233,12 @@ const AttendancePage: React.FC = () => {
                                                     className={cn(
                                                         "flex flex-col items-center justify-center p-2 rounded-xl border transition-all gap-1",
                                                         isActive
-                                                            ? "bg-white text-slate-950 border-white shadow-lg"
-                                                            : "bg-white/5 border-white/5 text-muted-foreground hover:bg-white/10"
+                                                            ? `${cfg.bg} ${cfg.color} border-current font-bold`
+                                                            : "bg-[#F5F5F7] border-[#E8E8ED] text-[#6E6E73] hover:bg-[#E8E8ED]"
                                                     )}
                                                 >
-                                                    <StIcon className="h-4 w-4" />
-                                                    <span className="text-[8px] font-bold uppercase">{st}</span>
+                                                    <StIcon className="h-3.5 w-3.5" />
+                                                    <span className="text-[7px] font-semibold uppercase">{st}</span>
                                                 </button>
                                             );
                                         })}
@@ -253,11 +249,11 @@ const AttendancePage: React.FC = () => {
                                         <motion.div
                                             initial={{ opacity: 0, height: 0 }}
                                             animate={{ opacity: 1, height: 'auto' }}
-                                            className="space-y-2 mt-2"
+                                            className="space-y-2 mt-1"
                                         >
                                             {state.estado === 'Ausente' || state.estado === 'Licencia' ? (
                                                 <select
-                                                    className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-[10px] text-white focus:outline-none focus:border-brand-primary"
+                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                     value={state.tipo_ausencia_id || ''}
                                                     onChange={(e) => updateAttendance(worker.id, { tipo_ausencia_id: e.target.value ? Number(e.target.value) : null })}
                                                 >
@@ -269,7 +265,7 @@ const AttendancePage: React.FC = () => {
                                             ) : null}
                                             <input
                                                 placeholder="Observación..."
-                                                className="w-full bg-black/20 border border-white/10 rounded-lg p-2 text-[10px] text-white focus:outline-none focus:border-brand-primary"
+                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                 value={state.observacion || ''}
                                                 onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
                                             />

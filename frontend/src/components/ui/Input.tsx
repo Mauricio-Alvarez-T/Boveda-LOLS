@@ -12,7 +12,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         return (
             <div className="w-full space-y-1.5">
                 {label && (
-                    <label className="text-sm font-medium text-muted-foreground ml-1">
+                    <label className="text-sm font-medium text-[#6E6E73] ml-0.5">
                         {label}
                     </label>
                 )}
@@ -20,8 +20,8 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     <input
                         type={type}
                         className={cn(
-                            "flex h-11 w-full rounded-xl border border-input bg-transparent px-4 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/50 focus-visible:border-brand-primary transition-all group-hover:border-brand-primary/50",
-                            error && "border-destructive focus-visible:ring-destructive/50 focus-visible:border-destructive",
+                            "flex h-11 w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-2 text-sm text-[#1D1D1F] ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[#A1A1A6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]/30 focus-visible:border-[#0071E3] transition-all hover:border-[#B0B0B5]",
+                            error && "border-[#FF3B30] focus-visible:ring-[#FF3B30]/30 focus-visible:border-[#FF3B30]",
                             className
                         )}
                         ref={ref}
@@ -29,12 +29,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     />
                 </div>
                 {error && (
-                    <p className="text-xs text-destructive font-medium ml-1">
+                    <p className="text-xs text-[#FF3B30] font-medium ml-0.5">
                         {error}
                     </p>
                 )}
                 {helperText && !error && (
-                    <p className="text-xs text-muted-foreground ml-1">
+                    <p className="text-xs text-[#6E6E73] ml-0.5">
                         {helperText}
                     </p>
                 )}

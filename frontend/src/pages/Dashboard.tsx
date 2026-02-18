@@ -65,7 +65,6 @@ const Dashboard: React.FC = () => {
                 const res = await api.get<ApiResponse<DashboardData>>('/dashboard/summary');
                 setData(res.data.data);
 
-                // Check system health live
                 const healthRes = await api.get('/health');
                 setSystemStatus({
                     dbActive: healthRes.data.status === 'ok',
@@ -83,8 +82,8 @@ const Dashboard: React.FC = () => {
     if (loading || !data) {
         return (
             <div className="h-[80vh] flex flex-col items-center justify-center">
-                <Loader2 className="h-12 w-12 animate-spin text-brand-primary" />
-                <p className="mt-4 text-muted-foreground animate-pulse">Analizando boveda...</p>
+                <Loader2 className="h-10 w-10 animate-spin text-[#0071E3]" />
+                <p className="mt-4 text-[#6E6E73] text-sm animate-pulse">Analizando bóveda...</p>
             </div>
         );
     }
@@ -94,8 +93,8 @@ const Dashboard: React.FC = () => {
             label: 'Trabajadores',
             value: data.counters.trabajadores,
             icon: Users,
-            color: 'text-blue-400',
-            bg: 'bg-blue-400/10',
+            color: 'text-[#0071E3]',
+            bg: 'bg-[#0071E3]/8',
             route: '/trabajadores',
             description: 'Gestión de personal'
         },
@@ -103,8 +102,8 @@ const Dashboard: React.FC = () => {
             label: 'Documentos',
             value: data.counters.documentos,
             icon: FileText,
-            color: 'text-violet-400',
-            bg: 'bg-violet-400/10',
+            color: 'text-[#5856D6]',
+            bg: 'bg-[#5856D6]/8',
             route: '/trabajadores',
             description: 'Bóveda documental'
         },
@@ -112,8 +111,8 @@ const Dashboard: React.FC = () => {
             label: 'Asistencia Hoy',
             value: `${data.counters.asistencia_hoy}%`,
             icon: CheckSquare,
-            color: 'text-emerald-400',
-            bg: 'bg-emerald-400/10',
+            color: 'text-[#34C759]',
+            bg: 'bg-[#34C759]/8',
             route: '/asistencia',
             description: 'Control de asistencia'
         },
@@ -121,8 +120,8 @@ const Dashboard: React.FC = () => {
             label: 'Vencidos / Críticos',
             value: data.counters.vencidos,
             icon: AlertTriangle,
-            color: data.counters.vencidos > 0 ? 'text-rose-400' : 'text-slate-400',
-            bg: data.counters.vencidos > 0 ? 'bg-rose-400/10' : 'bg-slate-400/10',
+            color: data.counters.vencidos > 0 ? 'text-[#FF3B30]' : 'text-[#A1A1A6]',
+            bg: data.counters.vencidos > 0 ? 'bg-[#FF3B30]/8' : 'bg-[#A1A1A6]/8',
             route: '/trabajadores',
             description: data.counters.vencidos > 0 ? 'Requiere atención' : 'Todo en orden'
         },
@@ -137,24 +136,24 @@ const Dashboard: React.FC = () => {
             {/* Welcome Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white leading-tight">
-                        Bienvenido de nuevo, <span className="text-brand-primary">{user?.nombre.split(' ')[0]}</span>
+                    <h1 className="text-2xl font-bold text-[#1D1D1F] leading-tight">
+                        Bienvenido de nuevo, <span className="text-[#0071E3]">{user?.nombre.split(' ')[0]}</span>
                     </h1>
-                    <p className="text-muted-foreground mt-1 flex items-center gap-2">
-                        <ShieldCheck className="h-4 w-4 text-emerald-500" />
+                    <p className="text-[#6E6E73] mt-1 flex items-center gap-2 text-sm">
+                        <ShieldCheck className="h-4 w-4 text-[#34C759]" />
                         Sistema de Gestión Documental Laboral activo.
                     </p>
                 </div>
-                <div className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-3">
-                    <Calendar className="h-5 w-5 text-brand-primary" />
-                    <span className="text-sm font-semibold text-white">
+                <div className="px-4 py-2 rounded-full bg-white border border-[#D2D2D7] flex items-center gap-2 shadow-sm">
+                    <Calendar className="h-4 w-4 text-[#0071E3]" />
+                    <span className="text-sm font-medium text-[#1D1D1F]">
                         {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </span>
                 </div>
             </div>
 
             {/* KPI Cards — CLICKABLE */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {stats.map((stat, i) => (
                     <motion.div
                         key={stat.label}
@@ -162,73 +161,73 @@ const Dashboard: React.FC = () => {
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: i * 0.1 }}
                         onClick={() => navigate(stat.route)}
-                        className="premium-card relative overflow-hidden group hover:border-brand-primary/30 transition-all cursor-pointer"
+                        className="bg-white rounded-2xl border border-[#D2D2D7] p-5 relative overflow-hidden group hover:shadow-md hover:border-[#B0B0B5] transition-all cursor-pointer"
                     >
                         <div className="flex items-center gap-4 relative z-10">
-                            <div className={cn("p-4 rounded-2xl", stat.bg, stat.color)}>
-                                <stat.icon className="h-6 w-6" />
+                            <div className={cn("p-3 rounded-2xl", stat.bg, stat.color)}>
+                                <stat.icon className="h-5 w-5" />
                             </div>
                             <div>
-                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">{stat.label}</p>
-                                <p className="text-3xl font-bold text-white mt-1">{stat.value}</p>
+                                <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-widest">{stat.label}</p>
+                                <p className="text-2xl font-bold text-[#1D1D1F] mt-0.5">{stat.value}</p>
                             </div>
                         </div>
                         {/* Hover hint */}
-                        <div className="mt-3 flex items-center gap-1 text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="mt-3 flex items-center gap-1 text-[10px] text-[#6E6E73] opacity-0 group-hover:opacity-100 transition-opacity">
                             <ArrowRight className="h-3 w-3" />
                             <span>{stat.description}</span>
                         </div>
                         {/* Background Decoration */}
-                        <div className={cn("absolute -right-4 -bottom-4 opacity-5 group-hover:opacity-10 transition-opacity", stat.color)}>
-                            <stat.icon className="h-32 w-32 rotate-12" />
+                        <div className={cn("absolute -right-4 -bottom-4 opacity-[0.04] group-hover:opacity-[0.08] transition-opacity", stat.color)}>
+                            <stat.icon className="h-28 w-28 rotate-12" />
                         </div>
                     </motion.div>
                 ))}
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Chart Area */}
-                <div className="lg:col-span-2 space-y-8">
-                    <div className="premium-card p-6">
-                        <div className="flex items-center justify-between mb-8">
+                <div className="lg:col-span-2 space-y-6">
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
+                        <div className="flex items-center justify-between mb-6">
                             <div>
-                                <h3 className="text-lg font-bold text-white">Distribución por Obra</h3>
-                                <p className="text-xs text-muted-foreground">Capacidad operativa por proyecto activo.</p>
+                                <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
+                                <p className="text-xs text-[#6E6E73]">Capacidad operativa por proyecto activo.</p>
                             </div>
-                            <TrendingUp className="h-5 w-5 text-brand-primary" />
+                            <TrendingUp className="h-5 w-5 text-[#0071E3]" />
                         </div>
 
                         {data.obraDistribution.length > 0 ? (
-                            <div className="h-[300px] w-full mt-4">
+                            <div className="h-[280px] w-full">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={data.obraDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff0a" />
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E8ED" />
                                         <XAxis
                                             dataKey="nombre"
                                             axisLine={false}
                                             tickLine={false}
-                                            tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                            tick={{ fill: '#6E6E73', fontSize: 10 }}
                                         />
                                         <YAxis
                                             axisLine={false}
                                             tickLine={false}
-                                            tick={{ fill: '#94a3b8', fontSize: 10 }}
+                                            tick={{ fill: '#6E6E73', fontSize: 10 }}
                                         />
                                         <Tooltip
-                                            cursor={{ fill: '#ffffff05' }}
-                                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff14', borderRadius: '12px', fontSize: '12px' }}
+                                            cursor={{ fill: '#F5F5F7' }}
+                                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
                                         />
                                         <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                                             {data.obraDistribution.map((_, index) => (
-                                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#8b5cf6' : '#d946ef'} fillOpacity={0.8} />
+                                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#0071E3' : '#5856D6'} fillOpacity={0.85} />
                                             ))}
                                         </Bar>
                                     </BarChart>
                                 </ResponsiveContainer>
                             </div>
                         ) : (
-                            <div className="h-[300px] flex flex-col items-center justify-center text-muted-foreground">
-                                <TrendingUp className="h-12 w-12 opacity-20 mb-4" />
+                            <div className="h-[280px] flex flex-col items-center justify-center text-[#6E6E73]">
+                                <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
                                 <p className="text-sm">No hay obras activas con trabajadores asignados.</p>
                                 <Button
                                     variant="ghost"
@@ -241,38 +240,38 @@ const Dashboard: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
                         {/* Recent Activity */}
-                        <div className="premium-card p-6">
-                            <div className="flex items-center justify-between mb-6">
-                                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                                    <Activity className="h-4 w-4 text-brand-primary" />
+                        <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
+                            <div className="flex items-center justify-between mb-5">
+                                <h3 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2">
+                                    <Activity className="h-4 w-4 text-[#0071E3]" />
                                     Actividad Reciente
                                 </h3>
-                                <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-tighter">Últimos 5</span>
+                                <span className="text-[10px] text-[#A1A1A6] uppercase font-semibold tracking-wider">Últimos 5</span>
                             </div>
-                            <div className="space-y-4">
+                            <div className="space-y-3">
                                 {data.recentActivity.length > 0 ? (
                                     data.recentActivity.map((act) => (
                                         <div
                                             key={act.id}
-                                            className="flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition-colors group cursor-pointer"
+                                            className="flex items-center gap-3 p-2 rounded-xl hover:bg-[#F5F5F7] transition-colors group cursor-pointer"
                                             onClick={() => navigate('/trabajadores')}
                                         >
-                                            <div className="h-8 w-8 rounded-lg bg-white/5 flex items-center justify-center text-brand-primary">
+                                            <div className="h-8 w-8 rounded-lg bg-[#0071E3]/8 flex items-center justify-center text-[#0071E3]">
                                                 <FileText className="h-4 w-4" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-semibold text-white truncate">{act.tipo_nombre}</p>
-                                                <p className="text-[10px] text-muted-foreground truncate">{act.nombres} {act.apellido_paterno}</p>
+                                                <p className="text-xs font-semibold text-[#1D1D1F] truncate">{act.tipo_nombre}</p>
+                                                <p className="text-[10px] text-[#6E6E73] truncate">{act.nombres} {act.apellido_paterno}</p>
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                            <div className="text-[10px] text-[#A1A1A6] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                                                 {new Date(act.fecha_subida).toLocaleDateString()}
                                             </div>
                                         </div>
                                     ))
                                 ) : (
-                                    <div className="py-6 text-center text-muted-foreground">
+                                    <div className="py-6 text-center text-[#6E6E73]">
                                         <FileText className="h-8 w-8 mx-auto opacity-20 mb-2" />
                                         <p className="text-xs italic">No hay documentos subidos aún.</p>
                                     </div>
@@ -289,10 +288,10 @@ const Dashboard: React.FC = () => {
                         </div>
 
                         {/* Compliance Circular Chart */}
-                        <div className="premium-card p-6 flex flex-col items-center justify-center text-center">
-                            <h3 className="text-sm font-bold text-white mb-6 w-full text-left">Nivel de Cumplimiento</h3>
+                        <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6 flex flex-col items-center justify-center text-center">
+                            <h3 className="text-sm font-semibold text-[#1D1D1F] mb-5 w-full text-left">Nivel de Cumplimiento</h3>
                             <div
-                                className="relative h-40 w-40 cursor-pointer group"
+                                className="relative h-36 w-36 cursor-pointer group"
                                 onClick={() => navigate('/trabajadores')}
                                 title="Ver documentos"
                             >
@@ -303,28 +302,28 @@ const Dashboard: React.FC = () => {
                                                 { name: 'Válidos', value: Math.max(data.counters.documentos - data.counters.vencidos, 0) },
                                                 { name: 'Vencidos', value: data.counters.vencidos }
                                             ]}
-                                            innerRadius={60}
-                                            outerRadius={80}
+                                            innerRadius={55}
+                                            outerRadius={70}
                                             paddingAngle={5}
                                             dataKey="value"
                                         >
-                                            <Cell fill="#10b981" />
-                                            <Cell fill="#f43f5e" />
+                                            <Cell fill="#34C759" />
+                                            <Cell fill="#FF3B30" />
                                         </Pie>
                                         <Tooltip
-                                            contentStyle={{ backgroundColor: '#0f172a', border: '1px solid #ffffff14', borderRadius: '12px', fontSize: '12px' }}
+                                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
                                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                                    <span className="text-2xl font-black text-white group-hover:text-brand-primary transition-colors">
+                                    <span className="text-2xl font-bold text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
                                         {compliancePercent}%
                                     </span>
-                                    <span className="text-[8px] text-muted-foreground uppercase font-bold">Total</span>
+                                    <span className="text-[8px] text-[#A1A1A6] uppercase font-semibold">Total</span>
                                 </div>
                             </div>
-                            <p className="text-[10px] text-muted-foreground mt-6 leading-relaxed">
-                                Tu boveda está <span className={cn("font-bold", compliancePercent >= 80 ? "text-emerald-400" : "text-amber-400")}>
+                            <p className="text-[10px] text-[#6E6E73] mt-5 leading-relaxed">
+                                Tu bóveda está <span className={cn("font-bold", compliancePercent >= 80 ? "text-[#34C759]" : "text-[#FF9F0A]")}>
                                     {compliancePercent >= 80 ? 'operativa' : 'con alertas'}
                                 </span>.
                                 {data.counters.vencidos > 0 && ` Tienes ${data.counters.vencidos} documentos que requieren atención inmediata.`}
@@ -333,39 +332,39 @@ const Dashboard: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Sidebar */}
-                <div className="space-y-6">
+                {/* Right Sidebar */}
+                <div className="space-y-5">
                     {/* System Status — LIVE DATA */}
-                    <div className="p-6 rounded-3xl bg-brand-primary text-white space-y-4 shadow-xl shadow-brand-primary/20 relative overflow-hidden">
-                        <ShieldCheck className="h-12 w-12 opacity-20 absolute -right-2 -bottom-2 rotate-12" />
-                        <h4 className="text-lg font-bold relative z-10">Estado del Sistema</h4>
-                        <div className="space-y-2 relative z-10">
+                    <div className="p-6 rounded-2xl bg-[#0071E3] text-white space-y-4 shadow-md relative overflow-hidden">
+                        <ShieldCheck className="h-10 w-10 opacity-10 absolute -right-1 -bottom-1 rotate-12" />
+                        <h4 className="text-base font-semibold relative z-10">Estado del Sistema</h4>
+                        <div className="space-y-2.5 relative z-10">
                             <div className="flex justify-between items-center text-xs">
                                 <span className="flex items-center gap-1.5"><Database className="h-3 w-3" /> Base de Datos</span>
                                 <span className={cn(
-                                    "px-2 py-0.5 rounded-full font-bold",
-                                    systemStatus.dbActive ? "bg-white/20" : "bg-rose-500/50"
+                                    "px-2 py-0.5 rounded-full font-semibold text-[10px]",
+                                    systemStatus.dbActive ? "bg-white/20" : "bg-[#FF3B30]/60"
                                 )}>
                                     {systemStatus.dbActive ? 'Activa' : 'Error'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center text-xs">
                                 <span className="flex items-center gap-1.5"><HardDrive className="h-3 w-3" /> API Backend</span>
-                                <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-white/20 font-semibold text-[10px]">
                                     {systemStatus.dbActive ? 'Online' : 'Offline'}
                                 </span>
                             </div>
                             <div className="flex justify-between items-center text-xs">
                                 <span className="flex items-center gap-1.5"><Clock className="h-3 w-3" /> Última Revisión</span>
-                                <span className="px-2 py-0.5 rounded-full bg-white/20 font-bold">
+                                <span className="px-2 py-0.5 rounded-full bg-white/20 font-semibold text-[10px]">
                                     {systemStatus.lastCheck || '---'}
                                 </span>
                             </div>
                         </div>
                         <Button
                             variant="ghost"
-                            className="w-full bg-white text-brand-primary hover:bg-slate-100 mt-2 font-bold py-4 rounded-2xl"
-                            onClick={() => toast.info('Módulo de configuración próximamente disponible.')}
+                            className="w-full bg-white text-[#0071E3] hover:bg-[#F5F5F7] mt-2 font-semibold rounded-xl"
+                            onClick={() => navigate('/configuracion')}
                         >
                             <Settings className="h-4 w-4 mr-2" />
                             Configuración
@@ -373,38 +372,41 @@ const Dashboard: React.FC = () => {
                     </div>
 
                     {/* Critical Alerts — CLICKABLE */}
-                    <div className="premium-card p-6 border-rose-500/20 bg-rose-500/5">
-                        <h4 className="text-sm font-bold text-white flex items-center gap-2 mb-4">
-                            <AlertTriangle className="h-4 w-4 text-rose-500" />
+                    <div className={cn(
+                        "bg-white rounded-2xl border p-6",
+                        data.counters.vencidos > 0 ? "border-[#FF3B30]/30" : "border-[#D2D2D7]"
+                    )}>
+                        <h4 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2 mb-4">
+                            <AlertTriangle className={cn("h-4 w-4", data.counters.vencidos > 0 ? "text-[#FF3B30]" : "text-[#A1A1A6]")} />
                             Alertas Críticas
                         </h4>
                         <div className="space-y-4">
                             {data.counters.vencidos > 0 ? (
-                                <div className="p-3 rounded-2xl bg-rose-500/10 border border-rose-500/20">
-                                    <p className="text-[10px] font-bold text-rose-400 uppercase tracking-widest">Documentos Vencidos</p>
-                                    <p className="text-xs text-white mt-1 leading-relaxed">
-                                        Hay {data.counters.vencidos} trabajadores con documentos caducados detectados en la boveda.
+                                <div className="p-3 rounded-xl bg-[#FF3B30]/5 border border-[#FF3B30]/15">
+                                    <p className="text-[10px] font-semibold text-[#FF3B30] uppercase tracking-widest">Documentos Vencidos</p>
+                                    <p className="text-xs text-[#1D1D1F] mt-1 leading-relaxed">
+                                        Hay {data.counters.vencidos} trabajadores con documentos caducados detectados en la bóveda.
                                     </p>
                                     <Button
                                         variant="ghost"
-                                        className="h-6 px-0 text-rose-400 text-[10px] mt-2 hover:bg-transparent"
+                                        className="h-6 px-0 text-[#FF3B30] text-[10px] mt-2 hover:bg-transparent"
                                         onClick={() => navigate('/trabajadores')}
                                     >
                                         Ver trabajadores →
                                     </Button>
                                 </div>
                             ) : (
-                                <div className="p-4 text-center border border-dashed border-white/10 rounded-2xl">
-                                    <CheckCircle2 className="h-8 w-8 text-emerald-500 mx-auto mb-2 opacity-50" />
-                                    <p className="text-xs text-muted-foreground italic">No hay alertas críticas pendientes.</p>
+                                <div className="p-4 text-center border border-dashed border-[#D2D2D7] rounded-xl">
+                                    <CheckCircle2 className="h-7 w-7 text-[#34C759] mx-auto mb-2 opacity-50" />
+                                    <p className="text-xs text-[#6E6E73] italic">No hay alertas críticas pendientes.</p>
                                 </div>
                             )}
                         </div>
                     </div>
 
                     {/* Quick Actions */}
-                    <div className="premium-card p-6">
-                        <h4 className="text-sm font-bold text-white mb-4">Acciones Rápidas</h4>
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
+                        <h4 className="text-sm font-semibold text-[#1D1D1F] mb-4">Acciones Rápidas</h4>
                         <div className="space-y-2">
                             <Button
                                 variant="glass"

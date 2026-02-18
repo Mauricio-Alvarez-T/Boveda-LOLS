@@ -120,7 +120,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                     <label className="text-sm font-medium text-muted-foreground ml-1">Archivo (PDF, Imagen o TXT)</label>
                     <div
                         className={`relative h-48 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 cursor-pointer
-              ${file ? 'border-brand-primary bg-brand-primary/5' : 'border-white/10 hover:border-brand-primary/50 hover:bg-white/5'}`}
+              ${file ? 'border-[#0071E3] bg-[#0071E3]/5' : 'border-[#D2D2D7] hover:border-[#0071E3]/50 hover:bg-[#F5F5F7]'}`}
                     >
                         <input
                             type="file"
@@ -132,12 +132,12 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                         {file ? (
                             <div className="text-center space-y-2">
                                 {preview ? (
-                                    <img src={preview} alt="Vista previa" className="h-20 w-20 object-cover rounded-lg mx-auto border border-white/20" />
+                                    <img src={preview} alt="Vista previa" className="h-20 w-20 object-cover rounded-lg mx-auto border border-[#D2D2D7]" />
                                 ) : (
                                     <FileText className="h-12 w-12 text-brand-primary mx-auto" />
                                 )}
                                 <div className="flex items-center gap-2 justify-center">
-                                    <span className="text-sm font-semibold text-white truncate max-w-[200px]">{file.name}</span>
+                                    <span className="text-sm font-semibold text-[#1D1D1F] truncate max-w-[200px]">{file.name}</span>
                                     <button type="button" onClick={() => { setFile(null); setPreview(null); }} className="text-rose-400 hover:text-rose-300">
                                         <X className="h-4 w-4" />
                                     </button>
@@ -146,11 +146,11 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                             </div>
                         ) : (
                             <div className="text-center space-y-2">
-                                <div className="h-12 w-12 rounded-full bg-white/5 flex items-center justify-center mx-auto">
+                                <div className="h-12 w-12 rounded-full bg-[#F5F5F7] flex items-center justify-center mx-auto">
                                     <Upload className="h-6 w-6 text-muted-foreground" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-white">Haz clic o arrastra un archivo</p>
+                                    <p className="text-sm font-medium text-[#1D1D1F]">Haz clic o arrastra un archivo</p>
                                     <p className="text-xs text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB)</p>
                                 </div>
                                 <p className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full inline-block">

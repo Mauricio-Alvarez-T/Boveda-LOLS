@@ -47,9 +47,9 @@ const empresaCols: ColumnDef<any>[] = [
         key: 'activo', label: 'Estado',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                v ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]"
+                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
                 {v ? 'Activo' : 'Inactivo'}
             </span>
@@ -64,9 +64,9 @@ const obraCols: ColumnDef<any>[] = [
         key: 'activa', label: 'Estado',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                v ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]"
+                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
                 {v ? 'Activa' : 'Inactiva'}
             </span>
@@ -80,9 +80,9 @@ const cargoCols: ColumnDef<any>[] = [
         key: 'activo', label: 'Estado',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                v ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]"
+                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
                 {v ? 'Activo' : 'Inactivo'}
             </span>
@@ -100,9 +100,9 @@ const tipoDocCols: ColumnDef<any>[] = [
         key: 'obligatorio', label: 'Obligatorio',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                v ? "bg-amber-500/10 text-amber-400 border border-amber-500/20"
-                    : "bg-slate-500/10 text-slate-400 border border-slate-500/20"
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#FF9F0A]/10 text-[#FF9F0A]"
+                    : "bg-[#A1A1A6]/10 text-[#A1A1A6]"
             )}>
                 {v ? 'Sí' : 'No'}
             </span>
@@ -119,9 +119,9 @@ const usuarioCols: ColumnDef<any>[] = [
         key: 'activo', label: 'Estado',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-bold px-2 py-0.5 rounded-full",
-                v ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20"
-                    : "bg-rose-500/10 text-rose-400 border border-rose-500/20"
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]"
+                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
                 {v ? 'Activo' : 'Inactivo'}
             </span>
@@ -138,35 +138,35 @@ const SettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                    <Settings className="h-8 w-8 text-brand-primary" />
+                <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
+                    <Settings className="h-7 w-7 text-[#0071E3]" />
                     Configuración
                 </h1>
-                <p className="text-muted-foreground mt-1">
+                <p className="text-[#6E6E73] mt-1 text-sm">
                     Administra los catálogos maestros del sistema.
                 </p>
             </div>
 
-            {/* Tabs */}
-            <div className="premium-card p-1.5 flex gap-1 overflow-x-auto">
+            {/* Tabs — Apple Segmented Control */}
+            <div className="bg-[#E8E8ED] p-1 rounded-xl flex gap-0.5 overflow-x-auto">
                 {tabs.map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
                         className={cn(
-                            "relative flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all whitespace-nowrap",
+                            "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
                             activeTab === tab.key
-                                ? "text-white"
-                                : "text-muted-foreground hover:text-white hover:bg-white/5"
+                                ? "text-[#1D1D1F]"
+                                : "text-[#6E6E73] hover:text-[#1D1D1F]"
                         )}
                     >
                         {activeTab === tab.key && (
                             <motion.div
                                 layoutId="settings-tab"
-                                className="absolute inset-0 bg-violet-500/15 border border-violet-500/20 rounded-xl"
+                                className="absolute inset-0 bg-white rounded-lg shadow-sm"
                             />
                         )}
                         <tab.icon className="h-4 w-4 relative z-10" />

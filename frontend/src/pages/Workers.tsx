@@ -87,9 +87,9 @@ const WorkersPage: React.FC = () => {
 
     // Helper function for completion color
     const getCompletionColor = (pct: number) => {
-        if (pct >= 80) return { bar: 'bg-emerald-500', text: 'text-emerald-400' };
-        if (pct >= 50) return { bar: 'bg-amber-500', text: 'text-amber-400' };
-        return { bar: 'bg-rose-500', text: 'text-rose-400' };
+        if (pct >= 80) return { bar: 'bg-[#34C759]', text: 'text-[#34C759]' };
+        if (pct >= 50) return { bar: 'bg-[#FF9F0A]', text: 'text-[#FF9F0A]' };
+        return { bar: 'bg-[#FF3B30]', text: 'text-[#FF3B30]' };
     };
 
     // Filtered and sorted workers
@@ -108,15 +108,15 @@ const WorkersPage: React.FC = () => {
         });
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500">
             {/* Header Section */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                    <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-                        <Users className="h-8 w-8 text-brand-primary" />
+                    <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
+                        <Users className="h-7 w-7 text-[#0071E3]" />
                         Gestión de Trabajadores
                     </h1>
-                    <p className="text-muted-foreground mt-1">
+                    <p className="text-[#6E6E73] mt-1 text-sm">
                         Administra la información y documentación de tu personal.
                     </p>
                 </div>
@@ -125,28 +125,29 @@ const WorkersPage: React.FC = () => {
                         setSelectedWorker(null);
                         setModalType('form');
                     }}
-                    leftIcon={<UserPlus className="h-5 w-5" />}
+                    leftIcon={<UserPlus className="h-4 w-4" />}
                 >
                     Nuevo Trabajador
                 </Button>
             </div>
 
             {/* Filters & Search */}
-            <div className="premium-card p-4 flex flex-col md:flex-row gap-4">
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
                     <Input
                         placeholder="Buscar por RUT o Nombre..."
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        className="pl-11"
+                        className="pl-10"
                     />
-                    <Search className="absolute left-4 top-3 h-5 w-5 text-muted-foreground" />
+                    <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-[#A1A1A6]" />
                 </div>
                 <div className="flex gap-2">
                     <Button
                         variant={showFilters ? 'primary' : 'glass'}
                         leftIcon={<Filter className="h-4 w-4" />}
                         onClick={() => setShowFilters(!showFilters)}
+                        size="sm"
                     >
                         {filterStatus !== 'all' ? 'Filtros (1)' : 'Filtros'}
                     </Button>
@@ -154,6 +155,7 @@ const WorkersPage: React.FC = () => {
                         variant="glass"
                         leftIcon={<ArrowUpDown className="h-4 w-4" />}
                         onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
+                        size="sm"
                     >
                         {sortOrder === 'asc' ? 'A-Z' : 'Z-A'}
                     </Button>
@@ -165,47 +167,47 @@ const WorkersPage: React.FC = () => {
                 <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
-                    className="premium-card p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
+                    className="bg-white rounded-2xl border border-[#D2D2D7] p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
                     <div className="space-y-2">
-                        <label className="text-xs text-muted-foreground">Estado Documental</label>
+                        <label className="text-xs font-medium text-[#6E6E73]">Estado Documental</label>
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value as any)}
-                            className="w-full bg-white/5 border border-white/10 rounded-lg p-2 text-sm text-white focus:outline-none focus:ring-2 focus:ring-brand-primary"
+                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
                         >
-                            <option value="all" className="bg-slate-900">Todos</option>
-                            <option value="complete" className="bg-slate-900">Completos (≥80%)</option>
-                            <option value="incomplete" className="bg-slate-900">Incompletos (&lt;80%)</option>
+                            <option value="all">Todos</option>
+                            <option value="complete">Completos (≥80%)</option>
+                            <option value="incomplete">Incompletos (&lt;80%)</option>
                         </select>
                     </div>
                 </motion.div>
             )}
 
             {/* Table Section */}
-            <div className="premium-card p-0 overflow-hidden">
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-white/5 border-b border-white/10 uppercase text-[10px] tracking-widest text-muted-foreground">
-                                <th className="px-6 py-4 font-semibold">Trabajador</th>
-                                <th className="px-6 py-4 font-semibold">Empresa / Obra</th>
-                                <th className="px-6 py-4 font-semibold">Cargo</th>
-                                <th className="px-6 py-4 font-semibold">Estado Docs</th>
-                                <th className="px-6 py-4 font-semibold text-right">Acciones</th>
+                            <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-[10px] tracking-widest text-[#6E6E73]">
+                                <th className="px-6 py-3.5 font-semibold">Trabajador</th>
+                                <th className="px-6 py-3.5 font-semibold">Empresa / Obra</th>
+                                <th className="px-6 py-3.5 font-semibold">Cargo</th>
+                                <th className="px-6 py-3.5 font-semibold">Estado Docs</th>
+                                <th className="px-6 py-3.5 font-semibold text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-white/5">
+                        <tbody className="divide-y divide-[#E8E8ED]">
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-20 text-center">
-                                        <Loader2 className="h-8 w-8 animate-spin mx-auto text-brand-primary mb-2" />
-                                        <p className="text-muted-foreground">Cargando trabajadores...</p>
+                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#0071E3] mb-2" />
+                                        <p className="text-[#6E6E73] text-sm">Cargando trabajadores...</p>
                                     </td>
                                 </tr>
                             ) : filteredWorkers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-20 text-center text-muted-foreground">
+                                    <td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] text-sm">
                                         No se encontraron trabajadores.
                                     </td>
                                 </tr>
@@ -219,33 +221,33 @@ const WorkersPage: React.FC = () => {
                                             key={worker.id}
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
-                                            className="hover:bg-white/5 transition-colors group"
+                                            className="hover:bg-[#F5F5F7]/50 transition-colors group"
                                         >
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-full premium-gradient flex items-center justify-center text-white font-bold text-xs">
+                                                    <div className="h-9 w-9 rounded-full bg-[#0071E3] flex items-center justify-center text-white font-semibold text-xs">
                                                         {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-semibold text-white">{worker.nombres} {worker.apellido_paterno}</p>
-                                                        <p className="text-xs text-muted-foreground">{worker.rut}</p>
+                                                        <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
+                                                        <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <p className="text-xs text-white font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
-                                                <p className="text-[10px] text-muted-foreground">{worker.obra_nombre || 'Sin Obra'}</p>
+                                                <p className="text-xs text-[#1D1D1F] font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
+                                                <p className="text-[10px] text-[#6E6E73]">{worker.obra_nombre || 'Sin Obra'}</p>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <span className="text-xs px-2 py-1 rounded-lg bg-violet-500/10 text-violet-400 border border-violet-500/20">
+                                                <span className="text-xs px-2.5 py-1 rounded-full bg-[#0071E3]/8 text-[#0071E3] font-medium">
                                                     {worker.cargo_nombre || 'N/A'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-16 bg-white/10 rounded-full overflow-hidden">
+                                                    <div className="h-1.5 w-16 bg-[#E8E8ED] rounded-full overflow-hidden">
                                                         <div
-                                                            className={`h-full ${colors.bar} transition-all duration-500`}
+                                                            className={`h-full ${colors.bar} transition-all duration-500 rounded-full`}
                                                             style={{ width: `${pct}%` }}
                                                         />
                                                     </div>
@@ -257,7 +259,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-lg text-blue-400 hover:text-blue-300 hover:bg-blue-400/10"
+                                                        className="h-8 w-8 rounded-full text-[#0071E3] hover:bg-[#0071E3]/8"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('docs');
@@ -268,7 +270,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-lg text-emerald-400 hover:text-emerald-300 hover:bg-emerald-400/10"
+                                                        className="h-8 w-8 rounded-full text-[#34C759] hover:bg-[#34C759]/8"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('form');
@@ -279,7 +281,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="ghost"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-400/10"
+                                                        className="h-8 w-8 rounded-full text-[#FF3B30] hover:bg-[#FF3B30]/8"
                                                         onClick={() => handleDelete(worker.id)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
@@ -322,10 +324,10 @@ const WorkersPage: React.FC = () => {
 
                 {modalType === 'docs' && selectedWorker && (
                     <div className="space-y-6">
-                        <div className="flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10">
+                        <div className="flex justify-between items-center bg-[#F5F5F7] p-4 rounded-xl">
                             <div>
-                                <h4 className="text-sm font-bold text-white">Bóveda de Documentos</h4>
-                                <p className="text-xs text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
+                                <h4 className="text-sm font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
+                                <p className="text-xs text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
                             </div>
                             <Button
                                 size="sm"
