@@ -10,7 +10,9 @@ import {
     FilePlus,
     Loader2,
     FileText,
-    X
+    X,
+    Building2,
+    Briefcase
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -23,14 +25,21 @@ import { DocumentUploader } from '../components/documents/DocumentUploader';
 import { DocumentList } from '../components/documents/DocumentList';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
-import type { Trabajador } from '../types/entities';
+import type { Trabajador, Empresa, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 
 const WorkersPage: React.FC = () => {
     const { selectedObra } = useObra();
     const [workers, setWorkers] = useState<Trabajador[]>([]);
+    const [empresas, setEmpresas] = useState<Empresa[]>([]);
+    const [cargos, setCargos] = useState<Cargo[]>([]);
+
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
+    const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
+    const [selectedCargo, setSelectedCargo] = useState<string>('');
+    const [showFilters, setShowFilters] = useState(false);
+    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     // Document completion data: { [workerId]: percentage }
     const [completion, setCompletion] = useState<Record<number, number>>({});
@@ -40,16 +49,31 @@ const WorkersPage: React.FC = () => {
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    // Sort & Filter states
-    const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-    const [showFilters, setShowFilters] = useState(false);
-    const [filterStatus, setFilterStatus] = useState<'all' | 'complete' | 'incomplete'>('all');
+    // Initial Fetch of Catalogs
+    useEffect(() => {
+        const fetchCatalogs = async () => {
+            try {
+                const [empRes, carRes] = await Promise.all([
+                    api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
+                    api.get<ApiResponse<Cargo[]>>('/cargos?activo=true')
+                ]);
+                setEmpresas(empRes.data.data);
+                setCargos(carRes.data.data);
+            } catch (err) {
+                console.error('Error fetching catalogs', err);
+            }
+        };
+        fetchCatalogs();
+    }, []);
 
     const fetchWorkers = async () => {
         setLoading(true);
         try {
             const obraQuery = selectedObra ? `&obra_id=${selectedObra.id}` : '';
-            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}`);
+            const empresaQuery = selectedEmpresa ? `&empresa_id=${selectedEmpresa}` : '';
+            const cargoQuery = selectedCargo ? `&cargo_id=${selectedCargo}` : '';
+
+            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}`);
             const data = response.data.data;
             setWorkers(data);
 
@@ -63,7 +87,8 @@ const WorkersPage: React.FC = () => {
                     // Silently fail — completion will show 0%
                 }
             }
-        } catch (err) {
+        } catch (error) {
+            console.error('Error fetching workers:', error);
             toast.error('Error al cargar trabajadores');
         } finally {
             setLoading(false);
@@ -86,7 +111,7 @@ const WorkersPage: React.FC = () => {
             fetchWorkers();
         }, 500);
         return () => clearTimeout(timer);
-    }, [search, selectedObra]);
+    }, [search, selectedObra, selectedEmpresa, selectedCargo]);
 
     // Helper function for completion color
     const getCompletionColor = (pct: number) => {
@@ -96,19 +121,12 @@ const WorkersPage: React.FC = () => {
     };
 
     // Filtered and sorted workers
-    const filteredWorkers = [...workers]
-        .filter(worker => {
-            if (filterStatus === 'all') return true;
-            const pct = completion[worker.id] ?? 0;
-            if (filterStatus === 'complete') return pct >= 80;
-            if (filterStatus === 'incomplete') return pct < 80;
-            return true;
-        })
-        .sort((a, b) => {
-            const nameA = `${a.nombres} ${a.apellido_paterno}`.toLowerCase();
-            const nameB = `${b.nombres} ${b.apellido_paterno}`.toLowerCase();
-            return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
-        });
+    // Client-side sorting only
+    const sortedWorkers = [...workers].sort((a, b) => {
+        const nameA = `${a.nombres} ${a.apellido_paterno}`.toLowerCase();
+        const nameB = `${b.nombres} ${b.apellido_paterno}`.toLowerCase();
+        return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
+    });
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
@@ -147,12 +165,19 @@ const WorkersPage: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                     <Button
-                        variant={showFilters ? 'primary' : 'glass'}
-                        leftIcon={<Filter className="h-4 w-4" />}
-                        onClick={() => setShowFilters(!showFilters)}
+                        variant={(selectedEmpresa || selectedCargo) ? 'primary' : (showFilters ? 'primary' : 'glass')}
+                        leftIcon={(selectedEmpresa || selectedCargo) ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
+                        onClick={() => {
+                            if (selectedEmpresa || selectedCargo) {
+                                setSelectedEmpresa('');
+                                setSelectedCargo('');
+                            } else {
+                                setShowFilters(!showFilters);
+                            }
+                        }}
                         size="sm"
                     >
-                        {filterStatus !== 'all' ? 'Filtros (1)' : 'Filtros'}
+                        {(selectedEmpresa || selectedCargo) ? 'Limpiar Filtros' : 'Filtros'}
                     </Button>
                     <Button
                         variant="glass"
@@ -173,15 +198,36 @@ const WorkersPage: React.FC = () => {
                     className="bg-white rounded-2xl border border-[#D2D2D7] p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
                     <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#6E6E73]">Estado Documental</label>
+                        <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
+                            <Building2 className="h-4 w-4" />
+                            Empresa
+                        </label>
                         <select
-                            value={filterStatus}
-                            onChange={(e) => setFilterStatus(e.target.value as any)}
-                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-base text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                            value={selectedEmpresa}
+                            onChange={(e) => setSelectedEmpresa(e.target.value)}
+                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
                         >
-                            <option value="all">Todos</option>
-                            <option value="complete">Completos (≥80%)</option>
-                            <option value="incomplete">Incompletos (&lt;80%)</option>
+                            <option value="">Todas las Empresas</option>
+                            {empresas.map(e => (
+                                <option key={e.id} value={e.id}>{e.razon_social}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="space-y-2">
+                        <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
+                            <Briefcase className="h-4 w-4" />
+                            Cargo
+                        </label>
+                        <select
+                            value={selectedCargo}
+                            onChange={(e) => setSelectedCargo(e.target.value)}
+                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                        >
+                            <option value="">Todos los Cargos</option>
+                            {cargos.map(c => (
+                                <option key={c.id} value={c.id}>{c.nombre}</option>
+                            ))}
                         </select>
                     </div>
                 </motion.div>
@@ -208,14 +254,14 @@ const WorkersPage: React.FC = () => {
                                         <p className="text-[#6E6E73] text-sm">Cargando trabajadores...</p>
                                     </td>
                                 </tr>
-                            ) : filteredWorkers.length === 0 ? (
+                            ) : sortedWorkers.length === 0 ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] text-sm">
-                                        No se encontraron trabajadores.
+                                        No se encontraron trabajadores con los filtros actuales.
                                     </td>
                                 </tr>
                             ) : (
-                                filteredWorkers.map((worker) => {
+                                sortedWorkers.map((worker) => {
                                     const pct = completion[worker.id] ?? 0;
                                     const colors = getCompletionColor(pct);
 

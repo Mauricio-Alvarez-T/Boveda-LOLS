@@ -96,7 +96,8 @@ app.use('/api/trabajadores', (() => {
   const service = createCrudService('trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
-    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre'
+    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
+    allowedFilters: ['obra_id', 'empresa_id', 'cargo_id']
   });
   const ctrl = createCrudController(service);
 
@@ -145,7 +146,7 @@ app.use('/api/tipos-ausencia', (() => {
 // Dashboard KPIs
 app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, res, next) => {
   try {
-    const summary = await dashboardService.getSummary();
+    const summary = await dashboardService.getSummary(req.query.obra_id);
     res.json({ data: summary });
   } catch (err) { next(err); }
 });

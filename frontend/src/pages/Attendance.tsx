@@ -238,7 +238,7 @@ const AttendancePage: React.FC = () => {
                                                     )}
                                                 >
                                                     <StIcon className="h-4 w-4" />
-                                                    <span className="text-[10px] font-semibold uppercase">{st}</span>
+                                                    <span className="text-xs font-semibold uppercase">{st}</span>
                                                 </button>
                                             );
                                         })}

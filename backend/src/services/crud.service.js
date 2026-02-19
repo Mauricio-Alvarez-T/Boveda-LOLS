@@ -9,7 +9,7 @@ const db = require('../config/db');
  * @param {string} options.selectFields - Campos a seleccionar (default: tableName.*)
  */
 const createCrudService = (tableName, options = {}) => {
-    const { searchFields = [], joins = '', selectFields = `${tableName}.*`, activeColumn = 'activo' } = options;
+    const { searchFields = [], joins = '', selectFields = `${tableName}.*`, activeColumn = 'activo', allowedFilters = [] } = options;
 
     return {
         async getAll(query = {}) {
@@ -22,6 +22,16 @@ const createCrudService = (tableName, options = {}) => {
             if (activo !== undefined) {
                 where.push(`${tableName}.${activeColumn} = ?`);
                 params.push(activo === 'true' || activo === true ? 1 : 0);
+            }
+
+            // Generic filters (e.g., obra_id)
+            if (allowedFilters.length > 0) {
+                allowedFilters.forEach(field => {
+                    if (query[field] !== undefined) {
+                        where.push(`${tableName}.${field} = ?`);
+                        params.push(query[field]);
+                    }
+                });
             }
 
             // Search

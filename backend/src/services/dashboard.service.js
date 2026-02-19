@@ -3,21 +3,42 @@ const pool = require('../config/db');
 /**
  * Service to aggregate KPIs for the main dashboard
  */
-const getSummary = async () => {
+const getSummary = async (obraId = null) => {
+    const params = obraId ? [obraId] : [];
+    const obraFilter = obraId ? 'AND t.obra_id = ?' : '';
+    const obraFilterWhere = obraId ? 'WHERE t.obra_id = ?' : '';
+    const docObraFilter = obraId ? 'AND tr.obra_id = ?' : '';
+    const asistFilter = obraId ? 'AND obra_id = ?' : '';
+
     // 1. Total Workers
-    const [workers] = await pool.query('SELECT COUNT(*) as count FROM trabajadores WHERE activo = 1');
+    const [workers] = await pool.query(
+        `SELECT COUNT(*) as count FROM trabajadores t WHERE t.activo = 1 ${obraFilter}`,
+        params
+    );
 
     // 2. Total Documents
-    const [docs] = await pool.query('SELECT COUNT(*) as count FROM documentos WHERE activo = 1');
+    const [docs] = await pool.query(
+        `SELECT COUNT(d.id) as count 
+         FROM documentos d 
+         JOIN trabajadores tr ON d.trabajador_id = tr.id 
+         WHERE d.activo = 1 ${docObraFilter}`,
+        params
+    );
 
-    // 3. Expired Documents (or expiring soon)
-    const [expired] = await pool.query('SELECT COUNT(*) as count FROM documentos WHERE activo = 1 AND fecha_vencimiento < CURDATE()');
+    // 3. Expired Documents
+    const [expired] = await pool.query(
+        `SELECT COUNT(d.id) as count 
+         FROM documentos d 
+         JOIN trabajadores tr ON d.trabajador_id = tr.id 
+         WHERE d.activo = 1 AND d.fecha_vencimiento < CURDATE() ${docObraFilter}`,
+        params
+    );
 
-    // 4. Attendance % for Today
+    // 4. Attendance %
     const today = new Date().toISOString().split('T')[0];
     const [attendanceToday] = await pool.query(
-        'SELECT estado, COUNT(*) as count FROM asistencias WHERE fecha = ? GROUP BY estado',
-        [today]
+        `SELECT estado, COUNT(*) as count FROM asistencias WHERE fecha = ? ${asistFilter} GROUP BY estado`,
+        [today, ...params]
     );
 
     const stats = attendanceToday.reduce((acc, curr) => {
@@ -28,26 +49,31 @@ const getSummary = async () => {
 
     const attendanceRate = stats.total > 0
         ? Math.round(((stats.Presente || 0) + (stats.Atraso || 0)) / stats.total * 100)
-        : 100;
+        : 0;
 
-    // 5. Recent Activity (Latest 5 documents uploaded)
+    // 5. Recent Activity
     const [recentDocs] = await pool.query(`
         SELECT d.*, t.nombre as tipo_nombre, tr.nombres, tr.apellido_paterno
         FROM documentos d
         JOIN tipos_documento t ON d.tipo_documento_id = t.id
         JOIN trabajadores tr ON d.trabajador_id = tr.id
+        WHERE 1=1 ${docObraFilter}
         ORDER BY d.fecha_subida DESC
         LIMIT 5
-    `);
+    `, params);
 
-    // 6. Distribution of workers by Obra
+    // 6. Distribution
+    // If obraId is present, we only show that Obra's distribution (it will be a single bar)
+    const distParams = obraId ? [obraId] : [];
+    const distFilter = obraId ? 'AND o.id = ?' : '';
+
     const [obraDistribution] = await pool.query(`
         SELECT o.nombre, COUNT(t.id) as count
         FROM obras o
         LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1
-        WHERE o.activa = 1
+        WHERE o.activa = 1 ${distFilter}
         GROUP BY o.id, o.nombre
-    `);
+    `, distParams);
 
     return {
         counters: {
