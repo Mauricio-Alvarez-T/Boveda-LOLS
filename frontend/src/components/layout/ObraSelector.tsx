@@ -53,7 +53,7 @@ export const ObraSelector: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.97 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full mt-2 left-0 w-full min-w-[220px] z-50 bg-white rounded-xl border border-[#D2D2D7] shadow-lg overflow-hidden"
+                        className="absolute top-full mt-2 right-0 w-[240px] z-50 bg-white rounded-xl border border-[#D2D2D7] shadow-lg overflow-hidden"
                     >
                         <div className="p-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
                             {/* "All Obras" option */}

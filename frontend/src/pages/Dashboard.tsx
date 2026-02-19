@@ -34,6 +34,7 @@ import { useNavigate } from 'react-router-dom';
 
 import { Button } from '../components/ui/Button';
 import { useAuth } from '../context/AuthContext';
+import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
@@ -51,6 +52,7 @@ interface DashboardData {
 
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
+    const { selectedObra } = useObra();
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -62,7 +64,8 @@ const Dashboard: React.FC = () => {
     useEffect(() => {
         const fetchSummary = async () => {
             try {
-                const res = await api.get<ApiResponse<DashboardData>>('/dashboard/summary');
+                const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
+                const res = await api.get<ApiResponse<DashboardData>>(`/dashboard/summary${query}`);
                 setData(res.data.data);
 
                 const healthRes = await api.get('/health');
@@ -77,7 +80,7 @@ const Dashboard: React.FC = () => {
             }
         };
         fetchSummary();
-    }, []);
+    }, [selectedObra]);
 
     if (loading || !data) {
         return (
@@ -139,14 +142,14 @@ const Dashboard: React.FC = () => {
                     <h1 className="text-2xl font-bold text-[#1D1D1F] leading-tight">
                         Bienvenido de nuevo, <span className="text-[#0071E3]">{user?.nombre.split(' ')[0]}</span>
                     </h1>
-                    <p className="text-[#6E6E73] mt-1 flex items-center gap-2 text-sm">
+                    <p className="text-[#6E6E73] mt-1 flex items-center gap-2 text-base">
                         <ShieldCheck className="h-4 w-4 text-[#34C759]" />
                         Sistema de Gestión Documental Laboral activo.
                     </p>
                 </div>
                 <div className="px-4 py-2 rounded-full bg-white border border-[#D2D2D7] flex items-center gap-2 shadow-sm">
                     <Calendar className="h-4 w-4 text-[#0071E3]" />
-                    <span className="text-sm font-medium text-[#1D1D1F]">
+                    <span className="text-base font-medium text-[#1D1D1F]">
                         {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
                     </span>
                 </div>
@@ -168,12 +171,12 @@ const Dashboard: React.FC = () => {
                                 <stat.icon className="h-5 w-5" />
                             </div>
                             <div>
-                                <p className="text-[10px] font-semibold text-[#6E6E73] uppercase tracking-widest">{stat.label}</p>
-                                <p className="text-2xl font-bold text-[#1D1D1F] mt-0.5">{stat.value}</p>
+                                <p className="text-xs font-semibold text-[#6E6E73] uppercase tracking-widest">{stat.label}</p>
+                                <p className="text-3xl font-bold text-[#1D1D1F] mt-0.5">{stat.value}</p>
                             </div>
                         </div>
                         {/* Hover hint */}
-                        <div className="mt-3 flex items-center gap-1 text-[10px] text-[#6E6E73] opacity-0 group-hover:opacity-100 transition-opacity">
+                        <div className="mt-3 flex items-center gap-1 text-xs text-[#6E6E73] opacity-0 group-hover:opacity-100 transition-opacity">
                             <ArrowRight className="h-3 w-3" />
                             <span>{stat.description}</span>
                         </div>
@@ -206,16 +209,16 @@ const Dashboard: React.FC = () => {
                                             dataKey="nombre"
                                             axisLine={false}
                                             tickLine={false}
-                                            tick={{ fill: '#6E6E73', fontSize: 10 }}
+                                            tick={{ fill: '#6E6E73', fontSize: 12 }}
                                         />
                                         <YAxis
                                             axisLine={false}
                                             tickLine={false}
-                                            tick={{ fill: '#6E6E73', fontSize: 10 }}
+                                            tick={{ fill: '#6E6E73', fontSize: 12 }}
                                         />
                                         <Tooltip
                                             cursor={{ fill: '#F5F5F7' }}
-                                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
+                                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '13px', color: '#1D1D1F' }}
                                         />
                                         <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                                             {data.obraDistribution.map((_, index) => (
@@ -244,11 +247,11 @@ const Dashboard: React.FC = () => {
                         {/* Recent Activity */}
                         <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
                             <div className="flex items-center justify-between mb-5">
-                                <h3 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2">
+                                <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2">
                                     <Activity className="h-4 w-4 text-[#0071E3]" />
                                     Actividad Reciente
                                 </h3>
-                                <span className="text-[10px] text-[#A1A1A6] uppercase font-semibold tracking-wider">Últimos 5</span>
+                                <span className="text-xs text-[#A1A1A6] uppercase font-semibold tracking-wider">Últimos 5</span>
                             </div>
                             <div className="space-y-3">
                                 {data.recentActivity.length > 0 ? (
@@ -262,10 +265,10 @@ const Dashboard: React.FC = () => {
                                                 <FileText className="h-4 w-4" />
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-xs font-semibold text-[#1D1D1F] truncate">{act.tipo_nombre}</p>
-                                                <p className="text-[10px] text-[#6E6E73] truncate">{act.nombres} {act.apellido_paterno}</p>
+                                                <p className="text-sm font-semibold text-[#1D1D1F] truncate">{act.tipo_nombre}</p>
+                                                <p className="text-xs text-[#6E6E73] truncate">{act.nombres} {act.apellido_paterno}</p>
                                             </div>
-                                            <div className="text-[10px] text-[#A1A1A6] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                            <div className="text-xs text-[#A1A1A6] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                                                 {new Date(act.fecha_subida).toLocaleDateString()}
                                             </div>
                                         </div>

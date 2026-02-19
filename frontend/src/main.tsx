@@ -11,7 +11,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     <AuthProvider>
       <ObraProvider>
         <App />
-        <Toaster position="top-right" richColors closeButton />
+        <Toaster position="top-right" closeButton />
       </ObraProvider>
     </AuthProvider>
   </React.StrictMode>,

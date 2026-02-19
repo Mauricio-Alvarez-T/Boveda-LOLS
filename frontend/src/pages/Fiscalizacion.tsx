@@ -115,7 +115,7 @@ const FiscalizacionPage: React.FC = () => {
                         <Archive className="h-7 w-7 text-[#0071E3]" />
                         Fiscalización y Exportación
                     </h1>
-                    <p className="text-[#6E6E73] mt-1 text-sm">
+                    <p className="text-[#6E6E73] mt-1 text-base">
                         Proyecto activo: <span className="text-[#1D1D1F] font-semibold">{selectedObra.nombre}</span>
                     </p>
                 </div>
@@ -143,16 +143,16 @@ const FiscalizacionPage: React.FC = () => {
                         </div>
 
                         <div className="p-4 rounded-xl bg-[#F5F5F7] space-y-3">
-                            <div className="flex justify-between items-center text-xs">
+                            <div className="flex justify-between items-center text-sm">
                                 <span className="text-[#6E6E73]">Trabajadores en nómina:</span>
                                 <span className="text-[#1D1D1F] font-semibold">{report.length}</span>
                             </div>
-                            <div className="flex justify-between items-center text-xs">
+                            <div className="flex justify-between items-center text-sm">
                                 <span className="text-[#6E6E73]">Presentes para exportar:</span>
                                 <span className="text-[#34C759] font-semibold">{presentCount}</span>
                             </div>
                             <div className="h-px bg-[#D2D2D7]" />
-                            <p className="text-[10px] text-[#A1A1A6] italic leading-relaxed">
+                            <p className="text-xs text-[#A1A1A6] italic leading-relaxed">
                                 * El ZIP incluirá automáticamente los documentos vigentes de todos los trabajadores marcados como 'Presente' o 'Atraso' en la fecha seleccionada.
                             </p>
                         </div>
@@ -204,16 +204,16 @@ const FiscalizacionPage: React.FC = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-[#F5F5F7] uppercase text-[10px] tracking-widest text-[#6E6E73]">
-                                        <th className="px-6 py-3.5 font-semibold">Trabajador</th>
-                                        <th className="px-6 py-3.5 font-semibold">Estado</th>
-                                        <th className="px-6 py-3.5 font-semibold">Inclusión en ZIP</th>
+                                    <tr className="bg-[#F5F5F7] uppercase text-xs tracking-widest text-[#6E6E73]">
+                                        <th className="px-6 py-4 font-semibold">Trabajador</th>
+                                        <th className="px-6 py-4 font-semibold">Estado</th>
+                                        <th className="px-6 py-4 font-semibold">Inclusión en ZIP</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#E8E8ED]">
                                     {report.length === 0 ? (
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-20 text-center text-[#6E6E73] italic text-sm">
+                                            <td colSpan={3} className="px-6 py-20 text-center text-[#6E6E73] italic text-base">
                                                 No hay registros de asistencia para esta fecha.
                                                 Pasa lista primero en el módulo de Asistencia.
                                             </td>
@@ -221,13 +221,13 @@ const FiscalizacionPage: React.FC = () => {
                                     ) : (
                                         report.map((item) => (
                                             <tr key={item.trabajador_id} className="hover:bg-[#F5F5F7]/50 transition-colors">
-                                                <td className="px-6 py-4">
-                                                    <p className="text-sm font-semibold text-[#1D1D1F]">{item.nombres} {item.apellido_paterno}</p>
-                                                    <p className="text-[10px] text-[#6E6E73]">{item.rut}</p>
+                                                <td className="px-6 py-5">
+                                                    <p className="text-base font-semibold text-[#1D1D1F]">{item.nombres} {item.apellido_paterno}</p>
+                                                    <p className="text-xs text-[#6E6E73]">{item.rut}</p>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-5">
                                                     <div className={cn(
-                                                        "inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase",
+                                                        "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase",
                                                         item.estado === 'Presente' ? "bg-[#34C759]/10 text-[#34C759]" :
                                                             item.estado === 'Atraso' ? "bg-[#FF9F0A]/10 text-[#FF9F0A]" :
                                                                 "bg-[#FF3B30]/10 text-[#FF3B30]"
@@ -235,13 +235,13 @@ const FiscalizacionPage: React.FC = () => {
                                                         {item.estado}
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-4">
+                                                <td className="px-6 py-5">
                                                     {(item.estado === 'Presente' || item.estado === 'Atraso') ? (
-                                                        <div className="flex items-center gap-2 text-[#34C759] text-xs font-medium">
+                                                        <div className="flex items-center gap-2 text-[#34C759] text-sm font-medium">
                                                             <CheckCircle2 className="h-4 w-4" /> Incluido
                                                         </div>
                                                     ) : (
-                                                        <div className="flex items-center gap-2 text-[#A1A1A6] text-xs font-medium italic">
+                                                        <div className="flex items-center gap-2 text-[#A1A1A6] text-sm font-medium italic">
                                                             <AlertCircle className="h-4 w-4" /> Excluido
                                                         </div>
                                                     )}

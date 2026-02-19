@@ -50,7 +50,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                         className="flex flex-col"
                     >
                         <span className="font-semibold text-base text-[#1D1D1F] leading-none">Bóveda</span>
-                        <span className="text-[10px] text-[#0071E3] font-bold tracking-[0.2em] uppercase mt-0.5">LOLS</span>
+                        <span className="text-xs text-[#0071E3] font-bold tracking-[0.2em] uppercase mt-0.5">LOLS</span>
                     </motion.div>
                 )}
             </div>
@@ -62,7 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                         key={item.path}
                         to={item.path}
                         className={({ isActive }) => cn(
-                            "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative text-sm",
+                            "flex items-center gap-3 px-3 py-3 rounded-xl transition-all group relative text-base",
                             isActive
                                 ? "bg-[#0071E3]/8 text-[#0071E3] font-semibold"
                                 : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
@@ -89,13 +89,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                     "flex items-center gap-3 p-2.5 rounded-xl bg-[#F5F5F7] transition-all",
                     isCollapsed ? "justify-center" : "justify-start"
                 )}>
-                    <div className="h-8 w-8 shrink-0 rounded-full bg-[#0071E3] flex items-center justify-center text-xs font-semibold text-white">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-[#0071E3] flex items-center justify-center text-sm font-semibold text-white">
                         {user?.nombre?.[0]}
                     </div>
                     {!isCollapsed && (
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-[#1D1D1F] truncate">{user?.nombre}</p>
-                            <p className="text-[10px] text-[#6E6E73] truncate">{user?.rol}</p>
+                            <p className="text-sm font-semibold text-[#1D1D1F] truncate">{user?.nombre}</p>
+                            <p className="text-xs text-[#6E6E73] truncate">{user?.rol}</p>
                         </div>
                     )}
                     {!isCollapsed && (

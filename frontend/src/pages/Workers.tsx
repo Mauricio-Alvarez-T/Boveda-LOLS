@@ -21,11 +21,13 @@ import { Modal } from '../components/ui/Modal';
 import { WorkerForm } from '../components/workers/WorkerForm';
 import { DocumentUploader } from '../components/documents/DocumentUploader';
 import { DocumentList } from '../components/documents/DocumentList';
+import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { Trabajador } from '../types/entities';
 import type { ApiResponse } from '../types';
 
 const WorkersPage: React.FC = () => {
+    const { selectedObra } = useObra();
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [loading, setLoading] = useState(true);
     const [search, setSearch] = useState('');
@@ -46,7 +48,8 @@ const WorkersPage: React.FC = () => {
     const fetchWorkers = async () => {
         setLoading(true);
         try {
-            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}`);
+            const obraQuery = selectedObra ? `&obra_id=${selectedObra.id}` : '';
+            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}`);
             const data = response.data.data;
             setWorkers(data);
 
@@ -83,7 +86,7 @@ const WorkersPage: React.FC = () => {
             fetchWorkers();
         }, 500);
         return () => clearTimeout(timer);
-    }, [search]);
+    }, [search, selectedObra]);
 
     // Helper function for completion color
     const getCompletionColor = (pct: number) => {
@@ -116,7 +119,7 @@ const WorkersPage: React.FC = () => {
                         <Users className="h-7 w-7 text-[#0071E3]" />
                         Gestión de Trabajadores
                     </h1>
-                    <p className="text-[#6E6E73] mt-1 text-sm">
+                    <p className="text-[#6E6E73] mt-1 text-base">
                         Administra la información y documentación de tu personal.
                     </p>
                 </div>
@@ -170,11 +173,11 @@ const WorkersPage: React.FC = () => {
                     className="bg-white rounded-2xl border border-[#D2D2D7] p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
                 >
                     <div className="space-y-2">
-                        <label className="text-xs font-medium text-[#6E6E73]">Estado Documental</label>
+                        <label className="text-sm font-medium text-[#6E6E73]">Estado Documental</label>
                         <select
                             value={filterStatus}
                             onChange={(e) => setFilterStatus(e.target.value as any)}
-                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-base text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
                         >
                             <option value="all">Todos</option>
                             <option value="complete">Completos (≥80%)</option>
@@ -189,12 +192,12 @@ const WorkersPage: React.FC = () => {
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-[10px] tracking-widest text-[#6E6E73]">
-                                <th className="px-6 py-3.5 font-semibold">Trabajador</th>
-                                <th className="px-6 py-3.5 font-semibold">Empresa / Obra</th>
-                                <th className="px-6 py-3.5 font-semibold">Cargo</th>
-                                <th className="px-6 py-3.5 font-semibold">Estado Docs</th>
-                                <th className="px-6 py-3.5 font-semibold text-right">Acciones</th>
+                            <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-xs tracking-widest text-[#6E6E73]">
+                                <th className="px-6 py-4 font-semibold">Trabajador</th>
+                                <th className="px-6 py-4 font-semibold">Empresa / Obra</th>
+                                <th className="px-6 py-4 font-semibold">Cargo</th>
+                                <th className="px-6 py-4 font-semibold">Estado Docs</th>
+                                <th className="px-6 py-4 font-semibold text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E8E8ED]">
@@ -225,18 +228,18 @@ const WorkersPage: React.FC = () => {
                                         >
                                             <td className="px-6 py-4">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-9 w-9 rounded-full bg-[#0071E3] flex items-center justify-center text-white font-semibold text-xs">
+                                                    <div className="h-10 w-10 rounded-full bg-[#0071E3] flex items-center justify-center text-white font-semibold text-sm">
                                                         {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
+                                                        <p className="text-base font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
                                                         <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
                                                     </div>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4">
-                                                <p className="text-xs text-[#1D1D1F] font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
-                                                <p className="text-[10px] text-[#6E6E73]">{worker.obra_nombre || 'Sin Obra'}</p>
+                                                <p className="text-sm text-[#1D1D1F] font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
+                                                <p className="text-xs text-[#6E6E73]">{worker.obra_nombre || 'Sin Obra'}</p>
                                             </td>
                                             <td className="px-6 py-4">
                                                 <span className="text-xs px-2.5 py-1 rounded-full bg-[#0071E3]/8 text-[#0071E3] font-medium">
@@ -251,7 +254,7 @@ const WorkersPage: React.FC = () => {
                                                             style={{ width: `${pct}%` }}
                                                         />
                                                     </div>
-                                                    <span className={`text-[10px] ${colors.text} font-bold`}>{pct}%</span>
+                                                    <span className={`text-xs ${colors.text} font-bold`}>{pct}%</span>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-4 text-right">
@@ -326,8 +329,8 @@ const WorkersPage: React.FC = () => {
                     <div className="space-y-6">
                         <div className="flex justify-between items-center bg-[#F5F5F7] p-4 rounded-xl">
                             <div>
-                                <h4 className="text-sm font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
-                                <p className="text-xs text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
+                                <h4 className="text-base font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
+                                <p className="text-sm text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
                             </div>
                             <Button
                                 size="sm"

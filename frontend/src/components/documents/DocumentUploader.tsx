@@ -117,7 +117,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                 />
 
                 <div className="space-y-2">
-                    <label className="text-sm font-medium text-muted-foreground ml-1">Archivo (PDF, Imagen o TXT)</label>
+                    <label className="text-base font-medium text-muted-foreground ml-1">Archivo (PDF, Imagen o TXT)</label>
                     <div
                         className={`relative h-48 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 cursor-pointer
               ${file ? 'border-[#0071E3] bg-[#0071E3]/5' : 'border-[#D2D2D7] hover:border-[#0071E3]/50 hover:bg-[#F5F5F7]'}`}
@@ -142,7 +142,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                                         <X className="h-4 w-4" />
                                     </button>
                                 </div>
-                                <p className="text-[10px] text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
+                                <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                             </div>
                         ) : (
                             <div className="text-center space-y-2">
@@ -150,10 +150,10 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                                     <Upload className="h-6 w-6 text-muted-foreground" />
                                 </div>
                                 <div>
-                                    <p className="text-sm font-medium text-[#1D1D1F]">Haz clic o arrastra un archivo</p>
-                                    <p className="text-xs text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB)</p>
+                                    <p className="text-base font-medium text-[#1D1D1F]">Haz clic o arrastra un archivo</p>
+                                    <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB)</p>
                                 </div>
-                                <p className="text-[10px] text-emerald-400 font-bold bg-emerald-500/10 px-2 py-0.5 rounded-full inline-block">
+                                <p className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full inline-block">
                                     Auto-conversión a PDF activa
                                 </p>
                             </div>
@@ -175,6 +175,6 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                     Subir Documento
                 </Button>
             </div>
-        </form>
+        </form >
     );
 };

@@ -121,8 +121,8 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                     <FileText className="h-6 w-6" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <h4 className="text-sm font-bold text-white truncate">{doc.tipo_nombre || 'Documento'}</h4>
-                                    <p className="text-[10px] text-muted-foreground truncate">{doc.nombre_archivo}</p>
+                                    <h4 className="text-base font-bold text-white truncate">{doc.tipo_nombre || 'Documento'}</h4>
+                                    <p className="text-xs text-muted-foreground truncate">{doc.nombre_archivo}</p>
                                 </div>
                             </div>
                             <div className="flex gap-1 shrink-0">
@@ -140,7 +140,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                             </div>
                         </div>
 
-                        <div className="flex items-center justify-between text-[10px] mt-2 bg-[#F5F5F7] p-2 rounded-lg">
+                        <div className="flex items-center justify-between text-xs mt-2 bg-[#F5F5F7] p-2.5 rounded-lg">
                             <div className="flex items-center gap-1.5 text-muted-foreground">
                                 <Calendar className="h-3 w-3" />
                                 Subido: {new Date(doc.fecha_subida).toLocaleDateString()}
@@ -159,7 +159,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                         </div>
 
                         {!doc.activo && (
-                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[#E8E8ED] text-[#6E6E73] text-[8px] font-bold uppercase tracking-wider">
+                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[#E8E8ED] text-[#6E6E73] text-xs font-bold uppercase tracking-wider">
                                 Archivado
                             </div>
                         )}

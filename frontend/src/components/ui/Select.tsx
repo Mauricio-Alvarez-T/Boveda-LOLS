@@ -25,7 +25,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 <div className="relative group">
                     <select
                         className={cn(
-                            "flex h-11 w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-2 text-sm text-[#1D1D1F] ring-offset-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#0071E3]/30 focus-visible:border-[#0071E3] transition-all hover:border-[#B0B0B5] appearance-none",
+                            "flex h-11 w-full items-center justify-between rounded-xl border border-input bg-white px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none transition-all duration-200",
                             error && "border-[#FF3B30] focus-visible:ring-[#FF3B30]/30 focus-visible:border-[#FF3B30]",
                             className
                         )}

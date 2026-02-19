@@ -135,7 +135,7 @@ const AttendancePage: React.FC = () => {
                         <CheckSquare className="h-7 w-7 text-[#0071E3]" />
                         Control de Asistencia
                     </h1>
-                    <p className="text-[#6E6E73] mt-1 text-sm">
+                    <p className="text-[#6E6E73] mt-1 text-base">
                         Registrando asistencia para <span className="text-[#1D1D1F] font-semibold">{selectedObra.nombre}</span>
                     </p>
                 </div>
@@ -209,8 +209,8 @@ const AttendancePage: React.FC = () => {
                                 >
                                     <div className="flex items-start justify-between">
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-semibold text-[#1D1D1F] truncate">{worker.nombres} {worker.apellido_paterno}</p>
-                                            <p className="text-[10px] text-[#6E6E73]">{worker.rut}</p>
+                                            <p className="text-base font-semibold text-[#1D1D1F] truncate">{worker.nombres} {worker.apellido_paterno}</p>
+                                            <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
                                         </div>
                                         <div className={cn("p-2 rounded-lg", config.bg, config.color)}>
                                             <Icon className="h-4 w-4" />
@@ -231,14 +231,14 @@ const AttendancePage: React.FC = () => {
                                                         tipo_ausencia_id: st === 'Presente' ? null : state.tipo_ausencia_id
                                                     })}
                                                     className={cn(
-                                                        "flex flex-col items-center justify-center p-2 rounded-xl border transition-all gap-1",
+                                                        "flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1.5",
                                                         isActive
                                                             ? `${cfg.bg} ${cfg.color} border-current font-bold`
                                                             : "bg-[#F5F5F7] border-[#E8E8ED] text-[#6E6E73] hover:bg-[#E8E8ED]"
                                                     )}
                                                 >
-                                                    <StIcon className="h-3.5 w-3.5" />
-                                                    <span className="text-[7px] font-semibold uppercase">{st}</span>
+                                                    <StIcon className="h-4 w-4" />
+                                                    <span className="text-[10px] font-semibold uppercase">{st}</span>
                                                 </button>
                                             );
                                         })}
@@ -253,7 +253,7 @@ const AttendancePage: React.FC = () => {
                                         >
                                             {state.estado === 'Ausente' || state.estado === 'Licencia' ? (
                                                 <select
-                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                     value={state.tipo_ausencia_id || ''}
                                                     onChange={(e) => updateAttendance(worker.id, { tipo_ausencia_id: e.target.value ? Number(e.target.value) : null })}
                                                 >
@@ -265,7 +265,7 @@ const AttendancePage: React.FC = () => {
                                             ) : null}
                                             <input
                                                 placeholder="Observación..."
-                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                 value={state.observacion || ''}
                                                 onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
                                             />

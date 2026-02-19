@@ -29,17 +29,23 @@ export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             // Restore saved selection
             const savedId = localStorage.getItem(STORAGE_KEY);
-            if (savedId) {
+            if (savedId === 'ALL') {
+                setSelectedObraState(null);
+            } else if (savedId) {
                 const found = list.find(o => o.id === Number(savedId));
                 if (found) {
                     setSelectedObraState(found);
                 } else if (list.length > 0) {
+                    // Filtered or deleted, fallback to first
                     setSelectedObraState(list[0]);
                     localStorage.setItem(STORAGE_KEY, String(list[0].id));
                 }
             } else if (list.length > 0) {
-                setSelectedObraState(list[0]);
-                localStorage.setItem(STORAGE_KEY, String(list[0].id));
+                // Default to first visit behavior (or force ALL if preferred? for now defaulting to first as before unless modified)
+                // Actually, let's default to 'ALL' (null) if nothing saved, to allow global view by default? 
+                // Previous behavior was defaulting to list[0]. User asked "what logic". 
+                // Let's stick to: If nothing saved, default to ALL (null). 
+                setSelectedObraState(null);
             }
         } catch {
             console.error('Error fetching obras');
@@ -57,7 +63,7 @@ export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (obra) {
             localStorage.setItem(STORAGE_KEY, String(obra.id));
         } else {
-            localStorage.removeItem(STORAGE_KEY);
+            localStorage.setItem(STORAGE_KEY, 'ALL');
         }
     };
 

@@ -150,23 +150,24 @@ const SettingsPage: React.FC = () => {
                 </p>
             </div>
 
-            {/* Tabs — Apple Segmented Control */}
-            <div className="bg-[#E8E8ED] p-1 rounded-xl flex gap-0.5 overflow-x-auto">
+            {/* Tabs — Apple Web Style (Pills) */}
+            <div className="flex gap-3 overflow-x-auto pb-2">
                 {tabs.map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
                         className={cn(
-                            "relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap",
+                            "relative flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap",
                             activeTab === tab.key
-                                ? "text-[#1D1D1F]"
-                                : "text-[#6E6E73] hover:text-[#1D1D1F]"
+                                ? "text-white"
+                                : "text-[#1D1D1F] hover:bg-[#F5F5F7]"
                         )}
                     >
                         {activeTab === tab.key && (
                             <motion.div
                                 layoutId="settings-tab"
-                                className="absolute inset-0 bg-white rounded-lg shadow-sm"
+                                className="absolute inset-0 bg-[#1D1D1F] rounded-full"
+                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                             />
                         )}
                         <tab.icon className="h-4 w-4 relative z-10" />
