@@ -106,12 +106,17 @@ const documentoService = {
         );
         const totalObligatorios = totalRows[0].total;
 
-        if (totalObligatorios === 0) {
-            // No mandatory docs defined; everyone is at 100%
-            const result = {};
-            trabajadorIds.forEach(id => { result[id] = 100; });
-            return result;
-        }
+        const result = {};
+        // Default everyone to 0
+        trabajadorIds.forEach(id => {
+            result[id] = {
+                uploaded: 0,
+                total: totalObligatorios,
+                percentage: totalObligatorios === 0 ? 100 : 0
+            };
+        });
+
+        if (totalObligatorios === 0) return result;
 
         // Count how many mandatory docs each worker has uploaded
         const placeholders = trabajadorIds.map(() => '?').join(',');
@@ -127,12 +132,12 @@ const documentoService = {
             trabajadorIds
         );
 
-        const result = {};
-        // Default everyone to 0
-        trabajadorIds.forEach(id => { result[id] = 0; });
-        // Set actual percentages
         rows.forEach(row => {
-            result[row.trabajador_id] = Math.round((row.uploaded / totalObligatorios) * 100);
+            result[row.trabajador_id] = {
+                uploaded: row.uploaded,
+                total: totalObligatorios,
+                percentage: Math.round((row.uploaded / totalObligatorios) * 100)
+            };
         });
         return result;
     },
@@ -142,6 +147,43 @@ const documentoService = {
             throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
         }
         return { message: 'Documento eliminado correctamente' };
+    },
+    async downloadAll(trabajadorId, res) {
+        const archiver = require('archiver');
+        const fs = require('fs');
+
+        // Get all active documents for the worker
+        const docs = await this.getByTrabajador(trabajadorId);
+        if (docs.length === 0) {
+            throw Object.assign(new Error('No hay documentos para descargar'), { statusCode: 404 });
+        }
+
+        // Get worker info for the zip filename
+        const [trabajador] = await db.query('SELECT rut, nombres, apellido_paterno FROM trabajadores WHERE id = ?', [trabajadorId]);
+        const workerName = trabajador[0] ? `${trabajador[0].nombres}_${trabajador[0].apellido_paterno}`.replace(/ /g, '_') : 'documentos';
+        const zipName = `Documentos_${workerName}.zip`;
+
+        // Set headers for download
+        res.attachment(zipName);
+
+        const archive = archiver('zip', {
+            zlib: { level: 9 } // Sets the compression level.
+        });
+
+        archive.on('error', function (err) {
+            throw err;
+        });
+
+        archive.pipe(res);
+
+        for (const doc of docs) {
+            const filePath = path.join(__dirname, '../../uploads', doc.ruta_archivo);
+            if (fs.existsSync(filePath)) {
+                archive.file(filePath, { name: doc.nombre_archivo });
+            }
+        }
+
+        await archive.finalize();
     },
 };
 

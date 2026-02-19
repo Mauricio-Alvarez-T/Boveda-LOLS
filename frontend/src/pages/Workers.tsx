@@ -12,10 +12,13 @@ import {
     FileText,
     X,
     Building2,
-    Briefcase
+    Briefcase,
+    Download,
+    ArrowLeft
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { showDeleteToast } from '../utils/toastUtils';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -41,8 +44,8 @@ const WorkersPage: React.FC = () => {
     const [showFilters, setShowFilters] = useState(false);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
-    // Document completion data: { [workerId]: percentage }
-    const [completion, setCompletion] = useState<Record<number, number>>({});
+    // Document completion data: { [workerId]: { uploaded, total, percentage } }
+    const [completion, setCompletion] = useState<Record<number, { uploaded: number, total: number, percentage: number }>>({});
 
     // Modal states
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
@@ -81,7 +84,7 @@ const WorkersPage: React.FC = () => {
             if (data.length > 0) {
                 const ids = data.map(w => w.id);
                 try {
-                    const compRes = await api.post('/documentos/kpi/completitud', { trabajador_ids: ids });
+                    const compRes = await api.post<Record<number, { uploaded: number, total: number, percentage: number }>>('/documentos/kpi/completitud', { trabajador_ids: ids });
                     setCompletion(compRes.data);
                 } catch {
                     // Silently fail — completion will show 0%
@@ -95,15 +98,16 @@ const WorkersPage: React.FC = () => {
         }
     };
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm('¿Estás seguro de desactivar este trabajador?')) return;
-        try {
-            await api.delete(`/trabajadores/${id}`);
-            toast.success('Trabajador desactivado');
-            fetchWorkers();
-        } catch (err) {
-            toast.error('Error al eliminar trabajador');
-        }
+    const handleDelete = (id: number) => {
+        showDeleteToast({
+            onConfirm: async () => {
+                await api.delete(`/trabajadores/${id}`);
+                fetchWorkers();
+            },
+            message: "¿Desactivar?",
+            successMessage: "Trabajador desactivado",
+            errorMessage: "Error al desactivar trabajador"
+        });
     };
 
     useEffect(() => {
@@ -240,10 +244,10 @@ const WorkersPage: React.FC = () => {
                         <thead>
                             <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-xs tracking-widest text-[#6E6E73]">
                                 <th className="px-6 py-4 font-semibold">Trabajador</th>
-                                <th className="px-6 py-4 font-semibold">Empresa / Obra</th>
+                                <th className="px-6 py-4 font-semibold">Empresa & Obra</th>
                                 <th className="px-6 py-4 font-semibold">Cargo</th>
-                                <th className="px-6 py-4 font-semibold">Estado Docs</th>
-                                <th className="px-6 py-4 font-semibold text-right">Acciones</th>
+                                <th className="px-6 py-4 font-semibold">Documentación</th>
+                                <th className="px-6 py-4 font-semibold text-right"></th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E8E8ED]">
@@ -262,78 +266,88 @@ const WorkersPage: React.FC = () => {
                                 </tr>
                             ) : (
                                 sortedWorkers.map((worker) => {
-                                    const pct = completion[worker.id] ?? 0;
+                                    const stats = completion[worker.id] || { uploaded: 0, total: 0, percentage: 0 };
+                                    const pct = stats.percentage;
                                     const colors = getCompletionColor(pct);
 
                                     return (
                                         <motion.tr
                                             key={worker.id}
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            className="hover:bg-[#F5F5F7]/50 transition-colors group"
+                                            initial={{ opacity: 0, y: 10 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#0071E3]"
                                         >
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-3">
-                                                    <div className="h-10 w-10 rounded-full bg-[#0071E3] flex items-center justify-center text-white font-semibold text-sm">
+                                            <td className="px-6 py-6">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="h-12 w-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-lg shadow-sm border border-[#0071E3]/20">
                                                         {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="text-base font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
-                                                        <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                                                        <p className="text-[15px] font-bold text-[#1D1D1F] leading-tight group-hover:text-[#0071E3] transition-colors">{worker.nombres} {worker.apellido_paterno}</p>
+                                                        <p className="text-xs font-semibold text-[#6E6E73] mt-1 tracking-tight">{worker.rut}</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <p className="text-sm text-[#1D1D1F] font-medium">{worker.empresa_nombre || 'Sin Empresa'}</p>
-                                                <p className="text-xs text-[#6E6E73]">{worker.obra_nombre || 'Sin Obra'}</p>
+                                            <td className="px-6 py-6 border-l border-[#E8E8ED]/30">
+                                                <div className="flex flex-col">
+                                                    <p className="text-[15px] text-[#1D1D1F] font-bold leading-tight">{worker.empresa_nombre || 'Sin Empresa'}</p>
+                                                    <p className="text-xs text-[#6E6E73] font-semibold mt-1 tracking-tight">{worker.obra_nombre || 'Sin Obra'}</p>
+                                                </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="text-xs px-2.5 py-1 rounded-full bg-[#0071E3]/8 text-[#0071E3] font-medium">
-                                                    {worker.cargo_nombre || 'N/A'}
+                                            <td className="px-6 py-6">
+                                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[#F5F5F7] border border-[#D2D2D7] text-xs font-bold text-[#1D1D1F]">
+                                                    {worker.cargo_nombre || 'No Asignado'}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <div className="flex items-center gap-2">
-                                                    <div className="h-1.5 w-16 bg-[#E8E8ED] rounded-full overflow-hidden">
-                                                        <div
-                                                            className={`h-full ${colors.bar} transition-all duration-500 rounded-full`}
-                                                            style={{ width: `${pct}%` }}
-                                                        />
-                                                    </div>
-                                                    <span className={`text-xs ${colors.text} font-bold`}>{pct}%</span>
+                                            <td className="px-6 py-6 border-l border-[#E8E8ED]/30">
+                                                <div className="flex flex-col gap-2 w-fit">
+                                                    <span className="text-xs font-bold leading-none whitespace-nowrap text-[#1D1D1F]">
+                                                        {stats.total === 0
+                                                            ? 'Sin requerimientos obligatorios'
+                                                            : (pct === 100 ? 'Documentación obligatoria completada' : `${stats.uploaded} de ${stats.total} documentos obligatorios`)
+                                                        }
+                                                    </span>
+                                                    {stats.total > 0 && (
+                                                        <div className="h-1.5 w-full bg-[#E8E8ED] rounded-full overflow-hidden">
+                                                            <div
+                                                                className={`h-full ${colors.bar} transition-all duration-700 rounded-full`}
+                                                                style={{ width: `${pct}%` }}
+                                                            />
+                                                        </div>
+                                                    )}
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-1">
+                                            <td className="px-6 py-6 text-right">
+                                                <div className="flex justify-end gap-2">
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="glass"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-full text-[#0071E3] hover:bg-[#0071E3]/8"
+                                                        className="h-10 w-10 rounded-2xl text-[#0071E3] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('docs');
                                                         }}
                                                     >
-                                                        <FileText className="h-4 w-4" />
+                                                        <FileText className="h-5 w-5" />
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="glass"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-full text-[#34C759] hover:bg-[#34C759]/8"
+                                                        className="h-10 w-10 rounded-2xl text-[#34C759] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('form');
                                                         }}
                                                     >
-                                                        <UserPen className="h-4 w-4" />
+                                                        <UserPen className="h-5 w-5" />
                                                     </Button>
                                                     <Button
-                                                        variant="ghost"
+                                                        variant="glass"
                                                         size="icon"
-                                                        className="h-8 w-8 rounded-full text-[#FF3B30] hover:bg-[#FF3B30]/8"
+                                                        className="h-10 w-10 rounded-2xl text-[#FF3B30] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => handleDelete(worker.id)}
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <Trash2 className="h-5 w-5" />
                                                     </Button>
                                                 </div>
                                             </td>
@@ -358,7 +372,7 @@ const WorkersPage: React.FC = () => {
                         ? (selectedWorker ? "Editar Trabajador" : "Registrar Nuevo Trabajador")
                         : `Documentos: ${selectedWorker?.nombres} ${selectedWorker?.apellido_paterno}`
                 }
-                size={modalType === 'docs' ? 'lg' : 'md'}
+                size={modalType === 'docs' ? 'dynamic' : 'md'}
             >
                 {modalType === 'form' && (
                     <WorkerForm
@@ -373,19 +387,68 @@ const WorkersPage: React.FC = () => {
 
                 {modalType === 'docs' && selectedWorker && (
                     <div className="space-y-6">
+                        {/* Worker Details Summary in Modal */}
+                        <div className="bg-[#0071E3]/5 border border-[#0071E3]/10 p-4 rounded-2xl flex flex-wrap items-center gap-4">
+                            <div className="h-12 w-12 rounded-xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-xl">
+                                {selectedWorker.nombres[0]}{(selectedWorker.apellido_paterno || '')[0]}
+                            </div>
+                            <div className="flex-1 min-w-[200px]">
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm font-bold text-[#1D1D1F]">{selectedWorker.rut}</span>
+                                    <span className="px-2 py-0.5 rounded-lg bg-[#0071E3]/10 text-[#0071E3] text-[10px] font-black uppercase tracking-wider">
+                                        {selectedWorker.obra_nombre || 'Sin Obra'}
+                                    </span>
+                                </div>
+                                <p className="text-xs font-medium text-[#6E6E73] mt-1">
+                                    {selectedWorker.empresa_nombre} • {selectedWorker.cargo_nombre || 'Sin Cargo'}
+                                </p>
+                            </div>
+                        </div>
+
                         <div className="flex justify-between items-center bg-[#F5F5F7] p-4 rounded-xl">
                             <div>
                                 <h4 className="text-base font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
                                 <p className="text-sm text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
                             </div>
-                            <Button
-                                size="sm"
-                                variant={isUploading ? 'glass' : 'primary'}
-                                onClick={() => setIsUploading(!isUploading)}
-                                leftIcon={isUploading ? <X className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
-                            >
-                                {isUploading ? 'Volver a la lista' : 'Subir Documento'}
-                            </Button>
+                            <div className="flex gap-2">
+                                {!isUploading && (
+                                    <Button
+                                        size="sm"
+                                        variant="glass"
+                                        onClick={async () => {
+                                            try {
+                                                const nid = toast.loading('Generando ZIP...');
+                                                const response = await api.get(`/documentos/download-all/${selectedWorker.id}`, {
+                                                    responseType: 'blob',
+                                                });
+                                                const url = window.URL.createObjectURL(new Blob([response.data]));
+                                                const link = document.createElement('a');
+                                                link.href = url;
+                                                link.setAttribute('download', `Documentos_${selectedWorker.nombres}_${selectedWorker.apellido_paterno}.zip`);
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                link.remove();
+                                                toast.dismiss(nid);
+                                                toast.success('Descarga iniciada');
+                                            } catch (err) {
+                                                toast.error('Error al descargar documentos');
+                                            }
+                                        }}
+                                        className="text-[#0071E3] hover:text-[#0077ED]"
+                                        leftIcon={<Download className="h-4 w-4" />}
+                                    >
+                                        Descargar Todo (.zip)
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant={isUploading ? 'glass' : 'primary'}
+                                    onClick={() => setIsUploading(!isUploading)}
+                                    leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                                >
+                                    {isUploading ? 'Volver a la lista' : 'Subir Documento'}
+                                </Button>
+                            </div>
                         </div>
 
                         {isUploading ? (

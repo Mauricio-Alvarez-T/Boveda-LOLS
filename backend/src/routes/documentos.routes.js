@@ -72,6 +72,12 @@ router.get('/download/:id', auth, checkPermission('documentos', 'puede_ver'), as
     } catch (err) { next(err); }
 });
 
+router.get('/download-all/:trabajadorId', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+    try {
+        await documentoService.downloadAll(req.params.trabajadorId, res);
+    } catch (err) { next(err); }
+});
+
 // Delete (Soft Delete)
 router.delete('/:id', auth, checkPermission('documentos', 'puede_eliminar'), async (req, res, next) => {
     try {

@@ -10,7 +10,7 @@ interface ModalProps {
     title: string;
     children: React.ReactNode;
     footer?: React.ReactNode;
-    size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+    size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full' | 'dynamic';
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -22,11 +22,13 @@ export const Modal: React.FC<ModalProps> = ({
     size = 'md'
 }) => {
     const sizes = {
-        sm: 'max-w-md',
-        md: 'max-w-xl',
-        lg: 'max-w-3xl',
-        xl: 'max-w-5xl',
-        full: 'max-w-[95vw]',
+        sm: 'w-full max-w-md',
+        md: 'w-full max-w-xl',
+        lg: 'w-full max-w-3xl',
+        xl: 'w-full max-w-5xl',
+        '2xl': 'w-full max-w-7xl',
+        full: 'w-full max-w-[95vw]',
+        dynamic: 'w-auto max-w-[95vw] min-w-[600px]', // Dynamic width based on content
     };
 
     return (
@@ -48,14 +50,14 @@ export const Modal: React.FC<ModalProps> = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className={cn(
-                            "relative w-full bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]",
+                            "relative bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]",
                             sizes[size]
                         )}
                     >
                         {/* Header */}
                         <div className="flex items-center justify-between px-6 py-5 border-b border-[#D2D2D7]">
-                            <h3 className="text-lg font-semibold text-[#1D1D1F]">{title}</h3>
-                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F]">
+                            <h3 className="text-lg font-semibold text-[#1D1D1F] truncate pr-8">{title}</h3>
+                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F] shrink-0">
                                 <X className="h-4 w-4" />
                             </Button>
                         </div>

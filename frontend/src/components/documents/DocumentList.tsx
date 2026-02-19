@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { showDeleteToast } from '../../utils/toastUtils';
 
 import { Button } from '../ui/Button';
 import api from '../../services/api';
@@ -59,14 +60,26 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
         }
     };
 
-    const handleToggleActive = async (doc: Documento) => {
-        try {
-            await api.delete(`/documentos/${doc.id}`);
-            toast.success(doc.activo ? 'Documento archivado' : 'Documento restaurado');
-            fetchDocuments();
-        } catch (err) {
-            toast.error('Error al modificar documento');
+    const handleToggleActive = (doc: Documento) => {
+        if (doc.activo) {
+            showDeleteToast({
+                onConfirm: async () => {
+                    await api.delete(`/documentos/${doc.id}`);
+                    fetchDocuments();
+                },
+                message: "¿Eliminar?",
+                successMessage: "Documento eliminado",
+                errorMessage: "Error al eliminar documento"
+            });
+        } else {
+            restoreDocument();
         }
+    };
+
+    const restoreDocument = async () => {
+        try {
+            // Future implementation for restore
+        } catch (err) { }
     };
 
     const isExpired = (date: string | null) => {
@@ -83,6 +96,11 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
         );
     }
 
+    // Custom empty state if needed, or just let the table header show up?
+    // The previous code returned early if empty.
+    // If we want "Download All" to be visible, we need it outside.
+    // But if there are no docs, Download All makes no sense.
+
     if (documents.length === 0) {
         return (
             <div className="py-16 text-center premium-card border-dashed">
@@ -98,74 +116,99 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
     }
 
     return (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <AnimatePresence>
-                {documents.map((doc, i) => (
-                    <motion.div
-                        key={doc.id}
-                        initial={{ opacity: 0, scale: 0.95 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        transition={{ delay: i * 0.05 }}
-                        className={cn(
-                            "premium-card p-4 group relative flex flex-col gap-3",
-                            !doc.activo && "opacity-50 grayscale",
-                            isExpired(doc.fecha_vencimiento) && "border-rose-500/30"
-                        )}
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                <div className={cn(
-                                    "h-10 w-10 rounded-xl flex items-center justify-center shrink-0",
-                                    isExpired(doc.fecha_vencimiento) ? "bg-rose-500/10 text-rose-500" : "bg-brand-primary/10 text-brand-primary"
-                                )}>
-                                    <FileText className="h-6 w-6" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <h4 className="text-base font-bold text-white truncate">{doc.tipo_nombre || 'Documento'}</h4>
-                                    <p className="text-xs text-muted-foreground truncate">{doc.nombre_archivo}</p>
-                                </div>
-                            </div>
-                            <div className="flex gap-1 shrink-0">
-                                <Button variant="glass" size="icon" className="h-8 w-8" onClick={() => handleDownload(doc)}>
-                                    <Download className="h-4 w-4" />
-                                </Button>
-                                <Button
-                                    variant="glass"
-                                    size="icon"
-                                    className={cn("h-8 w-8", doc.activo ? "text-rose-400" : "text-emerald-400")}
-                                    onClick={() => handleToggleActive(doc)}
-                                >
-                                    {doc.activo ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                                </Button>
-                            </div>
-                        </div>
+        <div className="space-y-4">
+            {/* The table container */}
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+                <div className="overflow-x-auto">
+                    <table className="w-full text-left border-collapse">
+                        <tbody className="divide-y divide-[#E8E8ED]">
+                            <AnimatePresence>
+                                {documents.map((doc, i) => (
+                                    <motion.tr
+                                        key={doc.id}
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        transition={{ delay: i * 0.05 }}
+                                        className={cn(
+                                            "group border-l-4 border-l-transparent hover:border-l-[#0071E3] hover:bg-[#F5F5F7]/80 transition-all duration-300 relative",
+                                            !doc.activo && "opacity-50 grayscale",
+                                            isExpired(doc.fecha_vencimiento) && "bg-rose-50/20 hover:border-l-rose-500"
+                                        )}
+                                    >
+                                        <td className="px-4 py-3">
+                                            <div className="flex items-center gap-3">
+                                                <div className={cn(
+                                                    "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm border",
+                                                    isExpired(doc.fecha_vencimiento)
+                                                        ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                                        : "bg-[#0071E3]/10 text-[#0071E3] border-[#0071E3]/20"
+                                                )}>
+                                                    <FileText className="h-5 w-5" />
+                                                </div>
+                                                <div className="flex-1 min-w-0 flex flex-col justify-center">
+                                                    <h4 className="text-sm font-bold text-[#1D1D1F] truncate" title={doc.tipo_nombre}>
+                                                        {doc.tipo_nombre || 'Documento'}
+                                                    </h4>
+                                                    <span className="text-[11px] text-[#A1A1A6] truncate mt-0.5" title={doc.nombre_archivo}>
+                                                        {doc.nombre_archivo}
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right">
+                                            <div className="flex items-center justify-end gap-3">
+                                                <span className="text-[10px] font-bold text-[#6E6E73] flex items-center gap-1.5 bg-[#F5F5F7] px-2 py-1 rounded-md border border-[#E8E8ED]">
+                                                    <Calendar className="h-3 w-3" />
+                                                    {new Date(doc.fecha_subida).toLocaleDateString()}
+                                                </span>
 
-                        <div className="flex items-center justify-between text-xs mt-2 bg-[#F5F5F7] p-2.5 rounded-lg">
-                            <div className="flex items-center gap-1.5 text-muted-foreground">
-                                <Calendar className="h-3 w-3" />
-                                Subido: {new Date(doc.fecha_subida).toLocaleDateString()}
-                            </div>
-                            {doc.fecha_vencimiento ? (
-                                <div className={cn(
-                                    "flex items-center gap-1.5 font-bold",
-                                    isExpired(doc.fecha_vencimiento) ? "text-rose-400" : "text-emerald-400"
-                                )}>
-                                    {isExpired(doc.fecha_vencimiento) ? <AlertCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
-                                    Vence: {new Date(doc.fecha_vencimiento).toLocaleDateString()}
-                                </div>
-                            ) : (
-                                <div className="text-muted-foreground italic">Sin vencimiento</div>
-                            )}
-                        </div>
-
-                        {!doc.activo && (
-                            <div className="absolute top-2 right-2 px-2 py-0.5 rounded bg-[#E8E8ED] text-[#6E6E73] text-xs font-bold uppercase tracking-wider">
-                                Archivado
-                            </div>
-                        )}
-                    </motion.div>
-                ))}
-            </AnimatePresence>
+                                                {doc.fecha_vencimiento ? (
+                                                    <div className={cn(
+                                                        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border",
+                                                        isExpired(doc.fecha_vencimiento)
+                                                            ? "bg-rose-50 text-rose-600 border-rose-100"
+                                                            : "bg-emerald-50 text-emerald-600 border-emerald-100"
+                                                    )}>
+                                                        {isExpired(doc.fecha_vencimiento) ? <AlertCircle className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+                                                        {isExpired(doc.fecha_vencimiento) ? 'Vencido' : 'Vigente'}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[10px] font-bold text-[#6E6E73] bg-[#F5F5F7] px-2 py-1 rounded-md border border-[#E8E8ED] uppercase tracking-wider">
+                                                        Indefinido
+                                                    </span>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-4 py-3 whitespace-nowrap text-right w-[100px]">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="glass"
+                                                    size="icon"
+                                                    className="h-9 w-9 rounded-2xl text-[#0071E3] shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                                    onClick={() => handleDownload(doc)}
+                                                >
+                                                    <Download className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="glass"
+                                                    size="icon"
+                                                    className={cn(
+                                                        "h-9 w-9 rounded-2xl shadow-sm hover:scale-110 active:scale-95 transition-all text-rose-500",
+                                                        !doc.activo && "text-emerald-500"
+                                                    )}
+                                                    onClick={() => handleToggleActive(doc)}
+                                                >
+                                                    {doc.activo ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                                                </Button>
+                                            </div>
+                                        </td>
+                                    </motion.tr>
+                                ))}
+                            </AnimatePresence>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     );
 };

@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { showDeleteToast } from '../../utils/toastUtils';
 
 import { Button } from './Button';
 import { Input } from './Input';
@@ -93,15 +94,16 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
         return () => clearTimeout(timer);
     }, [fetchData]);
 
-    const handleDelete = async (id: number) => {
-        if (!window.confirm(`¿Desactivar este registro de ${entityName.toLowerCase()}?`)) return;
-        try {
-            await api.delete(`${endpoint}/${id}`);
-            toast.success(`${entityName} desactivado`);
-            fetchData();
-        } catch {
-            toast.error(`Error al eliminar ${entityName.toLowerCase()}`);
-        }
+    const handleDelete = (id: number) => {
+        showDeleteToast({
+            onConfirm: async () => {
+                await api.delete(`${endpoint}/${id}`);
+                fetchData();
+            },
+            message: `¿Desactivar ${entityName}?`,
+            successMessage: `${entityName} desactivado`,
+            errorMessage: `Error al desactivar ${entityName.toLowerCase()}`
+        });
     };
 
     const openCreate = () => {
