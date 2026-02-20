@@ -8,7 +8,9 @@ import {
     Users,
     Shield,
     CheckSquare,
-    AlertTriangle
+    AlertTriangle,
+    Clock,
+    Mail
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -23,8 +25,11 @@ import { UsuarioForm } from '../components/settings/UsuarioForm';
 import { RolForm } from '../components/settings/RolForm';
 import { EstadoAsistenciaForm } from '../components/settings/EstadoAsistenciaForm';
 import { TipoAusenciaForm } from '../components/settings/TipoAusenciaForm';
+import { HorariosConfigPanel } from '../components/settings/HorariosConfigPanel';
+import EmailConfigForm from '../components/settings/EmailConfigForm';
+import PlantillasEmailPanel from '../components/settings/PlantillasEmailPanel';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas';
 
 interface TabDef {
     key: TabKey;
@@ -41,6 +46,9 @@ const tabs: TabDef[] = [
     { key: 'roles', label: 'Roles', icon: Shield },
     { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
     { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
+    { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
+    { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
+    { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
 ];
 
 // Column definitions for each entity
@@ -314,6 +322,27 @@ const SettingsPage: React.FC = () => {
                         FormComponent={TipoAusenciaForm}
                         queryParams={{ activo: true }}
                     />
+                )}
+                {activeTab === 'horarios' && (
+                    <HorariosConfigPanel />
+                )}
+                {activeTab === 'mi_correo' && (
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-[#1D1D1F]">Configuración de Correo</h3>
+                            <p className="text-sm text-[#6E6E73] mt-1">Guarda tu correo corporativo y contraseña una sola vez para poder enviar reportes desde Nómina & Reportes sin volver a ingresarlos.</p>
+                        </div>
+                        <EmailConfigForm />
+                    </div>
+                )}
+                {activeTab === 'plantillas' && (
+                    <div className="space-y-4">
+                        <div>
+                            <h3 className="text-base font-semibold text-[#1D1D1F]">Plantillas de Correo</h3>
+                            <p className="text-sm text-[#6E6E73] mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
+                        </div>
+                        <PlantillasEmailPanel />
+                    </div>
                 )}
             </motion.div>
         </div>
