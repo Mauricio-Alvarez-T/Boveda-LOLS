@@ -482,7 +482,7 @@ const AttendancePage: React.FC = () => {
                                                             }
                                                         }}
                                                         className={cn(
-                                                            "px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
+                                                            "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
                                                             isActive
                                                                 ? "text-white border-transparent shadow-sm"
                                                                 : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]"
@@ -525,7 +525,7 @@ const AttendancePage: React.FC = () => {
                                             </div>
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
-                                                className="p-1.5 rounded-lg text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors flex-shrink-0"
+                                                className="p-1.5 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors flex-shrink-0"
                                                 title="Ver Calendario Mensual"
                                             >
                                                 <CalendarDays className="h-4 w-4" />

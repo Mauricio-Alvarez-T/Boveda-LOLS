@@ -28,6 +28,7 @@ import { DocumentUploader } from '../components/documents/DocumentUploader';
 import { DocumentList } from '../components/documents/DocumentList';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
+import { cn } from '../utils/cn';
 import type { Trabajador, Empresa, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 
@@ -174,16 +175,17 @@ const WorkersPage: React.FC = () => {
                         variant={(selectedEmpresa || selectedCargo) ? 'primary' : (showFilters ? 'primary' : 'glass')}
                         leftIcon={(selectedEmpresa || selectedCargo) ? <X className="h-4 w-4" /> : <Filter className="h-4 w-4" />}
                         onClick={() => {
-                            if (selectedEmpresa || selectedCargo) {
+                            if (selectedEmpresa || selectedCargo || showInactive) {
                                 setSelectedEmpresa('');
                                 setSelectedCargo('');
+                                setShowInactive(false);
                             } else {
                                 setShowFilters(!showFilters);
                             }
                         }}
                         size="sm"
                     >
-                        {(selectedEmpresa || selectedCargo) ? 'Limpiar Filtros' : 'Filtros'}
+                        {(selectedEmpresa || selectedCargo || showInactive) ? 'Limpiar Filtros' : 'Filtros'}
                     </Button>
                     <Button
                         variant="glass"
@@ -192,58 +194,75 @@ const WorkersPage: React.FC = () => {
                     >
                         {sortOrder === 'asc' ? 'A-Z' : 'Z-A'}
                     </Button>
-                    <Button
-                        variant="outline"
-                        className="bg-white"
-                        onClick={() => setShowInactive(!showInactive)}
-                    >
-                        {showInactive ? "Ocultar Inactivos" : "Mostrar Inactivos"}
-                    </Button>
                 </div>
             </div>
 
             {/* Expanded Filters Panel */}
-            {showFilters && (
-                <motion.div
-                    initial={{ height: 0, opacity: 0 }}
-                    animate={{ height: 'auto', opacity: 1 }}
-                    className="bg-white rounded-2xl border border-[#D2D2D7] p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
-                >
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
-                            <Building2 className="h-4 w-4" />
-                            Empresa
-                        </label>
-                        <select
-                            value={selectedEmpresa}
-                            onChange={(e) => setSelectedEmpresa(e.target.value)}
-                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
-                        >
-                            <option value="">Todas las Empresas</option>
-                            {empresas.map(e => (
-                                <option key={e.id} value={e.id}>{e.razon_social}</option>
-                            ))}
-                        </select>
-                    </div>
+            {
+                showFilters && (
+                    <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        className="bg-white rounded-2xl border border-[#D2D2D7] p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
+                    >
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
+                                <Building2 className="h-4 w-4" />
+                                Empresa
+                            </label>
+                            <select
+                                value={selectedEmpresa}
+                                onChange={(e) => setSelectedEmpresa(e.target.value)}
+                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                            >
+                                <option value="">Todas las Empresas</option>
+                                {empresas.map(e => (
+                                    <option key={e.id} value={e.id}>{e.razon_social}</option>
+                                ))}
+                            </select>
+                        </div>
 
-                    <div className="space-y-2">
-                        <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
-                            <Briefcase className="h-4 w-4" />
-                            Cargo
-                        </label>
-                        <select
-                            value={selectedCargo}
-                            onChange={(e) => setSelectedCargo(e.target.value)}
-                            className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
-                        >
-                            <option value="">Todos los Cargos</option>
-                            {cargos.map(c => (
-                                <option key={c.id} value={c.id}>{c.nombre}</option>
-                            ))}
-                        </select>
-                    </div>
-                </motion.div>
-            )}
+                        <div className="space-y-2">
+                            <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
+                                <Briefcase className="h-4 w-4" />
+                                Cargo
+                            </label>
+                            <select
+                                value={selectedCargo}
+                                onChange={(e) => setSelectedCargo(e.target.value)}
+                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                            >
+                                <option value="">Todos los Cargos</option>
+                                {cargos.map(c => (
+                                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        <div className="space-y-2 flex flex-col justify-end pb-1">
+                            <div
+                                className="flex items-center gap-3 cursor-pointer group"
+                                onClick={() => setShowInactive(!showInactive)}
+                            >
+                                <div
+                                    className={cn(
+                                        "w-10 h-5 rounded-full transition-colors relative",
+                                        showInactive ? "bg-[#0071E3]" : "bg-[#D2D2D7]"
+                                    )}
+                                >
+                                    <div className={cn(
+                                        "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
+                                        showInactive ? "translate-x-5" : "translate-x-0"
+                                    )} />
+                                </div>
+                                <span className="text-sm font-medium text-[#6E6E73] group-hover:text-[#1D1D1F] transition-colors">
+                                    Mostrar trabajadores inactivos
+                                </span>
+                            </div>
+                        </div>
+                    </motion.div>
+                )
+            }
 
             {/* Table Section */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
@@ -337,7 +356,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 rounded-2xl text-[#0071E3] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className="h-10 w-10 text-[#0071E3] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('docs');
@@ -348,7 +367,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 rounded-2xl text-[#34C759] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className="h-10 w-10 text-[#34C759] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('form');
@@ -359,7 +378,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 rounded-2xl text-[#FF3B30] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className="h-10 w-10 text-[#FF3B30] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => handleDelete(worker.id)}
                                                     >
                                                         <Trash2 className="h-5 w-5" />
@@ -481,7 +500,7 @@ const WorkersPage: React.FC = () => {
                     </div>
                 )}
             </Modal>
-        </div>
+        </div >
     );
 };
 

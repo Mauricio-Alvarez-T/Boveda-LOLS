@@ -184,7 +184,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                 <Button
                                                     variant="glass"
                                                     size="icon"
-                                                    className="h-9 w-9 rounded-2xl text-[#0071E3] shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                                    className="h-9 w-9 text-[#0071E3] shadow-sm hover:scale-110 active:scale-95 transition-all"
                                                     onClick={() => handleDownload(doc)}
                                                 >
                                                     <Download className="h-4 w-4" />
@@ -193,7 +193,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     variant="glass"
                                                     size="icon"
                                                     className={cn(
-                                                        "h-9 w-9 rounded-2xl shadow-sm hover:scale-110 active:scale-95 transition-all text-rose-500",
+                                                        "h-9 w-9 shadow-sm hover:scale-110 active:scale-95 transition-all text-rose-500",
                                                         !doc.activo && "text-emerald-500"
                                                     )}
                                                     onClick={() => handleToggleActive(doc)}

@@ -26,10 +26,10 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
 
         const sizes = {
             default: "h-11 px-4 py-2",
-            sm: "h-9 rounded-md px-3",
-            md: 'h-11 px-5 text-base',
-            lg: "h-12 rounded-md px-8",
-            icon: "h-11 w-11 p-0",
+            sm: "h-9 rounded-full px-3",
+            md: 'h-11 px-5 text-base rounded-full',
+            lg: "h-12 rounded-full px-8",
+            icon: "h-11 w-11 rounded-full p-0 flex items-center justify-center",
         };
 
         return (
