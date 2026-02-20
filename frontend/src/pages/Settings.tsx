@@ -37,18 +37,43 @@ interface TabDef {
     icon: React.ElementType;
 }
 
-const tabs: TabDef[] = [
-    { key: 'empresas', label: 'Empresas', icon: Building2 },
-    { key: 'obras', label: 'Obras', icon: HardHat },
-    { key: 'cargos', label: 'Cargos', icon: Briefcase },
-    { key: 'tipos_doc', label: 'Tipos Doc.', icon: FileText },
-    { key: 'usuarios', label: 'Usuarios', icon: Users },
-    { key: 'roles', label: 'Roles', icon: Shield },
-    { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
-    { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
-    { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
-    { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
-    { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
+interface TabGroup {
+    title: string;
+    items: TabDef[];
+}
+
+const tabGroups: TabGroup[] = [
+    {
+        title: "Organización",
+        items: [
+            { key: 'empresas', label: 'Empresas', icon: Building2 },
+            { key: 'obras', label: 'Obras', icon: HardHat },
+            { key: 'cargos', label: 'Cargos', icon: Briefcase },
+        ]
+    },
+    {
+        title: "Personal",
+        items: [
+            { key: 'usuarios', label: 'Usuarios', icon: Users },
+            { key: 'roles', label: 'Roles', icon: Shield },
+        ]
+    },
+    {
+        title: "Asistencia",
+        items: [
+            { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
+            { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
+            { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
+        ]
+    },
+    {
+        title: "Sistema & Correo",
+        items: [
+            { key: 'tipos_doc', label: 'Tipos Doc.', icon: FileText },
+            { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
+            { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
+        ]
+    }
 ];
 
 // Column definitions for each entity
@@ -210,141 +235,156 @@ const SettingsPage: React.FC = () => {
                 </p>
             </div>
 
-            {/* Tabs — Apple Web Style (Pills) */}
-            <div className="flex gap-3 overflow-x-auto pb-2">
-                {tabs.map(tab => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={cn(
-                            "relative flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-medium transition-all whitespace-nowrap",
-                            activeTab === tab.key
-                                ? "text-white"
-                                : "text-[#1D1D1F] hover:bg-[#F5F5F7]"
-                        )}
+            {/* Main Layout: Sidebar + Content */}
+            <div className="flex flex-col lg:flex-row gap-8">
+                {/* Sidebar Navigation */}
+                <div className="w-full lg:w-64 flex-shrink-0 space-y-6">
+                    {tabGroups.map((group, idx) => (
+                        <div key={idx}>
+                            <h3 className="text-xs font-bold text-[#A1A1A6] uppercase tracking-wider mb-2 px-3">
+                                {group.title}
+                            </h3>
+                            <div className="space-y-1">
+                                {group.items.map(tab => (
+                                    <button
+                                        key={tab.key}
+                                        onClick={() => setActiveTab(tab.key)}
+                                        className={cn(
+                                            "w-full flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all text-left relative",
+                                            activeTab === tab.key
+                                                ? "text-[#0071E3]"
+                                                : "text-[#1D1D1F] hover:bg-[#F5F5F7]"
+                                        )}
+                                    >
+                                        {activeTab === tab.key && (
+                                            <motion.div
+                                                layoutId="settings-active-bg"
+                                                className="absolute inset-0 bg-[#0071E3]/10 rounded-xl"
+                                                initial={false}
+                                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                                            />
+                                        )}
+                                        <tab.icon className={cn("h-4 w-4 relative z-10", activeTab === tab.key ? "text-[#0071E3]" : "text-[#6E6E73]")} />
+                                        <span className="relative z-10">{tab.label}</span>
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Main Content Area */}
+                <div className="flex-1 min-w-0 bg-white rounded-3xl border border-[#D2D2D7] p-6 shadow-sm overflow-hidden">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, x: 10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2 }}
                     >
-                        {activeTab === tab.key && (
-                            <motion.div
-                                layoutId="settings-tab"
-                                className="absolute inset-0 bg-[#1D1D1F] rounded-full"
-                                transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
+                        {activeTab === 'empresas' && (
+                            <CrudTable
+                                endpoint="/empresas"
+                                columns={empresaCols}
+                                entityName="Empresa"
+                                entityNamePlural="Empresas"
+                                FormComponent={EmpresaForm}
+                                searchPlaceholder="Buscar por RUT o razón social..."
+                                queryParams={{ activo: true }}
                             />
                         )}
-                        <tab.icon className="h-4 w-4 relative z-10" />
-                        <span className="relative z-10">{tab.label}</span>
-                    </button>
-                ))}
+                        {activeTab === 'obras' && (
+                            <CrudTable
+                                endpoint="/obras"
+                                columns={obraCols}
+                                entityName="Obra"
+                                entityNamePlural="Obras"
+                                FormComponent={ObraForm}
+                                queryParams={{ activo: true }}
+                            />
+                        )}
+                        {activeTab === 'cargos' && (
+                            <CrudTable
+                                endpoint="/cargos"
+                                columns={cargoCols}
+                                entityName="Cargo"
+                                entityNamePlural="Cargos"
+                                FormComponent={CargoForm}
+                                queryParams={{ activo: true }}
+                            />
+                        )}
+                        {activeTab === 'tipos_doc' && (
+                            <CrudTable
+                                endpoint="/documentos/tipos"
+                                columns={tipoDocCols}
+                                entityName="Tipo de Documento"
+                                entityNamePlural="Tipos de Documento"
+                                FormComponent={TipoDocumentoForm}
+                                queryParams={{ activo: true }}
+                            />
+                        )}
+                        {activeTab === 'usuarios' && (
+                            <CrudTable
+                                endpoint="/usuarios"
+                                columns={usuarioCols}
+                                entityName="Usuario"
+                                entityNamePlural="Usuarios"
+                                FormComponent={UsuarioForm}
+                            />
+                        )}
+                        {activeTab === 'roles' && (
+                            <CrudTable
+                                endpoint="/usuarios/roles/list"
+                                columns={rolCols}
+                                entityName="Rol"
+                                entityNamePlural="Roles"
+                                FormComponent={RolForm}
+                                canDelete={false}
+                            />
+                        )}
+                        {activeTab === 'estados_asistencia' && (
+                            <CrudTable
+                                endpoint="/estados-asistencia"
+                                columns={estadoAsistenciaCols}
+                                entityName="Estado de Asistencia"
+                                entityNamePlural="Estados de Asistencia"
+                                FormComponent={EstadoAsistenciaForm}
+                                queryParams={{ activo: true }}
+                            />
+                        )}
+                        {activeTab === 'tipos_ausencia' && (
+                            <CrudTable
+                                endpoint="/tipos-ausencia"
+                                columns={tipoAusenciaCols}
+                                entityName="Tipo de Ausencia"
+                                entityNamePlural="Tipos de Ausencia"
+                                FormComponent={TipoAusenciaForm}
+                                queryParams={{ activo: true }}
+                            />
+                        )}
+                        {activeTab === 'horarios' && (
+                            <HorariosConfigPanel />
+                        )}
+                        {activeTab === 'mi_correo' && (
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-base font-semibold text-[#1D1D1F]">Configuración de Correo</h3>
+                                    <p className="text-sm text-[#6E6E73] mt-1">Guarda tu correo corporativo y contraseña una sola vez para poder enviar reportes desde Nómina & Reportes sin volver a ingresarlos.</p>
+                                </div>
+                                <EmailConfigForm />
+                            </div>
+                        )}
+                        {activeTab === 'plantillas' && (
+                            <div className="space-y-4">
+                                <div>
+                                    <h3 className="text-base font-semibold text-[#1D1D1F]">Plantillas de Correo</h3>
+                                    <p className="text-sm text-[#6E6E73] mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
+                                </div>
+                                <PlantillasEmailPanel />
+                            </div>
+                        )}
+                    </motion.div>
+                </div>
             </div>
-
-            {/* Tab Content */}
-            <motion.div
-                key={activeTab}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.2 }}
-            >
-                {activeTab === 'empresas' && (
-                    <CrudTable
-                        endpoint="/empresas"
-                        columns={empresaCols}
-                        entityName="Empresa"
-                        entityNamePlural="Empresas"
-                        FormComponent={EmpresaForm}
-                        searchPlaceholder="Buscar por RUT o razón social..."
-                        queryParams={{ activo: true }}
-                    />
-                )}
-                {activeTab === 'obras' && (
-                    <CrudTable
-                        endpoint="/obras"
-                        columns={obraCols}
-                        entityName="Obra"
-                        entityNamePlural="Obras"
-                        FormComponent={ObraForm}
-                        queryParams={{ activo: true }}
-                    />
-                )}
-                {activeTab === 'cargos' && (
-                    <CrudTable
-                        endpoint="/cargos"
-                        columns={cargoCols}
-                        entityName="Cargo"
-                        entityNamePlural="Cargos"
-                        FormComponent={CargoForm}
-                        queryParams={{ activo: true }}
-                    />
-                )}
-                {activeTab === 'tipos_doc' && (
-                    <CrudTable
-                        endpoint="/documentos/tipos"
-                        columns={tipoDocCols}
-                        entityName="Tipo de Documento"
-                        entityNamePlural="Tipos de Documento"
-                        FormComponent={TipoDocumentoForm}
-                        queryParams={{ activo: true }}
-                    />
-                )}
-                {activeTab === 'usuarios' && (
-                    <CrudTable
-                        endpoint="/usuarios"
-                        columns={usuarioCols}
-                        entityName="Usuario"
-                        entityNamePlural="Usuarios"
-                        FormComponent={UsuarioForm}
-                    />
-                )}
-                {activeTab === 'roles' && (
-                    <CrudTable
-                        endpoint="/usuarios/roles/list"
-                        columns={rolCols}
-                        entityName="Rol"
-                        entityNamePlural="Roles"
-                        FormComponent={RolForm}
-                        canDelete={false}
-                    />
-                )}
-                {activeTab === 'estados_asistencia' && (
-                    <CrudTable
-                        endpoint="/estados-asistencia"
-                        columns={estadoAsistenciaCols}
-                        entityName="Estado de Asistencia"
-                        entityNamePlural="Estados de Asistencia"
-                        FormComponent={EstadoAsistenciaForm}
-                        queryParams={{ activo: true }}
-                    />
-                )}
-                {activeTab === 'tipos_ausencia' && (
-                    <CrudTable
-                        endpoint="/tipos-ausencia"
-                        columns={tipoAusenciaCols}
-                        entityName="Tipo de Ausencia"
-                        entityNamePlural="Tipos de Ausencia"
-                        FormComponent={TipoAusenciaForm}
-                        queryParams={{ activo: true }}
-                    />
-                )}
-                {activeTab === 'horarios' && (
-                    <HorariosConfigPanel />
-                )}
-                {activeTab === 'mi_correo' && (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="text-base font-semibold text-[#1D1D1F]">Configuración de Correo</h3>
-                            <p className="text-sm text-[#6E6E73] mt-1">Guarda tu correo corporativo y contraseña una sola vez para poder enviar reportes desde Nómina & Reportes sin volver a ingresarlos.</p>
-                        </div>
-                        <EmailConfigForm />
-                    </div>
-                )}
-                {activeTab === 'plantillas' && (
-                    <div className="space-y-4">
-                        <div>
-                            <h3 className="text-base font-semibold text-[#1D1D1F]">Plantillas de Correo</h3>
-                            <p className="text-sm text-[#6E6E73] mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
-                        </div>
-                        <PlantillasEmailPanel />
-                    </div>
-                )}
-            </motion.div>
         </div>
     );
 };
