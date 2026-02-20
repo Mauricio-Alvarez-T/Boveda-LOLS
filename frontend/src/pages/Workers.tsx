@@ -183,7 +183,6 @@ const WorkersPage: React.FC = () => {
                                 setShowFilters(!showFilters);
                             }
                         }}
-                        size="sm"
                     >
                         {(selectedEmpresa || selectedCargo || showInactive) ? 'Limpiar Filtros' : 'Filtros'}
                     </Button>
