@@ -1,4 +1,4 @@
-import { Permission } from './index';
+import type { Permission } from './index';
 
 export interface Empresa {
     id: number;
@@ -41,6 +41,7 @@ export interface Trabajador {
     carnet_frente_url: string | null;
     carnet_dorso_url: string | null;
     fecha_ingreso: string | null;
+    categoria_reporte: 'obra' | 'operaciones' | 'rotativo';
     activo: boolean;
 }
 
@@ -116,7 +117,8 @@ export interface ConfiguracionHorario {
     dia_semana: 'lun' | 'mar' | 'mie' | 'jue' | 'vie' | 'sab';
     hora_entrada: string;
     hora_salida: string;
-    colacion_minutos: number;
+    hora_colacion_inicio: string;
+    hora_colacion_fin: string;
     activo: boolean;
 }
 
