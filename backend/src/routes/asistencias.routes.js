@@ -93,4 +93,16 @@ router.post('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_edit
     } catch (err) { next(err); }
 });
 
+// Export Excel
+router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+    try {
+        const buffer = await asistenciaService.generarExcel(req.query);
+        const fileName = `asistencia_${req.query.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.send(buffer);
+    } catch (err) { next(err); }
+});
+
 module.exports = router;

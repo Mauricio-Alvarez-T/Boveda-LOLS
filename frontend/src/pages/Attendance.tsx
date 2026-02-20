@@ -9,7 +9,9 @@ import {
     Search,
     Calendar,
     Clock,
-    BarChart3
+    BarChart3,
+    MessageCircle,
+    Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -159,6 +161,78 @@ const AttendancePage: React.FC = () => {
         };
     }, [attendance, estados]);
 
+    // Handle WhatsApp Share
+    const handleShareWhatsApp = () => {
+        if (!selectedObra) return;
+
+        let text = `🚧 *Resumen de Asistencia* 🚧\n`;
+        text += `📍 *Obra:* ${selectedObra.nombre}\n`;
+        text += `📅 *Fecha:* ${date.split('-').reverse().join('-')}\n\n`;
+
+        text += `👥 *Nómina Total:* ${summary.total}\n`;
+        text += `🟢 *Presentes:* ${summary.presentes} (${summary.porcentaje}%)\n\n`;
+
+        text += `*Desglose:*\n`;
+        summary.desglose.forEach(({ estado, count }) => {
+            text += `- ${estado.nombre} (${estado.codigo}): ${count}\n`;
+        });
+
+        const excepciones = workers.filter(w => {
+            const state = attendance[w.id];
+            if (!state || !state.estado_id) return false;
+            const est = estados.find(e => e.id === state.estado_id);
+            return est && !est.es_presente;
+        });
+
+        if (excepciones.length > 0) {
+            text += `\n*Trabajadores con Excepciones:*\n`;
+            excepciones.forEach(w => {
+                const state = attendance[w.id];
+                const est = estados.find(e => e.id === state?.estado_id);
+                const tipoAusencia = absenceTypes.find(t => t.id === state?.tipo_ausencia_id);
+                const nota = tipoAusencia ? tipoAusencia.nombre : state?.observacion ? `Nota: ${state.observacion}` : '';
+                text += `- ${w.apellido_paterno}, ${w.nombres} (${est?.codigo}) ${nota ? `- ${nota}` : ''}\n`;
+            });
+        }
+
+        const encodedText = encodeURIComponent(text);
+        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+    };
+
+    // Handle Excel Export
+    const handleExportExcel = async () => {
+        if (!selectedObra) return;
+        try {
+            // Get first day and last day of current month for this example (or just download all for this obra)
+            // But let's export for the selected date's month
+            const [year, month] = date.split('-');
+            const firstDay = `${year}-${month}-01`;
+            const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
+
+            toast.info('Generando reporte Excel...', { id: 'excel-export' });
+
+            const response = await api.get(`/asistencias/exportar/excel?obra_id=${selectedObra.id}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data as any]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Asistencia_${selectedObra.nombre.replace(/\s+/g, '_')}_${year}_${month}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Reporte Excel descargado', { id: 'excel-export' });
+        } catch (error) {
+            console.error('Error exportando Excel', error);
+            toast.error('Error al generar el reporte', { id: 'excel-export' });
+        }
+    };
+
+
+
     // Navigate date
     const navigateDate = (offset: number) => {
         const d = new Date(date + 'T12:00:00');
@@ -208,15 +282,35 @@ const AttendancePage: React.FC = () => {
                         {selectedObra.nombre} · <span className="text-[#1D1D1F] font-medium">{formattedDate}</span>
                     </p>
                 </div>
-                <Button
-                    onClick={handleSave}
-                    isLoading={saving}
-                    disabled={loading || workers.length === 0}
-                    leftIcon={<Save className="h-4 w-4" />}
-                    size="lg"
-                >
-                    Guardar Asistencia
-                </Button>
+                <div className="flex gap-2">
+                    <Button
+                        onClick={handleShareWhatsApp}
+                        variant="glass"
+                        className="text-[#6E6E73] hover:text-[#34C759]"
+                        title="Compartir Resumen por WhatsApp"
+                        leftIcon={<MessageCircle className="h-4 w-4" />}
+                    >
+                        Resumen
+                    </Button>
+                    <Button
+                        onClick={handleExportExcel}
+                        variant="glass"
+                        className="text-[#6E6E73] hover:text-[#0071E3]"
+                        title="Exportar Asistencia del Mes actual"
+                        leftIcon={<Download className="h-4 w-4" />}
+                    >
+                        Mes
+                    </Button>
+                    <Button
+                        onClick={handleSave}
+                        isLoading={saving}
+                        disabled={loading || workers.length === 0}
+                        leftIcon={<Save className="h-4 w-4" />}
+                        size="md"
+                    >
+                        Guardar
+                    </Button>
+                </div>
             </div>
 
             {/* Date Navigator + Summary Bar */}

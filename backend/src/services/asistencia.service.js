@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const ExcelJS = require('exceljs');
 
 const asistenciaService = {
     /**
@@ -261,6 +262,89 @@ const asistenciaService = {
             [asistenciaId]
         );
         return rows;
+    },
+
+    /**
+     * Generar archivo Excel con reporte de asistencia
+     */
+    async generarExcel(query = {}) {
+        const rows = await this.getReporte(query);
+
+        const workbook = new ExcelJS.Workbook();
+        const worksheet = workbook.addWorksheet('Asistencia');
+
+        // Styles
+        const headerStyle = {
+            font: { bold: true, color: { argb: 'FFFFFFFF' } },
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0071E3' } },
+            alignment: { vertical: 'middle', horizontal: 'center' },
+            border: {
+                top: { style: 'thin' }, left: { style: 'thin' },
+                bottom: { style: 'thin' }, right: { style: 'thin' }
+            }
+        };
+
+        // Columns
+        worksheet.columns = [
+            { header: 'Fecha', key: 'fecha', width: 15 },
+            { header: 'RUT', key: 'rut', width: 15 },
+            { header: 'Apellidos', key: 'apellido_paterno', width: 20 },
+            { header: 'Nombres', key: 'nombres', width: 25 },
+            { header: 'Estado', key: 'estado_nombre', width: 15 },
+            { header: 'Código', key: 'estado_codigo', width: 10 },
+            { header: 'Causa (Ausencia)', key: 'tipo_ausencia_nombre', width: 25 },
+            { header: 'Entrada', key: 'hora_entrada', width: 12 },
+            { header: 'Salida', key: 'hora_salida', width: 12 },
+            { header: 'Horas Extra', key: 'horas_extra', width: 15 },
+            { header: 'Sábado', key: 'es_sabado', width: 10 },
+            { header: 'Observación', key: 'observacion', width: 30 }
+        ];
+
+        // Format Headers
+        worksheet.getRow(1).eachCell((cell) => {
+            cell.style = headerStyle;
+        });
+
+        // Add Data
+        rows.forEach(r => {
+            const row = worksheet.addRow({
+                fecha: typeof r.fecha === 'string' ? r.fecha.split('T')[0] : r.fecha, // Basic string format if it comes as object
+                rut: r.rut,
+                apellido_paterno: r.apellido_paterno,
+                nombres: r.nombres,
+                estado_nombre: r.estado_nombre,
+                estado_codigo: r.estado_codigo,
+                tipo_ausencia_nombre: r.tipo_ausencia_nombre || '',
+                hora_entrada: r.hora_entrada ? r.hora_entrada.slice(0, 5) : '',
+                hora_salida: r.hora_salida ? r.hora_salida.slice(0, 5) : '',
+                horas_extra: parseFloat(r.horas_extra) || 0,
+                es_sabado: r.es_sabado ? 'Sí' : 'No',
+                observacion: r.observacion || ''
+            });
+
+            // Date format explicitly
+            if (r.fecha instanceof Date) {
+                row.getCell('fecha').value = r.fecha.toISOString().split('T')[0];
+            }
+
+            row.eachCell((cell) => {
+                cell.border = {
+                    top: { style: 'thin' }, left: { style: 'thin' },
+                    bottom: { style: 'thin' }, right: { style: 'thin' }
+                };
+            });
+
+            // Alignments
+            row.getCell('fecha').alignment = { horizontal: 'center' };
+            row.getCell('estado_codigo').alignment = { horizontal: 'center' };
+            row.getCell('hora_entrada').alignment = { horizontal: 'center' };
+            row.getCell('hora_salida').alignment = { horizontal: 'center' };
+            row.getCell('horas_extra').alignment = { horizontal: 'center' };
+            row.getCell('es_sabado').alignment = { horizontal: 'center' };
+        });
+
+        const buffer = await workbook.xlsx.writeBuffer();
+        return buffer;
     }
 };
 
