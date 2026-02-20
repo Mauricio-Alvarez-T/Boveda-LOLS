@@ -43,6 +43,7 @@ const WorkersPage: React.FC = () => {
     const [selectedCargo, setSelectedCargo] = useState<string>('');
     const [showFilters, setShowFilters] = useState(false);
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+    const [showInactive, setShowInactive] = useState(false);
 
     // Document completion data: { [workerId]: { uploaded, total, percentage } }
     const [completion, setCompletion] = useState<Record<number, { uploaded: number, total: number, percentage: number }>>({});
@@ -75,8 +76,9 @@ const WorkersPage: React.FC = () => {
             const obraQuery = selectedObra ? `&obra_id=${selectedObra.id}` : '';
             const empresaQuery = selectedEmpresa ? `&empresa_id=${selectedEmpresa}` : '';
             const cargoQuery = selectedCargo ? `&cargo_id=${selectedCargo}` : '';
+            const activoQuery = !showInactive ? '&activo=true' : '';
 
-            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}`);
+            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}${activoQuery}`);
             const data = response.data.data;
             setWorkers(data);
 
@@ -115,7 +117,7 @@ const WorkersPage: React.FC = () => {
             fetchWorkers();
         }, 500);
         return () => clearTimeout(timer);
-    }, [search, selectedObra, selectedEmpresa, selectedCargo]);
+    }, [search, selectedObra, selectedEmpresa, selectedCargo, showInactive]);
 
     // Helper function for completion color
     const getCompletionColor = (pct: number) => {
@@ -185,11 +187,17 @@ const WorkersPage: React.FC = () => {
                     </Button>
                     <Button
                         variant="glass"
-                        leftIcon={<ArrowUpDown className="h-4 w-4" />}
+                        rightIcon={<ArrowUpDown className="h-4 w-4" />}
                         onClick={() => setSortOrder(prev => prev === 'asc' ? 'desc' : 'asc')}
-                        size="sm"
                     >
                         {sortOrder === 'asc' ? 'A-Z' : 'Z-A'}
+                    </Button>
+                    <Button
+                        variant="outline"
+                        className="bg-white"
+                        onClick={() => setShowInactive(!showInactive)}
+                    >
+                        {showInactive ? "Ocultar Inactivos" : "Mostrar Inactivos"}
                     </Button>
                 </div>
             </div>
@@ -279,11 +287,18 @@ const WorkersPage: React.FC = () => {
                                         >
                                             <td className="px-6 py-6">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="h-12 w-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-lg shadow-sm border border-[#0071E3]/20">
+                                                    <div className="h-12 w-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-lg shadow-sm border border-[#0071E3]/20 shrink-0">
                                                         {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="text-[15px] font-bold text-[#1D1D1F] leading-tight group-hover:text-[#0071E3] transition-colors">{worker.nombres} {worker.apellido_paterno}</p>
+                                                        <p className="text-[15px] font-bold text-[#1D1D1F] leading-tight group-hover:text-[#0071E3] transition-colors flex items-center gap-2">
+                                                            {worker.nombres} {worker.apellido_paterno}
+                                                            {!worker.activo && (
+                                                                <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20">
+                                                                    Inactivo
+                                                                </span>
+                                                            )}
+                                                        </p>
                                                         <p className="text-xs font-semibold text-[#6E6E73] mt-1 tracking-tight">{worker.rut}</p>
                                                     </div>
                                                 </div>
