@@ -139,6 +139,24 @@ app.use('/api/tipos-ausencia', (() => {
   return router;
 })());
 
+// Estados Asistencia (CRUD dinámico)
+app.use('/api/estados-asistencia', (() => {
+  const router = require('express').Router();
+  const auth = require('./src/middleware/auth');
+  const { checkPermission } = require('./src/middleware/rbac');
+  const createCrudService = require('./src/services/crud.service');
+  const createCrudController = require('./src/controllers/crud.controller');
+
+  const service = createCrudService('estados_asistencia', { searchFields: ['nombre', 'codigo'] });
+  const ctrl = createCrudController(service);
+
+  router.get('/', auth, checkPermission('asistencia', 'puede_ver'), ctrl.getAll);
+  router.post('/', auth, checkPermission('asistencia', 'puede_crear'), ctrl.create);
+  router.put('/:id', auth, checkPermission('asistencia', 'puede_editar'), ctrl.update);
+  router.delete('/:id', auth, checkPermission('asistencia', 'puede_eliminar'), ctrl.remove);
+  return router;
+})());
+
 // ============================================
 // Health Check & Dashboard
 // ============================================

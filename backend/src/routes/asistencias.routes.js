@@ -3,7 +3,15 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const asistenciaService = require('../services/asistencia.service');
 
-// Bulk create
+// Get active attendance states
+router.get('/estados', auth, async (req, res, next) => {
+    try {
+        const result = await asistenciaService.getEstados();
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Bulk create/update
 router.post('/bulk/:obra_id', auth, checkPermission('asistencia', 'puede_crear'), async (req, res, next) => {
     try {
         const { obra_id } = req.params;
@@ -16,7 +24,7 @@ router.post('/bulk/:obra_id', auth, checkPermission('asistencia', 'puede_crear')
     } catch (err) { next(err); }
 });
 
-// Get by obra and date (using query param ?fecha=)
+// Get by obra and date
 router.get('/obra/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
     try {
         const { obraId } = req.params;
@@ -25,6 +33,19 @@ router.get('/obra/:obraId', auth, checkPermission('asistencia', 'puede_ver'), as
             return res.status(400).json({ error: 'Parámetro fecha es requerido (?fecha=YYYY-MM-DD)' });
         }
         const result = await asistenciaService.getByObraAndFecha(obraId, fecha);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Daily summary/KPIs for an obra
+router.get('/resumen/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+    try {
+        const { obraId } = req.params;
+        const { fecha } = req.query;
+        if (!fecha) {
+            return res.status(400).json({ error: 'Parámetro fecha es requerido (?fecha=YYYY-MM-DD)' });
+        }
+        const result = await asistenciaService.getResumenDiario(obraId, fecha);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -42,6 +63,33 @@ router.get('/reporte', auth, checkPermission('asistencia', 'puede_ver'), async (
     try {
         const result = await asistenciaService.getReporte(req.query);
         res.json(result);
+    } catch (err) { next(err); }
+});
+
+// Audit log for a specific attendance record
+router.get('/log/:asistenciaId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.getLog(req.params.asistenciaId);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Schedule configuration
+router.get('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.getHorarios(req.params.obraId);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+router.post('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_editar'), async (req, res, next) => {
+    try {
+        const { horarios } = req.body;
+        if (!horarios || !Array.isArray(horarios)) {
+            return res.status(400).json({ error: 'horarios[] es requerido' });
+        }
+        const result = await asistenciaService.saveHorarios(req.params.obraId, horarios);
+        res.json({ data: result });
     } catch (err) { next(err); }
 });
 

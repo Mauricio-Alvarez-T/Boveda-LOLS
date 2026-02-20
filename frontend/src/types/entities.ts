@@ -66,7 +66,14 @@ export interface Documento {
     activo: boolean;
 }
 
-export type AsistenciaEstado = 'Presente' | 'Ausente' | 'Atraso' | 'Licencia';
+export interface EstadoAsistencia {
+    id: number;
+    nombre: string;
+    codigo: string;
+    color: string;
+    es_presente: boolean;
+    activo: boolean;
+}
 
 export interface TipoAusencia {
     id: number;
@@ -81,12 +88,35 @@ export interface Asistencia {
     rut?: string;
     nombres?: string;
     apellido_paterno?: string;
+    cargo_id?: number;
+    cargo_nombre?: string;
     obra_id: number;
     fecha: string;
-    estado: AsistenciaEstado;
+    estado_id: number;
+    estado_nombre?: string;
+    estado_codigo?: string;
+    estado_color?: string;
+    es_presente?: boolean;
     tipo_ausencia_id: number | null;
     tipo_ausencia_nombre?: string;
     observacion: string | null;
+    hora_entrada: string | null;
+    hora_salida: string | null;
+    hora_colacion_inicio: string | null;
+    hora_colacion_fin: string | null;
+    horas_extra: number;
+    es_sabado: boolean;
     registrado_por: number;
     registrado_por_nombre?: string;
 }
+
+export interface ConfiguracionHorario {
+    id?: number;
+    obra_id: number;
+    dia_semana: 'lun' | 'mar' | 'mie' | 'jue' | 'vie' | 'sab';
+    hora_entrada: string;
+    hora_salida: string;
+    colacion_minutos: number;
+    activo: boolean;
+}
+

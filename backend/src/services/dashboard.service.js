@@ -37,7 +37,11 @@ const getSummary = async (obraId = null) => {
     // 4. Attendance %
     const today = new Date().toISOString().split('T')[0];
     const [attendanceToday] = await pool.query(
-        `SELECT estado, COUNT(*) as count FROM asistencias WHERE fecha = ? ${asistFilter} GROUP BY estado`,
+        `SELECT ea.nombre as estado, ea.es_presente, COUNT(*) as count
+         FROM asistencias a
+         JOIN estados_asistencia ea ON a.estado_id = ea.id
+         WHERE a.fecha = ? ${asistFilter}
+         GROUP BY ea.id, ea.nombre, ea.es_presente`,
         [today, ...params]
     );
 
@@ -47,8 +51,12 @@ const getSummary = async (obraId = null) => {
         return acc;
     }, { total: 0 });
 
+    const presentCount = attendanceToday
+        .filter(r => r.es_presente)
+        .reduce((sum, r) => sum + r.count, 0);
+
     const attendanceRate = stats.total > 0
-        ? Math.round(((stats.Presente || 0) + (stats.Atraso || 0)) / stats.total * 100)
+        ? Math.round((presentCount / stats.total) * 100)
         : 0;
 
     // 5. Recent Activity

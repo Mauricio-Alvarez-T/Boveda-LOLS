@@ -6,7 +6,9 @@ import {
     Briefcase,
     FileText,
     Users,
-    Shield
+    Shield,
+    CheckSquare,
+    AlertTriangle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -19,8 +21,10 @@ import { CargoForm } from '../components/settings/CargoForm';
 import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
 import { UsuarioForm } from '../components/settings/UsuarioForm';
 import { RolForm } from '../components/settings/RolForm';
+import { EstadoAsistenciaForm } from '../components/settings/EstadoAsistenciaForm';
+import { TipoAusenciaForm } from '../components/settings/TipoAusenciaForm';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia';
 
 interface TabDef {
     key: TabKey;
@@ -35,6 +39,8 @@ const tabs: TabDef[] = [
     { key: 'tipos_doc', label: 'Tipos Doc.', icon: FileText },
     { key: 'usuarios', label: 'Usuarios', icon: Users },
     { key: 'roles', label: 'Roles', icon: Shield },
+    { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
+    { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
 ];
 
 // Column definitions for each entity
@@ -132,6 +138,52 @@ const usuarioCols: ColumnDef<any>[] = [
 const rolCols: ColumnDef<any>[] = [
     { key: 'nombre', label: 'Nombre' },
     { key: 'descripcion', label: 'Descripción', render: (v) => v || '—' },
+];
+
+const estadoAsistenciaCols: ColumnDef<any>[] = [
+    { key: 'nombre', label: 'Nombre' },
+    {
+        key: 'codigo', label: 'Código', render: (v) => (
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5F5F7]">{v}</span>
+        )
+    },
+    {
+        key: 'color', label: 'Color', render: (v) => (
+            <div className="flex items-center gap-2">
+                <div className="h-4 w-4 rounded-full border border-[#E8E8ED]" style={{ backgroundColor: v }} />
+                <span className="text-[10px] text-[#6E6E73]">{v}</span>
+            </div>
+        )
+    },
+    {
+        key: 'es_presente', label: 'Cuenta como Presente', render: (v) => (
+            <span className={cn(
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#A1A1A6]/10 text-[#A1A1A6]"
+            )}>{v ? 'Sí' : 'No'}</span>
+        )
+    },
+];
+
+const tipoAusenciaCols: ColumnDef<any>[] = [
+    { key: 'nombre', label: 'Nombre' },
+    {
+        key: 'es_justificada', label: 'Justificada', render: (v) => (
+            <span className={cn(
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#FF3B30]/10 text-[#FF3B30]"
+            )}>{v ? 'Sí' : 'No'}</span>
+        )
+    },
+    {
+        key: 'activo', label: 'Estado',
+        render: (v) => (
+            <span className={cn(
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#FF3B30]/10 text-[#FF3B30]"
+            )}>{v ? 'Activo' : 'Inactivo'}</span>
+        ),
+    },
 ];
 
 const SettingsPage: React.FC = () => {
@@ -241,6 +293,26 @@ const SettingsPage: React.FC = () => {
                         entityNamePlural="Roles"
                         FormComponent={RolForm}
                         canDelete={false}
+                    />
+                )}
+                {activeTab === 'estados_asistencia' && (
+                    <CrudTable
+                        endpoint="/estados-asistencia"
+                        columns={estadoAsistenciaCols}
+                        entityName="Estado de Asistencia"
+                        entityNamePlural="Estados de Asistencia"
+                        FormComponent={EstadoAsistenciaForm}
+                        queryParams={{ activo: true }}
+                    />
+                )}
+                {activeTab === 'tipos_ausencia' && (
+                    <CrudTable
+                        endpoint="/tipos-ausencia"
+                        columns={tipoAusenciaCols}
+                        entityName="Tipo de Ausencia"
+                        entityNamePlural="Tipos de Ausencia"
+                        FormComponent={TipoAusenciaForm}
+                        queryParams={{ activo: true }}
                     />
                 )}
             </motion.div>

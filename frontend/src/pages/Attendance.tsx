@@ -1,26 +1,24 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import {
     CheckSquare,
     Users,
     Save,
     Loader2,
-    CheckCircle2,
-    XCircle,
-    Clock,
-    Stethoscope,
     ChevronLeft,
-    ChevronRight
+    ChevronRight,
+    Search,
+    Calendar,
+    Clock,
+    BarChart3
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
-import { Input } from '../components/ui/Input';
 import api from '../services/api';
-import type { Trabajador, Asistencia, AsistenciaEstado, TipoAusencia } from '../types/entities';
+import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
-
 import { useObra } from '../context/ObraContext';
 
 const AttendancePage: React.FC = () => {
@@ -31,24 +29,38 @@ const AttendancePage: React.FC = () => {
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
     const [absenceTypes, setAbsenceTypes] = useState<TipoAusencia[]>([]);
+    const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
+    const [searchQuery, setSearchQuery] = useState('');
+    const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
 
+    // Get the default "Presente" state (es_presente flag)
+    const defaultEstado = useMemo(() =>
+        estados.find(e => e.codigo === 'P') || estados[0],
+        [estados]
+    );
+
+    // Load absence types and attendance states on mount
     useEffect(() => {
-        const fetchAbsenceTypes = async () => {
+        const fetchMeta = async () => {
             try {
-                const res = await api.get<ApiResponse<TipoAusencia[]>>('/tipos-ausencia?activo=true');
-                setAbsenceTypes(res.data.data);
+                const [ausRes, estRes] = await Promise.all([
+                    api.get<ApiResponse<TipoAusencia[]>>('/tipos-ausencia?activo=true'),
+                    api.get<ApiResponse<EstadoAsistencia[]>>('/asistencias/estados')
+                ]);
+                setAbsenceTypes(ausRes.data.data);
+                setEstados(estRes.data.data);
             } catch (err) {
-                console.error('Error absence types');
+                console.error('Error loading metadata');
             }
         };
-        fetchAbsenceTypes();
+        fetchMeta();
     }, []);
 
-    const fetchAttendanceInfo = async () => {
-        if (!selectedObra) return;
+    const fetchAttendanceInfo = useCallback(async () => {
+        if (!selectedObra || !defaultEstado) return;
         setLoading(true);
         try {
-            const workersRes = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}`);
+            const workersRes = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true`);
             const workerList = workersRes.data.data;
             setWorkers(workerList);
 
@@ -65,9 +77,15 @@ const AttendancePage: React.FC = () => {
                         trabajador_id: w.id,
                         obra_id: selectedObra.id,
                         fecha: date,
-                        estado: 'Presente',
+                        estado_id: defaultEstado.id,
                         tipo_ausencia_id: null,
-                        observacion: ''
+                        observacion: '',
+                        hora_entrada: null,
+                        hora_salida: null,
+                        hora_colacion_inicio: null,
+                        hora_colacion_fin: null,
+                        horas_extra: 0,
+                        es_sabado: false
                     };
                 }
             });
@@ -77,11 +95,13 @@ const AttendancePage: React.FC = () => {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedObra, date, defaultEstado]);
 
     useEffect(() => {
-        fetchAttendanceInfo();
-    }, [selectedObra, date]);
+        if (defaultEstado) {
+            fetchAttendanceInfo();
+        }
+    }, [fetchAttendanceInfo, defaultEstado]);
 
     const updateAttendance = (workerId: number, data: Partial<Asistencia>) => {
         setAttendance(prev => ({
@@ -105,12 +125,61 @@ const AttendancePage: React.FC = () => {
         }
     };
 
-    const statusConfig: Record<AsistenciaEstado, { icon: any, color: string, bg: string, activeColor: string }> = {
-        'Presente': { icon: CheckCircle2, color: 'text-[#34C759]', bg: 'bg-[#34C759]/8', activeColor: 'border-[#34C759]' },
-        'Ausente': { icon: XCircle, color: 'text-[#FF3B30]', bg: 'bg-[#FF3B30]/8', activeColor: 'border-[#FF3B30]' },
-        'Atraso': { icon: Clock, color: 'text-[#FF9F0A]', bg: 'bg-[#FF9F0A]/8', activeColor: 'border-[#FF9F0A]' },
-        'Licencia': { icon: Stethoscope, color: 'text-[#5856D6]', bg: 'bg-[#5856D6]/8', activeColor: 'border-[#5856D6]' },
+    // Filter workers by search
+    const filteredWorkers = useMemo(() => {
+        if (!searchQuery) return workers;
+        const q = searchQuery.toLowerCase();
+        return workers.filter(w =>
+            `${w.nombres} ${w.apellido_paterno}`.toLowerCase().includes(q) ||
+            w.rut.toLowerCase().includes(q)
+        );
+    }, [workers, searchQuery]);
+
+    // Summary stats
+    const summary = useMemo(() => {
+        const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};
+        estados.forEach(e => { counts[e.id] = { count: 0, estado: e }; });
+
+        Object.values(attendance).forEach(a => {
+            if (a.estado_id && counts[a.estado_id]) {
+                counts[a.estado_id].count++;
+            }
+        });
+
+        const total = Object.keys(attendance).length;
+        const presentes = Object.values(counts)
+            .filter(c => c.estado.es_presente)
+            .reduce((sum, c) => sum + c.count, 0);
+
+        return {
+            total,
+            presentes,
+            porcentaje: total > 0 ? Math.round((presentes / total) * 100) : 0,
+            desglose: Object.values(counts).filter(c => c.count > 0)
+        };
+    }, [attendance, estados]);
+
+    // Navigate date
+    const navigateDate = (offset: number) => {
+        const d = new Date(date + 'T12:00:00');
+        d.setDate(d.getDate() + offset);
+        setDate(d.toISOString().split('T')[0]);
     };
+
+    // Format date for display
+    const formattedDate = useMemo(() => {
+        const d = new Date(date + 'T12:00:00');
+        const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
+        const formatted = d.toLocaleDateString('es-CL', options);
+        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }, [date]);
+
+    const dayOfWeek = useMemo(() => {
+        return new Date(date + 'T12:00:00').getDay();
+    }, [date]);
+
+    const isSaturday = dayOfWeek === 6;
+    const isSunday = dayOfWeek === 0;
 
     if (!selectedObra) {
         return (
@@ -127,16 +196,16 @@ const AttendancePage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header Section */}
+        <div className="space-y-5 animate-in fade-in duration-500">
+            {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
                         <CheckSquare className="h-7 w-7 text-[#0071E3]" />
                         Control de Asistencia
                     </h1>
-                    <p className="text-[#6E6E73] mt-1 text-base">
-                        Registrando asistencia para <span className="text-[#1D1D1F] font-semibold">{selectedObra.nombre}</span>
+                    <p className="text-[#6E6E73] mt-1 text-sm">
+                        {selectedObra.nombre} · <span className="text-[#1D1D1F] font-medium">{formattedDate}</span>
                     </p>
                 </div>
                 <Button
@@ -144,40 +213,100 @@ const AttendancePage: React.FC = () => {
                     isLoading={saving}
                     disabled={loading || workers.length === 0}
                     leftIcon={<Save className="h-4 w-4" />}
+                    size="lg"
                 >
-                    Guardar Cambios
+                    Guardar Asistencia
                 </Button>
             </div>
 
-            {/* Control Bar */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-4 items-center">
-                <div className="flex-1 w-full md:w-auto">
-                    <Input
-                        label="Fecha"
-                        type="date"
-                        value={date}
-                        onChange={(e) => setDate(e.target.value)}
-                    />
+            {/* Date Navigator + Summary Bar */}
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4">
+                <div className="flex flex-col md:flex-row gap-4 items-center">
+                    {/* Date Controls */}
+                    <div className="flex items-center gap-2">
+                        <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(-1)}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6E6E73]" />
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#0071E3] transition-colors"
+                            />
+                        </div>
+                        <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(1)}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
+                        <Button
+                            variant="glass"
+                            size="sm"
+                            className="text-xs"
+                            onClick={() => setDate(new Date().toISOString().split('T')[0])}
+                        >
+                            Hoy
+                        </Button>
+                    </div>
+
+                    {/* Separator */}
+                    <div className="hidden md:block h-8 w-px bg-[#D2D2D7]" />
+
+                    {/* Summary Pills */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F7] rounded-full">
+                            <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
+                            <span className="text-xs font-bold text-[#1D1D1F]">{summary.total}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#34C759]/8 rounded-full">
+                            <BarChart3 className="h-3.5 w-3.5 text-[#34C759]" />
+                            <span className="text-xs font-bold text-[#34C759]">{summary.porcentaje}%</span>
+                        </div>
+                        {summary.desglose.map(({ estado, count }) => (
+                            <span
+                                key={estado.id}
+                                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                                style={{
+                                    backgroundColor: `${estado.color}14`,
+                                    color: estado.color
+                                }}
+                            >
+                                {estado.codigo}: {count}
+                            </span>
+                        ))}
+                    </div>
                 </div>
-                <div className="flex gap-2 self-end mb-1">
-                    <Button variant="glass" size="icon" className="h-10 w-10" onClick={() => {
-                        const d = new Date(date);
-                        d.setDate(d.getDate() - 1);
-                        setDate(d.toISOString().split('T')[0]);
-                    }}>
-                        <ChevronLeft className="h-4 w-4" />
-                    </Button>
-                    <Button variant="glass" size="icon" className="h-10 w-10" onClick={() => {
-                        const d = new Date(date);
-                        d.setDate(d.getDate() + 1);
-                        setDate(d.toISOString().split('T')[0]);
-                    }}>
-                        <ChevronRight className="h-4 w-4" />
-                    </Button>
-                </div>
+
+                {/* Saturday/Sunday warning */}
+                {(isSaturday || isSunday) && (
+                    <div className={cn(
+                        "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2",
+                        isSunday
+                            ? "bg-[#FF3B30]/8 text-[#FF3B30]"
+                            : "bg-[#FF9F0A]/8 text-[#FF9F0A]"
+                    )}>
+                        <Clock className="h-3.5 w-3.5" />
+                        {isSunday
+                            ? "Domingo — no se debe registrar asistencia"
+                            : "Sábado — las horas trabajadas se registran como extras"
+                        }
+                    </div>
+                )}
             </div>
 
-            {/* Attendance Grid */}
+            {/* Search */}
+            <div className="relative">
+                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1A6]" />
+                <input
+                    type="text"
+                    placeholder="Buscar trabajador por nombre o RUT..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-10 pr-4 py-3 bg-white border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#0071E3] transition-colors"
+                />
+            </div>
+
+            {/* Attendance List */}
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
@@ -189,88 +318,192 @@ const AttendancePage: React.FC = () => {
                     <p className="text-[#6E6E73] text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+                    {/* Table Header */}
+                    <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider">
+                        <span>Trabajador</span>
+                        <span className="w-[320px] text-center">Estado</span>
+                        <span className="w-[160px] text-center">Detalle</span>
+                        <span className="w-[60px] text-center">H.E.</span>
+                    </div>
+
+                    {/* Workers */}
                     <AnimatePresence>
-                        {workers.map((worker) => {
+                        {filteredWorkers.map((worker, idx) => {
                             const state = attendance[worker.id] || {};
-                            const config = statusConfig[state.estado as AsistenciaEstado] || statusConfig['Presente'];
-                            const Icon = config.icon;
+                            const currentEstado = estados.find(e => e.id === state.estado_id);
+                            const isExpanded = expandedWorkerId === worker.id;
+                            const isNotPresent = currentEstado && !currentEstado.es_presente;
 
                             return (
                                 <motion.div
                                     key={worker.id}
-                                    layout
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
+                                    initial={{ opacity: 0 }}
+                                    animate={{ opacity: 1 }}
+                                    transition={{ delay: idx * 0.01 }}
                                     className={cn(
-                                        "bg-white rounded-2xl border-2 p-4 flex flex-col gap-4 transition-all shadow-sm",
-                                        config.activeColor
+                                        "border-b border-[#F0F0F0] last:border-b-0 transition-colors",
+                                        isNotPresent && "bg-[#FEF8F8]"
                                     )}
                                 >
-                                    <div className="flex items-start justify-between">
-                                        <div className="flex-1 min-w-0">
-                                            <p className="text-base font-semibold text-[#1D1D1F] truncate">{worker.nombres} {worker.apellido_paterno}</p>
-                                            <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                                    {/* Main Row */}
+                                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 md:gap-4 px-4 md:px-5 py-3 items-center">
+                                        {/* Worker Info */}
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <div
+                                                className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
+                                                style={{ backgroundColor: currentEstado?.color || '#34C759' }}
+                                            >
+                                                {worker.nombres.charAt(0)}{worker.apellido_paterno.charAt(0)}
+                                            </div>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-semibold text-[#1D1D1F] truncate">
+                                                    {worker.apellido_paterno}, {worker.nombres}
+                                                </p>
+                                                <p className="text-[10px] text-[#6E6E73]">
+                                                    {worker.rut}
+                                                    {worker.cargo_nombre && <> · <span className="text-[#0071E3]">{worker.cargo_nombre}</span></>}
+                                                </p>
+                                            </div>
                                         </div>
-                                        <div className={cn("p-2 rounded-lg", config.bg, config.color)}>
-                                            <Icon className="h-4 w-4" />
+
+                                        {/* State Buttons */}
+                                        <div className="flex gap-1 w-full md:w-[320px] overflow-x-auto">
+                                            {estados.map((est) => {
+                                                const isActive = state.estado_id === est.id;
+                                                return (
+                                                    <button
+                                                        key={est.id}
+                                                        onClick={() => {
+                                                            updateAttendance(worker.id, {
+                                                                estado_id: est.id,
+                                                                tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
+                                                                es_sabado: isSaturday
+                                                            });
+                                                            if (!est.es_presente && expandedWorkerId !== worker.id) {
+                                                                setExpandedWorkerId(worker.id);
+                                                            }
+                                                        }}
+                                                        className={cn(
+                                                            "px-2.5 py-1.5 rounded-lg text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
+                                                            isActive
+                                                                ? "text-white border-transparent shadow-sm"
+                                                                : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]"
+                                                        )}
+                                                        style={isActive ? {
+                                                            backgroundColor: est.color,
+                                                            borderColor: est.color
+                                                        } : undefined}
+                                                    >
+                                                        {est.codigo}
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
-                                    </div>
 
-                                    {/* Toggle States */}
-                                    <div className="grid grid-cols-4 gap-1">
-                                        {(['Presente', 'Atraso', 'Ausente', 'Licencia'] as AsistenciaEstado[]).map((st) => {
-                                            const cfg = statusConfig[st];
-                                            const StIcon = cfg.icon;
-                                            const isActive = state.estado === st;
-                                            return (
-                                                <button
-                                                    key={st}
-                                                    onClick={() => updateAttendance(worker.id, {
-                                                        estado: st,
-                                                        tipo_ausencia_id: st === 'Presente' ? null : state.tipo_ausencia_id
-                                                    })}
-                                                    className={cn(
-                                                        "flex flex-col items-center justify-center p-3 rounded-xl border transition-all gap-1.5",
-                                                        isActive
-                                                            ? `${cfg.bg} ${cfg.color} border-current font-bold`
-                                                            : "bg-[#F5F5F7] border-[#E8E8ED] text-[#6E6E73] hover:bg-[#E8E8ED]"
-                                                    )}
-                                                >
-                                                    <StIcon className="h-4 w-4" />
-                                                    <span className="text-xs font-semibold uppercase">{st}</span>
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-
-                                    {/* Reason for absence if not Present */}
-                                    {state.estado !== 'Presente' && (
-                                        <motion.div
-                                            initial={{ opacity: 0, height: 0 }}
-                                            animate={{ opacity: 1, height: 'auto' }}
-                                            className="space-y-2 mt-1"
-                                        >
-                                            {state.estado === 'Ausente' || state.estado === 'Licencia' ? (
+                                        {/* Detail toggle / Absence Type */}
+                                        <div className="w-full md:w-[160px]">
+                                            {isNotPresent ? (
                                                 <select
-                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                     value={state.tipo_ausencia_id || ''}
-                                                    onChange={(e) => updateAttendance(worker.id, { tipo_ausencia_id: e.target.value ? Number(e.target.value) : null })}
+                                                    onChange={(e) => updateAttendance(worker.id, {
+                                                        tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
+                                                    })}
                                                 >
-                                                    <option value="">Causa (Opcional)...</option>
+                                                    <option value="">Causa...</option>
                                                     {absenceTypes.map(t => (
                                                         <option key={t.id} value={t.id}>{t.nombre}</option>
                                                     ))}
                                                 </select>
-                                            ) : null}
+                                            ) : (
+                                                <button
+                                                    onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
+                                                    className="text-[10px] text-[#0071E3] font-medium hover:underline"
+                                                >
+                                                    {isExpanded ? 'Cerrar' : 'Detalle'}
+                                                </button>
+                                            )}
+                                        </div>
+
+                                        {/* Horas Extra */}
+                                        <div className="w-full md:w-[60px]">
                                             <input
-                                                placeholder="Observación..."
-                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg p-2.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
-                                                value={state.observacion || ''}
-                                                onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
+                                                type="number"
+                                                min="0"
+                                                max="24"
+                                                step="0.5"
+                                                placeholder="0"
+                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-center text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                value={state.horas_extra || ''}
+                                                onChange={(e) => updateAttendance(worker.id, {
+                                                    horas_extra: parseFloat(e.target.value) || 0
+                                                })}
                                             />
-                                        </motion.div>
-                                    )}
+                                        </div>
+                                    </div>
+
+                                    {/* Expanded Detail */}
+                                    <AnimatePresence>
+                                        {isExpanded && (
+                                            <motion.div
+                                                initial={{ height: 0, opacity: 0 }}
+                                                animate={{ height: 'auto', opacity: 1 }}
+                                                exit={{ height: 0, opacity: 0 }}
+                                                transition={{ duration: 0.2 }}
+                                                className="overflow-hidden"
+                                            >
+                                                <div className="px-5 pb-4 pt-1 grid grid-cols-1 md:grid-cols-5 gap-3 bg-[#FAFAFA]">
+                                                    <div>
+                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Entrada</label>
+                                                        <input
+                                                            type="time"
+                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                            value={state.hora_entrada || ''}
+                                                            onChange={(e) => updateAttendance(worker.id, { hora_entrada: e.target.value || null })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Salida</label>
+                                                        <input
+                                                            type="time"
+                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                            value={state.hora_salida || ''}
+                                                            onChange={(e) => updateAttendance(worker.id, { hora_salida: e.target.value || null })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Colación inicio</label>
+                                                        <input
+                                                            type="time"
+                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                            value={state.hora_colacion_inicio || ''}
+                                                            onChange={(e) => updateAttendance(worker.id, { hora_colacion_inicio: e.target.value || null })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Colación fin</label>
+                                                        <input
+                                                            type="time"
+                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                            value={state.hora_colacion_fin || ''}
+                                                            onChange={(e) => updateAttendance(worker.id, { hora_colacion_fin: e.target.value || null })}
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Observación</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Nota..."
+                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                            value={state.observacion || ''}
+                                                            onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
                                 </motion.div>
                             );
                         })}
