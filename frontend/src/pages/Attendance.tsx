@@ -18,9 +18,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
+import { TimeStepperInput } from '../components/ui/TimeStepperInput';
 import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
 import api from '../services/api';
-import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia } from '../types/entities';
+import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia, ConfiguracionHorario } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
@@ -32,6 +33,7 @@ const AttendancePage: React.FC = () => {
     const [saving, setSaving] = useState(false);
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
+    const [horariosObra, setHorariosObra] = useState<ConfiguracionHorario[]>([]);
     const [absenceTypes, setAbsenceTypes] = useState<TipoAusencia[]>([]);
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
@@ -65,20 +67,29 @@ const AttendancePage: React.FC = () => {
         if (!selectedObra || !defaultEstado) return;
         setLoading(true);
         try {
-            const workersRes = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true`);
+            const [workersRes, attendanceRes, schedulesRes] = await Promise.all([
+                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true`),
+                api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`),
+                api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${selectedObra.id}`)
+            ]);
+
             const workerList = workersRes.data.data;
             setWorkers(workerList);
-
-            const attendanceRes = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`);
             const existing = attendanceRes.data.data;
+            setHorariosObra(schedulesRes.data.data || []);
 
             const newAttendance: Record<number, Partial<Asistencia>> = {};
+            const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
+            const dayIndex = new Date(date + 'T12:00:00').getDay();
+            const dayStr = dowMap[dayIndex];
+            const currentSchedule = schedulesRes.data.data.find(h => h.dia_semana === dayStr);
+
             workerList.forEach(w => {
                 const record = existing.find(a => a.trabajador_id === w.id);
                 if (record) {
                     newAttendance[w.id] = record;
                 } else {
-                    newAttendance[w.id] = {
+                    const newRecord: Asistencia = {
                         trabajador_id: w.id,
                         obra_id: selectedObra.id,
                         fecha: date,
@@ -90,8 +101,17 @@ const AttendancePage: React.FC = () => {
                         hora_colacion_inicio: null,
                         hora_colacion_fin: null,
                         horas_extra: 0,
-                        es_sabado: false
-                    };
+                        es_sabado: dayIndex === 6
+                    } as Asistencia;
+
+                    // Auto-fill default times if default state is present
+                    if (defaultEstado.es_presente && currentSchedule) {
+                        newRecord.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
+                        newRecord.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                        newRecord.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
+                        newRecord.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+                    }
+                    newAttendance[w.id] = newRecord;
                 }
             });
             setAttendance(newAttendance);
@@ -165,21 +185,93 @@ const AttendancePage: React.FC = () => {
     }, [attendance, estados]);
 
     // Handle WhatsApp Share
-    const handleShareWhatsApp = () => {
+    const handleShareWhatsApp = async () => {
         if (!selectedObra) return;
 
-        let text = `🚧 *Resumen de Asistencia* 🚧\n`;
-        text += `📍 *Obra:* ${selectedObra.nombre}\n`;
-        text += `📅 *Fecha:* ${date.split('-').reverse().join('-')}\n\n`;
-
-        text += `👥 *Nómina Total:* ${summary.total}\n`;
-        text += `🟢 *Presentes:* ${summary.presentes} (${summary.porcentaje}%)\n\n`;
-
-        text += `*Desglose:*\n`;
-        summary.desglose.forEach(({ estado, count }) => {
-            text += `- ${estado.nombre} (${estado.codigo}): ${count}\n`;
+        // Primero generamos y descargamos el Excel para que el usuario pueda adjuntarlo
+        await handleExportExcel();
+        toast.success('Excel generado. Solo arrástralo o adjúntalo al chat de WhatsApp que se abrirá', {
+            duration: 6000,
+            id: 'whatsapp-instruction'
         });
 
+        // Header
+        const dateStr = date.split('-').reverse().join('-');
+        let text = `Buenas tardes\n`;
+        text += `Adjunto asistencia de ${selectedObra.nombre} del día ${dateStr}.\n\n`;
+
+        // Code Mapping (Legacy)
+        // P -> A (Asiste)
+        // A -> F (Falta)
+        // V -> V (Vacaciones)
+        // LM -> LM (Licencia)
+        // 1/2 -> 1/2
+        // TO -> TO
+
+        // Summary Statistics (Global)
+        const total = workers.length;
+        const presentes = Object.values(attendance).filter(a => {
+            const est = estados.find(e => e.id === a.estado_id);
+            return est?.es_presente;
+        }).length;
+
+        const counts: Record<string, number> = {
+            'A': presentes,
+            'F': 0,
+            'V': 0,
+            'LM': 0,
+            '1/2': 0,
+            'TO': 0
+        };
+
+        Object.values(attendance).forEach(a => {
+            const est = estados.find(e => e.id === a.estado_id);
+            if (!est) return;
+            if (!est.es_presente) {
+                if (est.codigo === 'A') counts['F']++;
+                else if (['V', 'LM', '1/2', 'TO'].includes(est.codigo)) {
+                    counts[est.codigo]++;
+                }
+            }
+        });
+
+        text += `Total: ${total}\n`;
+        text += `A: ${counts['A'].toString().padStart(2, '0')}\n`;
+        text += `F: ${counts['F'].toString().padStart(2, '0')}\n`;
+        text += `V: ${counts['V'].toString().padStart(2, '0')}\n`;
+        text += `LM: ${counts['LM'].toString().padStart(2, '0')}\n`;
+        text += `1/2: ${counts['1/2'].toString().padStart(2, '0')}\n`;
+        text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n\n`;
+
+        // Grouping logic for "Obra", "Operaciones", "Personal rotativo"
+        const categorias = [
+            { key: 'obra', label: `Obra ${selectedObra.nombre}:` },
+            { key: 'operaciones', label: 'Operaciones:' },
+            { key: 'rotativo', label: 'Personal rotativo:' }
+        ];
+
+        categorias.forEach(cat => {
+            const workersInCat = workers.filter(w => (w.categoria_reporte || 'obra') === cat.key);
+            if (workersInCat.length === 0) return;
+
+            text += `${cat.label}\n`;
+
+            // Count by cargo within category
+            const cargoCounts: Record<string, number> = {};
+            workersInCat.forEach(w => {
+                const cargo = w.cargo_nombre || 'Sin Cargo';
+                cargoCounts[cargo] = (cargoCounts[cargo] || 0) + 1;
+            });
+
+            // Sort cargos alphabetically for consistency
+            Object.keys(cargoCounts).sort().forEach(cargo => {
+                text += `${cargoCounts[cargo].toString().padStart(2, '0')} ${cargo}\n`;
+            });
+
+            text += `\n`;
+        });
+
+        // Exceptions Section (A&M)
         const excepciones = workers.filter(w => {
             const state = attendance[w.id];
             if (!state || !state.estado_id) return false;
@@ -188,15 +280,11 @@ const AttendancePage: React.FC = () => {
         });
 
         if (excepciones.length > 0) {
-            text += `\n*Trabajadores con Excepciones:*\n`;
-            excepciones.forEach(w => {
-                const state = attendance[w.id];
-                const est = estados.find(e => e.id === state?.estado_id);
-                const tipoAusencia = absenceTypes.find(t => t.id === state?.tipo_ausencia_id);
-                const nota = tipoAusencia ? tipoAusencia.nombre : state?.observacion ? `Nota: ${state.observacion}` : '';
-                text += `- ${w.apellido_paterno}, ${w.nombres} (${est?.codigo}) ${nota ? `- ${nota}` : ''}\n`;
-            });
+            text += `A&M: ${excepciones.length.toString().padStart(2, '0')}\n\n`;
         }
+
+        text += `Saludos cordiales\n\n`;
+        text += `_Este mensaje se genero usando Bóveda lols_`;
 
         const encodedText = encodeURIComponent(text);
         window.open(`https://wa.me/?text=${encodedText}`, '_blank');
@@ -472,11 +560,29 @@ const AttendancePage: React.FC = () => {
                                                     <button
                                                         key={est.id}
                                                         onClick={() => {
-                                                            updateAttendance(worker.id, {
+                                                            const updates: Partial<Asistencia> = {
                                                                 estado_id: est.id,
                                                                 tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
                                                                 es_sabado: isSaturday
-                                                            });
+                                                            };
+
+                                                            // Auto-fill times if switching to present and times are empty
+                                                            if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
+                                                                const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
+                                                                const dayIndex = new Date(date + 'T12:00:00').getDay();
+                                                                const dayStr = dowMap[dayIndex];
+                                                                const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
+
+                                                                if (currentSchedule) {
+                                                                    updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
+                                                                    updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                                                                    updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
+                                                                    updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+                                                                }
+                                                            }
+
+                                                            updateAttendance(worker.id, updates);
+
                                                             if (!est.es_presente && expandedWorkerId !== worker.id) {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
@@ -561,39 +667,31 @@ const AttendancePage: React.FC = () => {
                                             >
                                                 <div className="px-5 pb-4 pt-1 grid grid-cols-1 md:grid-cols-5 gap-3 bg-[#FAFAFA]">
                                                     <div>
-                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Entrada</label>
-                                                        <input
-                                                            type="time"
-                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                        <TimeStepperInput
+                                                            label="Entrada"
                                                             value={state.hora_entrada || ''}
-                                                            onChange={(e) => updateAttendance(worker.id, { hora_entrada: e.target.value || null })}
+                                                            onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })}
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Salida</label>
-                                                        <input
-                                                            type="time"
-                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                        <TimeStepperInput
+                                                            label="Salida"
                                                             value={state.hora_salida || ''}
-                                                            onChange={(e) => updateAttendance(worker.id, { hora_salida: e.target.value || null })}
+                                                            onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })}
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Colación inicio</label>
-                                                        <input
-                                                            type="time"
-                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                        <TimeStepperInput
+                                                            label="Colación Inicio"
                                                             value={state.hora_colacion_inicio || ''}
-                                                            onChange={(e) => updateAttendance(worker.id, { hora_colacion_inicio: e.target.value || null })}
+                                                            onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })}
                                                         />
                                                     </div>
                                                     <div>
-                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Colación fin</label>
-                                                        <input
-                                                            type="time"
-                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                        <TimeStepperInput
+                                                            label="Colación Fin"
                                                             value={state.hora_colacion_fin || ''}
-                                                            onChange={(e) => updateAttendance(worker.id, { hora_colacion_fin: e.target.value || null })}
+                                                            onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })}
                                                         />
                                                     </div>
                                                     <div>

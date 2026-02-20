@@ -66,7 +66,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     initial={{ opacity: 0, scale: 0.95 }}
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden flex flex-col"
+                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
                 >
                     <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
                         <div>
@@ -83,7 +83,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         </Button>
                     </div>
 
-                    <div className="p-6">
+                    <div className="p-6 overflow-y-auto">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-semibold text-[#1D1D1F]">
                                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -106,15 +106,15 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
                             </div>
                         ) : (
-                            <div className="grid grid-cols-7 gap-2">
+                            <div className="grid grid-cols-7 gap-1.5">
                                 {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-                                    <div key={day} className="text-center text-[11px] font-bold text-[#6E6E73] uppercase tracking-wider mb-2">
+                                    <div key={day} className="text-center text-[10px] font-bold text-[#86868B] uppercase tracking-widest mb-2">
                                         {day}
                                     </div>
                                 ))}
 
                                 {Array.from({ length: startingDay }).map((_, i) => (
-                                    <div key={`empty-${i}`} className="h-20 bg-[#F5F5F7]/50 rounded-lg border border-[#E8E8ED]/50" />
+                                    <div key={`empty-${i}`} className="h-14 bg-[#F5F5F7]/30 rounded-xl border border-[#E8E8ED]/30" />
                                 ))}
 
                                 {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -126,15 +126,15 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                     return (
                                         <div
                                             key={day}
-                                            className="h-20 p-2 rounded-lg border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-sm transition-shadow bg-white"
-                                            style={{ backgroundColor: estado ? `${estado.color}08` : (isWeekend ? '#F5F5F7' : '#FFFFFF') }}
+                                            className="h-14 p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#0071E3]/30 transition-all bg-white group"
+                                            style={{ backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#F5F5F7/50' : '#FFFFFF') }}
                                         >
-                                            <span className={`text-[11px] font-bold ${estado ? 'text-[#1D1D1F]' : 'text-[#A1A1A6]'}`}>
+                                            <span className={`text-[10px] font-medium ${estado ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto`}>
                                                 {day}
                                             </span>
                                             {estado && (
                                                 <div
-                                                    className="mt-auto px-2 py-0.5 rounded text-[10px] font-bold w-full text-center truncate"
+                                                    className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold w-full text-center truncate shadow-sm"
                                                     style={{ backgroundColor: `${estado.color}15`, color: estado.color }}
                                                     title={estado.nombre}
                                                 >
