@@ -29,31 +29,35 @@ router.post('/exportar-excel', auth, checkPermission('documentos', 'puede_ver'),
     } catch (err) { next(err); }
 });
 
-// Export + Send Excel via email
+// Export + Send Excel via email (uses saved credentials from the user's profile)
 router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
     try {
-        const { trabajadores, destinatario_email, asunto, mensaje, email_password } = req.body;
+        const { trabajadores, destinatario_email, asunto, cuerpo } = req.body;
 
-        if (!trabajadores || !destinatario_email || !email_password) {
-            return res.status(400).json({ error: 'trabajadores, destinatario_email y email_password son requeridos' });
+        if (!trabajadores || !destinatario_email) {
+            return res.status(400).json({ error: 'trabajadores y destinatario_email son requeridos' });
+        }
+
+        // Retrieve saved credentials from the user's profile
+        const db = require('../config/db');
+        const emailConfigRoutes = require('./email-config.routes');
+        const credentials = await emailConfigRoutes.getDecryptedPassword(req.user.id);
+
+        if (!credentials || !credentials.email || !credentials.password) {
+            return res.status(400).json({
+                error: 'El usuario no tiene credenciales de correo configuradas. Ve a Configuración > Mi Correo para guardarlas.',
+                code: 'NO_EMAIL_CREDENTIALS'
+            });
         }
 
         const excelPath = await fiscalizacionService.generarExcel(trabajadores);
 
-        const db = require('../config/db');
-        const [users] = await db.query('SELECT email_corporativo FROM usuarios WHERE id = ?', [req.user.id]);
-        const fromEmail = users[0]?.email_corporativo;
-
-        if (!fromEmail) {
-            return res.status(400).json({ error: 'El usuario no tiene configurado un email corporativo' });
-        }
-
         const result = await emailService.sendWithAttachment({
-            from: fromEmail,
-            fromPassword: email_password,
+            from: credentials.email,
+            fromPassword: credentials.password,
             to: destinatario_email,
-            subject: asunto || 'Reporte de Fiscalización - Bóveda LOLS',
-            body: mensaje || 'Adjunto la nómina solicitada para la fiscalización.',
+            subject: asunto || 'Reporte de Nómina - Bóveda LOLS',
+            body: cuerpo || 'Adjunto la nómina solicitada.',
             attachmentPath: excelPath
         });
 
@@ -62,6 +66,7 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
         res.json({ message: 'Email enviado exitosamente', ...result });
     } catch (err) { next(err); }
 });
+
 
 // Legacy Export ZIP (Keep for backwards compatibility if needed)
 router.post('/exportar', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {

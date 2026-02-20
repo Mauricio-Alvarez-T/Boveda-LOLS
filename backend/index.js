@@ -118,6 +118,9 @@ app.use('/api/asistencias', require('./src/routes/asistencias.routes'));
 // Fiscalización
 app.use('/api/fiscalizacion', require('./src/routes/fiscalizacion.routes'));
 
+// Email Config & Templates (per-user) - Register before standard usuarios CRUD to avoid /:id collision
+app.use('/api/usuarios', require('./src/routes/email-config.routes'));
+
 // Usuarios + Roles + Permisos
 app.use('/api/usuarios', require('./src/routes/usuarios.routes'));
 
