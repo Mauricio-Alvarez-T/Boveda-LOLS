@@ -157,6 +157,9 @@ app.use('/api/estados-asistencia', (() => {
   return router;
 })());
 
+// Configuración de Horarios
+app.use('/api/config-horarios', require('./src/routes/config-horarios.routes'));
+
 // ============================================
 // Health Check & Dashboard
 // ============================================
