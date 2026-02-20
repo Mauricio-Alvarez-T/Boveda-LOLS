@@ -1,250 +1,417 @@
 import React, { useState, useEffect } from 'react';
 import {
-    Download,
     Mail,
     Search,
     Loader2,
     Archive,
-    ShieldCheck,
-    CheckCircle2,
-    AlertCircle
+    Filter,
+    FileSpreadsheet,
+    Users
 } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Select } from '../components/ui/Select';
+import type { SelectOption } from '../components/ui/Select';
 import api from '../services/api';
-import type { Asistencia } from '../types/entities';
+import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
-
 import { useObra } from '../context/ObraContext';
+
+// Extended type to include advanced search results
+interface TrabajadorAvanzado extends Trabajador {
+    docs_porcentaje: number;
+}
 
 const FiscalizacionPage: React.FC = () => {
     const { selectedObra } = useObra();
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+
+    // Catalogs
+    const [empresas, setEmpresas] = useState<SelectOption[]>([]);
+    const [obras, setObras] = useState<SelectOption[]>([]);
+    const [cargos, setCargos] = useState<SelectOption[]>([]);
+
+    // Filters
+    const [search, setSearch] = useState('');
+    const [filterObra, setFilterObra] = useState<string>('');
+    const [filterEmpresa, setFilterEmpresa] = useState<string>('');
+    const [filterCargo, setFilterCargo] = useState<string>('');
+    const [filterCategoria, setFilterCategoria] = useState<string>('');
+    const [filterActivo, setFilterActivo] = useState<string>('true');
+    const [filterCompletitud, setFilterCompletitud] = useState<string>('');
     const [email, setEmail] = useState('');
 
+    // State
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
     const [sending, setSending] = useState(false);
-    const [report, setReport] = useState<Asistencia[]>([]);
+    const [workers, setWorkers] = useState<TrabajadorAvanzado[]>([]);
+    const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
 
-    const fetchStatus = async () => {
-        if (!selectedObra) return;
+    // Fetch Catalogs
+    useEffect(() => {
+        const fetchCatalogs = async () => {
+            try {
+                const [empRes, obraRes, cargoRes] = await Promise.all([
+                    api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
+                    api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
+                    api.get<ApiResponse<Cargo[]>>('/cargos?activo=true')
+                ]);
+
+                setEmpresas([{ value: '', label: 'Todas las Empresas' }, ...empRes.data.data.map(e => ({ value: e.id, label: e.razon_social }))]);
+                setObras([{ value: '', label: 'Todas las Obras' }, ...obraRes.data.data.map(o => ({ value: o.id, label: o.nombre }))]);
+                setCargos([{ value: '', label: 'Todos los Cargos' }, ...cargoRes.data.data.map(c => ({ value: c.id, label: c.nombre }))]);
+            } catch (err) {
+                console.error('Error fetching catalogs', err);
+            }
+        };
+        fetchCatalogs();
+    }, []);
+
+    // Set default obra if contextualized
+    useEffect(() => {
+        if (selectedObra) {
+            setFilterObra(selectedObra.id.toString());
+        } else {
+            setFilterObra('');
+        }
+    }, [selectedObra]);
+
+    const performSearch = async () => {
         setLoading(true);
         try {
-            const res = await api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`);
-            setReport(res.data.data);
+            const params = new URLSearchParams();
+            if (search) params.append('q', search);
+            if (filterObra) params.append('obra_id', filterObra);
+            if (filterEmpresa) params.append('empresa_id', filterEmpresa);
+            if (filterCargo) params.append('cargo_id', filterCargo);
+            if (filterCategoria) params.append('categoria_reporte', filterCategoria);
+            if (filterActivo) params.append('activo', filterActivo);
+            if (filterCompletitud) params.append('completitud', filterCompletitud);
+
+            const res = await api.get<{ data: TrabajadorAvanzado[] }>(`/fiscalizacion/trabajadores-avanzado?${params.toString()}`);
+            setWorkers(res.data.data);
+
+            // Auto-select all on new search
+            const allIds = new Set(res.data.data.map(w => w.id));
+            setSelectedWorkers(allIds);
         } catch (err) {
-            toast.error('Error al cargar reporte de asistencia');
+            toast.error('Error al realizar la búsqueda');
         } finally {
             setLoading(false);
         }
     };
 
+    // Trigger search when filters change
     useEffect(() => {
-        fetchStatus();
-    }, [selectedObra, date]);
+        // Debounce text search
+        const timeoutId = setTimeout(() => {
+            performSearch();
+        }, 300);
+        return () => clearTimeout(timeoutId);
+    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud]);
 
-    const handleExport = async () => {
-        if (!selectedObra) return;
+    const handleSelectAll = () => {
+        if (selectedWorkers.size === workers.length) {
+            setSelectedWorkers(new Set());
+        } else {
+            setSelectedWorkers(new Set(workers.map(w => w.id)));
+        }
+    };
+
+    const handleSelectWorker = (id: number) => {
+        const newSet = new Set(selectedWorkers);
+        if (newSet.has(id)) {
+            newSet.delete(id);
+        } else {
+            newSet.add(id);
+        }
+        setSelectedWorkers(newSet);
+    };
+
+    const handleExportExcel = async () => {
+        if (selectedWorkers.size === 0) return;
         setExporting(true);
+        toast.info('Generando reporte Excel...', { id: 'excel-export' });
+
         try {
-            const response = await api.get(`/fiscalizacion/exportar-obra?obra_id=${selectedObra.id}&fecha=${date}`, {
-                responseType: 'blob',
-            });
-            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const selectedData = workers.filter(w => selectedWorkers.has(w.id));
+            const response = await api.post('/fiscalizacion/exportar-excel', {
+                trabajadores: selectedData
+            }, { responseType: 'blob' });
+
+            const url = window.URL.createObjectURL(new Blob([response.data as any]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Fiscalizacion-Obra-${selectedObra.id}-${date}.zip`);
+            link.setAttribute('download', `Fiscalizacion_${new Date().toISOString().split('T')[0]}.xlsx`);
             document.body.appendChild(link);
             link.click();
             link.remove();
-            toast.success('Bóveda exportada exitosamente');
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Reporte Excel descargado', { id: 'excel-export' });
         } catch (err) {
-            toast.error('Error al generar ZIP. Asegúrate de que los trabajadores tengan documentos subidos.');
+            toast.error('Error al generar Excel', { id: 'excel-export' });
         } finally {
             setExporting(false);
         }
     };
 
     const handleSendEmail = async () => {
-        if (!selectedObra) return;
+        if (selectedWorkers.size === 0) return;
         if (!email) {
             toast.error('Especifica un correo destinatario');
             return;
         }
+
+        // We need user to confirm their email password (or use a secure stored one, but for this demo we'll just prompt or assume environment logic - ideally backend handles it if integrated with O365, but we provided password field in API API).
+        // For security in this PoC, we might need a modal to ask for credentials if not stored. 
+        // Let's assume for now the user is authenticated and the backend uses an app password or similar.
+        // If the API strictly requires `email_password`, we will prompt the user.
+
+        const pwd = window.prompt("Por seguridad, ingresa tu contraseña de correo corporativo para enviar el reporte:");
+        if (!pwd) return;
+
         setSending(true);
         try {
-            await api.post('/fiscalizacion/enviar-obra', {
-                obra_id: selectedObra.id,
-                fecha: date,
-                email: email
+            const selectedData = workers.filter(w => selectedWorkers.has(w.id));
+            await api.post('/fiscalizacion/enviar-excel', {
+                trabajadores: selectedData,
+                destinatario_email: email,
+                email_password: pwd
             });
-            toast.success(`Paquete enviado correctamente a ${email}`);
-        } catch (err) {
-            toast.error('Error al enviar el correo');
+            toast.success(`Excel enviado correctamente a ${email}`);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al enviar el correo');
         } finally {
             setSending(false);
         }
     };
 
-    const presentCount = report.filter(r => r.estado === 'Presente' || r.estado === 'Atraso').length;
-
-    if (!selectedObra) {
-        return (
-            <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
-                <div className="h-14 w-14 bg-[#F5F5F7] rounded-full flex items-center justify-center mb-4">
-                    <Archive className="h-7 w-7 text-[#6E6E73]" />
-                </div>
-                <h2 className="text-lg font-semibold text-[#1D1D1F]">Selecciona una Obra</h2>
-                <p className="text-[#6E6E73] mt-2 max-w-md text-sm">
-                    Para gestionar fiscalizaciones, primero debes seleccionar una obra en el menú superior.
-                </p>
-            </div>
-        );
-    }
-
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
             {/* Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
                         <Archive className="h-7 w-7 text-[#0071E3]" />
-                        Fiscalización y Exportación
+                        Fiscalización Avanzada
                     </h1>
                     <p className="text-[#6E6E73] mt-1 text-base">
-                        Proyecto activo: <span className="text-[#1D1D1F] font-semibold">{selectedObra.nombre}</span>
+                        Busca, filtra y exporta reportes de nómina exactos para inspecciones.
                     </p>
-                </div>
-                <div className="h-12 w-12 rounded-2xl bg-[#0071E3]/8 flex items-center justify-center">
-                    <ShieldCheck className="h-6 w-6 text-[#0071E3]" />
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Configuration Card */}
-                <div className="lg:col-span-1 space-y-5">
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6 space-y-5">
-                        <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2">
-                            <Search className="h-4 w-4 text-[#0071E3]" />
-                            Configurar Paquete
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+
+                {/* MEGA FILTER PANEL */}
+                <div className="xl:col-span-1 space-y-5">
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-5 space-y-4 sticky top-6">
+                        <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2 border-b border-[#E8E8ED] pb-3">
+                            <Filter className="h-4 w-4 text-[#0071E3]" />
+                            Filtros de Búsqueda
                         </h3>
 
-                        <div className="space-y-4">
+                        <div className="space-y-3 pt-2">
                             <Input
-                                label="Fecha de Auditoría"
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
+                                placeholder="Buscar por Nombre o RUT..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                leftIcon={<Search className="h-4 w-4 text-muted-foreground" />}
+                            />
+
+                            <Select
+                                value={filterObra}
+                                onChange={(e) => setFilterObra(e.target.value)}
+                                options={obras}
+                            />
+
+                            <Select
+                                value={filterEmpresa}
+                                onChange={(e) => setFilterEmpresa(e.target.value)}
+                                options={empresas}
+                            />
+
+                            <Select
+                                value={filterCargo}
+                                onChange={(e) => setFilterCargo(e.target.value)}
+                                options={cargos}
+                            />
+
+                            <Select
+                                value={filterCategoria}
+                                onChange={(e) => setFilterCategoria(e.target.value)}
+                                options={[
+                                    { value: '', label: 'Todas las Categorías' },
+                                    { value: 'obra', label: 'En Obra' },
+                                    { value: 'operaciones', label: 'Operaciones' },
+                                    { value: 'rotativo', label: 'Personal rotativo' },
+                                ]}
+                            />
+
+                            <Select
+                                label="Estado Contractual"
+                                value={filterActivo}
+                                onChange={(e) => setFilterActivo(e.target.value)}
+                                options={[
+                                    { value: 'true', label: 'Activos' },
+                                    { value: 'false', label: 'Inactivos' },
+                                    { value: '', label: 'Todos' },
+                                ]}
+                            />
+
+                            <Select
+                                label="Completitud Documentos"
+                                value={filterCompletitud}
+                                onChange={(e) => setFilterCompletitud(e.target.value)}
+                                options={[
+                                    { value: '', label: 'Cualquier Estado' },
+                                    { value: '100', label: '100% al Día' },
+                                    { value: 'faltantes', label: 'Documentos Faltantes' },
+                                ]}
                             />
                         </div>
-
-                        <div className="p-4 rounded-xl bg-[#F5F5F7] space-y-3">
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-[#6E6E73]">Trabajadores en nómina:</span>
-                                <span className="text-[#1D1D1F] font-semibold">{report.length}</span>
-                            </div>
-                            <div className="flex justify-between items-center text-sm">
-                                <span className="text-[#6E6E73]">Presentes para exportar:</span>
-                                <span className="text-[#34C759] font-semibold">{presentCount}</span>
-                            </div>
-                            <div className="h-px bg-[#D2D2D7]" />
-                            <p className="text-xs text-[#A1A1A6] italic leading-relaxed">
-                                * El ZIP incluirá automáticamente los documentos vigentes de todos los trabajadores marcados como 'Presente' o 'Atraso' en la fecha seleccionada.
-                            </p>
-                        </div>
-
-                        <Button
-                            className="w-full"
-                            onClick={handleExport}
-                            isLoading={exporting}
-                            disabled={loading || presentCount === 0}
-                            variant="primary"
-                            leftIcon={<Download className="h-4 w-4" />}
-                        >
-                            Descargar ZIP
-                        </Button>
-                    </div>
-
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6 space-y-5">
-                        <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-[#5856D6]" />
-                            Enviar por Correo
-                        </h3>
-                        <Input
-                            label="Correo Destinatario"
-                            placeholder="fiscalizador@inspeccion.cl"
-                            value={email}
-                            onChange={(e) => setEmail(e.target.value)}
-                        />
-                        <Button
-                            className="w-full"
-                            variant="secondary"
-                            onClick={handleSendEmail}
-                            isLoading={sending}
-                            disabled={loading || presentCount === 0 || !email}
-                            leftIcon={<Mail className="h-4 w-4" />}
-                        >
-                            Enviar Paquete
-                        </Button>
                     </div>
                 </div>
 
-                {/* Status Breakdown */}
-                <div className="lg:col-span-2">
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[400px]">
-                        <div className="px-6 py-5 border-b border-[#D2D2D7] flex items-center justify-between">
-                            <h3 className="text-[#1D1D1F] font-semibold">Estado de los Trabajadores ({date})</h3>
-                            {loading && <Loader2 className="h-5 w-5 animate-spin text-[#0071E3]" />}
+                {/* RESULTS & EXPORT */}
+                <div className="xl:col-span-3 space-y-6">
+
+                    {/* Action Bar */}
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row justify-between items-center gap-4">
+                        <div className="flex items-center gap-3">
+                            <div className="bg-[#0071E3]/10 text-[#0071E3] p-2 rounded-lg">
+                                <Users className="h-5 w-5" />
+                            </div>
+                            <div>
+                                <p className="text-sm text-[#6E6E73]">Trabajadores Seleccionados</p>
+                                <p className="text-lg font-bold text-[#1D1D1F]">{selectedWorkers.size} <span className="text-sm font-normal text-[#6E6E73]">de {workers.length}</span></p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
+                            <div className="flex relative">
+                                <Input
+                                    placeholder="correo@inspeccion.cl"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    className="rounded-r-none border-r-0 focus:z-10 w-full sm:w-64"
+                                />
+                                <Button
+                                    variant="secondary"
+                                    className="rounded-l-none"
+                                    onClick={handleSendEmail}
+                                    isLoading={sending}
+                                    disabled={selectedWorkers.size === 0 || !email}
+                                    leftIcon={<Mail className="h-4 w-4" />}
+                                >
+                                    Enviar
+                                </Button>
+                            </div>
+
+                            <Button
+                                onClick={handleExportExcel}
+                                isLoading={exporting}
+                                disabled={selectedWorkers.size === 0}
+                                leftIcon={<FileSpreadsheet className="h-4 w-4" />}
+                            >
+                                Descargar Excel
+                            </Button>
+                        </div>
+                    </div>
+
+                    {/* Results Table */}
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[500px]">
+                        <div className="px-6 py-4 border-b border-[#D2D2D7] flex items-center justify-between bg-[#F5F5F7]">
+                            <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
+                                Resultados de Búsqueda
+                                {loading && <Loader2 className="h-4 w-4 animate-spin text-[#0071E3] ml-2" />}
+                            </h3>
                         </div>
 
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="bg-[#F5F5F7] uppercase text-xs tracking-widest text-[#6E6E73]">
+                                    <tr className="border-b border-[#E8E8ED] bg-white text-xs tracking-wider text-[#6E6E73] uppercase">
+                                        <th className="px-6 py-4 font-semibold w-12 text-center">
+                                            <input
+                                                type="checkbox"
+                                                className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]"
+                                                checked={workers.length > 0 && selectedWorkers.size === workers.length}
+                                                onChange={handleSelectAll}
+                                                disabled={workers.length === 0}
+                                            />
+                                        </th>
                                         <th className="px-6 py-4 font-semibold">Trabajador</th>
+                                        <th className="px-6 py-4 font-semibold">Ubicación / Rol</th>
+                                        <th className="px-6 py-4 font-semibold">Documentación</th>
                                         <th className="px-6 py-4 font-semibold">Estado</th>
-                                        <th className="px-6 py-4 font-semibold">Inclusión en ZIP</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-[#E8E8ED]">
-                                    {report.length === 0 ? (
+                                    {workers.length === 0 ? (
                                         <tr>
-                                            <td colSpan={3} className="px-6 py-20 text-center text-[#6E6E73] italic text-base">
-                                                No hay registros de asistencia para esta fecha.
-                                                Pasa lista primero en el módulo de Asistencia.
+                                            <td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] italic">
+                                                No se encontraron trabajadores con los filtros actuales.
                                             </td>
                                         </tr>
                                     ) : (
-                                        report.map((item) => (
-                                            <tr key={item.trabajador_id} className="hover:bg-[#F5F5F7]/50 transition-colors">
-                                                <td className="px-6 py-5">
-                                                    <p className="text-base font-semibold text-[#1D1D1F]">{item.nombres} {item.apellido_paterno}</p>
-                                                    <p className="text-xs text-[#6E6E73]">{item.rut}</p>
+                                        workers.map((worker) => (
+                                            <tr
+                                                key={worker.id}
+                                                className={cn(
+                                                    "hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer",
+                                                    selectedWorkers.has(worker.id) && "bg-[#0071E3]/5"
+                                                )}
+                                                onClick={() => handleSelectWorker(worker.id)}
+                                            >
+                                                <td className="px-6 py-4 text-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]"
+                                                        checked={selectedWorkers.has(worker.id)}
+                                                        readOnly
+                                                    />
                                                 </td>
-                                                <td className="px-6 py-5">
-                                                    <div className={cn(
-                                                        "inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold uppercase",
-                                                        item.estado === 'Presente' ? "bg-[#34C759]/10 text-[#34C759]" :
-                                                            item.estado === 'Atraso' ? "bg-[#FF9F0A]/10 text-[#FF9F0A]" :
-                                                                "bg-[#FF3B30]/10 text-[#FF3B30]"
-                                                    )}>
-                                                        {item.estado}
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm font-semibold text-[#1D1D1F]">
+                                                        {worker.nombres} {worker.apellido_paterno}
+                                                    </p>
+                                                    <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <p className="text-sm text-[#1D1D1F]">{worker.empresa_nombre || '-'}</p>
+                                                    <p className="text-xs text-[#6E6E73] truncate max-w-[200px]">
+                                                        {worker.obra_nombre} • {worker.cargo_nombre}
+                                                    </p>
+                                                </td>
+                                                <td className="px-6 py-4">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="h-2 w-24 bg-[#E8E8ED] rounded-full overflow-hidden flex-shrink-0">
+                                                            <div
+                                                                className={cn(
+                                                                    "h-full rounded-full",
+                                                                    worker.docs_porcentaje === 100 ? "bg-[#34C759]" :
+                                                                        worker.docs_porcentaje > 50 ? "bg-[#FF9F0A]" : "bg-[#FF3B30]"
+                                                                )}
+                                                                style={{ width: `${worker.docs_porcentaje}%` }}
+                                                            />
+                                                        </div>
+                                                        <span className="text-xs font-medium text-[#6E6E73] w-10">
+                                                            {worker.docs_porcentaje}%
+                                                        </span>
                                                     </div>
                                                 </td>
-                                                <td className="px-6 py-5">
-                                                    {(item.estado === 'Presente' || item.estado === 'Atraso') ? (
-                                                        <div className="flex items-center gap-2 text-[#34C759] text-sm font-medium">
-                                                            <CheckCircle2 className="h-4 w-4" /> Incluido
-                                                        </div>
-                                                    ) : (
-                                                        <div className="flex items-center gap-2 text-[#A1A1A6] text-sm font-medium italic">
-                                                            <AlertCircle className="h-4 w-4" /> Excluido
-                                                        </div>
-                                                    )}
+                                                <td className="px-6 py-4">
+                                                    <span className={cn(
+                                                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase",
+                                                        worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]"
+                                                    )}>
+                                                        {worker.activo ? 'Activo' : 'Inactivo'}
+                                                    </span>
                                                 </td>
                                             </tr>
                                         ))
@@ -253,6 +420,7 @@ const FiscalizacionPage: React.FC = () => {
                             </table>
                         </div>
                     </div>
+
                 </div>
             </div>
         </div>
