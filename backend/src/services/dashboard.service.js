@@ -83,15 +83,35 @@ const getSummary = async (obraId = null) => {
         GROUP BY o.id, o.nombre
     `, distParams);
 
+    // 7. 7-Day Attendance Trend
+    const [trendData] = await pool.query(`
+        SELECT a.fecha, 
+               SUM(CASE WHEN ea.es_presente = 1 THEN 1 ELSE 0 END) as presentes,
+               COUNT(a.id) as total
+        FROM asistencias a
+        JOIN estados_asistencia ea ON a.estado_id = ea.id
+        WHERE a.fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+        ${asistFilter ? 'AND a.obra_id = ?' : ''}
+        GROUP BY a.fecha
+        ORDER BY a.fecha ASC
+    `, params);
+
+    const attendanceTrend = trendData.map(d => ({
+        fecha: d.fecha.toISOString().split('T')[0],
+        tasa: d.total > 0 ? Math.round((d.presentes / d.total) * 100) : 0
+    }));
+
     return {
         counters: {
             trabajadores: workers[0].count,
             documentos: docs[0].count,
             vencidos: expired[0].count,
-            asistencia_hoy: attendanceRate
+            asistencia_hoy: attendanceRate,
+            ausentes_hoy: stats.total - presentCount
         },
         recentActivity: recentDocs,
-        obraDistribution
+        obraDistribution,
+        attendanceTrend
     };
 };
 

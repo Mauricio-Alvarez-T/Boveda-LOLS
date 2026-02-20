@@ -27,7 +27,9 @@ import {
     ResponsiveContainer,
     Cell,
     PieChart,
-    Pie
+    Pie,
+    LineChart,
+    Line
 } from 'recharts';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
@@ -45,9 +47,11 @@ interface DashboardData {
         documentos: number;
         vencidos: number;
         asistencia_hoy: number;
+        ausentes_hoy: number;
     };
     recentActivity: any[];
     obraDistribution: { nombre: string; count: number }[];
+    attendanceTrend: { fecha: string; tasa: number }[];
 }
 
 const Dashboard: React.FC = () => {
@@ -117,16 +121,16 @@ const Dashboard: React.FC = () => {
             color: 'text-[#34C759]',
             bg: 'bg-[#34C759]/8',
             route: '/asistencia',
-            description: 'Control de asistencia'
+            description: 'Tasa de presencia hoy'
         },
         {
-            label: 'Vencidos / Críticos',
-            value: data.counters.vencidos,
+            label: 'Ausencias Hoy',
+            value: data.counters.ausentes_hoy || 0,
             icon: AlertTriangle,
-            color: data.counters.vencidos > 0 ? 'text-[#FF3B30]' : 'text-[#A1A1A6]',
-            bg: data.counters.vencidos > 0 ? 'bg-[#FF3B30]/8' : 'bg-[#A1A1A6]/8',
-            route: '/trabajadores',
-            description: data.counters.vencidos > 0 ? 'Requiere atención' : 'Todo en orden'
+            color: (data.counters.ausentes_hoy || 0) > 0 ? 'text-[#FF9F0A]' : 'text-[#A1A1A6]',
+            bg: (data.counters.ausentes_hoy || 0) > 0 ? 'bg-[#FF9F0A]/8' : 'bg-[#A1A1A6]/8',
+            route: '/asistencia',
+            description: (data.counters.ausentes_hoy || 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta'
         },
     ];
 
@@ -191,56 +195,119 @@ const Dashboard: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Chart Area */}
                 <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
-                        <div className="flex items-center justify-between mb-6">
-                            <div>
-                                <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
-                                <p className="text-xs text-[#6E6E73]">Capacidad operativa por proyecto activo.</p>
+                    {/* Charts Row */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
+                                    <p className="text-xs text-[#6E6E73]">Capacidad operativa.</p>
+                                </div>
+                                <TrendingUp className="h-5 w-5 text-[#0071E3]" />
                             </div>
-                            <TrendingUp className="h-5 w-5 text-[#0071E3]" />
+
+                            {data.obraDistribution.length > 0 ? (
+                                <div className="h-[200px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={data.obraDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E8ED" />
+                                            <XAxis
+                                                dataKey="nombre"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#6E6E73', fontSize: 10 }}
+                                            />
+                                            <YAxis
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#6E6E73', fontSize: 10 }}
+                                            />
+                                            <Tooltip
+                                                cursor={{ fill: '#F5F5F7' }}
+                                                contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
+                                            />
+                                            <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                                                {data.obraDistribution.map((_, index) => (
+                                                    <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#0071E3' : '#5856D6'} fillOpacity={0.85} />
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="h-[200px] flex flex-col items-center justify-center text-[#6E6E73]">
+                                    <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
+                                    <p className="text-sm">No hay obras activas con trabajadores asignados.</p>
+                                    <Button
+                                        variant="ghost"
+                                        className="mt-3 text-xs"
+                                        onClick={() => navigate('/trabajadores')}
+                                    >
+                                        Ir a Trabajadores
+                                    </Button>
+                                </div>
+                            )}
                         </div>
 
-                        {data.obraDistribution.length > 0 ? (
-                            <div className="h-[280px] w-full">
-                                <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={data.obraDistribution} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E8ED" />
-                                        <XAxis
-                                            dataKey="nombre"
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{ fill: '#6E6E73', fontSize: 12 }}
-                                        />
-                                        <YAxis
-                                            axisLine={false}
-                                            tickLine={false}
-                                            tick={{ fill: '#6E6E73', fontSize: 12 }}
-                                        />
-                                        <Tooltip
-                                            cursor={{ fill: '#F5F5F7' }}
-                                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '13px', color: '#1D1D1F' }}
-                                        />
-                                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                                            {data.obraDistribution.map((_, index) => (
-                                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#0071E3' : '#5856D6'} fillOpacity={0.85} />
-                                            ))}
-                                        </Bar>
-                                    </BarChart>
-                                </ResponsiveContainer>
+                        {/* Attendance Trend Chart */}
+                        <div className="bg-white rounded-2xl border border-[#D2D2D7] p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <div>
+                                    <h3 className="text-base font-semibold text-[#1D1D1F]">Tendencia de Asistencia</h3>
+                                    <p className="text-xs text-[#6E6E73]">Últimos 7 días activos.</p>
+                                </div>
+                                <Activity className="h-5 w-5 text-[#34C759]" />
                             </div>
-                        ) : (
-                            <div className="h-[280px] flex flex-col items-center justify-center text-[#6E6E73]">
-                                <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
-                                <p className="text-sm">No hay obras activas con trabajadores asignados.</p>
-                                <Button
-                                    variant="ghost"
-                                    className="mt-3 text-xs"
-                                    onClick={() => navigate('/trabajadores')}
-                                >
-                                    Ir a Trabajadores
-                                </Button>
-                            </div>
-                        )}
+
+                            {data.attendanceTrend.length > 0 ? (
+                                <div className="h-[200px] w-full">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <LineChart data={data.attendanceTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                                            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E8ED" />
+                                            <XAxis
+                                                dataKey="fecha"
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#6E6E73', fontSize: 10 }}
+                                                tickFormatter={(v) => v.slice(8, 10) + '/' + v.slice(5, 7)}
+                                            />
+                                            <YAxis
+                                                axisLine={false}
+                                                tickLine={false}
+                                                tick={{ fill: '#6E6E73', fontSize: 10 }}
+                                                domain={[0, 100]}
+                                            />
+                                            <Tooltip
+                                                cursor={{ stroke: '#F5F5F7', strokeWidth: 2 }}
+                                                contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
+                                                formatter={(value) => [`${value}%`, 'Tasa de Asistencia']}
+                                                labelFormatter={(label) => `Fecha: ${label}`}
+                                            />
+                                            <Line
+                                                type="monotone"
+                                                dataKey="tasa"
+                                                stroke="#34C759"
+                                                strokeWidth={3}
+                                                dot={{ r: 4, fill: '#FFFFFF', stroke: '#34C759', strokeWidth: 2 }}
+                                                activeDot={{ r: 6, fill: '#34C759', stroke: '#FFFFFF', strokeWidth: 2 }}
+                                            />
+                                        </LineChart>
+                                    </ResponsiveContainer>
+                                </div>
+                            ) : (
+                                <div className="h-[200px] flex flex-col items-center justify-center text-[#6E6E73]">
+                                    <CheckSquare className="h-10 w-10 opacity-20 mb-4" />
+                                    <p className="text-sm">No hay registros de asistencia en los últimos 7 días.</p>
+                                    <Button
+                                        variant="ghost"
+                                        className="mt-3 text-xs"
+                                        onClick={() => navigate('/asistencia')}
+                                    >
+                                        Ir a Asistencia
+                                    </Button>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5">

@@ -11,12 +11,14 @@ import {
     Clock,
     BarChart3,
     MessageCircle,
-    Download
+    Download,
+    CalendarDays
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
+import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
 import api from '../services/api';
 import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -34,6 +36,7 @@ const AttendancePage: React.FC = () => {
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
+    const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
 
     // Get the default "Presente" state (es_presente flag)
     const defaultEstado = useMemo(() =>
@@ -414,10 +417,10 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
                     {/* Table Header */}
-                    <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider">
+                    <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
                         <span>Trabajador</span>
                         <span className="w-[320px] text-center">Estado</span>
-                        <span className="w-[160px] text-center">Detalle</span>
+                        <span className="w-[180px] text-center">Detalle / Calendario</span>
                         <span className="w-[60px] text-center">H.E.</span>
                     </div>
 
@@ -496,28 +499,37 @@ const AttendancePage: React.FC = () => {
                                         </div>
 
                                         {/* Detail toggle / Absence Type */}
-                                        <div className="w-full md:w-[160px]">
-                                            {isNotPresent ? (
-                                                <select
-                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
-                                                    value={state.tipo_ausencia_id || ''}
-                                                    onChange={(e) => updateAttendance(worker.id, {
-                                                        tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
-                                                    })}
-                                                >
-                                                    <option value="">Causa...</option>
-                                                    {absenceTypes.map(t => (
-                                                        <option key={t.id} value={t.id}>{t.nombre}</option>
-                                                    ))}
-                                                </select>
-                                            ) : (
-                                                <button
-                                                    onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                    className="text-[10px] text-[#0071E3] font-medium hover:underline"
-                                                >
-                                                    {isExpanded ? 'Cerrar' : 'Detalle'}
-                                                </button>
-                                            )}
+                                        <div className="w-full md:w-[180px] flex items-center justify-between gap-2">
+                                            <div className="flex-1">
+                                                {isNotPresent ? (
+                                                    <select
+                                                        className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                        value={state.tipo_ausencia_id || ''}
+                                                        onChange={(e) => updateAttendance(worker.id, {
+                                                            tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
+                                                        })}
+                                                    >
+                                                        <option value="">Causa...</option>
+                                                        {absenceTypes.map(t => (
+                                                            <option key={t.id} value={t.id}>{t.nombre}</option>
+                                                        ))}
+                                                    </select>
+                                                ) : (
+                                                    <button
+                                                        onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
+                                                        className="text-[10px] text-[#0071E3] font-medium hover:underline w-full text-center"
+                                                    >
+                                                        {isExpanded ? 'Cerrar' : 'Detalle'}
+                                                    </button>
+                                                )}
+                                            </div>
+                                            <button
+                                                onClick={() => setCalendarWorker(worker)}
+                                                className="p-1.5 rounded-lg text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors flex-shrink-0"
+                                                title="Ver Calendario Mensual"
+                                            >
+                                                <CalendarDays className="h-4 w-4" />
+                                            </button>
                                         </div>
 
                                         {/* Horas Extra */}
@@ -604,6 +616,13 @@ const AttendancePage: React.FC = () => {
                     </AnimatePresence>
                 </div>
             )}
+
+            <WorkerCalendarModal
+                isOpen={!!calendarWorker}
+                onClose={() => setCalendarWorker(null)}
+                worker={calendarWorker}
+                estados={estados}
+            />
         </div>
     );
 };
