@@ -29,7 +29,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
         { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
         { icon: Users, label: 'Trabajadores', path: '/trabajadores' },
         { icon: CheckSquare, label: 'Asistencia', path: '/asistencia' },
-        { icon: FileText, label: 'Fiscalización', path: '/fiscalizacion' },
+        { icon: FileText, label: 'Nómina & Reportes', path: '/fiscalizacion' },
         { icon: Settings, label: 'Configuración', path: '/configuracion' },
     ];
 

@@ -19,6 +19,7 @@ import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
+import EnvioEmailModal from '../components/fiscalizacion/EnvioEmailModal';
 
 // Extended type to include advanced search results
 interface TrabajadorAvanzado extends Trabajador {
@@ -41,14 +42,12 @@ const FiscalizacionPage: React.FC = () => {
     const [filterCategoria, setFilterCategoria] = useState<string>('');
     const [filterActivo, setFilterActivo] = useState<string>('true');
     const [filterCompletitud, setFilterCompletitud] = useState<string>('');
-    const [email, setEmail] = useState('');
-
     // State
     const [loading, setLoading] = useState(false);
     const [exporting, setExporting] = useState(false);
-    const [sending, setSending] = useState(false);
     const [workers, setWorkers] = useState<TrabajadorAvanzado[]>([]);
     const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
+    const [emailModalOpen, setEmailModalOpen] = useState(false);
 
     // Fetch Catalogs
     useEffect(() => {
@@ -159,36 +158,6 @@ const FiscalizacionPage: React.FC = () => {
         }
     };
 
-    const handleSendEmail = async () => {
-        if (selectedWorkers.size === 0) return;
-        if (!email) {
-            toast.error('Especifica un correo destinatario');
-            return;
-        }
-
-        // We need user to confirm their email password (or use a secure stored one, but for this demo we'll just prompt or assume environment logic - ideally backend handles it if integrated with O365, but we provided password field in API API).
-        // For security in this PoC, we might need a modal to ask for credentials if not stored. 
-        // Let's assume for now the user is authenticated and the backend uses an app password or similar.
-        // If the API strictly requires `email_password`, we will prompt the user.
-
-        const pwd = window.prompt("Por seguridad, ingresa tu contraseña de correo corporativo para enviar el reporte:");
-        if (!pwd) return;
-
-        setSending(true);
-        try {
-            const selectedData = workers.filter(w => selectedWorkers.has(w.id));
-            await api.post('/fiscalizacion/enviar-excel', {
-                trabajadores: selectedData,
-                destinatario_email: email,
-                email_password: pwd
-            });
-            toast.success(`Excel enviado correctamente a ${email}`);
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al enviar el correo');
-        } finally {
-            setSending(false);
-        }
-    };
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
@@ -197,7 +166,7 @@ const FiscalizacionPage: React.FC = () => {
                 <div>
                     <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
                         <Archive className="h-7 w-7 text-[#0071E3]" />
-                        Fiscalización Avanzada
+                        Nómina &amp; Reportes
                     </h1>
                     <p className="text-[#6E6E73] mt-1 text-base">
                         Busca, filtra y exporta reportes de nómina exactos para inspecciones.
@@ -293,24 +262,14 @@ const FiscalizacionPage: React.FC = () => {
                         </div>
 
                         <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            <div className="flex relative">
-                                <Input
-                                    placeholder="correo@inspeccion.cl"
-                                    value={email}
-                                    onChange={(e) => setEmail(e.target.value)}
-                                    className="rounded-r-none border-r-0 focus:z-10 w-full sm:w-64"
-                                />
-                                <Button
-                                    variant="secondary"
-                                    className="rounded-l-none"
-                                    onClick={handleSendEmail}
-                                    isLoading={sending}
-                                    disabled={selectedWorkers.size === 0 || !email}
-                                    leftIcon={<Mail className="h-4 w-4" />}
-                                >
-                                    Enviar
-                                </Button>
-                            </div>
+                            <Button
+                                variant="secondary"
+                                onClick={() => setEmailModalOpen(true)}
+                                disabled={selectedWorkers.size === 0}
+                                leftIcon={<Mail className="h-4 w-4" />}
+                            >
+                                Enviar por Correo
+                            </Button>
 
                             <Button
                                 onClick={handleExportExcel}
@@ -423,6 +382,14 @@ const FiscalizacionPage: React.FC = () => {
 
                 </div>
             </div>
+
+            {/* Email Modal */}
+            <EnvioEmailModal
+                isOpen={emailModalOpen}
+                onClose={() => setEmailModalOpen(false)}
+                destinatarioEmail=""
+                trabajadores={workers.filter(w => selectedWorkers.has(w.id))}
+            />
         </div>
     );
 };
