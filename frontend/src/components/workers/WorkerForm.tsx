@@ -23,6 +23,7 @@ const workerSchema = z.object({
     empresa_id: z.coerce.number().min(1, 'Selecciona una empresa'),
     obra_id: z.coerce.number().min(1, 'Selecciona una obra'),
     cargo_id: z.coerce.number().min(1, 'Selecciona un cargo'),
+    categoria_reporte: z.enum(['obra', 'operaciones', 'rotativo']),
     fecha_ingreso: z.string().optional(),
 });
 
@@ -58,6 +59,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             empresa_id: initialData.empresa_id || 0,
             obra_id: initialData.obra_id || 0,
             cargo_id: initialData.cargo_id || 0,
+            categoria_reporte: initialData.categoria_reporte || 'obra',
             fecha_ingreso: initialData.fecha_ingreso ? initialData.fecha_ingreso.split('T')[0] : '',
         } : {},
     });
@@ -177,6 +179,16 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     options={cargos}
                     error={errors.cargo_id?.message}
                     {...register('cargo_id')}
+                />
+                <Select
+                    label="Categoría Reporte"
+                    options={[
+                        { value: 'obra', label: 'Obra' },
+                        { value: 'operaciones', label: 'Operaciones' },
+                        { value: 'rotativo', label: 'Personal rotativo' }
+                    ]}
+                    error={errors.categoria_reporte?.message}
+                    {...register('categoria_reporte')}
                 />
             </div>
 
