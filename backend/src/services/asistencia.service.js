@@ -308,16 +308,16 @@ const asistenciaService = {
         const columnsConfig = [
             { header: 'FECHA', key: 'fecha', width: 14 },
             { header: 'RUT', key: 'rut', width: 14 },
-            { header: 'APELLIDOS', key: 'apellido_paterno', width: 25 },
-            { header: 'NOMBRES', key: 'nombres', width: 25 },
-            { header: 'ESTADO', key: 'estado_nombre', width: 16 },
-            { header: 'COD', key: 'estado_codigo', width: 8 },
-            { header: 'CAUSA/AUSENCIA', key: 'tipo_ausencia_nombre', width: 20 },
+            { header: 'APELLIDOS', key: 'apellido_paterno', width: 35 },
+            { header: 'NOMBRES', key: 'nombres', width: 35 },
+            { header: 'ESTADO', key: 'estado_nombre', width: 22 },
+            { header: 'COD', key: 'estado_codigo', width: 10 },
+            { header: 'CAUSA/AUSENCIA', key: 'tipo_ausencia_nombre', width: 35 },
             { header: 'ENTRADA', key: 'hora_entrada', width: 12 },
             { header: 'SALIDA', key: 'hora_salida', width: 12 },
-            { header: 'H. EXTRA', key: 'horas_extra', width: 10 },
-            { header: 'SAB', key: 'es_sabado', width: 8 },
-            { header: 'OBSERVACIÓN', key: 'observacion', width: 30 }
+            { header: 'H. EXTRA', key: 'horas_extra', width: 12 },
+            { header: 'SAB', key: 'es_sabado', width: 10 },
+            { header: 'OBSERVACIÓN', key: 'observacion', width: 50 }
         ];
 
         columnsConfig.forEach((col, i) => {
@@ -325,7 +325,7 @@ const asistenciaService = {
             cell.value = col.header;
             cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
         });
         worksheet.getRow(headerRow).height = 25;
 
@@ -355,7 +355,7 @@ const asistenciaService = {
 
             row.eachCell({ includeEmpty: true }, (cell, colNum) => {
                 cell.font = { name: 'Segoe UI', size: 10 };
-                cell.alignment = { vertical: 'middle' };
+                cell.alignment = { vertical: 'middle', wrapText: true };
                 cell.border = {
                     bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
                     right: { style: 'thin', color: { argb: 'FFF1F5F9' } }

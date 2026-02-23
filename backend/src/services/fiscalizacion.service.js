@@ -151,14 +151,14 @@ class FiscalizacionService {
         const headerRow = 7;
         sheet.columns = [
             { key: 'rut', width: 14 },
-            { key: 'nombres', width: 25 },
-            { key: 'apellidos', width: 25 },
-            { key: 'empresa', width: 35 },
-            { key: 'obra', width: 20 },
-            { key: 'cargo', width: 20 },
+            { key: 'nombres', width: 35 },
+            { key: 'apellidos', width: 35 },
+            { key: 'empresa', width: 45 },
+            { key: 'obra', width: 30 },
+            { key: 'cargo', width: 30 },
             { key: 'ingreso', width: 14 },
-            { key: 'estado', width: 12 },
-            { key: 'docs', width: 18 }
+            { key: 'estado', width: 14 },
+            { key: 'docs', width: 30 }
         ];
 
         // Headers labels
@@ -168,7 +168,7 @@ class FiscalizacionService {
             cell.value = h.toUpperCase();
             cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }; // Slate 800
-            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
             cell.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
         });
         sheet.getRow(headerRow).height = 25;
@@ -195,8 +195,8 @@ class FiscalizacionService {
             ];
 
             const row = sheet.addRow(rowData);
-            row.height = 22;
-            row.alignment = { vertical: 'middle' };
+            row.height = 25;
+            row.alignment = { vertical: 'middle', wrapText: true };
 
             // Zebra styling
             if (index % 2 === 1) {
