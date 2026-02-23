@@ -204,97 +204,110 @@ const FiscalizacionPage: React.FC = () => {
 
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
 
                 {/* MEGA FILTER PANEL */}
-                <div className="xl:col-span-1 space-y-5">
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-5 space-y-4 sticky top-6">
-                        <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center gap-2 border-b border-[#E8E8ED] pb-3">
-                            <Filter className="h-4 w-4 text-[#0071E3]" />
-                            Filtros de Búsqueda
-                        </h3>
+                <div className="xl:col-span-1">
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden sticky top-0">
+                        <div className="px-6 py-4 border-b border-[#D2D2D7] bg-[#F5F5F7]">
+                            <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
+                                <Filter className="h-4 w-4 text-[#0071E3]" />
+                                Filtros de Búsqueda
+                            </h3>
+                        </div>
 
-                        <div className="space-y-3 pt-2">
-                            <Input
-                                placeholder="Buscar por Nombre o RUT..."
-                                value={search}
-                                onChange={(e) => setSearch(e.target.value)}
-                                leftIcon={<Search className="h-4 w-4 text-muted-foreground" />}
-                            />
+                        <div className="p-5 space-y-4">
+                            <div className="space-y-3 pt-1">
+                                <Input
+                                    placeholder="Buscar por Nombre o RUT..."
+                                    value={search}
+                                    onChange={(e) => setSearch(e.target.value)}
+                                    leftIcon={<Search className="h-4 w-4 text-muted-foreground" />}
+                                />
 
-                            <Select
-                                value={filterObra}
-                                onChange={(e) => setFilterObra(e.target.value)}
-                                options={obras}
-                            />
+                                <Select
+                                    label="Obra / Proyecto"
+                                    value={filterObra}
+                                    onChange={(e) => setFilterObra(e.target.value)}
+                                    options={obras}
+                                />
 
-                            <Select
-                                value={filterEmpresa}
-                                onChange={(e) => setFilterEmpresa(e.target.value)}
-                                options={empresas}
-                            />
+                                <Select
+                                    label="Empresa Empleadora"
+                                    value={filterEmpresa}
+                                    onChange={(e) => setFilterEmpresa(e.target.value)}
+                                    options={empresas}
+                                />
 
-                            <Select
-                                value={filterCargo}
-                                onChange={(e) => setFilterCargo(e.target.value)}
-                                options={cargos}
-                            />
+                                <Select
+                                    label="Cargo"
+                                    value={filterCargo}
+                                    onChange={(e) => setFilterCargo(e.target.value)}
+                                    options={cargos}
+                                />
 
-                            <Select
-                                value={filterCategoria}
-                                onChange={(e) => setFilterCategoria(e.target.value)}
-                                options={[
-                                    { value: '', label: 'Todas las Categorías' },
-                                    { value: 'obra', label: 'En Obra' },
-                                    { value: 'operaciones', label: 'Operaciones' },
-                                    { value: 'rotativo', label: 'Personal rotativo' },
-                                ]}
-                            />
+                                <Select
+                                    label="Categoría"
+                                    value={filterCategoria}
+                                    onChange={(e) => setFilterCategoria(e.target.value)}
+                                    options={[
+                                        { value: '', label: 'Todas las Categorías' },
+                                        { value: 'obra', label: 'En Obra' },
+                                        { value: 'operaciones', label: 'Operaciones' },
+                                        { value: 'rotativo', label: 'Personal rotativo' },
+                                    ]}
+                                />
 
-                            <Select
-                                label="Estado Contractual"
-                                value={filterActivo}
-                                onChange={(e) => setFilterActivo(e.target.value)}
-                                options={[
-                                    { value: 'true', label: 'Activos' },
-                                    { value: 'false', label: 'Inactivos' },
-                                    { value: '', label: 'Todos' },
-                                ]}
-                            />
+                                <Select
+                                    label="Estado Contractual"
+                                    value={filterActivo}
+                                    onChange={(e) => setFilterActivo(e.target.value)}
+                                    options={[
+                                        { value: 'true', label: 'Activos' },
+                                        { value: 'false', label: 'Inactivos' },
+                                        { value: '', label: 'Todos' },
+                                    ]}
+                                />
 
-                            <Select
-                                label="Completitud Documentos"
-                                value={filterCompletitud}
-                                onChange={(e) => setFilterCompletitud(e.target.value)}
-                                options={[
-                                    { value: '', label: 'Cualquier Estado' },
-                                    { value: '100', label: '100% al Día' },
-                                    { value: 'faltantes', label: 'Documentos Faltantes' },
-                                ]}
-                            />
+                                <Select
+                                    label="Completitud Documentos"
+                                    value={filterCompletitud}
+                                    onChange={(e) => setFilterCompletitud(e.target.value)}
+                                    options={[
+                                        { value: '', label: 'Cualquier Estado' },
+                                        { value: '100', label: '100% al Día' },
+                                        { value: 'faltantes', label: 'Documentos Faltantes' },
+                                    ]}
+                                />
+                            </div>
                         </div>
                     </div>
                 </div>
 
                 {/* RESULTS & EXPORT */}
-                <div className="xl:col-span-3 space-y-6">
-                    {/* Selected Workers Status instead of full action bar */}
-                    {selectedWorkers.size > 0 && (
-                        <div className="bg-[#0071E3]/5 rounded-xl border border-[#0071E3]/20 px-4 py-3 flex items-center gap-3">
-                            <Users className="h-5 w-5 text-[#0071E3]" />
-                            <p className="text-sm text-[#1D1D1F] font-medium">
-                                <span className="font-bold">{selectedWorkers.size}</span> trabajadores seleccionados de {workers.length}
-                            </p>
-                        </div>
-                    )}
-
+                <div className="xl:col-span-3">
                     {/* Results Table */}
                     <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[500px]">
                         <div className="px-6 py-4 border-b border-[#D2D2D7] flex items-center justify-between bg-[#F5F5F7]">
-                            <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
-                                Resultados de Búsqueda
-                                {loading && <Loader2 className="h-4 w-4 animate-spin text-[#0071E3] ml-2" />}
-                            </h3>
+                            <div className="flex items-center gap-4">
+                                <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
+                                    Resultados de Búsqueda
+                                    {loading && <Loader2 className="h-4 w-4 animate-spin text-[#0071E3] ml-2" />}
+                                </h3>
+
+                                {workers.length > 0 && (
+                                    <div className="h-6 w-[1px] bg-[#D2D2D7]" />
+                                )}
+
+                                {workers.length > 0 && (
+                                    <div className="flex items-center gap-2">
+                                        <Users className="h-4 w-4 text-[#6E6E73]" />
+                                        <p className="text-xs text-[#6E6E73] font-medium">
+                                            <span className="font-bold text-[#1D1D1F]">{selectedWorkers.size}</span> seleccionados de {workers.length}
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
                         </div>
 
                         <div className="overflow-x-auto">
