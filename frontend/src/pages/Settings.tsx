@@ -53,10 +53,11 @@ const tabGroups: TabGroup[] = [
         ]
     },
     {
-        title: "Personal",
+        title: "Personal & Documentos",
         items: [
             { key: 'usuarios', label: 'Usuarios', icon: Users },
             { key: 'roles', label: 'Roles', icon: Shield },
+            { key: 'tipos_doc', label: 'Tipos de Documento', icon: FileText },
         ]
     },
     {
@@ -70,7 +71,6 @@ const tabGroups: TabGroup[] = [
     {
         title: "Sistema & Correo",
         items: [
-            { key: 'tipos_doc', label: 'Tipos Doc.', icon: FileText },
             { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
             { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
         ]
