@@ -381,7 +381,7 @@ const AttendancePage: React.FC = () => {
                     leftIcon={<MessageCircle className="h-4 w-4" />}
                     size="sm"
                 >
-                    <span className="hidden sm:inline">Resumen</span>
+                    <span className="hidden sm:inline">WhatsApp</span>
                 </Button>
                 <Button
                     onClick={handleExportExcel}
@@ -390,7 +390,7 @@ const AttendancePage: React.FC = () => {
                     leftIcon={<FileDown className="h-4 w-4" />}
                     size="sm"
                 >
-                    <span className="hidden sm:inline">Exportar Excel</span>
+                    <span className="hidden sm:inline">Reporte Mensual</span>
                 </Button>
                 <Button
                     onClick={handleSave}
@@ -399,7 +399,7 @@ const AttendancePage: React.FC = () => {
                     leftIcon={<Save className="h-4 w-4" />}
                     size="sm"
                 >
-                    Guardar
+                    Guardar Asistencia
                 </Button>
             </div>
         ) : null
