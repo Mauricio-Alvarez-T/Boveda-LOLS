@@ -298,6 +298,7 @@ const SettingsPage: React.FC = () => {
                             FormComponent={EmpresaForm}
                             searchPlaceholder="Buscar por RUT o razón social..."
                             queryParams={{ activo: true }}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'obras' && (
@@ -308,6 +309,7 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Obras"
                             FormComponent={ObraForm}
                             queryParams={{ activo: true }}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'cargos' && (
@@ -318,6 +320,7 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Cargos"
                             FormComponent={CargoForm}
                             queryParams={{ activo: true }}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'tipos_doc' && (
@@ -328,6 +331,7 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Tipos de Documento"
                             FormComponent={TipoDocumentoForm}
                             queryParams={{ activo: true }}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'usuarios' && (
@@ -337,6 +341,7 @@ const SettingsPage: React.FC = () => {
                             entityName="Usuario"
                             entityNamePlural="Usuarios"
                             FormComponent={UsuarioForm}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'roles' && (
@@ -346,7 +351,7 @@ const SettingsPage: React.FC = () => {
                             entityName="Rol"
                             entityNamePlural="Roles"
                             FormComponent={RolForm}
-                            canDelete={false}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'estados_asistencia' && (
@@ -357,6 +362,7 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Estados de Asistencia"
                             FormComponent={EstadoAsistenciaForm}
                             queryParams={{ activo: true }}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'tipos_ausencia' && (
@@ -367,6 +373,7 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Tipos de Ausencia"
                             FormComponent={TipoAusenciaForm}
                             queryParams={{ activo: true }}
+                            canExport={false}
                         />
                     )}
                     {activeTab === 'horarios' && (

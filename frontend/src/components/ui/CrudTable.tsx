@@ -42,6 +42,7 @@ interface CrudTableProps<T extends { id: number }> {
     canCreate?: boolean;
     canEdit?: boolean;
     canDelete?: boolean;
+    canExport?: boolean;
     queryParams?: Record<string, string | number | boolean>;
 }
 
@@ -55,6 +56,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
     canCreate = true,
     canEdit = true,
     canDelete = true,
+    canExport = true,
     queryParams = {},
 }: CrudTableProps<T>) {
     const [rows, setRows] = useState<T[]>([]);
@@ -167,9 +169,11 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A1A1A6]" />
                 </div>
                 <div className="flex items-center gap-2 w-full sm:w-auto">
-                    <Button variant="outline" size="default" onClick={handleExport} leftIcon={<FileDown className="h-4 w-4" />}>
-                        Exportar Excel
-                    </Button>
+                    {canExport && (
+                        <Button variant="outline" size="default" onClick={handleExport} leftIcon={<FileDown className="h-4 w-4" />}>
+                            Exportar Excel
+                        </Button>
+                    )}
                     {canCreate && (
                         <Button size="default" onClick={openCreate} leftIcon={<Plus className="h-5 w-5" />}>
                             Nuevo {entityName}
