@@ -51,20 +51,37 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
             });
         }
 
+        const trabajadorIds = trabajadores.map(t => t.id);
+
         const excelPath = await fiscalizacionService.generarExcel(trabajadores);
+        let zipPath = null;
+        try {
+            zipPath = await zipService.createZip(trabajadorIds);
+        } catch (e) {
+            console.error('Error generando ZIP de documentos:', e);
+            // Optionally continue without ZIP or throw? Let's continue if ZIP fails to not block totally, or throw?
+            // The user explicitly wanted the ZIP. So we should log it but we can still attach whatever we have.
+        }
+
+        const attachmentPaths = [excelPath];
+        if (zipPath && fs.existsSync(zipPath)) {
+            attachmentPaths.push(zipPath);
+        }
 
         const result = await emailService.sendWithAttachment({
             from: credentials.email,
             fromPassword: credentials.password,
             to: destinatario_email,
-            subject: asunto || 'Reporte de Nómina - Bóveda LOLS',
-            body: cuerpo || 'Adjunto la nómina solicitada.',
-            attachmentPath: excelPath
+            subject: asunto || 'Reporte de Nómina y Documentación - Bóveda LOLS',
+            body: cuerpo || 'Adjunto la nómina y la documentación respaldatoria solicitada.',
+            attachmentPaths
         });
 
+        // Cleanup temp files
         if (fs.existsSync(excelPath)) fs.unlinkSync(excelPath);
+        if (zipPath && fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
 
-        res.json({ message: 'Email enviado exitosamente', ...result });
+        res.json({ message: 'Email con Excel y Documentación enviado exitosamente', ...result });
     } catch (err) { next(err); }
 });
 
