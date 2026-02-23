@@ -20,6 +20,7 @@ import {
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { showDeleteToast } from '../utils/toastUtils';
+import { useInView } from 'react-intersection-observer';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
@@ -48,6 +49,15 @@ const WorkersPage: React.FC = () => {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
     const [showInactive, setShowInactive] = useState(false);
 
+    // Pagination states
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+    const { ref, inView } = useInView({
+        threshold: 0,
+        rootMargin: '100px',
+    });
+
     // Document completion data: { [workerId]: { uploaded, total, percentage } }
     const [completion, setCompletion] = useState<Record<number, { uploaded: number, total: number, percentage: number }>>({});
 
@@ -73,24 +83,31 @@ const WorkersPage: React.FC = () => {
         fetchCatalogs();
     }, []);
 
-    const fetchWorkers = async () => {
-        setLoading(true);
+    const fetchWorkers = async (pageNumber: number = 1) => {
+        if (pageNumber === 1) {
+            setLoading(true);
+        } else {
+            setIsLoadingMore(true);
+        }
+
         try {
             const obraQuery = selectedObra ? `&obra_id=${selectedObra.id}` : '';
             const empresaQuery = selectedEmpresa ? `&empresa_id=${selectedEmpresa}` : '';
             const cargoQuery = selectedCargo ? `&cargo_id=${selectedCargo}` : '';
             const activoQuery = !showInactive ? '&activo=true' : '';
 
-            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}${activoQuery}`);
+            const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}${activoQuery}&page=${pageNumber}&limit=50`);
             const data = response.data.data;
-            setWorkers(data);
+
+            setWorkers(prev => pageNumber === 1 ? data : [...prev, ...data]);
+            setHasMore(data.length === 50); // Pagination info based on length
 
             // Fetch completion percentages for all workers
             if (data.length > 0) {
                 const ids = data.map(w => w.id);
                 try {
                     const compRes = await api.post<Record<number, { uploaded: number, total: number, percentage: number }>>('/documentos/kpi/completitud', { trabajador_ids: ids });
-                    setCompletion(compRes.data);
+                    setCompletion(prev => pageNumber === 1 ? compRes.data : { ...prev, ...compRes.data });
                 } catch {
                     // Silently fail — completion will show 0%
                 }
@@ -99,7 +116,10 @@ const WorkersPage: React.FC = () => {
             console.error('Error fetching workers:', error);
             toast.error('Error al cargar trabajadores');
         } finally {
-            setLoading(false);
+            if (pageNumber === 1) {
+                setLoading(false);
+            }
+            setIsLoadingMore(false);
         }
     };
 
@@ -117,10 +137,20 @@ const WorkersPage: React.FC = () => {
 
     useEffect(() => {
         const timer = setTimeout(() => {
-            fetchWorkers();
+            setPage(1);
+            fetchWorkers(1);
         }, 500);
         return () => clearTimeout(timer);
     }, [search, selectedObra, selectedEmpresa, selectedCargo, showInactive]);
+
+    // Infinite Scroll trigger
+    useEffect(() => {
+        if (inView && hasMore && !loading && !isLoadingMore) {
+            const nextPage = page + 1;
+            setPage(nextPage);
+            fetchWorkers(nextPage);
+        }
+    }, [inView, hasMore, loading, isLoadingMore]);
 
     // Helper function for completion color
     const getCompletionColor = (pct: number) => {
@@ -445,6 +475,12 @@ const WorkersPage: React.FC = () => {
                             )}
                         </tbody>
                     </table>
+                    {/* Infinite Scroll Loader & Trigger */}
+                    {hasMore && (
+                        <div ref={ref} className="py-8 flex justify-center items-center">
+                            {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />}
+                        </div>
+                    )}
                 </div>
             </div>
 
