@@ -178,9 +178,16 @@ const WorkersPage: React.FC = () => {
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-3">
             <Users className="h-6 w-6 text-[#0071E3]" />
-            <h1 className="text-lg font-bold text-[#1D1D1F]">Gestión de Trabajadores</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                <h1 className="text-lg font-bold text-[#1D1D1F]">Gestión de Trabajadores</h1>
+                {workers.length > 0 && (
+                    <span className="bg-[#E8E8ED] text-[#6E6E73] text-xs font-semibold px-2 py-0.5 rounded-full w-fit">
+                        {workers.length} {workers.length === 1 ? 'trabajador' : 'trabajadores'}
+                    </span>
+                )}
+            </div>
         </div>
-    ), []);
+    ), [workers.length]);
 
     const headerActions = React.useMemo(() => (
         <div className="flex gap-2">
