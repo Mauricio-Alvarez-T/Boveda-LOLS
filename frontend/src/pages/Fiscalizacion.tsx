@@ -20,6 +20,7 @@ import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
 import EnvioEmailModal from '../components/fiscalizacion/EnvioEmailModal';
+import { useSetPageHeader } from '../context/PageHeaderContext';
 
 // Extended type to include advanced search results
 interface TrabajadorAvanzado extends Trabajador {
@@ -159,21 +160,43 @@ const FiscalizacionPage: React.FC = () => {
     };
 
 
+    // Configuración del Header Global
+    const headerTitle = React.useMemo(() => (
+        <div className="flex items-center gap-3">
+            <Archive className="h-6 w-6 text-[#0071E3]" />
+            <h1 className="text-lg font-bold text-[#1D1D1F]">Nómina & Reportes</h1>
+        </div>
+    ), []);
+
+    const headerActions = React.useMemo(() => (
+        <div className="flex items-center gap-2">
+            <Button
+                variant="glass"
+                onClick={() => setEmailModalOpen(true)}
+                disabled={selectedWorkers.size === 0}
+                leftIcon={<Mail className="h-4 w-4" />}
+                size="sm"
+            >
+                <span className="hidden sm:inline">Enviar por Correo</span>
+            </Button>
+
+            <Button
+                onClick={handleExportExcel}
+                isLoading={exporting}
+                disabled={selectedWorkers.size === 0}
+                leftIcon={<FileSpreadsheet className="h-4 w-4" />}
+                size="sm"
+            >
+                Descargar Excel
+            </Button>
+        </div>
+    ), [selectedWorkers.size, exporting]);
+
+    // Configuración del Header Global
+    useSetPageHeader(headerTitle, headerActions);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500 pb-20">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
-                        <Archive className="h-7 w-7 text-[#0071E3]" />
-                        Nómina &amp; Reportes
-                    </h1>
-                    <p className="text-[#6E6E73] mt-1 text-base">
-                        Busca, filtra y exporta reportes de nómina exactos para inspecciones.
-                    </p>
-                </div>
-            </div>
-
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6">
 
                 {/* MEGA FILTER PANEL */}
@@ -248,39 +271,15 @@ const FiscalizacionPage: React.FC = () => {
 
                 {/* RESULTS & EXPORT */}
                 <div className="xl:col-span-3 space-y-6">
-
-                    {/* Action Bar */}
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row justify-between items-center gap-4">
-                        <div className="flex items-center gap-3">
-                            <div className="bg-[#0071E3]/10 text-[#0071E3] p-2 rounded-lg">
-                                <Users className="h-5 w-5" />
-                            </div>
-                            <div>
-                                <p className="text-sm text-[#6E6E73]">Trabajadores Seleccionados</p>
-                                <p className="text-lg font-bold text-[#1D1D1F]">{selectedWorkers.size} <span className="text-sm font-normal text-[#6E6E73]">de {workers.length}</span></p>
-                            </div>
+                    {/* Selected Workers Status instead of full action bar */}
+                    {selectedWorkers.size > 0 && (
+                        <div className="bg-[#0071E3]/5 rounded-xl border border-[#0071E3]/20 px-4 py-3 flex items-center gap-3">
+                            <Users className="h-5 w-5 text-[#0071E3]" />
+                            <p className="text-sm text-[#1D1D1F] font-medium">
+                                <span className="font-bold">{selectedWorkers.size}</span> trabajadores seleccionados de {workers.length}
+                            </p>
                         </div>
-
-                        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
-                            <Button
-                                variant="secondary"
-                                onClick={() => setEmailModalOpen(true)}
-                                disabled={selectedWorkers.size === 0}
-                                leftIcon={<Mail className="h-4 w-4" />}
-                            >
-                                Enviar por Correo
-                            </Button>
-
-                            <Button
-                                onClick={handleExportExcel}
-                                isLoading={exporting}
-                                disabled={selectedWorkers.size === 0}
-                                leftIcon={<FileSpreadsheet className="h-4 w-4" />}
-                            >
-                                Descargar Excel
-                            </Button>
-                        </div>
-                    </div>
+                    )}
 
                     {/* Results Table */}
                     <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[500px]">

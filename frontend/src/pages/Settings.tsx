@@ -28,6 +28,7 @@ import { TipoAusenciaForm } from '../components/settings/TipoAusenciaForm';
 import { HorariosConfigPanel } from '../components/settings/HorariosConfigPanel';
 import EmailConfigForm from '../components/settings/EmailConfigForm';
 import PlantillasEmailPanel from '../components/settings/PlantillasEmailPanel';
+import { useSetPageHeader } from '../context/PageHeaderContext';
 
 type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas';
 
@@ -222,19 +223,21 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
 const SettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
 
+    const headerTitle = React.useMemo(() => (
+        <div className="flex items-center gap-3">
+            <Settings className="h-6 w-6 text-[#0071E3]" />
+            <div className="flex flex-col leading-tight">
+                <h1 className="text-lg font-bold text-[#1D1D1F]">Configuración</h1>
+                <p className="text-[#6E6E73] text-xs">Catálogos y Parámetros del Sistema</p>
+            </div>
+        </div>
+    ), []);
+
+    // Global Header
+    useSetPageHeader(headerTitle);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header */}
-            <div>
-                <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
-                    <Settings className="h-7 w-7 text-[#0071E3]" />
-                    Configuración
-                </h1>
-                <p className="text-[#6E6E73] mt-1 text-sm">
-                    Administra los catálogos maestros del sistema.
-                </p>
-            </div>
-
             {/* Main Layout: Sidebar + Content */}
             <div className="flex flex-col lg:flex-row gap-8">
                 {/* Sidebar Navigation */}

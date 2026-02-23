@@ -40,6 +40,7 @@ import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
+import { useSetPageHeader } from '../context/PageHeaderContext';
 
 interface DashboardData {
     counters: {
@@ -64,6 +65,30 @@ const Dashboard: React.FC = () => {
         dbActive: false,
         lastCheck: ''
     });
+
+    const headerTitle = React.useMemo(() => (
+        <div className="flex flex-col leading-tight">
+            <h1 className="text-lg font-bold text-[#1D1D1F]">
+                Bienvenido, <span className="text-[#0071E3]">{user?.nombre?.split(' ')[0] || ''}</span>
+            </h1>
+            <p className="text-[#6E6E73] text-xs flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-[#34C759]" />
+                Sistema Activo
+            </p>
+        </div>
+    ), [user?.nombre]);
+
+    const headerActions = React.useMemo(() => (
+        <div className="px-3 py-1.5 rounded-full bg-white border border-[#D2D2D7] flex items-center gap-2 shadow-sm">
+            <Calendar className="h-4 w-4 text-[#0071E3]" />
+            <span className="text-xs font-medium text-[#1D1D1F] capitalize">
+                {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
+            </span>
+        </div>
+    ), []);
+
+    // Global Header
+    useSetPageHeader(headerTitle, headerActions);
 
     useEffect(() => {
         const fetchSummary = async () => {
@@ -140,25 +165,6 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-in fade-in duration-700">
-            {/* Welcome Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#1D1D1F] leading-tight">
-                        Bienvenido de nuevo, <span className="text-[#0071E3]">{user?.nombre.split(' ')[0]}</span>
-                    </h1>
-                    <p className="text-[#6E6E73] mt-1 flex items-center gap-2 text-base">
-                        <ShieldCheck className="h-4 w-4 text-[#34C759]" />
-                        Sistema de Gestión Documental Laboral activo.
-                    </p>
-                </div>
-                <div className="px-4 py-2 rounded-full bg-white border border-[#D2D2D7] flex items-center gap-2 shadow-sm">
-                    <Calendar className="h-4 w-4 text-[#0071E3]" />
-                    <span className="text-base font-medium text-[#1D1D1F]">
-                        {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'long' })}
-                    </span>
-                </div>
-            </div>
-
             {/* KPI Cards — CLICKABLE */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {stats.map((stat, i) => (

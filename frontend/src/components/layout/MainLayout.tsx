@@ -3,9 +3,11 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { Bell } from 'lucide-react';
+import { usePageHeader } from '../../context/PageHeaderContext';
 
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const { title, actions } = usePageHeader();
 
     return (
         <div className="flex min-h-screen bg-[#F5F5F7]">
@@ -15,12 +17,20 @@ export const MainLayout: React.FC = () => {
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0">
                 {/* Top Navbar */}
-                <header className="h-16 border-b border-[#D2D2D7] bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 sticky top-0 z-30">
-                    <div className="flex-1 max-w-xl">
-                        {/* Optional Global Search Placeholder */}
+                <header className="h-16 border-b border-[#D2D2D7] bg-white/80 backdrop-blur-xl flex items-center justify-between px-8 sticky top-0 z-30 shadow-sm">
+                    {/* Page Title Injected */}
+                    <div className="flex-1 min-w-0 flex items-center">
+                        {title}
                     </div>
 
                     <div className="flex items-center gap-3">
+                        {/* Page Actions Injected */}
+                        {actions && (
+                            <div className="flex items-center gap-2 mr-2">
+                                {actions}
+                            </div>
+                        )}
+
                         <button className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-[#F5F5F7] text-[#6E6E73] relative transition-colors">
                             <Bell className="h-5 w-5" />
                             <div className="absolute top-1.5 right-1.5 h-2 w-2 bg-[#FF3B30] rounded-full border-2 border-white" />
@@ -31,7 +41,7 @@ export const MainLayout: React.FC = () => {
                 </header>
 
                 {/* Page Content */}
-                <div className="p-8 pb-12 overflow-x-hidden">
+                <div className="flex-1 p-5 pb-12 overflow-x-hidden">
                     <Outlet />
                 </div>
             </main>

@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner';
 import { Input } from '../ui/Input';
+import api from '../../services/api';
 
 interface TipoAusenciaFormData {
     nombre: string;
@@ -9,13 +11,12 @@ interface TipoAusenciaFormData {
 
 interface Props {
     initialData?: any;
-    onSubmit: (data: TipoAusenciaFormData) => void;
+    onSuccess: () => void;
     onCancel: () => void;
-    loading?: boolean;
 }
 
-export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSubmit, onCancel, loading }) => {
-    const { register, handleSubmit, reset, formState: { errors } } = useForm<TipoAusenciaFormData>({
+export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<TipoAusenciaFormData>({
         defaultValues: {
             nombre: '',
             es_justificada: false
@@ -30,6 +31,21 @@ export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSubmit, onCan
             });
         }
     }, [initialData, reset]);
+
+    const onSubmit = async (data: TipoAusenciaFormData) => {
+        try {
+            if (initialData) {
+                await api.put(`/tipos-ausencia/${initialData.id}`, data);
+                toast.success('Tipo de ausencia actualizado');
+            } else {
+                await api.post('/tipos-ausencia', data);
+                toast.success('Tipo de ausencia creado');
+            }
+            onSuccess();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al guardar tipo de ausencia');
+        }
+    };
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -53,7 +69,7 @@ export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSubmit, onCan
             <div className="flex gap-3 pt-2">
                 <button
                     type="submit"
-                    disabled={loading}
+                    disabled={isSubmitting}
                     className="flex-1 bg-[#0071E3] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#0077ED] transition-colors disabled:opacity-50"
                 >
                     {initialData ? 'Actualizar' : 'Crear'}

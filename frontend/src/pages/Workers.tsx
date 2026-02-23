@@ -31,6 +31,7 @@ import api from '../services/api';
 import { cn } from '../utils/cn';
 import type { Trabajador, Empresa, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
+import { useSetPageHeader } from '../context/PageHeaderContext';
 
 const WorkersPage: React.FC = () => {
     const { selectedObra } = useObra();
@@ -135,30 +136,31 @@ const WorkersPage: React.FC = () => {
         return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
     });
 
+    const headerTitle = React.useMemo(() => (
+        <div className="flex items-center gap-3">
+            <Users className="h-6 w-6 text-[#0071E3]" />
+            <h1 className="text-lg font-bold text-[#1D1D1F]">Gestión de Trabajadores</h1>
+        </div>
+    ), []);
+
+    const headerActions = React.useMemo(() => (
+        <Button
+            onClick={() => {
+                setSelectedWorker(null);
+                setModalType('form');
+            }}
+            leftIcon={<UserPlus className="h-4 w-4" />}
+            size="sm"
+        >
+            Nuevo Trabajador
+        </Button>
+    ), []);
+
+    // Global Header
+    useSetPageHeader(headerTitle, headerActions);
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
-            {/* Header Section */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
-                        <Users className="h-7 w-7 text-[#0071E3]" />
-                        Gestión de Trabajadores
-                    </h1>
-                    <p className="text-[#6E6E73] mt-1 text-base">
-                        Administra la información y documentación de tu personal.
-                    </p>
-                </div>
-                <Button
-                    onClick={() => {
-                        setSelectedWorker(null);
-                        setModalType('form');
-                    }}
-                    leftIcon={<UserPlus className="h-4 w-4" />}
-                >
-                    Nuevo Trabajador
-                </Button>
-            </div>
-
             {/* Filters & Search */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">

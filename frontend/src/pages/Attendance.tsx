@@ -25,6 +25,7 @@ import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia, Configurac
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
+import { useSetPageHeader } from '../context/PageHeaderContext';
 
 const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
@@ -346,6 +347,64 @@ const AttendancePage: React.FC = () => {
     const isSaturday = dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
 
+    const headerTitle = React.useMemo(() => (
+        selectedObra ? (
+            <div className="flex items-center gap-3">
+                <CheckSquare className="h-6 w-6 text-[#0071E3]" />
+                <div className="flex flex-col leading-tight">
+                    <h1 className="text-lg font-bold text-[#1D1D1F]">Control de Asistencia</h1>
+                    <p className="text-[#6E6E73] text-xs">
+                        {selectedObra.nombre} <span className="mx-1.5">•</span> <span className="font-medium text-[#1D1D1F]">{formattedDate}</span>
+                    </p>
+                </div>
+            </div>
+        ) : (
+            <div className="flex items-center gap-3">
+                <CheckSquare className="h-6 w-6 text-[#A1A1A6]" />
+                <h1 className="text-lg font-bold text-[#1D1D1F]">Control de Asistencia</h1>
+            </div>
+        )
+    ), [selectedObra?.nombre, formattedDate]);
+
+    const headerActions = React.useMemo(() => (
+        selectedObra ? (
+            <div className="flex items-center gap-2">
+                <Button
+                    onClick={handleShareWhatsApp}
+                    variant="glass"
+                    className="text-[#6E6E73] hover:text-[#34C759]"
+                    title="Compartir Resumen por WhatsApp"
+                    leftIcon={<MessageCircle className="h-4 w-4" />}
+                    size="sm"
+                >
+                    <span className="hidden sm:inline">Resumen</span>
+                </Button>
+                <Button
+                    onClick={handleExportExcel}
+                    variant="glass"
+                    className="text-[#6E6E73] hover:text-[#0071E3]"
+                    title="Exportar Asistencia del Mes actual"
+                    leftIcon={<Download className="h-4 w-4" />}
+                    size="sm"
+                >
+                    <span className="hidden sm:inline">Mes</span>
+                </Button>
+                <Button
+                    onClick={handleSave}
+                    isLoading={saving}
+                    disabled={loading || workers.length === 0}
+                    leftIcon={<Save className="h-4 w-4" />}
+                    size="sm"
+                >
+                    Guardar
+                </Button>
+            </div>
+        ) : null
+    ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length]);
+
+    // Set global page header
+    useSetPageHeader(headerTitle, headerActions);
+
     if (!selectedObra) {
         return (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
@@ -361,49 +420,7 @@ const AttendancePage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-5 animate-in fade-in duration-500">
-            {/* Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <h1 className="text-2xl font-bold text-[#1D1D1F] flex items-center gap-3">
-                        <CheckSquare className="h-7 w-7 text-[#0071E3]" />
-                        Control de Asistencia
-                    </h1>
-                    <p className="text-[#6E6E73] mt-1 text-sm">
-                        {selectedObra.nombre} · <span className="text-[#1D1D1F] font-medium">{formattedDate}</span>
-                    </p>
-                </div>
-                <div className="flex gap-2">
-                    <Button
-                        onClick={handleShareWhatsApp}
-                        variant="glass"
-                        className="text-[#6E6E73] hover:text-[#34C759]"
-                        title="Compartir Resumen por WhatsApp"
-                        leftIcon={<MessageCircle className="h-4 w-4" />}
-                    >
-                        Resumen
-                    </Button>
-                    <Button
-                        onClick={handleExportExcel}
-                        variant="glass"
-                        className="text-[#6E6E73] hover:text-[#0071E3]"
-                        title="Exportar Asistencia del Mes actual"
-                        leftIcon={<Download className="h-4 w-4" />}
-                    >
-                        Mes
-                    </Button>
-                    <Button
-                        onClick={handleSave}
-                        isLoading={saving}
-                        disabled={loading || workers.length === 0}
-                        leftIcon={<Save className="h-4 w-4" />}
-                        size="md"
-                    >
-                        Guardar
-                    </Button>
-                </div>
-            </div>
-
+        <div className="space-y-4 animate-in fade-in duration-500">
             {/* Date Navigator + Summary Bar */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4">
                 <div className="flex flex-col md:flex-row gap-4 items-center">
