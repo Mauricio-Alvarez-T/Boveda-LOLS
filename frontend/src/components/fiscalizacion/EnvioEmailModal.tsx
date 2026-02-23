@@ -32,6 +32,7 @@ interface EnvioEmailModalProps {
 const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, destinatarioEmail, trabajadores }) => {
     const [plantillas, setPlantillas] = useState<PlantillaCorreo[]>([]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
+    const [emailDestino, setEmailDestino] = useState(destinatarioEmail);
     const [asunto, setAsunto] = useState('');
     const [cuerpo, setCuerpo] = useState('');
     const [editMode, setEditMode] = useState(false);
@@ -79,15 +80,15 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
     };
 
     const handleSend = async () => {
-        if (!asunto || !cuerpo) {
-            toast.error('Completa el asunto y el cuerpo del correo');
+        if (!emailDestino || !asunto || !cuerpo) {
+            toast.error('Completa el destinatario, asunto y el cuerpo del correo');
             return;
         }
         setSending(true);
         try {
             await api.post('/fiscalizacion/enviar-excel', {
                 trabajadores,
-                destinatario_email: destinatarioEmail,
+                destinatario_email: emailDestino,
                 asunto,
                 cuerpo
             });
@@ -132,12 +133,21 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                             <div className="h-8 w-8 rounded-lg bg-[#0071E3]/10 flex items-center justify-center">
                                 <Mail className="h-4 w-4 text-[#0071E3]" />
                             </div>
-                            <div>
-                                <h2 className="text-base font-semibold text-[#1D1D1F]">Enviar Reporte</h2>
-                                <p className="text-xs text-[#6E6E73]">
-                                    Para: <span className="font-medium text-[#1D1D1F]">{destinatarioEmail}</span>
-                                    <span className="ml-2">· {trabajadores.length} trabajador{trabajadores.length !== 1 ? 'es' : ''} seleccionado{trabajadores.length !== 1 ? 's' : ''}</span>
+                            <div className="flex-1 w-full max-w-sm">
+                                <h2 className="text-base font-semibold text-[#1D1D1F] mb-1">Enviar Reporte</h2>
+                                <p className="text-xs text-[#6E6E73] mb-2">
+                                    <span className="font-medium">{trabajadores.length} trabajador{trabajadores.length !== 1 ? 'es' : ''} seleccionado{trabajadores.length !== 1 ? 's' : ''}</span>
                                 </p>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-sm text-[#A1A1A6]">Para:</span>
+                                    <input
+                                        type="email"
+                                        value={emailDestino}
+                                        onChange={(e) => setEmailDestino(e.target.value)}
+                                        placeholder="correo@ejemplo.com"
+                                        className="flex-1 rounded-md border border-[#D2D2D7] bg-white px-2 py-1 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-1 focus:ring-[#0071E3] focus:border-[#0071E3] transition-all"
+                                    />
+                                </div>
                             </div>
                         </div>
                         <button onClick={onClose} className="text-[#6E6E73] hover:text-[#1D1D1F] transition-colors p-1 rounded-lg hover:bg-[#F5F5F7]">
@@ -235,7 +245,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                         <Button
                             onClick={handleSend}
                             isLoading={sending}
-                            disabled={!hasCredentials || !asunto || !cuerpo || trabajadores.length === 0}
+                            disabled={!hasCredentials || !emailDestino || !asunto || !cuerpo || trabajadores.length === 0}
                             leftIcon={<Send className="h-4 w-4" />}
                         >
                             Enviar Reporte
