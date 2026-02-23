@@ -170,6 +170,14 @@ class FiscalizacionService {
             to: 'I1',
         };
 
+        const metaSheet = workbook.addWorksheet('Metadatos Sistema');
+        metaSheet.columns = [
+            { header: 'Dato', key: 'dato', width: 30 },
+            { header: 'Valor', key: 'valor', width: 40 }
+        ];
+        metaSheet.addRow({ dato: 'Generado el', valor: new Date().toLocaleString('es-CL') });
+        metaSheet.addRow({ dato: 'Trabajadores incluidos', valor: trabajadores.length });
+
         const tempPath = path.join(__dirname, '..', '..', 'tmp', `Fiscalizacion_${Date.now()}.xlsx`);
 
         // Ensure tmp dir exists

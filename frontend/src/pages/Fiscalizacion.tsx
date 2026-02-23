@@ -151,7 +151,8 @@ const FiscalizacionPage: React.FC = () => {
             const url = window.URL.createObjectURL(new Blob([response.data as any]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Fiscalizacion_${new Date().toISOString().split('T')[0]}.xlsx`);
+            const timeString = new Date().toTimeString().split(' ')[0].replace(/:/g, '');
+            link.setAttribute('download', `Fiscalizacion_${new Date().toISOString().split('T')[0]}_${timeString}.xlsx`);
             document.body.appendChild(link);
             link.click();
             link.remove();
