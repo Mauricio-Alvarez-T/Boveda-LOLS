@@ -206,7 +206,7 @@ const WorkersPage: React.FC = () => {
     useSetPageHeader(headerTitle, headerActions);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500">
+        <div className="space-y-6">
             {/* Filters & Search */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">

@@ -240,7 +240,7 @@ const SettingsPage: React.FC = () => {
     useSetPageHeader(headerTitle);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+        <div className="space-y-6 pb-20">
             {/* Category Navigation (Horizontal) */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
                 {tabGroups.map((group, idx) => {

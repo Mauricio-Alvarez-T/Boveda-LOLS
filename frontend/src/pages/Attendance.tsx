@@ -422,7 +422,7 @@ const AttendancePage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-4 animate-in fade-in duration-500">
+        <div className="space-y-4">
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4">
                 <div className="flex flex-col md:flex-row gap-4 items-center">
                     <div className="flex items-center gap-2">

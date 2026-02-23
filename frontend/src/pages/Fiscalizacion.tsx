@@ -204,7 +204,7 @@ const FiscalizacionPage: React.FC = () => {
     useSetPageHeader(headerTitle, headerActions);
 
     return (
-        <div className="space-y-6 animate-in fade-in duration-500 pb-20">
+        <div className="space-y-6 pb-20">
             <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
 
                 {/* MEGA FILTER PANEL */}

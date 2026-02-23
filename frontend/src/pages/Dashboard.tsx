@@ -164,7 +164,7 @@ const Dashboard: React.FC = () => {
         : 100;
 
     return (
-        <div className="space-y-8 animate-in fade-in duration-700">
+        <div className="space-y-8">
             {/* KPI Cards — CLICKABLE */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
                 {stats.map((stat, i) => (
