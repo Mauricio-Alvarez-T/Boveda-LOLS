@@ -5,8 +5,8 @@ import {
     Loader2,
     Archive,
     Filter,
-    FileSpreadsheet,
-    Users
+    Users,
+    FileDown
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -188,13 +188,14 @@ const FiscalizacionPage: React.FC = () => {
             </Button>
 
             <Button
+                variant="outline"
+                size="sm"
                 onClick={handleExportExcel}
                 isLoading={exporting}
                 disabled={selectedWorkers.size === 0}
-                leftIcon={<FileSpreadsheet className="h-4 w-4" />}
-                size="sm"
+                leftIcon={<FileDown className="h-4 w-4" />}
             >
-                Descargar Excel
+                Exportar Excel
             </Button>
         </div>
     ), [selectedWorkers.size, exporting, handleExportExcel]);

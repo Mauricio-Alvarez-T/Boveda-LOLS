@@ -190,7 +190,7 @@ const WorkersPage: React.FC = () => {
                 onClick={handleExportExcel}
                 leftIcon={<FileDown className="h-4 w-4" />}
             >
-                Exportar Nómina (.xlsx)
+                Exportar Excel
             </Button>
             <Button
                 onClick={handleNewWorker}

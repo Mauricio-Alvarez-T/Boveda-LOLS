@@ -11,8 +11,8 @@ import {
     Clock,
     BarChart3,
     MessageCircle,
-    Download,
-    CalendarDays
+    CalendarDays,
+    FileDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -385,13 +385,12 @@ const AttendancePage: React.FC = () => {
                 </Button>
                 <Button
                     onClick={handleExportExcel}
-                    variant="glass"
-                    className="text-[#6E6E73] hover:text-[#0071E3]"
+                    variant="outline"
                     title="Exportar Asistencia del Mes actual"
-                    leftIcon={<Download className="h-4 w-4" />}
+                    leftIcon={<FileDown className="h-4 w-4" />}
                     size="sm"
                 >
-                    <span className="hidden sm:inline">Mes</span>
+                    <span className="hidden sm:inline">Exportar Excel</span>
                 </Button>
                 <Button
                     onClick={handleSave}
