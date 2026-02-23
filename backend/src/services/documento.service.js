@@ -179,7 +179,10 @@ const documentoService = {
         for (const doc of docs) {
             const filePath = path.join(__dirname, '../../uploads', doc.ruta_archivo);
             if (fs.existsSync(filePath)) {
-                archive.file(filePath, { name: doc.nombre_archivo });
+                const safeTipoNombre = doc.tipo_nombre ? doc.tipo_nombre.replace(/[^a-zA-Z0-9\-_]/g, '_') : 'Documento';
+                const ext = path.extname(doc.nombre_archivo) || '.pdf';
+                const uniqueName = `${safeTipoNombre}_${doc.id}${ext}`;
+                archive.file(filePath, { name: uniqueName });
             }
         }
 

@@ -13,10 +13,21 @@ const emailService = {
      * @param {string[]} options.attachmentPaths - Rutas de los archivos a adjuntar
      */
     async sendWithAttachment({ from, fromPassword, to, subject, body, attachmentPaths = [] }) {
-        const transporter = nodemailer.createTransport({
+        const smtpConfig = {
             host: process.env.SMTP_HOST || 'smtp.gmail.com',
             port: Number(process.env.SMTP_PORT) || 587,
-            secure: process.env.SMTP_SECURE === 'true',
+            secure: String(process.env.SMTP_SECURE) === 'true',
+            auth: {
+                user: from,
+                pass: fromPassword ? '***' + fromPassword.slice(-4) : 'MISSING'
+            }
+        };
+        console.log('[EMAIL DEBUG] Nodemailer Config:', JSON.stringify(smtpConfig, null, 2));
+
+        const transporter = nodemailer.createTransport({
+            host: smtpConfig.host,
+            port: smtpConfig.port,
+            secure: smtpConfig.secure,
             auth: {
                 user: from,
                 pass: fromPassword

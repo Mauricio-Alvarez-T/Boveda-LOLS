@@ -45,12 +45,14 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
         const credentials = await emailConfigRoutes.getDecryptedPassword(req.user.id);
 
         if (!credentials || !credentials.email || !credentials.password) {
+            console.error('[EMAIL ERROR] No credentials found for user', req.user.id);
             return res.status(400).json({
                 error: 'El usuario no tiene credenciales de correo configuradas. Ve a Configuración > Mi Correo para guardarlas.',
                 code: 'NO_EMAIL_CREDENTIALS'
             });
         }
 
+        console.log(`[EMAIL DEBUG] Autenticando con: ${credentials.email}`);
         const trabajadorIds = trabajadores.map(t => t.id);
 
         const excelPath = await fiscalizacionService.generarExcel(trabajadores);
@@ -59,14 +61,13 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
             zipPath = await zipService.createZip(trabajadorIds);
         } catch (e) {
             console.error('Error generando ZIP de documentos:', e);
-            // Optionally continue without ZIP or throw? Let's continue if ZIP fails to not block totally, or throw?
-            // The user explicitly wanted the ZIP. So we should log it but we can still attach whatever we have.
         }
 
         const attachmentPaths = [excelPath];
         if (zipPath && fs.existsSync(zipPath)) {
             attachmentPaths.push(zipPath);
         }
+        console.log(`[EMAIL DEBUG] Adjuntos preparados: ${attachmentPaths.length} archivos`);
 
         const result = await emailService.sendWithAttachment({
             from: credentials.email,

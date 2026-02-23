@@ -40,14 +40,21 @@ const zipService = {
 
                 // Get documents
                 const [docs] = await db.query(
-                    'SELECT ruta_archivo, nombre_archivo FROM documentos WHERE trabajador_id = ? AND activo = TRUE',
+                    `SELECT d.id, d.ruta_archivo, d.nombre_archivo, td.nombre as tipo_nombre 
+                     FROM documentos d
+                     LEFT JOIN tipos_documento td ON d.tipo_documento_id = td.id
+                     WHERE d.trabajador_id = ? AND d.activo = TRUE`,
                     [trabajadorId]
                 );
 
                 for (const doc of docs) {
                     const filePath = path.join(__dirname, '../../uploads', doc.ruta_archivo);
                     if (fs.existsSync(filePath)) {
-                        archive.file(filePath, { name: `${folderName}/${doc.nombre_archivo}` });
+                        const safeTipoNombre = doc.tipo_nombre ? doc.tipo_nombre.replace(/[^a-zA-Z0-9\-_]/g, '_') : 'Documento';
+                        const ext = path.extname(doc.nombre_archivo) || '.pdf';
+                        // Add ID to guarantee no overlapping names inside the ZIP
+                        const uniqueName = `${safeTipoNombre}_${doc.id}${ext}`;
+                        archive.file(filePath, { name: `${folderName}/${uniqueName}` });
                     }
                 }
             }
