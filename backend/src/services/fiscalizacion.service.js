@@ -112,79 +112,136 @@ class FiscalizacionService {
     async generarExcel(trabajadores) {
         const workbook = new ExcelJS.Workbook();
         workbook.creator = 'Bóveda LOLS';
+        workbook.lastModifiedBy = 'Sistema Bóveda';
         workbook.created = new Date();
 
-        const sheet = workbook.addWorksheet('Nómina de Fiscalización', {
-            views: [{ state: 'frozen', ySplit: 1 }]
+        const sheet = workbook.addWorksheet('Reporte de Fiscalización', {
+            views: [{ state: 'frozen', ySplit: 7, xSplit: 0, activePane: 'bottomRight' }],
+            pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 }
         });
 
+        // 1. EXECUTIVE HEADER (Rows 1-6)
+        // Title
+        sheet.mergeCells('A1:I2');
+        const titleCell = sheet.getCell('A1');
+        titleCell.value = 'REPORTE EJECUTIVO DE FISCALIZACIÓN';
+        titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FF1E293B' } };
+        titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
+
+        // Subtitle / Info
+        sheet.mergeCells('A3:I3');
+        const subTitle = sheet.getCell('A3');
+        subTitle.value = 'Estado Documental y Contractual de Nómina';
+        subTitle.font = { name: 'Segoe UI', size: 11, italic: true, color: { argb: 'FF64748B' } };
+        subTitle.alignment = { horizontal: 'center' };
+
+        // Metadata Labels
+        sheet.getCell('A5').value = 'FECHA DE GENERACIÓN:';
+        sheet.getCell('B5').value = new Date().toLocaleString('es-CL');
+        sheet.getCell('D5').value = 'TRABAJADORES:';
+        sheet.getCell('E5').value = trabajadores.length;
+        sheet.getCell('G5').value = 'ESTADO:';
+        sheet.getCell('H5').value = 'CONSOLIDADO';
+
+        [sheet.getCell('A5'), sheet.getCell('D5'), sheet.getCell('G5')].forEach(c => {
+            c.font = { bold: true, size: 9, color: { argb: 'FF475569' } };
+        });
+
+        // 2. TABLE HEADERS (Row 7)
+        const headerRow = 7;
         sheet.columns = [
-            { header: 'RUT', key: 'rut', width: 15 },
-            { header: 'Nombres', key: 'nombres', width: 30 },
-            { header: 'Apellidos', key: 'apellidos', width: 30 },
-            { header: 'Empresa', key: 'empresa', width: 35 },
-            { header: 'Obra', key: 'obra', width: 25 },
-            { header: 'Cargo', key: 'cargo', width: 25 },
-            { header: 'Fecha Ingreso', key: 'ingreso', width: 15 },
-            { header: 'Estado', key: 'estado', width: 15 },
-            { header: 'Documentación al Día', key: 'docs', width: 20 }
+            { key: 'rut', width: 14 },
+            { key: 'nombres', width: 25 },
+            { key: 'apellidos', width: 25 },
+            { key: 'empresa', width: 35 },
+            { key: 'obra', width: 20 },
+            { key: 'cargo', width: 20 },
+            { key: 'ingreso', width: 14 },
+            { key: 'estado', width: 12 },
+            { key: 'docs', width: 18 }
         ];
 
-        // Format Header
-        sheet.getRow(1).font = { name: 'Arial', family: 4, size: 10, bold: true, color: { argb: 'FFFFFFFF' } };
-        sheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0071E3' } }; // Blue institutional
-        sheet.getRow(1).alignment = { vertical: 'middle', horizontal: 'center' };
-        sheet.getRow(1).height = 25;
+        // Headers labels
+        const headers = ['RUT', 'Nombres', 'Apellidos', 'Empresa', 'Obra', 'Cargo', 'F. Ingreso', 'Estado', 'Documentación'];
+        headers.forEach((h, i) => {
+            const cell = sheet.getCell(headerRow, i + 1);
+            cell.value = h.toUpperCase();
+            cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } }; // Slate 800
+            cell.alignment = { vertical: 'middle', horizontal: 'center' };
+            cell.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
+        });
+        sheet.getRow(headerRow).height = 25;
 
-        // Add Data
-        trabajadores.forEach(t => {
+        // 3. DATA ROWS (Row 8+)
+        trabajadores.forEach((t, index) => {
+            const rowNum = headerRow + 1 + index;
             const apellidos = [t.apellido_paterno, t.apellido_materno].filter(Boolean).join(' ');
-            const ingreso = t.fecha_ingreso ? new Date(t.fecha_ingreso).toLocaleDateString('es-CL') : 'No registrada';
-            const docsStatus = t.docs_porcentaje === 100 ? 'Sí (100%)' : `No (${t.docs_porcentaje}%)`;
+            const ingreso = t.fecha_ingreso ? new Date(t.fecha_ingreso).toLocaleDateString('es-CL') : '-';
 
-            const row = sheet.addRow({
-                rut: t.rut,
-                nombres: t.nombres,
-                apellidos: apellidos,
-                empresa: t.empresa_nombre || 'Sin Empresa',
-                obra: t.obra_nombre || 'Sin Obra',
-                cargo: t.cargo_nombre || 'Sin Cargo',
-                ingreso: ingreso,
-                estado: t.activo ? 'Activo' : 'Inactivo',
-                docs: docsStatus
-            });
+            // Visual indicators for docs
+            let docsIcon = (t.docs_porcentaje === 100) ? '✔ AL DÍA' : `✘ FALTAN (${t.docs_porcentaje}%)`;
 
-            // Color code missing docs and inactive
-            if (!t.activo) {
-                row.font = { color: { argb: 'FF999999' }, italic: true };
-            } else if (t.docs_porcentaje < 100) {
-                row.getCell('docs').font = { color: { argb: 'FFFF3B30' }, bold: true }; // Red
-            } else {
-                row.getCell('docs').font = { color: { argb: 'FF34C759' }, bold: true }; // Green
+            const rowData = [
+                t.rut,
+                t.nombres,
+                apellidos,
+                t.empresa_nombre || '-',
+                t.obra_nombre || '-',
+                t.cargo_nombre || '-',
+                ingreso,
+                t.activo ? 'ACTIVO' : 'INACTIVO',
+                docsIcon
+            ];
+
+            const row = sheet.addRow(rowData);
+            row.height = 22;
+            row.alignment = { vertical: 'middle' };
+
+            // Zebra styling
+            if (index % 2 === 1) {
+                row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } }; // Slate 50
             }
+
+            // Cell formatting
+            row.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                cell.font = { name: 'Segoe UI', size: 10 };
+                cell.border = {
+                    bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
+                    right: { style: 'thin', color: { argb: 'FFF1F5F9' } }
+                };
+
+                // Specific column formatting
+                if (colNumber === 8) { // Estado
+                    cell.font = { ...cell.font, bold: true, color: { argb: t.activo ? 'FF166534' : 'FF991B1B' } };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                }
+                if (colNumber === 9) { // Documentación
+                    const color = (t.docs_porcentaje === 100) ? 'FF15803D' : 'FFDC2626';
+                    cell.font = { ...cell.font, bold: true, color: { argb: color } };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                }
+                if (colNumber === 1 || colNumber === 7) {
+                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                }
+            });
         });
 
-        // Add Auto-Filters
+        // 4. AUTO-FILTER
         sheet.autoFilter = {
-            from: 'A1',
-            to: 'I1',
+            from: { row: headerRow, column: 1 },
+            to: { row: headerRow + trabajadores.length, column: 9 }
         };
 
-        const metaSheet = workbook.addWorksheet('Metadatos Sistema');
-        metaSheet.columns = [
-            { header: 'Dato', key: 'dato', width: 30 },
-            { header: 'Valor', key: 'valor', width: 40 }
-        ];
-        metaSheet.addRow({ dato: 'Generado el', valor: new Date().toLocaleString('es-CL') });
-        metaSheet.addRow({ dato: 'Trabajadores incluidos', valor: trabajadores.length });
+        // 5. METADATA SHEET (Keep as hidden or secondary for audit)
+        const metaSheet = workbook.addWorksheet('Sistema Auth', { state: 'hidden' });
+        metaSheet.addRow(['Generado el', new Date().toISOString()]);
+        metaSheet.addRow(['Total Registros', trabajadores.length]);
 
         const tempPath = path.join(__dirname, '..', '..', 'tmp', `Fiscalizacion_${Date.now()}.xlsx`);
-
-        // Ensure tmp dir exists
         if (!fs.existsSync(path.dirname(tempPath))) {
             fs.mkdirSync(path.dirname(tempPath), { recursive: true });
         }
-
         await workbook.xlsx.writeFile(tempPath);
         return tempPath;
     }
