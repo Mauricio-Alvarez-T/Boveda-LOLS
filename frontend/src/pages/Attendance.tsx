@@ -163,7 +163,7 @@ const AttendancePage: React.FC = () => {
                 }))
             };
 
-            await api.post('/asistencias/bulk', payload);
+            await api.post(`/asistencias/bulk/${currentObra.id}`, payload);
             toast.success('Asistencia guardada correctamente');
             fetchAttendanceInfo();
         } catch (error) {
