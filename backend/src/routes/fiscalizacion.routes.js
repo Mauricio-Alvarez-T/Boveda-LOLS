@@ -18,6 +18,7 @@ router.get('/trabajadores-avanzado', auth, checkPermission('documentos', 'puede_
 router.post('/exportar-excel', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
     try {
         const { trabajadores } = req.body;
+        console.log(`[EXPORT EXCEL] Recibida petición con ${trabajadores ? trabajadores.length : 'undefined'} trabajadores`);
         if (!trabajadores || !Array.isArray(trabajadores)) {
             return res.status(400).json({ error: 'Lista de trabajadores es requerida' });
         }

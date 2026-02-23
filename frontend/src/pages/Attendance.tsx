@@ -136,24 +136,30 @@ const AttendancePage: React.FC = () => {
         }));
     };
 
+    const latestData = React.useRef({ selectedObra, date, workers, attendance, estados });
+    React.useEffect(() => {
+        latestData.current = { selectedObra, date, workers, attendance, estados };
+    }, [selectedObra, date, workers, attendance, estados]);
+
     const handleSave = useCallback(async () => {
-        if (!selectedObra) return;
+        const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance } = latestData.current;
+        if (!currentObra) return;
         setSaving(true);
         try {
             const payload = {
-                obra_id: selectedObra.id,
-                registros: workers.map(w => ({
+                obra_id: currentObra.id,
+                registros: currentWorkers.map(w => ({
                     trabajador_id: w.id,
-                    obra_id: selectedObra.id,
-                    fecha: date,
-                    estado_id: attendance[w.id]?.estado_id || null,
-                    observacion: attendance[w.id]?.observacion || '',
-                    hora_entrada: attendance[w.id]?.hora_entrada || null,
-                    hora_salida: attendance[w.id]?.hora_salida || null,
-                    hora_colacion_inicio: attendance[w.id]?.hora_colacion_inicio || null,
-                    hora_colacion_fin: attendance[w.id]?.hora_colacion_fin || null,
-                    horas_extra: attendance[w.id]?.horas_extra || 0,
-                    es_sabado: attendance[w.id]?.es_sabado || false
+                    obra_id: currentObra.id,
+                    fecha: currentDate,
+                    estado_id: currentAttendance[w.id]?.estado_id || null,
+                    observacion: currentAttendance[w.id]?.observacion || '',
+                    hora_entrada: currentAttendance[w.id]?.hora_entrada || null,
+                    hora_salida: currentAttendance[w.id]?.hora_salida || null,
+                    hora_colacion_inicio: currentAttendance[w.id]?.hora_colacion_inicio || null,
+                    hora_colacion_fin: currentAttendance[w.id]?.hora_colacion_fin || null,
+                    horas_extra: currentAttendance[w.id]?.horas_extra || 0,
+                    es_sabado: currentAttendance[w.id]?.es_sabado || false
                 }))
             };
 
@@ -166,26 +172,27 @@ const AttendancePage: React.FC = () => {
         } finally {
             setSaving(false);
         }
-    }, [selectedObra, workers, date, attendance, fetchAttendanceInfo]);
+    }, [fetchAttendanceInfo]);
 
     // Handle Excel Export
     const handleExportExcel = useCallback(async () => {
-        if (!selectedObra) return;
+        const { selectedObra: currentObra, date: currentDate } = latestData.current;
+        if (!currentObra) return;
         try {
-            const [year, month] = date.split('-');
+            const [year, month] = currentDate.split('-');
             const firstDay = `${year}-${month}-01`;
             const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
             toast.info('Generando reporte Excel...', { id: 'excel-export' });
 
-            const response = await api.get(`/asistencias/exportar/excel?obra_id=${selectedObra.id}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
+            const response = await api.get(`/asistencias/exportar/excel?obra_id=${currentObra.id}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
                 responseType: 'blob'
             });
 
             const url = window.URL.createObjectURL(new Blob([response.data as any]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Asistencia_${selectedObra.nombre.replace(/\s+/g, '_')}_${year}_${month}.xlsx`);
+            link.setAttribute('download', `Asistencia_${currentObra.nombre.replace(/\s+/g, '_')}_${year}_${month}.xlsx`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -196,11 +203,12 @@ const AttendancePage: React.FC = () => {
             console.error('Error exportando Excel', error);
             toast.error('Error al generar el reporte', { id: 'excel-export' });
         }
-    }, [selectedObra, date]);
+    }, []);
 
     // Handle WhatsApp Share
     const handleShareWhatsApp = useCallback(async () => {
-        if (!selectedObra) return;
+        const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance, estados: currentEstados } = latestData.current;
+        if (!currentObra) return;
 
         await handleExportExcel();
         toast.success('Excel generado. Solo arrástralo o adjúntalo al chat de WhatsApp que se abrirá', {
@@ -208,13 +216,13 @@ const AttendancePage: React.FC = () => {
             id: 'whatsapp-instruction'
         });
 
-        const dateStr = date.split('-').reverse().join('-');
+        const dateStr = currentDate.split('-').reverse().join('-');
         let text = `Buenas tardes\n`;
-        text += `Adjunto asistencia de ${selectedObra.nombre} del día ${dateStr}.\n\n`;
+        text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
 
-        const total = workers.length;
-        const presentes = Object.values(attendance).filter(a => {
-            const est = estados.find(e => e.id === a.estado_id);
+        const total = currentWorkers.length;
+        const presentes = Object.values(currentAttendance).filter(a => {
+            const est = currentEstados.find(e => e.id === a.estado_id);
             return est?.es_presente;
         }).length;
 
@@ -227,8 +235,8 @@ const AttendancePage: React.FC = () => {
             'TO': 0
         };
 
-        Object.values(attendance).forEach(a => {
-            const est = estados.find(e => e.id === a.estado_id);
+        Object.values(currentAttendance).forEach(a => {
+            const est = currentEstados.find(e => e.id === a.estado_id);
             if (!est) return;
             if (!est.es_presente) {
                 if (est.codigo === 'A') counts['F']++;
@@ -247,13 +255,13 @@ const AttendancePage: React.FC = () => {
         text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n\n`;
 
         const categorias = [
-            { key: 'obra', label: `Obra ${selectedObra.nombre}:` },
+            { key: 'obra', label: `Obra ${currentObra.nombre}:` },
             { key: 'operaciones', label: 'Operaciones:' },
             { key: 'rotativo', label: 'Personal rotativo:' }
         ];
 
         categorias.forEach(cat => {
-            const workersInCat = workers.filter(w => (w.categoria_reporte || 'obra') === cat.key);
+            const workersInCat = currentWorkers.filter(w => (w.categoria_reporte || 'obra') === cat.key);
             if (workersInCat.length === 0) return;
 
             text += `${cat.label}\n`;
@@ -269,10 +277,10 @@ const AttendancePage: React.FC = () => {
             text += `\n`;
         });
 
-        const excepciones = workers.filter(w => {
-            const state = attendance[w.id];
+        const excepciones = currentWorkers.filter(w => {
+            const state = currentAttendance[w.id];
             if (!state || !state.estado_id) return false;
-            const est = estados.find(e => e.id === state.estado_id);
+            const est = currentEstados.find(e => e.id === state.estado_id);
             return est && !est.es_presente;
         });
 
@@ -285,7 +293,7 @@ const AttendancePage: React.FC = () => {
 
         const encodedText = encodeURIComponent(text);
         window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-    }, [selectedObra, date, workers, attendance, estados, handleExportExcel]);
+    }, [handleExportExcel]);
 
     // Navigate date
     const navigateDate = (offset: number) => {

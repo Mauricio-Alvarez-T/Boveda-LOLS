@@ -131,13 +131,19 @@ const FiscalizacionPage: React.FC = () => {
         setSelectedWorkers(newSet);
     };
 
+    const latestData = React.useRef({ workers, selectedWorkers });
+    React.useEffect(() => {
+        latestData.current = { workers, selectedWorkers };
+    }, [workers, selectedWorkers]);
+
     const handleExportExcel = React.useCallback(async () => {
-        if (selectedWorkers.size === 0) return;
+        const { workers: currentWorkers, selectedWorkers: currentSelected } = latestData.current;
+        if (currentSelected.size === 0) return;
         setExporting(true);
         toast.info('Generando reporte Excel...', { id: 'excel-export' });
 
         try {
-            const selectedData = workers.filter(w => selectedWorkers.has(w.id));
+            const selectedData = currentWorkers.filter(w => currentSelected.has(w.id));
             const response = await api.post('/fiscalizacion/exportar-excel', {
                 trabajadores: selectedData
             }, { responseType: 'blob' });
@@ -157,7 +163,7 @@ const FiscalizacionPage: React.FC = () => {
         } finally {
             setExporting(false);
         }
-    }, [selectedWorkers, workers]);
+    }, []);
 
 
     // Configuración del Header Global
