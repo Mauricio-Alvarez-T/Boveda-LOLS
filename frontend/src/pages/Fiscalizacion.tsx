@@ -131,7 +131,7 @@ const FiscalizacionPage: React.FC = () => {
         setSelectedWorkers(newSet);
     };
 
-    const handleExportExcel = async () => {
+    const handleExportExcel = React.useCallback(async () => {
         if (selectedWorkers.size === 0) return;
         setExporting(true);
         toast.info('Generando reporte Excel...', { id: 'excel-export' });
@@ -157,7 +157,7 @@ const FiscalizacionPage: React.FC = () => {
         } finally {
             setExporting(false);
         }
-    };
+    }, [selectedWorkers, workers]);
 
 
     // Configuración del Header Global
@@ -190,7 +190,7 @@ const FiscalizacionPage: React.FC = () => {
                 Descargar Excel
             </Button>
         </div>
-    ), [selectedWorkers.size, exporting]);
+    ), [selectedWorkers.size, exporting, handleExportExcel]);
 
     // Configuración del Header Global
     useSetPageHeader(headerTitle, headerActions);

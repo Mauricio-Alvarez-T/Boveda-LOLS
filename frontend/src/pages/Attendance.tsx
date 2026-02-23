@@ -90,7 +90,7 @@ const AttendancePage: React.FC = () => {
                 if (record) {
                     newAttendance[w.id] = record;
                 } else {
-                    const newRecord: Asistencia = {
+                    const newRecord: Partial<Asistencia> = {
                         trabajador_id: w.id,
                         obra_id: selectedObra.id,
                         fecha: date,
@@ -103,7 +103,7 @@ const AttendancePage: React.FC = () => {
                         hora_colacion_fin: null,
                         horas_extra: 0,
                         es_sabado: dayIndex === 6
-                    } as Asistencia;
+                    };
 
                     // Auto-fill default times if default state is present
                     if (defaultEstado.es_presente && currentSchedule) {
@@ -124,10 +124,10 @@ const AttendancePage: React.FC = () => {
     }, [selectedObra, date, defaultEstado]);
 
     useEffect(() => {
-        if (defaultEstado) {
+        if (defaultEstado && selectedObra) {
             fetchAttendanceInfo();
         }
-    }, [fetchAttendanceInfo, defaultEstado]);
+    }, [fetchAttendanceInfo, defaultEstado, selectedObra]);
 
     const updateAttendance = (workerId: number, data: Partial<Asistencia>) => {
         setAttendance(prev => ({
@@ -136,80 +136,82 @@ const AttendancePage: React.FC = () => {
         }));
     };
 
-    const handleSave = async () => {
+    const handleSave = useCallback(async () => {
         if (!selectedObra) return;
         setSaving(true);
         try {
-            const payload = Object.values(attendance);
-            await api.post(`/asistencias/bulk/${selectedObra.id}`, { registros: payload });
+            const payload = {
+                obra_id: selectedObra.id,
+                registros: workers.map(w => ({
+                    trabajador_id: w.id,
+                    obra_id: selectedObra.id,
+                    fecha: date,
+                    estado_id: attendance[w.id]?.estado_id || null,
+                    observacion: attendance[w.id]?.observacion || '',
+                    hora_entrada: attendance[w.id]?.hora_entrada || null,
+                    hora_salida: attendance[w.id]?.hora_salida || null,
+                    hora_colacion_inicio: attendance[w.id]?.hora_colacion_inicio || null,
+                    hora_colacion_fin: attendance[w.id]?.hora_colacion_fin || null,
+                    horas_extra: attendance[w.id]?.horas_extra || 0,
+                    es_sabado: attendance[w.id]?.es_sabado || false
+                }))
+            };
+
+            await api.post('/asistencias/bulk', payload);
             toast.success('Asistencia guardada correctamente');
             fetchAttendanceInfo();
-        } catch (err) {
-            toast.error('Error al guardar asistencia');
+        } catch (error) {
+            console.error('Error saving attendance', error);
+            toast.error('Error al guardar la asistencia');
         } finally {
             setSaving(false);
         }
-    };
+    }, [selectedObra, workers, date, attendance, fetchAttendanceInfo]);
 
-    // Filter workers by search
-    const filteredWorkers = useMemo(() => {
-        if (!searchQuery) return workers;
-        const q = searchQuery.toLowerCase();
-        return workers.filter(w =>
-            `${w.nombres} ${w.apellido_paterno}`.toLowerCase().includes(q) ||
-            w.rut.toLowerCase().includes(q)
-        );
-    }, [workers, searchQuery]);
+    // Handle Excel Export
+    const handleExportExcel = useCallback(async () => {
+        if (!selectedObra) return;
+        try {
+            const [year, month] = date.split('-');
+            const firstDay = `${year}-${month}-01`;
+            const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
-    // Summary stats
-    const summary = useMemo(() => {
-        const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};
-        estados.forEach(e => { counts[e.id] = { count: 0, estado: e }; });
+            toast.info('Generando reporte Excel...', { id: 'excel-export' });
 
-        Object.values(attendance).forEach(a => {
-            if (a.estado_id && counts[a.estado_id]) {
-                counts[a.estado_id].count++;
-            }
-        });
+            const response = await api.get(`/asistencias/exportar/excel?obra_id=${selectedObra.id}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
+                responseType: 'blob'
+            });
 
-        const total = Object.keys(attendance).length;
-        const presentes = Object.values(counts)
-            .filter(c => c.estado.es_presente)
-            .reduce((sum, c) => sum + c.count, 0);
+            const url = window.URL.createObjectURL(new Blob([response.data as any]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Asistencia_${selectedObra.nombre.replace(/\s+/g, '_')}_${year}_${month}.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
 
-        return {
-            total,
-            presentes,
-            porcentaje: total > 0 ? Math.round((presentes / total) * 100) : 0,
-            desglose: Object.values(counts).filter(c => c.count > 0)
-        };
-    }, [attendance, estados]);
+            toast.success('Reporte Excel descargado', { id: 'excel-export' });
+        } catch (error) {
+            console.error('Error exportando Excel', error);
+            toast.error('Error al generar el reporte', { id: 'excel-export' });
+        }
+    }, [selectedObra, date]);
 
     // Handle WhatsApp Share
-    const handleShareWhatsApp = async () => {
+    const handleShareWhatsApp = useCallback(async () => {
         if (!selectedObra) return;
 
-        // Primero generamos y descargamos el Excel para que el usuario pueda adjuntarlo
         await handleExportExcel();
         toast.success('Excel generado. Solo arrástralo o adjúntalo al chat de WhatsApp que se abrirá', {
             duration: 6000,
             id: 'whatsapp-instruction'
         });
 
-        // Header
         const dateStr = date.split('-').reverse().join('-');
         let text = `Buenas tardes\n`;
         text += `Adjunto asistencia de ${selectedObra.nombre} del día ${dateStr}.\n\n`;
 
-        // Code Mapping (Legacy)
-        // P -> A (Asiste)
-        // A -> F (Falta)
-        // V -> V (Vacaciones)
-        // LM -> LM (Licencia)
-        // 1/2 -> 1/2
-        // TO -> TO
-
-        // Summary Statistics (Global)
         const total = workers.length;
         const presentes = Object.values(attendance).filter(a => {
             const est = estados.find(e => e.id === a.estado_id);
@@ -244,7 +246,6 @@ const AttendancePage: React.FC = () => {
         text += `1/2: ${counts['1/2'].toString().padStart(2, '0')}\n`;
         text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n\n`;
 
-        // Grouping logic for "Obra", "Operaciones", "Personal rotativo"
         const categorias = [
             { key: 'obra', label: `Obra ${selectedObra.nombre}:` },
             { key: 'operaciones', label: 'Operaciones:' },
@@ -256,23 +257,18 @@ const AttendancePage: React.FC = () => {
             if (workersInCat.length === 0) return;
 
             text += `${cat.label}\n`;
-
-            // Count by cargo within category
             const cargoCounts: Record<string, number> = {};
             workersInCat.forEach(w => {
                 const cargo = w.cargo_nombre || 'Sin Cargo';
                 cargoCounts[cargo] = (cargoCounts[cargo] || 0) + 1;
             });
 
-            // Sort cargos alphabetically for consistency
             Object.keys(cargoCounts).sort().forEach(cargo => {
                 text += `${cargoCounts[cargo].toString().padStart(2, '0')} ${cargo}\n`;
             });
-
             text += `\n`;
         });
 
-        // Exceptions Section (A&M)
         const excepciones = workers.filter(w => {
             const state = attendance[w.id];
             if (!state || !state.estado_id) return false;
@@ -289,41 +285,7 @@ const AttendancePage: React.FC = () => {
 
         const encodedText = encodeURIComponent(text);
         window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-    };
-
-    // Handle Excel Export
-    const handleExportExcel = async () => {
-        if (!selectedObra) return;
-        try {
-            // Get first day and last day of current month for this example (or just download all for this obra)
-            // But let's export for the selected date's month
-            const [year, month] = date.split('-');
-            const firstDay = `${year}-${month}-01`;
-            const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
-
-            toast.info('Generando reporte Excel...', { id: 'excel-export' });
-
-            const response = await api.get(`/asistencias/exportar/excel?obra_id=${selectedObra.id}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
-                responseType: 'blob'
-            });
-
-            const url = window.URL.createObjectURL(new Blob([response.data as any]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `Asistencia_${selectedObra.nombre.replace(/\s+/g, '_')}_${year}_${month}.xlsx`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-
-            toast.success('Reporte Excel descargado', { id: 'excel-export' });
-        } catch (error) {
-            console.error('Error exportando Excel', error);
-            toast.error('Error al generar el reporte', { id: 'excel-export' });
-        }
-    };
-
-
+    }, [selectedObra, date, workers, attendance, estados, handleExportExcel]);
 
     // Navigate date
     const navigateDate = (offset: number) => {
@@ -347,7 +309,41 @@ const AttendancePage: React.FC = () => {
     const isSaturday = dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
 
-    const headerTitle = React.useMemo(() => (
+    // Filtered workers
+    const filteredWorkers = useMemo(() => {
+        if (!searchQuery) return workers;
+        const q = searchQuery.toLowerCase();
+        return workers.filter(w =>
+            `${w.nombres} ${w.apellido_paterno}`.toLowerCase().includes(q) ||
+            w.rut.toLowerCase().includes(q)
+        );
+    }, [workers, searchQuery]);
+
+    // Summary stats
+    const summary = useMemo(() => {
+        const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};
+        estados.forEach(e => { counts[e.id] = { count: 0, estado: e }; });
+
+        Object.values(attendance).forEach(a => {
+            if (a.estado_id && counts[a.estado_id]) {
+                counts[a.estado_id].count++;
+            }
+        });
+
+        const total = Object.keys(attendance).length;
+        const presentes = Object.values(counts)
+            .filter(c => c.estado.es_presente)
+            .reduce((sum, c) => sum + c.count, 0);
+
+        return {
+            total,
+            presentes,
+            porcentaje: total > 0 ? Math.round((presentes / total) * 100) : 0,
+            desglose: Object.values(counts).filter(c => c.count > 0)
+        };
+    }, [attendance, estados]);
+
+    const headerTitle = useMemo(() => (
         selectedObra ? (
             <div className="flex items-center gap-3">
                 <CheckSquare className="h-6 w-6 text-[#0071E3]" />
@@ -364,9 +360,9 @@ const AttendancePage: React.FC = () => {
                 <h1 className="text-lg font-bold text-[#1D1D1F]">Control de Asistencia</h1>
             </div>
         )
-    ), [selectedObra?.nombre, formattedDate]);
+    ), [selectedObra, formattedDate]);
 
-    const headerActions = React.useMemo(() => (
+    const headerActions = useMemo(() => (
         selectedObra ? (
             <div className="flex items-center gap-2">
                 <Button
@@ -402,7 +398,6 @@ const AttendancePage: React.FC = () => {
         ) : null
     ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length]);
 
-    // Set global page header
     useSetPageHeader(headerTitle, headerActions);
 
     if (!selectedObra) {
@@ -421,10 +416,8 @@ const AttendancePage: React.FC = () => {
 
     return (
         <div className="space-y-4 animate-in fade-in duration-500">
-            {/* Date Navigator + Summary Bar */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4">
                 <div className="flex flex-col md:flex-row gap-4 items-center">
-                    {/* Date Controls */}
                     <div className="flex items-center gap-2">
                         <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(-1)}>
                             <ChevronLeft className="h-4 w-4" />
@@ -451,10 +444,8 @@ const AttendancePage: React.FC = () => {
                         </Button>
                     </div>
 
-                    {/* Separator */}
                     <div className="hidden md:block h-8 w-px bg-[#D2D2D7]" />
 
-                    {/* Summary Pills */}
                     <div className="flex items-center gap-2 flex-wrap">
                         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F7] rounded-full">
                             <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
@@ -479,24 +470,17 @@ const AttendancePage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Saturday/Sunday warning */}
                 {(isSaturday || isSunday) && (
                     <div className={cn(
                         "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2",
-                        isSunday
-                            ? "bg-[#FF3B30]/8 text-[#FF3B30]"
-                            : "bg-[#FF9F0A]/8 text-[#FF9F0A]"
+                        isSunday ? "bg-[#FF3B30]/8 text-[#FF3B30]" : "bg-[#FF9F0A]/8 text-[#FF9F0A]"
                     )}>
                         <Clock className="h-3.5 w-3.5" />
-                        {isSunday
-                            ? "Domingo — no se debe registrar asistencia"
-                            : "Sábado — las horas trabajadas se registran como extras"
-                        }
+                        {isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — las horas trabajadas se registran como extras"}
                     </div>
                 )}
             </div>
 
-            {/* Search */}
             <div className="relative">
                 <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1A6]" />
                 <input
@@ -508,7 +492,6 @@ const AttendancePage: React.FC = () => {
                 />
             </div>
 
-            {/* Attendance List */}
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
@@ -521,7 +504,6 @@ const AttendancePage: React.FC = () => {
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
-                    {/* Table Header */}
                     <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
                         <span>Trabajador</span>
                         <span className="w-[320px] text-center">Estado</span>
@@ -529,7 +511,6 @@ const AttendancePage: React.FC = () => {
                         <span className="w-[60px] text-center">H.E.</span>
                     </div>
 
-                    {/* Workers */}
                     <AnimatePresence>
                         {filteredWorkers.map((worker, idx) => {
                             const state = attendance[worker.id] || {};
@@ -548,9 +529,7 @@ const AttendancePage: React.FC = () => {
                                         isNotPresent && "bg-[#FEF8F8]"
                                     )}
                                 >
-                                    {/* Main Row */}
                                     <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 md:gap-4 px-4 md:px-5 py-3 items-center">
-                                        {/* Worker Info */}
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div
                                                 className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
@@ -569,7 +548,6 @@ const AttendancePage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        {/* State Buttons */}
                                         <div className="flex gap-1 w-full md:w-[320px] overflow-x-auto">
                                             {estados.map((est) => {
                                                 const isActive = state.estado_id === est.id;
@@ -582,8 +560,6 @@ const AttendancePage: React.FC = () => {
                                                                 tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
                                                                 es_sabado: isSaturday
                                                             };
-
-                                                            // Auto-fill times if switching to present and times are empty
                                                             if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
                                                                 const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
                                                                 const dayIndex = new Date(date + 'T12:00:00').getDay();
@@ -597,23 +573,16 @@ const AttendancePage: React.FC = () => {
                                                                     updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
                                                                 }
                                                             }
-
                                                             updateAttendance(worker.id, updates);
-
                                                             if (!est.es_presente && expandedWorkerId !== worker.id) {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
                                                         className={cn(
                                                             "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
-                                                            isActive
-                                                                ? "text-white border-transparent shadow-sm"
-                                                                : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]"
+                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]"
                                                         )}
-                                                        style={isActive ? {
-                                                            backgroundColor: est.color,
-                                                            borderColor: est.color
-                                                        } : undefined}
+                                                        style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
                                                         {est.codigo}
                                                     </button>
@@ -621,7 +590,6 @@ const AttendancePage: React.FC = () => {
                                             })}
                                         </div>
 
-                                        {/* Detail toggle / Absence Type */}
                                         <div className="w-full md:w-[180px] flex items-center justify-between gap-2">
                                             <div className="flex-1">
                                                 {isNotPresent ? (
@@ -649,13 +617,11 @@ const AttendancePage: React.FC = () => {
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
                                                 className="p-1.5 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors flex-shrink-0"
-                                                title="Ver Calendario Mensual"
                                             >
                                                 <CalendarDays className="h-4 w-4" />
                                             </button>
                                         </div>
 
-                                        {/* Horas Extra */}
                                         <div className="w-full md:w-[60px]">
                                             <input
                                                 type="number"
@@ -663,7 +629,7 @@ const AttendancePage: React.FC = () => {
                                                 max="24"
                                                 step="0.5"
                                                 placeholder="0"
-                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-center text-[#1D1D1F] focus:outline-none focus:border-[#0071E3] [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-center text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                 value={state.horas_extra || ''}
                                                 onChange={(e) => updateAttendance(worker.id, {
                                                     horas_extra: parseFloat(e.target.value) || 0
@@ -672,50 +638,24 @@ const AttendancePage: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Expanded Detail */}
                                     <AnimatePresence>
                                         {isExpanded && (
                                             <motion.div
                                                 initial={{ height: 0, opacity: 0 }}
                                                 animate={{ height: 'auto', opacity: 1 }}
                                                 exit={{ height: 0, opacity: 0 }}
-                                                transition={{ duration: 0.2 }}
-                                                className="overflow-hidden"
+                                                className="overflow-hidden bg-[#FAFAFA]"
                                             >
-                                                <div className="px-5 pb-4 pt-1 grid grid-cols-1 md:grid-cols-5 gap-3 bg-[#FAFAFA]">
+                                                <div className="px-5 pb-4 pt-1 grid grid-cols-1 md:grid-cols-5 gap-3">
+                                                    <TimeStepperInput label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
+                                                    <TimeStepperInput label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
+                                                    <TimeStepperInput label="Colación Inicio" value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
+                                                    <TimeStepperInput label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
                                                     <div>
-                                                        <TimeStepperInput
-                                                            label="Entrada"
-                                                            value={state.hora_entrada || ''}
-                                                            onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <TimeStepperInput
-                                                            label="Salida"
-                                                            value={state.hora_salida || ''}
-                                                            onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <TimeStepperInput
-                                                            label="Colación Inicio"
-                                                            value={state.hora_colacion_inicio || ''}
-                                                            onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <TimeStepperInput
-                                                            label="Colación Fin"
-                                                            value={state.hora_colacion_fin || ''}
-                                                            onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })}
-                                                        />
-                                                    </div>
-                                                    <div>
-                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase tracking-wider block mb-1">Observación</label>
+                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase block mb-1">Nota</label>
                                                         <input
                                                             type="text"
-                                                            placeholder="Nota..."
+                                                            placeholder="..."
                                                             className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
                                                             value={state.observacion || ''}
                                                             onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}

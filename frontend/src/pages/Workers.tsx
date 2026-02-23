@@ -136,6 +136,11 @@ const WorkersPage: React.FC = () => {
         return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
     });
 
+    const handleNewWorker = React.useCallback(() => {
+        setSelectedWorker(null);
+        setModalType('form');
+    }, []);
+
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-3">
             <Users className="h-6 w-6 text-[#0071E3]" />
@@ -145,16 +150,13 @@ const WorkersPage: React.FC = () => {
 
     const headerActions = React.useMemo(() => (
         <Button
-            onClick={() => {
-                setSelectedWorker(null);
-                setModalType('form');
-            }}
+            onClick={handleNewWorker}
             leftIcon={<UserPlus className="h-4 w-4" />}
             size="sm"
         >
             Nuevo Trabajador
         </Button>
-    ), []);
+    ), [handleNewWorker]);
 
     // Global Header
     useSetPageHeader(headerTitle, headerActions);
