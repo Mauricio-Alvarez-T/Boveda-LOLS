@@ -195,7 +195,7 @@ class FiscalizacionService {
             ];
 
             const row = sheet.addRow(rowData);
-            row.height = 25;
+            row.height = 28;
             row.alignment = { vertical: 'middle', wrapText: true };
 
             // Zebra styling
@@ -214,15 +214,15 @@ class FiscalizacionService {
                 // Specific column formatting
                 if (colNumber === 8) { // Estado
                     cell.font = { ...cell.font, bold: true, color: { argb: t.activo ? 'FF166534' : 'FF991B1B' } };
-                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 }
                 if (colNumber === 9) { // Documentación
                     const color = (t.docs_porcentaje === 100) ? 'FF15803D' : 'FFDC2626';
                     cell.font = { ...cell.font, bold: true, color: { argb: color } };
-                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 }
                 if (colNumber === 1 || colNumber === 7) {
-                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 }
             });
         });

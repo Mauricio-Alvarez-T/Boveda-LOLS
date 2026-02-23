@@ -291,7 +291,7 @@ const asistenciaService = {
         subTitle.font = { name: 'Segoe UI', size: 11, italic: true, color: { argb: 'FF64748B' } };
         subTitle.alignment = { horizontal: 'center' };
 
-        // Metadata
+        // Metadata Labels
         worksheet.getCell('A5').value = 'FECHA REPORTE:';
         worksheet.getCell('B5').value = new Date().toLocaleDateString('es-CL');
         worksheet.getCell('D5').value = 'TOTAL REGISTROS:';
@@ -326,6 +326,10 @@ const asistenciaService = {
             cell.font = { name: 'Segoe UI', size: 9, bold: true, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1E293B' } };
             cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: true };
+            cell.border = { bottom: { style: 'medium', color: { argb: 'FF000000' } } };
+
+            // Apply column width
+            worksheet.getColumn(i + 1).width = col.width;
         });
         worksheet.getRow(headerRow).height = 25;
 
@@ -347,7 +351,7 @@ const asistenciaService = {
             ];
 
             const row = worksheet.addRow(rowArr);
-            row.height = 20;
+            row.height = 28; // Increased height for better wrap handling
 
             if (index % 2 === 1) {
                 row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -363,7 +367,7 @@ const asistenciaService = {
 
                 // Alignment for numeric/codes
                 if ([1, 2, 6, 8, 9, 10, 11].includes(colNum)) {
-                    cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 }
             });
         });

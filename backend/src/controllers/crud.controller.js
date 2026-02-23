@@ -36,6 +36,17 @@ const createCrudController = (service) => ({
             const result = await service.softDelete(req.params.id);
             res.json(result);
         } catch (err) { next(err); }
+    },
+
+    async exportExcel(req, res, next) {
+        try {
+            const entityName = req.query.name || 'Reporte';
+            const buffer = await service.exportToExcel(req.query, entityName);
+
+            res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+            res.setHeader('Content-Disposition', `attachment; filename=${entityName}_Export.xlsx`);
+            res.send(buffer);
+        } catch (err) { next(err); }
     }
 });
 

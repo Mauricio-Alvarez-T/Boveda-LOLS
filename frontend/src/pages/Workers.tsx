@@ -14,7 +14,8 @@ import {
     Building2,
     Briefcase,
     Download,
-    ArrowLeft
+    ArrowLeft,
+    FileDown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -141,6 +142,39 @@ const WorkersPage: React.FC = () => {
         setModalType('form');
     }, []);
 
+    const handleExportExcel = async () => {
+        try {
+            toast.info('Generando nómina de trabajadores...', { id: 'worker-export' });
+
+            const params = new URLSearchParams({
+                q: search,
+                name: 'Nómina de Trabajadores'
+            });
+            if (selectedObra) params.append('obra_id', String(selectedObra.id));
+            if (selectedEmpresa) params.append('empresa_id', selectedEmpresa);
+            if (selectedCargo) params.append('cargo_id', selectedCargo);
+            if (!showInactive) params.append('activo', 'true');
+
+            const response = await api.get(`/trabajadores/export?${params.toString()}`, {
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data as any]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'Nomina_Trabajadores.xlsx');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Nómina descargada', { id: 'worker-export' });
+        } catch (error) {
+            console.error('Error exportando Excel', error);
+            toast.error('Error al generar la nómina', { id: 'worker-export' });
+        }
+    };
+
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-3">
             <Users className="h-6 w-6 text-[#0071E3]" />
@@ -149,14 +183,24 @@ const WorkersPage: React.FC = () => {
     ), []);
 
     const headerActions = React.useMemo(() => (
-        <Button
-            onClick={handleNewWorker}
-            leftIcon={<UserPlus className="h-4 w-4" />}
-            size="sm"
-        >
-            Nuevo Trabajador
-        </Button>
-    ), [handleNewWorker]);
+        <div className="flex gap-2">
+            <Button
+                variant="outline"
+                size="sm"
+                onClick={handleExportExcel}
+                leftIcon={<FileDown className="h-4 w-4" />}
+            >
+                Exportar Nómina (.xlsx)
+            </Button>
+            <Button
+                onClick={handleNewWorker}
+                leftIcon={<UserPlus className="h-4 w-4" />}
+                size="sm"
+            >
+                Nuevo Trabajador
+            </Button>
+        </div>
+    ), [handleNewWorker, handleExportExcel]);
 
     // Global Header
     useSetPageHeader(headerTitle, headerActions);

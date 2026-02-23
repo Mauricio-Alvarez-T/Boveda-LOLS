@@ -1,4 +1,4 @@
-const router = require('express').Router();
+const express = require('express');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const createCrudService = require('../services/crud.service');
@@ -11,17 +11,18 @@ const createCrudController = require('../controllers/crud.controller');
  * @param {object} options - Opciones para el servicio CRUD
  */
 const createCrudRoutes = (moduleName, tableName, options = {}) => {
+    const router = express.Router();
     const service = createCrudService(tableName, options);
     const controller = createCrudController(service);
-    const r = router;
 
-    r.get('/', auth, checkPermission(moduleName, 'puede_ver'), controller.getAll);
-    r.get('/:id', auth, checkPermission(moduleName, 'puede_ver'), controller.getById);
-    r.post('/', auth, checkPermission(moduleName, 'puede_crear'), controller.create);
-    r.put('/:id', auth, checkPermission(moduleName, 'puede_editar'), controller.update);
-    r.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.remove);
+    router.get('/', auth, checkPermission(moduleName, 'puede_ver'), controller.getAll);
+    router.get('/export', auth, checkPermission(moduleName, 'puede_ver'), controller.exportExcel);
+    router.get('/:id', auth, checkPermission(moduleName, 'puede_ver'), controller.getById);
+    router.post('/', auth, checkPermission(moduleName, 'puede_crear'), controller.create);
+    router.put('/:id', auth, checkPermission(moduleName, 'puede_editar'), controller.update);
+    router.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.remove);
 
-    return r;
+    return router;
 };
 
 module.exports = createCrudRoutes;

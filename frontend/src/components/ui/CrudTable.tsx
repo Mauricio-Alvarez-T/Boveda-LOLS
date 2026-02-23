@@ -7,7 +7,8 @@ import {
     Loader2,
     ChevronLeft,
     ChevronRight,
-    AlertCircle
+    AlertCircle,
+    FileDown
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -116,6 +117,38 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
         setModalOpen(true);
     };
 
+    const handleExport = async () => {
+        try {
+            toast.info(`Generando reporte de ${entityNamePlural.toLowerCase()}...`, { id: 'excel-export' });
+
+            const params = new URLSearchParams({
+                q: search,
+                name: entityNamePlural
+            });
+            Object.entries(queryParams).forEach(([k, v]) => {
+                if (v !== undefined) params.append(k, String(v));
+            });
+
+            const response = await api.get(`${endpoint}/export?${params.toString()}`, {
+                responseType: 'blob'
+            });
+
+            const url = window.URL.createObjectURL(new Blob([response.data as any]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `${entityNamePlural.replace(/\s+/g, '_')}_Export.xlsx`);
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+
+            toast.success('Reporte Excel descargado', { id: 'excel-export' });
+        } catch (error) {
+            console.error('Error exportando Excel', error);
+            toast.error('Error al generar el reporte', { id: 'excel-export' });
+        }
+    };
+
     const getNestedValue = (obj: any, path: string) => {
         return path.split('.').reduce((acc, part) => acc?.[part], obj);
     };
@@ -133,11 +166,16 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                     />
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A1A1A6]" />
                 </div>
-                {canCreate && (
-                    <Button size="default" onClick={openCreate} leftIcon={<Plus className="h-5 w-5" />}>
-                        Nuevo {entityName}
+                <div className="flex items-center gap-2 w-full sm:w-auto">
+                    <Button variant="outline" size="default" onClick={handleExport} leftIcon={<FileDown className="h-4 w-4" />}>
+                        Exportar Excel
                     </Button>
-                )}
+                    {canCreate && (
+                        <Button size="default" onClick={openCreate} leftIcon={<Plus className="h-5 w-5" />}>
+                            Nuevo {entityName}
+                        </Button>
+                    )}
+                </div>
             </div>
 
             {/* Table */}
