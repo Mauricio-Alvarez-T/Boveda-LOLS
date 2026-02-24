@@ -23,40 +23,96 @@ interface Log {
 }
 
 // ─── Visualizador de Cambios (formato compacto: { campo: { de, a } }) ───
-const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>, trabajador?: string, fecha?: string }> = ({ cambios, trabajador, fecha }) => {
+const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>, trabajador?: string, fecha?: string, responsable?: string }> = ({ cambios, trabajador, fecha, responsable }) => {
     const keys = Object.keys(cambios);
-    if (keys.length === 0) return <p className="text-xs text-[#6E6E73] italic">Sin cambios detectados</p>;
+    if (keys.length === 0) return (
+        <div className="flex flex-col items-center justify-center p-8 text-center bg-[#F5F5F7] rounded-2xl border border-dashed border-[#D2D2D7]">
+            <History className="h-8 w-8 text-[#8E8E93] mb-2 opacity-50" />
+            <p className="text-sm text-[#6E6E73] font-medium italic">Sin cambios detectados en este registro</p>
+        </div>
+    );
 
     return (
-        <div className="space-y-4">
-            {/* Header contextual */}
-            <div className="bg-[#FF9F0A]/5 p-3 rounded-xl border border-[#FF9F0A]/20 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
-                <span className="text-xs font-bold text-[#FF9F0A]">DETALLE DE CAMBIOS</span>
-                {trabajador && <span className="text-[10px] font-medium text-[#1D1D1F]">👤 {trabajador}</span>}
-                {fecha && <span className="text-[10px] text-[#6E6E73]">📅 {fecha}</span>}
-            </div>
-            {/* Diff rows */}
-            {keys.map(key => (
-                <div key={key} className="flex flex-col gap-1.5 pb-4 border-b border-[#F5F5F7] last:border-0">
-                    <span className="text-[10px] font-bold text-[#6E6E73] uppercase tracking-wider">{getLabel(key)}</span>
-                    <div className="flex flex-col gap-1.5 font-mono">
-                        <div className="flex items-center gap-3 bg-[#FF3B30]/10 p-2.5 rounded-lg border-l-4 border-l-[#FF3B30]">
-                            <span className="text-[10px] font-black bg-[#FF3B30] text-white px-2 py-0.5 rounded uppercase tracking-tighter shrink-0">- ANTERIOR</span>
-                            <span className="text-xs text-[#FF3B30] font-medium line-through decoration-1">{cambios[key].de ?? '—'}</span>
-                        </div>
-                        <div className="flex items-center gap-3 bg-[#34C759]/10 p-2.5 rounded-lg border-l-4 border-l-[#34C759]">
-                            <span className="text-[10px] font-black bg-[#34C759] text-white px-2 py-0.5 rounded uppercase tracking-tighter shrink-0">+ ACTUAL</span>
-                            <span className="text-xs text-[#1D1D1F] font-bold">{cambios[key].a ?? '—'}</span>
-                        </div>
+        <div className="space-y-6">
+            {/* Header contextual estilo Apple Card */}
+            <div className="bg-white p-4 rounded-2xl border border-[#D2D2D7] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-[#0071E3]/5 rounded-full flex items-center justify-center">
+                        <History className="h-5 w-5 text-[#0071E3]" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-[#1D1D1F] uppercase tracking-tight">Detalle de Cambios</h4>
+                        <p className="text-xs text-[#6E6E73] font-medium">Comparativa de valores modificados</p>
                     </div>
                 </div>
-            ))}
+
+                <div className="flex flex-wrap items-center gap-3">
+                    {responsable && (
+                        <div className="flex items-center gap-2 bg-[#0071E3]/5 px-3 py-1.5 rounded-full border border-[#0071E3]/10">
+                            <span className="text-[10px] font-bold text-[#0071E3] uppercase tracking-tighter">Hecho por:</span>
+                            <span className="text-xs font-bold text-[#1D1D1F]">{responsable}</span>
+                        </div>
+                    )}
+                    {trabajador && (
+                        <div className="flex items-center gap-2 bg-[#F5F5F7] px-3 py-1.5 rounded-full border border-[#D2D2D7]/50">
+                            <User className="h-3.5 w-3.5 text-[#6E6E73]" />
+                            <span className="text-xs font-semibold text-[#1D1D1F]">{trabajador}</span>
+                        </div>
+                    )}
+                    {fecha && (
+                        <div className="flex items-center gap-2 bg-[#F5F5F7] px-3 py-1.5 rounded-full border border-[#D2D2D7]/50">
+                            <Clock className="h-3.5 w-3.5 text-[#6E6E73]" />
+                            <span className="text-xs font-semibold text-[#1D1D1F]">{fecha}</span>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Lista de cambios */}
+            <div className="space-y-3">
+                {keys.map(key => (
+                    <div key={key} className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+                        <div className="px-5 py-3 bg-[#F5F5F7] border-b border-[#D2D2D7] flex items-center justify-between">
+                            <span className="text-xs font-black text-[#1D1D1F] uppercase tracking-widest opacity-80">{getLabel(key)}</span>
+                            <div className="h-2 w-2 rounded-full bg-[#0071E3] opacity-50" />
+                        </div>
+
+                        <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                            {/* Estado Anterior */}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <div className="h-2 w-2 rounded-full bg-[#FF3B30] opacity-40" />
+                                    <span className="text-[10px] font-black text-[#1D1D1F] uppercase tracking-widest">Valor Anterior</span>
+                                </div>
+                                <div className="bg-[#FF3B30]/5 p-4 rounded-xl border border-[#FF3B30]/10 min-h-[56px] flex items-center">
+                                    <span className="text-base text-[#FF3B30] font-medium line-through decoration-[#FF3B30]/30 underline-offset-4 decoration-2">
+                                        {cambios[key].de ?? '—'}
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Estado Actual */}
+                            <div className="flex flex-col gap-2">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                    <div className="h-2 w-2 rounded-full bg-[#34C759] opacity-40" />
+                                    <span className="text-[10px] font-black text-[#1D1D1F] uppercase tracking-widest">Valor Actualizado</span>
+                                </div>
+                                <div className="bg-[#34C759]/5 p-4 rounded-xl border border-[#34C759]/10 min-h-[56px] flex items-center">
+                                    <span className="text-base text-[#1D1D1F] font-bold">
+                                        {cambios[key].a ?? '—'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 };
 
 // ─── Legacy Diff Viewer (formato { antes, nuevo }) ───
-const LegacyDiffViewer: React.FC<{ antes: any, nuevo: any }> = ({ antes, nuevo }) => {
+const LegacyDiffViewer: React.FC<{ antes: any, nuevo: any, responsable?: string }> = ({ antes, nuevo, responsable }) => {
     const ignoredKeys = new Set(['id', 'created_at', 'updated_at', 'usuario_id', 'password', 'password_hash']);
     const allKeys = Array.from(new Set([...Object.keys(antes || {}), ...Object.keys(nuevo || {})]));
     const normalize = (v: any) => (v === null || v === undefined || v === '') ? null : v;
@@ -65,42 +121,65 @@ const LegacyDiffViewer: React.FC<{ antes: any, nuevo: any }> = ({ antes, nuevo }
         return JSON.stringify(normalize(antes?.[k])) !== JSON.stringify(normalize(nuevo?.[k]));
     });
 
-    if (changedKeys.length === 0) return <p className="text-xs text-[#6E6E73] italic">Sin cambios detectados</p>;
+    if (changedKeys.length === 0) return <p className="text-sm font-medium text-[#6E6E73] italic">Sin cambios detectados</p>;
 
     // Convert to compact format and reuse viewer
     const cambios: Record<string, { de: any, a: any }> = {};
     for (const k of changedKeys) {
         cambios[k] = { de: antes?.[k] ?? null, a: nuevo?.[k] ?? null };
     }
-    return <CompactDiffViewer cambios={cambios} />;
+    return <CompactDiffViewer cambios={cambios} responsable={responsable} />;
 };
 
 // ─── Vista expandida genérica (para CREATEs legacy con datos planos) ───
-const GenericDetailView: React.FC<{ parsed: any }> = ({ parsed }) => {
+const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ parsed, responsable }) => {
     return (
-        <div className="space-y-4">
-            <div className="bg-[#F5F5F7] p-3 rounded-xl border border-[#D2D2D7]/50 flex items-center justify-between">
-                <span className="text-xs font-bold text-[#1D1D1F]">DATOS DEL REGISTRO</span>
+        <div className="space-y-6">
+            <div className="bg-white p-5 rounded-2xl border border-[#D2D2D7] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-12 w-12 bg-[#8E8E93]/10 rounded-full flex items-center justify-center">
+                        <History className="h-6 w-6 text-[#8E8E93]" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-[#1D1D1F] uppercase tracking-tight">Datos del Registro</h4>
+                        <p className="text-xs text-[#6E6E73] font-medium">Información completa almacenada</p>
+                    </div>
+                </div>
+                {responsable && (
+                    <div className="bg-[#0071E3]/5 px-3 py-1.5 rounded-full border border-[#0071E3]/10 flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-[#0071E3] uppercase tracking-tighter">Registrado por:</span>
+                        <span className="text-xs font-bold text-[#1D1D1F]">{responsable}</span>
+                    </div>
+                )}
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(parsed).map(([key, value]) => {
-                    if (typeof value === 'object' && value !== null && !Array.isArray(value)) return null;
-                    return (
-                        <div key={key} className="flex flex-col gap-1 pb-2 border-b border-[#F5F5F7] last:border-0">
-                            <span className="text-[10px] font-bold text-[#6E6E73] uppercase tracking-wider">{getLabel(key)}</span>
-                            <span className="text-sm text-[#1D1D1F]">
-                                {Array.isArray(value) ? `${value.length} elementos` : String(value ?? '—')}
-                            </span>
-                        </div>
-                    );
-                })}
+
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+                <div className="grid grid-cols-1 md:grid-cols-2">
+                    {Object.entries(parsed).map(([key, value], index) => {
+                        if (typeof value === 'object' && value !== null && !Array.isArray(value)) return null;
+                        return (
+                            <div key={key} className={cn(
+                                "p-5 flex flex-col gap-2 border-[#F5F5F7]",
+                                index % 2 === 0 ? "md:border-r" : "",
+                                index < Object.entries(parsed).length - 2 ? "border-b" : ""
+                            )}>
+                                <span className="text-xs font-black text-[#8E8E93] uppercase tracking-widest leading-none mb-0.5">
+                                    {getLabel(key)}
+                                </span>
+                                <span className="text-base text-[#1D1D1F] font-semibold tracking-tight">
+                                    {Array.isArray(value) ? `${value.length} elementos` : String(value ?? '—')}
+                                </span>
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
 };
 
 // ─── Componente principal de detalle por log ───
-const LogDetails: React.FC<{ detail: string, modulo: string }> = ({ detail, modulo }) => {
+const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string }> = ({ detail, modulo, responsable }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
 
     if (!detail) return <span className="text-xs text-[#6E6E73] italic">Sin detalle</span>;
@@ -120,12 +199,12 @@ const LogDetails: React.FC<{ detail: string, modulo: string }> = ({ detail, modu
                         <span key={key} className="text-[10px] font-semibold text-[#1D1D1F]">{getLabel(key)}</span>
                     ))}
                     {parsed.trabajador && <span className="text-[10px] text-[#6E6E73]">• {parsed.trabajador}</span>}
-                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-bold text-[#0071E3] hover:underline px-1.5 py-0.5 rounded bg-[#0071E3]/5 ml-1 transition-colors">
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
                         Ver cambios
                     </button>
                 </div>
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Cambios - ${modulo.toUpperCase()}`} size="lg">
-                    <CompactDiffViewer cambios={parsed.cambios} trabajador={parsed.trabajador} fecha={parsed.fecha} />
+                    <CompactDiffViewer cambios={parsed.cambios} trabajador={parsed.trabajador} fecha={parsed.fecha} responsable={responsable} />
                 </Modal>
             </>
         );
@@ -139,14 +218,14 @@ const LogDetails: React.FC<{ detail: string, modulo: string }> = ({ detail, modu
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <p className="text-[11px] text-[#1D1D1F] leading-snug">{parsed.resumen || 'Sin resumen'}</p>
                     {hasData && (
-                        <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-bold text-[#0071E3] hover:underline px-1.5 py-0.5 rounded bg-[#0071E3]/5 ml-1 transition-colors">
+                        <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
                             Ver detalles
                         </button>
                     )}
                 </div>
                 {hasData && (
                     <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Detalle - ${modulo.toUpperCase()}`} size="lg">
-                        <GenericDetailView parsed={parsed.datos} />
+                        <GenericDetailView parsed={parsed.datos} responsable={responsable} />
                     </Modal>
                 )}
             </>
@@ -173,12 +252,12 @@ const LogDetails: React.FC<{ detail: string, modulo: string }> = ({ detail, modu
                     )) : (
                         <span className="text-[10px] text-[#6E6E73] italic">Sin diferencias</span>
                     )}
-                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-bold text-[#0071E3] hover:underline px-1.5 py-0.5 rounded bg-[#0071E3]/5 ml-1 transition-colors">
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
                         Ver cambios
                     </button>
                 </div>
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Cambios - ${modulo.toUpperCase()}`} size="lg">
-                    <LegacyDiffViewer antes={parsed.antes} nuevo={parsed.nuevo} />
+                    <LegacyDiffViewer antes={parsed.antes} nuevo={parsed.nuevo} responsable={responsable} />
                 </Modal>
             </>
         );
@@ -200,13 +279,13 @@ const LogDetails: React.FC<{ detail: string, modulo: string }> = ({ detail, modu
                     </div>
                 ))}
                 {entries.length > 3 && (
-                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-bold text-[#0071E3] hover:underline px-1.5 py-0.5 rounded bg-[#0071E3]/5 ml-1 transition-colors">
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
                         Ver todos (+{entries.length - 3})
                     </button>
                 )}
             </div>
             <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Detalle - ${modulo.toUpperCase()}`} size="lg">
-                <GenericDetailView parsed={parsed} />
+                <GenericDetailView parsed={parsed} responsable={responsable} />
             </Modal>
         </>
     );
@@ -308,7 +387,7 @@ export const ActivityLogsPanel: React.FC = () => {
                                     <span className="text-[11px] font-bold text-[#6E6E73] uppercase tracking-tight">{log.modulo}</span>
                                 </div>
                                 <div className="mt-1">
-                                    <LogDetails detail={log.detalle} modulo={log.modulo} />
+                                    <LogDetails detail={log.detalle} modulo={log.modulo} responsable={log.usuario_nombre} />
                                 </div>
                             </div>
 
