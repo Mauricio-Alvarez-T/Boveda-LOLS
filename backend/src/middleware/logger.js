@@ -173,6 +173,10 @@ const activityLogger = async (req, res, next) => {
     }
 
     res.on('finish', async () => {
+        // PREVENT DOUBLE LOGGING (Idempotency flag for streams/multer)
+        if (res._activityLogged) return;
+        res._activityLogged = true;
+
         if (res.statusCode >= 200 && res.statusCode < 300) {
             if (!accion) return;
 
