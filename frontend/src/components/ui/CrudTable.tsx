@@ -174,11 +174,15 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                             Exportar Excel
                         </Button>
                     )}
-                    {canCreate && (
-                        <Button size="default" onClick={openCreate} leftIcon={<Plus className="h-5 w-5" />}>
-                            Nuevo {entityName}
-                        </Button>
-                    )}
+                    <Button
+                        size="default"
+                        onClick={openCreate}
+                        disabled={!canCreate}
+                        leftIcon={<Plus className="h-5 w-5" />}
+                        className={!canCreate ? "opacity-50 cursor-not-allowed" : ""}
+                    >
+                        Nuevo {entityName}
+                    </Button>
                 </div>
             </div>
 
@@ -193,9 +197,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         {col.label}
                                     </th>
                                 ))}
-                                {(canEdit || canDelete) && (
-                                    <th className="px-5 py-4 font-semibold text-right">Acciones</th>
-                                )}
+                                <th className="px-5 py-4 font-semibold text-right">Acciones</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-[#E8E8ED]">
@@ -229,30 +231,34 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                                 }
                                             </td>
                                         ))}
-                                        {(canEdit || canDelete) && (
-                                            <td className="px-5 py-4 text-right">
-                                                <div className="flex justify-end gap-2">
-                                                    {canEdit && (
-                                                        <Button
-                                                            variant="ghost" size="icon"
-                                                            className="h-9 w-9 rounded-full text-[#0071E3] hover:bg-[#0071E3]/8"
-                                                            onClick={() => openEdit(row)}
-                                                        >
-                                                            <Pencil className="h-4 w-4" />
-                                                        </Button>
+                                        <td className="px-5 py-4 text-right">
+                                            <div className="flex justify-end gap-2">
+                                                <Button
+                                                    variant="ghost" size="icon"
+                                                    className={cn(
+                                                        "h-9 w-9 rounded-full text-[#0071E3] hover:bg-[#0071E3]/8",
+                                                        !canEdit && "opacity-30 grayscale cursor-not-allowed"
                                                     )}
-                                                    {canDelete && (
-                                                        <Button
-                                                            variant="ghost" size="icon"
-                                                            className="h-9 w-9 rounded-full text-[#FF3B30] hover:bg-[#FF3B30]/8"
-                                                            onClick={() => handleDelete(row.id)}
-                                                        >
-                                                            <Trash2 className="h-4 w-4" />
-                                                        </Button>
+                                                    onClick={() => canEdit && openEdit(row)}
+                                                    disabled={!canEdit}
+                                                    title={!canEdit ? "No tienes permisos para editar" : "Editar"}
+                                                >
+                                                    <Pencil className="h-4 w-4" />
+                                                </Button>
+                                                <Button
+                                                    variant="ghost" size="icon"
+                                                    className={cn(
+                                                        "h-9 w-9 rounded-full text-[#FF3B30] hover:bg-[#FF3B30]/8",
+                                                        !canDelete && "opacity-30 grayscale cursor-not-allowed"
                                                     )}
-                                                </div>
-                                            </td>
-                                        )}
+                                                    onClick={() => canDelete && handleDelete(row.id)}
+                                                    disabled={!canDelete}
+                                                    title={!canDelete ? "No tienes permisos para eliminar" : "Eliminar"}
+                                                >
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </div>
+                                        </td>
                                     </motion.tr>
                                 ))
                             )}

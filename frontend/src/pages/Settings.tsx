@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
+import { useAuth } from '../context/AuthContext';
 
 import { CrudTable } from '../components/ui/CrudTable';
 import type { ColumnDef } from '../components/ui/CrudTable';
@@ -29,8 +30,9 @@ import { HorariosConfigPanel } from '../components/settings/HorariosConfigPanel'
 import EmailConfigForm from '../components/settings/EmailConfigForm';
 import PlantillasEmailPanel from '../components/settings/PlantillasEmailPanel';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas' | 'logs';
 
 interface TabDef {
     key: TabKey;
@@ -73,6 +75,7 @@ const tabGroups: TabGroup[] = [
         items: [
             { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
             { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
+            { key: 'logs', label: 'Historial de Actividad', icon: Clock },
         ]
     }
 ];
@@ -221,6 +224,7 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
 ];
 
 const SettingsPage: React.FC = () => {
+    const { checkPermission } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
 
     // Find current active group for navigation
@@ -298,6 +302,9 @@ const SettingsPage: React.FC = () => {
                             FormComponent={EmpresaForm}
                             searchPlaceholder="Buscar por RUT o razón social..."
                             queryParams={{ activo: true }}
+                            canCreate={checkPermission('empresas', 'puede_crear')}
+                            canEdit={checkPermission('empresas', 'puede_editar')}
+                            canDelete={checkPermission('empresas', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -309,6 +316,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Obras"
                             FormComponent={ObraForm}
                             queryParams={{ activo: true }}
+                            canCreate={checkPermission('obras', 'puede_crear')}
+                            canEdit={checkPermission('obras', 'puede_editar')}
+                            canDelete={checkPermission('obras', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -320,6 +330,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Cargos"
                             FormComponent={CargoForm}
                             queryParams={{ activo: true }}
+                            canCreate={checkPermission('cargos', 'puede_crear')}
+                            canEdit={checkPermission('cargos', 'puede_editar')}
+                            canDelete={checkPermission('cargos', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -331,6 +344,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Tipos de Documento"
                             FormComponent={TipoDocumentoForm}
                             queryParams={{ activo: true }}
+                            canCreate={checkPermission('documentos', 'puede_crear')}
+                            canEdit={checkPermission('documentos', 'puede_editar')}
+                            canDelete={checkPermission('documentos', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -341,6 +357,9 @@ const SettingsPage: React.FC = () => {
                             entityName="Usuario"
                             entityNamePlural="Usuarios"
                             FormComponent={UsuarioForm}
+                            canCreate={checkPermission('usuarios', 'puede_crear')}
+                            canEdit={checkPermission('usuarios', 'puede_editar')}
+                            canDelete={checkPermission('usuarios', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -351,6 +370,9 @@ const SettingsPage: React.FC = () => {
                             entityName="Rol"
                             entityNamePlural="Roles"
                             FormComponent={RolForm}
+                            canCreate={checkPermission('usuarios', 'puede_crear')}
+                            canEdit={checkPermission('usuarios', 'puede_editar')}
+                            canDelete={checkPermission('usuarios', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -362,6 +384,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Estados de Asistencia"
                             FormComponent={EstadoAsistenciaForm}
                             queryParams={{ activo: true }}
+                            canCreate={checkPermission('asistencia', 'puede_crear')}
+                            canEdit={checkPermission('asistencia', 'puede_editar')}
+                            canDelete={checkPermission('asistencia', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -373,6 +398,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Tipos de Ausencia"
                             FormComponent={TipoAusenciaForm}
                             queryParams={{ activo: true }}
+                            canCreate={checkPermission('asistencia', 'puede_crear')}
+                            canEdit={checkPermission('asistencia', 'puede_editar')}
+                            canDelete={checkPermission('asistencia', 'puede_eliminar')}
                             canExport={false}
                         />
                     )}
@@ -395,6 +423,15 @@ const SettingsPage: React.FC = () => {
                                 <p className="text-sm text-[#6E6E73] mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
                             </div>
                             <PlantillasEmailPanel />
+                        </div>
+                    )}
+                    {activeTab === 'logs' && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-[#1D1D1F]">Historial de Actividad</h3>
+                                <p className="text-sm text-[#6E6E73] mt-1">Registro detallado de los cambios realizados en el sistema por todos los usuarios.</p>
+                            </div>
+                            <ActivityLogsPanel />
                         </div>
                     )}
                 </motion.div>

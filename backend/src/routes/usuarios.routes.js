@@ -91,4 +91,38 @@ router.post('/roles/:rolId/permisos', auth, checkPermission('usuarios', 'puede_c
     } catch (err) { next(err); }
 });
 
+// Bulk update permissions
+router.post('/roles/:rolId/permisos-bulk', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
+    try {
+        const { rolId } = req.params;
+        const { permisos } = req.body; // Array of { modulo, puede_ver, ... }
+
+        if (!Array.isArray(permisos)) {
+            return res.status(400).json({ error: 'permisos debe ser un array' });
+        }
+
+        // Use a transaction for bulk update
+        const connection = await db.getConnection();
+        await connection.beginTransaction();
+
+        try {
+            for (const p of permisos) {
+                await connection.query(
+                    `INSERT INTO permisos_rol (rol_id, modulo, puede_ver, puede_crear, puede_editar, puede_eliminar) 
+                     VALUES (?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE puede_ver=VALUES(puede_ver), puede_crear=VALUES(puede_crear), puede_editar=VALUES(puede_editar), puede_eliminar=VALUES(puede_eliminar)`,
+                    [rolId, p.modulo, p.puede_ver || false, p.puede_crear || false, p.puede_editar || false, p.puede_eliminar || false]
+                );
+            }
+            await connection.commit();
+            res.json({ message: 'Permisos actualizados correctamente' });
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
+    } catch (err) { next(err); }
+});
+
 module.exports = router;

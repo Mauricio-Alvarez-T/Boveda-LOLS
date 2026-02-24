@@ -53,7 +53,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const checkPermission = (modulo: string, accion: 'puede_ver' | 'puede_crear' | 'puede_editar' | 'puede_eliminar') => {
         if (!user) return false;
         const permission = user.permisos.find(p => p.modulo === modulo);
-        return permission ? permission[accion] : false;
+        return !!(permission ? permission[accion] : false);
     };
 
     return (

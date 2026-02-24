@@ -1,4 +1,5 @@
 const authService = require('../services/auth.service');
+const { logManualActivity } = require('../middleware/logger');
 
 const authController = {
     async login(req, res, next) {
@@ -8,6 +9,10 @@ const authController = {
                 return res.status(400).json({ error: 'Email y contraseña son requeridos' });
             }
             const result = await authService.login(email, password);
+
+            // Registrar inicio de sesión
+            await logManualActivity(result.user.id, 'acceso', 'LOGIN', null, `Inicio de sesión exitoso: ${email}`, req);
+
             res.json(result);
         } catch (err) {
             next(err);

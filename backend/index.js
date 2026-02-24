@@ -3,6 +3,7 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const errorHandler = require('./src/middleware/errorHandler');
+const activityLogger = require('./src/middleware/logger').activityLogger;
 const dashboardService = require('./src/services/dashboard.service');
 
 const app = express();
@@ -12,6 +13,7 @@ const PORT = process.env.PORT || 3000;
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use(activityLogger);
 
 // Database connection (auto-tests on import)
 require('./src/config/db');
@@ -64,6 +66,7 @@ app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asist
 
 // Configuración de Horarios
 app.use('/api/config-horarios', require('./src/routes/config-horarios.routes'));
+app.use('/api/logs', require('./src/routes/logs.routes'));
 
 // ============================================
 // Health Check & Dashboard
@@ -72,7 +75,16 @@ app.use('/api/config-horarios', require('./src/routes/config-horarios.routes'));
 // Dashboard KPIs
 app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, res, next) => {
   try {
-    const summary = await dashboardService.getSummary(req.query.obra_id);
+    const db = require('./src/config/db');
+    // Fetch permisos & nombre for the authenticated user (JWT only has id/rol_id)
+    const [permisos] = await db.query(
+      'SELECT modulo, puede_ver, puede_crear, puede_editar, puede_eliminar FROM permisos_rol WHERE rol_id = ?',
+      [req.user.rol_id]
+    );
+    const [users] = await db.query('SELECT nombre FROM usuarios WHERE id = ?', [req.user.id]);
+    const nombre = users.length > 0 ? users[0].nombre.split(' ')[0] : '';
+
+    const summary = await dashboardService.getSummary(req.query.obra_id, permisos, nombre);
     res.json({ data: summary });
   } catch (err) { next(err); }
 });

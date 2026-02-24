@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { NavLink } from 'react-router-dom';
 import {
     LayoutDashboard,
@@ -9,13 +9,11 @@ import {
     ChevronLeft,
     ChevronRight,
     LogOut,
-    ChevronDown,
     Settings
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
-import { Button } from '../ui/Button';
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -23,15 +21,35 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
-    const { user, logout } = useAuth();
+    const { user, logout, checkPermission } = useAuth();
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/' },
-        { icon: Users, label: 'Trabajadores', path: '/trabajadores' },
-        { icon: CheckSquare, label: 'Asistencia', path: '/asistencia' },
-        { icon: FileText, label: 'Nómina & Reportes', path: '/fiscalizacion' },
-        { icon: Settings, label: 'Configuración', path: '/configuracion' },
-    ];
+        { icon: LayoutDashboard, label: 'Dashboard', path: '/', visible: true },
+        {
+            icon: Users,
+            label: 'Trabajadores',
+            path: '/trabajadores',
+            visible: checkPermission('trabajadores', 'puede_ver')
+        },
+        {
+            icon: CheckSquare,
+            label: 'Asistencia',
+            path: '/asistencia',
+            visible: checkPermission('asistencia', 'puede_ver')
+        },
+        {
+            icon: FileText,
+            label: 'Nómina & Reportes',
+            path: '/fiscalizacion',
+            visible: checkPermission('documentos', 'puede_ver')
+        },
+        {
+            icon: Settings,
+            label: 'Configuración',
+            path: '/configuracion',
+            visible: checkPermission('usuarios', 'puede_ver')
+        },
+    ].filter(i => i.visible);
 
     return (
         <motion.aside

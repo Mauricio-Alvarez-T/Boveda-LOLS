@@ -26,9 +26,11 @@ import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useAuth } from '../context/AuthContext';
 
 const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
+    const { checkPermission } = useAuth();
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -395,15 +397,17 @@ const AttendancePage: React.FC = () => {
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
-                    disabled={loading || workers.length === 0}
+                    disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar')}
                     leftIcon={<Save className="h-4 w-4" />}
                     size="sm"
+                    className={!checkPermission('asistencia', 'puede_editar') ? "opacity-40 grayscale-[100%] cursor-not-allowed" : ""}
+                    title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : "Guardar Asistencia"}
                 >
                     Guardar Asistencia
                 </Button>
             </div>
         ) : null
-    ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length]);
+    ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -585,6 +589,8 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
+                                                        disabled={!checkPermission('asistencia', 'puede_editar')}
+                                                        title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre}
                                                         className={cn(
                                                             "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
                                                             isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]"
@@ -601,11 +607,16 @@ const AttendancePage: React.FC = () => {
                                             <div className="flex-1">
                                                 {isNotPresent ? (
                                                     <select
-                                                        className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                        className={cn(
+                                                            "w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]",
+                                                            !checkPermission('asistencia', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                                                        )}
                                                         value={state.tipo_ausencia_id || ''}
                                                         onChange={(e) => updateAttendance(worker.id, {
                                                             tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
                                                         })}
+                                                        disabled={!checkPermission('asistencia', 'puede_editar')}
+                                                        title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : undefined}
                                                     >
                                                         <option value="">Causa...</option>
                                                         {absenceTypes.map(t => (

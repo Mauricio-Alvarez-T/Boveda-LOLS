@@ -11,6 +11,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { showDeleteToast } from '../../utils/toastUtils';
+import { useAuth } from '../../context/AuthContext';
 
 import { Button } from '../ui/Button';
 import api from '../../services/api';
@@ -23,6 +24,7 @@ interface DocumentListProps {
 }
 
 export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
+    const { checkPermission } = useAuth();
     const [documents, setDocuments] = useState<Documento[]>([]);
     const [loading, setLoading] = useState(true);
 
@@ -194,9 +196,12 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     size="icon"
                                                     className={cn(
                                                         "h-9 w-9 shadow-sm hover:scale-110 active:scale-95 transition-all text-rose-500",
-                                                        !doc.activo && "text-emerald-500"
+                                                        !doc.activo && "text-emerald-500",
+                                                        !checkPermission('documentos', 'puede_eliminar') && "opacity-30 grayscale cursor-not-allowed"
                                                     )}
-                                                    onClick={() => handleToggleActive(doc)}
+                                                    onClick={() => checkPermission('documentos', 'puede_eliminar') && handleToggleActive(doc)}
+                                                    disabled={!checkPermission('documentos', 'puede_eliminar')}
+                                                    title={!checkPermission('documentos', 'puede_eliminar') ? "No tienes permisos" : (doc.activo ? "Eliminar" : "Restaurar")}
                                                 >
                                                     {doc.activo ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
                                                 </Button>

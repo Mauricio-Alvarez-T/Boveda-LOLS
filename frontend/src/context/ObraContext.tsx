@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback } fr
 import api from '../services/api';
 import type { Obra } from '../types/entities';
 import type { ApiResponse } from '../types';
+import { useAuth } from './AuthContext';
 
 interface ObraContextType {
     obras: Obra[];
@@ -16,11 +17,17 @@ const ObraContext = createContext<ObraContextType | undefined>(undefined);
 const STORAGE_KEY = 'sgdl_obra_id';
 
 export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+    const { isAuthenticated } = useAuth();
     const [obras, setObras] = useState<Obra[]>([]);
     const [selectedObra, setSelectedObraState] = useState<Obra | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
     const fetchObras = useCallback(async () => {
+        if (!isAuthenticated) {
+            setIsLoading(false);
+            return;
+        }
+
         setIsLoading(true);
         try {
             const res = await api.get<ApiResponse<Obra[]>>('/obras?activo=true');
@@ -41,10 +48,6 @@ export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     localStorage.setItem(STORAGE_KEY, String(list[0].id));
                 }
             } else if (list.length > 0) {
-                // Default to first visit behavior (or force ALL if preferred? for now defaulting to first as before unless modified)
-                // Actually, let's default to 'ALL' (null) if nothing saved, to allow global view by default? 
-                // Previous behavior was defaulting to list[0]. User asked "what logic". 
-                // Let's stick to: If nothing saved, default to ALL (null). 
                 setSelectedObraState(null);
             }
         } catch {
@@ -52,7 +55,7 @@ export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } finally {
             setIsLoading(false);
         }
-    }, []);
+    }, [isAuthenticated]);
 
     useEffect(() => {
         fetchObras();

@@ -34,9 +34,11 @@ import { cn } from '../utils/cn';
 import type { Trabajador, Empresa, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useAuth } from '../context/AuthContext';
 
 const WorkersPage: React.FC = () => {
     const { selectedObra } = useObra();
+    const { checkPermission } = useAuth();
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [empresas, setEmpresas] = useState<Empresa[]>([]);
     const [cargos, setCargos] = useState<Cargo[]>([]);
@@ -243,13 +245,16 @@ const WorkersPage: React.FC = () => {
             </Button>
             <Button
                 onClick={handleNewWorker}
+                disabled={!checkPermission('trabajadores', 'puede_crear')}
                 leftIcon={<UserPlus className="h-4 w-4" />}
                 size="sm"
+                className={!checkPermission('trabajadores', 'puede_crear') ? "opacity-40 grayscale-[100%] cursor-not-allowed" : ""}
+                title={!checkPermission('trabajadores', 'puede_crear') ? "No tienes permisos" : "Nuevo Trabajador"}
             >
                 Nuevo Trabajador
             </Button>
         </div>
-    ), [handleNewWorker, handleExportExcel]);
+    ), [handleNewWorker, handleExportExcel, checkPermission]);
 
     // Global Header
     useSetPageHeader(headerTitle, headerActions);
@@ -463,19 +468,29 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 text-[#34C759] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className={cn(
+                                                            "h-10 w-10 text-[#34C759] hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                            !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                                                        )}
+                                                        disabled={!checkPermission('trabajadores', 'puede_editar')}
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('form');
                                                         }}
+                                                        title={!checkPermission('trabajadores', 'puede_editar') ? "No tienes permisos" : "Editar"}
                                                     >
                                                         <UserPen className="h-5 w-5" />
                                                     </Button>
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 text-[#FF3B30] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className={cn(
+                                                            "h-10 w-10 text-[#FF3B30] hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                            !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                                                        )}
+                                                        disabled={!checkPermission('trabajadores', 'puede_eliminar')}
                                                         onClick={() => handleDelete(worker.id)}
+                                                        title={!checkPermission('trabajadores', 'puede_eliminar') ? "No tienes permisos" : "Eliminar"}
                                                     >
                                                         <Trash2 className="h-5 w-5" />
                                                     </Button>
@@ -579,8 +594,11 @@ const WorkersPage: React.FC = () => {
                                 <Button
                                     size="sm"
                                     variant={isUploading ? 'glass' : 'primary'}
+                                    disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
                                     onClick={() => setIsUploading(!isUploading)}
                                     leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                                    className={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}
+                                    title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
                                 >
                                     {isUploading ? 'Volver a la lista' : 'Subir Documento'}
                                 </Button>
