@@ -19,7 +19,7 @@ router.post('/bulk/:obra_id', auth, checkPermission('asistencia', 'puede_crear')
         if (!obra_id || !registros || !Array.isArray(registros)) {
             return res.status(400).json({ error: 'obra_id y registros[] son requeridos' });
         }
-        const result = await asistenciaService.bulkCreate(obra_id, registros, req.user.id);
+        const result = await asistenciaService.bulkCreate(obra_id, registros, req.user.id, req);
         res.status(201).json({ data: result });
     } catch (err) { next(err); }
 });

@@ -1,12 +1,15 @@
 const db = require('../config/db');
 const ExcelJS = require('exceljs');
+const { logManualActivity } = require('../middleware/logger');
 
 const asistenciaService = {
     /**
      * Registro masivo de asistencia (array de trabajadores)
+     * Registra logs individuales solo para registros que realmente cambiaron.
      */
-    async bulkCreate(obraId, registros, registradoPor) {
+    async bulkCreate(obraId, registros, registradoPor, req) {
         const results = [];
+        const logEntries = []; // Acumular logs para insertar después del commit
         const conn = await db.getConnection();
 
         try {
@@ -16,11 +19,43 @@ const asistenciaService = {
                 const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
 
                 const [existing] = await conn.query(
-                    'SELECT id FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
+                    'SELECT * FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
                     [reg.trabajador_id, obraId, fechaNormalizada]
                 );
 
                 if (existing.length > 0) {
+                    const old = existing[0];
+                    // Detectar si realmente cambió algo (con normalización de tipos)
+                    const cambios = {};
+                    const booleanFields = new Set(['es_sabado']);
+                    const numericFields = new Set(['estado_id', 'tipo_ausencia_id', 'horas_extra']);
+                    const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra', 'es_sabado'];
+
+                    for (const f of fieldsToCheck) {
+                        let oldVal = old[f];
+                        let newVal = reg[f];
+
+                        // Normalizar vacíos
+                        if (oldVal === undefined || oldVal === '') oldVal = null;
+                        if (newVal === undefined || newVal === '') newVal = null;
+
+                        // Normalizar booleanos (DB: 0/1, Frontend: true/false)
+                        if (booleanFields.has(f)) {
+                            oldVal = oldVal === null ? false : Boolean(Number(oldVal));
+                            newVal = newVal === null ? false : Boolean(Number(newVal));
+                        }
+
+                        // Normalizar numéricos (DB: "0.00", Frontend: 0)
+                        if (numericFields.has(f)) {
+                            oldVal = oldVal === null ? null : Number(oldVal);
+                            newVal = newVal === null ? null : Number(newVal);
+                        }
+
+                        if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
+                            cambios[f] = { de: oldVal, a: newVal };
+                        }
+                    }
+
                     await conn.query(
                         `UPDATE asistencias SET estado_id = ?, tipo_ausencia_id = ?, observacion = ?,
                          hora_entrada = ?, hora_salida = ?, hora_colacion_inicio = ?, hora_colacion_fin = ?,
@@ -36,10 +71,21 @@ const asistenciaService = {
                             reg.hora_colacion_fin || null,
                             reg.horas_extra || 0,
                             reg.es_sabado || false,
-                            existing[0].id
+                            old.id
                         ]
                     );
-                    results.push({ trabajador_id: reg.trabajador_id, action: 'updated', id: existing[0].id });
+                    results.push({ trabajador_id: reg.trabajador_id, action: 'updated', id: old.id });
+
+                    // Solo loguear si hubo cambios reales
+                    if (Object.keys(cambios).length > 0) {
+                        logEntries.push({
+                            trabajador_id: reg.trabajador_id,
+                            asistencia_id: old.id,
+                            accion: 'UPDATE',
+                            cambios,
+                            fecha: fechaNormalizada
+                        });
+                    }
                 } else {
                     const [result] = await conn.query(
                         `INSERT INTO asistencias
@@ -62,16 +108,109 @@ const asistenciaService = {
                         ]
                     );
                     results.push({ trabajador_id: reg.trabajador_id, action: 'created', id: result.insertId });
+
+                    logEntries.push({
+                        trabajador_id: reg.trabajador_id,
+                        asistencia_id: result.insertId,
+                        accion: 'CREATE',
+                        cambios: null,
+                        fecha: fechaNormalizada
+                    });
                 }
             }
 
             await conn.commit();
+
+            // Después del commit, registrar logs individuales (no bloquea la respuesta)
+            if (logEntries.length > 0) {
+                this._logBulkChanges(logEntries, obraId, registradoPor, req).catch(err => {
+                    console.error('Error al registrar logs de asistencia:', err);
+                });
+            }
+
             return results;
         } catch (err) {
             await conn.rollback();
             throw err;
         } finally {
             conn.release();
+        }
+    },
+
+    /**
+     * Registra logs individuales para cambios de asistencia.
+     * Se ejecuta después del commit para no impactar la transacción principal.
+     */
+    async _logBulkChanges(entries, obraId, userId, req) {
+        // Obtener nombres de trabajadores y estados en batch (1 query cada uno)
+        const workerIds = [...new Set(entries.map(e => e.trabajador_id))];
+        const [workers] = await db.query(
+            'SELECT id, nombres, apellido_paterno FROM trabajadores WHERE id IN (?)',
+            [workerIds]
+        );
+        const workerMap = Object.fromEntries(workers.map(w => [w.id, `${w.nombres} ${w.apellido_paterno}`]));
+
+        const [estados] = await db.query('SELECT id, nombre FROM estados_asistencia');
+        const estadoMap = Object.fromEntries(estados.map(e => [e.id, e.nombre]));
+
+        let tipoAusenciaMap = {};
+        try {
+            const [tiposAusencia] = await db.query('SELECT id, nombre FROM tipos_ausencia');
+            tipoAusenciaMap = Object.fromEntries(tiposAusencia.map(t => [t.id, t.nombre]));
+        } catch (e) { /* tabla puede no existir */ }
+
+        const fieldLabels = {
+            estado_id: 'Estado',
+            tipo_ausencia_id: 'Tipo Ausencia',
+            observacion: 'Observación',
+            hora_entrada: 'Hora Entrada',
+            hora_salida: 'Hora Salida',
+            hora_colacion_inicio: 'Inicio Colación',
+            hora_colacion_fin: 'Fin Colación',
+            horas_extra: 'Horas Extra',
+            es_sabado: 'Sábado'
+        };
+
+        for (const entry of entries) {
+            const nombreTrabajador = workerMap[entry.trabajador_id] || `ID ${entry.trabajador_id}`;
+
+            let detalle;
+            if (entry.accion === 'CREATE') {
+                detalle = JSON.stringify({
+                    resumen: `Asistencia registrada: ${nombreTrabajador} (${entry.fecha})`
+                });
+            } else {
+                // Traducir IDs a nombres legibles
+                const cambiosLegibles = { ...entry.cambios };
+                if (cambiosLegibles.estado_id) {
+                    cambiosLegibles.estado_id = {
+                        de: estadoMap[cambiosLegibles.estado_id.de] || cambiosLegibles.estado_id.de,
+                        a: estadoMap[cambiosLegibles.estado_id.a] || cambiosLegibles.estado_id.a
+                    };
+                }
+                if (cambiosLegibles.tipo_ausencia_id) {
+                    cambiosLegibles.tipo_ausencia_id = {
+                        de: tipoAusenciaMap[cambiosLegibles.tipo_ausencia_id.de] || cambiosLegibles.tipo_ausencia_id.de,
+                        a: tipoAusenciaMap[cambiosLegibles.tipo_ausencia_id.a] || cambiosLegibles.tipo_ausencia_id.a
+                    };
+                }
+
+                const resumenParts = [];
+                for (const [key, val] of Object.entries(cambiosLegibles)) {
+                    const label = fieldLabels[key] || key;
+                    const formatV = (v) => v === null || v === undefined ? '—' : (v === true ? 'Sí' : (v === false ? 'No' : String(v)));
+                    resumenParts.push(`${label}: ${formatV(val.de)} → ${formatV(val.a)}`);
+                }
+
+                detalle = JSON.stringify({
+                    trabajador: nombreTrabajador,
+                    fecha: entry.fecha,
+                    cambios: cambiosLegibles,
+                    resumen: `${nombreTrabajador}: ${resumenParts.join(' | ')}`
+                });
+            }
+
+            await logManualActivity(userId, 'asistencias', entry.accion, entry.asistencia_id, detalle, req);
         }
     },
 
