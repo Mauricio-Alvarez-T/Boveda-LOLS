@@ -181,10 +181,13 @@ const activityLogger = async (req, res, next) => {
             if (!accion) return;
 
             const modulo = req.originalUrl.split('/')[2] || 'sistema';
-            if (modulo === 'health' || modulo === 'logs') return;
+            if (['health', 'logs', 'auth'].includes(modulo)) return;
 
             // Excluir rutas bulk de asistencias (se loguean manualmente desde el servicio)
             if (req.originalUrl.includes('/asistencias/bulk')) return;
+
+            // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)
+            if (req.originalUrl.match(/\/(kpi|exportar|enviar|download)/i)) return;
 
             try {
                 const usuario_id = req.user ? req.user.id : null;
