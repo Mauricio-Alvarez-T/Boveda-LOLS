@@ -1,5 +1,5 @@
 import React from 'react';
-import { NavLink } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import {
     LayoutDashboard,
     Users,
@@ -9,19 +9,28 @@ import {
     ChevronLeft,
     ChevronRight,
     LogOut,
-    Settings
+    Settings,
+    X
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 
 interface SidebarProps {
     isCollapsed: boolean;
     setIsCollapsed: (v: boolean) => void;
+    mobileOpen: boolean;
+    setMobileOpen: (v: boolean) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed }) => {
+export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) => {
     const { user, logout, checkPermission } = useAuth();
+    const location = useLocation();
+
+    // Auto-close mobile drawer on route change
+    React.useEffect(() => {
+        setMobileOpen(false);
+    }, [location.pathname]);
 
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/', visible: true },
@@ -51,25 +60,29 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
         },
     ].filter(i => i.visible);
 
-    return (
-        <motion.aside
-            animate={{ width: isCollapsed ? '72px' : '260px' }}
-            className="h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-[#D2D2D7] flex flex-col z-40 transition-all duration-300"
-        >
+    const sidebarContent = (isMobile: boolean) => (
+        <>
             {/* Logo Section */}
-            <div className="px-5 py-6 flex items-center gap-3">
-                <div className="h-9 w-9 shrink-0 bg-[#0071E3] rounded-xl flex items-center justify-center shadow-sm">
-                    <ShieldCheck className="h-5 w-5 text-white" />
+            <div className="px-5 py-6 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                    <div className="h-9 w-9 shrink-0 bg-[#0071E3] rounded-xl flex items-center justify-center shadow-sm">
+                        <ShieldCheck className="h-5 w-5 text-white" />
+                    </div>
+                    {(isMobile || !isCollapsed) && (
+                        <motion.div
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            className="flex flex-col"
+                        >
+                            <span className="font-semibold text-base text-[#1D1D1F] leading-none">Bóveda</span>
+                            <span className="text-xs text-[#0071E3] font-bold tracking-[0.2em] uppercase mt-0.5">LOLS</span>
+                        </motion.div>
+                    )}
                 </div>
-                {!isCollapsed && (
-                    <motion.div
-                        initial={{ opacity: 0, x: -10 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        className="flex flex-col"
-                    >
-                        <span className="font-semibold text-base text-[#1D1D1F] leading-none">Bóveda</span>
-                        <span className="text-xs text-[#0071E3] font-bold tracking-[0.2em] uppercase mt-0.5">LOLS</span>
-                    </motion.div>
+                {isMobile && (
+                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-[#F5F5F7] text-[#6E6E73]">
+                        <X className="h-5 w-5" />
+                    </button>
                 )}
             </div>
 
@@ -85,10 +98,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                                 ? "bg-[#0071E3]/8 text-[#0071E3] font-semibold"
                                 : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
                         )}
-                        title={isCollapsed ? item.label : ''}
+                        title={(!isMobile && isCollapsed) ? item.label : ''}
                     >
                         <item.icon className="h-5 w-5 shrink-0" />
-                        {!isCollapsed && (
+                        {(isMobile || !isCollapsed) && (
                             <motion.span
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
@@ -105,23 +118,35 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
             <div className="p-3 border-t border-[#E8E8ED]">
                 <div className={cn(
                     "flex items-center gap-3 p-2.5 rounded-xl bg-[#F5F5F7] transition-all",
-                    isCollapsed ? "justify-center" : "justify-start"
+                    (!isMobile && isCollapsed) ? "justify-center" : "justify-start"
                 )}>
                     <div className="h-10 w-10 shrink-0 rounded-full bg-[#0071E3] flex items-center justify-center text-sm font-semibold text-white">
                         {user?.nombre?.[0]}
                     </div>
-                    {!isCollapsed && (
+                    {(isMobile || !isCollapsed) && (
                         <div className="flex-1 min-w-0">
                             <p className="text-sm font-semibold text-[#1D1D1F] truncate">{user?.nombre}</p>
                             <p className="text-xs text-[#6E6E73] truncate">{user?.rol}</p>
                         </div>
                     )}
-                    {!isCollapsed && (
+                    {(isMobile || !isCollapsed) && (
                         <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-[#FF3B30] transition-colors">
                             <LogOut className="h-4 w-4" />
                         </button>
                     )}
                 </div>
+            </div>
+        </>
+    );
+
+    return (
+        <>
+            {/* Desktop Sidebar */}
+            <motion.aside
+                animate={{ width: isCollapsed ? '72px' : '260px' }}
+                className="hidden md:flex h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-[#D2D2D7] flex-col z-40 transition-all duration-300"
+            >
+                {sidebarContent(false)}
 
                 {/* Collapse Toggle */}
                 <button
@@ -130,7 +155,34 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed })
                 >
                     {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
                 </button>
-            </div>
-        </motion.aside>
+            </motion.aside>
+
+            {/* Mobile Drawer */}
+            <AnimatePresence>
+                {mobileOpen && (
+                    <>
+                        {/* Overlay */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            transition={{ duration: 0.2 }}
+                            className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+                            onClick={() => setMobileOpen(false)}
+                        />
+                        {/* Drawer */}
+                        <motion.aside
+                            initial={{ x: '-100%' }}
+                            animate={{ x: 0 }}
+                            exit={{ x: '-100%' }}
+                            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                            className="md:hidden fixed inset-y-0 left-0 w-[280px] bg-white flex flex-col z-50 shadow-2xl"
+                        >
+                            {sidebarContent(true)}
+                        </motion.aside>
+                    </>
+                )}
+            </AnimatePresence>
+        </>
     );
 };

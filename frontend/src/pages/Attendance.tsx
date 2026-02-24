@@ -12,7 +12,8 @@ import {
     BarChart3,
     MessageCircle,
     CalendarDays,
-    FileDown
+    FileDown,
+    ChevronDown
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -312,6 +313,14 @@ const AttendancePage: React.FC = () => {
         return formatted.charAt(0).toUpperCase() + formatted.slice(1);
     }, [date]);
 
+    // Short date for mobile
+    const shortDate = useMemo(() => {
+        const d = new Date(date + 'T12:00:00');
+        const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
+        const formatted = d.toLocaleDateString('es-CL', options);
+        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
+    }, [date]);
+
     const dayOfWeek = useMemo(() => {
         return new Date(date + 'T12:00:00').getDay();
     }, [date]);
@@ -355,12 +364,16 @@ const AttendancePage: React.FC = () => {
 
     const headerTitle = useMemo(() => (
         selectedObra ? (
-            <div className="flex items-center gap-3">
-                <CheckSquare className="h-6 w-6 text-[#0071E3]" />
-                <div className="flex flex-col leading-tight">
-                    <h1 className="text-lg font-bold text-[#1D1D1F]">Control de Asistencia</h1>
-                    <p className="text-[#6E6E73] text-xs">
-                        {selectedObra.nombre} <span className="mx-1.5">•</span> <span className="font-medium text-[#1D1D1F]">{formattedDate}</span>
+            <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-[#0071E3] shrink-0" />
+                <div className="flex flex-col leading-tight min-w-0">
+                    <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Asistencia</h1>
+                    <p className="text-[#6E6E73] text-[10px] md:text-xs truncate">
+                        <span className="hidden md:inline">{selectedObra.nombre} <span className="mx-1.5">•</span></span>
+                        <span className="font-medium text-[#1D1D1F]">
+                            <span className="md:hidden">{shortDate}</span>
+                            <span className="hidden md:inline">{formattedDate}</span>
+                        </span>
                     </p>
                 </div>
             </div>
@@ -370,11 +383,11 @@ const AttendancePage: React.FC = () => {
                 <h1 className="text-lg font-bold text-[#1D1D1F]">Control de Asistencia</h1>
             </div>
         )
-    ), [selectedObra, formattedDate]);
+    ), [selectedObra, formattedDate, shortDate]);
 
     const headerActions = useMemo(() => (
         selectedObra ? (
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 md:gap-2">
                 <Button
                     onClick={handleShareWhatsApp}
                     variant="glass"
@@ -383,7 +396,7 @@ const AttendancePage: React.FC = () => {
                     leftIcon={<MessageCircle className="h-4 w-4" />}
                     size="sm"
                 >
-                    <span className="hidden sm:inline">WhatsApp</span>
+                    <span className="hidden lg:inline">WhatsApp</span>
                 </Button>
                 <Button
                     onClick={handleExportExcel}
@@ -392,18 +405,22 @@ const AttendancePage: React.FC = () => {
                     leftIcon={<FileDown className="h-4 w-4" />}
                     size="sm"
                 >
-                    <span className="hidden sm:inline">Reporte Mensual</span>
+                    <span className="hidden lg:inline">Reporte Mensual</span>
                 </Button>
+                {/* Desktop save button */}
                 <Button
                     onClick={handleSave}
                     isLoading={saving}
                     disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar')}
                     leftIcon={<Save className="h-4 w-4" />}
                     size="sm"
-                    className={!checkPermission('asistencia', 'puede_editar') ? "opacity-40 grayscale-[100%] cursor-not-allowed" : ""}
+                    className={cn(
+                        "hidden md:flex",
+                        !checkPermission('asistencia', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                    )}
                     title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : "Guardar Asistencia"}
                 >
-                    Guardar Asistencia
+                    Guardar
                 </Button>
             </div>
         ) : null
@@ -426,20 +443,22 @@ const AttendancePage: React.FC = () => {
     }
 
     return (
-        <div className="space-y-4">
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4">
-                <div className="flex flex-col md:flex-row gap-4 items-center">
-                    <div className="flex items-center gap-2">
+        <div className="space-y-3 md:space-y-4 pb-20 md:pb-4">
+            {/* ── Date Navigation + Stats ── */}
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-3 md:p-4">
+                <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:items-center">
+                    {/* Date Nav */}
+                    <div className="flex items-center gap-2 justify-between md:justify-start">
                         <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(-1)}>
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <div className="relative">
+                        <div className="relative flex-1 md:flex-none">
                             <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6E6E73]" />
                             <input
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#0071E3] transition-colors"
+                                className="w-full md:w-auto pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#0071E3] transition-colors"
                             />
                         </div>
                         <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(1)}>
@@ -457,19 +476,20 @@ const AttendancePage: React.FC = () => {
 
                     <div className="hidden md:block h-8 w-px bg-[#D2D2D7]" />
 
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F7] rounded-full">
+                    {/* Stats Chips */}
+                    <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-[#F5F5F7] rounded-full">
                             <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
                             <span className="text-xs font-bold text-[#1D1D1F]">{summary.total}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#34C759]/8 rounded-full">
+                        <div className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-[#34C759]/8 rounded-full">
                             <BarChart3 className="h-3.5 w-3.5 text-[#34C759]" />
                             <span className="text-xs font-bold text-[#34C759]">{summary.porcentaje}%</span>
                         </div>
                         {summary.desglose.map(({ estado, count }) => (
                             <span
                                 key={estado.id}
-                                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                                className="text-[10px] font-bold px-2 md:px-2.5 py-1 rounded-full"
                                 style={{
                                     backgroundColor: `${estado.color}14`,
                                     color: estado.color
@@ -492,17 +512,21 @@ const AttendancePage: React.FC = () => {
                 )}
             </div>
 
-            <div className="relative">
-                <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1A6]" />
-                <input
-                    type="text"
-                    placeholder="Buscar trabajador por nombre o RUT..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-3 bg-white border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#0071E3] transition-colors"
-                />
+            {/* ── Search Bar (sticky on mobile) ── */}
+            <div className="sticky top-14 md:top-16 z-20 -mx-3 px-3 md:mx-0 md:px-0 py-1 md:py-0 bg-[#F5F5F7] md:bg-transparent">
+                <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1A6]" />
+                    <input
+                        type="text"
+                        placeholder="Buscar por nombre o RUT..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#0071E3] transition-colors"
+                    />
+                </div>
             </div>
 
+            {/* ── Worker List ── */}
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center">
                     <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
@@ -515,6 +539,7 @@ const AttendancePage: React.FC = () => {
                 </div>
             ) : (
                 <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+                    {/* Desktop Header */}
                     <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
                         <span>Trabajador</span>
                         <span className="w-[320px] text-center">Estado</span>
@@ -540,7 +565,112 @@ const AttendancePage: React.FC = () => {
                                         isNotPresent && "bg-[#FEF8F8]"
                                     )}
                                 >
-                                    <div className="grid grid-cols-1 md:grid-cols-[1fr_auto_auto_auto] gap-3 md:gap-4 px-4 md:px-5 py-3 items-center">
+                                    {/* ── MOBILE CARD ── */}
+                                    <div className="md:hidden p-3">
+                                        {/* Row 1: Avatar + Name + Calendar btn */}
+                                        <div className="flex items-center gap-3 mb-3">
+                                            <div
+                                                className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
+                                                style={{ backgroundColor: currentEstado?.color || '#34C759' }}
+                                            >
+                                                {worker.nombres.charAt(0)}{worker.apellido_paterno.charAt(0)}
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-semibold text-[#1D1D1F] truncate">
+                                                    {worker.apellido_paterno}, {worker.nombres}
+                                                </p>
+                                                <p className="text-[11px] text-[#6E6E73]">
+                                                    {worker.rut}
+                                                    {worker.cargo_nombre && <> · <span className="text-[#0071E3]">{worker.cargo_nombre}</span></>}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => setCalendarWorker(worker)}
+                                                className="p-2 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors shrink-0"
+                                            >
+                                                <CalendarDays className="h-4 w-4" />
+                                            </button>
+                                        </div>
+
+                                        {/* Row 2: State Buttons — large touch targets */}
+                                        <div className="flex gap-1.5">
+                                            {estados.map((est) => {
+                                                const isActive = state.estado_id === est.id;
+                                                return (
+                                                    <button
+                                                        key={est.id}
+                                                        onClick={() => {
+                                                            const updates: Partial<Asistencia> = {
+                                                                estado_id: est.id,
+                                                                tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
+                                                                es_sabado: isSaturday
+                                                            };
+                                                            if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
+                                                                const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
+                                                                const dayIndex = new Date(date + 'T12:00:00').getDay();
+                                                                const dayStr = dowMap[dayIndex];
+                                                                const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
+
+                                                                if (currentSchedule) {
+                                                                    updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
+                                                                    updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                                                                    updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
+                                                                    updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+                                                                }
+                                                            }
+                                                            updateAttendance(worker.id, updates);
+                                                            if (!est.es_presente && expandedWorkerId !== worker.id) {
+                                                                setExpandedWorkerId(worker.id);
+                                                            }
+                                                        }}
+                                                        disabled={!checkPermission('asistencia', 'puede_editar')}
+                                                        className={cn(
+                                                            "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border",
+                                                            isActive
+                                                                ? "text-white border-transparent shadow-sm"
+                                                                : "bg-white border-[#E8E8ED] text-[#6E6E73] active:scale-95"
+                                                        )}
+                                                        style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
+                                                    >
+                                                        {est.codigo}
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+
+                                        {/* Row 3: Absence type selector (if not present) */}
+                                        {isNotPresent && (
+                                            <div className="mt-2">
+                                                <select
+                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3 py-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                    value={state.tipo_ausencia_id || ''}
+                                                    onChange={(e) => updateAttendance(worker.id, {
+                                                        tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
+                                                    })}
+                                                    disabled={!checkPermission('asistencia', 'puede_editar')}
+                                                >
+                                                    <option value="">Causa de ausencia...</option>
+                                                    {absenceTypes.map(t => (
+                                                        <option key={t.id} value={t.id}>{t.nombre}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                        )}
+
+                                        {/* Row 4: Expandable detail toggle */}
+                                        {!isNotPresent && (
+                                            <button
+                                                onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
+                                                className="mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#0071E3] font-medium rounded-lg hover:bg-[#0071E3]/5 transition-colors"
+                                            >
+                                                <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
+                                                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
+                                            </button>
+                                        )}
+                                    </div>
+
+                                    {/* ── DESKTOP ROW (unchanged) ── */}
+                                    <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 items-center">
                                         <div className="flex items-center gap-3 min-w-0">
                                             <div
                                                 className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
@@ -559,7 +689,7 @@ const AttendancePage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-1 w-full md:w-[320px] overflow-x-auto">
+                                        <div className="flex gap-1 w-[320px] overflow-x-auto">
                                             {estados.map((est) => {
                                                 const isActive = state.estado_id === est.id;
                                                 return (
@@ -603,7 +733,7 @@ const AttendancePage: React.FC = () => {
                                             })}
                                         </div>
 
-                                        <div className="w-full md:w-[180px] flex items-center justify-between gap-2">
+                                        <div className="w-[180px] flex items-center justify-between gap-2">
                                             <div className="flex-1">
                                                 {isNotPresent ? (
                                                     <select
@@ -640,7 +770,7 @@ const AttendancePage: React.FC = () => {
                                             </button>
                                         </div>
 
-                                        <div className="w-full md:w-[60px]">
+                                        <div className="w-[60px]">
                                             <input
                                                 type="number"
                                                 min="0"
@@ -656,6 +786,7 @@ const AttendancePage: React.FC = () => {
                                         </div>
                                     </div>
 
+                                    {/* ── Expanded Detail (shared) ── */}
                                     <AnimatePresence>
                                         {isExpanded && (
                                             <motion.div
@@ -664,20 +795,37 @@ const AttendancePage: React.FC = () => {
                                                 exit={{ height: 0, opacity: 0 }}
                                                 className="overflow-hidden bg-[#FAFAFA]"
                                             >
-                                                <div className="px-5 pb-4 pt-1 grid grid-cols-1 md:grid-cols-5 gap-3">
+                                                <div className="px-3 md:px-5 pb-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-3">
                                                     <TimeStepperInput label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
                                                     <TimeStepperInput label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
-                                                    <TimeStepperInput label="Colación Inicio" value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
+                                                    <TimeStepperInput label="Colación Ini." value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
                                                     <TimeStepperInput label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
-                                                    <div>
-                                                        <label className="text-[9px] font-semibold text-[#6E6E73] uppercase block mb-1">Nota</label>
-                                                        <input
-                                                            type="text"
-                                                            placeholder="..."
-                                                            className="w-full bg-white border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-xs text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
-                                                            value={state.observacion || ''}
-                                                            onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
-                                                        />
+                                                    <div className="col-span-2 md:col-span-1 grid grid-cols-2 gap-3">
+                                                        <div>
+                                                            <label className="text-[9px] font-semibold text-[#6E6E73] uppercase block mb-1">H. Extra</label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                max="24"
+                                                                step="0.5"
+                                                                placeholder="0"
+                                                                className="w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-center text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                                value={state.horas_extra || ''}
+                                                                onChange={(e) => updateAttendance(worker.id, {
+                                                                    horas_extra: parseFloat(e.target.value) || 0
+                                                                })}
+                                                            />
+                                                        </div>
+                                                        <div>
+                                                            <label className="text-[9px] font-semibold text-[#6E6E73] uppercase block mb-1">Nota</label>
+                                                            <input
+                                                                type="text"
+                                                                placeholder="..."
+                                                                className="w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                                value={state.observacion || ''}
+                                                                onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
+                                                            />
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </motion.div>
@@ -688,6 +836,26 @@ const AttendancePage: React.FC = () => {
                         })}
                     </AnimatePresence>
                 </div>
+            )}
+
+            {/* ── Mobile FAB Save Button ── */}
+            {selectedObra && workers.length > 0 && (
+                <motion.button
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className={cn(
+                        "md:hidden fixed bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-[#0071E3] text-white shadow-lg shadow-[#0071E3]/30 flex items-center justify-center active:scale-90 transition-transform",
+                        (!checkPermission('asistencia', 'puede_editar') || saving) && "opacity-50 pointer-events-none"
+                    )}
+                    onClick={handleSave}
+                    disabled={saving || !checkPermission('asistencia', 'puede_editar')}
+                >
+                    {saving ? (
+                        <Loader2 className="h-6 w-6 animate-spin" />
+                    ) : (
+                        <Save className="h-6 w-6" />
+                    )}
+                </motion.button>
             )}
 
             <WorkerCalendarModal
