@@ -24,7 +24,6 @@ import {
     SortableContext,
     rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { motion } from 'framer-motion';
 
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
@@ -32,7 +31,6 @@ import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
-import { Button } from '../components/ui/Button';
 
 // Widgets
 import WidgetWrapper from '../components/dashboard/WidgetWrapper';
@@ -115,7 +113,33 @@ const Dashboard: React.FC = () => {
         </div>
     ), [resetLayout]);
 
-    useSetPageHeader(headerTitle, headerActions);
+    const notifications = useMemo(() => {
+        if (!data || data.alerts.length === 0) return undefined;
+        return {
+            count: data.saludo.totalAlertas,
+            content: (
+                <div className="flex flex-col gap-2">
+                    {data.alerts.map((alert, idx) => (
+                        <div
+                            key={idx}
+                            onClick={() => navigate(alert.ruta)}
+                            className="p-3 bg-[#F5F5F7] rounded-xl flex items-start gap-3 hover:bg-[#E8E8ED] transition-colors cursor-pointer"
+                        >
+                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-[#FF3B30]' :
+                                alert.tipo === 'warning' ? 'text-[#FF9F0A]' : 'text-[#0071E3]'
+                                }`} />
+                            <div className="flex-1 min-w-0">
+                                <p className="text-xs font-semibold text-[#1D1D1F]">{alert.titulo}</p>
+                                <p className="text-xs text-[#6E6E73] mt-0.5 leading-relaxed">{alert.mensaje}</p>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )
+        };
+    }, [data, navigate]);
+
+    useSetPageHeader(headerTitle, headerActions, notifications);
 
     // ─── Fetch Data ───
     useEffect(() => {
@@ -223,25 +247,6 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            {/* ── Contextual Greeting ── */}
-            <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="bg-gradient-to-r from-[#0071E3]/5 to-[#5856D6]/5 rounded-2xl border border-[#0071E3]/10 p-5"
-            >
-                <p className="text-sm text-[#1D1D1F] font-medium leading-relaxed">
-                    {data.saludo.resumen}
-                </p>
-                {data.saludo.totalAlertas > 0 && (
-                    <div className="mt-2 flex items-center gap-2">
-                        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-[#FF9F0A] bg-[#FF9F0A]/10 px-2 py-0.5 rounded-full">
-                            <AlertTriangle className="h-3 w-3" />
-                            {data.saludo.totalAlertas} {data.saludo.totalAlertas === 1 ? 'alerta' : 'alertas'}
-                        </span>
-                    </div>
-                )}
-            </motion.div>
-
             {/* ── KPI Cards (static top row, not draggable) ── */}
             {kpiWidgets.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
