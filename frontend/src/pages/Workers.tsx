@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
     Users,
     Search,
@@ -57,6 +57,7 @@ const WorkersPage: React.FC = () => {
         threshold: 0,
         rootMargin: '100px',
     });
+    const fetchingRef = useRef(false);
 
     // Document completion data: { [workerId]: { uploaded, total, percentage } }
     const [completion, setCompletion] = useState<Record<number, { uploaded: number, total: number, percentage: number }>>({});
@@ -84,6 +85,9 @@ const WorkersPage: React.FC = () => {
     }, []);
 
     const fetchWorkers = async (pageNumber: number = 1) => {
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
+
         if (pageNumber === 1) {
             setLoading(true);
         } else {
@@ -97,7 +101,7 @@ const WorkersPage: React.FC = () => {
             const activoQuery = !showInactive ? '&activo=true' : '';
 
             const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}${activoQuery}&page=${pageNumber}&limit=50`);
-            const data = response.data.data;
+            const data = response.data?.data || [];
 
             setWorkers(prev => pageNumber === 1 ? data : [...prev, ...data]);
             setHasMore(data.length === 50); // Pagination info based on length
@@ -112,14 +116,20 @@ const WorkersPage: React.FC = () => {
                     // Silently fail — completion will show 0%
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error fetching workers:', error);
-            toast.error('Error al cargar trabajadores');
+            const msg = error.response?.data?.error || error.response?.data?.message || error.message || '';
+            toast.error(`Error al cargar trabajadores. ${msg}`);
+            setHasMore(false); // Stop trying to fetch on error
         } finally {
             if (pageNumber === 1) {
                 setLoading(false);
             }
             setIsLoadingMore(false);
+            // Small delay to allow react-intersection-observer to update inView before next fetch
+            setTimeout(() => {
+                fetchingRef.current = false;
+            }, 200);
         }
     };
 
@@ -145,10 +155,12 @@ const WorkersPage: React.FC = () => {
 
     // Infinite Scroll trigger
     useEffect(() => {
-        if (inView && hasMore && !loading && !isLoadingMore) {
-            const nextPage = page + 1;
-            setPage(nextPage);
-            fetchWorkers(nextPage);
+        if (inView && hasMore && !loading && !isLoadingMore && !fetchingRef.current) {
+            setPage(prev => {
+                const next = prev + 1;
+                fetchWorkers(next);
+                return next;
+            });
         }
     }, [inView, hasMore, loading, isLoadingMore]);
 
