@@ -15,7 +15,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
     const obraFilter = obraId ? 'AND t.obra_id = ?' : '';
     const obraFilterWhere = obraId ? 'WHERE t.obra_id = ?' : '';
     const docObraFilter = obraId ? 'AND tr.obra_id = ?' : '';
-    const asistFilter = obraId ? 'AND obra_id = ?' : '';
+    const asistFilter = obraId ? 'AND a.obra_id = ?' : '';
 
     const result = {
         counters: {},
