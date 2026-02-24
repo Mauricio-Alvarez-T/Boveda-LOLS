@@ -15,7 +15,9 @@ const LABEL_MAP = {
     estado_id: 'Estado Asistencia', tipo_ausencia_id: 'Tipo Ausencia',
     observacion: 'Observación', hora_entrada: 'Hora Entrada', hora_salida: 'Hora Salida',
     horas_extra: 'Horas Extra', fecha_ingreso: 'F. Ingreso',
-    categoria_reporte: 'Categoría Reporte', rol_id: 'Rol'
+    categoria_reporte: 'Categoría Reporte', rol_id: 'Rol',
+    tipo_documento_id: 'Tipo Documento', trabajador_id: 'Trabajador',
+    fecha_vencimiento: 'F. Vencimiento'
 };
 
 /**
@@ -34,37 +36,46 @@ const normalize = (v) => {
 /**
  * Resuelve IDs de tablas maestras a nombres legibles.
  */
-const resolveNames = async (cambios) => {
+const resolveNames = async (obj) => {
     const tableMap = {
         empresa_id: { table: 'empresas', field: 'razon_social' },
         obra_id: { table: 'obras', field: 'nombre' },
         cargo_id: { table: 'cargos', field: 'nombre' },
         estado_id: { table: 'estados_asistencia', field: 'nombre' },
         tipo_ausencia_id: { table: 'tipos_ausencia', field: 'nombre' },
-        rol_id: { table: 'roles', field: 'nombre' }
+        rol_id: { table: 'roles', field: 'nombre' },
+        tipo_documento_id: { table: 'tipos_documento', field: 'nombre' },
+        trabajador_id: { table: 'trabajadores', field: "CONCAT(nombres, ' ', apellido_paterno)" }
     };
 
-    const resolvedCambios = { ...cambios };
+    const result = { ...obj };
 
     for (const [key, config] of Object.entries(tableMap)) {
-        if (resolvedCambios[key]) {
-            const { de, a } = resolvedCambios[key];
-            const ids = [de, a].filter(id => id !== null && !isNaN(id));
+        if (result[key] !== undefined && result[key] !== null) {
+            const val = result[key];
 
-            if (ids.length > 0) {
-                try {
-                    const [rows] = await db.query(`SELECT id, ${config.field} FROM ${config.table} WHERE id IN (?)`, [ids]);
-                    const nameMap = Object.fromEntries(rows.map(r => [String(r.id), r[config.field]]));
-
-                    if (de !== null) resolvedCambios[key].de = nameMap[String(de)] || de;
-                    if (a !== null) resolvedCambios[key].a = nameMap[String(a)] || a;
-                } catch (err) {
-                    console.error(`Error resolviendo nombres para ${key}:`, err);
+            // Caso 1: Formato { de: X, a: Y } (UPDATE)
+            if (typeof val === 'object' && ('de' in val || 'a' in val)) {
+                const ids = [val.de, val.a].filter(id => id !== null && !isNaN(id));
+                if (ids.length > 0) {
+                    try {
+                        const [rows] = await db.query(`SELECT id, ${config.field} as label FROM ${config.table} WHERE id IN (?)`, [ids]);
+                        const nameMap = Object.fromEntries(rows.map(r => [String(r.id), r.label]));
+                        if (val.de !== null) result[key].de = nameMap[String(val.de)] || val.de;
+                        if (val.a !== null) result[key].a = nameMap[String(val.a)] || val.a;
+                    } catch (err) { console.error(`Error resolving ${key} (multi):`, err); }
                 }
+            }
+            // Caso 2: Valor plano (CREATE)
+            else if (!isNaN(val)) {
+                try {
+                    const [rows] = await db.query(`SELECT ${config.field} as label FROM ${config.table} WHERE id = ?`, [val]);
+                    if (rows.length > 0) result[key] = rows[0].label;
+                } catch (err) { console.error(`Error resolving ${key} (single):`, err); }
             }
         }
     }
-    return resolvedCambios;
+    return result;
 };
 
 /**
@@ -110,7 +121,7 @@ const buildResumen = (cambios) => {
  * Genera un resumen legible para una creación (top 4 campos más informativos).
  */
 const buildCreateResumen = (body) => {
-    const priorityKeys = ['rut', 'nombres', 'apellido_paterno', 'razon_social', 'nombre', 'email', 'asunto'];
+    const priorityKeys = ['rut', 'nombres', 'apellido_paterno', 'trabajador_id', 'tipo_documento_id', 'razon_social', 'nombre', 'email', 'asunto'];
     const parts = [];
     for (const key of priorityKeys) {
         if (body[key] && parts.length < 4) {
@@ -202,9 +213,10 @@ const activityLogger = async (req, res, next) => {
                         });
                     } else {
                         // CREATE: resumen compacto y datos completos
+                        const resolvedBody = await resolveNames(bodyClone);
                         detalle = JSON.stringify({
-                            datos: bodyClone,
-                            resumen: buildCreateResumen(bodyClone)
+                            datos: resolvedBody,
+                            resumen: buildCreateResumen(resolvedBody)
                         });
                     }
                 }

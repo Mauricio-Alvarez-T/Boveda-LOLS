@@ -42,7 +42,8 @@ const labelMap: Record<string, string> = {
     hora_salida: 'Hora Salida',
     horas_extra: 'Horas Extra',
     categoria_reporte: 'Categoría',
-    trabajador: 'Trabajador',
+    trabajador_id: 'Trabajador',
+    fecha_vencimiento: 'F. Vencimiento',
     resumen: 'Resumen',
     cambios: 'Cambios'
 };
