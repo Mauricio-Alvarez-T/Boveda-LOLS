@@ -576,10 +576,10 @@ const AttendancePage: React.FC = () => {
 
                             return (
                                 <motion.div
-                                    key={worker.id}
-                                    initial={{ opacity: 0, y: 40 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: false, amount: 0.1 }}
+                                    key={`${worker.id}-${date}`}
+                                    initial={{ opacity: 0, y: 40, scale: 0.95 }}
+                                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                                    viewport={{ once: false, margin: "0px 0px -20px 0px" }}
                                     transition={{ type: "spring", stiffness: 260, damping: 20 }}
                                     className={cn(
                                         "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
