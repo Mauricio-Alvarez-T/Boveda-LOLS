@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { HardHat, ChevronUp, Home, Check } from 'lucide-react';
+import { HardHat, ChevronUp, Home, Check, Map } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useObra } from '../../context/ObraContext';
 
@@ -27,11 +27,12 @@ export const ObraSelector: React.FC = () => {
 
     return (
         <div ref={containerRef} className="relative">
-            {/* Mobile: pill format without icon */}
+            {/* Mobile: pill format with Map icon */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden flex items-center justify-center px-4 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm max-w-[150px]"
+                className="md:hidden flex items-center justify-center gap-1.5 px-4 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm max-w-[150px]"
             >
+                <Map className="h-4 w-4 text-[#0071E3]" />
                 <span className="truncate">{selectedObra?.nombre || 'Obra'}</span>
             </button>
 

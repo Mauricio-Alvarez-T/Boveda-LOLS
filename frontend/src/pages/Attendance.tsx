@@ -10,7 +10,7 @@ import {
     Calendar,
     Clock,
     BarChart3,
-    MessageCircle,
+    Send,
     CalendarDays,
     FileDown,
     ChevronDown
@@ -388,13 +388,19 @@ const AttendancePage: React.FC = () => {
     const headerActions = useMemo(() => (
         selectedObra ? (
             <div className="flex items-center gap-1 md:gap-2">
+                {/* Mobile Worker Count Chip */}
+                <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E8ED] rounded-full text-[13px] font-bold text-[#1D1D1F] shrink-0">
+                    <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
+                    <span>{summary.total}</span>
+                </div>
+
                 {/* Mobile WhatsApp Button */}
                 <button
                     onClick={handleShareWhatsApp}
                     className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm shrink-0"
                     title="Enviar por WhatsApp"
                 >
-                    <MessageCircle className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
+                    <Send className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
                     <span>WhatsApp</span>
                 </button>
 
@@ -404,7 +410,7 @@ const AttendancePage: React.FC = () => {
                     variant="glass"
                     className="hidden md:flex text-[#6E6E73] hover:text-[#34C759]"
                     title="Compartir Resumen por WhatsApp"
-                    leftIcon={<MessageCircle className="h-4 w-4" />}
+                    leftIcon={<Send className="h-4 w-4" />}
                     size="sm"
                 >
                     <span className="hidden lg:inline">WhatsApp</span>
@@ -457,12 +463,12 @@ const AttendancePage: React.FC = () => {
 
     return (
         <div className="space-y-3 md:space-y-4 pb-20 md:pb-4">
-            {/* ── Date Navigation + Stats ── */}
+            {/* ── Date Navigation ── */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-3 md:p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:items-center">
-                    {/* Date Nav */}
-                    <div className="flex items-center gap-2 justify-between md:justify-start">
-                        <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(-1)}>
+                    {/* Date Nav - Full width on mobile */}
+                    <div className="flex items-center gap-2 justify-between w-full md:w-auto">
+                        <Button variant="glass" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate(-1)}>
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
                         <div className="relative flex-1 md:flex-none">
@@ -471,38 +477,39 @@ const AttendancePage: React.FC = () => {
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full md:w-auto pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#0071E3] transition-colors"
+                                className="w-full pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#0071E3] transition-colors"
                             />
                         </div>
-                        <Button variant="glass" size="icon" className="h-9 w-9" onClick={() => navigateDate(1)}>
+                        <Button variant="glass" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate(1)}>
                             <ChevronRight className="h-4 w-4" />
                         </Button>
                         <Button
                             variant="glass"
                             size="sm"
-                            className="text-xs"
+                            className="text-xs shrink-0"
                             onClick={() => setDate(new Date().toISOString().split('T')[0])}
                         >
-                            Hoy
+                            <span className="md:hidden">Hoy</span>
+                            <span className="hidden md:inline">Hoy</span>
                         </Button>
                     </div>
 
                     <div className="hidden md:block h-8 w-px bg-[#D2D2D7]" />
 
-                    {/* Stats Chips */}
-                    <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-[#F5F5F7] rounded-full">
+                    {/* Stats Chips - Hidden on Mobile, Visible on Desktop */}
+                    <div className="hidden md:flex items-center gap-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F7] rounded-full">
                             <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
                             <span className="text-xs font-bold text-[#1D1D1F]">{summary.total}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 px-2.5 md:px-3 py-1.5 bg-[#34C759]/8 rounded-full">
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#34C759]/8 rounded-full">
                             <BarChart3 className="h-3.5 w-3.5 text-[#34C759]" />
                             <span className="text-xs font-bold text-[#34C759]">{summary.porcentaje}%</span>
                         </div>
                         {summary.desglose.map(({ estado, count }) => (
                             <span
                                 key={estado.id}
-                                className="text-[10px] font-bold px-2 md:px-2.5 py-1 rounded-full"
+                                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
                                 style={{
                                     backgroundColor: `${estado.color}14`,
                                     color: estado.color
@@ -519,7 +526,7 @@ const AttendancePage: React.FC = () => {
                         "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2",
                         isSunday ? "bg-[#FF3B30]/8 text-[#FF3B30]" : "bg-[#FF9F0A]/8 text-[#FF9F0A]"
                     )}>
-                        <Clock className="h-3.5 w-3.5" />
+                        <Clock className="h-3.5 w-3.5 shrink-0" />
                         {isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — las horas trabajadas se registran como extras"}
                     </div>
                 )}
