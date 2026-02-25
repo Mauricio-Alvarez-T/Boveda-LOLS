@@ -582,6 +582,7 @@ const AttendancePage: React.FC = () => {
                                     transition={{ delay: idx * 0.01 }}
                                     className={cn(
                                         "border-b border-[#F0F0F0] last:border-b-0 transition-colors",
+                                        idx % 2 === 0 ? "bg-white" : "bg-[#F9F9FB]",
                                         isNotPresent && "bg-[#FEF8F8]"
                                     )}
                                 >

@@ -30,10 +30,10 @@ export const ObraSelector: React.FC = () => {
             {/* Mobile: pill format with Map icon */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden flex items-center justify-center gap-1.5 px-4 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm max-w-[150px]"
+                className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm max-w-[130px] shrink-0"
             >
-                <Map className="h-4 w-4 text-[#0071E3]" />
-                <span className="truncate">{selectedObra?.nombre || 'Obra'}</span>
+                <Map className="h-4 w-4 shrink-0 text-[#0071E3]" />
+                <span className="truncate flex-1 text-left">{selectedObra?.nombre || 'Obra'}</span>
             </button>
 
             {/* Desktop: full styled button */}
