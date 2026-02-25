@@ -93,6 +93,21 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// ============================================
+// PRODUCTION: Serve Frontend Static Files
+// ============================================
+if (process.env.NODE_ENV === 'production') {
+  const publicPath = path.join(__dirname, 'public');
+  app.use(express.static(publicPath));
+
+  // SPA catch-all: any non-API route serves index.html
+  app.get('*', (req, res) => {
+    if (!req.path.startsWith('/api')) {
+      res.sendFile(path.join(publicPath, 'index.html'));
+    }
+  });
+}
+
 // Error Handler (must be last)
 app.use(errorHandler);
 

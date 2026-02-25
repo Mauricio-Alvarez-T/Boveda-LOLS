@@ -48,7 +48,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         handleSubmit,
         formState: { errors },
     } = useForm<WorkerFormData>({
-        resolver: zodResolver(workerSchema),
+        resolver: zodResolver(workerSchema) as any,
         defaultValues: initialData ? {
             rut: initialData.rut,
             nombres: initialData.nombres,

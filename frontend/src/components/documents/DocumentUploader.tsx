@@ -36,7 +36,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
         handleSubmit,
         formState: { errors },
     } = useForm<UploadFormData>({
-        resolver: zodResolver(uploadSchema),
+        resolver: zodResolver(uploadSchema) as any,
     });
 
     useEffect(() => {
@@ -106,14 +106,14 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                     label="Tipo de Documento"
                     options={tipos}
                     error={errors.tipo_documento_id?.message}
-                    {...register('tipo_documento_id')}
+                    {...register('tipo_documento_id') as any}
                 />
 
                 <Input
                     label="Fecha de Vencimiento (Opcional)"
                     type="date"
                     error={errors.fecha_vencimiento?.message}
-                    {...register('fecha_vencimiento')}
+                    {...register('fecha_vencimiento') as any}
                 />
 
                 <div className="space-y-2">
