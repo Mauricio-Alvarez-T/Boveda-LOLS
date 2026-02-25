@@ -44,9 +44,9 @@ const AttendancePage: React.FC = () => {
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
 
-    // Get the default "Presente" state (es_presente flag)
+    // Get the default "Asiste" state (es_presente flag)
     const defaultEstado = useMemo(() =>
-        estados.find(e => e.codigo === 'P') || estados[0],
+        estados.find(e => e.codigo === 'A') || estados.find(e => e.es_presente) || estados[0],
         [estados]
     );
 

@@ -106,8 +106,8 @@ async function seed() {
         console.log('📅 Generando registros de asistencia (15 días)...');
         const [trabs] = await db.query('SELECT id, obra_id FROM trabajadores');
         const [estados] = await db.query('SELECT id, codigo FROM estados_asistencia');
-        const estadoP = estados.find(e => e.codigo === 'P').id;
-        const estadoA = estados.find(e => e.codigo === 'A').id;
+        const estadoP = estados.find(e => e.codigo === 'A').id;  // A = Asiste
+        const estadoA = estados.find(e => e.codigo === 'F').id;  // F = Falta
         const estadoAT = estados.find(e => e.codigo === 'AT').id;
 
         const hoy = new Date();

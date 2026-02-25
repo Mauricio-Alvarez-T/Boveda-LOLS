@@ -418,15 +418,15 @@ const asistenciaService = {
         });
 
         // 1. EXECUTIVE HEADER (Rows 1-6)
-        worksheet.mergeCells('A1:L2');
+        worksheet.mergeCells('A1:M2');
         const titleCell = worksheet.getCell('A1');
         titleCell.value = 'REPORTE EJECUTIVO DE ASISTENCIA';
         titleCell.font = { name: 'Segoe UI', size: 18, bold: true, color: { argb: 'FF1E293B' } };
         titleCell.alignment = { vertical: 'middle', horizontal: 'center' };
 
-        worksheet.mergeCells('A3:L3');
+        worksheet.mergeCells('A3:M3');
         const subTitle = worksheet.getCell('A3');
-        subTitle.value = 'Registro Histórico de Presencia y Horas Extra';
+        subTitle.value = 'Registro Histórico de Presencia y Horas Trabajadas';
         subTitle.font = { name: 'Segoe UI', size: 11, italic: true, color: { argb: 'FF64748B' } };
         subTitle.alignment = { horizontal: 'center' };
 
@@ -454,6 +454,7 @@ const asistenciaService = {
             { header: 'CAUSA/AUSENCIA', key: 'tipo_ausencia_nombre', width: 35 },
             { header: 'ENTRADA', key: 'hora_entrada', width: 12 },
             { header: 'SALIDA', key: 'hora_salida', width: 12 },
+            { header: 'HRS TRAB.', key: 'horas_trabajadas', width: 12 },
             { header: 'H. EXTRA', key: 'horas_extra', width: 12 },
             { header: 'SAB', key: 'es_sabado', width: 10 },
             { header: 'OBSERVACIÓN', key: 'observacion', width: 50 }
@@ -472,8 +473,32 @@ const asistenciaService = {
         });
         worksheet.getRow(headerRow).height = 25;
 
+        // Helper: calculate hours worked from time strings
+        const calcHorasTrabajadas = (entrada, salida, colInicio, colFin) => {
+            if (!entrada || !salida) return 0;
+            const toMinutes = (t) => {
+                const parts = t.split(':');
+                return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+            };
+            const totalMin = toMinutes(salida.slice(0, 5)) - toMinutes(entrada.slice(0, 5));
+            let colMin = 0;
+            if (colInicio && colFin) {
+                colMin = toMinutes(colFin.slice(0, 5)) - toMinutes(colInicio.slice(0, 5));
+            }
+            const worked = (totalMin - colMin) / 60;
+            return worked > 0 ? Math.round(worked * 100) / 100 : 0;
+        };
+
         // 3. DATA ROWS (Row 8+)
+        let totalHorasTrabajadas = 0;
+
         rows.forEach((r, index) => {
+            const hrsTrab = calcHorasTrabajadas(
+                r.hora_entrada, r.hora_salida,
+                r.hora_colacion_inicio, r.hora_colacion_fin
+            );
+            totalHorasTrabajadas += hrsTrab;
+
             const rowArr = [
                 typeof r.fecha === 'string' ? r.fecha.split('T')[0] : r.fecha,
                 r.rut,
@@ -484,13 +509,14 @@ const asistenciaService = {
                 r.tipo_ausencia_nombre || '-',
                 r.hora_entrada ? r.hora_entrada.slice(0, 5) : '-',
                 r.hora_salida ? r.hora_salida.slice(0, 5) : '-',
+                hrsTrab || '-',
                 parseFloat(r.horas_extra) || 0,
                 r.es_sabado ? 'SÍ' : 'NO',
                 r.observacion || '-'
             ];
 
             const row = worksheet.addRow(rowArr);
-            row.height = 28; // Increased height for better wrap handling
+            row.height = 28;
 
             if (index % 2 === 1) {
                 row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FAFC' } };
@@ -505,16 +531,39 @@ const asistenciaService = {
                 };
 
                 // Alignment for numeric/codes
-                if ([1, 2, 6, 8, 9, 10, 11].includes(colNum)) {
+                if ([1, 2, 6, 8, 9, 10, 11, 12].includes(colNum)) {
                     cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 }
             });
         });
 
-        // 4. AUTO-FILTER
+        // 4. FOOTER ROW — Total Horas Trabajadas
+        const footerRowNum = headerRow + rows.length + 1;
+        worksheet.mergeCells(footerRowNum, 1, footerRowNum, 9);
+        const footerLabel = worksheet.getCell(footerRowNum, 1);
+        footerLabel.value = 'TOTAL HORAS TRABAJADAS';
+        footerLabel.font = { name: 'Segoe UI', size: 11, bold: true, color: { argb: 'FF1E293B' } };
+        footerLabel.alignment = { horizontal: 'right', vertical: 'middle' };
+        footerLabel.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+
+        const footerValue = worksheet.getCell(footerRowNum, 10);
+        footerValue.value = Math.round(totalHorasTrabajadas * 100) / 100;
+        footerValue.font = { name: 'Segoe UI', size: 12, bold: true, color: { argb: 'FF0071E3' } };
+        footerValue.alignment = { horizontal: 'center', vertical: 'middle' };
+        footerValue.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+        footerValue.border = { top: { style: 'medium', color: { argb: 'FF1E293B' } } };
+
+        // Fill remaining footer cells with background
+        for (let c = 11; c <= 13; c++) {
+            const cell = worksheet.getCell(footerRowNum, c);
+            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2E8F0' } };
+        }
+        worksheet.getRow(footerRowNum).height = 30;
+
+        // 5. AUTO-FILTER
         worksheet.autoFilter = {
             from: { row: headerRow, column: 1 },
-            to: { row: headerRow + rows.length, column: 12 }
+            to: { row: headerRow + rows.length, column: 13 }
         };
 
         const buffer = await workbook.xlsx.writeBuffer();
