@@ -577,9 +577,10 @@ const AttendancePage: React.FC = () => {
                             return (
                                 <motion.div
                                     key={worker.id}
-                                    initial={{ opacity: 0 }}
-                                    animate={{ opacity: 1 }}
-                                    transition={{ delay: idx * 0.01 }}
+                                    initial={{ opacity: 0, y: 40 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: false, amount: 0.1 }}
+                                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
                                     className={cn(
                                         "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
                                         idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
