@@ -558,7 +558,7 @@ const AttendancePage: React.FC = () => {
                     <p className="text-[#6E6E73] text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
-                <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+                <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-[#F5F5F7] md:bg-white md:rounded-2xl md:border md:border-[#D2D2D7] overflow-hidden">
                     {/* Desktop Header */}
                     <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
                         <span>Trabajador</span>
@@ -581,8 +581,8 @@ const AttendancePage: React.FC = () => {
                                     animate={{ opacity: 1 }}
                                     transition={{ delay: idx * 0.01 }}
                                     className={cn(
-                                        "border-b border-[#F0F0F0] last:border-b-0 transition-colors",
-                                        idx % 2 === 0 ? "bg-white" : "bg-[#F9F9FB]",
+                                        "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
+                                        idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
                                         isNotPresent && "bg-[#FEF8F8]"
                                     )}
                                 >
