@@ -388,26 +388,39 @@ const AttendancePage: React.FC = () => {
     const headerActions = useMemo(() => (
         selectedObra ? (
             <div className="flex items-center gap-1 md:gap-2">
+                {/* Mobile WhatsApp Button */}
+                <button
+                    onClick={handleShareWhatsApp}
+                    className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm shrink-0"
+                    title="Enviar por WhatsApp"
+                >
+                    <MessageCircle className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
+                    <span>WhatsApp</span>
+                </button>
+
+                {/* Desktop WhatsApp Button */}
                 <Button
                     onClick={handleShareWhatsApp}
                     variant="glass"
-                    className="text-[#6E6E73] hover:text-[#34C759]"
+                    className="hidden md:flex text-[#6E6E73] hover:text-[#34C759]"
                     title="Compartir Resumen por WhatsApp"
                     leftIcon={<MessageCircle className="h-4 w-4" />}
                     size="sm"
                 >
                     <span className="hidden lg:inline">WhatsApp</span>
                 </Button>
+
+                {/* Export + Save — desktop only */}
                 <Button
                     onClick={handleExportExcel}
                     variant="outline"
                     title="Exportar Asistencia del Mes actual"
                     leftIcon={<FileDown className="h-4 w-4" />}
                     size="sm"
+                    className="hidden md:flex"
                 >
                     <span className="hidden lg:inline">Reporte Mensual</span>
                 </Button>
-                {/* Desktop save button */}
                 <Button
                     onClick={handleSave}
                     isLoading={saving}

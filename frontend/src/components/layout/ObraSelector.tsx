@@ -27,10 +27,19 @@ export const ObraSelector: React.FC = () => {
 
     return (
         <div ref={containerRef} className="relative">
+            {/* Mobile: pill format without icon */}
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className="md:hidden flex items-center justify-center px-4 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm max-w-[150px]"
+            >
+                <span className="truncate">{selectedObra?.nombre || 'Obra'}</span>
+            </button>
+
+            {/* Desktop: full styled button */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
-                    "flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-medium w-fit min-w-[140px] max-w-[220px]",
+                    "hidden md:flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-medium w-fit min-w-[140px] max-w-[220px]",
                     isOpen
                         ? "bg-[#0071E3]/5 border-[#0071E3]/30 text-[#0071E3]"
                         : "bg-white border-[#D2D2D7] text-[#1D1D1F] hover:border-[#B0B0B5] shadow-sm"

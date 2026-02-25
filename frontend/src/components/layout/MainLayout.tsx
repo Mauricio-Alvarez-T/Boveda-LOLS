@@ -51,10 +51,12 @@ export const MainLayout: React.FC = () => {
                         <Menu className="h-5 w-5" />
                     </button>
 
-                    {/* Page Title Injected */}
-                    <div className="flex-1 min-w-0 flex items-center">
+                    {/* Page Title — hidden on mobile */}
+                    <div className="hidden md:flex flex-1 min-w-0 items-center">
                         {title}
                     </div>
+                    {/* Spacer on mobile to push actions right */}
+                    <div className="flex-1 md:hidden" />
 
                     <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
                         {/* Page Actions Injected */}
@@ -64,8 +66,8 @@ export const MainLayout: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Notifications Bell */}
-                        <div className="relative" ref={notifRef}>
+                        {/* Notifications Bell — hidden on mobile */}
+                        <div className="hidden md:block relative" ref={notifRef}>
                             <button
                                 onClick={() => setShowNotifications(!showNotifications)}
                                 className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-[#F5F5F7] text-[#6E6E73] relative transition-colors focus:outline-none"
