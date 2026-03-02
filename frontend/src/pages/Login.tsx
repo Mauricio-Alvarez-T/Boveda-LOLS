@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion } from 'framer-motion';
-import { LogIn, ShieldCheck, Mail, Lock } from 'lucide-react';
+import { LogIn, ShieldCheck, Mail, Lock, Fingerprint } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
@@ -14,8 +14,8 @@ import api from '../services/api';
 import type { AuthResponse } from '../types';
 
 const loginSchema = z.object({
-    email: z.string().email({ message: "Email inválido" }),
-    password: z.string().min(5, { message: "La contraseña debe tener al menos 5 caracteres" }),
+    email: z.string().email({ message: "Email corporativo inválido" }),
+    password: z.string().min(5, { message: "La contraseña es muy corta" }),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
@@ -38,75 +38,108 @@ const LoginPage: React.FC = () => {
         try {
             const response = await api.post<AuthResponse>('/auth/login', data);
             login(response.data);
-            toast.success('¡Bienvenido de nuevo!');
+            toast.success('¡Bienvenido a Bóveda LOLS!');
             navigate('/');
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al iniciar sesión');
+            toast.error(err.response?.data?.error || 'Credenciales incorrectas');
         } finally {
             setIsLoading(false);
         }
     };
 
     return (
-        <div className="min-h-screen w-full flex items-center justify-center p-4 bg-[#F5F5F7]">
+        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#F5F5F7]">
+            {/* Soft Ambient Light Background */}
+            <div className="absolute inset-0 z-0 overflow-hidden">
+                <motion.div
+                    animate={{
+                        x: [-100, 100, -100],
+                        y: [-50, 50, -50],
+                    }}
+                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
+                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] rounded-full bg-blue-400/10 blur-[100px]"
+                />
+                <motion.div
+                    animate={{
+                        x: [100, -100, 100],
+                        y: [50, -50, 50],
+                    }}
+                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+                    className="absolute -bottom-[10%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-indigo-300/10 blur-[100px]"
+                />
+            </div>
+
+            {/* Apple-Style Glass Card */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="w-full max-w-sm"
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                className="relative z-10 w-full max-w-[440px] px-6"
             >
-                <div className="bg-white rounded-2xl shadow-lg p-8 space-y-8">
-                    <div className="flex flex-col items-center space-y-3">
-                        <div className="h-14 w-14 bg-[#0071E3] rounded-2xl flex items-center justify-center shadow-sm">
-                            <ShieldCheck className="h-8 w-8 text-white" />
-                        </div>
-                        <h1 className="text-2xl font-bold tracking-tight text-[#1D1D1F]">Bóveda LOLS</h1>
-                        <p className="text-[#6E6E73] text-sm text-center">
-                            Gestión Documental y Control de Asistencia
+                <div className="bg-white/80 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] p-10 md:p-12">
+
+                    <div className="flex flex-col items-center mb-10">
+                        <motion.div
+                            whileHover={{ scale: 1.05 }}
+                            className="h-16 w-16 bg-[#0071E3] rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 mb-6"
+                        >
+                            <ShieldCheck className="h-9 w-9 text-white" />
+                        </motion.div>
+
+                        <h1 className="text-3xl font-bold tracking-tight text-[#1D1D1F] mb-2">
+                            Bóveda LOLS
+                        </h1>
+                        <p className="text-[#86868B] text-sm text-center font-medium">
+                            Gestión Documental & Asistencia
                         </p>
                     </div>
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-                        <div className="space-y-4">
-                            <div className="relative">
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                        <div className="space-y-5">
+                            <div className="relative group">
                                 <Input
-                                    label="Correo Electrónico"
-                                    placeholder="ejemplo@empresa.cl"
+                                    label="Correo Corporativo"
+                                    placeholder="ejemplo@lols.cl"
                                     type="email"
                                     error={errors.email?.message}
                                     {...register('email')}
-                                    className="pl-10"
+                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#0071E3] h-12 rounded-xl transition-all"
                                 />
-                                <Mail className="absolute left-3.5 top-[36px] h-4 w-4 text-[#A1A1A6]" />
+                                <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#0071E3] transition-colors" />
                             </div>
 
-                            <div className="relative">
+                            <div className="relative group">
                                 <Input
                                     label="Contraseña"
                                     placeholder="••••••••"
                                     type="password"
                                     error={errors.password?.message}
                                     {...register('password')}
-                                    className="pl-10"
+                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#0071E3] h-12 rounded-xl transition-all"
                                 />
-                                <Lock className="absolute left-3.5 top-[36px] h-4 w-4 text-[#A1A1A6]" />
+                                <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#0071E3] transition-colors" />
                             </div>
                         </div>
 
-                        <Button
-                            type="submit"
-                            className="w-full"
-                            isLoading={isLoading}
-                            rightIcon={<LogIn className="h-4 w-4" />}
-                        >
-                            Iniciar Sesión
-                        </Button>
+                        <div className="pt-2">
+                            <Button
+                                type="submit"
+                                className="w-full h-12 text-base font-semibold bg-[#0071E3] text-white hover:bg-[#0077ED] rounded-xl shadow-md transition-all active:scale-[0.98]"
+                                isLoading={isLoading}
+                                rightIcon={<LogIn className="h-4 w-4" />}
+                            >
+                                Iniciar Sesión
+                            </Button>
+                        </div>
                     </form>
 
-                    <div className="text-center">
-                        <p className="text-xs text-[#A1A1A6]">
-                            Sistema de Prevención de Riesgos y Documentación Laboral
-                        </p>
+                    <div className="mt-10 pt-8 border-t border-gray-100/50 text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                            <Fingerprint className="h-4 w-4 text-[#86868B]" />
+                            <p className="text-[10px] text-[#A1A1A6] font-bold tracking-widest uppercase">
+                                Acceso Seguro Verificado
+                            </p>
+                        </div>
                     </div>
                 </div>
             </motion.div>
