@@ -1,7 +1,15 @@
+const fs = require('fs');
+const path = require('path');
+process.on('uncaughtException', (err) => {
+  fs.appendFileSync(path.join(__dirname, 'startup_debug.log'), `[UNCAUGHT] ${new Date().toISOString()}\n${err.stack}\n\n`);
+});
+process.on('unhandledRejection', (reason, promise) => {
+  fs.appendFileSync(path.join(__dirname, 'startup_debug.log'), `[UNHANDLED] ${new Date().toISOString()}\n${reason}\n\n`);
+});
+
 require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
-const path = require('path');
 const errorHandler = require('./src/middleware/errorHandler');
 const activityLogger = require('./src/middleware/logger').activityLogger;
 const dashboardService = require('./src/services/dashboard.service');
@@ -97,13 +105,35 @@ app.get('/api/health', (req, res) => {
 // PRODUCTION: Serve Frontend Static Files
 // ============================================
 if (process.env.NODE_ENV === 'production') {
-  const publicPath = path.join(__dirname, 'public');
+  // The frontend files are uploaded by the user to the subdomain's document root
+  const publicPath = path.resolve(__dirname, '../public_html/boveda.lols.cl');
   app.use(express.static(publicPath));
 
-  // SPA catch-all: any non-API route serves index.html
-  app.get('*', (req, res) => {
-    if (!req.path.startsWith('/api')) {
-      res.sendFile(path.join(publicPath, 'index.html'));
+  // SPA catch-all: any non-API GET route serves index.html
+  app.use((req, res, next) => {
+    if (req.method === 'GET' && !req.path.startsWith('/api')) {
+      const indexPath = path.join(publicPath, 'index.html');
+      // Use sendFile with error callback fallback
+      res.sendFile(indexPath, (err) => {
+        if (err) {
+          // Fallback: try reading the file manually
+          try {
+            const html = fs.readFileSync(indexPath, 'utf8');
+            res.set('Content-Type', 'text/html; charset=utf-8');
+            res.send(html);
+          } catch (readErr) {
+            // Debug: return the exact error so we can diagnose
+            res.status(500).json({
+              error: 'SPA frontend not found',
+              path: indexPath,
+              sendFileError: err.message,
+              readError: readErr.message
+            });
+          }
+        }
+      });
+    } else {
+      next();
     }
   });
 }
