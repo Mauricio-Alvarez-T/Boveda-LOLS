@@ -31,6 +31,9 @@ const emailService = {
             auth: {
                 user: from,
                 pass: fromPassword
+            },
+            tls: {
+                rejectUnauthorized: false
             }
         });
 

@@ -1,7 +1,22 @@
 node_modules/
-.env
+.env*
 dist/
 build/
 .DS_Store
 *.log
 coverage/
+
+# Specific Boveda LOLS sensitive files
+backend/update_test_email.*
+backend/workers_miguel.*
+backend/fix_and_import_miguel.*
+backend/debug_workers.json
+backend/generate_*.js
+backend/execute_sql.js
+backend/generate_email_sql.js
+backend/generate_fix_and_import.js
+backend/generate_fix_from_json.js
+backend/generate_import_sql.js
+backend/workers.json
+git_history.txt
+git_history_utf8.txt
