@@ -77,9 +77,16 @@ class FiscalizacionService {
         }
 
         if (q) {
-            query += ` AND (t.rut LIKE ? OR t.nombres LIKE ? OR t.apellido_paterno LIKE ? OR t.apellido_materno LIKE ?)`;
-            const searchTerm = `%${q}%`;
-            params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+            const words = q.trim().split(/\s+/).filter(w => w.length > 0);
+            if (words.length > 0) {
+                const blockConditions = [];
+                words.forEach(word => {
+                    blockConditions.push(`(t.rut LIKE ? OR t.nombres LIKE ? OR t.apellido_paterno LIKE ? OR t.apellido_materno LIKE ?)`);
+                    const searchTerm = `%${word}%`;
+                    params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+                });
+                query += ` AND (${blockConditions.join(' AND ')})`;
+            }
         }
 
         if (completitud) {

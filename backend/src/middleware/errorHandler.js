@@ -1,6 +1,15 @@
+const fs = require('fs');
+const path = require('path');
+
 const errorHandler = (err, req, res, next) => {
     console.error(`[${new Date().toISOString()}] ERROR:`, err.message);
     console.error(err.stack);
+
+    // Escribir a un archivo para depurar en cPanel
+    try {
+        const logContent = `[${new Date().toISOString()}] ${req.method} ${req.originalUrl}\nERROR: ${err.message}\nSTACK: ${err.stack}\n\n`;
+        fs.appendFileSync(path.join(__dirname, '../../error_debug.log'), logContent);
+    } catch (e) { }
 
     // Multer file size error
     if (err.code === 'LIMIT_FILE_SIZE') {

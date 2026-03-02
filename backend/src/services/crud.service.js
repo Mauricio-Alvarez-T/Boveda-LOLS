@@ -35,9 +35,16 @@ const createCrudService = (tableName, options = {}) => {
             }
 
             if (q && searchFields.length > 0) {
-                const searchConditions = searchFields.map(f => `${tableName}.${f} LIKE ?`).join(' OR ');
-                where.push(`(${searchConditions})`);
-                searchFields.forEach(() => params.push(`%${q}%`));
+                const words = q.trim().split(/\s+/).filter(w => w.length > 0);
+                if (words.length > 0) {
+                    const blockConditions = [];
+                    words.forEach(word => {
+                        const searchConditions = searchFields.map(f => `${tableName}.${f} LIKE ?`).join(' OR ');
+                        blockConditions.push(`(${searchConditions})`);
+                        searchFields.forEach(() => params.push(`%${word}%`));
+                    });
+                    where.push(`(${blockConditions.join(' AND ')})`);
+                }
             }
 
             const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
@@ -133,9 +140,16 @@ const createCrudService = (tableName, options = {}) => {
             }
 
             if (q && searchFields.length > 0) {
-                const searchConditions = searchFields.map(f => `${tableName}.${f} LIKE ?`).join(' OR ');
-                where.push(`(${searchConditions})`);
-                searchFields.forEach(() => params.push(`%${q}%`));
+                const words = q.trim().split(/\s+/).filter(w => w.length > 0);
+                if (words.length > 0) {
+                    const blockConditions = [];
+                    words.forEach(word => {
+                        const searchConditions = searchFields.map(f => `${tableName}.${f} LIKE ?`).join(' OR ');
+                        blockConditions.push(`(${searchConditions})`);
+                        searchFields.forEach(() => params.push(`%${word}%`));
+                    });
+                    where.push(`(${blockConditions.join(' AND ')})`);
+                }
             }
 
             const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
