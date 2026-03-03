@@ -67,6 +67,8 @@ export const MainLayout: React.FC = () => {
                         )}
 
                         {/* Notifications Bell — hidden on mobile */}
+                        {/* Notifications Bell — Hidden for now, logic preserved below */}
+                        {/* 
                         <div className="hidden md:block relative" ref={notifRef}>
                             <button
                                 onClick={() => setShowNotifications(!showNotifications)}
@@ -78,7 +80,6 @@ export const MainLayout: React.FC = () => {
                                 )}
                             </button>
 
-                            {/* Notifications Popover */}
                             <AnimatePresence>
                                 {showNotifications && notifications && notifications.content && (
                                     <motion.div
@@ -103,6 +104,7 @@ export const MainLayout: React.FC = () => {
                                 )}
                             </AnimatePresence>
                         </div>
+                        */}
 
                         <div className="hidden md:block h-6 w-px bg-[#D2D2D7] mx-1" />
                         <ObraSelector />
