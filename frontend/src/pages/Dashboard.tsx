@@ -24,7 +24,7 @@ import {
     SortableContext,
     rectSortingStrategy,
 } from '@dnd-kit/sortable';
-
+import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
@@ -221,7 +221,12 @@ const Dashboard: React.FC = () => {
             case 'chart_attendance_trend':
                 return <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />;
             case 'chart_compliance':
-                return <ComplianceDonut totalDocs={data.counters.documentos ?? 0} expiredDocs={data.counters.vencidos ?? 0} onClick={() => navigate('/trabajadores')} />;
+                return <ComplianceDonut
+                    totalDocs={data.counters.documentos ?? 0}
+                    expiredDocs={data.counters.vencidos ?? 0}
+                    missingDocs={data.counters.trabajadoresSinDocs ?? 0}
+                    onClick={() => navigate('/trabajadores')}
+                />;
             case 'list_recent_activity':
                 return <RecentActivity data={data.recentActivity} onNavigate={() => navigate('/trabajadores')} />;
             case 'list_absences_today':
@@ -247,6 +252,29 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
+            {/* ── Dashboard Insights (Narrative summary) ── */}
+            {!loading && data && (
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="bg-[#0071E3]/5 border-l-4 border-[#0071E3] p-4 rounded-r-2xl"
+                >
+                    <p className="text-sm text-[#1D1D1F] leading-relaxed">
+                        <span className="font-bold text-[#0071E3]">Resumen de hoy:</span> Tienes <span className="font-semibold">{data.counters.trabajadores}</span> trabajadores activos en terreno.
+                        La tasa de asistencia es del <span className="font-semibold text-[#34C759]">{data.counters.asistencia_hoy}%</span>
+                        {((data.counters.vencidos ?? 0) > 0 || (data.counters.trabajadoresSinDocs ?? 0) > 0) ? (
+                            <> y tienes <span className="font-semibold text-[#FF3B30]">pendientes</span>:
+                                {(data.counters.vencidos ?? 0) > 0 && <span> {data.counters.vencidos} vencidos</span>}
+                                {(data.counters.vencidos ?? 0) > 0 && (data.counters.trabajadoresSinDocs ?? 0) > 0 && ' y'}
+                                {(data.counters.trabajadoresSinDocs ?? 0) > 0 && <span> {data.counters.trabajadoresSinDocs} trabajadores sin documentos</span>}.
+                            </>
+                        ) : (
+                            <> y toda tu documentación está al día.</>
+                        )}
+                    </p>
+                </motion.div>
+            )}
+
             {/* ── KPI Cards (static top row, not draggable) ── */}
             {kpiWidgets.length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">

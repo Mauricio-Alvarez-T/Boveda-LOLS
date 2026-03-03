@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import { Activity, CheckSquare } from 'lucide-react';
 import { Button } from '../../ui/Button';
@@ -43,31 +43,52 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
             </div>
             <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
-                    <LineChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                    <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                            <linearGradient id="colorTasa" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%" stopColor="#34C759" stopOpacity={0.3} />
+                                <stop offset="95%" stopColor="#34C759" stopOpacity={0} />
+                            </linearGradient>
+                        </defs>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E8E8ED" />
                         <XAxis
                             dataKey="fecha"
                             axisLine={false}
                             tickLine={false}
-                            tick={{ fill: '#6E6E73', fontSize: 10 }}
-                            tickFormatter={(v) => v.slice(8, 10) + '/' + v.slice(5, 7)}
+                            tick={{ fill: '#86868B', fontSize: 10, fontWeight: 500 }}
+                            tickFormatter={(v: string) => v.slice(8, 10) + '/' + v.slice(5, 7)}
                         />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#6E6E73', fontSize: 10 }} domain={[0, 100]} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#86868B', fontSize: 10 }} domain={[0, 100]} />
                         <Tooltip
-                            cursor={{ stroke: '#F5F5F7', strokeWidth: 2 }}
-                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
-                            formatter={(value) => [`${value}%`, 'Tasa de Asistencia']}
-                            labelFormatter={(label) => `Fecha: ${label}`}
+                            contentStyle={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(210, 210, 215, 0.5)',
+                                borderRadius: '14px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                fontSize: '12px'
+                            }}
+                            itemStyle={{ color: '#1D1D1F', fontWeight: 600 }}
+                            labelStyle={{ color: '#86868B', marginBottom: '4px' }}
+                            formatter={(value: any) => [`${value}%`, 'Presencia']}
+                            labelFormatter={(label: any) => {
+                                if (!label) return '';
+                                const date = new Date(label);
+                                return date.toLocaleDateString('es-CL', { day: 'numeric', month: 'short' });
+                            }}
                         />
-                        <Line
+                        <Area
                             type="monotone"
                             dataKey="tasa"
                             stroke="#34C759"
-                            strokeWidth={3}
+                            strokeWidth={4}
+                            fillOpacity={1}
+                            fill="url(#colorTasa)"
                             dot={{ r: 4, fill: '#FFFFFF', stroke: '#34C759', strokeWidth: 2 }}
                             activeDot={{ r: 6, fill: '#34C759', stroke: '#FFFFFF', strokeWidth: 2 }}
+                            animationDuration={1500}
                         />
-                    </LineChart>
+                    </AreaChart>
                 </ResponsiveContainer>
             </div>
         </div>

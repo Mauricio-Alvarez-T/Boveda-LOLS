@@ -5,13 +5,15 @@ import { cn } from '../../../utils/cn';
 interface Props {
     totalDocs: number;
     expiredDocs: number;
+    missingDocs: number;
     onClick: () => void;
 }
 
-const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, onClick }) => {
+const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, missingDocs, onClick }) => {
     const validDocs = Math.max(totalDocs - expiredDocs, 0);
-    const compliancePercent = totalDocs > 0
-        ? Math.round((validDocs / totalDocs) * 100)
+    const totalRepresented = totalDocs + missingDocs;
+    const compliancePercent = totalRepresented > 0
+        ? Math.round((validDocs / totalRepresented) * 100)
         : 100;
 
     return (
@@ -27,18 +29,28 @@ const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, onClick }) =
                         <Pie
                             data={[
                                 { name: 'Válidos', value: validDocs },
-                                { name: 'Vencidos', value: expiredDocs }
+                                { name: 'Vencidos', value: expiredDocs },
+                                { name: 'Faltantes', value: missingDocs }
                             ]}
-                            innerRadius={55}
-                            outerRadius={70}
-                            paddingAngle={5}
+                            innerRadius={58}
+                            outerRadius={68}
+                            paddingAngle={8}
                             dataKey="value"
+                            stroke="none"
                         >
-                            <Cell fill="#34C759" />
-                            <Cell fill="#FF3B30" />
+                            <Cell fill="#34C759" /> {/* Válidos */}
+                            <Cell fill="#FF3B30" /> {/* Vencidos */}
+                            <Cell fill="#FF9F0A" /> {/* Faltantes */}
                         </Pie>
                         <Tooltip
-                            contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
+                            contentStyle={{
+                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                backdropFilter: 'blur(10px)',
+                                border: '1px solid rgba(210, 210, 215, 0.5)',
+                                borderRadius: '12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
+                                fontSize: '12px'
+                            }}
                         />
                     </PieChart>
                 </ResponsiveContainer>
@@ -50,10 +62,11 @@ const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, onClick }) =
                 </div>
             </div>
             <p className="text-[10px] text-[#6E6E73] mt-5 leading-relaxed">
-                Tu bóveda está <span className={cn("font-bold", compliancePercent >= 80 ? "text-[#34C759]" : "text-[#FF9F0A]")}>
-                    {compliancePercent >= 80 ? 'operativa' : 'con alertas'}
+                Tu bóveda está <span className={cn("font-bold", compliancePercent >= 80 ? "text-[#34C759]" : "text-[#FF3B30]")}>
+                    {compliancePercent >= 90 ? 'operativa' : compliancePercent >= 70 ? 'en revisión' : 'crítica'}
                 </span>.
-                {expiredDocs > 0 && ` ${expiredDocs} documentos requieren atención.`}
+                {expiredDocs > 0 && ` ${expiredDocs} vencidos.`}
+                {missingDocs > 0 && ` ${missingDocs} faltantes.`}
             </p>
         </div>
     );
