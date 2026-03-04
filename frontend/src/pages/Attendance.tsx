@@ -21,6 +21,8 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { TimeStepperInput } from '../components/ui/TimeStepperInput';
 import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
+import WorkerLink from '../components/workers/WorkerLink';
+import WorkerQuickView from '../components/workers/WorkerQuickView';
 import api from '../services/api';
 import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia, ConfiguracionHorario } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -43,6 +45,7 @@ const AttendancePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
+    const [quickViewId, setQuickViewId] = useState<number | null>(null);
 
     // Get the default "Asiste" state (es_presente flag)
     const defaultEstado = useMemo(() =>
@@ -598,9 +601,9 @@ const AttendancePage: React.FC = () => {
                                                 {worker.nombres.charAt(0)}{worker.apellido_paterno.charAt(0)}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-semibold text-[#1D1D1F] truncate">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block">
                                                     {worker.apellido_paterno}, {worker.nombres}
-                                                </p>
+                                                </WorkerLink>
                                                 <p className="text-[11px] text-[#6E6E73]">
                                                     {worker.rut}
                                                     {worker.cargo_nombre && <> · <span className="text-[#0071E3]">{worker.cargo_nombre}</span></>}
@@ -701,9 +704,9 @@ const AttendancePage: React.FC = () => {
                                                 {worker.nombres.charAt(0)}{worker.apellido_paterno.charAt(0)}
                                             </div>
                                             <div className="min-w-0">
-                                                <p className="text-sm font-semibold text-[#1D1D1F] truncate">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block">
                                                     {worker.apellido_paterno}, {worker.nombres}
-                                                </p>
+                                                </WorkerLink>
                                                 <p className="text-[10px] text-[#6E6E73]">
                                                     {worker.rut}
                                                     {worker.cargo_nombre && <> · <span className="text-[#0071E3]">{worker.cargo_nombre}</span></>}
@@ -885,6 +888,11 @@ const AttendancePage: React.FC = () => {
                 onClose={() => setCalendarWorker(null)}
                 worker={calendarWorker}
                 estados={estados}
+            />
+
+            <WorkerQuickView
+                workerId={quickViewId}
+                onClose={() => setQuickViewId(null)}
             />
         </div>
     );

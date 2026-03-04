@@ -35,6 +35,8 @@ import type { Trabajador, Empresa, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
+import WorkerLink from '../components/workers/WorkerLink';
+import WorkerQuickView from '../components/workers/WorkerQuickView';
 
 const WorkersPage: React.FC = () => {
     const { selectedObra } = useObra();
@@ -44,6 +46,7 @@ const WorkersPage: React.FC = () => {
     const [cargos, setCargos] = useState<Cargo[]>([]);
 
     const [loading, setLoading] = useState(true);
+    const [quickViewId, setQuickViewId] = useState<number | null>(null);
     const [search, setSearch] = useState('');
     const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
     const [selectedCargo, setSelectedCargo] = useState<string>('');
@@ -427,7 +430,9 @@ const WorkersPage: React.FC = () => {
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-[#1D1D1F] truncate flex items-center gap-1.5">
-                                                {worker.nombres} {worker.apellido_paterno}
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
+                                                    {worker.nombres} {worker.apellido_paterno}
+                                                </WorkerLink>
                                                 {!worker.activo && (
                                                     <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20 shrink-0">
                                                         Inactivo
@@ -560,14 +565,16 @@ const WorkersPage: React.FC = () => {
                                                         {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="text-[15px] font-bold text-[#1D1D1F] leading-tight group-hover:text-[#0071E3] transition-colors flex items-center gap-2">
-                                                            {worker.nombres} {worker.apellido_paterno}
+                                                        <div className="flex items-center gap-2">
+                                                            <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight group-hover:text-[#0071E3] transition-colors">
+                                                                {worker.nombres} {worker.apellido_paterno}
+                                                            </WorkerLink>
                                                             {!worker.activo && (
                                                                 <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20">
                                                                     Inactivo
                                                                 </span>
                                                             )}
-                                                        </p>
+                                                        </div>
                                                         <p className="text-xs font-semibold text-[#6E6E73] mt-1 tracking-tight">{worker.rut}</p>
                                                     </div>
                                                 </div>
@@ -771,6 +778,21 @@ const WorkersPage: React.FC = () => {
                     </div>
                 )}
             </Modal>
+
+            <WorkerQuickView
+                workerId={quickViewId}
+                onClose={() => setQuickViewId(null)}
+                onEditWorker={(id) => {
+                    setQuickViewId(null);
+                    const w = workers.find(w => w.id === id);
+                    if (w) { setSelectedWorker(w); setModalType('form'); }
+                }}
+                onViewDocuments={(id) => {
+                    setQuickViewId(null);
+                    const w = workers.find(w => w.id === id);
+                    if (w) { setSelectedWorker(w); setModalType('docs'); }
+                }}
+            />
         </div >
     );
 };

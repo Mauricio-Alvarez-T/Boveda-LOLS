@@ -23,6 +23,8 @@ import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
 import EnvioEmailModal from '../components/fiscalizacion/EnvioEmailModal';
+import WorkerLink from '../components/workers/WorkerLink';
+import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 
 // Extended type to include advanced search results
@@ -48,6 +50,7 @@ const FiscalizacionPage: React.FC = () => {
     const [filterCompletitud, setFilterCompletitud] = useState<string>('');
     // State
     const [loading, setLoading] = useState(false);
+    const [quickViewId, setQuickViewId] = useState<number | null>(null);
     const [exporting, setExporting] = useState(false);
     const [workers, setWorkers] = useState<TrabajadorAvanzado[]>([]);
     const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
@@ -340,7 +343,9 @@ const FiscalizacionPage: React.FC = () => {
                                             <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#0071E3]/5")} onClick={() => handleSelectWorker(worker.id)}>
                                                 <td className="px-6 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
+                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
+                                                        {worker.nombres} {worker.apellido_paterno}
+                                                    </WorkerLink>
                                                     <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
@@ -421,7 +426,9 @@ const FiscalizacionPage: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             {/* Name + status */}
                                             <div className="flex items-center justify-between gap-2">
-                                                <p className="text-sm font-bold text-[#1D1D1F] truncate">{worker.nombres} {worker.apellido_paterno}</p>
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block">
+                                                    {worker.nombres} {worker.apellido_paterno}
+                                                </WorkerLink>
                                                 <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
                                                     {worker.activo ? 'Activo' : 'Inactivo'}
                                                 </span>
@@ -466,7 +473,12 @@ const FiscalizacionPage: React.FC = () => {
                 destinatarioEmail=""
                 trabajadores={workers.filter(w => selectedWorkers.has(w.id))}
             />
-        </div>
+
+            <WorkerQuickView
+                workerId={quickViewId}
+                onClose={() => setQuickViewId(null)}
+            />
+        </div >
     );
 };
 
