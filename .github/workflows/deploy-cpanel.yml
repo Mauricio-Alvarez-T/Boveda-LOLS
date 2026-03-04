@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main # O la rama que uses como principal
+  workflow_dispatch: # Permite ejecutar el despliegue manualmente desde GitHub
 
 jobs:
   web-deploy:
