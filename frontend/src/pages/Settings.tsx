@@ -29,10 +29,11 @@ import { TipoAusenciaForm } from '../components/settings/TipoAusenciaForm';
 import { HorariosConfigPanel } from '../components/settings/HorariosConfigPanel';
 import EmailConfigForm from '../components/settings/EmailConfigForm';
 import PlantillasEmailPanel from '../components/settings/PlantillasEmailPanel';
+import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas' | 'logs';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad';
 
 interface TabDef {
     key: TabKey;
@@ -76,6 +77,7 @@ const tabGroups: TabGroup[] = [
             { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
             { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
             { key: 'logs', label: 'Historial de Actividad', icon: Clock },
+            { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
     }
 ];
@@ -433,6 +435,9 @@ const SettingsPage: React.FC = () => {
                             </div>
                             <ActivityLogsPanel />
                         </div>
+                    )}
+                    {activeTab === 'seguridad' && (
+                        <ChangePasswordForm />
                     )}
                 </motion.div>
             </div>

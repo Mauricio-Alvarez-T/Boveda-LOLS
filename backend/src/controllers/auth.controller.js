@@ -19,6 +19,25 @@ const authController = {
         }
     },
 
+    async changePassword(req, res, next) {
+        try {
+            const { currentPassword, newPassword } = req.body;
+            if (!currentPassword || !newPassword) {
+                return res.status(400).json({ error: 'La contraseña actual y la nueva son requeridas' });
+            }
+            if (newPassword.length < 4) {
+                return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 4 caracteres' });
+            }
+
+            await authService.changeMyPassword(req.user.id, currentPassword, newPassword);
+            await logManualActivity(req.user.id, 'seguridad', 'UPDATE', null, 'Cambio de contraseña personal', req);
+
+            res.json({ message: 'Contraseña actualizada correctamente' });
+        } catch (err) {
+            next(err);
+        }
+    },
+
     async me(req, res, next) {
         try {
             const user = await authService.getMe(req.user.id);

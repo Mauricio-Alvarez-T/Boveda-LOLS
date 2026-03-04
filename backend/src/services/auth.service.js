@@ -77,6 +77,17 @@ const authService = {
             [nombre, email, hash]
         );
         return result.insertId;
+    },
+
+    async changeMyPassword(userId, currentPassword, newPassword) {
+        const [users] = await db.query('SELECT password_hash FROM usuarios WHERE id = ?', [userId]);
+        if (users.length === 0) throw Object.assign(new Error('Usuario no encontrado'), { statusCode: 404 });
+
+        const validPassword = await bcrypt.compare(currentPassword, users[0].password_hash);
+        if (!validPassword) throw Object.assign(new Error('La contraseña actual es incorrecta'), { statusCode: 400 });
+
+        const hash = await bcrypt.hash(newPassword, 10);
+        await db.query('UPDATE usuarios SET password_hash = ? WHERE id = ?', [hash, userId]);
     }
 };
 

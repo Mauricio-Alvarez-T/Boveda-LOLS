@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 
 router.post('/login', authController.login);
 router.get('/me', auth, authController.me);
+router.put('/me/password', auth, authController.changePassword);
 router.post('/setup-admin', authController.setupAdmin); // Only for initial setup
 
 module.exports = router;
