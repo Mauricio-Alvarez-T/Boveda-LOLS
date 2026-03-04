@@ -61,14 +61,18 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 bg-black/40 backdrop-blur-sm">
                 <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
+                    initial={{ opacity: 0, y: 60 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: 60 }}
+                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+                    className="bg-white/90 backdrop-blur-xl rounded-t-3xl md:rounded-3xl shadow-2xl w-full md:max-w-lg border border-white/20 overflow-hidden flex flex-col max-h-[92svh] md:max-h-[90vh]"
                 >
-                    <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
+                    <div className="flex justify-center pt-3 pb-1 md:hidden shrink-0">
+                        <div className="h-1 w-10 rounded-full bg-[#D2D2D7]" />
+                    </div>
+                    <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-5 border-b border-[#E8E8ED] shrink-0">
                         <div>
                             <h2 className="text-xl font-bold text-[#1D1D1F] flex items-center gap-2">
                                 <CalendarIcon className="h-5 w-5 text-[#0071E3]" />
@@ -83,7 +87,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         </Button>
                     </div>
 
-                    <div className="p-6 overflow-y-auto">
+                    <div className="px-4 md:px-6 py-4 md:py-6 overflow-y-auto flex-1">
                         <div className="flex items-center justify-between mb-6">
                             <h3 className="text-lg font-semibold text-[#1D1D1F]">
                                 {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
@@ -114,7 +118,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 ))}
 
                                 {Array.from({ length: startingDay }).map((_, i) => (
-                                    <div key={`empty-${i}`} className="h-14 bg-[#F5F5F7]/30 rounded-xl border border-[#E8E8ED]/30" />
+                                    <div key={`empty-${i}`} className="h-11 md:h-14 bg-[#F5F5F7]/30 rounded-xl border border-[#E8E8ED]/30" />
                                 ))}
 
                                 {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -126,7 +130,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                     return (
                                         <div
                                             key={day}
-                                            className="h-14 p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#0071E3]/30 transition-all bg-white group"
+                                            className="h-11 md:h-14 p-1 md:p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#0071E3]/30 transition-all bg-white group"
                                             style={{ backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#F5F5F7/50' : '#FFFFFF') }}
                                         >
                                             <span className={`text-[10px] font-medium ${estado ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto`}>
