@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail } from 'lucide-react';
 import api from '../../services/api';
@@ -37,6 +38,7 @@ interface WorkerQuickViewProps {
 const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     workerId, onClose, onEditWorker, onViewDocuments, onViewAttendance
 }) => {
+    const navigate = useNavigate();
     const [worker, setWorker] = useState<WorkerData | null>(null);
     const [docs, setDocs] = useState<DocInfo[]>([]);
     const [totalRequired, setTotalRequired] = useState(0);
@@ -130,7 +132,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             {initials}
                                         </div>
                                         <div className="flex-1 min-w-0">
-                                            <h3 className="text-lg font-bold text-[#1D1D1F] truncate">
+                                            <h3 className="text-lg font-bold text-[#1D1D1F]">
                                                 {worker.nombres} {worker.apellido_paterno}
                                             </h3>
                                             <p className="text-sm text-[#6E6E73]">{worker.rut}</p>
@@ -251,7 +253,14 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         <span className="text-[11px] font-semibold text-[#FF9F0A]">Docs</span>
                                     </button>
                                     <button
-                                        onClick={() => onViewAttendance?.(worker.id)}
+                                        onClick={() => {
+                                            onClose();
+                                            if (onViewAttendance) {
+                                                onViewAttendance(worker.id);
+                                            } else {
+                                                navigate('/asistencia');
+                                            }
+                                        }}
                                         className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#34C759]/5 hover:bg-[#34C759]/10 border border-[#34C759]/10 transition-colors group"
                                     >
                                         <Calendar className="h-5 w-5 text-[#34C759] group-hover:scale-110 transition-transform" />
