@@ -246,7 +246,7 @@ const SettingsPage: React.FC = () => {
     return (
         <div className="space-y-6 pb-20">
             {/* Category Navigation (Horizontal) */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
                 {tabGroups.map((group, idx) => {
                     const isActive = activeGroup.title === group.title;
                     return (
@@ -254,7 +254,7 @@ const SettingsPage: React.FC = () => {
                             key={idx}
                             onClick={() => setActiveTab(group.items[0].key)}
                             className={cn(
-                                "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold uppercase tracking-widest transition-all",
+                                "flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap shrink-0",
                                 isActive
                                     ? "bg-[#0071E3] text-white shadow-md shadow-[#0071E3]/20"
                                     : "text-[#6E6E73] hover:bg-[#F5F5F7]"
@@ -273,20 +273,20 @@ const SettingsPage: React.FC = () => {
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all border",
+                            "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all border whitespace-nowrap shrink-0",
                             activeTab === tab.key
                                 ? "bg-white border-[#0071E3] text-[#0071E3] ring-4 ring-[#0071E3]/5"
                                 : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:border-[#D2D2D7]"
                         )}
                     >
-                        <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-[#0071E3]" : "text-[#6E6E73]")} />
+                        <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-[#0071E3]" : "text-[#6E6E73]")} />
                         {tab.label}
                     </button>
                 ))}
             </div>
 
             {/* Main Content Area (Full Width) */}
-            <div className="bg-white rounded-3xl border border-[#D2D2D7] p-6 shadow-sm overflow-hidden min-h-[600px]">
+            <div className="bg-white rounded-2xl md:rounded-3xl border border-[#D2D2D7] p-3 md:p-6 shadow-sm overflow-hidden min-h-[400px] md:min-h-[600px]">
                 <motion.div
                     key={activeTab}
                     initial={{ opacity: 0, y: 10 }}

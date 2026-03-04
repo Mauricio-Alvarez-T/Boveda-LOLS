@@ -167,7 +167,7 @@ const PlantillasEmailPanel: React.FC = () => {
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="flex items-center justify-between">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
                     <p className="text-sm text-[#6E6E73]">
                         {plantillas.length} plantilla{plantillas.length !== 1 ? 's' : ''} configurada{plantillas.length !== 1 ? 's' : ''}
@@ -175,12 +175,14 @@ const PlantillasEmailPanel: React.FC = () => {
                 </div>
                 <div className="flex gap-2">
                     {plantillas.length === 0 && (
-                        <Button variant="secondary" onClick={handleCreateDefaults} isLoading={saving} leftIcon={<Mail className="h-4 w-4" />}>
-                            Crear plantillas de ejemplo
+                        <Button variant="secondary" size="sm" onClick={handleCreateDefaults} isLoading={saving} leftIcon={<Mail className="h-4 w-4" />}>
+                            <span className="hidden sm:inline">Crear plantillas de ejemplo</span>
+                            <span className="sm:hidden">Ejemplos</span>
                         </Button>
                     )}
-                    <Button onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
-                        Nueva Plantilla
+                    <Button size="sm" onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
+                        <span className="hidden sm:inline">Nueva Plantilla</span>
+                        <span className="sm:hidden">Nueva</span>
                     </Button>
                 </div>
             </div>

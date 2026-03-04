@@ -26,6 +26,8 @@ export interface ColumnDef<T> {
     label: string;
     render?: (value: any, row: T) => React.ReactNode;
     className?: string;
+    /** If true, this column is hidden on mobile cards (shown only in desktop table) */
+    hideOnMobile?: boolean;
 }
 
 interface CrudTableProps<T extends { id: number }> {
@@ -155,6 +157,12 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
         return path.split('.').reduce((acc, part) => acc?.[part], obj);
     };
 
+    // Visible columns for mobile cards (skip hideOnMobile)
+    const mobileColumns = columns.filter(c => !c.hideOnMobile);
+    // First column is used as the "title" of the mobile card
+    const titleCol = mobileColumns[0];
+    const detailCols = mobileColumns.slice(1);
+
     return (
         <div className="space-y-4">
             {/* Toolbar */}
@@ -197,8 +205,84 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                 </div>
             </div>
 
-            {/* Table */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+            {/* ─── MOBILE: Card list ─── */}
+            <div className="md:hidden space-y-3">
+                {loading ? (
+                    <div className="py-16 text-center">
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#0071E3] mb-2" />
+                        <p className="text-xs text-[#6E6E73]">Cargando...</p>
+                    </div>
+                ) : rows.length === 0 ? (
+                    <div className="py-16 text-center">
+                        <AlertCircle className="h-5 w-5 mx-auto text-[#A1A1A6] mb-2" />
+                        <p className="text-xs text-[#6E6E73]">No se encontraron registros.</p>
+                    </div>
+                ) : (
+                    rows.map((row) => {
+                        const titleValue = titleCol
+                            ? (titleCol.render
+                                ? titleCol.render(getNestedValue(row, String(titleCol.key)), row)
+                                : String(getNestedValue(row, String(titleCol.key)) ?? '—'))
+                            : '—';
+
+                        return (
+                            <motion.div
+                                key={row.id}
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="bg-white rounded-xl border border-[#D2D2D7] p-4"
+                            >
+                                {/* Card title */}
+                                <div className="flex items-start justify-between gap-2 mb-2">
+                                    <div className="font-semibold text-sm text-[#1D1D1F] flex-1 min-w-0">
+                                        {titleValue}
+                                    </div>
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        <button
+                                            onClick={() => canEdit && openEdit(row)}
+                                            disabled={!canEdit}
+                                            className={cn(
+                                                "p-1.5 rounded-lg text-[#0071E3] hover:bg-[#0071E3]/8 transition-colors",
+                                                !canEdit && "opacity-30 cursor-not-allowed"
+                                            )}
+                                        >
+                                            <Pencil className="h-4 w-4" />
+                                        </button>
+                                        <button
+                                            onClick={() => canDelete && handleDelete(row.id)}
+                                            disabled={!canDelete}
+                                            className={cn(
+                                                "p-1.5 rounded-lg text-[#FF3B30] hover:bg-[#FF3B30]/8 transition-colors",
+                                                !canDelete && "opacity-30 cursor-not-allowed"
+                                            )}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </div>
+                                {/* Card detail rows */}
+                                {detailCols.length > 0 && (
+                                    <div className="space-y-1">
+                                        {detailCols.map(col => {
+                                            const value = getNestedValue(row, String(col.key));
+                                            const rendered = col.render ? col.render(value, row) : String(value ?? '—');
+                                            return (
+                                                <div key={String(col.key)} className="flex items-center justify-between text-xs">
+                                                    <span className="text-[#6E6E73]">{col.label}</span>
+                                                    <span className="text-[#1D1D1F] font-medium text-right max-w-[60%] truncate">{rendered}</span>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </motion.div>
+                        );
+                    })
+                )}
+            </div>
+
+            {/* ─── DESKTOP: Table ─── */}
+            <div className="hidden md:block bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
