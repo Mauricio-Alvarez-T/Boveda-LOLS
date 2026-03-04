@@ -1,0 +1,69 @@
+name: Deploy Bóveda LOLS to cPanel 🚀
+
+on:
+  push:
+    branches:
+      - main # O la rama que uses como principal
+
+jobs:
+  web-deploy:
+    name: 🎉 Build & Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🚚 Obtener el código más reciente
+        uses: actions/checkout@v4
+
+      - name: ⚙️ Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 📦 Instalar Dependencias Frontend
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: 🔨 Compilar Frontend (React)
+        working-directory: ./frontend
+        run: npm run build
+
+      - name: 🌐 Sincronizar Frontend vía FTP a cPanel
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.lols.cl
+          username: lolscl
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          local-dir: ./frontend/dist/
+          server-dir: /public_html/boveda.lols.cl/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+
+      - name: ⚙️ Sincronizar Backend vía FTP a cPanel
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.lols.cl
+          username: lolscl
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          local-dir: ./backend/
+          server-dir: /boveda.lols.cl/backend/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .env*
+
+      - name: 🔄 Crear carpeta temporal para reinicio de la app Node
+        run: |
+          mkdir -p ./backend/tmp
+          touch ./backend/tmp/restart.txt
+
+      - name: 🚀 Reiniciar Servidor Phusion Passenger
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.lols.cl
+          username: lolscl
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          local-dir: ./backend/tmp/
+          server-dir: /boveda.lols.cl/backend/tmp/
