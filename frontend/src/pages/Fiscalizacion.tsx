@@ -6,7 +6,10 @@ import {
     Archive,
     Filter,
     Users,
-    FileDown
+    FileDown,
+    Building2,
+    ChevronDown,
+    X
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -49,6 +52,7 @@ const FiscalizacionPage: React.FC = () => {
     const [workers, setWorkers] = useState<TrabajadorAvanzado[]>([]);
     const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
     const [emailModalOpen, setEmailModalOpen] = useState(false);
+    const [showMobileFilters, setShowMobileFilters] = useState(false);
 
     // Fetch Catalogs
     useEffect(() => {
@@ -169,24 +173,44 @@ const FiscalizacionPage: React.FC = () => {
 
     // Configuración del Header Global
     const headerTitle = React.useMemo(() => (
-        <div className="flex items-center gap-3">
-            <Archive className="h-6 w-6 text-[#0071E3]" />
-            <h1 className="text-lg font-bold text-[#1D1D1F]">Nómina & Reportes</h1>
+        <div className="flex items-center gap-2 md:gap-3">
+            <Archive className="h-5 w-5 md:h-6 md:w-6 text-[#0071E3] shrink-0" />
+            <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Nómina & Reportes</h1>
         </div>
     ), []);
 
     const headerActions = React.useMemo(() => (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Mobile: filter toggle button */}
+            <button
+                onClick={() => setShowMobileFilters(prev => !prev)}
+                className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm"
+                title="Filtros"
+            >
+                <Filter className="h-4 w-4" />
+            </button>
+
+            {/* Email send button */}
             <Button
                 variant="glass"
                 onClick={() => setEmailModalOpen(true)}
                 disabled={selectedWorkers.size === 0}
                 leftIcon={<Mail className="h-4 w-4" />}
                 size="sm"
+                className="hidden md:flex"
             >
-                <span className="hidden sm:inline">Enviar por Correo</span>
+                Enviar por Correo
             </Button>
+            <button
+                onClick={() => setEmailModalOpen(true)}
+                disabled={selectedWorkers.size === 0}
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm disabled:opacity-40"
+                title="Enviar por Correo"
+            >
+                <Mail className="h-4 w-4" />
+            </button>
 
+            {/* Export Excel */}
             <Button
                 variant="outline"
                 size="sm"
@@ -194,100 +218,89 @@ const FiscalizacionPage: React.FC = () => {
                 isLoading={exporting}
                 disabled={selectedWorkers.size === 0}
                 leftIcon={<FileDown className="h-4 w-4" />}
+                className="hidden md:flex"
             >
                 Exportar Excel
             </Button>
+            <button
+                onClick={handleExportExcel}
+                disabled={selectedWorkers.size === 0 || exporting}
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm disabled:opacity-40"
+                title="Exportar Excel"
+            >
+                <FileDown className="h-4 w-4" />
+            </button>
         </div>
-    ), [selectedWorkers.size, exporting, handleExportExcel]);
+    ), [selectedWorkers.size, exporting, handleExportExcel, showMobileFilters]);
 
     // Configuración del Header Global
     useSetPageHeader(headerTitle, headerActions);
 
-    return (
-        <div className="space-y-6 pb-20">
-            <div className="grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+    // Shared filter panel content (used in both mobile and desktop layouts)
+    const filterPanel = (
+        <div className="space-y-3">
+            <Input
+                placeholder="Buscar por Nombre o RUT..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                leftIcon={<Search className="h-4 w-4 text-muted-foreground" />}
+            />
+            <Select label="Obra / Proyecto" value={filterObra} onChange={(e) => setFilterObra(e.target.value)} options={obras} />
+            <Select label="Empresa Empleadora" value={filterEmpresa} onChange={(e) => setFilterEmpresa(e.target.value)} options={empresas} />
+            <Select label="Cargo" value={filterCargo} onChange={(e) => setFilterCargo(e.target.value)} options={cargos} />
+            <Select label="Categoría" value={filterCategoria} onChange={(e) => setFilterCategoria(e.target.value)} options={[
+                { value: '', label: 'Todas las Categorías' },
+                { value: 'obra', label: 'En Obra' },
+                { value: 'operaciones', label: 'Operaciones' },
+                { value: 'rotativo', label: 'Personal rotativo' },
+            ]} />
+            <Select label="Estado Contractual" value={filterActivo} onChange={(e) => setFilterActivo(e.target.value)} options={[
+                { value: 'true', label: 'Activos' },
+                { value: 'false', label: 'Inactivos' },
+                { value: '', label: 'Todos' },
+            ]} />
+            <Select label="Completitud Documentos" value={filterCompletitud} onChange={(e) => setFilterCompletitud(e.target.value)} options={[
+                { value: '', label: 'Cualquier Estado' },
+                { value: '100', label: '100% al Día' },
+                { value: 'faltantes', label: 'Documentos Faltantes' },
+            ]} />
+        </div>
+    );
 
-                {/* MEGA FILTER PANEL */}
+    return (
+        <div className="space-y-4 md:space-y-6 pb-20 md:pb-4">
+
+            {/* ── MOBILE: Collapsible Filter Panel ── */}
+            {showMobileFilters && (
+                <div className="md:hidden bg-white rounded-2xl border border-[#D2D2D7] p-4">
+                    <div className="flex items-center justify-between mb-3">
+                        <h3 className="font-semibold text-[#1D1D1F] flex items-center gap-2 text-sm">
+                            <Filter className="h-4 w-4 text-[#0071E3]" /> Filtros de Búsqueda
+                        </h3>
+                        <button onClick={() => setShowMobileFilters(false)} className="text-[#6E6E73] p-1">
+                            <X className="h-4 w-4" />
+                        </button>
+                    </div>
+                    {filterPanel}
+                </div>
+            )}
+
+            {/* ── DESKTOP: Sidebar Layout ── */}
+            <div className="hidden md:grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
+                {/* Filter sidebar */}
                 <div className="xl:col-span-1">
                     <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden sticky top-0">
                         <div className="px-6 py-4 border-b border-[#D2D2D7] bg-[#F5F5F7]">
                             <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
-                                <Filter className="h-4 w-4 text-[#0071E3]" />
-                                Filtros de Búsqueda
+                                <Filter className="h-4 w-4 text-[#0071E3]" /> Filtros de Búsqueda
                             </h3>
                         </div>
-
-                        <div className="p-5 space-y-4">
-                            <div className="space-y-3 pt-1">
-                                <Input
-                                    placeholder="Buscar por Nombre o RUT..."
-                                    value={search}
-                                    onChange={(e) => setSearch(e.target.value)}
-                                    leftIcon={<Search className="h-4 w-4 text-muted-foreground" />}
-                                />
-
-                                <Select
-                                    label="Obra / Proyecto"
-                                    value={filterObra}
-                                    onChange={(e) => setFilterObra(e.target.value)}
-                                    options={obras}
-                                />
-
-                                <Select
-                                    label="Empresa Empleadora"
-                                    value={filterEmpresa}
-                                    onChange={(e) => setFilterEmpresa(e.target.value)}
-                                    options={empresas}
-                                />
-
-                                <Select
-                                    label="Cargo"
-                                    value={filterCargo}
-                                    onChange={(e) => setFilterCargo(e.target.value)}
-                                    options={cargos}
-                                />
-
-                                <Select
-                                    label="Categoría"
-                                    value={filterCategoria}
-                                    onChange={(e) => setFilterCategoria(e.target.value)}
-                                    options={[
-                                        { value: '', label: 'Todas las Categorías' },
-                                        { value: 'obra', label: 'En Obra' },
-                                        { value: 'operaciones', label: 'Operaciones' },
-                                        { value: 'rotativo', label: 'Personal rotativo' },
-                                    ]}
-                                />
-
-                                <Select
-                                    label="Estado Contractual"
-                                    value={filterActivo}
-                                    onChange={(e) => setFilterActivo(e.target.value)}
-                                    options={[
-                                        { value: 'true', label: 'Activos' },
-                                        { value: 'false', label: 'Inactivos' },
-                                        { value: '', label: 'Todos' },
-                                    ]}
-                                />
-
-                                <Select
-                                    label="Completitud Documentos"
-                                    value={filterCompletitud}
-                                    onChange={(e) => setFilterCompletitud(e.target.value)}
-                                    options={[
-                                        { value: '', label: 'Cualquier Estado' },
-                                        { value: '100', label: '100% al Día' },
-                                        { value: 'faltantes', label: 'Documentos Faltantes' },
-                                    ]}
-                                />
-                            </div>
-                        </div>
+                        <div className="p-5">{filterPanel}</div>
                     </div>
                 </div>
 
-                {/* RESULTS & EXPORT */}
+                {/* Desktop: Results Table */}
                 <div className="xl:col-span-3">
-                    {/* Results Table */}
                     <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[500px]">
                         <div className="px-6 py-4 border-b border-[#D2D2D7] flex items-center justify-between bg-[#F5F5F7]">
                             <div className="flex items-center gap-4">
@@ -295,11 +308,7 @@ const FiscalizacionPage: React.FC = () => {
                                     Resultados de Búsqueda
                                     {loading && <Loader2 className="h-4 w-4 animate-spin text-[#0071E3] ml-2" />}
                                 </h3>
-
-                                {workers.length > 0 && (
-                                    <div className="h-6 w-[1px] bg-[#D2D2D7]" />
-                                )}
-
+                                {workers.length > 0 && <div className="h-6 w-[1px] bg-[#D2D2D7]" />}
                                 {workers.length > 0 && (
                                     <div className="flex items-center gap-2">
                                         <Users className="h-4 w-4 text-[#6E6E73]" />
@@ -310,19 +319,12 @@ const FiscalizacionPage: React.FC = () => {
                                 )}
                             </div>
                         </div>
-
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-[#E8E8ED] bg-white text-xs tracking-wider text-[#6E6E73] uppercase">
                                         <th className="px-6 py-4 font-semibold w-12 text-center">
-                                            <input
-                                                type="checkbox"
-                                                className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]"
-                                                checked={workers.length > 0 && selectedWorkers.size === workers.length}
-                                                onChange={handleSelectAll}
-                                                disabled={workers.length === 0}
-                                            />
+                                            <input type="checkbox" className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]" checked={workers.length > 0 && selectedWorkers.size === workers.length} onChange={handleSelectAll} disabled={workers.length === 0} />
                                         </th>
                                         <th className="px-6 py-4 font-semibold">Trabajador</th>
                                         <th className="px-6 py-4 font-semibold">Ubicación / Rol</th>
@@ -332,63 +334,29 @@ const FiscalizacionPage: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-[#E8E8ED]">
                                     {workers.length === 0 ? (
-                                        <tr>
-                                            <td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] italic">
-                                                No se encontraron trabajadores con los filtros actuales.
-                                            </td>
-                                        </tr>
+                                        <tr><td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] italic">No se encontraron trabajadores con los filtros actuales.</td></tr>
                                     ) : (
                                         workers.map((worker) => (
-                                            <tr
-                                                key={worker.id}
-                                                className={cn(
-                                                    "hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer",
-                                                    selectedWorkers.has(worker.id) && "bg-[#0071E3]/5"
-                                                )}
-                                                onClick={() => handleSelectWorker(worker.id)}
-                                            >
-                                                <td className="px-6 py-4 text-center">
-                                                    <input
-                                                        type="checkbox"
-                                                        className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]"
-                                                        checked={selectedWorkers.has(worker.id)}
-                                                        readOnly
-                                                    />
-                                                </td>
+                                            <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#0071E3]/5")} onClick={() => handleSelectWorker(worker.id)}>
+                                                <td className="px-6 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm font-semibold text-[#1D1D1F]">
-                                                        {worker.nombres} {worker.apellido_paterno}
-                                                    </p>
+                                                    <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
                                                     <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <p className="text-sm text-[#1D1D1F]">{worker.empresa_nombre || '-'}</p>
-                                                    <p className="text-xs text-[#6E6E73] truncate max-w-[200px]">
-                                                        {worker.obra_nombre} • {worker.cargo_nombre}
-                                                    </p>
+                                                    <p className="text-xs text-[#6E6E73] truncate max-w-[200px]">{worker.obra_nombre} • {worker.cargo_nombre}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
                                                         <div className="h-2 w-24 bg-[#E8E8ED] rounded-full overflow-hidden flex-shrink-0">
-                                                            <div
-                                                                className={cn(
-                                                                    "h-full rounded-full",
-                                                                    worker.docs_porcentaje === 100 ? "bg-[#34C759]" :
-                                                                        worker.docs_porcentaje > 50 ? "bg-[#FF9F0A]" : "bg-[#FF3B30]"
-                                                                )}
-                                                                style={{ width: `${worker.docs_porcentaje}%` }}
-                                                            />
+                                                            <div className={cn("h-full rounded-full", worker.docs_porcentaje === 100 ? "bg-[#34C759]" : worker.docs_porcentaje > 50 ? "bg-[#FF9F0A]" : "bg-[#FF3B30]")} style={{ width: `${worker.docs_porcentaje}%` }} />
                                                         </div>
-                                                        <span className="text-xs font-medium text-[#6E6E73] w-10">
-                                                            {worker.docs_porcentaje}%
-                                                        </span>
+                                                        <span className="text-xs font-medium text-[#6E6E73] w-10">{worker.docs_porcentaje}%</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className={cn(
-                                                        "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase",
-                                                        worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]"
-                                                    )}>
+                                                    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
                                                         {worker.activo ? 'Activo' : 'Inactivo'}
                                                     </span>
                                                 </td>
@@ -399,8 +367,96 @@ const FiscalizacionPage: React.FC = () => {
                             </table>
                         </div>
                     </div>
-
                 </div>
+            </div>
+
+            {/* ── MOBILE: Card Results ── */}
+            <div className="md:hidden">
+                {/* Mobile context bar */}
+                <div className="flex items-center justify-between bg-white rounded-2xl border border-[#D2D2D7] px-4 py-3 mb-3">
+                    <div className="flex items-center gap-2">
+                        <Users className="h-4 w-4 text-[#6E6E73]" />
+                        <span className="text-xs text-[#6E6E73] font-medium">
+                            <span className="font-bold text-[#1D1D1F]">{selectedWorkers.size}</span> sel. de {workers.length}
+                            {loading && <Loader2 className="h-3 w-3 animate-spin text-[#0071E3] inline ml-2" />}
+                        </span>
+                    </div>
+                    <button
+                        onClick={handleSelectAll}
+                        disabled={workers.length === 0}
+                        className="text-[11px] font-semibold text-[#0071E3] px-3 py-1.5 rounded-full border border-[#0071E3]/30 bg-[#0071E3]/5 disabled:opacity-40"
+                    >
+                        {selectedWorkers.size === workers.length && workers.length > 0 ? 'Deseleccionar todo' : 'Seleccionar todo'}
+                    </button>
+                </div>
+
+                {workers.length === 0 && !loading ? (
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] py-16 text-center">
+                        <Archive className="h-10 w-10 text-[#A1A1A6] mx-auto mb-3 opacity-40" />
+                        <p className="text-[#6E6E73] text-sm">No se encontraron trabajadores.</p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        {workers.map((worker) => {
+                            const isSelected = selectedWorkers.has(worker.id);
+                            const docColor = worker.docs_porcentaje === 100 ? '#34C759' : worker.docs_porcentaje > 50 ? '#FF9F0A' : '#FF3B30';
+                            return (
+                                <div
+                                    key={worker.id}
+                                    onClick={() => handleSelectWorker(worker.id)}
+                                    className={cn(
+                                        "bg-white rounded-2xl border p-3.5 cursor-pointer transition-all active:scale-[0.99]",
+                                        isSelected ? "border-[#0071E3] ring-2 ring-[#0071E3]/10 bg-[#0071E3]/3" : "border-[#D2D2D7]"
+                                    )}
+                                >
+                                    <div className="flex items-start gap-3">
+                                        {/* Large checkbox area */}
+                                        <div className={cn(
+                                            "h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
+                                            isSelected ? "bg-[#0071E3] border-[#0071E3]" : "border-[#D2D2D7]"
+                                        )}>
+                                            {isSelected && <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                                        </div>
+
+                                        <div className="flex-1 min-w-0">
+                                            {/* Name + status */}
+                                            <div className="flex items-center justify-between gap-2">
+                                                <p className="text-sm font-bold text-[#1D1D1F] truncate">{worker.nombres} {worker.apellido_paterno}</p>
+                                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
+                                                    {worker.activo ? 'Activo' : 'Inactivo'}
+                                                </span>
+                                            </div>
+                                            <p className="text-[11px] text-[#6E6E73] mt-0.5">{worker.rut}</p>
+
+                                            {/* Company + cargo chips */}
+                                            <div className="flex gap-1.5 mt-2 flex-wrap">
+                                                {worker.empresa_nombre && (
+                                                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[10px] font-semibold text-[#1D1D1F]">
+                                                        <Building2 className="h-2.5 w-2.5 text-[#6E6E73]" />
+                                                        {worker.empresa_nombre}
+                                                    </span>
+                                                )}
+                                                {worker.cargo_nombre && (
+                                                    <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[10px] font-semibold text-[#6E6E73]">
+                                                        {worker.cargo_nombre}
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            {/* Doc progress */}
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="flex-1 h-1.5 bg-[#E8E8ED] rounded-full overflow-hidden">
+                                                    <div className="h-full rounded-full transition-all" style={{ width: `${worker.docs_porcentaje}%`, backgroundColor: docColor }} />
+                                                </div>
+                                                <span className="text-[10px] font-bold shrink-0" style={{ color: docColor }}>{worker.docs_porcentaje}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                )}
             </div>
 
             {/* Email Modal */}

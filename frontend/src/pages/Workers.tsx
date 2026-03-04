@@ -220,13 +220,13 @@ const WorkersPage: React.FC = () => {
     };
 
     const headerTitle = React.useMemo(() => (
-        <div className="flex items-center gap-3">
-            <Users className="h-6 w-6 text-[#0071E3]" />
-            <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                <h1 className="text-lg font-bold text-[#1D1D1F]">Gestión de Trabajadores</h1>
+        <div className="flex items-center gap-2 md:gap-3">
+            <Users className="h-5 w-5 md:h-6 md:w-6 text-[#0071E3] shrink-0" />
+            <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2 min-w-0">
+                <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Trabajadores</h1>
                 {workers.length > 0 && (
                     <span className="bg-[#E8E8ED] text-[#6E6E73] text-xs font-semibold px-2 py-0.5 rounded-full w-fit">
-                        {workers.length} {workers.length === 1 ? 'trabajador' : 'trabajadores'}
+                        {workers.length}
                     </span>
                 )}
             </div>
@@ -234,24 +234,52 @@ const WorkersPage: React.FC = () => {
     ), [workers.length]);
 
     const headerActions = React.useMemo(() => (
-        <div className="flex gap-2">
+        <div className="flex gap-1.5 md:gap-2">
+            {/* Export — icon only on mobile, text on desktop */}
             <Button
                 variant="outline"
                 size="sm"
                 onClick={handleExportExcel}
                 leftIcon={<FileDown className="h-4 w-4" />}
+                title="Exportar Excel"
+                className="hidden md:flex"
             >
                 Exportar Excel
             </Button>
+            <Button
+                variant="glass"
+                size="icon"
+                onClick={handleExportExcel}
+                title="Exportar Excel"
+                className="md:hidden h-9 w-9"
+            >
+                <FileDown className="h-4 w-4" />
+            </Button>
+            {/* New Worker — icon only on mobile */}
             <Button
                 onClick={handleNewWorker}
                 disabled={!checkPermission('trabajadores', 'puede_crear')}
                 leftIcon={<UserPlus className="h-4 w-4" />}
                 size="sm"
-                className={!checkPermission('trabajadores', 'puede_crear') ? "opacity-40 grayscale-[100%] cursor-not-allowed" : ""}
+                className={cn(
+                    "hidden md:flex",
+                    !checkPermission('trabajadores', 'puede_crear') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                )}
                 title={!checkPermission('trabajadores', 'puede_crear') ? "No tienes permisos" : "Nuevo Trabajador"}
             >
                 Nuevo Trabajador
+            </Button>
+            <Button
+                onClick={handleNewWorker}
+                disabled={!checkPermission('trabajadores', 'puede_crear')}
+                size="icon"
+                className={cn(
+                    "md:hidden h-9 w-9",
+                    !checkPermission('trabajadores', 'puede_crear') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                )}
+                title={!checkPermission('trabajadores', 'puede_crear') ? "No tienes permisos" : "Nuevo Trabajador"}
+            >
+                <UserPlus className="h-4 w-4" />
             </Button>
         </div>
     ), [handleNewWorker, handleExportExcel, checkPermission]);
@@ -260,7 +288,7 @@ const WorkersPage: React.FC = () => {
     useSetPageHeader(headerTitle, headerActions);
 
     return (
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6 pb-20 md:pb-4">
             {/* Filters & Search */}
             <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-3">
                 <div className="relative flex-1">
@@ -365,8 +393,129 @@ const WorkersPage: React.FC = () => {
                 )
             }
 
-            {/* Table Section */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+            {/* ── MOBILE Card List (hidden on desktop) ── */}
+            <div className="md:hidden">
+                {loading ? (
+                    <div className="py-20 flex flex-col items-center justify-center">
+                        <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
+                        <p className="text-[#6E6E73] mt-4 text-sm">Cargando trabajadores...</p>
+                    </div>
+                ) : sortedWorkers.length === 0 ? (
+                    <div className="bg-white rounded-2xl border border-[#D2D2D7] py-20 text-center">
+                        <Users className="h-10 w-10 text-[#A1A1A6] mx-auto mb-4 opacity-40" />
+                        <p className="text-[#6E6E73] text-sm">No se encontraron trabajadores.</p>
+                    </div>
+                ) : (
+                    <div className="flex flex-col gap-2">
+                        {sortedWorkers.map((worker) => {
+                            const stats = completion[worker.id] || { uploaded: 0, total: 0, percentage: 0 };
+                            const pct = stats.percentage;
+                            const colors = getCompletionColor(pct);
+                            return (
+                                <motion.div
+                                    key={worker.id}
+                                    initial={{ opacity: 0, y: 20, scale: 0.97 }}
+                                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
+                                    viewport={{ once: true, margin: '0px 0px -20px 0px' }}
+                                    transition={{ type: 'spring', stiffness: 260, damping: 22 }}
+                                    className="bg-white rounded-2xl border border-[#D2D2D7] p-3.5"
+                                >
+                                    {/* Row 1: Avatar + Name + RUT */}
+                                    <div className="flex items-center gap-3 mb-3">
+                                        <div className="h-11 w-11 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-base border border-[#0071E3]/20 shrink-0">
+                                            {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-[#1D1D1F] truncate flex items-center gap-1.5">
+                                                {worker.nombres} {worker.apellido_paterno}
+                                                {!worker.activo && (
+                                                    <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20 shrink-0">
+                                                        Inactivo
+                                                    </span>
+                                                )}
+                                            </p>
+                                            <p className="text-[11px] text-[#6E6E73] mt-0.5">
+                                                {worker.rut}
+                                                {worker.cargo_nombre && <> · <span className="text-[#0071E3] font-medium">{worker.cargo_nombre}</span></>}
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    {/* Row 2: Company + Site chips */}
+                                    <div className="flex gap-2 mb-3">
+                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[11px] font-semibold text-[#1D1D1F] truncate max-w-[50%]">
+                                            <Building2 className="h-3 w-3 text-[#6E6E73] shrink-0" />
+                                            <span className="truncate">{worker.empresa_nombre || 'Sin Empresa'}</span>
+                                        </span>
+                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[11px] font-semibold text-[#6E6E73] truncate max-w-[50%]">
+                                            <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
+                                        </span>
+                                    </div>
+
+                                    {/* Row 3: Doc progress */}
+                                    {stats.total > 0 && (
+                                        <div className="mb-3">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <span className="text-[11px] text-[#6E6E73] font-medium">Documentación</span>
+                                                <span className={`text-[11px] font-bold ${colors.text}`}>{pct}%</span>
+                                            </div>
+                                            <div className="h-1.5 w-full bg-[#E8E8ED] rounded-full overflow-hidden">
+                                                <div
+                                                    className={`h-full ${colors.bar} transition-all duration-700 rounded-full`}
+                                                    style={{ width: `${pct}%` }}
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Row 4: Action Buttons */}
+                                    <div className="flex gap-2">
+                                        <button
+                                            onClick={() => { setSelectedWorker(worker); setModalType('docs'); }}
+                                            className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-[#0071E3]/8 border border-[#0071E3]/20 text-[#0071E3] text-xs font-semibold active:scale-95 transition-all"
+                                        >
+                                            <FileText className="h-4 w-4" />
+                                            Documentos
+                                        </button>
+                                        <button
+                                            onClick={() => { setSelectedWorker(worker); setModalType('form'); }}
+                                            disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                            className={cn(
+                                                "flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-[#34C759]/8 border border-[#34C759]/20 text-[#34C759] text-xs font-semibold active:scale-95 transition-all",
+                                                !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                            )}
+                                            title={!checkPermission('trabajadores', 'puede_editar') ? 'Sin permisos' : 'Editar'}
+                                        >
+                                            <UserPen className="h-4 w-4" />
+                                            Editar
+                                        </button>
+                                        <button
+                                            onClick={() => handleDelete(worker.id)}
+                                            disabled={!checkPermission('trabajadores', 'puede_eliminar')}
+                                            className={cn(
+                                                "w-11 min-h-[44px] flex items-center justify-center rounded-xl bg-[#FF3B30]/8 border border-[#FF3B30]/20 text-[#FF3B30] active:scale-95 transition-all shrink-0",
+                                                !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale cursor-not-allowed"
+                                            )}
+                                            title={!checkPermission('trabajadores', 'puede_eliminar') ? 'Sin permisos' : 'Eliminar'}
+                                        >
+                                            <Trash2 className="h-4 w-4" />
+                                        </button>
+                                    </div>
+                                </motion.div>
+                            );
+                        })}
+                        {/* Infinite scroll trigger */}
+                        {hasMore && (
+                            <div ref={ref} className="py-6 flex justify-center">
+                                {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />}
+                            </div>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* ── DESKTOP Table (hidden on mobile) ── */}
+            <div className="hidden md:block bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>

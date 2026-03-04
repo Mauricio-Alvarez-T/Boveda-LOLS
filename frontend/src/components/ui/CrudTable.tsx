@@ -158,7 +158,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
     return (
         <div className="space-y-4">
             {/* Toolbar */}
-            <div className="flex flex-col sm:flex-row gap-3 items-start sm:items-center justify-between">
+            <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
                 <div className="relative flex-1 w-full sm:max-w-xs">
                     <Input
                         placeholder={searchPlaceholder || `Buscar ${entityNamePlural.toLowerCase()}...`}
@@ -168,20 +168,31 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                     />
                     <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A1A1A6]" />
                 </div>
-                <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="flex items-center gap-2 shrink-0">
                     {canExport && (
-                        <Button variant="outline" size="default" onClick={handleExport} leftIcon={<FileDown className="h-4 w-4" />}>
+                        <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<FileDown className="h-4 w-4" />} className="hidden sm:flex">
                             Exportar Excel
                         </Button>
                     )}
+                    {/* Desktop: full label button */}
                     <Button
-                        size="default"
+                        size="sm"
                         onClick={openCreate}
                         disabled={!canCreate}
-                        leftIcon={<Plus className="h-5 w-5" />}
-                        className={!canCreate ? "opacity-50 cursor-not-allowed" : ""}
+                        leftIcon={<Plus className="h-4 w-4" />}
+                        className={cn("hidden sm:flex", !canCreate && "opacity-50 cursor-not-allowed")}
                     >
                         Nuevo {entityName}
+                    </Button>
+                    {/* Mobile: icon-only button */}
+                    <Button
+                        size="icon"
+                        onClick={openCreate}
+                        disabled={!canCreate}
+                        className={cn("sm:hidden h-9 w-9", !canCreate && "opacity-50 cursor-not-allowed")}
+                        title={`Nuevo ${entityName}`}
+                    >
+                        <Plus className="h-4 w-4" />
                     </Button>
                 </div>
             </div>
@@ -224,7 +235,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         className="hover:bg-[#F5F5F7]/50 transition-colors"
                                     >
                                         {columns.map(col => (
-                                            <td key={String(col.key)} className={cn("px-5 py-4 text-base text-[#1D1D1F]", col.className)}>
+                                            <td key={String(col.key)} className={cn("px-5 py-3 text-sm text-[#1D1D1F]", col.className)}>
                                                 {col.render
                                                     ? col.render(getNestedValue(row, String(col.key)), row)
                                                     : String(getNestedValue(row, String(col.key)) ?? '—')

@@ -95,23 +95,32 @@ const Dashboard: React.FC = () => {
     ), [user?.nombre]);
 
     const headerActions = useMemo(() => (
-        <div className="flex items-center gap-3">
-            {/* Date Display — Styled as subtle info, not a button */}
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-[#D2D2D7] pr-4 mr-1">
+        <div className="flex items-center gap-2 md:gap-3">
+            {/* Date Display — hidden on mobile to save space */}
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-[#D2D2D7] pr-4 mr-1">
                 <Calendar className="h-4 w-4 text-[#86868B]" />
                 <span className="text-[13px] font-medium text-[#1D1D1F] capitalize">
                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </span>
             </div>
 
-            {/* Reset Button — More descriptive and intuitive */}
+            {/* Reset Button — hidden on mobile */}
             <button
                 onClick={resetLayout}
-                className="px-4 py-1.5 rounded-full bg-white border border-[#D2D2D7] flex items-center gap-2 shadow-sm hover:bg-[#F5F5F7] hover:border-[#B0B0B5] transition-all text-xs font-semibold text-[#6E6E73] group"
+                className="hidden md:flex px-4 py-1.5 rounded-full bg-white border border-[#D2D2D7] items-center gap-2 shadow-sm hover:bg-[#F5F5F7] hover:border-[#B0B0B5] transition-all text-xs font-semibold text-[#6E6E73] group"
                 title="Vuelve a poner todos los cuadros en su posición original"
             >
                 <LayoutGrid className="h-3.5 w-3.5 text-[#0071E3] group-hover:scale-110 transition-transform" />
                 Restaurar Diseño
+            </button>
+
+            {/* Mobile: compact reset icon only */}
+            <button
+                onClick={resetLayout}
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm"
+                title="Restaurar Diseño"
+            >
+                <LayoutGrid className="h-4 w-4 text-[#0071E3]" />
             </button>
         </div>
     ), [resetLayout]);
