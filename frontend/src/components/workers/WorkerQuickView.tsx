@@ -1,43 +1,29 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, User, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail } from 'lucide-react';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
 
-interface AttendanceRecord {
-    fecha: string;
-    hora_entrada: string | null;
-    hora_salida: string | null;
-    horas_extra: number;
-    observacion: string | null;
-    estado_nombre: string;
-    estado_codigo: string;
-    estado_color: string;
-    es_presente: boolean;
-    tipo_ausencia_nombre: string | null;
+interface WorkerData {
+    id: number;
+    rut: string;
+    nombres: string;
+    apellido_paterno: string;
+    apellido_materno: string | null;
+    empresa_nombre: string | null;
+    obra_nombre: string | null;
+    cargo_nombre: string | null;
+    email: string | null;
+    telefono: string | null;
+    fecha_ingreso: string | null;
+    categoria_reporte: string;
+    activo: boolean;
 }
 
-interface QuickViewData {
-    worker: {
-        id: number;
-        rut: string;
-        nombres: string;
-        apellido_paterno: string;
-        apellido_materno: string | null;
-        empresa_nombre: string | null;
-        obra_nombre: string | null;
-        cargo_nombre: string | null;
-        email: string | null;
-        telefono: string | null;
-        fecha_ingreso: string | null;
-        categoria_reporte: string;
-        activo: boolean;
-    };
-    docs: {
-        total: number;
-        completed: number;
-    };
-    recentAttendance: AttendanceRecord[];
+interface DocInfo {
+    tipo_nombre: string;
+    nombre_archivo: string;
+    fecha_vencimiento: string | null;
 }
 
 interface WorkerQuickViewProps {
@@ -51,30 +37,52 @@ interface WorkerQuickViewProps {
 const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     workerId, onClose, onEditWorker, onViewDocuments, onViewAttendance
 }) => {
-    const [data, setData] = useState<QuickViewData | null>(null);
+    const [worker, setWorker] = useState<WorkerData | null>(null);
+    const [docs, setDocs] = useState<DocInfo[]>([]);
+    const [totalRequired, setTotalRequired] = useState(0);
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (workerId) {
-            setLoading(true);
-            setData(null);
-            api.get<QuickViewData>(`/worker-preview/${workerId}`)
-                .then(res => setData(res.data))
-                .catch(() => { })
-                .finally(() => setLoading(false));
-        }
+        if (!workerId) return;
+
+        setLoading(true);
+        setWorker(null);
+        setDocs([]);
+
+        // Fetch worker info from EXISTING CRUD endpoint
+        const p1 = api.get(`/trabajadores/${workerId}`)
+            .then(res => {
+                const d = (res.data as any).data || res.data;
+                setWorker(d);
+            })
+            .catch(() => { });
+
+        // Fetch docs from EXISTING documents endpoint
+        const p2 = api.get(`/documentos/trabajador/${workerId}`)
+            .then(res => {
+                const d = (res.data as any).data || res.data;
+                setDocs(Array.isArray(d) ? d : []);
+            })
+            .catch(() => { });
+
+        // Fetch total required document types
+        const p3 = api.get('/documentos/tipos')
+            .then(res => {
+                const tipos = (res.data as any).data || res.data;
+                if (Array.isArray(tipos)) {
+                    setTotalRequired(tipos.filter((t: any) => t.obligatorio && t.activo).length);
+                }
+            })
+            .catch(() => { });
+
+        Promise.all([p1, p2, p3]).finally(() => setLoading(false));
     }, [workerId]);
 
     const isOpen = workerId !== null;
 
-    const formatDate = (dateStr: string) => {
-        const d = new Date(dateStr + 'T12:00:00');
-        const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-        return `${days[d.getDay()]} ${d.getDate()}/${d.getMonth() + 1}`;
-    };
-
-    const docPct = data ? (data.docs.total > 0 ? Math.round((data.docs.completed / data.docs.total) * 100) : 0) : 0;
-    const initials = data ? `${data.worker.nombres[0]}${(data.worker.apellido_paterno || '')[0]}` : '';
+    const completedDocs = docs.filter((d: any) => d.activo !== false).length;
+    const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
+    const initials = worker ? `${worker.nombres[0]}${(worker.apellido_paterno || '')[0]}` : '';
 
     return (
         <AnimatePresence>
@@ -89,7 +97,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                         onClick={onClose}
                     />
 
-                    {/* Panel — fullscreen on mobile, right drawer on desktop */}
+                    {/* Panel */}
                     <motion.div
                         initial={{ x: '100%' }}
                         animate={{ x: 0 }}
@@ -113,7 +121,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                 <Loader2 className="h-8 w-8 animate-spin text-[#0071E3] mb-3" />
                                 <p className="text-sm text-[#6E6E73]">Cargando información...</p>
                             </div>
-                        ) : data ? (
+                        ) : worker ? (
                             <div className="p-5 space-y-5">
                                 {/* ── Worker Identity Card ── */}
                                 <div className="bg-gradient-to-br from-[#0071E3]/5 to-[#5AC8FA]/5 rounded-2xl p-5 border border-[#0071E3]/10">
@@ -123,10 +131,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <h3 className="text-lg font-bold text-[#1D1D1F] truncate">
-                                                {data.worker.nombres} {data.worker.apellido_paterno}
+                                                {worker.nombres} {worker.apellido_paterno}
                                             </h3>
-                                            <p className="text-sm text-[#6E6E73]">{data.worker.rut}</p>
-                                            {!data.worker.activo && (
+                                            <p className="text-sm text-[#6E6E73]">{worker.rut}</p>
+                                            {!worker.activo && (
                                                 <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[10px] font-bold uppercase">Inactivo</span>
                                             )}
                                         </div>
@@ -134,37 +142,37 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                                     {/* Info chips */}
                                     <div className="mt-4 flex flex-wrap gap-2">
-                                        {data.worker.cargo_nombre && (
+                                        {worker.cargo_nombre && (
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                <Briefcase className="h-3.5 w-3.5 text-[#0071E3]" /> {data.worker.cargo_nombre}
+                                                <Briefcase className="h-3.5 w-3.5 text-[#0071E3]" /> {worker.cargo_nombre}
                                             </span>
                                         )}
-                                        {data.worker.empresa_nombre && (
+                                        {worker.empresa_nombre && (
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                <Building2 className="h-3.5 w-3.5 text-[#FF9F0A]" /> {data.worker.empresa_nombre}
+                                                <Building2 className="h-3.5 w-3.5 text-[#FF9F0A]" /> {worker.empresa_nombre}
                                             </span>
                                         )}
-                                        {data.worker.obra_nombre && (
+                                        {worker.obra_nombre && (
                                             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                <MapPin className="h-3.5 w-3.5 text-[#34C759]" /> {data.worker.obra_nombre}
+                                                <MapPin className="h-3.5 w-3.5 text-[#34C759]" /> {worker.obra_nombre}
                                             </span>
                                         )}
                                     </div>
                                 </div>
 
                                 {/* ── Contact Info ── */}
-                                {(data.worker.telefono || data.worker.email) && (
+                                {(worker.telefono || worker.email) && (
                                     <div className="space-y-2">
-                                        {data.worker.telefono && (
-                                            <a href={`tel:${data.worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
+                                        {worker.telefono && (
+                                            <a href={`tel:${worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
                                                 <Phone className="h-4 w-4 text-[#34C759]" />
-                                                <span className="text-sm text-[#1D1D1F]">{data.worker.telefono}</span>
+                                                <span className="text-sm text-[#1D1D1F]">{worker.telefono}</span>
                                             </a>
                                         )}
-                                        {data.worker.email && (
-                                            <a href={`mailto:${data.worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
+                                        {worker.email && (
+                                            <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
                                                 <Mail className="h-4 w-4 text-[#0071E3]" />
-                                                <span className="text-sm text-[#1D1D1F] truncate">{data.worker.email}</span>
+                                                <span className="text-sm text-[#1D1D1F] truncate">{worker.email}</span>
                                             </a>
                                         )}
                                     </div>
@@ -182,13 +190,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 docPct > 50 ? "bg-[#FF9F0A]/10 text-[#FF9F0A]" :
                                                     "bg-[#FF3B30]/10 text-[#FF3B30]"
                                         )}>
-                                            {data.docs.completed}/{data.docs.total}
+                                            {completedDocs}/{totalRequired}
                                         </span>
                                     </div>
                                     <div className="h-2.5 bg-white rounded-full overflow-hidden">
                                         <motion.div
                                             initial={{ width: 0 }}
-                                            animate={{ width: `${docPct}%` }}
+                                            animate={{ width: `${Math.min(docPct, 100)}%` }}
                                             transition={{ duration: 0.6, ease: 'easeOut' }}
                                             className={cn(
                                                 "h-full rounded-full",
@@ -198,67 +206,52 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         />
                                     </div>
                                     <p className="text-[11px] text-[#6E6E73] mt-2">
-                                        {docPct === 100 ? 'Documentación completa ✓' : `Faltan ${data.docs.total - data.docs.completed} documento(s) obligatorio(s)`}
+                                        {docPct >= 100 ? 'Documentación completa ✓' : `Faltan ${Math.max(totalRequired - completedDocs, 0)} documento(s) obligatorio(s)`}
                                     </p>
                                 </div>
 
-                                {/* ── Recent Attendance ── */}
-                                <div>
-                                    <h4 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2 mb-3">
-                                        <Calendar className="h-4 w-4 text-[#0071E3]" /> Asistencia Reciente
-                                    </h4>
-                                    {data.recentAttendance.length === 0 ? (
-                                        <div className="text-center py-6 text-[#6E6E73] text-xs bg-[#F5F5F7] rounded-xl">
-                                            Sin registros recientes
-                                        </div>
-                                    ) : (
+                                {/* ── Recent Documents List ── */}
+                                {docs.length > 0 && (
+                                    <div>
+                                        <h4 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2 mb-3">
+                                            <FileText className="h-4 w-4 text-[#0071E3]" /> Documentos Subidos
+                                        </h4>
                                         <div className="space-y-2">
-                                            {data.recentAttendance.map((att, i) => (
+                                            {docs.slice(0, 5).map((doc: any, i: number) => (
                                                 <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED]/70 transition-colors">
-                                                    <div className="flex items-center gap-3">
-                                                        <div
-                                                            className="h-8 w-8 rounded-lg flex items-center justify-center text-white text-[10px] font-bold"
-                                                            style={{ backgroundColor: att.estado_color || '#34C759' }}
-                                                        >
-                                                            {att.estado_codigo}
-                                                        </div>
-                                                        <div>
-                                                            <p className="text-xs font-semibold text-[#1D1D1F]">{formatDate(att.fecha)}</p>
-                                                            <p className="text-[10px] text-[#6E6E73]">{att.estado_nombre}{att.tipo_ausencia_nombre ? ` · ${att.tipo_ausencia_nombre}` : ''}</p>
-                                                        </div>
-                                                    </div>
-                                                    {att.hora_entrada && (
-                                                        <div className="text-right">
-                                                            <p className="text-[10px] text-[#6E6E73] flex items-center gap-1">
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className="text-xs font-semibold text-[#1D1D1F] truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
+                                                        {doc.fecha_vencimiento && (
+                                                            <p className="text-[10px] text-[#6E6E73] flex items-center gap-1 mt-0.5">
                                                                 <Clock className="h-3 w-3" />
-                                                                {att.hora_entrada?.substring(0, 5)} - {att.hora_salida?.substring(0, 5) || '—'}
+                                                                Vence: {new Date(doc.fecha_vencimiento).toLocaleDateString('es-CL')}
                                                             </p>
-                                                        </div>
-                                                    )}
+                                                        )}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>
-                                    )}
-                                </div>
+                                    </div>
+                                )}
 
                                 {/* ── Quick Actions ── */}
                                 <div className="grid grid-cols-3 gap-2 pt-2 pb-4">
                                     <button
-                                        onClick={() => onEditWorker?.(data.worker.id)}
+                                        onClick={() => onEditWorker?.(worker.id)}
                                         className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#0071E3]/5 hover:bg-[#0071E3]/10 border border-[#0071E3]/10 transition-colors group"
                                     >
                                         <Pencil className="h-5 w-5 text-[#0071E3] group-hover:scale-110 transition-transform" />
                                         <span className="text-[11px] font-semibold text-[#0071E3]">Editar</span>
                                     </button>
                                     <button
-                                        onClick={() => onViewDocuments?.(data.worker.id)}
+                                        onClick={() => onViewDocuments?.(worker.id)}
                                         className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#FF9F0A]/5 hover:bg-[#FF9F0A]/10 border border-[#FF9F0A]/10 transition-colors group"
                                     >
                                         <FileText className="h-5 w-5 text-[#FF9F0A] group-hover:scale-110 transition-transform" />
                                         <span className="text-[11px] font-semibold text-[#FF9F0A]">Docs</span>
                                     </button>
                                     <button
-                                        onClick={() => onViewAttendance?.(data.worker.id)}
+                                        onClick={() => onViewAttendance?.(worker.id)}
                                         className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#34C759]/5 hover:bg-[#34C759]/10 border border-[#34C759]/10 transition-colors group"
                                     >
                                         <Calendar className="h-5 w-5 text-[#34C759] group-hover:scale-110 transition-transform" />
