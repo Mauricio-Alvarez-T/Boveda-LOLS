@@ -102,7 +102,7 @@ export const HorariosConfigPanel: React.FC = () => {
 
     return (
         <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
-            <div className="p-6 border-b border-[#D2D2D7] flex items-center justify-between">
+            <div className="p-4 md:p-6 border-b border-[#D2D2D7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-[#1D1D1F] flex items-center gap-2">
                         <Clock className="h-5 w-5 text-[#0071E3]" />
@@ -116,61 +116,72 @@ export const HorariosConfigPanel: React.FC = () => {
                     onClick={handleSave}
                     disabled={saving}
                     leftIcon={<Save className="h-4 w-4" />}
+                    className="w-full sm:w-auto"
                 >
                     {saving ? 'Guardando...' : 'Guardar Cambios'}
                 </Button>
             </div>
 
-            <div className="p-6">
-                <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-[#F5F5F7] rounded-xl text-xs font-bold text-[#6E6E73] uppercase tracking-wider">
-                    <div>Día</div>
-                    <div>Entrada</div>
-                    <div>Salida</div>
-                    <div>Inicio Colación</div>
-                    <div>Fin Colación</div>
+            <div className="p-3 md:p-6 bg-[#F5F5F7]/30">
+                {/* ─── DESKTOP VIEW ─── */}
+                <div className="hidden md:block">
+                    <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-[#F5F5F7] rounded-xl text-xs font-bold text-[#6E6E73] uppercase tracking-wider">
+                        <div>Día</div>
+                        <div>Entrada</div>
+                        <div>Salida</div>
+                        <div>Inicio Colación</div>
+                        <div>Fin Colación</div>
+                    </div>
+
+                    <div className="space-y-3">
+                        {diasSemana.map((dia) => {
+                            const horario = horarios.find(h => h.dia_semana === dia.key);
+                            if (!horario) return null;
+
+                            return (
+                                <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl bg-white border border-[#E8E8ED] hover:border-[#D2D2D7] transition-colors shadow-sm">
+                                    <div className="font-semibold text-[#1D1D1F] capitalize">
+                                        {dia.label}
+                                    </div>
+                                    <Input type="time" value={horario.hora_entrada} onChange={(e) => updateHorario(dia.key, 'hora_entrada', e.target.value)} className="h-10" />
+                                    <Input type="time" value={horario.hora_salida} onChange={(e) => updateHorario(dia.key, 'hora_salida', e.target.value)} className="h-10" />
+                                    <Input type="time" value={horario.hora_colacion_inicio} onChange={(e) => updateHorario(dia.key, 'hora_colacion_inicio', e.target.value)} className="h-10" />
+                                    <Input type="time" value={horario.hora_colacion_fin} onChange={(e) => updateHorario(dia.key, 'hora_colacion_fin', e.target.value)} className="h-10" />
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
 
-                <div className="space-y-3">
+                {/* ─── MOBILE VIEW ─── */}
+                <div className="md:hidden space-y-4">
                     {diasSemana.map((dia) => {
                         const horario = horarios.find(h => h.dia_semana === dia.key);
                         if (!horario) return null;
 
                         return (
-                            <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl hover:bg-[#F5F5F7] transition-colors border border-transparent hover:border-[#D2D2D7]">
-                                <div className="font-semibold text-[#1D1D1F] capitalize">
+                            <div key={dia.key} className="bg-white p-4 rounded-xl border border-[#D2D2D7] shadow-sm space-y-3">
+                                <h3 className="font-bold text-[#1D1D1F] capitalize border-b border-[#F5F5F7] pb-2 mb-3">
                                     {dia.label}
-                                </div>
-                                <div>
-                                    <Input
-                                        type="time"
-                                        value={horario.hora_entrada}
-                                        onChange={(e) => updateHorario(dia.key, 'hora_entrada', e.target.value)}
-                                        className="h-10 bg-white"
-                                    />
-                                </div>
-                                <div>
-                                    <Input
-                                        type="time"
-                                        value={horario.hora_salida}
-                                        onChange={(e) => updateHorario(dia.key, 'hora_salida', e.target.value)}
-                                        className="h-10 bg-white"
-                                    />
-                                </div>
-                                <div>
-                                    <Input
-                                        type="time"
-                                        value={horario.hora_colacion_inicio}
-                                        onChange={(e) => updateHorario(dia.key, 'hora_colacion_inicio', e.target.value)}
-                                        className="h-10 bg-white"
-                                    />
-                                </div>
-                                <div>
-                                    <Input
-                                        type="time"
-                                        value={horario.hora_colacion_fin}
-                                        onChange={(e) => updateHorario(dia.key, 'hora_colacion_fin', e.target.value)}
-                                        className="h-10 bg-white"
-                                    />
+                                </h3>
+
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Entrada</label>
+                                        <Input type="time" value={horario.hora_entrada} onChange={(e) => updateHorario(dia.key, 'hora_entrada', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Salida</label>
+                                        <Input type="time" value={horario.hora_salida} onChange={(e) => updateHorario(dia.key, 'hora_salida', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Inicio Col.</label>
+                                        <Input type="time" value={horario.hora_colacion_inicio} onChange={(e) => updateHorario(dia.key, 'hora_colacion_inicio', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Fin Col.</label>
+                                        <Input type="time" value={horario.hora_colacion_fin} onChange={(e) => updateHorario(dia.key, 'hora_colacion_fin', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                    </div>
                                 </div>
                             </div>
                         );
