@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Mail, Send, ChevronRight, Pencil, Star, Loader2 } from 'lucide-react';
+import { X, Mail, Send, ChevronRight, ChevronLeft, Pencil, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -55,7 +55,6 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 setPlantillas(fetchedPlantillas);
                 setHasCredentials(credRes.data.tiene_password && !!credRes.data.email_corporativo);
 
-                // Auto-select default or first template
                 const def = fetchedPlantillas.find(p => p.es_predeterminada) || fetchedPlantillas[0];
                 if (def) {
                     setSelectedId(def.id);
@@ -107,10 +106,150 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
 
     if (!isOpen) return null;
 
+    /* ── Shared form content ── */
+    const FormContent = ({ isMobile = false }: { isMobile?: boolean }) => (
+        <div className="space-y-4">
+            {!hasCredentials && (
+                <div className="flex items-start gap-2 p-3 bg-[#FF9F0A]/8 border border-[#FF9F0A]/30 rounded-xl text-sm text-[#FF9F0A]">
+                    ⚠️ No tienes credenciales de correo guardadas. Ve a <strong>Configuración &gt; Mi Correo</strong> para configurarlas.
+                </div>
+            )}
+
+            {plantillas.length === 0 && (
+                <div className="text-center py-6 text-[#6E6E73] text-sm">
+                    <p>Sin plantillas configuradas.</p>
+                    <p className="mt-1">Ve a <strong>Configuración &gt; Plantillas Email</strong> para crear una.</p>
+                </div>
+            )}
+
+            {/* Mobile: horizontal template pills */}
+            {isMobile && plantillas.length > 0 && (
+                <div className="flex gap-2 overflow-x-auto pb-2">
+                    {plantillas.map(p => (
+                        <button
+                            key={p.id}
+                            onClick={() => handleSelectPlantilla(p)}
+                            className={cn(
+                                "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border",
+                                selectedId === p.id
+                                    ? "bg-[#0071E3] text-white border-[#0071E3]"
+                                    : "bg-white text-[#1D1D1F] border-[#D2D2D7]"
+                            )}
+                        >
+                            {p.nombre}
+                        </button>
+                    ))}
+                </div>
+            )}
+
+            <div className="space-y-1.5">
+                <label className="text-sm font-medium text-[#6E6E73]">Para</label>
+                <input
+                    type="email"
+                    value={emailDestino}
+                    onChange={(e) => setEmailDestino(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                    className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-2.5 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                />
+            </div>
+
+            <Input
+                label="Asunto"
+                value={asunto}
+                onChange={(e) => setAsunto(e.target.value)}
+                placeholder="Asunto del correo"
+            />
+
+            <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium text-[#6E6E73]">Mensaje</label>
+                    <button
+                        className="text-xs text-[#0071E3] flex items-center gap-1 hover:underline"
+                        onClick={() => setEditMode(e => !e)}
+                    >
+                        <Pencil className="h-3 w-3" />
+                        {editMode ? 'Vista previa' : 'Editar'}
+                    </button>
+                </div>
+                {editMode ? (
+                    <textarea
+                        rows={isMobile ? 6 : 10}
+                        className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all resize-none"
+                        value={cuerpo}
+                        onChange={(e) => setCuerpo(e.target.value)}
+                    />
+                ) : (
+                    <div className="w-full min-h-[120px] md:min-h-[200px] rounded-xl border border-[#E8E8ED] bg-[#F5F5F7] px-4 py-3 text-sm text-[#1D1D1F] whitespace-pre-line">
+                        {cuerpo || <span className="text-[#A1A1A6] italic">Selecciona una plantilla o escribe un mensaje</span>}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+
+    const FooterButtons = () => (
+        <>
+            <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+            <Button
+                onClick={handleSend}
+                isLoading={sending}
+                disabled={!hasCredentials || !emailDestino || !asunto || !cuerpo || trabajadores.length === 0}
+                leftIcon={<Send className="h-4 w-4" />}
+            >
+                Enviar
+            </Button>
+        </>
+    );
+
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-                {/* Backdrop */}
+            {/* ── MOBILE: Fullscreen ── */}
+            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-white">
+                <motion.div
+                    initial={{ opacity: 0, x: 60 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 60 }}
+                    transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                    className="flex flex-col h-full"
+                >
+                    {/* Nav bar */}
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
+                        <button onClick={onClose} className="flex items-center gap-1 text-[#0071E3] text-sm font-medium">
+                            <ChevronLeft className="h-5 w-5" />
+                            <span>Volver</span>
+                        </button>
+                        <div className="flex-1 text-center pr-12">
+                            <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center justify-center gap-2">
+                                <Mail className="h-4 w-4 text-[#0071E3]" />
+                                Enviar Reporte
+                            </h3>
+                        </div>
+                    </div>
+
+                    <div className="px-4 py-2 bg-[#F5F5F7] border-b border-[#E8E8ED] shrink-0">
+                        <p className="text-xs text-[#6E6E73]">
+                            <span className="font-medium">{trabajadores.length} trabajador{trabajadores.length !== 1 ? 'es' : ''} seleccionado{trabajadores.length !== 1 ? 's' : ''}</span>
+                        </p>
+                    </div>
+
+                    {loading ? (
+                        <div className="flex-1 flex items-center justify-center">
+                            <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
+                        </div>
+                    ) : (
+                        <div className="flex-1 overflow-y-auto px-4 py-4">
+                            <FormContent isMobile={true} />
+                        </div>
+                    )}
+
+                    <div className="px-4 py-3 border-t border-[#E8E8ED] bg-[#F5F5F7] flex justify-end gap-3 shrink-0">
+                        <FooterButtons />
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* ── DESKTOP: Classic centered card ── */}
+            <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center p-4">
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
@@ -118,40 +257,24 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     className="absolute inset-0 bg-black/40 backdrop-blur-sm"
                     onClick={onClose}
                 />
-
-                {/* Modal */}
                 <motion.div
-                    initial={{ opacity: 0, y: 60 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 60 }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="relative w-full md:max-w-2xl bg-white rounded-t-3xl md:rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[92svh] md:max-h-[85vh]"
+                    initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.96, y: 8 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
                 >
-                    {/* Mobile drag handle */}
-                    <div className="flex justify-center pt-3 pb-1 md:hidden shrink-0">
-                        <div className="h-1 w-10 rounded-full bg-[#D2D2D7]" />
-                    </div>
                     {/* Header */}
-                    <div className="flex items-center justify-between px-4 md:px-6 py-3 md:py-4 border-b border-[#E8E8ED] shrink-0">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8E8ED]">
                         <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-lg bg-[#0071E3]/10 flex items-center justify-center">
                                 <Mail className="h-4 w-4 text-[#0071E3]" />
                             </div>
-                            <div className="flex-1 w-full max-w-sm">
-                                <h2 className="text-base font-semibold text-[#1D1D1F] mb-1">Enviar Reporte</h2>
-                                <p className="text-xs text-[#6E6E73] mb-2">
+                            <div>
+                                <h2 className="text-base font-semibold text-[#1D1D1F]">Enviar Reporte</h2>
+                                <p className="text-xs text-[#6E6E73]">
                                     <span className="font-medium">{trabajadores.length} trabajador{trabajadores.length !== 1 ? 'es' : ''} seleccionado{trabajadores.length !== 1 ? 's' : ''}</span>
                                 </p>
-                                <div className="flex items-center gap-2">
-                                    <span className="text-sm text-[#A1A1A6]">Para:</span>
-                                    <input
-                                        type="email"
-                                        value={emailDestino}
-                                        onChange={(e) => setEmailDestino(e.target.value)}
-                                        placeholder="correo@ejemplo.com"
-                                        className="flex-1 rounded-md border border-[#D2D2D7] bg-white px-2 py-1 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-1 focus:ring-[#0071E3] focus:border-[#0071E3] transition-all"
-                                    />
-                                </div>
                             </div>
                         </div>
                         <button onClick={onClose} className="text-[#6E6E73] hover:text-[#1D1D1F] transition-colors p-1 rounded-lg hover:bg-[#F5F5F7]">
@@ -164,10 +287,10 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                             <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
                         </div>
                     ) : (
-                        <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+                        <div className="flex max-h-[70vh] overflow-hidden">
                             {/* Left: Template List */}
                             {plantillas.length > 0 && (
-                                <div className="hidden md:block w-52 flex-shrink-0 border-r border-[#E8E8ED] overflow-y-auto bg-[#F5F5F7]">
+                                <div className="w-52 flex-shrink-0 border-r border-[#E8E8ED] overflow-y-auto bg-[#F5F5F7]">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-[#A1A1A6] px-4 pt-4 pb-2">
                                         Plantillas
                                     </p>
@@ -193,88 +316,16 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                 </div>
                             )}
 
-                            {/* Mobile: horizontal template pills */}
-                            {plantillas.length > 0 && (
-                                <div className="md:hidden flex gap-2 px-4 py-2.5 overflow-x-auto border-b border-[#E8E8ED] bg-[#F5F5F7] shrink-0">
-                                    {plantillas.map(p => (
-                                        <button
-                                            key={p.id}
-                                            onClick={() => handleSelectPlantilla(p)}
-                                            className={cn(
-                                                "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border",
-                                                selectedId === p.id
-                                                    ? "bg-[#0071E3] text-white border-[#0071E3]"
-                                                    : "bg-white text-[#1D1D1F] border-[#D2D2D7]"
-                                            )}
-                                        >
-                                            {p.nombre}
-                                        </button>
-                                    ))}
-                                </div>
-                            )}
-
-
                             {/* Right: Edit & Preview */}
-                            <div className="flex-1 overflow-y-auto p-4 md:p-5 space-y-4">
-                                {!hasCredentials && (
-                                    <div className="flex items-start gap-2 p-3 bg-[#FF9F0A]/8 border border-[#FF9F0A]/30 rounded-xl text-sm text-[#FF9F0A]">
-                                        ⚠️ No tienes credenciales de correo guardadas. Ve a <strong>Configuración &gt; Mi Correo</strong> para configurarlas.
-                                    </div>
-                                )}
-
-                                {plantillas.length === 0 && (
-                                    <div className="text-center py-10 text-[#6E6E73] text-sm">
-                                        <p>Sin plantillas configuradas.</p>
-                                        <p className="mt-1">Ve a <strong>Configuración &gt; Plantillas Email</strong> para crear una.</p>
-                                    </div>
-                                )}
-
-                                <Input
-                                    label="Asunto"
-                                    value={asunto}
-                                    onChange={(e) => setAsunto(e.target.value)}
-                                    placeholder="Asunto del correo"
-                                />
-
-                                <div className="space-y-1.5">
-                                    <div className="flex items-center justify-between">
-                                        <label className="text-sm font-medium text-[#6E6E73]">Mensaje</label>
-                                        <button
-                                            className="text-xs text-[#0071E3] flex items-center gap-1 hover:underline"
-                                            onClick={() => setEditMode(e => !e)}
-                                        >
-                                            <Pencil className="h-3 w-3" />
-                                            {editMode ? 'Vista previa' : 'Editar'}
-                                        </button>
-                                    </div>
-                                    {editMode ? (
-                                        <textarea
-                                            rows={10}
-                                            className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all resize-none"
-                                            value={cuerpo}
-                                            onChange={(e) => setCuerpo(e.target.value)}
-                                        />
-                                    ) : (
-                                        <div className="w-full min-h-[200px] rounded-xl border border-[#E8E8ED] bg-[#F5F5F7] px-4 py-3 text-sm text-[#1D1D1F] whitespace-pre-line">
-                                            {cuerpo || <span className="text-[#A1A1A6] italic">Selecciona una plantilla o escribe un mensaje</span>}
-                                        </div>
-                                    )}
-                                </div>
+                            <div className="flex-1 overflow-y-auto p-5">
+                                <FormContent />
                             </div>
                         </div>
                     )}
 
                     {/* Footer */}
-                    <div className="flex justify-end gap-3 px-4 md:px-6 py-3 md:py-4 border-t border-[#E8E8ED] bg-[#F5F5F7] shrink-0">
-                        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
-                        <Button
-                            onClick={handleSend}
-                            isLoading={sending}
-                            disabled={!hasCredentials || !emailDestino || !asunto || !cuerpo || trabajadores.length === 0}
-                            leftIcon={<Send className="h-4 w-4" />}
-                        >
-                            Enviar Reporte
-                        </Button>
+                    <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#E8E8ED] bg-[#F5F5F7]">
+                        <FooterButtons />
                     </div>
                 </motion.div>
             </div>

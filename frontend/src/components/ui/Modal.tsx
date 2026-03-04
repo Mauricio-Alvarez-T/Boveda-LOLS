@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X } from 'lucide-react';
+import { X, ChevronLeft } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Button } from './Button';
 
@@ -21,7 +21,7 @@ export const Modal: React.FC<ModalProps> = ({
     footer,
     size = 'md'
 }) => {
-    // Desktop-only max-widths — on mobile the modal is always full-width
+    // Desktop-only max-widths
     const desktopSizes: Record<string, string> = {
         sm: 'md:max-w-md',
         md: 'md:max-w-xl',
@@ -35,56 +35,82 @@ export const Modal: React.FC<ModalProps> = ({
     return (
         <AnimatePresence>
             {isOpen && (
-                <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4">
-                    {/* Backdrop */}
-                    <motion.div
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        onClick={onClose}
-                        className="absolute inset-0 bg-black/40 backdrop-blur-sm"
-                    />
-
-                    {/* Modal Content — mobile: bottom sheet, desktop: centered card */}
-                    <motion.div
-                        initial={{ opacity: 0, y: 60 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: 60 }}
-                        transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                        className={cn(
-                            "relative bg-white w-full flex flex-col",
-                            "rounded-t-3xl md:rounded-2xl",
-                            "max-h-[92svh] md:max-h-[90vh]",
-                            "md:shadow-2xl md:w-full",
-                            desktopSizes[size]
-                        )}
-                    >
-                        {/* Mobile drag handle indicator */}
-                        <div className="flex justify-center pt-3 pb-1 md:hidden shrink-0">
-                            <div className="h-1 w-10 rounded-full bg-[#D2D2D7]" />
-                        </div>
-
-                        {/* Header */}
-                        <div className="flex items-center justify-between px-5 md:px-6 py-3 md:py-5 border-b border-[#D2D2D7] shrink-0">
-                            <h3 className="text-base md:text-lg font-semibold text-[#1D1D1F] truncate pr-8">{title}</h3>
-                            <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F] shrink-0">
-                                <X className="h-4 w-4" />
-                            </Button>
-                        </div>
-
-                        {/* Body */}
-                        <div className="px-5 md:px-6 py-4 md:py-6 overflow-y-auto flex-1 custom-scrollbar">
-                            {children}
-                        </div>
-
-                        {/* Footer */}
-                        {footer && (
-                            <div className="px-5 md:px-6 py-3 md:py-4 border-t border-[#D2D2D7] bg-[#F5F5F7] flex justify-end gap-3 shrink-0">
-                                {footer}
+                <>
+                    {/* ─── MOBILE: Fullscreen page overlay ─── */}
+                    <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-white">
+                        <motion.div
+                            initial={{ opacity: 0, x: 60 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            exit={{ opacity: 0, x: 60 }}
+                            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                            className="flex flex-col h-full"
+                        >
+                            {/* Mobile header — iOS-style navigation bar */}
+                            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0 safe-area-top">
+                                <button
+                                    onClick={onClose}
+                                    className="flex items-center gap-1 text-[#0071E3] text-sm font-medium active:opacity-60 transition-opacity"
+                                >
+                                    <ChevronLeft className="h-5 w-5" />
+                                    <span>Volver</span>
+                                </button>
+                                <h3 className="flex-1 text-center text-base font-semibold text-[#1D1D1F] truncate pr-12">{title}</h3>
                             </div>
-                        )}
-                    </motion.div>
-                </div>
+
+                            {/* Mobile body */}
+                            <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+                                {children}
+                            </div>
+
+                            {/* Mobile footer */}
+                            {footer && (
+                                <div className="px-4 py-3 border-t border-[#E8E8ED] bg-[#F5F5F7] flex justify-end gap-3 shrink-0 safe-area-bottom">
+                                    {footer}
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+
+                    {/* ─── DESKTOP: Classic centered card modal ─── */}
+                    <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center p-4">
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={onClose}
+                            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+                        />
+                        {/* Card */}
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                            className={cn(
+                                "relative bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] w-full",
+                                desktopSizes[size]
+                            )}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-[#D2D2D7]">
+                                <h3 className="text-lg font-semibold text-[#1D1D1F] truncate pr-8">{title}</h3>
+                                <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F] shrink-0">
+                                    <X className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {/* Body */}
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                                {children}
+                            </div>
+                            {/* Footer */}
+                            {footer && (
+                                <div className="px-6 py-4 border-t border-[#D2D2D7] bg-[#F5F5F7] flex justify-end gap-3">
+                                    {footer}
+                                </div>
+                            )}
+                        </motion.div>
+                    </div>
+                </>
             )}
         </AnimatePresence>
     );

@@ -44,8 +44,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
     if (!isOpen || !worker) return null;
 
     const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate();
-    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay(); // 0 is Sunday
-    // Adjust so Monday is 0, Sunday is 6
+    const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay();
     const startingDay = firstDayOfMonth === 0 ? 6 : firstDayOfMonth - 1;
 
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -59,20 +58,129 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
         return records.find(r => r.fecha.startsWith(dateStr));
     };
 
+    /* ── Shared calendar grid ── */
+    const CalendarGrid = () => (
+        <>
+            <div className="flex items-center justify-between mb-4 md:mb-6">
+                <h3 className="text-base md:text-lg font-semibold text-[#1D1D1F]">
+                    {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
+                </h3>
+                <div className="flex gap-2">
+                    <Button variant="glass" size="icon" onClick={() => navigateMonth(-1)}>
+                        <ChevronLeft className="h-4 w-4" />
+                    </Button>
+                    <Button variant="glass" size="sm" onClick={() => setCurrentDate(new Date())}>
+                        Hoy
+                    </Button>
+                    <Button variant="glass" size="icon" onClick={() => navigateMonth(1)}>
+                        <ChevronRight className="h-4 w-4" />
+                    </Button>
+                </div>
+            </div>
+
+            {loading ? (
+                <div className="h-64 flex items-center justify-center">
+                    <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
+                </div>
+            ) : (
+                <div className="grid grid-cols-7 gap-1 md:gap-1.5">
+                    {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
+                        <div key={day} className="text-center text-[10px] font-bold text-[#86868B] uppercase tracking-widest mb-2">
+                            {day}
+                        </div>
+                    ))}
+
+                    {Array.from({ length: startingDay }).map((_, i) => (
+                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-[#F5F5F7]/30 rounded-xl border border-[#E8E8ED]/30" />
+                    ))}
+
+                    {Array.from({ length: daysInMonth }).map((_, i) => {
+                        const day = i + 1;
+                        const record = getRecordForDay(day);
+                        const estado = record ? estados.find(e => e.id === record.estado_id) : null;
+                        const isWeekend = (startingDay + i) % 7 >= 5;
+
+                        return (
+                            <div
+                                key={day}
+                                className="h-10 md:h-14 p-1 md:p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#0071E3]/30 transition-all bg-white group"
+                                style={{ backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#F5F5F7/50' : '#FFFFFF') }}
+                            >
+                                <span className={`text-[10px] font-medium ${estado ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto`}>
+                                    {day}
+                                </span>
+                                {estado && (
+                                    <div
+                                        className="px-1 py-0.5 rounded-lg text-[8px] md:text-[9px] font-bold w-full text-center truncate shadow-sm"
+                                        style={{ backgroundColor: `${estado.color}15`, color: estado.color }}
+                                        title={estado.nombre}
+                                    >
+                                        {estado.codigo}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* Legend */}
+            <div className="mt-4 md:mt-6 flex flex-wrap gap-2 md:gap-3 justify-center">
+                {estados.map(est => (
+                    <div key={est.id} className="flex items-center gap-1.5 text-[11px] md:text-xs text-[#6E6E73]">
+                        <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: est.color }} />
+                        {est.nombre}
+                    </div>
+                ))}
+            </div>
+        </>
+    );
+
     return (
         <AnimatePresence>
-            <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-4 bg-black/40 backdrop-blur-sm">
+            {/* ── MOBILE: Fullscreen ── */}
+            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-white">
                 <motion.div
-                    initial={{ opacity: 0, y: 60 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 60 }}
-                    transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                    className="bg-white/90 backdrop-blur-xl rounded-t-3xl md:rounded-3xl shadow-2xl w-full md:max-w-lg border border-white/20 overflow-hidden flex flex-col max-h-[92svh] md:max-h-[90vh]"
+                    initial={{ opacity: 0, x: 60 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: 60 }}
+                    transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                    className="flex flex-col h-full"
                 >
-                    <div className="flex justify-center pt-3 pb-1 md:hidden shrink-0">
-                        <div className="h-1 w-10 rounded-full bg-[#D2D2D7]" />
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
+                        <button onClick={onClose} className="flex items-center gap-1 text-[#0071E3] text-sm font-medium">
+                            <ChevronLeft className="h-5 w-5" />
+                            <span>Volver</span>
+                        </button>
+                        <div className="flex-1 text-center pr-12">
+                            <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center justify-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-[#0071E3]" />
+                                Calendario
+                            </h3>
+                        </div>
                     </div>
-                    <div className="flex items-center justify-between px-4 md:px-5 py-3 md:py-5 border-b border-[#E8E8ED] shrink-0">
+
+                    {/* Worker info */}
+                    <div className="px-4 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] shrink-0">
+                        <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
+                        <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                    </div>
+
+                    <div className="flex-1 overflow-y-auto px-4 py-4">
+                        <CalendarGrid />
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* ── DESKTOP: Centered card ── */}
+            <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
+                >
+                    <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
                         <div>
                             <h2 className="text-xl font-bold text-[#1D1D1F] flex items-center gap-2">
                                 <CalendarIcon className="h-5 w-5 text-[#0071E3]" />
@@ -86,83 +194,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
-
-                    <div className="px-4 md:px-6 py-4 md:py-6 overflow-y-auto flex-1">
-                        <div className="flex items-center justify-between mb-6">
-                            <h3 className="text-lg font-semibold text-[#1D1D1F]">
-                                {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
-                            </h3>
-                            <div className="flex gap-2">
-                                <Button variant="glass" size="icon" onClick={() => navigateMonth(-1)}>
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <Button variant="glass" size="sm" onClick={() => setCurrentDate(new Date())}>
-                                    Hoy
-                                </Button>
-                                <Button variant="glass" size="icon" onClick={() => navigateMonth(1)}>
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-                        </div>
-
-                        {loading ? (
-                            <div className="h-64 flex items-center justify-center">
-                                <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
-                            </div>
-                        ) : (
-                            <div className="grid grid-cols-7 gap-1.5">
-                                {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-                                    <div key={day} className="text-center text-[10px] font-bold text-[#86868B] uppercase tracking-widest mb-2">
-                                        {day}
-                                    </div>
-                                ))}
-
-                                {Array.from({ length: startingDay }).map((_, i) => (
-                                    <div key={`empty-${i}`} className="h-11 md:h-14 bg-[#F5F5F7]/30 rounded-xl border border-[#E8E8ED]/30" />
-                                ))}
-
-                                {Array.from({ length: daysInMonth }).map((_, i) => {
-                                    const day = i + 1;
-                                    const record = getRecordForDay(day);
-                                    const estado = record ? estados.find(e => e.id === record.estado_id) : null;
-                                    const isWeekend = (startingDay + i) % 7 >= 5;
-
-                                    return (
-                                        <div
-                                            key={day}
-                                            className="h-11 md:h-14 p-1 md:p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#0071E3]/30 transition-all bg-white group"
-                                            style={{ backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#F5F5F7/50' : '#FFFFFF') }}
-                                        >
-                                            <span className={`text-[10px] font-medium ${estado ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto`}>
-                                                {day}
-                                            </span>
-                                            {estado && (
-                                                <div
-                                                    className="px-1.5 py-0.5 rounded-lg text-[9px] font-bold w-full text-center truncate shadow-sm"
-                                                    style={{ backgroundColor: `${estado.color}15`, color: estado.color }}
-                                                    title={estado.nombre}
-                                                >
-                                                    {estado.codigo}
-                                                </div>
-                                            )}
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        )}
-
-                        {/* Legend */}
-                        <div className="mt-6 flex flex-wrap gap-3 justify-center">
-                            {estados.map(est => (
-                                <div key={est.id} className="flex items-center gap-1.5 text-xs text-[#6E6E73]">
-                                    <span
-                                        className="w-2.5 h-2.5 rounded-full"
-                                        style={{ backgroundColor: est.color }}
-                                    />
-                                    {est.nombre}
-                                </div>
-                            ))}
-                        </div>
+                    <div className="p-6 overflow-y-auto">
+                        <CalendarGrid />
                     </div>
                 </motion.div>
             </div>

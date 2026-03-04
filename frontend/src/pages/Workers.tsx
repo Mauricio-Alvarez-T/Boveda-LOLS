@@ -686,31 +686,31 @@ const WorkersPage: React.FC = () => {
                 )}
 
                 {modalType === 'docs' && selectedWorker && (
-                    <div className="space-y-6">
+                    <div className="space-y-4 md:space-y-6">
                         {/* Worker Details Summary in Modal */}
-                        <div className="bg-[#0071E3]/5 border border-[#0071E3]/10 p-4 rounded-2xl flex flex-wrap items-center gap-4">
-                            <div className="h-12 w-12 rounded-xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-xl">
+                        <div className="bg-[#0071E3]/5 border border-[#0071E3]/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
+                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
                                 {selectedWorker.nombres[0]}{(selectedWorker.apellido_paterno || '')[0]}
                             </div>
-                            <div className="flex-1 min-w-[200px]">
-                                <div className="flex items-center gap-2">
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-sm font-bold text-[#1D1D1F]">{selectedWorker.rut}</span>
                                     <span className="px-2 py-0.5 rounded-lg bg-[#0071E3]/10 text-[#0071E3] text-[10px] font-black uppercase tracking-wider">
                                         {selectedWorker.obra_nombre || 'Sin Obra'}
                                     </span>
                                 </div>
-                                <p className="text-xs font-medium text-[#6E6E73] mt-1">
+                                <p className="text-xs font-medium text-[#6E6E73] mt-1 truncate">
                                     {selectedWorker.empresa_nombre} • {selectedWorker.cargo_nombre || 'Sin Cargo'}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex justify-between items-center bg-[#F5F5F7] p-4 rounded-xl">
-                            <div>
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-[#F5F5F7] p-3 md:p-4 rounded-xl">
+                            <div className="hidden sm:block">
                                 <h4 className="text-base font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
                                 <p className="text-sm text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
                             </div>
-                            <div className="flex gap-2">
+                            <div className="flex gap-2 w-full sm:w-auto">
                                 {!isUploading && (
                                     <Button
                                         size="sm"
@@ -734,10 +734,11 @@ const WorkersPage: React.FC = () => {
                                                 toast.error('Error al descargar documentos');
                                             }
                                         }}
-                                        className="text-[#0071E3] hover:text-[#0077ED]"
+                                        className="text-[#0071E3] hover:text-[#0077ED] flex-1 sm:flex-initial"
                                         leftIcon={<Download className="h-4 w-4" />}
                                     >
-                                        Descargar Todo (.zip)
+                                        <span className="hidden sm:inline">Descargar Todo (.zip)</span>
+                                        <span className="sm:hidden">Descargar</span>
                                     </Button>
                                 )}
                                 <Button
@@ -746,10 +747,11 @@ const WorkersPage: React.FC = () => {
                                     disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
                                     onClick={() => setIsUploading(!isUploading)}
                                     leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
-                                    className={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}
+                                    className={`flex-1 sm:flex-initial ${(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
                                     title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
                                 >
-                                    {isUploading ? 'Volver a la lista' : 'Subir Documento'}
+                                    <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
+                                    <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
                                 </Button>
                             </div>
                         </div>
