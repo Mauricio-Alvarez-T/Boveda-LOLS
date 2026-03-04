@@ -58,7 +58,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
         if (workerId) {
             setLoading(true);
             setData(null);
-            api.get<QuickViewData>(`/trabajadores/${workerId}/quick-view`)
+            api.get<QuickViewData>(`/worker-preview/${workerId}`)
                 .then(res => setData(res.data))
                 .catch(() => { })
                 .finally(() => setLoading(false));
