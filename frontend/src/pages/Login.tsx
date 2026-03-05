@@ -10,7 +10,6 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
-import { AnimatedBackgroundText } from '../components/ui/AnimatedBackgroundText';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import type { AuthResponse } from '../types';
@@ -50,80 +49,104 @@ const LoginPage: React.FC = () => {
     };
 
     return (
-        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#F5F5F7]">
-            {/* Animated Typography Background */}
-            <AnimatedBackgroundText />
+        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#F8F9FA]"
+            style={{
+                backgroundImage: `linear-gradient(to right, #E5E7EB 1px, transparent 1px), linear-gradient(to bottom, #E5E7EB 1px, transparent 1px)`,
+                backgroundSize: '40px 40px'
+            }}>
 
-            {/* Apple-Style Glass Card */}
+            {/* Blueprint Grid Overlay for aesthetic engineering feel */}
+            <div className="absolute inset-0 pointer-events-none"
+                style={{
+                    backgroundImage: `linear-gradient(to right, #F3F4F6 1px, transparent 1px), linear-gradient(to bottom, #F3F4F6 1px, transparent 1px)`,
+                    backgroundSize: '10px 10px',
+                    opacity: 0.5
+                }}
+            />
+
+            {/* Solid Engineering-Style Card */}
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                transition={{ duration: 0.6, ease: "easeOut" }}
                 className="relative z-10 w-full max-w-[440px] px-6"
             >
-                <div className="bg-white/80 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] p-10 md:p-12">
+                <div className="bg-white border border-gray-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden">
 
-                    <div className="flex flex-col items-center mb-10 w-full px-4">
-                        <motion.div
-                            whileHover={{ scale: 1.02 }}
-                            className="w-full max-w-[280px] mb-8"
-                        >
-                            <Logo variant="green" className="w-full h-auto drop-shadow-sm" />
-                        </motion.div>
-                        <p className="text-[#86868B] text-sm text-center font-medium uppercase tracking-widest">
-                            Gestión Documental & Asistencia
-                        </p>
-                    </div>
+                    {/* Top Green Accent Bar */}
+                    <div className="h-2 w-full bg-[#029E4D]" />
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                        <div className="space-y-5">
-                            <div className="relative group">
-                                <Input
-                                    label="Correo Corporativo"
-                                    placeholder="ejemplo@lols.cl"
-                                    type="email"
-                                    error={errors.email?.message}
-                                    {...register('email')}
-                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#029E4D] h-12 rounded-xl transition-all"
-                                />
-                                <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#029E4D] transition-colors" />
-                            </div>
-
-                            <div className="relative group">
-                                <Input
-                                    label="Contraseña"
-                                    placeholder="••••••••"
-                                    type="password"
-                                    error={errors.password?.message}
-                                    {...register('password')}
-                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#029E4D] h-12 rounded-xl transition-all"
-                                />
-                                <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#029E4D] transition-colors" />
-                            </div>
-                        </div>
-
-                        <div className="pt-2">
-                            <Button
-                                type="submit"
-                                className="w-full h-12 text-base font-semibold bg-[#029E4D] text-white hover:bg-[#027A3B] rounded-xl shadow-md transition-all active:scale-[0.98]"
-                                isLoading={isLoading}
-                                rightIcon={<LogIn className="h-4 w-4" />}
+                    <div className="p-8 md:p-10">
+                        <div className="flex flex-col items-center mb-10 w-full px-2">
+                            <motion.div
+                                whileHover={{ scale: 1.02 }}
+                                className="w-full max-w-[260px] mb-6"
                             >
-                                Iniciar Sesión
-                            </Button>
-                        </div>
-                    </form>
-
-                    <div className="mt-10 pt-8 border-t border-gray-100/50 text-center">
-                        <div className="flex items-center justify-center gap-2 mb-2">
-                            <Fingerprint className="h-4 w-4 text-[#86868B]" />
-                            <p className="text-[10px] text-[#A1A1A6] font-bold tracking-widest uppercase">
-                                Acceso Seguro Verificado
+                                <Logo variant="green" className="w-full h-auto" />
+                            </motion.div>
+                            <div className="h-px w-16 bg-[#029E4D]/20 mb-4" />
+                            <p className="text-[#64748B] text-xs text-center font-bold uppercase tracking-[0.2em]">
+                                Gestión Documental & Asistencia
                             </p>
+                        </div>
+
+                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+                            <div className="space-y-5">
+                                <div className="relative group">
+                                    <Input
+                                        label="Correo Corporativo"
+                                        placeholder="ejemplo@lols.cl"
+                                        type="email"
+                                        error={errors.email?.message}
+                                        {...register('email')}
+                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-[#029E4D] focus:ring-1 focus:ring-[#029E4D] h-12 rounded-lg transition-all"
+                                    />
+                                    <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-[#029E4D] transition-colors" />
+                                </div>
+
+                                <div className="relative group">
+                                    <Input
+                                        label="Contraseña"
+                                        placeholder="••••••••"
+                                        type="password"
+                                        error={errors.password?.message}
+                                        {...register('password')}
+                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-[#029E4D] focus:ring-1 focus:ring-[#029E4D] h-12 rounded-lg transition-all"
+                                    />
+                                    <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-[#029E4D] transition-colors" />
+                                </div>
+                            </div>
+
+                            <div className="pt-4">
+                                <Button
+                                    type="submit"
+                                    className="w-full h-12 text-base font-semibold bg-[#029E4D] text-white hover:bg-[#027A3B] rounded-lg shadow-sm transition-all active:scale-[0.98]"
+                                    isLoading={isLoading}
+                                    rightIcon={<LogIn className="h-4 w-4" />}
+                                >
+                                    Iniciar Sesión
+                                </Button>
+                            </div>
+                        </form>
+
+                        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
+                            <div className="flex items-center justify-center gap-2">
+                                <Fingerprint className="h-3.5 w-3.5 text-[#94A3B8]" />
+                                <p className="text-[10px] text-[#64748B] font-bold tracking-widest uppercase">
+                                    Acceso Seguro Verificado
+                                </p>
+                            </div>
                         </div>
                     </div>
                 </div>
             </motion.div>
+
+            {/* Subtle bottom brand text */}
+            <div className="absolute bottom-6 w-full text-center pointer-events-none">
+                <p className="text-[#94A3B8] text-[10px] font-medium tracking-widest uppercase opacity-70">
+                    LOLS Ingeniería © {new Date().getFullYear()}
+                </p>
+            </div>
         </div>
     );
 };
