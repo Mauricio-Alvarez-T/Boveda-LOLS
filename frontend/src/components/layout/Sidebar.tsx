@@ -63,14 +63,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const sidebarContent = (isMobile: boolean) => (
         <>
             {/* Logo Section */}
-            <div className="px-5 py-6 flex items-center justify-between h-[84px]">
+            <div className="px-5 py-4 flex items-center justify-between h-[84px]">
                 <div className={cn("flex flex-1 items-center overflow-hidden transition-all duration-300", (!isMobile && isCollapsed) ? "justify-center" : "justify-start")}>
                     <Logo
                         variant="green"
                         iconOnly={!isMobile && isCollapsed}
                         className={cn(
                             "transition-all duration-300 transform-gpu shrink-0",
-                            (!isMobile && isCollapsed) ? "h-8 w-auto ml-1" : "h-11 w-auto"
+                            (!isMobile && isCollapsed) ? "h-8 w-auto ml-1" : "h-14 w-auto"
                         )}
                     />
                 </div>
