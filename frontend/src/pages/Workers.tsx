@@ -509,12 +509,6 @@ const WorkersPage: React.FC = () => {
                                 </motion.div>
                             );
                         })}
-                        {/* Infinite scroll trigger */}
-                        {hasMore && (
-                            <div ref={ref} className="py-6 flex justify-center">
-                                {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />}
-                            </div>
-                        )}
                     </div>
                 )}
             </div>
@@ -658,14 +652,17 @@ const WorkersPage: React.FC = () => {
                             )}
                         </tbody>
                     </table>
-                    {/* Infinite Scroll Loader & Trigger */}
-                    {hasMore && (
-                        <div ref={ref} className="py-8 flex justify-center items-center">
-                            {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />}
-                        </div>
-                    )}
                 </div>
             </div>
+
+            {/* Unified Infinite Scroll Trigger (Visible in both Mobile and Desktop) */}
+            {
+                hasMore && (
+                    <div ref={ref} className="py-8 flex justify-center items-center w-full">
+                        {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />}
+                    </div>
+                )
+            }
 
             {/* Unified Modal */}
             <Modal
