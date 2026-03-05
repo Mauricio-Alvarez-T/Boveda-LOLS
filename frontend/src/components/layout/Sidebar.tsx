@@ -70,7 +70,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         iconOnly={!isMobile && isCollapsed}
                         className={cn(
                             "transition-all duration-300 transform-gpu shrink-0",
-                            (!isMobile && isCollapsed) ? "h-8 w-auto ml-1" : "h-14 w-auto"
+                            (!isMobile && isCollapsed) ? "h-10 w-auto ml-1" : "h-14 w-auto"
                         )}
                     />
                 </div>
