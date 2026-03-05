@@ -1,4 +1,5 @@
 name: Deploy Bóveda LOLS to cPanel 🚀
+# Forced refresh to trigger pending color migration 🟢
 
 on:
   push:
