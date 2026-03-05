@@ -27,8 +27,8 @@ export const Logo: React.FC<LogoProps> = ({ className, variant = 'default', icon
                 <rect x="20" y="48" width="75" height="144" />
 
                 {/* 3 Rectángulos apilados en el centro */}
-                <rect x="115" y="48" width="85" height="40" fill="transparent" stroke={color} strokeWidth="8" />
-                <rect x="115" y="100" width="85" height="40" fill="transparent" stroke={color} strokeWidth="8" />
+                <rect x="119" y="52" width="77" height="32" fill="transparent" stroke={color} strokeWidth="8" />
+                <rect x="119" y="104" width="77" height="32" fill="transparent" stroke={color} strokeWidth="8" />
                 {/* El último rectángulo abajo es sólido (relleno) según el logo original */}
                 <rect x="115" y="152" width="85" height="40" />
 

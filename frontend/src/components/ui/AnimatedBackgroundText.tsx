@@ -1,50 +1,39 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 
-// Array de objetos para mezclar fuentes, estilos y tamaños corporativos
-const bgWords = [
-    { text: "ESFUERZO", font: "font-['Inter']", weight: "font-light", size: "text-[60px]" },
-    { text: "CREATIVIDAD", font: "font-['Optima']", weight: "font-normal", size: "text-[45px]" },
-    { text: "RESPONSABILIDAD", font: "font-['Helvetica']", weight: "font-semibold", size: "text-[40px]" },
-    { text: "SEGURIDAD", font: "font-serif", weight: "font-medium", size: "text-[55px]" },
-    { text: "CALIDAD", font: "font-['Helvetica']", weight: "font-light", size: "text-[50px]" },
-    { text: "LOLS", font: "font-['DM_Sans']", weight: "font-black", size: "text-[70px]" },
-    { text: "INGENIERÍA", font: "font-['Optima']", weight: "font-medium", size: "text-[50px]" },
-    { text: "COMPROMISO", font: "font-serif", weight: "font-normal", size: "text-[65px]" }
-];
-
-const generateTextLayer = (reverse: boolean, duration: number, delay: number, opacity: number, yOffset: string) => {
-    return (
-        <div className="flex whitespace-nowrap overflow-hidden absolute w-[200vw]" style={{ top: yOffset, opacity }}>
-            <motion.div
-                className="flex items-center space-x-12 px-6"
-                animate={{ x: reverse ? ['0%', '-50%'] : ['-50%', '0%'] }}
-                transition={{ duration, ease: "linear", repeat: Infinity, delay }}
-            >
-                {/* Repeat words twice to create seamless loop */}
-                {[...bgWords, ...bgWords].map((item, i) => (
-                    <span
-                        key={i}
-                        className={`${item.size} ${item.weight} ${item.font} tracking-wide text-[#1D1D1F]/5 select-none pointer-events-none`}
-                        style={{ WebkitTextStroke: '1px rgba(29, 29, 31, 0.08)' }}
-                    >
-                        {item.text}
-                    </span>
-                ))}
-            </motion.div>
-        </div>
-    );
-};
-
 export const AnimatedBackgroundText: React.FC = () => {
     return (
-        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none flex flex-col justify-center transform -rotate-[8deg] scale-125 origin-center">
-            <div className="relative w-full h-[150vh] -mt-[25vh]">
-                {generateTextLayer(false, 110, 0, 0.6, '15%')}
-                {generateTextLayer(true, 130, -20, 0.4, '35%')}
-                {generateTextLayer(false, 150, -10, 0.5, '55%')}
-                {generateTextLayer(true, 120, -40, 0.4, '75%')}
-            </div>
+        <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            {/* Esfera sutil 1 (Verde corporativo muy tenue) */}
+            <motion.div
+                animate={{
+                    x: [0, 150, -100, 0],
+                    y: [0, -100, 150, 0],
+                    scale: [1, 1.15, 0.9, 1]
+                }}
+                transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-[#029E4D]/[0.04] blur-[120px]"
+            />
+            {/* Esfera sutil 2 (Azul/Grisáceo tenue) */}
+            <motion.div
+                animate={{
+                    x: [0, -150, 100, 0],
+                    y: [0, 150, -100, 0],
+                    scale: [1, 0.85, 1.1, 1]
+                }}
+                transition={{ duration: 55, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#0071E3]/[0.03] blur-[120px]"
+            />
+            {/* Esfera sutil 3 (Gris tenue central) */}
+            <motion.div
+                animate={{
+                    x: [-50, 50, -50],
+                    y: [-50, 50, -50],
+                    scale: [0.95, 1.05, 0.95]
+                }}
+                transition={{ duration: 65, repeat: Infinity, ease: "easeInOut" }}
+                className="absolute top-[20%] left-[30%] w-[50vw] h-[50vw] rounded-full bg-slate-400/[0.04] blur-[100px]"
+            />
         </div>
     );
 };
