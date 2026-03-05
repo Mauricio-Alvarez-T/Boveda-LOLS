@@ -10,6 +10,7 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Logo } from '../components/ui/Logo';
+import { AnimatedBackgroundText } from '../components/ui/AnimatedBackgroundText';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import type { AuthResponse } from '../types';
@@ -50,25 +51,8 @@ const LoginPage: React.FC = () => {
 
     return (
         <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#F5F5F7]">
-            {/* Soft Ambient Light Background */}
-            <div className="absolute inset-0 z-0 overflow-hidden">
-                <motion.div
-                    animate={{
-                        x: [-100, 100, -100],
-                        y: [-50, 50, -50],
-                    }}
-                    transition={{ duration: 15, repeat: Infinity, ease: "linear" }}
-                    className="absolute -top-[10%] -left-[10%] w-[60vw] h-[60vw] rounded-full bg-blue-400/10 blur-[100px]"
-                />
-                <motion.div
-                    animate={{
-                        x: [100, -100, 100],
-                        y: [50, -50, 50],
-                    }}
-                    transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                    className="absolute -bottom-[10%] -right-[10%] w-[60vw] h-[60vw] rounded-full bg-indigo-300/10 blur-[100px]"
-                />
-            </div>
+            {/* Animated Typography Background */}
+            <AnimatedBackgroundText />
 
             {/* Apple-Style Glass Card */}
             <motion.div
