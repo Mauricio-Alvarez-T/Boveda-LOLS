@@ -12,7 +12,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                     scale: [1, 1.15, 0.9, 1]
                 }}
                 transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-[#029E4D]/[0.04] blur-[120px]"
+                className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full bg-[#029E4D]/0.12 blur-[100px]"
             />
             {/* Esfera sutil 2 (Azul/Grisáceo tenue) */}
             <motion.div
@@ -22,7 +22,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                     scale: [1, 0.85, 1.1, 1]
                 }}
                 transition={{ duration: 55, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#0071E3]/[0.03] blur-[120px]"
+                className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#0071E3]/0.1 blur-[100px]"
             />
             {/* Esfera sutil 3 (Gris tenue central) */}
             <motion.div
@@ -32,7 +32,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                     scale: [0.95, 1.05, 0.95]
                 }}
                 transition={{ duration: 65, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute top-[20%] left-[30%] w-[50vw] h-[50vw] rounded-full bg-slate-400/[0.04] blur-[100px]"
+                className="absolute top-[20%] left-[30%] w-[50vw] h-[50vw] rounded-full bg-slate-400/0.08 blur-[80px]"
             />
         </div>
     );
