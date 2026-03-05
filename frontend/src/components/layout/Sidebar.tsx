@@ -5,7 +5,6 @@ import {
     Users,
     FileText,
     CheckSquare,
-    ShieldCheck,
     ChevronLeft,
     ChevronRight,
     LogOut,
@@ -15,6 +14,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
+import { Logo } from '../ui/Logo';
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -63,21 +63,16 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const sidebarContent = (isMobile: boolean) => (
         <>
             {/* Logo Section */}
-            <div className="px-5 py-6 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 shrink-0 bg-[#0071E3] rounded-xl flex items-center justify-center shadow-sm">
-                        <ShieldCheck className="h-5 w-5 text-white" />
-                    </div>
-                    {(isMobile || !isCollapsed) && (
-                        <motion.div
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className="flex flex-col"
-                        >
-                            <span className="font-semibold text-base text-[#1D1D1F] leading-none">Bóveda</span>
-                            <span className="text-xs text-[#0071E3] font-bold tracking-[0.2em] uppercase mt-0.5">LOLS</span>
-                        </motion.div>
-                    )}
+            <div className="px-5 py-6 flex items-center justify-between h-[84px]">
+                <div className={cn("flex flex-1 items-center overflow-hidden transition-all duration-300", (!isMobile && isCollapsed) ? "justify-center" : "justify-start")}>
+                    <Logo
+                        variant="green"
+                        iconOnly={!isMobile && isCollapsed}
+                        className={cn(
+                            "transition-all duration-300 transform-gpu shrink-0",
+                            (!isMobile && isCollapsed) ? "h-8 w-auto ml-1" : "h-11 w-auto"
+                        )}
+                    />
                 </div>
                 {isMobile && (
                     <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-[#F5F5F7] text-[#6E6E73]">

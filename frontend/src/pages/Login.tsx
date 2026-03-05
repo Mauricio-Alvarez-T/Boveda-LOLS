@@ -4,11 +4,12 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { motion } from 'framer-motion';
-import { LogIn, ShieldCheck, Mail, Lock, Fingerprint } from 'lucide-react';
+import { LogIn, Mail, Lock, Fingerprint } from 'lucide-react';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Logo } from '../components/ui/Logo';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import type { AuthResponse } from '../types';
@@ -78,18 +79,14 @@ const LoginPage: React.FC = () => {
             >
                 <div className="bg-white/80 backdrop-blur-2xl border border-white/50 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] p-10 md:p-12">
 
-                    <div className="flex flex-col items-center mb-10">
+                    <div className="flex flex-col items-center mb-10 w-full px-4">
                         <motion.div
-                            whileHover={{ scale: 1.05 }}
-                            className="h-16 w-16 bg-[#0071E3] rounded-2xl flex items-center justify-center shadow-lg shadow-blue-500/20 mb-6"
+                            whileHover={{ scale: 1.02 }}
+                            className="w-full max-w-[280px] mb-8"
                         >
-                            <ShieldCheck className="h-9 w-9 text-white" />
+                            <Logo variant="green" className="w-full h-auto drop-shadow-sm" />
                         </motion.div>
-
-                        <h1 className="text-3xl font-bold tracking-tight text-[#1D1D1F] mb-2">
-                            Bóveda LOLS
-                        </h1>
-                        <p className="text-[#86868B] text-sm text-center font-medium">
+                        <p className="text-[#86868B] text-sm text-center font-medium uppercase tracking-widest">
                             Gestión Documental & Asistencia
                         </p>
                     </div>
