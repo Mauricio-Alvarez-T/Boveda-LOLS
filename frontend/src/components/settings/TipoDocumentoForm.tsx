@@ -68,20 +68,43 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
                 error={errors.dias_vigencia?.message}
                 placeholder="365 (vacío = sin vencimiento)"
             />
-            <div className="flex items-center gap-3 py-2">
-                <input
-                    type="checkbox"
-                    id="obligatorio"
-                    {...register('obligatorio')}
-                    className="h-4 w-4 rounded border-white/20 bg-white/5 text-brand-primary focus:ring-brand-primary"
-                />
-                <label htmlFor="obligatorio" className="text-sm text-white font-medium cursor-pointer">
-                    Documento obligatorio
-                </label>
+            <div className="py-4">
+                <div className="flex flex-col gap-1.5">
+                    <label className="flex items-start gap-3 cursor-pointer">
+                        <div className="pt-0.5">
+                            <input
+                                type="checkbox"
+                                id="obligatorio"
+                                {...register('obligatorio')}
+                                className="h-5 w-5 rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D] cursor-pointer"
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <span className="text-sm font-semibold text-[#1D1D1F]">
+                                Documento Obligatorio
+                            </span>
+                            <span className="text-xs text-[#6E6E73] mt-0.5">
+                                Si está marcado, se exigirá este documento a todos los trabajadores. La falta del mismo afectará el nivel de cumplimiento y emitirá alertas.
+                            </span>
+                        </div>
+                    </label>
+                </div>
             </div>
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
+
+            <div className="flex justify-end gap-3 pt-5 mt-2 border-t border-[#E8E8ED]">
+                <Button
+                    type="button"
+                    className="bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
+                    onClick={onCancel}
+                >
+                    Cancelar
+                </Button>
+                <Button
+                    type="submit"
+                    className="bg-[#029E4D] text-white hover:bg-[#027A3B]"
+                    isLoading={isSubmitting}
+                    leftIcon={<Save className="h-4 w-4" />}
+                >
                     {initialData ? 'Actualizar' : 'Crear'}
                 </Button>
             </div>
