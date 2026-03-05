@@ -209,7 +209,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             <div className="md:hidden space-y-3">
                 {loading ? (
                     <div className="py-16 text-center">
-                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#0071E3] mb-2" />
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#029E4D] mb-2" />
                         <p className="text-xs text-[#6E6E73]">Cargando...</p>
                     </div>
                 ) : rows.length === 0 ? (
@@ -242,7 +242,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                             onClick={() => canEdit && openEdit(row)}
                                             disabled={!canEdit}
                                             className={cn(
-                                                "p-1.5 rounded-lg text-[#0071E3] hover:bg-[#0071E3]/8 transition-colors",
+                                                "p-1.5 rounded-lg text-[#029E4D] hover:bg-[#029E4D]/8 transition-colors",
                                                 !canEdit && "opacity-30 cursor-not-allowed"
                                             )}
                                         >
@@ -299,7 +299,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                             {loading ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">
-                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#0071E3] mb-2" />
+                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#029E4D] mb-2" />
                                         <p className="text-xs text-[#6E6E73]">Cargando...</p>
                                     </td>
                                 </tr>
@@ -331,7 +331,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                                 <Button
                                                     variant="ghost" size="icon"
                                                     className={cn(
-                                                        "h-9 w-9 rounded-full text-[#0071E3] hover:bg-[#0071E3]/8",
+                                                        "h-9 w-9 rounded-full text-[#029E4D] hover:bg-[#029E4D]/8",
                                                         !canEdit && "opacity-30 grayscale cursor-not-allowed"
                                                     )}
                                                     onClick={() => canEdit && openEdit(row)}

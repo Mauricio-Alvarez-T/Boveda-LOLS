@@ -22,9 +22,9 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
     const dataPoints = trendData && trendData.length > 0 ? trendData : defaultData;
     const chartData = dataPoints.map((val, i) => ({ val, i }));
 
-    // Extraer el color hex del string si existe (e.g., text-[#0071E3])
+    // Extraer el color hex del string si existe (e.g., text-[#029E4D])
     const hexMatch = color.match(/#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})/);
-    const strokeColor = hexMatch ? `#${hexMatch[1]}` : '#0071E3';
+    const strokeColor = hexMatch ? `#${hexMatch[1]}` : '#029E4D';
 
     return (
         <motion.div

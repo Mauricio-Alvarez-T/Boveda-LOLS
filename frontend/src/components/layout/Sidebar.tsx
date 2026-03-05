@@ -90,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         className={({ isActive }) => cn(
                             "flex items-center gap-3 px-3 py-3 rounded-xl transition-all group relative text-base",
                             isActive
-                                ? "bg-[#0071E3]/8 text-[#0071E3] font-semibold"
+                                ? "bg-[#029E4D]/8 text-[#029E4D] font-semibold"
                                 : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
                         )}
                         title={(!isMobile && isCollapsed) ? item.label : ''}
@@ -115,7 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     "flex items-center gap-3 p-2.5 rounded-xl bg-[#F5F5F7] transition-all",
                     (!isMobile && isCollapsed) ? "justify-center" : "justify-start"
                 )}>
-                    <div className="h-10 w-10 shrink-0 rounded-full bg-[#0071E3] flex items-center justify-center text-sm font-semibold text-white">
+                    <div className="h-10 w-10 shrink-0 rounded-full bg-[#029E4D] flex items-center justify-center text-sm font-semibold text-white">
                         {user?.nombre?.[0]}
                     </div>
                     {(isMobile || !isCollapsed) && (

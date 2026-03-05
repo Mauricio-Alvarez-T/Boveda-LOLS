@@ -85,7 +85,7 @@ export const PermissionMatrix: React.FC<Props> = ({ permisos, onChange, readonly
                                     active={p.puede_ver}
                                     onClick={() => handleToggle(mod.key, 'puede_ver')}
                                     icon={<Eye className="h-3.5 w-3.5" />}
-                                    color="text-[#0071E3]"
+                                    color="text-[#029E4D]"
                                 />
                                 <PermissionToggle
                                     active={p.puede_crear}

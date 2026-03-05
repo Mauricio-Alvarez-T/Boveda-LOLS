@@ -31,7 +31,7 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children }) => {
             style={style}
             className={cn(
                 "bg-white rounded-2xl border border-[#D2D2D7] p-5 relative group transition-shadow",
-                isDragging && "shadow-xl ring-2 ring-[#0071E3]/20 z-50 opacity-90",
+                isDragging && "shadow-xl ring-2 ring-[#029E4D]/20 z-50 opacity-90",
                 !isDragging && "hover:shadow-md hover:border-[#B0B0B5]"
             )}
         >

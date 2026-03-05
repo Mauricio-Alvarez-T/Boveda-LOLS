@@ -22,7 +22,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                     scale: [1, 0.85, 1.1, 1]
                 }}
                 transition={{ duration: 55, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#0071E3]/0.1 blur-[100px]"
+                className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-[#029E4D]/0.1 blur-[100px]"
             />
             {/* Esfera sutil 3 (Gris tenue central) */}
             <motion.div

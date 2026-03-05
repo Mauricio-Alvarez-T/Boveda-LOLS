@@ -33,7 +33,7 @@ export const showDeleteToast = ({
                             if (errorMessage) toast.error(errorMessage);
                         }
                     }}
-                    className="py-1.5 px-4 rounded-full text-[12px] font-bold text-white bg-[#0071E3] hover:bg-[#0077ED] shadow-sm transition-all active:scale-95"
+                    className="py-1.5 px-4 rounded-full text-[12px] font-bold text-white bg-[#029E4D] hover:bg-[#027A3B] shadow-sm transition-all active:scale-95"
                 >
                     Sí
                 </button>

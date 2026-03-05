@@ -95,7 +95,7 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
                 <h4 className="text-xs font-bold text-[#6E6E73] uppercase px-1">Matriz de Permisos</h4>
                 {loadingPerms ? (
                     <div className="h-40 bg-[#F5F5F7] rounded-2xl flex items-center justify-center border border-[#D2D2D7]">
-                        <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
+                        <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
                     </div>
                 ) : (
                     <PermissionMatrix permisos={permisos} onChange={setPermisos} />

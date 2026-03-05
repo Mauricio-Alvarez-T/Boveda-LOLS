@@ -55,7 +55,7 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
             </div>
         );
     }

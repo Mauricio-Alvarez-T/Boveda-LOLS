@@ -80,7 +80,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
 
             {loading ? (
                 <div className="h-64 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
+                    <Loader2 className="h-8 w-8 animate-spin text-[#029E4D]" />
                 </div>
             ) : (
                 <div className="grid grid-cols-7 gap-1 md:gap-1.5">
@@ -103,7 +103,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         return (
                             <div
                                 key={day}
-                                className="h-10 md:h-14 p-1 md:p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#0071E3]/30 transition-all bg-white group"
+                                className="h-10 md:h-14 p-1 md:p-1.5 rounded-xl border border-[#E8E8ED] flex flex-col items-center relative hover:shadow-md hover:border-[#029E4D]/30 transition-all bg-white group"
                                 style={{ backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#F5F5F7/50' : '#FFFFFF') }}
                             >
                                 <span className={`text-[10px] font-medium ${estado ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto`}>
@@ -148,13 +148,13 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     className="flex flex-col h-full"
                 >
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-[#0071E3] text-sm font-medium">
+                        <button onClick={onClose} className="flex items-center gap-1 text-[#029E4D] text-sm font-medium">
                             <ChevronLeft className="h-5 w-5" />
                             <span>Volver</span>
                         </button>
                         <div className="flex-1 text-center pr-12">
                             <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center justify-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-[#0071E3]" />
+                                <CalendarIcon className="h-4 w-4 text-[#029E4D]" />
                                 Calendario
                             </h3>
                         </div>
@@ -183,7 +183,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
                         <div>
                             <h2 className="text-xl font-bold text-[#1D1D1F] flex items-center gap-2">
-                                <CalendarIcon className="h-5 w-5 text-[#0071E3]" />
+                                <CalendarIcon className="h-5 w-5 text-[#029E4D]" />
                                 Calendario Mensual
                             </h2>
                             <p className="text-sm text-[#6E6E73] mt-1">

@@ -132,7 +132,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                             className={cn(
                                 "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border",
                                 selectedId === p.id
-                                    ? "bg-[#0071E3] text-white border-[#0071E3]"
+                                    ? "bg-[#029E4D] text-white border-[#029E4D]"
                                     : "bg-white text-[#1D1D1F] border-[#D2D2D7]"
                             )}
                         >
@@ -149,7 +149,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     value={emailDestino}
                     onChange={(e) => setEmailDestino(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-2.5 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                    className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-2.5 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all"
                 />
             </div>
 
@@ -164,7 +164,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-[#6E6E73]">Mensaje</label>
                     <button
-                        className="text-xs text-[#0071E3] flex items-center gap-1 hover:underline"
+                        className="text-xs text-[#029E4D] flex items-center gap-1 hover:underline"
                         onClick={() => setEditMode(e => !e)}
                     >
                         <Pencil className="h-3 w-3" />
@@ -174,7 +174,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 {editMode ? (
                     <textarea
                         rows={isMobile ? 6 : 10}
-                        className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all resize-none"
+                        className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all resize-none"
                         value={cuerpo}
                         onChange={(e) => setCuerpo(e.target.value)}
                     />
@@ -214,13 +214,13 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 >
                     {/* Nav bar */}
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-[#0071E3] text-sm font-medium">
+                        <button onClick={onClose} className="flex items-center gap-1 text-[#029E4D] text-sm font-medium">
                             <ChevronLeft className="h-5 w-5" />
                             <span>Volver</span>
                         </button>
                         <div className="flex-1 text-center pr-12">
                             <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center justify-center gap-2">
-                                <Mail className="h-4 w-4 text-[#0071E3]" />
+                                <Mail className="h-4 w-4 text-[#029E4D]" />
                                 Enviar Reporte
                             </h3>
                         </div>
@@ -234,7 +234,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
 
                     {loading ? (
                         <div className="flex-1 flex items-center justify-center">
-                            <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
+                            <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
                         </div>
                     ) : (
                         <div className="flex-1 overflow-y-auto px-4 py-4">
@@ -267,8 +267,8 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     {/* Header */}
                     <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8E8ED]">
                         <div className="flex items-center gap-3">
-                            <div className="h-8 w-8 rounded-lg bg-[#0071E3]/10 flex items-center justify-center">
-                                <Mail className="h-4 w-4 text-[#0071E3]" />
+                            <div className="h-8 w-8 rounded-lg bg-[#029E4D]/10 flex items-center justify-center">
+                                <Mail className="h-4 w-4 text-[#029E4D]" />
                             </div>
                             <div>
                                 <h2 className="text-base font-semibold text-[#1D1D1F]">Enviar Reporte</h2>
@@ -284,7 +284,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
 
                     {loading ? (
                         <div className="flex items-center justify-center py-20">
-                            <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
+                            <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
                         </div>
                     ) : (
                         <div className="flex max-h-[70vh] overflow-hidden">
@@ -300,7 +300,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                             onClick={() => handleSelectPlantilla(p)}
                                             className={cn(
                                                 "w-full flex items-start gap-2 px-4 py-3 text-left hover:bg-white/60 transition-colors",
-                                                selectedId === p.id ? "bg-white text-[#0071E3]" : "text-[#1D1D1F]"
+                                                selectedId === p.id ? "bg-white text-[#029E4D]" : "text-[#1D1D1F]"
                                             )}
                                         >
                                             <div className="flex-1 min-w-0">

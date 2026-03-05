@@ -2,7 +2,7 @@
 
 @theme {
   /* Apple-Inspired Color System */
-  --color-brand-primary: #0071E3;
+  --color-brand-primary: #029E4D;
   --color-brand-secondary: #147CE5;
   --color-brand-dark: #1D1D1F;
   --color-brand-accent: #34C759;
@@ -10,7 +10,7 @@
   /* Semantic UI Colors */
   --color-background: #F5F5F7;
   --color-foreground: #1D1D1F;
-  --color-primary: #0071E3;
+  --color-primary: #029E4D;
   --color-primary-foreground: #FFFFFF;
   --color-secondary: #F5F5F7;
   --color-secondary-foreground: #1D1D1F;
@@ -22,7 +22,7 @@
   --color-destructive-foreground: #FFFFFF;
   --color-border: #D2D2D7;
   --color-input: #D2D2D7;
-  --color-ring: #0071E3;
+  --color-ring: #029E4D;
   --color-card: #FFFFFF;
   --color-card-foreground: #1D1D1F;
   --color-popover: #FFFFFF;
@@ -42,7 +42,7 @@
 
   ::selection {
     background-color: rgba(0, 113, 227, 0.15);
-    color: #0071E3;
+    color: #029E4D;
   }
 }
 
@@ -59,7 +59,7 @@
 }
 
 .premium-gradient {
-  background: #0071E3;
+  background: #029E4D;
 }
 
 .premium-card {
@@ -153,7 +153,7 @@
 }
 
 [data-sonner-toast][data-styled="true"][data-type="info"] [data-icon] {
-  color: #0071E3 !important;
+  color: #029E4D !important;
 }
 
 [data-sonner-toast][data-styled="true"][data-type="warning"] [data-icon] {

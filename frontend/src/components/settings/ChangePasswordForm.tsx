@@ -69,7 +69,7 @@ const ChangePasswordForm: React.FC = () => {
                         placeholder="Ej: lols150"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        leftIcon={<Lock className="h-4 w-4 text-[#0071E3]" />}
+                        leftIcon={<Lock className="h-4 w-4 text-[#029E4D]" />}
                     />
                     <button
                         type="button"

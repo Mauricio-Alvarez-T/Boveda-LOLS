@@ -224,7 +224,7 @@ const WorkersPage: React.FC = () => {
 
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-2 md:gap-3">
-            <Users className="h-5 w-5 md:h-6 md:w-6 text-[#0071E3] shrink-0" />
+            <Users className="h-5 w-5 md:h-6 md:w-6 text-[#029E4D] shrink-0" />
             <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2 min-w-0">
                 <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Trabajadores</h1>
                 {workers.length > 0 && (
@@ -345,7 +345,7 @@ const WorkersPage: React.FC = () => {
                             <select
                                 value={selectedEmpresa}
                                 onChange={(e) => setSelectedEmpresa(e.target.value)}
-                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all"
                             >
                                 <option value="">Todas las Empresas</option>
                                 {empresas.map(e => (
@@ -362,7 +362,7 @@ const WorkersPage: React.FC = () => {
                             <select
                                 value={selectedCargo}
                                 onChange={(e) => setSelectedCargo(e.target.value)}
-                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all"
+                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all"
                             >
                                 <option value="">Todos los Cargos</option>
                                 {cargos.map(c => (
@@ -379,7 +379,7 @@ const WorkersPage: React.FC = () => {
                                 <div
                                     className={cn(
                                         "w-10 h-5 rounded-full transition-colors relative",
-                                        showInactive ? "bg-[#0071E3]" : "bg-[#D2D2D7]"
+                                        showInactive ? "bg-[#029E4D]" : "bg-[#D2D2D7]"
                                     )}
                                 >
                                     <div className={cn(
@@ -400,7 +400,7 @@ const WorkersPage: React.FC = () => {
             <div className="md:hidden">
                 {loading ? (
                     <div className="py-20 flex flex-col items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
+                        <Loader2 className="h-8 w-8 animate-spin text-[#029E4D]" />
                         <p className="text-[#6E6E73] mt-4 text-sm">Cargando trabajadores...</p>
                     </div>
                 ) : sortedWorkers.length === 0 ? (
@@ -425,7 +425,7 @@ const WorkersPage: React.FC = () => {
                                 >
                                     {/* Row 1: Avatar + Name + RUT */}
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="h-11 w-11 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-base border border-[#0071E3]/20 shrink-0">
+                                        <div className="h-11 w-11 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-base border border-[#029E4D]/20 shrink-0">
                                             {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -441,7 +441,7 @@ const WorkersPage: React.FC = () => {
                                             </p>
                                             <p className="text-[11px] text-[#6E6E73] mt-0.5">
                                                 {worker.rut}
-                                                {worker.cargo_nombre && <> · <span className="text-[#0071E3] font-medium">{worker.cargo_nombre}</span></>}
+                                                {worker.cargo_nombre && <> · <span className="text-[#029E4D] font-medium">{worker.cargo_nombre}</span></>}
                                             </p>
                                         </div>
                                     </div>
@@ -477,7 +477,7 @@ const WorkersPage: React.FC = () => {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => { setSelectedWorker(worker); setModalType('docs'); }}
-                                            className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-[#0071E3]/8 border border-[#0071E3]/20 text-[#0071E3] text-xs font-semibold active:scale-95 transition-all"
+                                            className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-[#029E4D]/8 border border-[#029E4D]/20 text-[#029E4D] text-xs font-semibold active:scale-95 transition-all"
                                         >
                                             <FileText className="h-4 w-4" />
                                             Documentos
@@ -530,7 +530,7 @@ const WorkersPage: React.FC = () => {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-20 text-center">
-                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#0071E3] mb-2" />
+                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#029E4D] mb-2" />
                                         <p className="text-[#6E6E73] text-sm">Cargando trabajadores...</p>
                                     </td>
                                 </tr>
@@ -551,16 +551,16 @@ const WorkersPage: React.FC = () => {
                                             key={worker.id}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            className="hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#0071E3]"
+                                            className="hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#029E4D]"
                                         >
                                             <td className="px-6 py-6">
                                                 <div className="flex items-center gap-4">
-                                                    <div className="h-12 w-12 rounded-2xl bg-[#0071E3]/10 text-[#0071E3] flex items-center justify-center font-bold text-lg shadow-sm border border-[#0071E3]/20 shrink-0">
+                                                    <div className="h-12 w-12 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-lg shadow-sm border border-[#029E4D]/20 shrink-0">
                                                         {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
                                                     </div>
                                                     <div>
                                                         <div className="flex items-center gap-2">
-                                                            <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight group-hover:text-[#0071E3] transition-colors">
+                                                            <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight group-hover:text-[#029E4D] transition-colors">
                                                                 {worker.nombres} {worker.apellido_paterno}
                                                             </WorkerLink>
                                                             {!worker.activo && (
@@ -607,7 +607,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 text-[#0071E3] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className="h-10 w-10 text-[#029E4D] hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('docs');
@@ -659,7 +659,7 @@ const WorkersPage: React.FC = () => {
             {
                 hasMore && (
                     <div ref={ref} className="py-8 flex justify-center items-center w-full">
-                        {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />}
+                        {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />}
                     </div>
                 )
             }
@@ -692,14 +692,14 @@ const WorkersPage: React.FC = () => {
                 {modalType === 'docs' && selectedWorker && (
                     <div className="space-y-4 md:space-y-6">
                         {/* Worker Details Summary in Modal */}
-                        <div className="bg-[#0071E3]/5 border border-[#0071E3]/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
-                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
+                        <div className="bg-[#029E4D]/5 border border-[#029E4D]/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
+                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-[#029E4D] text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
                                 {selectedWorker.nombres[0]}{(selectedWorker.apellido_paterno || '')[0]}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-sm font-bold text-[#1D1D1F]">{selectedWorker.rut}</span>
-                                    <span className="px-2 py-0.5 rounded-lg bg-[#0071E3]/10 text-[#0071E3] text-[10px] font-black uppercase tracking-wider">
+                                    <span className="px-2 py-0.5 rounded-lg bg-[#029E4D]/10 text-[#029E4D] text-[10px] font-black uppercase tracking-wider">
                                         {selectedWorker.obra_nombre || 'Sin Obra'}
                                     </span>
                                 </div>
@@ -738,7 +738,7 @@ const WorkersPage: React.FC = () => {
                                                 toast.error('Error al descargar documentos');
                                             }
                                         }}
-                                        className="text-[#0071E3] hover:text-[#0077ED] flex-1 sm:flex-initial"
+                                        className="text-[#029E4D] hover:text-[#027A3B] flex-1 sm:flex-initial"
                                         leftIcon={<Download className="h-4 w-4" />}
                                     >
                                         <span className="hidden sm:inline">Descargar Todo (.zip)</span>

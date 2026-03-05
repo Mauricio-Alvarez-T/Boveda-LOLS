@@ -177,7 +177,7 @@ const FiscalizacionPage: React.FC = () => {
     // Configuración del Header Global
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-2 md:gap-3">
-            <Archive className="h-5 w-5 md:h-6 md:w-6 text-[#0071E3] shrink-0" />
+            <Archive className="h-5 w-5 md:h-6 md:w-6 text-[#029E4D] shrink-0" />
             <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Nómina & Reportes</h1>
         </div>
     ), []);
@@ -278,7 +278,7 @@ const FiscalizacionPage: React.FC = () => {
                 <div className="md:hidden bg-white rounded-2xl border border-[#D2D2D7] p-4">
                     <div className="flex items-center justify-between mb-3">
                         <h3 className="font-semibold text-[#1D1D1F] flex items-center gap-2 text-sm">
-                            <Filter className="h-4 w-4 text-[#0071E3]" /> Filtros de Búsqueda
+                            <Filter className="h-4 w-4 text-[#029E4D]" /> Filtros de Búsqueda
                         </h3>
                         <button onClick={() => setShowMobileFilters(false)} className="text-[#6E6E73] p-1">
                             <X className="h-4 w-4" />
@@ -295,7 +295,7 @@ const FiscalizacionPage: React.FC = () => {
                     <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden sticky top-0">
                         <div className="px-6 py-4 border-b border-[#D2D2D7] bg-[#F5F5F7]">
                             <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
-                                <Filter className="h-4 w-4 text-[#0071E3]" /> Filtros de Búsqueda
+                                <Filter className="h-4 w-4 text-[#029E4D]" /> Filtros de Búsqueda
                             </h3>
                         </div>
                         <div className="p-5">{filterPanel}</div>
@@ -309,7 +309,7 @@ const FiscalizacionPage: React.FC = () => {
                             <div className="flex items-center gap-4">
                                 <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
                                     Resultados de Búsqueda
-                                    {loading && <Loader2 className="h-4 w-4 animate-spin text-[#0071E3] ml-2" />}
+                                    {loading && <Loader2 className="h-4 w-4 animate-spin text-[#029E4D] ml-2" />}
                                 </h3>
                                 {workers.length > 0 && <div className="h-6 w-[1px] bg-[#D2D2D7]" />}
                                 {workers.length > 0 && (
@@ -327,7 +327,7 @@ const FiscalizacionPage: React.FC = () => {
                                 <thead>
                                     <tr className="border-b border-[#E8E8ED] bg-white text-xs tracking-wider text-[#6E6E73] uppercase">
                                         <th className="px-6 py-4 font-semibold w-12 text-center">
-                                            <input type="checkbox" className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]" checked={workers.length > 0 && selectedWorkers.size === workers.length} onChange={handleSelectAll} disabled={workers.length === 0} />
+                                            <input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={workers.length > 0 && selectedWorkers.size === workers.length} onChange={handleSelectAll} disabled={workers.length === 0} />
                                         </th>
                                         <th className="px-6 py-4 font-semibold">Trabajador</th>
                                         <th className="px-6 py-4 font-semibold">Ubicación / Rol</th>
@@ -340,8 +340,8 @@ const FiscalizacionPage: React.FC = () => {
                                         <tr><td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] italic">No se encontraron trabajadores con los filtros actuales.</td></tr>
                                     ) : (
                                         workers.map((worker) => (
-                                            <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#0071E3]/5")} onClick={() => handleSelectWorker(worker.id)}>
-                                                <td className="px-6 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
+                                            <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#029E4D]/5")} onClick={() => handleSelectWorker(worker.id)}>
+                                                <td className="px-6 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
                                                 <td className="px-6 py-4">
                                                     <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
                                                         {worker.nombres} {worker.apellido_paterno}
@@ -383,13 +383,13 @@ const FiscalizacionPage: React.FC = () => {
                         <Users className="h-4 w-4 text-[#6E6E73]" />
                         <span className="text-xs text-[#6E6E73] font-medium">
                             <span className="font-bold text-[#1D1D1F]">{selectedWorkers.size}</span> sel. de {workers.length}
-                            {loading && <Loader2 className="h-3 w-3 animate-spin text-[#0071E3] inline ml-2" />}
+                            {loading && <Loader2 className="h-3 w-3 animate-spin text-[#029E4D] inline ml-2" />}
                         </span>
                     </div>
                     <button
                         onClick={handleSelectAll}
                         disabled={workers.length === 0}
-                        className="text-[11px] font-semibold text-[#0071E3] px-3 py-1.5 rounded-full border border-[#0071E3]/30 bg-[#0071E3]/5 disabled:opacity-40"
+                        className="text-[11px] font-semibold text-[#029E4D] px-3 py-1.5 rounded-full border border-[#029E4D]/30 bg-[#029E4D]/5 disabled:opacity-40"
                     >
                         {selectedWorkers.size === workers.length && workers.length > 0 ? 'Deseleccionar todo' : 'Seleccionar todo'}
                     </button>
@@ -411,14 +411,14 @@ const FiscalizacionPage: React.FC = () => {
                                     onClick={() => handleSelectWorker(worker.id)}
                                     className={cn(
                                         "bg-white rounded-2xl border p-3.5 cursor-pointer transition-all active:scale-[0.99]",
-                                        isSelected ? "border-[#0071E3] ring-2 ring-[#0071E3]/10 bg-[#0071E3]/3" : "border-[#D2D2D7]"
+                                        isSelected ? "border-[#029E4D] ring-2 ring-[#029E4D]/10 bg-[#029E4D]/3" : "border-[#D2D2D7]"
                                     )}
                                 >
                                     <div className="flex items-start gap-3">
                                         {/* Large checkbox area */}
                                         <div className={cn(
                                             "h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
-                                            isSelected ? "bg-[#0071E3] border-[#0071E3]" : "border-[#D2D2D7]"
+                                            isSelected ? "bg-[#029E4D] border-[#029E4D]" : "border-[#D2D2D7]"
                                         )}>
                                             {isSelected && <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                                         </div>

@@ -49,7 +49,7 @@ export const Modal: React.FC<ModalProps> = ({
                             <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0 safe-area-top">
                                 <button
                                     onClick={onClose}
-                                    className="flex items-center gap-1 text-[#0071E3] text-sm font-medium active:opacity-60 transition-opacity"
+                                    className="flex items-center gap-1 text-[#029E4D] text-sm font-medium active:opacity-60 transition-opacity"
                                 >
                                     <ChevronLeft className="h-5 w-5" />
                                     <span>Volver</span>

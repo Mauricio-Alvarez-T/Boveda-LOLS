@@ -159,7 +159,7 @@ const PlantillasEmailPanel: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-[#0071E3]" />
+                <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
             </div>
         );
     }
@@ -219,7 +219,7 @@ const PlantillasEmailPanel: React.FC = () => {
                             <textarea
                                 rows={6}
                                 placeholder="Escribe el cuerpo del correo..."
-                                className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#0071E3]/30 focus:border-[#0071E3] transition-all resize-none"
+                                className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all resize-none"
                                 value={form.cuerpo}
                                 onChange={(e) => setForm(f => ({ ...f, cuerpo: e.target.value }))}
                             />
@@ -248,7 +248,7 @@ const PlantillasEmailPanel: React.FC = () => {
                             key={p.id}
                             className={cn(
                                 "bg-white rounded-2xl border p-5 transition-all",
-                                p.es_predeterminada ? "border-[#0071E3]/40 shadow-sm shadow-[#0071E3]/10" : "border-[#D2D2D7]"
+                                p.es_predeterminada ? "border-[#029E4D]/40 shadow-sm shadow-[#029E4D]/10" : "border-[#D2D2D7]"
                             )}
                         >
                             <div className="flex items-start justify-between gap-3">
@@ -256,7 +256,7 @@ const PlantillasEmailPanel: React.FC = () => {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <h4 className="font-semibold text-[#1D1D1F]">{p.nombre}</h4>
                                         {p.es_predeterminada && (
-                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-[#0071E3]/10 text-[#0071E3] px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-[#029E4D]/10 text-[#029E4D] px-2 py-0.5 rounded-full">
                                                 Predeterminada
                                             </span>
                                         )}
@@ -277,7 +277,7 @@ const PlantillasEmailPanel: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => handleOpenEdit(p)}
-                                        className="p-2 rounded-lg text-[#6E6E73] hover:text-[#0071E3] hover:bg-[#0071E3]/8 transition-colors"
+                                        className="p-2 rounded-lg text-[#6E6E73] hover:text-[#029E4D] hover:bg-[#029E4D]/8 transition-colors"
                                     >
                                         <Pencil className="h-4 w-4" />
                                     </button>

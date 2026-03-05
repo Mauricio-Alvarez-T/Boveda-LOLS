@@ -84,9 +84,9 @@ const LoginPage: React.FC = () => {
                                     type="email"
                                     error={errors.email?.message}
                                     {...register('email')}
-                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#0071E3] h-12 rounded-xl transition-all"
+                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#029E4D] h-12 rounded-xl transition-all"
                                 />
-                                <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#0071E3] transition-colors" />
+                                <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#029E4D] transition-colors" />
                             </div>
 
                             <div className="relative group">
@@ -96,16 +96,16 @@ const LoginPage: React.FC = () => {
                                     type="password"
                                     error={errors.password?.message}
                                     {...register('password')}
-                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#0071E3] h-12 rounded-xl transition-all"
+                                    className="pl-11 bg-[#F5F5F7]/50 border-transparent focus:bg-white focus:border-[#029E4D] h-12 rounded-xl transition-all"
                                 />
-                                <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#0071E3] transition-colors" />
+                                <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#86868B] group-focus-within:text-[#029E4D] transition-colors" />
                             </div>
                         </div>
 
                         <div className="pt-2">
                             <Button
                                 type="submit"
-                                className="w-full h-12 text-base font-semibold bg-[#0071E3] text-white hover:bg-[#0077ED] rounded-xl shadow-md transition-all active:scale-[0.98]"
+                                className="w-full h-12 text-base font-semibold bg-[#029E4D] text-white hover:bg-[#027A3B] rounded-xl shadow-md transition-all active:scale-[0.98]"
                                 isLoading={isLoading}
                                 rightIcon={<LogIn className="h-4 w-4" />}
                             >

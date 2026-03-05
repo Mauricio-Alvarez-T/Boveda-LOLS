@@ -120,7 +120,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                     <label className="text-base font-medium text-muted-foreground ml-1">Archivo (PDF, Imagen o TXT)</label>
                     <div
                         className={`relative h-48 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 cursor-pointer
-              ${file ? 'border-[#0071E3] bg-[#0071E3]/5' : 'border-[#D2D2D7] hover:border-[#0071E3]/50 hover:bg-[#F5F5F7]'}`}
+              ${file ? 'border-[#029E4D] bg-[#029E4D]/5' : 'border-[#D2D2D7] hover:border-[#029E4D]/50 hover:bg-[#F5F5F7]'}`}
                     >
                         <input
                             type="file"

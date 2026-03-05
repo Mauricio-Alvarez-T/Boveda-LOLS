@@ -55,7 +55,7 @@ const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, missingDocs,
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-bold text-[#1D1D1F] group-hover:text-[#0071E3] transition-colors">
+                    <span className="text-2xl font-bold text-[#1D1D1F] group-hover:text-[#029E4D] transition-colors">
                         {compliancePercent}%
                     </span>
                     <span className="text-[8px] text-[#A1A1A6] uppercase font-semibold">Total</span>

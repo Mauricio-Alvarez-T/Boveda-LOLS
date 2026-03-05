@@ -32,7 +32,7 @@ export const ObraSelector: React.FC = () => {
                 onClick={() => setIsOpen(!isOpen)}
                 className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm max-w-[130px] shrink-0"
             >
-                <Map className="h-4 w-4 shrink-0 text-[#0071E3]" />
+                <Map className="h-4 w-4 shrink-0 text-[#029E4D]" />
                 <span className="truncate flex-1 text-left">{selectedObra?.nombre || 'Obra'}</span>
             </button>
 
@@ -42,11 +42,11 @@ export const ObraSelector: React.FC = () => {
                 className={cn(
                     "hidden md:flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-medium w-fit min-w-[140px] max-w-[220px]",
                     isOpen
-                        ? "bg-[#0071E3]/5 border-[#0071E3]/30 text-[#0071E3]"
+                        ? "bg-[#029E4D]/5 border-[#029E4D]/30 text-[#029E4D]"
                         : "bg-white border-[#D2D2D7] text-[#1D1D1F] hover:border-[#B0B0B5] shadow-sm"
                 )}
             >
-                <HardHat className="h-4 w-4 shrink-0 text-[#0071E3]" />
+                <HardHat className="h-4 w-4 shrink-0 text-[#029E4D]" />
                 <span className="truncate flex-1 text-left text-sm">
                     {selectedObra?.nombre || 'Todas las Obras'}
                 </span>
@@ -72,13 +72,13 @@ export const ObraSelector: React.FC = () => {
                                 className={cn(
                                     "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
                                     !selectedObra
-                                        ? "bg-[#0071E3]/8 text-[#0071E3] font-medium"
+                                        ? "bg-[#029E4D]/8 text-[#029E4D] font-medium"
                                         : "text-[#1D1D1F] hover:bg-[#F5F5F7]"
                                 )}
                             >
                                 <Home className="h-4 w-4 shrink-0" />
                                 <span className="truncate">Todas las Obras</span>
-                                {!selectedObra && <Check className="h-3.5 w-3.5 ml-auto text-[#0071E3]" />}
+                                {!selectedObra && <Check className="h-3.5 w-3.5 ml-auto text-[#029E4D]" />}
                             </button>
 
                             {/* Obra options */}
@@ -89,16 +89,16 @@ export const ObraSelector: React.FC = () => {
                                     className={cn(
                                         "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors",
                                         selectedObra?.id === obra.id
-                                            ? "bg-[#0071E3]/8 text-[#0071E3] font-medium"
+                                            ? "bg-[#029E4D]/8 text-[#029E4D] font-medium"
                                             : "text-[#1D1D1F] hover:bg-[#F5F5F7]"
                                     )}
                                 >
                                     <div className={cn(
                                         "h-2 w-2 rounded-full shrink-0",
-                                        selectedObra?.id === obra.id ? "bg-[#0071E3]" : "bg-[#34C759]"
+                                        selectedObra?.id === obra.id ? "bg-[#029E4D]" : "bg-[#34C759]"
                                     )} />
                                     <span className="truncate">{obra.nombre}</span>
-                                    {selectedObra?.id === obra.id && <Check className="h-3.5 w-3.5 ml-auto text-[#0071E3]" />}
+                                    {selectedObra?.id === obra.id && <Check className="h-3.5 w-3.5 ml-auto text-[#029E4D]" />}
                                 </button>
                             ))}
                         </div>

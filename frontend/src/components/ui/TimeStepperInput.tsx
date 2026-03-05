@@ -50,7 +50,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
                     onChange={(e) => onChange(e.target.value)}
                     disabled={disabled}
                     className={cn(
-                        "w-full h-10 px-3 pr-10 rounded-xl border border-[#D2D2D7] bg-white text-sm text-[#1D1D1F] transition-all focus:outline-none focus:ring-2 focus:ring-[#0071E3]/20 focus:border-[#0071E3] disabled:bg-[#F5F5F7] disabled:text-[#A1A1A6] disabled:cursor-not-allowed",
+                        "w-full h-10 px-3 pr-10 rounded-xl border border-[#D2D2D7] bg-white text-sm text-[#1D1D1F] transition-all focus:outline-none focus:ring-2 focus:ring-[#029E4D]/20 focus:border-[#029E4D] disabled:bg-[#F5F5F7] disabled:text-[#A1A1A6] disabled:cursor-not-allowed",
                         // Ocultamos el icono de reloj nativo de WebKit/Blink ya que los nuestros de flechas irán encima
                         "[&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-10"
                     )}
@@ -62,7 +62,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
                         type="button"
                         onClick={(e) => { e.preventDefault(); adjustHour(1); }}
                         disabled={disabled}
-                        className="flex-1 flex items-center justify-center w-full hover:bg-[#F5F5F7] text-[#6E6E73] hover:text-[#0071E3] disabled:opacity-50 transition-colors"
+                        className="flex-1 flex items-center justify-center w-full hover:bg-[#F5F5F7] text-[#6E6E73] hover:text-[#029E4D] disabled:opacity-50 transition-colors"
                         tabIndex={-1}
                     >
                         <ChevronUp className="h-3 w-3" strokeWidth={3} />
@@ -72,7 +72,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
                         type="button"
                         onClick={(e) => { e.preventDefault(); adjustHour(-1); }}
                         disabled={disabled}
-                        className="flex-1 flex items-center justify-center w-full hover:bg-[#F5F5F7] text-[#6E6E73] hover:text-[#0071E3] disabled:opacity-50 transition-colors"
+                        className="flex-1 flex items-center justify-center w-full hover:bg-[#F5F5F7] text-[#6E6E73] hover:text-[#029E4D] disabled:opacity-50 transition-colors"
                         tabIndex={-1}
                     >
                         <ChevronDown className="h-3 w-3" strokeWidth={3} />

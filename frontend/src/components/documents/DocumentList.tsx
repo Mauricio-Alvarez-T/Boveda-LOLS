@@ -132,7 +132,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
                                         className={cn(
-                                            "group border-l-4 border-l-transparent hover:border-l-[#0071E3] hover:bg-[#F5F5F7]/80 transition-all duration-300 relative",
+                                            "group border-l-4 border-l-transparent hover:border-l-[#029E4D] hover:bg-[#F5F5F7]/80 transition-all duration-300 relative",
                                             !doc.activo && "opacity-50 grayscale",
                                             isExpired(doc.fecha_vencimiento) && "bg-rose-50/20 hover:border-l-rose-500"
                                         )}
@@ -143,7 +143,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm border",
                                                     isExpired(doc.fecha_vencimiento)
                                                         ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                                                        : "bg-[#0071E3]/10 text-[#0071E3] border-[#0071E3]/20"
+                                                        : "bg-[#029E4D]/10 text-[#029E4D] border-[#029E4D]/20"
                                                 )}>
                                                     <FileText className="h-5 w-5" />
                                                 </div>
@@ -186,7 +186,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                 <Button
                                                     variant="glass"
                                                     size="icon"
-                                                    className="h-9 w-9 text-[#0071E3] shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                                    className="h-9 w-9 text-[#029E4D] shadow-sm hover:scale-110 active:scale-95 transition-all"
                                                     onClick={() => handleDownload(doc)}
                                                 >
                                                     <Download className="h-4 w-4" />

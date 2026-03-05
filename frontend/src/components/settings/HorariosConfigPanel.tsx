@@ -105,7 +105,7 @@ export const HorariosConfigPanel: React.FC = () => {
             <div className="p-4 md:p-6 border-b border-[#D2D2D7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-[#1D1D1F] flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-[#0071E3]" />
+                        <Clock className="h-5 w-5 text-[#029E4D]" />
                         Horarios por Defecto
                     </h2>
                     <p className="text-sm text-[#6E6E73] mt-1">

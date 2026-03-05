@@ -368,7 +368,7 @@ const AttendancePage: React.FC = () => {
     const headerTitle = useMemo(() => (
         selectedObra ? (
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-[#0071E3] shrink-0" />
+                <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-[#029E4D] shrink-0" />
                 <div className="flex flex-col leading-tight min-w-0">
                     <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Asistencia</h1>
                     <p className="text-[#6E6E73] text-[10px] md:text-xs truncate">
@@ -480,7 +480,7 @@ const AttendancePage: React.FC = () => {
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#0071E3] transition-colors"
+                                className="w-full pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#029E4D] transition-colors"
                             />
                         </div>
                         <Button variant="glass" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate(1)}>
@@ -544,7 +544,7 @@ const AttendancePage: React.FC = () => {
                         placeholder="Buscar por nombre o RUT..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#0071E3] transition-colors"
+                        className="w-full pl-10 pr-4 py-3 bg-white border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#029E4D] transition-colors"
                     />
                 </div>
             </div>
@@ -552,7 +552,7 @@ const AttendancePage: React.FC = () => {
             {/* ── Worker List ── */}
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-[#0071E3]" />
+                    <Loader2 className="h-8 w-8 animate-spin text-[#029E4D]" />
                     <p className="text-[#6E6E73] mt-4 text-sm">Cargando nómina...</p>
                 </div>
             ) : workers.length === 0 ? (
@@ -606,12 +606,12 @@ const AttendancePage: React.FC = () => {
                                                 </WorkerLink>
                                                 <p className="text-[11px] text-[#6E6E73]">
                                                     {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-[#0071E3]">{worker.cargo_nombre}</span></>}
+                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D]">{worker.cargo_nombre}</span></>}
                                                 </p>
                                             </div>
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
-                                                className="p-2 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors shrink-0"
+                                                className="p-2 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#029E4D] transition-colors shrink-0"
                                             >
                                                 <CalendarDays className="h-4 w-4" />
                                             </button>
@@ -667,7 +667,7 @@ const AttendancePage: React.FC = () => {
                                         {isNotPresent && (
                                             <div className="mt-2">
                                                 <select
-                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3 py-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3 py-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]"
                                                     value={state.tipo_ausencia_id || ''}
                                                     onChange={(e) => updateAttendance(worker.id, {
                                                         tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
@@ -686,7 +686,7 @@ const AttendancePage: React.FC = () => {
                                         {!isNotPresent && (
                                             <button
                                                 onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                className="mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#0071E3] font-medium rounded-lg hover:bg-[#0071E3]/5 transition-colors"
+                                                className="mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#029E4D] font-medium rounded-lg hover:bg-[#029E4D]/5 transition-colors"
                                             >
                                                 <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
                                                 <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
@@ -709,7 +709,7 @@ const AttendancePage: React.FC = () => {
                                                 </WorkerLink>
                                                 <p className="text-[10px] text-[#6E6E73]">
                                                     {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-[#0071E3]">{worker.cargo_nombre}</span></>}
+                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D]">{worker.cargo_nombre}</span></>}
                                                 </p>
                                             </div>
                                         </div>
@@ -763,7 +763,7 @@ const AttendancePage: React.FC = () => {
                                                 {isNotPresent ? (
                                                     <select
                                                         className={cn(
-                                                            "w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]",
+                                                            "w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]",
                                                             !checkPermission('asistencia', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         value={state.tipo_ausencia_id || ''}
@@ -781,7 +781,7 @@ const AttendancePage: React.FC = () => {
                                                 ) : (
                                                     <button
                                                         onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                        className="text-[10px] text-[#0071E3] font-medium hover:underline w-full text-center"
+                                                        className="text-[10px] text-[#029E4D] font-medium hover:underline w-full text-center"
                                                     >
                                                         {isExpanded ? 'Cerrar' : 'Detalle'}
                                                     </button>
@@ -789,7 +789,7 @@ const AttendancePage: React.FC = () => {
                                             </div>
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
-                                                className="p-1.5 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#0071E3] transition-colors flex-shrink-0"
+                                                className="p-1.5 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#029E4D] transition-colors flex-shrink-0"
                                             >
                                                 <CalendarDays className="h-4 w-4" />
                                             </button>
@@ -802,7 +802,7 @@ const AttendancePage: React.FC = () => {
                                                 max="24"
                                                 step="0.5"
                                                 placeholder="0"
-                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-center text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-center text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]"
                                                 value={state.horas_extra || ''}
                                                 onChange={(e) => updateAttendance(worker.id, {
                                                     horas_extra: parseFloat(e.target.value) || 0
@@ -834,7 +834,7 @@ const AttendancePage: React.FC = () => {
                                                                 max="24"
                                                                 step="0.5"
                                                                 placeholder="0"
-                                                                className="w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-center text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                                className="w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-center text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]"
                                                                 value={state.horas_extra || ''}
                                                                 onChange={(e) => updateAttendance(worker.id, {
                                                                     horas_extra: parseFloat(e.target.value) || 0
@@ -846,7 +846,7 @@ const AttendancePage: React.FC = () => {
                                                             <input
                                                                 type="text"
                                                                 placeholder="..."
-                                                                className="w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#0071E3]"
+                                                                className="w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]"
                                                                 value={state.observacion || ''}
                                                                 onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
                                                             />
@@ -869,7 +869,7 @@ const AttendancePage: React.FC = () => {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className={cn(
-                        "md:hidden fixed bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-[#0071E3] text-white shadow-lg shadow-[#0071E3]/30 flex items-center justify-center active:scale-90 transition-transform",
+                        "md:hidden fixed bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-[#029E4D] text-white shadow-lg shadow-[#029E4D]/30 flex items-center justify-center active:scale-90 transition-transform",
                         (!checkPermission('asistencia', 'puede_editar') || saving) && "opacity-50 pointer-events-none"
                     )}
                     onClick={handleSave}

@@ -60,7 +60,7 @@ export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSuccess, onCa
                     type="checkbox"
                     id="es_justificada"
                     {...register('es_justificada')}
-                    className="h-4 w-4 rounded border-[#D2D2D7] text-[#0071E3] focus:ring-[#0071E3]"
+                    className="h-4 w-4 rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]"
                 />
                 <label htmlFor="es_justificada" className="text-xs text-[#1D1D1F] font-medium">
                     Es justificada
@@ -70,7 +70,7 @@ export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSuccess, onCa
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-[#0071E3] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#0077ED] transition-colors disabled:opacity-50"
+                    className="flex-1 bg-[#029E4D] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50"
                 >
                     {initialData ? 'Actualizar' : 'Crear'}
                 </button>

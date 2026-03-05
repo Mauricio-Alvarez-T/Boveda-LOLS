@@ -85,7 +85,7 @@ const Dashboard: React.FC = () => {
     const headerTitle = useMemo(() => (
         <div className="flex flex-col leading-tight">
             <h1 className="text-lg font-bold text-[#1D1D1F]">
-                Bienvenido, <span className="text-[#0071E3]">{user?.nombre?.split(' ')[0] || ''}</span>
+                Bienvenido, <span className="text-[#029E4D]">{user?.nombre?.split(' ')[0] || ''}</span>
             </h1>
             <p className="text-[#6E6E73] text-xs flex items-center gap-1.5">
                 <ShieldCheck className="h-3.5 w-3.5 text-[#34C759]" />
@@ -110,7 +110,7 @@ const Dashboard: React.FC = () => {
                 className="hidden md:flex px-4 py-1.5 rounded-full bg-white border border-[#D2D2D7] items-center gap-2 shadow-sm hover:bg-[#F5F5F7] hover:border-[#B0B0B5] transition-all text-xs font-semibold text-[#6E6E73] group"
                 title="Vuelve a poner todos los cuadros en su posición original"
             >
-                <LayoutGrid className="h-3.5 w-3.5 text-[#0071E3] group-hover:scale-110 transition-transform" />
+                <LayoutGrid className="h-3.5 w-3.5 text-[#029E4D] group-hover:scale-110 transition-transform" />
                 Restaurar Diseño
             </button>
 
@@ -120,7 +120,7 @@ const Dashboard: React.FC = () => {
                 className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm"
                 title="Restaurar Diseño"
             >
-                <LayoutGrid className="h-4 w-4 text-[#0071E3]" />
+                <LayoutGrid className="h-4 w-4 text-[#029E4D]" />
             </button>
         </div>
     ), [resetLayout]);
@@ -138,7 +138,7 @@ const Dashboard: React.FC = () => {
                             className="p-3 bg-[#F5F5F7] rounded-xl flex items-start gap-3 hover:bg-[#E8E8ED] transition-colors cursor-pointer"
                         >
                             <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-[#FF3B30]' :
-                                alert.tipo === 'warning' ? 'text-[#FF9F0A]' : 'text-[#0071E3]'
+                                alert.tipo === 'warning' ? 'text-[#FF9F0A]' : 'text-[#029E4D]'
                                 }`} />
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-[#1D1D1F]">{alert.titulo}</p>
@@ -179,7 +179,7 @@ const Dashboard: React.FC = () => {
     if (loading || !data) {
         return (
             <div className="h-[80vh] flex flex-col items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin text-[#0071E3]" />
+                <Loader2 className="h-10 w-10 animate-spin text-[#029E4D]" />
                 <p className="mt-4 text-[#6E6E73] text-sm animate-pulse">Analizando bóveda...</p>
             </div>
         );
@@ -191,8 +191,8 @@ const Dashboard: React.FC = () => {
             label: 'Trabajadores',
             value: data.counters.trabajadores ?? 0,
             icon: Users,
-            color: 'text-[#0071E3]',
-            bg: 'bg-[#0071E3]/8',
+            color: 'text-[#029E4D]',
+            bg: 'bg-[#029E4D]/8',
             route: '/trabajadores',
             description: 'Gestión de personal'
         },
@@ -269,10 +269,10 @@ const Dashboard: React.FC = () => {
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="bg-[#0071E3]/5 border-l-4 border-[#0071E3] p-4 rounded-r-2xl"
+                    className="bg-[#029E4D]/5 border-l-4 border-[#029E4D] p-4 rounded-r-2xl"
                 >
                     <p className="text-sm text-[#1D1D1F] leading-relaxed">
-                        <span className="font-bold text-[#0071E3]">Resumen de hoy:</span> Tienes <span className="font-semibold">{data.counters.trabajadores}</span> trabajadores activos en terreno.
+                        <span className="font-bold text-[#029E4D]">Resumen de hoy:</span> Tienes <span className="font-semibold">{data.counters.trabajadores}</span> trabajadores activos en terreno.
                         La tasa de asistencia es del <span className="font-semibold text-[#34C759]">{data.counters.asistencia_hoy}%</span>
                         {((data.counters.vencidos ?? 0) > 0 || (data.counters.trabajadoresSinDocs ?? 0) > 0) ? (
                             <> y tienes <span className="font-semibold text-[#FF3B30]">pendientes</span>:

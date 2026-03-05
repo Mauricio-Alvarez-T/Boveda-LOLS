@@ -19,7 +19,7 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
                         <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
                         <p className="text-xs text-[#6E6E73]">Capacidad operativa.</p>
                     </div>
-                    <TrendingUp className="h-5 w-5 text-[#0071E3]" />
+                    <TrendingUp className="h-5 w-5 text-[#029E4D]" />
                 </div>
                 <div className="flex-1 flex flex-col items-center justify-center text-[#6E6E73]">
                     <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
@@ -39,7 +39,7 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
                     <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
                     <p className="text-xs text-[#6E6E73]">Capacidad operativa.</p>
                 </div>
-                <TrendingUp className="h-5 w-5 text-[#0071E3]" />
+                <TrendingUp className="h-5 w-5 text-[#029E4D]" />
             </div>
             <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">
@@ -53,7 +53,7 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
                         />
                         <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                             {data.map((_, index) => (
-                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#0071E3' : '#5856D6'} fillOpacity={0.85} />
+                                <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#029E4D' : '#5856D6'} fillOpacity={0.85} />
                             ))}
                         </Bar>
                     </BarChart>

@@ -37,8 +37,8 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
             {/* Header contextual estilo Apple Card */}
             <div className="bg-white p-4 rounded-2xl border border-[#D2D2D7] shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-[#0071E3]/5 rounded-full flex items-center justify-center">
-                        <History className="h-5 w-5 text-[#0071E3]" />
+                    <div className="h-10 w-10 bg-[#029E4D]/5 rounded-full flex items-center justify-center">
+                        <History className="h-5 w-5 text-[#029E4D]" />
                     </div>
                     <div>
                         <h4 className="text-sm font-bold text-[#1D1D1F] uppercase tracking-tight">Detalle de Cambios</h4>
@@ -48,8 +48,8 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
 
                 <div className="flex flex-wrap items-center gap-3">
                     {responsable && (
-                        <div className="flex items-center gap-2 bg-[#0071E3]/5 px-3 py-1.5 rounded-full border border-[#0071E3]/10">
-                            <span className="text-[10px] font-bold text-[#0071E3] uppercase tracking-tighter">Hecho por:</span>
+                        <div className="flex items-center gap-2 bg-[#029E4D]/5 px-3 py-1.5 rounded-full border border-[#029E4D]/10">
+                            <span className="text-[10px] font-bold text-[#029E4D] uppercase tracking-tighter">Hecho por:</span>
                             <span className="text-xs font-bold text-[#1D1D1F]">{responsable}</span>
                         </div>
                     )}
@@ -74,7 +74,7 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
                     <div key={key} className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
                         <div className="px-5 py-3 bg-[#F5F5F7] border-b border-[#D2D2D7] flex items-center justify-between">
                             <span className="text-xs font-black text-[#1D1D1F] uppercase tracking-widest opacity-80">{getLabel(key)}</span>
-                            <div className="h-2 w-2 rounded-full bg-[#0071E3] opacity-50" />
+                            <div className="h-2 w-2 rounded-full bg-[#029E4D] opacity-50" />
                         </div>
 
                         <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -146,8 +146,8 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                     </div>
                 </div>
                 {responsable && (
-                    <div className="bg-[#0071E3]/5 px-3 py-1.5 rounded-full border border-[#0071E3]/10 flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-[#0071E3] uppercase tracking-tighter">Registrado por:</span>
+                    <div className="bg-[#029E4D]/5 px-3 py-1.5 rounded-full border border-[#029E4D]/10 flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-[#029E4D] uppercase tracking-tighter">Registrado por:</span>
                         <span className="text-xs font-bold text-[#1D1D1F]">{responsable}</span>
                     </div>
                 )}
@@ -199,7 +199,7 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                         <span key={key} className="text-[10px] font-semibold text-[#1D1D1F]">{getLabel(key)}</span>
                     ))}
                     {parsed.trabajador && <span className="text-[10px] text-[#6E6E73]">• {parsed.trabajador}</span>}
-                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#029E4D] hover:bg-[#029E4D]/10 px-2 py-0.5 rounded-full bg-[#029E4D]/5 ml-1 transition-all active:scale-95">
                         Ver cambios
                     </button>
                 </div>
@@ -218,7 +218,7 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                     <p className="text-[11px] text-[#1D1D1F] leading-snug">{parsed.resumen || 'Sin resumen'}</p>
                     {hasData && (
-                        <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
+                        <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#029E4D] hover:bg-[#029E4D]/10 px-2 py-0.5 rounded-full bg-[#029E4D]/5 ml-1 transition-all active:scale-95">
                             Ver detalles
                         </button>
                     )}
@@ -252,7 +252,7 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                     )) : (
                         <span className="text-[10px] text-[#6E6E73] italic">Sin diferencias</span>
                     )}
-                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#029E4D] hover:bg-[#029E4D]/10 px-2 py-0.5 rounded-full bg-[#029E4D]/5 ml-1 transition-all active:scale-95">
                         Ver cambios
                     </button>
                 </div>
@@ -279,7 +279,7 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                     </div>
                 ))}
                 {entries.length > 3 && (
-                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#0071E3] hover:bg-[#0071E3]/10 px-2 py-0.5 rounded-full bg-[#0071E3]/5 ml-1 transition-all active:scale-95">
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-[#029E4D] hover:bg-[#029E4D]/10 px-2 py-0.5 rounded-full bg-[#029E4D]/5 ml-1 transition-all active:scale-95">
                         Ver todos (+{entries.length - 3})
                     </button>
                 )}
@@ -320,7 +320,7 @@ export const ActivityLogsPanel: React.FC = () => {
             case 'CREATE': return { label: 'CREAR', color: 'bg-[#34C759]/10 text-[#34C759]' };
             case 'UPDATE': return { label: 'EDITAR', color: 'bg-[#FF9F0A]/10 text-[#FF9F0A]' };
             case 'DELETE': return { label: 'BORRAR', color: 'bg-[#FF3B30]/10 text-[#FF3B30]' };
-            case 'LOGIN': return { label: 'ACCESO', color: 'bg-[#0071E3]/10 text-[#0071E3]' };
+            case 'LOGIN': return { label: 'ACCESO', color: 'bg-[#029E4D]/10 text-[#029E4D]' };
             case 'UPLOAD': return { label: 'SUBIDA', color: 'bg-[#AF52DE]/10 text-[#AF52DE]' };
             case 'EMAIL': return { label: 'CORREO', color: 'bg-[#5856D6]/10 text-[#5856D6]' };
             default: return { label: accion, color: 'bg-gray-100 text-gray-500' };

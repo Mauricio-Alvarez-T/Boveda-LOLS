@@ -131,15 +131,15 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20">
-                                    <Loader2 className="h-8 w-8 animate-spin text-[#0071E3] mb-3" />
+                                    <Loader2 className="h-8 w-8 animate-spin text-[#029E4D] mb-3" />
                                     <p className="text-sm text-[#6E6E73]">Cargando información...</p>
                                 </div>
                             ) : worker ? (
                                 <div className="p-5 space-y-5">
                                     {/* ── Worker Identity Card ── */}
-                                    <div className="bg-gradient-to-br from-[#0071E3]/5 to-[#5AC8FA]/5 rounded-2xl p-5 border border-[#0071E3]/10">
+                                    <div className="bg-gradient-to-br from-[#029E4D]/5 to-[#5AC8FA]/5 rounded-2xl p-5 border border-[#029E4D]/10">
                                         <div className="flex items-center gap-4">
-                                            <div className="h-16 w-16 rounded-2xl bg-[#0071E3] text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-[#0071E3]/20">
+                                            <div className="h-16 w-16 rounded-2xl bg-[#029E4D] text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-[#029E4D]/20">
                                                 {initials}
                                             </div>
                                             <div className="flex-1 min-w-0">
@@ -157,7 +157,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         <div className="mt-4 flex flex-wrap gap-2">
                                             {worker.cargo_nombre && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                    <Briefcase className="h-3.5 w-3.5 text-[#0071E3]" /> {worker.cargo_nombre}
+                                                    <Briefcase className="h-3.5 w-3.5 text-[#029E4D]" /> {worker.cargo_nombre}
                                                 </span>
                                             )}
                                             {worker.empresa_nombre && (
@@ -184,7 +184,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             )}
                                             {worker.email && (
                                                 <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
-                                                    <Mail className="h-4 w-4 text-[#0071E3]" />
+                                                    <Mail className="h-4 w-4 text-[#029E4D]" />
                                                     <span className="text-sm text-[#1D1D1F] truncate">{worker.email}</span>
                                                 </a>
                                             )}
@@ -195,7 +195,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     <div className="bg-[#F5F5F7] rounded-2xl p-4">
                                         <div className="flex items-center justify-between mb-3">
                                             <span className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2">
-                                                <FileText className="h-4 w-4 text-[#0071E3]" /> Documentación
+                                                <FileText className="h-4 w-4 text-[#029E4D]" /> Documentación
                                             </span>
                                             <span className={cn(
                                                 "text-xs font-bold px-2.5 py-1 rounded-lg",
@@ -227,7 +227,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {docs.length > 0 && (
                                         <div>
                                             <h4 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2 mb-3">
-                                                <FileText className="h-4 w-4 text-[#0071E3]" /> Documentos Subidos
+                                                <FileText className="h-4 w-4 text-[#029E4D]" /> Documentos Subidos
                                             </h4>
                                             <div className="space-y-2">
                                                 {docs.slice(0, 5).map((doc: any, i: number) => (
@@ -251,10 +251,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     <div className="grid grid-cols-3 gap-2 pt-2 pb-4">
                                         <button
                                             onClick={() => onEditWorker?.(worker.id)}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#0071E3]/5 hover:bg-[#0071E3]/10 border border-[#0071E3]/10 transition-colors group"
+                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#029E4D]/5 hover:bg-[#029E4D]/10 border border-[#029E4D]/10 transition-colors group"
                                         >
-                                            <Pencil className="h-5 w-5 text-[#0071E3] group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-[#0071E3]">Editar</span>
+                                            <Pencil className="h-5 w-5 text-[#029E4D] group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-semibold text-[#029E4D]">Editar</span>
                                         </button>
                                         <button
                                             onClick={() => onViewDocuments?.(worker.id)}

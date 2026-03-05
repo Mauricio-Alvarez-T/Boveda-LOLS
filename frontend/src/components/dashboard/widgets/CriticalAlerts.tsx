@@ -29,9 +29,9 @@ const alertStyles = {
         icon: AlertTriangle,
     },
     info: {
-        border: 'border-[#0071E3]/20',
-        bg: 'bg-[#0071E3]/5',
-        text: 'text-[#0071E3]',
+        border: 'border-[#029E4D]/20',
+        bg: 'bg-[#029E4D]/5',
+        text: 'text-[#029E4D]',
         icon: Info,
     },
 };
