@@ -63,19 +63,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const sidebarContent = (isMobile: boolean) => (
         <>
             {/* Logo Section */}
-            <div className="px-5 py-4 flex items-center justify-between h-[84px]">
+            <div className={cn("flex items-center justify-between transition-all duration-300 h-[84px]", (!isMobile && isCollapsed) ? "px-0 justify-center" : "pl-3 pr-5")}>
                 <div className={cn("flex flex-1 items-center overflow-hidden transition-all duration-300", (!isMobile && isCollapsed) ? "justify-center" : "justify-start")}>
                     <Logo
                         variant="green"
                         iconOnly={!isMobile && isCollapsed}
                         className={cn(
                             "transition-all duration-300 transform-gpu shrink-0",
-                            (!isMobile && isCollapsed) ? "h-10 w-auto ml-1" : "h-14 w-auto"
+                            (!isMobile && isCollapsed) ? "h-10 w-auto" : "h-14 w-auto"
                         )}
                     />
                 </div>
                 {isMobile && (
-                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-[#F5F5F7] text-[#6E6E73]">
+                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-[#F5F5F7] text-[#6E6E73] shrink-0">
                         <X className="h-5 w-5" />
                     </button>
                 )}
@@ -88,10 +88,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         key={item.path}
                         to={item.path}
                         className={({ isActive }) => cn(
-                            "flex items-center gap-3 px-3 py-3 rounded-xl transition-all group relative text-base",
+                            "flex items-center rounded-xl transition-all group relative text-base whitespace-nowrap overflow-hidden h-12",
+                            (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[18px] pr-4 w-full gap-[14px]",
                             isActive
                                 ? "bg-[#029E4D]/8 text-[#029E4D] font-semibold"
-                                : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F]"
+                                : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F] font-medium"
                         )}
                         title={(!isMobile && isCollapsed) ? item.label : ''}
                     >
@@ -100,7 +101,6 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             <motion.span
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="font-medium"
                             >
                                 {item.label}
                             </motion.span>
@@ -112,20 +112,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* User Section */}
             <div className="p-3 border-t border-[#E8E8ED]">
                 <div className={cn(
-                    "flex items-center gap-3 p-2.5 rounded-xl bg-[#F5F5F7] transition-all",
-                    (!isMobile && isCollapsed) ? "justify-center" : "justify-start"
+                    "flex items-center rounded-xl bg-[#F5F5F7] transition-all whitespace-nowrap overflow-hidden h-[52px]",
+                    (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[10px] pr-3 w-full gap-[6px]"
                 )}>
-                    <div className="h-10 w-10 shrink-0 rounded-full bg-[#029E4D] flex items-center justify-center text-sm font-semibold text-white">
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-[#029E4D] flex items-center justify-center text-sm font-semibold text-white">
                         {user?.nombre?.[0]}
                     </div>
                     {(isMobile || !isCollapsed) && (
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[#1D1D1F] truncate">{user?.nombre}</p>
-                            <p className="text-xs text-[#6E6E73] truncate">{user?.rol}</p>
+                        <div className="flex-1 min-w-0 pr-1">
+                            <p className="text-sm font-bold text-[#1D1D1F] truncate leading-tight">{user?.nombre}</p>
+                            <p className="text-[11px] font-medium text-[#86868B] truncate leading-tight tracking-wide">{user?.rol}</p>
                         </div>
                     )}
                     {(isMobile || !isCollapsed) && (
-                        <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-[#FF3B30] transition-colors">
+                        <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-[#FF3B30] transition-colors shrink-0">
                             <LogOut className="h-4 w-4" />
                         </button>
                     )}
