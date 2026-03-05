@@ -13,7 +13,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                 }}
                 transition={{ duration: 45, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute top-[-10%] left-[-10%] w-[70vw] h-[70vw] rounded-full blur-[90px]"
-                style={{ backgroundColor: '#029E4D', opacity: 0.07 }}
+                style={{ backgroundColor: '#029E4D', opacity: 0.2 }}
             />
             {/* Esfera 2 Azul Marino (Industrial/Serio) */}
             <motion.div
@@ -24,7 +24,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                 }}
                 transition={{ duration: 55, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full blur-[90px]"
-                style={{ backgroundColor: '#1E3A8A', opacity: 0.07 }}
+                style={{ backgroundColor: '#1E3A8A', opacity: 0.2 }}
             />
             {/* Esfera 3 Gris Concreto/Acero */}
             <motion.div
@@ -35,7 +35,7 @@ export const AnimatedBackgroundText: React.FC = () => {
                 }}
                 transition={{ duration: 65, repeat: Infinity, ease: "easeInOut" }}
                 className="absolute top-[20%] left-[30%] w-[50vw] h-[50vw] rounded-full blur-[90px]"
-                style={{ backgroundColor: '#64748B', opacity: 0.07 }}
+                style={{ backgroundColor: '#64748B', opacity: 0.2 }}
             />
         </div>
     );
