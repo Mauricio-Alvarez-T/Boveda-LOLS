@@ -11,6 +11,7 @@ import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { TipoDocumento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
+import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
 const uploadSchema = z.object({
     tipo_documento_id: z.coerce.number().min(1, 'Selecciona un tipo de documento'),
@@ -38,6 +39,9 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
     } = useForm<UploadFormData>({
         resolver: zodResolver(uploadSchema) as any,
     });
+
+    const isDirty = file !== null || Object.keys(errors).length > 0;
+    useFormDirtyProtection(isDirty);
 
     useEffect(() => {
         const fetchTipos = async () => {
@@ -162,19 +166,17 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                 </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/5">
-                <Button type="button" variant="ghost" onClick={onCancel}>
-                    Cancelar
-                </Button>
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
                 <Button
                     type="submit"
                     isLoading={loading}
                     disabled={!file}
                     leftIcon={<Upload className="h-5 w-5" />}
+                    className="w-full sm:w-auto bg-[#029E4D] text-white hover:bg-[#027A3B]"
                 >
                     Subir Documento
                 </Button>
             </div>
-        </form >
+        </form>
     );
 };
