@@ -139,6 +139,27 @@ if (process.env.NODE_ENV === 'production') {
   });
 }
 
+// Debug route to fix "ALBAÑIL" issue (and similar ones)
+app.get('/api/debug/fix-duplicates', async (req, res, next) => {
+  try {
+    const db = require('./src/config/db');
+    // List tables that might have inactive duplicates
+    const tables = ['cargos', 'empresas', 'tipos_documento', 'estados_asistencia', 'tipos_ausencia'];
+    let results = {};
+
+    for (const table of tables) {
+      const [deleted] = await db.query(`DELETE FROM ${table} WHERE activo = 0`);
+      results[table] = { deletedRows: deleted.affectedRows };
+    }
+
+    // Obra uses 'activa' instead of 'activo'
+    const [deletedObras] = await db.query(`DELETE FROM obras WHERE activa = 0`);
+    results['obras'] = { deletedRows: deletedObras.affectedRows };
+
+    res.json({ message: 'Purge complete', results });
+  } catch (err) { next(err); }
+});
+
 // Error Handler (must be last)
 app.use(errorHandler);
 
