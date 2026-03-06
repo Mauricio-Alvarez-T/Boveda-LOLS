@@ -56,6 +56,16 @@ const FiscalizacionPage: React.FC = () => {
     const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
+
+    const toggleMarkedRow = (index: number) => {
+        setMarkedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    };
 
     // Fetch Catalogs
     useEffect(() => {
@@ -326,7 +336,8 @@ const FiscalizacionPage: React.FC = () => {
                             <table className="w-full text-left border-collapse">
                                 <thead>
                                     <tr className="border-b border-[#E8E8ED] bg-white text-xs tracking-wider text-[#6E6E73] uppercase">
-                                        <th className="px-6 py-4 font-semibold w-12 text-center">
+                                        <th className="px-4 py-4 font-semibold w-10 text-center">#</th>
+                                        <th className="px-4 py-4 font-semibold w-12 text-center">
                                             <input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={workers.length > 0 && selectedWorkers.size === workers.length} onChange={handleSelectAll} disabled={workers.length === 0} />
                                         </th>
                                         <th className="px-6 py-4 font-semibold">Trabajador</th>
@@ -337,20 +348,33 @@ const FiscalizacionPage: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-[#E8E8ED]">
                                     {workers.length === 0 ? (
-                                        <tr><td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] italic">No se encontraron trabajadores con los filtros actuales.</td></tr>
+                                        <tr><td colSpan={6} className="px-6 py-20 text-center text-[#6E6E73] italic">No se encontraron trabajadores con los filtros actuales.</td></tr>
                                     ) : (
-                                        workers.map((worker) => (
-                                            <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#029E4D]/5")} onClick={() => handleSelectWorker(worker.id)}>
-                                                <td className="px-6 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
+                                        workers.map((worker, index) => (
+                                            <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#029E4D]/5", markedRows.has(index) && "!bg-[#029E4D]/10 border-l-4 border-l-[#1D1D1F]")} onClick={() => handleSelectWorker(worker.id)}>
+                                                <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
+                                                    <button
+                                                        onClick={() => toggleMarkedRow(index)}
+                                                        className={cn(
+                                                            "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border mx-auto",
+                                                            markedRows.has(index)
+                                                                ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-110"
+                                                                : "bg-transparent text-[#A1A1A6] border-transparent hover:border-[#D2D2D7] hover:bg-white"
+                                                        )}
+                                                    >
+                                                        {(index + 1).toString().padStart(2, '0')}
+                                                    </button>
+                                                </td>
+                                                <td className="px-4 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
                                                 <td className="px-6 py-4">
-                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
+                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm font-bold text-[#1D1D1F]">
                                                         {worker.nombres} {worker.apellido_paterno}
                                                     </WorkerLink>
-                                                    <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                                                    <p className="text-xs text-[#6E6E73] font-medium">{worker.rut}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm text-[#1D1D1F]">{worker.empresa_nombre || '-'}</p>
-                                                    <p className="text-xs text-[#6E6E73] truncate max-w-[200px]">{worker.obra_nombre} • {worker.cargo_nombre}</p>
+                                                    <p className="text-sm text-[#1D1D1F] font-bold">{worker.empresa_nombre || '-'}</p>
+                                                    <p className="text-xs text-[#6E6E73] font-medium truncate max-w-[200px]">{worker.obra_nombre} • {worker.cargo_nombre}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
@@ -402,8 +426,9 @@ const FiscalizacionPage: React.FC = () => {
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
-                        {workers.map((worker) => {
+                        {workers.map((worker, index) => {
                             const isSelected = selectedWorkers.has(worker.id);
+                            const isMarked = markedRows.has(index);
                             const docColor = worker.docs_porcentaje === 100 ? '#34C759' : worker.docs_porcentaje > 50 ? '#FF9F0A' : '#FF3B30';
                             return (
                                 <div
@@ -411,11 +436,28 @@ const FiscalizacionPage: React.FC = () => {
                                     onClick={() => handleSelectWorker(worker.id)}
                                     className={cn(
                                         "bg-white rounded-2xl border p-3.5 cursor-pointer transition-all active:scale-[0.99]",
-                                        isSelected ? "border-[#029E4D] ring-2 ring-[#029E4D]/10 bg-[#029E4D]/3" : "border-[#D2D2D7]"
+                                        isSelected ? "border-[#029E4D] ring-2 ring-[#029E4D]/10 bg-[#029E4D]/3" : "border-[#D2D2D7]",
+                                        isMarked && "!border-[#1D1D1F] !ring-[#1D1D1F]/10"
                                     )}
                                 >
                                     <div className="flex items-start gap-3">
-                                        {/* Large checkbox area */}
+                                        {/* Row marker */}
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleMarkedRow(index);
+                                            }}
+                                            className={cn(
+                                                "h-8 w-8 rounded-lg flex items-center justify-center font-black text-[10px] transition-all border shrink-0 mt-0.5",
+                                                isMarked
+                                                    ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-lg scale-110"
+                                                    : "bg-[#F5F5F7] text-[#A1A1A6] border-[#D2D2D7]"
+                                            )}
+                                        >
+                                            #{(index + 1).toString().padStart(2, '0')}
+                                        </button>
+
+                                        {/* Checkbox */}
                                         <div className={cn(
                                             "h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
                                             isSelected ? "bg-[#029E4D] border-[#029E4D]" : "border-[#D2D2D7]"
@@ -426,14 +468,14 @@ const FiscalizacionPage: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             {/* Name + status */}
                                             <div className="flex items-center justify-between gap-2">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-[#1D1D1F]">
                                                     {worker.nombres} {worker.apellido_paterno}
                                                 </WorkerLink>
                                                 <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
                                                     {worker.activo ? 'Activo' : 'Inactivo'}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-[#6E6E73] mt-0.5">{worker.rut}</p>
+                                            <p className="text-[11px] text-[#6E6E73] font-medium mt-0.5">{worker.rut}</p>
 
                                             {/* Company + cargo chips */}
                                             <div className="flex gap-1.5 mt-2 flex-wrap">
