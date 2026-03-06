@@ -682,9 +682,16 @@ const WorkersPage: React.FC = () => {
                     <WorkerForm
                         initialData={selectedWorker}
                         onCancel={() => setModalType(null)}
-                        onSuccess={() => {
+                        onSuccess={(savedWorker: Trabajador) => {
                             setModalType(null);
-                            fetchWorkers();
+                            if (selectedWorker) {
+                                // Modo Edición: Actualizar optimísticamente en la lista existente
+                                setWorkers(prev => prev.map(w => w.id === savedWorker.id ? savedWorker : w));
+                                // Refrescar los catálogos en caso de que haya cambiado algo vital (silencioso)
+                            } else {
+                                // Modo Creación: Añadir optimísticamente al principio
+                                setWorkers(prev => [savedWorker, ...prev]);
+                            }
                         }}
                     />
                 )}
@@ -764,9 +771,15 @@ const WorkersPage: React.FC = () => {
                             <DocumentUploader
                                 trabajadorId={selectedWorker.id}
                                 onCancel={() => setIsUploading(false)}
-                                onSuccess={() => {
+                                onSuccess={async () => {
                                     setIsUploading(false);
-                                    fetchWorkers(); // Refresh completion data
+                                    // Soft refresh: Sólo obtener el KPI actualizado para no romper la lista entera ni el modal de docs
+                                    try {
+                                        const compRes = await api.post<Record<number, { uploaded: number, total: number, percentage: number }>>('/documentos/kpi/completitud', { trabajador_ids: [selectedWorker.id] });
+                                        setCompletion(prev => ({ ...prev, ...compRes.data }));
+                                    } catch {
+                                        // Silently fail is okay here
+                                    }
                                 }}
                             />
                         ) : (
