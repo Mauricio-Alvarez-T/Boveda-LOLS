@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { Loader2, Save } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
+import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SelectOption } from '../ui/Select';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import api from '../../services/api';
@@ -47,6 +48,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     const {
         register,
         handleSubmit,
+        control,
         formState: { errors, isDirty },
     } = useForm<WorkerFormData>({
         resolver: zodResolver(workerSchema) as any,
@@ -163,23 +165,50 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             <div className="h-px bg-white/5 my-2" />
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <Select
-                    label="Empresa"
-                    options={empresas}
-                    error={errors.empresa_id?.message}
-                    {...register('empresa_id')}
+                <Controller
+                    name="empresa_id"
+                    control={control}
+                    render={({ field: { onChange, value, ref } }) => (
+                        <SearchableSelect
+                            ref={ref}
+                            label="Empresa"
+                            options={empresas}
+                            error={errors.empresa_id?.message}
+                            placeholder="Buscar empresa..."
+                            value={value}
+                            onChange={(val) => onChange(val ? Number(val) : 0)}
+                        />
+                    )}
                 />
-                <Select
-                    label="Obra"
-                    options={obras}
-                    error={errors.obra_id?.message}
-                    {...register('obra_id')}
+                <Controller
+                    name="obra_id"
+                    control={control}
+                    render={({ field: { onChange, value, ref } }) => (
+                        <SearchableSelect
+                            ref={ref}
+                            label="Obra"
+                            options={obras}
+                            error={errors.obra_id?.message}
+                            placeholder="Buscar obra..."
+                            value={value}
+                            onChange={(val) => onChange(val ? Number(val) : 0)}
+                        />
+                    )}
                 />
-                <Select
-                    label="Cargo"
-                    options={cargos}
-                    error={errors.cargo_id?.message}
-                    {...register('cargo_id')}
+                <Controller
+                    name="cargo_id"
+                    control={control}
+                    render={({ field: { onChange, value, ref } }) => (
+                        <SearchableSelect
+                            ref={ref}
+                            label="Cargo"
+                            options={cargos}
+                            error={errors.cargo_id?.message}
+                            placeholder="Buscar cargo..."
+                            value={value}
+                            onChange={(val) => onChange(val ? Number(val) : 0)}
+                        />
+                    )}
                 />
             </div>
 
