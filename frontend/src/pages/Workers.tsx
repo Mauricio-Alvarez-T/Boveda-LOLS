@@ -425,8 +425,11 @@ const WorkersPage: React.FC = () => {
                                 >
                                     {/* Row 1: Avatar + Name + RUT */}
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="h-11 w-11 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-base border border-[#029E4D]/20 shrink-0">
+                                        <div className="h-11 w-11 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-base border border-[#029E4D]/20 shrink-0 relative">
                                             {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
+                                            <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded-lg bg-[#1D1D1F] text-white text-[9px] font-black shadow-sm">
+                                                #{(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
+                                            </span>
                                         </div>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-[#1D1D1F] truncate flex items-center gap-1.5">
@@ -519,6 +522,7 @@ const WorkersPage: React.FC = () => {
                     <table className="w-full text-left border-collapse">
                         <thead>
                             <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-xs tracking-widest text-[#6E6E73]">
+                                <th className="px-6 py-4 font-semibold w-12 text-center">#</th>
                                 <th className="px-6 py-4 font-semibold">Trabajador</th>
                                 <th className="px-6 py-4 font-semibold">Empresa & Obra</th>
                                 <th className="px-6 py-4 font-semibold">Cargo</th>
@@ -553,6 +557,11 @@ const WorkersPage: React.FC = () => {
                                             animate={{ opacity: 1, y: 0 }}
                                             className="hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#029E4D]"
                                         >
+                                            <td className="px-6 py-6 text-center">
+                                                <span className="text-xs font-bold text-[#A1A1A6] font-mono">
+                                                    {(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
+                                                </span>
+                                            </td>
                                             <td className="px-6 py-6">
                                                 <div className="flex items-center gap-4">
                                                     <div className="h-12 w-12 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-lg shadow-sm border border-[#029E4D]/20 shrink-0">
@@ -682,32 +691,9 @@ const WorkersPage: React.FC = () => {
                     <WorkerForm
                         initialData={selectedWorker}
                         onCancel={() => setModalType(null)}
-                        onSuccess={(savedWorker: Trabajador) => {
+                        onSuccess={() => {
                             setModalType(null);
-
-                            // Seguridad ante nulos para evitar crash "Cannot read id of undefined"
-                            if (!savedWorker || !savedWorker.id) {
-                                fetchWorkers(); // Fallback al método tradicional si la data es corrupta
-                                return;
-                            }
-
-                            if (selectedWorker) {
-                                // Modo Edición: Actualizar optimísticamente
-                                setWorkers(prev => prev.map(w => {
-                                    if (w.id === savedWorker.id) {
-                                        // Mezclamos (Merge) los datos para no perder los campos descriptivos (_nombre)
-                                        // que la API a veces no retorna en el PUT
-                                        return { ...w, ...savedWorker };
-                                    }
-                                    return w;
-                                }));
-                            } else {
-                                // Modo Creación: Añadir al principio
-                                setWorkers(prev => [savedWorker, ...prev]);
-                                // Nota: Aquí podríamos hacer un fetchWorkers() si faltan nombres, 
-                                // pero para creación es mejor que el backend retorne el objeto completo.
-                                if (!savedWorker.empresa_nombre) fetchWorkers();
-                            }
+                            fetchWorkers();
                         }}
                     />
                 )}
@@ -787,15 +773,9 @@ const WorkersPage: React.FC = () => {
                             <DocumentUploader
                                 trabajadorId={selectedWorker.id}
                                 onCancel={() => setIsUploading(false)}
-                                onSuccess={async () => {
+                                onSuccess={() => {
                                     setIsUploading(false);
-                                    // Soft refresh: Sólo obtener el KPI actualizado para no romper la lista entera ni el modal de docs
-                                    try {
-                                        const compRes = await api.post<Record<number, { uploaded: number, total: number, percentage: number }>>('/documentos/kpi/completitud', { trabajador_ids: [selectedWorker.id] });
-                                        setCompletion(prev => ({ ...prev, ...compRes.data }));
-                                    } catch {
-                                        // Silently fail is okay here
-                                    }
+                                    fetchWorkers(); // Refresh completion data
                                 }}
                             />
                         ) : (

@@ -33,7 +33,7 @@ type WorkerFormData = z.infer<typeof workerSchema>;
 
 interface WorkerFormProps {
     initialData?: Trabajador | null;
-    onSuccess: (worker: Trabajador) => void;
+    onSuccess: () => void;
     onCancel: () => void;
 }
 
@@ -93,17 +93,14 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     const onSubmit = async (data: WorkerFormData) => {
         setLoading(true);
         try {
-            let savedWorker: Trabajador;
             if (initialData) {
-                const res = await api.put<ApiResponse<Trabajador>>(`/trabajadores/${initialData.id}`, data);
-                savedWorker = res.data.data;
+                await api.put(`/trabajadores/${initialData.id}`, data);
                 toast.success('Trabajador actualizado con éxito');
             } else {
-                const res = await api.post<ApiResponse<Trabajador>>('/trabajadores', data);
-                savedWorker = res.data.data;
+                await api.post('/trabajadores', data);
                 toast.success('Trabajador registrado con éxito');
             }
-            onSuccess(savedWorker);
+            onSuccess();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al guardar trabajador');
         } finally {
