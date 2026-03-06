@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { TipoDocumento } from '../../types/entities';
+import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
 const schema = z.object({
     nombre: z.string().min(1, 'Nombre es requerido'),
@@ -29,7 +30,7 @@ interface Props {
 }
 
 export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+    const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
             nombre: initialData?.nombre || '',
@@ -37,6 +38,8 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
             obligatorio: initialData?.obligatorio ?? false,
         },
     });
+
+    useFormDirtyProtection(isDirty);
 
     const onSubmit = async (data: FormData) => {
         try {
@@ -91,21 +94,14 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
                 </div>
             </div>
 
-            <div className="flex justify-end gap-3 pt-5 mt-2 border-t border-[#E8E8ED]">
-                <Button
-                    type="button"
-                    className="bg-[#F5F5F7] text-[#1D1D1F] hover:bg-[#E8E8ED]"
-                    onClick={onCancel}
-                >
-                    Cancelar
-                </Button>
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
                 <Button
                     type="submit"
-                    className="bg-[#029E4D] text-white hover:bg-[#027A3B]"
+                    className="w-full sm:w-auto bg-[#029E4D] text-white hover:bg-[#027A3B]"
                     isLoading={isSubmitting}
                     leftIcon={<Save className="h-4 w-4" />}
                 >
-                    {initialData ? 'Actualizar' : 'Crear'}
+                    Guardar
                 </Button>
             </div>
         </form>

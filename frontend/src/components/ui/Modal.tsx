@@ -32,6 +32,17 @@ export const Modal: React.FC<ModalProps> = ({
         dynamic: 'md:max-w-4xl',
     };
 
+    const handleClose = () => {
+        // Anti-fugas de datos: Chequear si el formulario interno está sucio
+        const isDirty = document.body.getAttribute('data-modal-dirty') === 'true';
+        if (isDirty) {
+            if (!window.confirm('Tienes cambios sin guardar. ¿Estás seguro de que deseas salir y perderlos?')) {
+                return;
+            }
+        }
+        onClose();
+    };
+
     return (
         <AnimatePresence>
             {isOpen && (
@@ -48,7 +59,7 @@ export const Modal: React.FC<ModalProps> = ({
                             {/* Mobile header — iOS-style navigation bar */}
                             <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0 safe-area-top">
                                 <button
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     className="flex items-center gap-1 text-[#029E4D] text-sm font-medium active:opacity-60 transition-opacity"
                                 >
                                     <ChevronLeft className="h-5 w-5" />
@@ -58,7 +69,7 @@ export const Modal: React.FC<ModalProps> = ({
                             </div>
 
                             {/* Mobile body */}
-                            <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar">
+                            <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar relative">
                                 {children}
                             </div>
 
@@ -78,7 +89,7 @@ export const Modal: React.FC<ModalProps> = ({
                             initial={{ opacity: 0 }}
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
-                            onClick={onClose}
+                            onClick={handleClose}
                             className="absolute inset-0 bg-black/30 backdrop-blur-sm"
                         />
                         {/* Card */}
@@ -94,12 +105,12 @@ export const Modal: React.FC<ModalProps> = ({
                             {/* Header */}
                             <div className="flex items-center justify-between px-6 py-5 border-b border-[#D2D2D7]">
                                 <h3 className="text-lg font-semibold text-[#1D1D1F] truncate pr-8">{title}</h3>
-                                <Button variant="ghost" size="icon" onClick={onClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F] shrink-0">
+                                <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F] shrink-0">
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
                             {/* Body */}
-                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1">
+                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 relative">
                                 {children}
                             </div>
                             {/* Footer */}

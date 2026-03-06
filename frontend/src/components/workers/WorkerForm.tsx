@@ -9,6 +9,7 @@ import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import type { SelectOption } from '../ui/Select';
+import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import api from '../../services/api';
 import type { Trabajador, Empresa, Obra, Cargo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
@@ -46,7 +47,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     const {
         register,
         handleSubmit,
-        formState: { errors },
+        formState: { errors, isDirty },
     } = useForm<WorkerFormData>({
         resolver: zodResolver(workerSchema) as any,
         defaultValues: initialData ? {
@@ -64,7 +65,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
         } : {},
     });
 
-
+    useFormDirtyProtection(isDirty);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -201,18 +202,16 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                 />
             </div>
 
-            <div className="flex justify-end gap-3 pt-4">
-                <Button type="button" variant="ghost" onClick={onCancel}>
-                    Cancelar
-                </Button>
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-8 z-10">
                 <Button
                     type="submit"
                     isLoading={loading}
                     leftIcon={<Save className="h-5 w-5" />}
+                    className="w-full sm:w-auto"
                 >
-                    {initialData ? 'Guardar Cambios' : 'Registrar Trabajador'}
+                    Guardar
                 </Button>
             </div>
-        </form>
+        </form >
     );
 };

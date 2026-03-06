@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { Empresa } from '../../types/entities';
+import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
 const schema = z.object({
     rut: z.string().min(1, 'RUT es requerido'),
@@ -26,7 +27,7 @@ interface Props {
 }
 
 export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+    const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema),
         defaultValues: {
             rut: initialData?.rut || '',
@@ -35,6 +36,8 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             telefono: initialData?.telefono || '',
         },
     });
+
+    useFormDirtyProtection(isDirty);
 
     const onSubmit = async (data: FormData) => {
         try {
@@ -57,10 +60,9 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             <Input label="Razón Social" {...register('razon_social')} error={errors.razon_social?.message} placeholder="Constructora SpA" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Principal 123" />
             <Input label="Teléfono" {...register('telefono')} error={errors.telefono?.message} placeholder="+56 9 1234 5678" />
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-                    {initialData ? 'Actualizar' : 'Crear'}
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
+                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
+                    Guardar
                 </Button>
             </div>
         </form>

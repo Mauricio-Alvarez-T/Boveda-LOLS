@@ -3,6 +3,7 @@ import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
+import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
 interface EstadoFormData {
     nombre: string;
@@ -18,7 +19,7 @@ interface Props {
 }
 
 export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
-    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<EstadoFormData>({
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<EstadoFormData>({
         defaultValues: {
             nombre: '',
             codigo: '',
@@ -37,6 +38,8 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
             });
         }
     }, [initialData, reset]);
+
+    useFormDirtyProtection(isDirty);
 
     const onSubmit = async (data: EstadoFormData) => {
         try {
@@ -86,20 +89,14 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
                     Cuenta como presente (asistencia)
                 </label>
             </div>
-            <div className="flex gap-3 pt-2">
+
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="flex-1 bg-[#029E4D] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50"
+                    className="w-full sm:w-auto bg-[#029E4D] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
                 >
-                    {initialData ? 'Actualizar' : 'Crear'}
-                </button>
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    className="px-4 py-2.5 text-sm font-medium text-[#6E6E73] hover:bg-[#F5F5F7] rounded-xl transition-colors"
-                >
-                    Cancelar
+                    {isSubmitting ? 'Guardando...' : 'Guardar'}
                 </button>
             </div>
         </form>
