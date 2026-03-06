@@ -46,7 +46,7 @@ router.put('/:id', auth, checkPermission('usuarios', 'puede_editar'), async (req
     } catch (err) { next(err); }
 });
 
-router.delete('/:id', auth, checkPermission('usuarios', 'puede_eliminar'), controller.remove);
+router.delete('/:id', auth, checkPermission('usuarios', 'puede_eliminar'), controller.hardRemove);
 
 // Roles CRUD
 const rolService = createCrudService('roles', { searchFields: ['nombre'] });
@@ -65,7 +65,7 @@ router.delete('/roles/:id', auth, checkPermission('usuarios', 'puede_eliminar'),
             return res.status(400).json({ error: 'No se puede eliminar un rol que tiene usuarios activos asignados.' });
         }
 
-        await rolService.remove(id);
+        await rolService.hardDelete(id);
         res.json({ message: 'Rol eliminado exitosamente' });
     } catch (err) { next(err); }
 });

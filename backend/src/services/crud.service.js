@@ -119,6 +119,17 @@ const createCrudService = (tableName, options = {}) => {
             return { id, [activeColumn]: false };
         },
 
+        async hardDelete(id) {
+            const [result] = await db.query(
+                `DELETE FROM ${tableName} WHERE id = ?`,
+                [id]
+            );
+            if (result.affectedRows === 0) {
+                throw Object.assign(new Error('Registro no encontrado'), { statusCode: 404 });
+            }
+            return { id, deleted: true };
+        },
+
         async exportToExcel(query = {}, entityName = 'Reporte') {
             // Get all data without pagination
             const { q, activo } = query;

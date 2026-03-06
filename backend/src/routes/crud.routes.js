@@ -20,7 +20,13 @@ const createCrudRoutes = (moduleName, tableName, options = {}) => {
     router.get('/:id', auth, checkPermission(moduleName, 'puede_ver'), controller.getById);
     router.post('/', auth, checkPermission(moduleName, 'puede_crear'), controller.create);
     router.put('/:id', auth, checkPermission(moduleName, 'puede_editar'), controller.update);
-    router.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.remove);
+
+    // Default to hard-delete for all generic catalogs unless explicitly requested to use soft-delete
+    if (options.useSoftDelete) {
+        router.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.remove);
+    } else {
+        router.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.hardRemove);
+    }
 
     return router;
 };

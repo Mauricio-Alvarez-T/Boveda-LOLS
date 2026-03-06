@@ -105,9 +105,9 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                 await api.delete(`${endpoint}/${id}`);
                 fetchData();
             },
-            message: `¿Desactivar ${entityName}?`,
-            successMessage: `${entityName} desactivado`,
-            errorMessage: `Error al desactivar ${entityName.toLowerCase()}`
+            message: `¿Eliminar ${entityName}?`,
+            successMessage: `${entityName} eliminado`,
+            errorMessage: `Error al eliminar ${entityName.toLowerCase()}`
         });
     };
 

@@ -38,6 +38,13 @@ const createCrudController = (service) => ({
         } catch (err) { next(err); }
     },
 
+    async hardRemove(req, res, next) {
+        try {
+            const result = await service.hardDelete(req.params.id);
+            res.json(result);
+        } catch (err) { next(err); }
+    },
+
     async exportExcel(req, res, next) {
         try {
             const entityName = req.query.name || 'Reporte';

@@ -50,7 +50,8 @@ app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
   searchFields: ['rut', 'nombres', 'apellido_paterno'],
   joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
   selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
-  allowedFilters: ['obra_id', 'empresa_id', 'cargo_id']
+  allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
+  useSoftDelete: true
 }));
 
 // Documentos (rutas especializadas)
