@@ -13,7 +13,9 @@ import {
     Send,
     CalendarDays,
     FileDown,
-    ChevronDown
+    ChevronDown,
+    FilePlus,
+    ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -21,6 +23,10 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { TimeStepperInput } from '../components/ui/TimeStepperInput';
 import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
+import { Modal } from '../components/ui/Modal';
+import { WorkerForm } from '../components/workers/WorkerForm';
+import { DocumentUploader } from '../components/documents/DocumentUploader';
+import { DocumentList } from '../components/documents/DocumentList';
 import WorkerLink from '../components/workers/WorkerLink';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import api from '../services/api';
@@ -46,6 +52,11 @@ const AttendancePage: React.FC = () => {
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
+
+    // Modal states for QuickView actions
+    const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
+    const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
 
     // Get the default "Asiste" state (es_presente flag)
     const defaultEstado = useMemo(() =>
@@ -893,7 +904,110 @@ const AttendancePage: React.FC = () => {
             <WorkerQuickView
                 workerId={quickViewId}
                 onClose={() => setQuickViewId(null)}
+                onEditWorker={(id) => {
+                    setQuickViewId(null);
+                    const w = workers.find(w => w.id === id);
+                    if (w) { setSelectedWorker(w); setModalType('form'); }
+                }}
+                onViewDocuments={(id) => {
+                    setQuickViewId(null);
+                    const w = workers.find(w => w.id === id);
+                    if (w) { setSelectedWorker(w); setModalType('docs'); }
+                }}
             />
+
+            {/* Unified Modal para edición y documentos de la ficha rápida */}
+            <Modal
+                isOpen={modalType !== null}
+                onClose={() => {
+                    setModalType(null);
+                    setIsUploading(false);
+                }}
+                title={
+                    modalType === 'form'
+                        ? "Editar Trabajador"
+                        : `Documentos: ${selectedWorker?.nombres} ${selectedWorker?.apellido_paterno}`
+                }
+                size={modalType === 'docs' ? 'dynamic' : 'md'}
+            >
+                {modalType === 'form' && selectedWorker && (
+                    <WorkerForm
+                        initialData={selectedWorker}
+                        onSuccess={() => {
+                            setModalType(null);
+                            fetchAttendanceInfo(); // refetch workers
+                        }}
+                        onCancel={() => setModalType(null)}
+                    />
+                )}
+                {modalType === 'docs' && selectedWorker && (
+                    <div className="flex flex-col gap-4">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-[#F5F5F7] p-3 md:p-4 rounded-xl">
+                            <div className="hidden sm:block">
+                                <h4 className="text-base font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
+                                <p className="text-sm text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                {!isUploading && (
+                                    <Button
+                                        size="sm"
+                                        variant="glass"
+                                        onClick={async () => {
+                                            try {
+                                                const nid = toast.loading('Generando ZIP...');
+                                                const response = await api.get(`/documentos/download-all/${selectedWorker.id}`, {
+                                                    responseType: 'blob',
+                                                });
+                                                const url = window.URL.createObjectURL(new Blob([response.data]));
+                                                const link = document.createElement('a');
+                                                link.href = url;
+                                                link.setAttribute('download', `Documentos_${selectedWorker.nombres}_${selectedWorker.apellido_paterno}.zip`);
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                link.remove();
+                                                toast.dismiss(nid);
+                                                toast.success('Descarga iniciada');
+                                            } catch (err) {
+                                                toast.error('Error al descargar documentos');
+                                            }
+                                        }}
+                                        className="text-[#029E4D] hover:text-[#027A3B] flex-1 sm:flex-initial"
+                                        leftIcon={<FileDown className="h-4 w-4" />}
+                                    >
+                                        <span className="hidden sm:inline">Descargar (.zip)</span>
+                                        <span className="sm:hidden">Descargar</span>
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant={isUploading ? 'glass' : 'primary'}
+                                    disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
+                                    onClick={() => setIsUploading(!isUploading)}
+                                    leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                                    className={`flex-1 sm:flex-initial ${(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                                    title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
+                                >
+                                    <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
+                                    <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
+                                </Button>
+                            </div>
+                        </div>
+
+                        {isUploading ? (
+                            <DocumentUploader
+                                trabajadorId={selectedWorker.id}
+                                onCancel={() => setIsUploading(false)}
+                                onSuccess={() => {
+                                    setIsUploading(false);
+                                    fetchAttendanceInfo();
+                                }}
+                            />
+                        ) : (
+                            <DocumentList trabajadorId={selectedWorker.id} />
+                        )}
+                    </div>
+                )}
+            </Modal>
         </div>
     );
 };
