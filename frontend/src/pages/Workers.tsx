@@ -684,13 +684,29 @@ const WorkersPage: React.FC = () => {
                         onCancel={() => setModalType(null)}
                         onSuccess={(savedWorker: Trabajador) => {
                             setModalType(null);
+
+                            // Seguridad ante nulos para evitar crash "Cannot read id of undefined"
+                            if (!savedWorker || !savedWorker.id) {
+                                fetchWorkers(); // Fallback al método tradicional si la data es corrupta
+                                return;
+                            }
+
                             if (selectedWorker) {
-                                // Modo Edición: Actualizar optimísticamente en la lista existente
-                                setWorkers(prev => prev.map(w => w.id === savedWorker.id ? savedWorker : w));
-                                // Refrescar los catálogos en caso de que haya cambiado algo vital (silencioso)
+                                // Modo Edición: Actualizar optimísticamente
+                                setWorkers(prev => prev.map(w => {
+                                    if (w.id === savedWorker.id) {
+                                        // Mezclamos (Merge) los datos para no perder los campos descriptivos (_nombre)
+                                        // que la API a veces no retorna en el PUT
+                                        return { ...w, ...savedWorker };
+                                    }
+                                    return w;
+                                }));
                             } else {
-                                // Modo Creación: Añadir optimísticamente al principio
+                                // Modo Creación: Añadir al principio
                                 setWorkers(prev => [savedWorker, ...prev]);
+                                // Nota: Aquí podríamos hacer un fetchWorkers() si faltan nombres, 
+                                // pero para creación es mejor que el backend retorne el objeto completo.
+                                if (!savedWorker.empresa_nombre) fetchWorkers();
                             }
                         }}
                     />
