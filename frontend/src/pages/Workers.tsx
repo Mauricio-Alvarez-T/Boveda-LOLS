@@ -47,6 +47,16 @@ const WorkersPage: React.FC = () => {
 
     const [loading, setLoading] = useState(true);
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
+    const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
+
+    const toggleMarkedRow = (index: number) => {
+        setMarkedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    };
     const [search, setSearch] = useState('');
     const [selectedEmpresa, setSelectedEmpresa] = useState<string>('');
     const [selectedCargo, setSelectedCargo] = useState<string>('');
@@ -425,12 +435,20 @@ const WorkersPage: React.FC = () => {
                                 >
                                     {/* Row 1: Avatar + Name + RUT */}
                                     <div className="flex items-center gap-3 mb-3">
-                                        <div className="h-11 w-11 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-base border border-[#029E4D]/20 shrink-0 relative">
-                                            {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
-                                            <span className="absolute -top-1.5 -left-1.5 px-1.5 py-0.5 rounded-lg bg-[#1D1D1F] text-white text-[9px] font-black shadow-sm">
-                                                #{(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
-                                            </span>
-                                        </div>
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                toggleMarkedRow(sortedWorkers.indexOf(worker));
+                                            }}
+                                            className={cn(
+                                                "h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
+                                                markedRows.has(sortedWorkers.indexOf(worker))
+                                                    ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-lg scale-110"
+                                                    : "bg-[#F5F5F7] text-[#A1A1A6] border-[#D2D2D7]"
+                                            )}
+                                        >
+                                            #{(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
+                                        </button>
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-[#1D1D1F] truncate flex items-center gap-1.5">
                                                 <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
@@ -555,31 +573,37 @@ const WorkersPage: React.FC = () => {
                                             key={worker.id}
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
-                                            className="hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#029E4D]"
+                                            className={cn(
+                                                "hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#029E4D]",
+                                                markedRows.has(sortedWorkers.indexOf(worker)) && "bg-[#029E4D]/5 border-l-[#1D1D1F] italic"
+                                            )}
                                         >
                                             <td className="px-6 py-6 text-center">
-                                                <span className="text-xs font-bold text-[#A1A1A6] font-mono">
+                                                <button
+                                                    onClick={() => toggleMarkedRow(sortedWorkers.indexOf(worker))}
+                                                    className={cn(
+                                                        "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black transition-all border mx-auto",
+                                                        markedRows.has(sortedWorkers.indexOf(worker))
+                                                            ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-110"
+                                                            : "bg-transparent text-[#A1A1A6] border-transparent hover:border-[#D2D2D7] hover:bg-white"
+                                                    )}
+                                                >
                                                     {(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
-                                                </span>
+                                                </button>
                                             </td>
-                                            <td className="px-6 py-6">
-                                                <div className="flex items-center gap-4">
-                                                    <div className="h-12 w-12 rounded-2xl bg-[#029E4D]/10 text-[#029E4D] flex items-center justify-center font-bold text-lg shadow-sm border border-[#029E4D]/20 shrink-0">
-                                                        {worker.nombres[0]}{(worker.apellido_paterno || '')[0]}
+                                            <td className="px-6 py-6 border-l border-[#E8E8ED]/30">
+                                                <div className="flex flex-col">
+                                                    <div className="flex items-center gap-2">
+                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight font-bold text-[#1D1D1F] group-hover:text-[#029E4D] transition-colors">
+                                                            {worker.nombres} {worker.apellido_paterno}
+                                                        </WorkerLink>
+                                                        {!worker.activo && (
+                                                            <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20">
+                                                                Inactivo
+                                                            </span>
+                                                        )}
                                                     </div>
-                                                    <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight group-hover:text-[#029E4D] transition-colors">
-                                                                {worker.nombres} {worker.apellido_paterno}
-                                                            </WorkerLink>
-                                                            {!worker.activo && (
-                                                                <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20">
-                                                                    Inactivo
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-xs font-semibold text-[#6E6E73] mt-1 tracking-tight">{worker.rut}</p>
-                                                    </div>
+                                                    <p className="text-xs font-semibold text-[#6E6E73] mt-1 tracking-tight">{worker.rut}</p>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-6 border-l border-[#E8E8ED]/30">

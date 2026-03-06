@@ -57,6 +57,16 @@ const AttendancePage: React.FC = () => {
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
+
+    const toggleMarkedRow = (index: number) => {
+        setMarkedRows(prev => {
+            const next = new Set(prev);
+            if (next.has(index)) next.delete(index);
+            else next.add(index);
+            return next;
+        });
+    };
 
     // Get the default "Asiste" state (es_presente flag)
     const defaultEstado = useMemo(() =>
@@ -574,7 +584,8 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-[#F5F5F7] md:bg-white md:rounded-2xl md:border md:border-[#D2D2D7] overflow-hidden">
                     {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
+                    <div className="hidden md:grid grid-cols-[48px_1fr_320px_180px_60px] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
+                        <span className="text-center">#</span>
                         <span>Trabajador</span>
                         <span className="w-[320px] text-center">Estado</span>
                         <span className="w-[180px] text-center">Detalle / Calendario</span>
@@ -605,19 +616,24 @@ const AttendancePage: React.FC = () => {
                                     <div className="md:hidden p-3">
                                         {/* Row 1: Avatar + Name + Calendar btn */}
                                         <div className="flex items-center gap-3 mb-3">
-                                            <div
-                                                className="h-10 w-10 rounded-full flex items-center justify-center text-white text-sm font-bold shrink-0"
-                                                style={{ backgroundColor: currentEstado?.color || '#34C759' }}
+                                            <button
+                                                onClick={() => toggleMarkedRow(idx)}
+                                                className={cn(
+                                                    "h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
+                                                    markedRows.has(idx)
+                                                        ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-lg scale-110"
+                                                        : "bg-[#F5F5F7] text-[#A1A1A6] border-[#D2D2D7]"
+                                                )}
                                             >
-                                                {worker.nombres.charAt(0)}{worker.apellido_paterno.charAt(0)}
-                                            </div>
+                                                #{(idx + 1).toString().padStart(2, '0')}
+                                            </button>
                                             <div className="flex-1 min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-[#1D1D1F]">
                                                     {worker.apellido_paterno}, {worker.nombres}
                                                 </WorkerLink>
-                                                <p className="text-[11px] text-[#6E6E73]">
+                                                <p className="text-[11px] text-[#6E6E73] font-medium">
                                                     {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D]">{worker.cargo_nombre}</span></>}
+                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D] font-bold">{worker.cargo_nombre}</span></>}
                                                 </p>
                                             </div>
                                             <button
@@ -705,22 +721,32 @@ const AttendancePage: React.FC = () => {
                                         )}
                                     </div>
 
-                                    {/* ── DESKTOP ROW (unchanged) ── */}
-                                    <div className="hidden md:grid grid-cols-[1fr_auto_auto_auto] gap-4 px-5 py-3 items-center">
-                                        <div className="flex items-center gap-3 min-w-0">
-                                            <div
-                                                className="h-8 w-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0"
-                                                style={{ backgroundColor: currentEstado?.color || '#34C759' }}
+                                    {/* ── DESKTOP ROW ── */}
+                                    <div className={cn(
+                                        "hidden md:grid grid-cols-[48px_1fr_320px_180px_60px] gap-4 px-5 py-3 items-center",
+                                        markedRows.has(idx) && "bg-[#029E4D]/5 italic"
+                                    )}>
+                                        <div className="flex justify-center">
+                                            <button
+                                                onClick={() => toggleMarkedRow(idx)}
+                                                className={cn(
+                                                    "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border",
+                                                    markedRows.has(idx)
+                                                        ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-110"
+                                                        : "bg-transparent text-[#A1A1A6] border-transparent hover:border-[#D2D2D7] hover:bg-white"
+                                                )}
                                             >
-                                                {worker.nombres.charAt(0)}{worker.apellido_paterno.charAt(0)}
-                                            </div>
+                                                {(idx + 1).toString().padStart(2, '0')}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/30 pl-3">
                                             <div className="min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-[#1D1D1F]">
                                                     {worker.apellido_paterno}, {worker.nombres}
                                                 </WorkerLink>
-                                                <p className="text-[10px] text-[#6E6E73]">
+                                                <p className="text-[10px] text-[#6E6E73] font-medium">
                                                     {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D]">{worker.cargo_nombre}</span></>}
+                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D] font-bold">{worker.cargo_nombre}</span></>}
                                                 </p>
                                             </div>
                                         </div>
