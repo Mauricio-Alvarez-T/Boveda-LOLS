@@ -86,11 +86,34 @@ const createCrudService = (tableName, options = {}) => {
             const placeholders = fields.map(() => '?').join(', ');
             const values = Object.values(data);
 
-            const [result] = await db.query(
-                `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders})`,
-                values
-            );
-            return { id: result.insertId, ...data };
+            try {
+                const [result] = await db.query(
+                    `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders})`,
+                    values
+                );
+                return { id: result.insertId, ...data };
+            } catch (err) {
+                // If it's a duplicate entry error (ER_DUP_ENTRY)
+                if (err.errno === 1062) {
+                    // Check if there's an inactive record with the same unique data
+                    const [inactive] = await db.query(
+                        `SELECT id FROM ${tableName} WHERE id IS NOT NULL AND (activo = 0 OR activa = 0) LIMIT 1`
+                    );
+
+                    if (inactive.length > 0) {
+                        // Purge inactive records in this table to allow the new creation
+                        await db.query(`DELETE FROM ${tableName} WHERE activo = 0 OR activa = 0`);
+
+                        // Try insert again
+                        const [retryResult] = await db.query(
+                            `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders})`,
+                            values
+                        );
+                        return { id: retryResult.insertId, ...data };
+                    }
+                }
+                throw err;
+            }
         },
 
         async update(id, data) {
