@@ -94,15 +94,28 @@ const createCrudService = (tableName, options = {}) => {
                 return { id: result.insertId, ...data };
             } catch (err) {
                 // If it's a duplicate entry error (ER_DUP_ENTRY)
-                if (err.errno === 1062) {
-                    // Check if there's an inactive record with the same unique data
-                    const [inactive] = await db.query(
-                        `SELECT id FROM ${tableName} WHERE id IS NOT NULL AND (activo = 0 OR activa = 0) LIMIT 1`
-                    );
+                if (err.errno === 1062 || err.code === 'ER_DUP_ENTRY') {
+                    // Check if there's an inactive record that matches the name/unique field
+                    // For catalogs, we usually have a 'nombre' field. If not, we check any inactive.
+                    const searchField = data.nombre ? 'nombre' : (data.razon_social ? 'razon_social' : null);
+                    let inactiveQuery = `SELECT id FROM ${tableName} WHERE (activo = 0 OR activa = 0)`;
+                    let queryParams = [];
+
+                    if (searchField) {
+                        inactiveQuery += ` AND ${searchField} = ?`;
+                        queryParams.push(data[searchField]);
+                    }
+                    inactiveQuery += ` LIMIT 1`;
+
+                    const [inactive] = await db.query(inactiveQuery, queryParams);
 
                     if (inactive.length > 0) {
-                        // Purge inactive records in this table to allow the new creation
-                        await db.query(`DELETE FROM ${tableName} WHERE activo = 0 OR activa = 0`);
+                        // Purge the specific inactive record (or all inactive if no specific field)
+                        if (searchField) {
+                            await db.query(`DELETE FROM ${tableName} WHERE (activo = 0 OR activa = 0) AND ${searchField} = ?`, queryParams);
+                        } else {
+                            await db.query(`DELETE FROM ${tableName} WHERE activo = 0 OR activa = 0`);
+                        }
 
                         // Try insert again
                         const [retryResult] = await db.query(
