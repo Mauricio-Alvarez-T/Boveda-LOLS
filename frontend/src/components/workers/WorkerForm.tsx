@@ -180,6 +180,9 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     error={errors.cargo_id?.message}
                     {...register('cargo_id')}
                 />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Select
                     label="Categoría Reporte"
                     options={[
@@ -190,9 +193,6 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     error={errors.categoria_reporte?.message}
                     {...register('categoria_reporte')}
                 />
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                     label="Fecha Ingreso"
                     type="date"
