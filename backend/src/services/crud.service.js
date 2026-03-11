@@ -22,7 +22,10 @@ const createCrudService = (tableName, options = {}) => {
 
             if (activo !== undefined) {
                 where.push(`${tableName}.${activeColumn} = ?`);
-                params.push(activo === 'true' || activo === true ? 1 : 0);
+                params.push(activo === 'true' || activo === true || activo === '1' || activo === 1 ? 1 : 0);
+            } else if (options.useSoftDelete) {
+                // Blindar: Si no especifican estado pero es una tabla con soft-delete (como trabajadores) => mostrar SOLO activos por defecto.
+                where.push(`${tableName}.${activeColumn} = 1`);
             }
 
             if (allowedFilters.length > 0) {

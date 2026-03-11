@@ -101,7 +101,8 @@ const AttendancePage: React.FC = () => {
                 api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${selectedObra.id}`)
             ]);
 
-            const workerList = workersRes.data.data;
+            // Filtrar explícitamente a los trabajadores inactivos por precaución adicional
+            const workerList = workersRes.data.data.filter(w => w.activo !== 0 && w.activo !== false);
             setWorkers(workerList);
             const existing = attendanceRes.data.data;
             setHorariosObra(schedulesRes.data.data || []);
