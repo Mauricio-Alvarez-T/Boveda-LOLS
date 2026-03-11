@@ -49,7 +49,7 @@ jobs:
           username: lolscl
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           local-dir: ./backend/
-          server-dir: /boveda.lols.cl/backend/
+          server-dir: /boveda/
           exclude: |
             **/.git*
             **/.git*/**
@@ -68,4 +68,4 @@ jobs:
           username: lolscl
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           local-dir: ./backend/tmp/
-          server-dir: /boveda.lols.cl/backend/tmp/
+          server-dir: /boveda/tmp/
