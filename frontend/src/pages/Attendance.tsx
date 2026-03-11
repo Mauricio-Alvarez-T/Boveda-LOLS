@@ -248,28 +248,25 @@ const AttendancePage: React.FC = () => {
         text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
 
         const total = currentWorkers.length;
-        const presentes = Object.values(currentAttendance).filter(a => {
-            const est = currentEstados.find(e => e.id === a.estado_id);
-            return est?.es_presente;
-        }).length;
 
         const counts: Record<string, number> = {
-            'A': presentes,
+            'A': 0,
             'F': 0,
             'V': 0,
             'LM': 0,
             '1/2': 0,
-            'TO': 0
+            'TO': 0,
+            'AT': 0
         };
 
         Object.values(currentAttendance).forEach(a => {
             const est = currentEstados.find(e => e.id === a.estado_id);
             if (!est) return;
-            if (!est.es_presente) {
-                if (est.codigo === 'A') counts['F']++;
-                else if (['V', 'LM', '1/2', 'TO'].includes(est.codigo)) {
-                    counts[est.codigo]++;
-                }
+            // Incrementar exactamente el código asignado a la asistencia actual
+            if (counts[est.codigo] !== undefined) {
+                counts[est.codigo]++;
+            } else {
+                counts[est.codigo] = 1; // Por si hay algún código extra no contemplado en la inicialización
             }
         });
 
@@ -279,7 +276,12 @@ const AttendancePage: React.FC = () => {
         text += `V: ${counts['V'].toString().padStart(2, '0')}\n`;
         text += `LM: ${counts['LM'].toString().padStart(2, '0')}\n`;
         text += `1/2: ${counts['1/2'].toString().padStart(2, '0')}\n`;
-        text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n\n`;
+        text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n`;
+        // Solo mostramos 'AT' si hay atrasos, para no sobrecargar el mensaje si normalmente es 0
+        if (counts['AT'] > 0) {
+            text += `AT: ${counts['AT'].toString().padStart(2, '0')}\n`;
+        }
+        text += `\n`;
 
         const categorias = [
             { key: 'obra', label: `Obra ${currentObra.nombre}:` },
@@ -288,12 +290,22 @@ const AttendancePage: React.FC = () => {
         ];
 
         categorias.forEach(cat => {
-            const workersInCat = currentWorkers.filter(w => (w.categoria_reporte || 'obra') === cat.key);
-            if (workersInCat.length === 0) return;
+            // Filtrar SOLO a los trabajadores presentes
+            const presentWorkersInCat = currentWorkers.filter(w => {
+                const isCat = (w.categoria_reporte || 'obra') === cat.key;
+                if (!isCat) return false;
+                
+                const state = currentAttendance[w.id];
+                if (!state || !state.estado_id) return false;
+                const est = currentEstados.find(e => e.id === state.estado_id);
+                return est && est.es_presente;
+            });
+
+            if (presentWorkersInCat.length === 0) return;
 
             text += `${cat.label}\n`;
             const cargoCounts: Record<string, number> = {};
-            workersInCat.forEach(w => {
+            presentWorkersInCat.forEach(w => {
                 const cargo = w.cargo_nombre || 'Sin Cargo';
                 cargoCounts[cargo] = (cargoCounts[cargo] || 0) + 1;
             });
@@ -312,7 +324,14 @@ const AttendancePage: React.FC = () => {
         });
 
         if (excepciones.length > 0) {
-            text += `A&M: ${excepciones.length.toString().padStart(2, '0')}\n\n`;
+            text += `A&M: ${excepciones.length.toString().padStart(2, '0')}\n`;
+            excepciones.forEach(w => {
+                 const state = currentAttendance[w.id];
+                 const est = currentEstados.find(e => e.id === state?.estado_id);
+                 const codigo = est ? est.codigo : '?';
+                 text += `- ${w.apellido_paterno} (${codigo})\n`;
+            });
+            text += `\n`;
         }
 
         text += `Saludos cordiales\n\n`;
