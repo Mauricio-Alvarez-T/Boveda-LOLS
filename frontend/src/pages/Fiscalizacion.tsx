@@ -269,7 +269,7 @@ const FiscalizacionPage: React.FC = () => {
             ]} />
             <Select label="Estado Contractual" value={filterActivo} onChange={(e) => setFilterActivo(e.target.value)} options={[
                 { value: 'true', label: 'Activos' },
-                { value: 'false', label: 'Inactivos' },
+                { value: 'false', label: 'Finiquitados' },
                 { value: '', label: 'Todos' },
             ]} />
             <Select label="Completitud Documentos" value={filterCompletitud} onChange={(e) => setFilterCompletitud(e.target.value)} options={[
@@ -386,7 +386,7 @@ const FiscalizacionPage: React.FC = () => {
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
-                                                        {worker.activo ? 'Activo' : 'Inactivo'}
+                                                        {worker.activo ? 'Activo' : 'Finiquitado'}
                                                     </span>
                                                 </td>
                                             </tr>
@@ -472,7 +472,7 @@ const FiscalizacionPage: React.FC = () => {
                                                     {worker.nombres} {worker.apellido_paterno}
                                                 </WorkerLink>
                                                 <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
-                                                    {worker.activo ? 'Activo' : 'Inactivo'}
+                                                    {worker.activo ? 'Activo' : 'Finiquitado'}
                                                 </span>
                                             </div>
                                             <p className="text-[11px] text-[#6E6E73] font-medium mt-0.5">{worker.rut}</p>

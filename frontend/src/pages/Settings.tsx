@@ -96,7 +96,7 @@ const empresaCols: ColumnDef<any>[] = [
                 v ? "bg-[#34C759]/10 text-[#34C759]"
                     : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
-                {v ? 'Activo' : 'Inactivo'}
+                {v ? 'Activo' : 'Finiquitado'}
             </span>
         ),
     },
@@ -129,7 +129,7 @@ const cargoCols: ColumnDef<any>[] = [
                 v ? "bg-[#34C759]/10 text-[#34C759]"
                     : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
-                {v ? 'Activo' : 'Inactivo'}
+                {v ? 'Activo' : 'Finiquitado'}
             </span>
         ),
     },
@@ -168,7 +168,7 @@ const usuarioCols: ColumnDef<any>[] = [
                 v ? "bg-[#34C759]/10 text-[#34C759]"
                     : "bg-[#FF3B30]/10 text-[#FF3B30]"
             )}>
-                {v ? 'Activo' : 'Inactivo'}
+                {v ? 'Activo' : 'Finiquitado'}
             </span>
         ),
     },
@@ -220,7 +220,7 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
                 v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#FF3B30]/10 text-[#FF3B30]"
-            )}>{v ? 'Activo' : 'Inactivo'}</span>
+            )}>{v ? 'Activo' : 'Finiquitado'}</span>
         ),
     },
 ];

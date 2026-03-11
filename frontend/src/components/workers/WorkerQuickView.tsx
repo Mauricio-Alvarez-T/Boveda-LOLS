@@ -148,7 +148,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 </h3>
                                                 <p className="text-sm text-[#6E6E73]">{worker.rut}</p>
                                                 {!worker.activo && (
-                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[10px] font-bold uppercase">Inactivo</span>
+                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[10px] font-bold uppercase">Finiquitado</span>
                                                 )}
                                             </div>
                                         </div>

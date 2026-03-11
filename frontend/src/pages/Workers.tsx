@@ -398,7 +398,7 @@ const WorkersPage: React.FC = () => {
                                     )} />
                                 </div>
                                 <span className="text-sm font-medium text-[#6E6E73] group-hover:text-[#1D1D1F] transition-colors">
-                                    Mostrar trabajadores inactivos
+                                    Mostrar trabajadores finiquitados
                                 </span>
                             </div>
                         </div>
@@ -456,7 +456,7 @@ const WorkersPage: React.FC = () => {
                                                 </WorkerLink>
                                                 {!worker.activo && (
                                                     <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20 shrink-0">
-                                                        Inactivo
+                                                        Finiquitado
                                                     </span>
                                                 )}
                                             </p>
@@ -599,7 +599,7 @@ const WorkersPage: React.FC = () => {
                                                         </WorkerLink>
                                                         {!worker.activo && (
                                                             <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20">
-                                                                Inactivo
+                                                                Finiquitado
                                                             </span>
                                                         )}
                                                     </div>
