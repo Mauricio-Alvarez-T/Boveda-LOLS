@@ -231,7 +231,7 @@ const asistenciaService = {
              LEFT JOIN cargos c ON t.cargo_id = c.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              LEFT JOIN usuarios u ON a.registrado_por = u.id
-             WHERE a.obra_id = ? AND a.fecha = ?
+             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1
              ORDER BY t.apellido_paterno`,
             [obraId, fecha]
         );
@@ -290,8 +290,11 @@ const asistenciaService = {
         if (fecha_inicio) { where.push('a.fecha >= ?'); params.push(fecha_inicio); }
         if (fecha_fin) { where.push('a.fecha <= ?'); params.push(fecha_fin); }
         if (trabajador_id) { where.push('a.trabajador_id = ?'); params.push(trabajador_id); }
+        
+        // Excluir inactivos (soft-deleted) del reporte y del excel
+        where.push('t.activo = 1');
 
-        const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+        const whereClause = `WHERE ${where.join(' AND ')}`;
 
         const [rows] = await db.query(
             `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
@@ -316,7 +319,8 @@ const asistenciaService = {
             `SELECT ea.nombre, ea.codigo, ea.color, ea.es_presente, COUNT(*) as cantidad
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
-             WHERE a.obra_id = ? AND a.fecha = ?
+             JOIN trabajadores t ON a.trabajador_id = t.id
+             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1
              GROUP BY ea.id, ea.nombre, ea.codigo, ea.color, ea.es_presente`,
             [obraId, fecha]
         );
@@ -327,8 +331,9 @@ const asistenciaService = {
         // Total horas extra
         const [horasResult] = await db.query(
             `SELECT COALESCE(SUM(horas_extra), 0) as total_horas_extra
-             FROM asistencias
-             WHERE obra_id = ? AND fecha = ?`,
+             FROM asistencias a
+             JOIN trabajadores t ON a.trabajador_id = t.id
+             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1`,
             [obraId, fecha]
         );
 
