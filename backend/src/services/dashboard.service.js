@@ -206,7 +206,52 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         }
     }
 
-    // ── 4. SALUDO CONTEXTUAL ──
+    // ── 5. ALERTA 10 MESES DE CONTRATO ──
+    // Solo se muestra la última semana del mes
+    const now = new Date();
+    const lastDayOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysRemaining = lastDayOfMonth - now.getDate();
+
+    if (daysRemaining <= 6) {
+        // Calcular el mes siguiente
+        const nextMonth = now.getMonth() + 2; // +2 porque getMonth() es 0-based y necesitamos el mes real +1
+        const nextYear = now.getFullYear() + (nextMonth > 12 ? 1 : 0);
+        const realNextMonth = nextMonth > 12 ? nextMonth - 12 : nextMonth;
+        const nextMonthStr = String(realNextMonth).padStart(2, '0');
+
+        const [workers10m] = await pool.query(`
+            SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.fecha_ingreso,
+                   e.razon_social as empresa_nombre,
+                   DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH) as fecha_cumple_10m
+            FROM trabajadores t
+            LEFT JOIN empresas e ON t.empresa_id = e.id
+            WHERE t.activo = 1
+              AND t.fecha_ingreso IS NOT NULL
+              AND MONTH(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
+              AND YEAR(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
+            ORDER BY DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH) ASC
+        `, [realNextMonth, nextYear]);
+
+        if (workers10m.length > 0) {
+            alertas.push({
+                tipo: 'info',
+                titulo: '10 Meses de Contrato',
+                mensaje: `${workers10m.length} trabajador(es) cumplen 10 meses de contratado en ${nextMonthStr}/${nextYear}.`,
+                count: workers10m.length,
+                ruta: '/trabajadores',
+                detalle10meses: workers10m.map(w => ({
+                    id: w.id,
+                    rut: w.rut,
+                    nombre: `${w.nombres} ${w.apellido_paterno}`,
+                    empresa: w.empresa_nombre || '-',
+                    fecha_ingreso: w.fecha_ingreso,
+                    fecha_10m: w.fecha_cumple_10m
+                }))
+            });
+        }
+    }
+
+    // ── SALUDO CONTEXTUAL ──
     result.alerts = alertas;
     result.saludo.totalAlertas = alertas.length;
 
