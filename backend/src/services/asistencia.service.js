@@ -573,6 +573,175 @@ const asistenciaService = {
 
         const buffer = await workbook.xlsx.writeBuffer();
         return buffer;
+    },
+
+    // ══════════════════════════════════════════════════
+    // ═══  SISTEMA DE PERÍODOS DE AUSENCIA  ═══════════
+    // ══════════════════════════════════════════════════
+
+    /**
+     * Crea un período de ausencia y genera/actualiza registros de asistencia
+     * para cada día del rango. El último período siempre gana.
+     */
+    async crearPeriodo(data, userId, req) {
+        const { trabajador_id, obra_id, estado_id, tipo_ausencia_id, fecha_inicio, fecha_fin, observacion } = data;
+
+        if (!trabajador_id || !obra_id || !estado_id || !fecha_inicio || !fecha_fin) {
+            throw new Error('trabajador_id, obra_id, estado_id, fecha_inicio y fecha_fin son requeridos');
+        }
+
+        const inicio = new Date(fecha_inicio + 'T12:00:00');
+        const fin = new Date(fecha_fin + 'T12:00:00');
+
+        if (fin < inicio) {
+            throw new Error('La fecha de fin no puede ser anterior a la fecha de inicio');
+        }
+
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            // 1. Desactivar períodos superpuestos del mismo trabajador en la misma obra
+            await conn.query(
+                `UPDATE periodos_ausencia 
+                 SET activo = FALSE, updated_at = NOW()
+                 WHERE trabajador_id = ? AND obra_id = ? AND activo = TRUE
+                 AND fecha_inicio <= ? AND fecha_fin >= ?`,
+                [trabajador_id, obra_id, fecha_fin, fecha_inicio]
+            );
+
+            // 2. Insertar el nuevo período
+            const [periodoResult] = await conn.query(
+                `INSERT INTO periodos_ausencia 
+                 (trabajador_id, obra_id, estado_id, tipo_ausencia_id, fecha_inicio, fecha_fin, observacion, creado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+                [trabajador_id, obra_id, estado_id, tipo_ausencia_id || null, fecha_inicio, fecha_fin, observacion || null, userId]
+            );
+
+            // 3. Generar/actualizar registros de asistencia para cada día del rango
+            let diasAfectados = 0;
+            const current = new Date(inicio);
+
+            while (current <= fin) {
+                const fechaStr = current.toISOString().split('T')[0];
+                const dayOfWeek = current.getDay(); // 0=dom, 6=sab
+                const esSabado = dayOfWeek === 6;
+
+                await conn.query(
+                    `INSERT INTO asistencias 
+                     (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion, 
+                      hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin,
+                      horas_extra, es_sabado, registrado_por)
+                     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, ?, ?)
+                     ON DUPLICATE KEY UPDATE 
+                        estado_id = VALUES(estado_id),
+                        tipo_ausencia_id = VALUES(tipo_ausencia_id),
+                        observacion = VALUES(observacion),
+                        hora_entrada = NULL,
+                        hora_salida = NULL,
+                        hora_colacion_inicio = NULL,
+                        hora_colacion_fin = NULL,
+                        horas_extra = 0`,
+                    [trabajador_id, obra_id, fechaStr, estado_id, tipo_ausencia_id || null, observacion || null, esSabado, userId]
+                );
+
+                diasAfectados++;
+                current.setDate(current.getDate() + 1);
+            }
+
+            await conn.commit();
+
+            // Log de actividad
+            try {
+                const [trabajadorRows] = await db.query('SELECT nombres, apellido_paterno FROM trabajadores WHERE id = ?', [trabajador_id]);
+                const [estadoRows] = await db.query('SELECT nombre FROM estados_asistencia WHERE id = ?', [estado_id]);
+                const nombreTrab = trabajadorRows[0] ? `${trabajadorRows[0].nombres} ${trabajadorRows[0].apellido_paterno}` : `ID ${trabajador_id}`;
+                const nombreEstado = estadoRows[0] ? estadoRows[0].nombre : `ID ${estado_id}`;
+
+                logManualActivity(req, userId, 'CREATE', 'periodos_ausencia', periodoResult.insertId,
+                    JSON.stringify({
+                        resumen: `Período asignado: ${nombreEstado} para ${nombreTrab} del ${fecha_inicio} al ${fecha_fin} (${diasAfectados} días)`
+                    })
+                );
+            } catch (logErr) {
+                console.error('Error registrando log de período:', logErr);
+            }
+
+            return {
+                id: periodoResult.insertId,
+                trabajador_id,
+                obra_id,
+                estado_id,
+                fecha_inicio,
+                fecha_fin,
+                dias_afectados: diasAfectados
+            };
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+    },
+
+    /**
+     * Obtiene períodos de ausencia con filtros opcionales
+     */
+    async getPeriodos(query = {}) {
+        const { trabajador_id, obra_id, fecha_inicio, fecha_fin, activo } = query;
+        let where = [];
+        let params = [];
+
+        if (trabajador_id) { where.push('p.trabajador_id = ?'); params.push(trabajador_id); }
+        if (obra_id) { where.push('p.obra_id = ?'); params.push(obra_id); }
+        if (fecha_inicio) { where.push('p.fecha_fin >= ?'); params.push(fecha_inicio); }
+        if (fecha_fin) { where.push('p.fecha_inicio <= ?'); params.push(fecha_fin); }
+        if (activo !== undefined) {
+            where.push('p.activo = ?');
+            params.push(activo === 'true' || activo === true ? 1 : 0);
+        } else {
+            where.push('p.activo = 1');
+        }
+
+        const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+
+        const [rows] = await db.query(
+            `SELECT p.*, 
+                    ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
+                    t.nombres, t.apellido_paterno, t.rut,
+                    ta.nombre as tipo_ausencia_nombre
+             FROM periodos_ausencia p
+             JOIN estados_asistencia ea ON p.estado_id = ea.id
+             JOIN trabajadores t ON p.trabajador_id = t.id
+             LEFT JOIN tipos_ausencia ta ON p.tipo_ausencia_id = ta.id
+             ${whereClause}
+             ORDER BY p.fecha_inicio DESC`,
+            params
+        );
+        return rows;
+    },
+
+    /**
+     * Cancela un período (soft delete). No revierte los registros de asistencia.
+     */
+    async cancelarPeriodo(periodoId, userId, req) {
+        const [existing] = await db.query('SELECT * FROM periodos_ausencia WHERE id = ?', [periodoId]);
+        if (existing.length === 0) throw new Error('Período no encontrado');
+
+        await db.query(
+            'UPDATE periodos_ausencia SET activo = FALSE, updated_at = NOW() WHERE id = ?',
+            [periodoId]
+        );
+
+        try {
+            logManualActivity(req, userId, 'DELETE', 'periodos_ausencia', periodoId,
+                JSON.stringify({ resumen: `Período #${periodoId} cancelado (${existing[0].fecha_inicio} al ${existing[0].fecha_fin})` })
+            );
+        } catch (logErr) {
+            console.error('Error registrando log:', logErr);
+        }
+
+        return { id: periodoId, cancelado: true };
     }
 };
 

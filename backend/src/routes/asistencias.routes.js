@@ -1,3 +1,6 @@
+const fs = require('fs');
+const path = require('path');
+const db = require('../config/db');
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
@@ -105,4 +108,49 @@ router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), 
     } catch (err) { next(err); }
 });
 
+// ═══ PERÍODOS DE AUSENCIA ═══
+
+// Create period
+router.post('/periodos', auth, checkPermission('asistencia', 'puede_crear'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.crearPeriodo(req.body, req.user.id, req);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Get periods
+router.get('/periodos', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.getPeriodos(req.query);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Cancel period
+router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.cancelarPeriodo(req.params.id, req.user.id, req);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Temporary migration endpoint
+router.get('/migrate-periodos-temp', async (req, res, next) => {
+    try {
+        const sql = fs.readFileSync(path.join(__dirname, '../../db/migrations/012_periodos_ausencia.sql'), 'utf8');
+        const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+        
+        const conn = await db.getConnection();
+        try {
+            for (const st of statements) {
+                await conn.query(st);
+            }
+            res.send('Migración 012 ejecutada con éxito en CPanel');
+        } finally {
+            conn.release();
+        }
+    } catch (err) { next(err); }
+});
+
 module.exports = router;
+

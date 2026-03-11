@@ -122,3 +122,24 @@ export interface ConfiguracionHorario {
     activo: boolean;
 }
 
+export interface PeriodoAusencia {
+    id: number;
+    trabajador_id: number;
+    obra_id: number;
+    estado_id: number;
+    estado_nombre?: string;
+    estado_codigo?: string;
+    estado_color?: string;
+    tipo_ausencia_id: number | null;
+    tipo_ausencia_nombre?: string;
+    fecha_inicio: string;
+    fecha_fin: string;
+    observacion: string | null;
+    creado_por: number;
+    nombres?: string;
+    apellido_paterno?: string;
+    rut?: string;
+    activo: boolean;
+    dias_afectados?: number;
+}
+

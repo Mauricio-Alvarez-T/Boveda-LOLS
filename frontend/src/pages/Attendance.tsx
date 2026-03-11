@@ -12,6 +12,7 @@ import {
     BarChart3,
     Send,
     CalendarDays,
+    CalendarRange,
     FileDown,
     ChevronDown,
     FilePlus,
@@ -23,6 +24,7 @@ import { toast } from 'sonner';
 import { Button } from '../components/ui/Button';
 import { TimeStepperInput } from '../components/ui/TimeStepperInput';
 import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
+import { PeriodAssignModal } from '../components/attendance/PeriodAssignModal';
 import { Modal } from '../components/ui/Modal';
 import { WorkerForm } from '../components/workers/WorkerForm';
 import { DocumentUploader } from '../components/documents/DocumentUploader';
@@ -51,6 +53,7 @@ const AttendancePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
+    const [periodWorker, setPeriodWorker] = useState<Trabajador | null>(null);
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
 
     // Modal states for QuickView actions
@@ -659,8 +662,16 @@ const AttendancePage: React.FC = () => {
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
                                                 className="p-2 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#029E4D] transition-colors shrink-0"
+                                                title="Ver Calendario"
                                             >
                                                 <CalendarDays className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => setPeriodWorker(worker)}
+                                                className="p-2 rounded-full text-[#029E4D] border border-[#029E4D]/30 hover:bg-[#029E4D]/10 hover:text-[#027A3B] transition-colors shrink-0"
+                                                title="Asignar Período de Ausencia"
+                                            >
+                                                <CalendarRange className="h-4 w-4" />
                                             </button>
                                         </div>
 
@@ -847,8 +858,16 @@ const AttendancePage: React.FC = () => {
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
                                                 className="p-1.5 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#029E4D] transition-colors flex-shrink-0"
+                                                title="Ver Calendario"
                                             >
                                                 <CalendarDays className="h-4 w-4" />
+                                            </button>
+                                            <button
+                                                onClick={() => setPeriodWorker(worker)}
+                                                className="p-1.5 rounded-full text-[#029E4D] border border-[#029E4D]/30 hover:bg-[#029E4D]/10 hover:text-[#027A3B] transition-colors flex-shrink-0"
+                                                title="Asignar Período de Ausencia"
+                                            >
+                                                <CalendarRange className="h-4 w-4" />
                                             </button>
                                         </div>
 
@@ -945,6 +964,23 @@ const AttendancePage: React.FC = () => {
                 onClose={() => setCalendarWorker(null)}
                 worker={calendarWorker}
                 estados={estados}
+                obraId={selectedObra?.id}
+                onAssignPeriod={() => setPeriodWorker(calendarWorker)}
+            />
+
+            <PeriodAssignModal
+                isOpen={!!periodWorker}
+                onClose={() => setPeriodWorker(null)}
+                worker={periodWorker}
+                obraId={selectedObra?.id || null}
+                estados={estados}
+                onSuccess={() => {
+                    fetchAttendanceInfo();
+                    // Refrescar el calendario si está abierto re-seteando el worker
+                    if (calendarWorker) {
+                        setCalendarWorker({ ...calendarWorker });
+                    }
+                }}
             />
 
             <WorkerQuickView
