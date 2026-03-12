@@ -32,7 +32,7 @@ import { DocumentList } from '../components/documents/DocumentList';
 import WorkerLink from '../components/workers/WorkerLink';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import api from '../services/api';
-import type { Trabajador, Asistencia, EstadoAsistencia, TipoAusencia, ConfiguracionHorario } from '../types/entities';
+import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
@@ -48,7 +48,6 @@ const AttendancePage: React.FC = () => {
     const [workers, setWorkers] = useState<Trabajador[]>([]);
     const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
     const [horariosObra, setHorariosObra] = useState<ConfiguracionHorario[]>([]);
-    const [absenceTypes, setAbsenceTypes] = useState<TipoAusencia[]>([]);
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
@@ -81,11 +80,7 @@ const AttendancePage: React.FC = () => {
     useEffect(() => {
         const fetchMeta = async () => {
             try {
-                const [ausRes, estRes] = await Promise.all([
-                    api.get<ApiResponse<TipoAusencia[]>>('/tipos-ausencia?activo=true'),
-                    api.get<ApiResponse<EstadoAsistencia[]>>('/asistencias/estados')
-                ]);
-                setAbsenceTypes(ausRes.data.data);
+                const estRes = await api.get<ApiResponse<EstadoAsistencia[]>>('/asistencias/estados');
                 setEstados(estRes.data.data);
             } catch (err) {
                 console.error('Error loading metadata');
@@ -719,37 +714,14 @@ const AttendancePage: React.FC = () => {
                                                     </button>
                                                 );
                                             })}
-                                        </div>
-
-                                        {/* Row 3: Absence type selector (if not present) */}
-                                        {isNotPresent && (
-                                            <div className="mt-2">
-                                                <select
-                                                    className="w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl px-3 py-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]"
-                                                    value={state.tipo_ausencia_id || ''}
-                                                    onChange={(e) => updateAttendance(worker.id, {
-                                                        tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
-                                                    })}
-                                                    disabled={!checkPermission('asistencia', 'puede_editar')}
-                                                >
-                                                    <option value="">Causa de ausencia...</option>
-                                                    {absenceTypes.map(t => (
-                                                        <option key={t.id} value={t.id}>{t.nombre}</option>
-                                                    ))}
-                                                </select>
-                                            </div>
-                                        )}
-
-                                        {/* Row 4: Expandable detail toggle */}
-                                        {!isNotPresent && (
-                                            <button
-                                                onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                className="mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#029E4D] font-medium rounded-lg hover:bg-[#029E4D]/5 transition-colors"
-                                            >
-                                                <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
-                                                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
-                                            </button>
-                                        )}
+                                        </div>                                        {/* Row 4: Expandable detail toggle */}
+                                        <button
+                                            onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
+                                            className="mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#029E4D] font-medium rounded-lg hover:bg-[#029E4D]/5 transition-colors"
+                                        >
+                                            <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
+                                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExpanded && "rotate-180")} />
+                                        </button>
                                     </div>
 
                                     {/* ── DESKTOP ROW ── */}
@@ -791,7 +763,6 @@ const AttendancePage: React.FC = () => {
                                                         onClick={() => {
                                                             const updates: Partial<Asistencia> = {
                                                                 estado_id: est.id,
-                                                                tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
                                                                 es_sabado: isSaturday
                                                             };
                                                             if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
@@ -828,32 +799,12 @@ const AttendancePage: React.FC = () => {
 
                                         <div className="w-[180px] flex items-center justify-between gap-2">
                                             <div className="flex-1">
-                                                {isNotPresent ? (
-                                                    <select
-                                                        className={cn(
-                                                            "w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]",
-                                                            !checkPermission('asistencia', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
-                                                        )}
-                                                        value={state.tipo_ausencia_id || ''}
-                                                        onChange={(e) => updateAttendance(worker.id, {
-                                                            tipo_ausencia_id: e.target.value ? Number(e.target.value) : null
-                                                        })}
-                                                        disabled={!checkPermission('asistencia', 'puede_editar')}
-                                                        title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : undefined}
-                                                    >
-                                                        <option value="">Causa...</option>
-                                                        {absenceTypes.map(t => (
-                                                            <option key={t.id} value={t.id}>{t.nombre}</option>
-                                                        ))}
-                                                    </select>
-                                                ) : (
                                                     <button
                                                         onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
                                                         className="text-[10px] text-[#029E4D] font-medium hover:underline w-full text-center"
                                                     >
                                                         {isExpanded ? 'Cerrar' : 'Detalle'}
                                                     </button>
-                                                )}
                                             </div>
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}

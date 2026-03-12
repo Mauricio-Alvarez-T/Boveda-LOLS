@@ -137,15 +137,17 @@ router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar
 // Temporary migration endpoint
 router.get('/migrate-periodos-temp', async (req, res, next) => {
     try {
-        const sql = fs.readFileSync(path.join(__dirname, '../../db/migrations/012_periodos_ausencia.sql'), 'utf8');
-        const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0);
+        const sql = fs.readFileSync(path.join(__dirname, '../../db/migrations/013_causas_a_estados.sql'), 'utf8');
+        const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0 && !s.startsWith('--'));
         
         const conn = await db.getConnection();
         try {
             for (const st of statements) {
-                await conn.query(st);
+                if (st.length > 10) {
+                    await conn.query(st);
+                }
             }
-            res.send('Migración 012 ejecutada con éxito en CPanel');
+            res.send('Migración 013 ejecutada con éxito en CPanel');
         } finally {
             conn.release();
         }
