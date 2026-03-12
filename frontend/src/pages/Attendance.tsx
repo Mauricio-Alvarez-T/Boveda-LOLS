@@ -627,7 +627,8 @@ const AttendancePage: React.FC = () => {
                                     className={cn(
                                         "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
                                         idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
-                                        isNotPresent && "bg-[#FEF8F8]"
+                                        isNotPresent && "bg-[#FEF8F8]",
+                                        (isSaturday || isSunday) && "bg-[#E8ECEF]"
                                     )}
                                 >
                                     {/* ── MOBILE CARD ── */}

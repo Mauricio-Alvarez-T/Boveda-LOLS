@@ -137,16 +137,8 @@ router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar
 // Debug endpoint
 router.get('/debug-estados', async (req, res, next) => {
     try {
-        await db.query("UPDATE estados_asistencia SET color = '#FF3B30' WHERE codigo = 'F'");
-        await db.query("UPDATE estados_asistencia SET color = '#FFD60A' WHERE codigo = 'V'");
-        await db.query("UPDATE estados_asistencia SET color = '#FCE4D6', text_color = '#1D1D1F' WHERE codigo = 'LM'");
-        await db.query("UPDATE estados_asistencia SET color = '#FF9F0A' WHERE codigo = 'JI'");
-        await db.query("UPDATE estados_asistencia SET color = '#FFCDD2' WHERE codigo = 'AL'");
-        await db.query("UPDATE estados_asistencia SET color = '#E1BEE7' WHERE codigo = 'PSG'");
-        await db.query("UPDATE estados_asistencia SET color = '#90A4AE' WHERE codigo = 'DF'");
-        
-        const [rows] = await db.query('SELECT id, nombre, codigo, color FROM estados_asistencia');
-        res.json({ message: 'Colors updated', data: rows });
+        const [rows] = await db.query('SELECT * FROM estados_asistencia');
+        res.json(rows);
     } catch (err) { next(err); }
 });
 

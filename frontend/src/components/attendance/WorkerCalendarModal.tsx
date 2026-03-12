@@ -154,7 +154,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 
                                 <div
                                     className={`absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 hover:shadow-md hover:border-[#029E4D]/30 transition-all group ${!periodo ? 'border-[#E8E8ED]' : 'border-transparent bg-transparent'}`}
-                                    style={!periodo ? { backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#F5F5F7/50' : '#FFFFFF') } : undefined}
+                                    style={!periodo ? { backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#E8ECEF' : '#FFFFFF') } : undefined}
                                     title={periodo ? `Período: ${periodo.estado_nombre}` : ''}
                                 >
                                     <span className={`text-[10px] font-medium ${estado || periodo ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
