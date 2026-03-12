@@ -5,7 +5,7 @@ const feriadosService = require('../services/feriados.service');
 router.get('/', async (req, res, next) => {
     try {
         const data = await feriadosService.getAll();
-        res.json(data);
+        res.json({ data });
     } catch (err) { next(err); }
 });
 
