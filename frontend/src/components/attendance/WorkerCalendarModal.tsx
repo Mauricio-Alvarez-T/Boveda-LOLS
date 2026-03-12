@@ -181,7 +181,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                 {estados.map(est => (
                     <div key={est.id} className="flex items-center gap-1.5 text-[11px] md:text-xs text-[#6E6E73]">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: est.color }} />
-                        {est.nombre} ({est.codigo})
+                        {est.nombre.includes(`(${est.codigo})`) ? est.nombre : `${est.nombre} (${est.codigo})`}
                     </div>
                 ))}
             </div>
