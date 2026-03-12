@@ -23,6 +23,15 @@ class FeriadosService {
         return { id: result.insertId || null, ...data };
     }
 
+    async update(id, data) {
+        const { fecha, nombre, tipo, irrenunciable } = data;
+        await db.query(
+            'UPDATE feriados SET fecha = ?, nombre = ?, tipo = ?, irrenunciable = ? WHERE id = ?',
+            [fecha, nombre, tipo || 'obra', irrenunciable || false, id]
+        );
+        return { id, ...data };
+    }
+
     async delete(id) {
         await db.query('UPDATE feriados SET activo = 0 WHERE id = ?', [id]);
         return true;

@@ -32,8 +32,9 @@ import PlantillasEmailPanel from '../components/settings/PlantillasEmailPanel';
 import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
+import { FeriadosPanel } from '../components/settings/FeriadosPanel';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad';
 
 interface TabDef {
     key: TabKey;
@@ -69,6 +70,7 @@ const tabGroups: TabGroup[] = [
             { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
             { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
             { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
+            { key: 'feriados', label: 'Feriados', icon: CheckSquare }, // Reusing an icon for simplicity
         ]
     },
     {
@@ -408,6 +410,9 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'horarios' && (
                         <HorariosConfigPanel />
+                    )}
+                    {activeTab === 'feriados' && (
+                        <FeriadosPanel />
                     )}
                     {activeTab === 'mi_correo' && (
                         <div className="space-y-4">

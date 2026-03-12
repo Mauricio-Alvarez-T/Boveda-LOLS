@@ -24,6 +24,13 @@ router.post('/sync', async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
+router.put('/:id', async (req, res, next) => {
+    try {
+        const data = await feriadosService.update(req.params.id, req.body);
+        res.json(data);
+    } catch (err) { next(err); }
+});
+
 router.delete('/:id', async (req, res, next) => {
     try {
         await feriadosService.delete(req.params.id);
