@@ -602,10 +602,10 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-[#F5F5F7] md:bg-white md:rounded-2xl md:border md:border-[#D2D2D7] overflow-hidden">
                     {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[48px_1fr_320px_180px_60px] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
+                    <div className="hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
                         <span className="text-center">#</span>
                         <span>Trabajador</span>
-                        <span className="w-[320px] text-center">Estado</span>
+                        <span className="text-center w-full">Estado</span>
                         <span className="w-[180px] text-center">Detalle / Calendario</span>
                         <span className="w-[60px] text-center">H.E.</span>
                     </div>
@@ -726,7 +726,7 @@ const AttendancePage: React.FC = () => {
 
                                     {/* ── DESKTOP ROW ── */}
                                     <div className={cn(
-                                        "hidden md:grid grid-cols-[48px_1fr_320px_180px_60px] gap-4 px-5 py-3 items-center",
+                                        "hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 items-center",
                                         markedRows.has(idx) && "bg-[#029E4D]/5 italic"
                                     )}>
                                         <div className="flex justify-center">
@@ -754,7 +754,7 @@ const AttendancePage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-1 w-[320px] overflow-x-auto">
+                                        <div className="flex gap-1.5 w-full overflow-x-auto pb-1 md:pb-0 scrollbar-thin scrollbar-thumb-[#D2D2D7] scrollbar-track-transparent">
                                             {estados.map((est) => {
                                                 const isActive = state.estado_id === est.id;
                                                 return (
