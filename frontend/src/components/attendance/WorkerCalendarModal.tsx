@@ -251,7 +251,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         </div>
                         <div className="flex gap-2">
                             {onAssignPeriod && (
-                                <Button variant="outline" size="sm" onClick={onAssignPeriod} className="hidden sm:flex" leftIcon={<CalendarRange className="h-4 w-4" />}>
+                                <Button variant="outline" size="sm" onClick={onAssignPeriod} className="hidden sm:flex whitespace-nowrap" leftIcon={<CalendarRange className="h-4 w-4" />}>
                                     Asignar Período
                                 </Button>
                             )}

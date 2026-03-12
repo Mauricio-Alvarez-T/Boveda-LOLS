@@ -97,14 +97,14 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
 
     const isValid = estadoId && fechaInicio && fechaFin && diasAfectados > 0;
 
-    const ModalContent = () => (
+    const modalContentNodes = (
         <>
             {/* Estado selector */}
             <div className="mb-5">
                 <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
                     Estado de ausencia
                 </label>
-                <div className="grid grid-cols-2 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {estadosAusencia.map(est => (
                         <button
                             key={est.id}
@@ -192,7 +192,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                             </p>
                             {overlappingPeriods.map(p => (
                                 <p key={p.id} className="text-xs text-[#6E6E73] mt-0.5">
-                                    • {p.estado_nombre} ({p.fecha_inicio.split('-').reverse().join('/')} → {p.fecha_fin.split('-').reverse().join('/')})
+                                    • {p.estado_nombre} ({p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')})
                                 </p>
                             ))}
                         </div>
@@ -226,7 +226,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.estado_color }} />
                                 <span className="font-medium text-[#1D1D1F]">{p.estado_nombre}</span>
                                 <span className="text-[#86868B]">
-                                    {p.fecha_inicio.split('-').reverse().join('/')} → {p.fecha_fin.split('-').reverse().join('/')}
+                                    {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
                                 </span>
                             </div>
                         ))}
@@ -280,7 +280,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                         <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
                     </div>
                     <div className="flex-1 overflow-y-auto px-4 py-4">
-                        <ModalContent />
+                        {modalContentNodes}
                     </div>
                 </motion.div>
             </div>
@@ -291,7 +291,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                     initial={{ opacity: 0, scale: 0.95, y: 10 }}
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-md border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
+                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
                 >
                     <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
                         <div>
@@ -307,8 +307,8 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                             <X className="h-5 w-5" />
                         </Button>
                     </div>
-                    <div className="p-5 overflow-y-auto">
-                        <ModalContent />
+                    <div className="p-6 overflow-y-auto">
+                        {modalContentNodes}
                     </div>
                 </motion.div>
             </div>
