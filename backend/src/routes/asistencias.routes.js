@@ -137,17 +137,22 @@ router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar
 // Temporary migration endpoint
 router.get('/migrate-periodos-temp', async (req, res, next) => {
     try {
-        const sql = fs.readFileSync(path.join(__dirname, '../../db/migrations/013_causas_a_estados.sql'), 'utf8');
-        const statements = sql.split(';').map(s => s.trim()).filter(s => s.length > 0 && !s.startsWith('--'));
-        
         const conn = await db.getConnection();
         try {
-            for (const st of statements) {
-                if (st.length > 10) {
-                    await conn.query(st);
-                }
-            }
-            res.send('Migración 013 ejecutada con éxito en CPanel');
+            await conn.query(`
+                UPDATE estados_asistencia 
+                SET nombre = 'Jornada Incompleta (JI)', codigo = 'JI' 
+                WHERE codigo = '1/2';
+            `);
+            await conn.query(`
+                INSERT IGNORE INTO estados_asistencia (nombre, codigo, color, es_presente, activo) VALUES 
+                ('Accidente Laboral', 'AL', '#E74C3C', 0, 1),
+                ('Permiso sin goce', 'PSG', '#8E44AD', 0, 1),
+                ('Defunción', 'DF', '#34495E', 0, 1),
+                ('Nacimiento', 'NC', '#F1C40F', 0, 1),
+                ('Matrimonio', 'MT', '#E67E22', 0, 1);
+            `);
+            res.send('Migración 013 ejecutada con éxito DIRECTAMENTE en CPanel');
         } finally {
             conn.release();
         }
