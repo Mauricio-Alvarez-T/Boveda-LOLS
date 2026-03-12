@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import api from '../../services/api';
-import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia } from '../../types/entities';
+import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado } from '../../types/entities';
 import { CalendarRange } from 'lucide-react';
 
 interface Props {
@@ -20,6 +20,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState<Asistencia[]>([]);
     const [periodos, setPeriodos] = useState<PeriodoAusencia[]>([]);
+    const [holidays, setHolidays] = useState<Feriado[]>([]);
 
     useEffect(() => {
         if (!isOpen || !worker) return;
@@ -37,7 +38,9 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     api.get(`/asistencias/reporte?trabajador_id=${worker.id}&fecha_inicio=${startDate}&fecha_fin=${endDate}${obraId ? `&obra_id=${obraId}` : ''}`),
                     api.get(`/asistencias/periodos?trabajador_id=${worker.id}&activo=true&fecha_inicio=${startDate}&fecha_fin=${endDate}`)
                 ]);
-                setRecords(resAsist.data || []);
+                const asistData = resAsist.data;
+                setRecords(asistData.registros || []);
+                setHolidays(asistData.feriados || []);
                 setPeriodos(resPer.data?.data || []);
             } catch (error) {
                 console.error('Error fetching calendar data', error);
@@ -69,6 +72,11 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
     const getPeriodForDay = (day: number) => {
         const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
         return periodos.find(p => p.fecha_inicio <= dateStr && p.fecha_fin >= dateStr);
+    };
+
+    const getHolidayForDay = (day: number) => {
+        const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
+        return holidays.find(h => h.fecha.startsWith(dateStr));
     };
 
     const isPeriodStart = (day: number) => {
@@ -128,6 +136,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         const estado = record ? estados.find(e => e.id === record.estado_id) : null;
                         const isWeekend = (startingDay + i) % 7 >= 5;
 
+                        const holiday = getHolidayForDay(day);
+
                         // Clases para el bloque visual conectivo del período
                         let periodClasses = "";
                         if (periodo) {
@@ -143,7 +153,10 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         }
 
                         return (
-                            <div key={day} className="relative h-10 md:h-14 flex flex-col items-center">
+                            <div
+                                key={`day-${day}`}
+                                className="relative aspect-square md:aspect-auto md:h-20"
+                            >
                                 {/* Bloque de período de fondo */}
                                 {periodo && (
                                     <div 
@@ -154,10 +167,12 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 
                                 <div
                                     className={`absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 hover:shadow-md hover:border-[#029E4D]/30 transition-all group ${!periodo ? 'border-[#E8E8ED]' : 'border-transparent bg-transparent'}`}
-                                    style={!periodo ? { backgroundColor: estado ? `${estado.color}05` : (isWeekend ? '#E8ECEF' : '#FFFFFF') } : undefined}
-                                    title={periodo ? `Período: ${periodo.estado_nombre}` : ''}
+                                    style={!periodo ? { 
+                                        backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? '#E8ECEF' : '#FFFFFF')) 
+                                    } : undefined}
+                                    title={periodo ? `Período: ${periodo.estado_nombre}` : (holiday ? `Feriado: ${holiday.nombre}` : '')}
                                 >
-                                    <span className={`text-[10px] font-medium ${estado || periodo ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
+                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
                                         {day}
                                     </span>
                                     {estado && (
@@ -184,6 +199,10 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         {est.nombre.includes(`(${est.codigo})`) ? est.nombre : `${est.nombre} (${est.codigo})`}
                     </div>
                 ))}
+                <div className="flex items-center gap-1.5 text-[11px] md:text-xs text-[#6E6E73]">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF3B30]/20 border border-[#FF3B30]/40" />
+                    Feriado
+                </div>
             </div>
         </>
     );

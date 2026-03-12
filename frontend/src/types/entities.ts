@@ -143,3 +143,12 @@ export interface PeriodoAusencia {
     dias_afectados?: number;
 }
 
+export interface Feriado {
+    id: number;
+    fecha: string;
+    nombre: string;
+    tipo: 'nacional' | 'obra' | 'patronal' | 'otro';
+    irrenunciable: boolean;
+    activo: boolean;
+}
+

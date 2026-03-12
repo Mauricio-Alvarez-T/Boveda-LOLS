@@ -218,6 +218,10 @@ const asistenciaService = {
      * Obtener asistencia de una obra en una fecha
      */
     async getByObraAndFecha(obraId, fecha) {
+        // Consultar si es feriado
+        const [feriados] = await db.query('SELECT * FROM feriados WHERE fecha = ? AND activo = 1', [fecha]);
+        const feriado = feriados.length > 0 ? feriados[0] : null;
+
         const [rows] = await db.query(
             `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
                     ea.es_presente,
@@ -235,7 +239,10 @@ const asistenciaService = {
              ORDER BY t.apellido_paterno`,
             [obraId, fecha]
         );
-        return rows;
+        return {
+            registros: rows,
+            feriado
+        };
     },
 
     /**
@@ -306,15 +313,29 @@ const asistenciaService = {
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              ${whereClause}
              ORDER BY a.fecha DESC, t.apellido_paterno`,
-            params
+            [...params]
         );
-        return rows;
+
+        // También traer feriados para el reporte de Excel/Nómina si se solicita por rango
+        const [feriados] = await db.query(
+            'SELECT * FROM feriados WHERE fecha BETWEEN ? AND ? AND activo = 1',
+            [fecha_inicio || '1900-01-01', fecha_fin || '2100-12-31']
+        );
+
+        return {
+            registros: rows,
+            feriados
+        };
     },
 
     /**
      * Resumen diario para una obra (KPIs)
      */
     async getResumenDiario(obraId, fecha) {
+        // Consultar si es feriado
+        const [feriados] = await db.query('SELECT * FROM feriados WHERE fecha = ? AND activo = 1', [fecha]);
+        const feriado = feriados.length > 0 ? feriados[0] : null;
+
         const [rows] = await db.query(
             `SELECT ea.nombre, ea.codigo, ea.color, ea.es_presente, COUNT(*) as cantidad
              FROM asistencias a
@@ -343,7 +364,8 @@ const asistenciaService = {
             presentes,
             porcentaje_asistencia: total > 0 ? Math.round((presentes / total) * 100) : 0,
             desglose: rows,
-            total_horas_extra: parseFloat(horasResult[0].total_horas_extra)
+            total_horas_extra: parseFloat(horasResult[0].total_horas_extra),
+            feriado
         };
     },
 

@@ -73,6 +73,8 @@ app.use('/api/tipos-ausencia', createCrudRoutes('asistencia', 'tipos_ausencia', 
 
 app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asistencia', { searchFields: ['nombre', 'codigo'] }));
 
+app.use('/api/feriados', require('./src/routes/feriados.routes'));
+
 // Configuración de Horarios
 app.use('/api/config-horarios', require('./src/routes/config-horarios.routes'));
 app.use('/api/logs', require('./src/routes/logs.routes'));

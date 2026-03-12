@@ -32,7 +32,7 @@ import { DocumentList } from '../components/documents/DocumentList';
 import WorkerLink from '../components/workers/WorkerLink';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import api from '../services/api';
-import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario } from '../types/entities';
+import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Feriado } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
@@ -49,6 +49,7 @@ const AttendancePage: React.FC = () => {
     const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
     const [horariosObra, setHorariosObra] = useState<ConfiguracionHorario[]>([]);
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
+    const [feriadoActual, setFeriadoActual] = useState<Feriado | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
@@ -95,14 +96,17 @@ const AttendancePage: React.FC = () => {
         try {
             const [workersRes, attendanceRes, schedulesRes] = await Promise.all([
                 api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true`),
-                api.get<ApiResponse<Asistencia[]>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`),
+                api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`),
                 api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${selectedObra.id}`)
             ]);
 
             // Filtrar explícitamente a los trabajadores inactivos por precaución adicional
             const workerList = workersRes.data.data.filter(w => Boolean(w.activo) !== false);
             setWorkers(workerList);
-            const existing = attendanceRes.data.data;
+            
+            const attendanceData = attendanceRes.data.data;
+            const existing = attendanceData.registros;
+            setFeriadoActual(attendanceData.feriado || null);
             setHorariosObra(schedulesRes.data.data || []);
 
             const newAttendance: Record<number, Partial<Asistencia>> = {};
@@ -563,13 +567,17 @@ const AttendancePage: React.FC = () => {
                     </div>
                 </div>
 
-                {(isSaturday || isSunday) && (
+                {(isSaturday || isSunday || feriadoActual) && (
                     <div className={cn(
-                        "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2",
-                        isSunday ? "bg-[#FF3B30]/8 text-[#FF3B30]" : "bg-[#FF9F0A]/8 text-[#FF9F0A]"
+                        "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border",
+                        feriadoActual 
+                            ? "bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/20" 
+                            : (isSunday ? "bg-[#FF3B30]/8 text-[#FF3B30] border-transparent" : "bg-[#FF9F0A]/8 text-[#FF9F0A] border-transparent")
                     )}>
-                        <Clock className="h-3.5 w-3.5 shrink-0" />
-                        {isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — las horas trabajadas se registran como extras"}
+                        {feriadoActual ? <CalendarDays className="h-4 w-4 shrink-0" /> : <Clock className="h-3.5 w-3.5 shrink-0" />}
+                        {feriadoActual 
+                            ? `Feriado ${feriadoActual.tipo === 'nacional' ? 'Nacional' : 'Obra'}: ${feriadoActual.nombre} ${feriadoActual.irrenunciable ? '(Irrenunciable)' : ''}`
+                            : (isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — las horas trabajadas se registran como extras")}
                     </div>
                 )}
             </div>
@@ -628,7 +636,8 @@ const AttendancePage: React.FC = () => {
                                         "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
                                         idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
                                         isNotPresent && "bg-[#FEF8F8]",
-                                        (isSaturday || isSunday) && "bg-[#E8ECEF]"
+                                        (isSaturday || isSunday) && "bg-[#E8ECEF]",
+                                        feriadoActual && "bg-[#FF3B30]/5"
                                     )}
                                 >
                                     {/* ── MOBILE CARD ── */}
