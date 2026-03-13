@@ -499,14 +499,12 @@ const asistenciaService = {
             return [fStr, f];
         }));
 
-        // 2. Definir Rango de Días
-        const start = new Date(fecha_inicio + 'T12:00:00');
-        const end = new Date(fecha_fin + 'T12:00:00');
+        // 2. Generar Rango de Días
         const days = [];
-        let curr = new Date(start);
-        while (curr <= end) {
-            days.push(new Date(curr));
-            curr.setDate(curr.getDate() + 1);
+        let loopCurr = new Date(start);
+        while (loopCurr <= end) {
+            days.push(new Date(loopCurr));
+            loopCurr.setDate(loopCurr.getDate() + 1);
         }
 
         const workbook = new ExcelJS.Workbook();

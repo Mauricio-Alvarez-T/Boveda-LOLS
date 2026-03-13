@@ -99,13 +99,19 @@ router.post('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_edit
 // Export Excel
 router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
     try {
+        console.log('[DEBUG] Iniciando /exportar/excel con query:', req.query);
         const buffer = await asistenciaService.generarExcel(req.query);
+        console.log('[DEBUG] Excel generado, tamaño buffer:', buffer.length);
         const fileName = `asistencia_${req.query.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.send(buffer);
-    } catch (err) { next(err); }
+    } catch (err) {
+        console.error('[CRITICAL ERROR] Fallo en /exportar/excel:', err.message);
+        console.error(err.stack);
+        next(err);
+    }
 });
 
 // ═══ PERÍODOS DE AUSENCIA ═══
