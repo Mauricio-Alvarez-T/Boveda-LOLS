@@ -8,14 +8,15 @@ import {
     Filter,
     ArrowUpDown,
     FilePlus,
-    Loader2,
     FileText,
     X,
     Building2,
     Briefcase,
     Download,
     ArrowLeft,
-    FileDown
+    FileDown,
+    UserCheck,
+    Loader2
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
@@ -158,6 +159,20 @@ const WorkersPage: React.FC = () => {
             successMessage: "Trabajador desactivado",
             errorMessage: "Error al desactivar trabajador"
         });
+    };
+
+    const handleReactivate = (id: number) => {
+        if (window.confirm("¿Estás seguro de que deseas reactivar a este trabajador? Volverá a aparecer en la nómina activa y en la asistencia.")) {
+            api.put(`/trabajadores/${id}`, { activo: true })
+                .then(() => {
+                    toast.success("Trabajador reactivado con éxito.");
+                    fetchWorkers();
+                })
+                .catch((err) => {
+                    console.error(err);
+                    toast.error("Error al reactivar trabajador.");
+                });
+        }
     };
 
     useEffect(() => {
@@ -673,10 +688,25 @@ const WorkersPage: React.FC = () => {
                                                         )}
                                                         disabled={!checkPermission('trabajadores', 'puede_eliminar')}
                                                         onClick={() => handleDelete(worker.id)}
-                                                        title={!checkPermission('trabajadores', 'puede_eliminar') ? "No tienes permisos" : "Eliminar"}
+                                                        title={!checkPermission('trabajadores', 'puede_eliminar') ? "No tienes permisos" : "Eliminar/Finiquitar"}
                                                     >
                                                         <Trash2 className="h-5 w-5" />
                                                     </Button>
+                                                    {!worker.activo && (
+                                                        <Button
+                                                            variant="glass"
+                                                            size="icon"
+                                                            className={cn(
+                                                                "h-10 w-10 text-[#029E4D] hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                                !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                                                            )}
+                                                            disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                            onClick={() => handleReactivate(worker.id)}
+                                                            title={!checkPermission('trabajadores', 'puede_editar') ? "No tienes permisos" : "Reactivar/Vincular"}
+                                                        >
+                                                            <UserCheck className="h-5 w-5" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </td>
                                         </motion.tr>
