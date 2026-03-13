@@ -53,7 +53,7 @@ const AttendancePage: React.FC = () => {
     const [searchQuery, setSearchQuery] = useState('');
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
-    const [periodWorker, setPeriodWorker] = useState<Trabajador | null>(null);
+
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
 
     // Modal states for QuickView actions
@@ -62,6 +62,14 @@ const AttendancePage: React.FC = () => {
     const [isUploading, setIsUploading] = useState(false);
     const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
 
+    const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
+    const [periodModalWorker, setPeriodModalWorker] = useState<Trabajador | null>(null);
+
+    const handleCalendarSelectRange = (start: string, end: string) => {
+        setPeriodSelection({ start, end });
+        setCalendarWorker(null); // Close calendar
+        setPeriodModalWorker(calendarWorker); // Open period modal
+    };
     const toggleMarkedRow = (index: number) => {
         setMarkedRows(prev => {
             const next = new Set(prev);
@@ -100,7 +108,7 @@ const AttendancePage: React.FC = () => {
                 api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${selectedObra.id}`)
             ]);
 
-            // Filtrar explícitamente a los trabajadores inactivos por precaución adicional
+            // Filtrar explícitamente a los trabajadores finiquitados por precaución adicional
             const workerList = workersRes.data.data.filter(w => Boolean(w.activo) !== false);
             setWorkers(workerList);
             
@@ -257,7 +265,7 @@ const AttendancePage: React.FC = () => {
             'F': 0,
             'V': 0,
             'LM': 0,
-            '1/2': 0,
+            'JI': 0,
             'TO': 0,
             'AT': 0
         };
@@ -278,7 +286,7 @@ const AttendancePage: React.FC = () => {
         text += `F: ${counts['F'].toString().padStart(2, '0')}\n`;
         text += `V: ${counts['V'].toString().padStart(2, '0')}\n`;
         text += `LM: ${counts['LM'].toString().padStart(2, '0')}\n`;
-        text += `1/2: ${counts['1/2'].toString().padStart(2, '0')}\n`;
+        text += `JI: ${counts['JI'].toString().padStart(2, '0')}\n`;
         text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n`;
         // Solo mostramos 'AT' si hay atrasos, para no sobrecargar el mensaje si normalmente es 0
         if (counts['AT'] > 0) {
@@ -672,7 +680,7 @@ const AttendancePage: React.FC = () => {
                                                 <CalendarDays className="h-4 w-4" />
                                             </button>
                                             <button
-                                                onClick={() => setPeriodWorker(worker)}
+                                                onClick={() => setPeriodModalWorker(worker)}
                                                 className="p-2 rounded-full text-[#029E4D] border border-[#029E4D]/30 hover:bg-[#029E4D]/10 hover:text-[#027A3B] transition-colors shrink-0"
                                                 title="Asignar Período de Ausencia"
                                             >
@@ -711,7 +719,7 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={!checkPermission('asistencia', 'puede_editar')}
+                                                        disabled={!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
                                                         className={cn(
                                                             "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border",
                                                             isActive
@@ -793,7 +801,7 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={!checkPermission('asistencia', 'puede_editar')}
+                                                        disabled={!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
                                                         title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre}
                                                         className={cn(
                                                             "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
@@ -824,7 +832,7 @@ const AttendancePage: React.FC = () => {
                                                 <CalendarDays className="h-4 w-4" />
                                             </button>
                                             <button
-                                                onClick={() => setPeriodWorker(worker)}
+                                                onClick={() => setPeriodModalWorker(worker)}
                                                 className="p-1.5 rounded-full text-[#029E4D] border border-[#029E4D]/30 hover:bg-[#029E4D]/10 hover:text-[#027A3B] transition-colors flex-shrink-0"
                                                 title="Asignar Período de Ausencia"
                                             >
@@ -926,21 +934,25 @@ const AttendancePage: React.FC = () => {
                 worker={calendarWorker}
                 estados={estados}
                 obraId={selectedObra?.id}
-                onAssignPeriod={() => setPeriodWorker(calendarWorker)}
+                onAssignPeriod={() => {
+                    setCalendarWorker(null);
+                    setPeriodModalWorker(calendarWorker);
+                }}
+                onSelectRange={handleCalendarSelectRange}
             />
 
             <PeriodAssignModal
-                isOpen={!!periodWorker}
-                onClose={() => setPeriodWorker(null)}
-                worker={periodWorker}
+                isOpen={!!periodModalWorker}
+                onClose={() => {
+                    setPeriodModalWorker(null);
+                    setPeriodSelection(null);
+                }}
+                worker={periodModalWorker}
                 obraId={selectedObra?.id || null}
                 estados={estados}
+                initialDates={periodSelection}
                 onSuccess={() => {
                     fetchAttendanceInfo();
-                    // Refrescar el calendario si está abierto re-seteando el worker
-                    if (calendarWorker) {
-                        setCalendarWorker({ ...calendarWorker });
-                    }
                 }}
             />
 

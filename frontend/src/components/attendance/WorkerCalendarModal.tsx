@@ -13,14 +13,17 @@ interface Props {
     estados: EstadoAsistencia[];
     obraId?: number;
     onAssignPeriod?: () => void;
+    onSelectRange?: (start: string, end: string) => void;
 }
 
-export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, estados, obraId, onAssignPeriod }) => {
+export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, estados, obraId, onAssignPeriod, onSelectRange }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(false);
     const [records, setRecords] = useState<Asistencia[]>([]);
     const [periodos, setPeriodos] = useState<PeriodoAusencia[]>([]);
     const [holidays, setHolidays] = useState<Feriado[]>([]);
+    const [selectionStart, setSelectionStart] = useState<string | null>(null);
+    const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
 
     useEffect(() => {
         if (!isOpen || !worker) return;
@@ -93,6 +96,28 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
         return p.fecha_fin === dateStr || day === daysInMonth; // End of period or end of month
     };
 
+    const handleDateClick = (dateStr: string) => {
+        if (!selectionStart || (selectionStart && selectionEnd)) {
+            setSelectionStart(dateStr);
+            setSelectionEnd(null);
+        } else {
+            if (dateStr < selectionStart) {
+                setSelectionEnd(selectionStart);
+                setSelectionStart(dateStr);
+            } else {
+                setSelectionEnd(dateStr);
+            }
+        }
+    };
+
+    const handleAssignRange = () => {
+        if (selectionStart && selectionEnd && onSelectRange) {
+            onSelectRange(selectionStart, selectionEnd);
+            setSelectionStart(null);
+            setSelectionEnd(null);
+        }
+    };
+
     /* ── Shared calendar grid ── */
     const CalendarGrid = () => (
         <>
@@ -131,12 +156,17 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
 
                     {Array.from({ length: daysInMonth }).map((_, i) => {
                         const day = i + 1;
+                        const dateStr = `${currentDate.getFullYear()}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}-${day.toString().padStart(2, '0')}`;
                         const record = getRecordForDay(day);
                         const periodo = getPeriodForDay(day);
                         const estado = record ? estados.find(e => e.id === record.estado_id) : null;
                         const isWeekend = (startingDay + i) % 7 >= 5;
-
                         const holiday = getHolidayForDay(day);
+
+                        // Selection logic
+                        const isSelected = (selectionStart && selectionEnd) && (dateStr >= selectionStart && dateStr <= selectionEnd);
+                        const isStart = selectionStart === dateStr;
+                        const isEnd = selectionEnd === dateStr;
 
                         // Clases para el bloque visual conectivo del período
                         let periodClasses = "";
@@ -157,22 +187,30 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 key={`day-${day}`}
                                 className="relative aspect-square md:aspect-auto md:h-20"
                             >
-                                {/* Bloque de período de fondo */}
+                                {/* Bloque de período de fondo (existente) */}
                                 {periodo && (
                                     <div 
                                         className={`absolute inset-y-0.5 md:inset-y-1 w-full z-0 pointer-events-none ${periodClasses}`}
                                         style={{ backgroundColor: `${periodo.estado_color}1A`, borderTop: `2px solid ${periodo.estado_color}30`, borderBottom: `2px solid ${periodo.estado_color}30` }}
                                     />
                                 )}
+
+                                {/* Bloque de selección nueva (frontend selection) */}
+                                {isSelected && (
+                                    <div 
+                                        className={`absolute inset-y-1 w-full bg-[#029E4D]/10 border-y-2 border-[#029E4D]/20 z-0 pointer-events-none ${isStart ? 'rounded-l-xl' : ''} ${isEnd ? 'rounded-r-xl' : ''}`}
+                                    />
+                                )}
                                 
-                                <div
-                                    className={`absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 hover:shadow-md hover:border-[#029E4D]/30 transition-all group ${!periodo ? 'border-[#E8E8ED]' : 'border-transparent bg-transparent'}`}
-                                    style={!periodo ? { 
+                                <button
+                                    onClick={() => handleDateClick(dateStr)}
+                                    className={`absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 transition-all group ${!periodo && !isSelected ? 'border-[#E8E8ED]' : 'border-transparent bg-transparent'} ${isSelected ? 'border-[#029E4D]/40 ring-2 ring-[#029E4D]/20' : 'hover:shadow-md hover:border-[#029E4D]/30'}`}
+                                    style={!periodo && !isSelected ? { 
                                         backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? '#E8ECEF' : '#FFFFFF')) 
                                     } : undefined}
-                                    title={periodo ? `Período: ${periodo.estado_nombre}` : (holiday ? `Feriado: ${holiday.nombre}` : '')}
+                                    title={periodo ? `Período: ${periodo.estado_nombre}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : ''))}
                                 >
-                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
+                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
                                         {day}
                                     </span>
                                     {estado && (
@@ -184,11 +222,45 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                             {estado.codigo}
                                         </div>
                                     )}
-                                </div>
+                                    {isSelected && !estado && !periodo && (
+                                        <div className="h-1 w-1 bg-[#029E4D] rounded-full z-20" />
+                                    )}
+                                </button>
                             </div>
                         );
                     })}
                 </div>
+            )}
+
+            {/* Selection actions bar */}
+            {selectionStart && (
+                <motion.div 
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-4 p-3 bg-[#F5F5F7] rounded-2xl flex items-center justify-between border border-[#D2D2D7]"
+                >
+                    <div className="flex flex-col">
+                        <span className="text-[10px] uppercase font-black text-[#86868B] tracking-widest">Rango Seleccionado</span>
+                        <span className="text-xs font-bold text-[#1D1D1F]">
+                            {selectionStart.split('-').reverse().join('/')} 
+                            {selectionEnd && selectionEnd !== selectionStart && ` — ${selectionEnd.split('-').reverse().join('/')}`}
+                        </span>
+                    </div>
+                    <div className="flex gap-2">
+                        <Button variant="glass" size="sm" onClick={() => { setSelectionStart(null); setSelectionEnd(null); }}>
+                            Anular
+                        </Button>
+                        <Button
+                            variant="primary" 
+                            size="sm" 
+                            onClick={handleAssignRange}
+                            disabled={!selectionEnd}
+                            leftIcon={<CalendarRange className="h-4 w-4" />}
+                        >
+                            Asignar Ausencia
+                        </Button>
+                    </div>
+                </motion.div>
             )}
 
             {/* Legend */}

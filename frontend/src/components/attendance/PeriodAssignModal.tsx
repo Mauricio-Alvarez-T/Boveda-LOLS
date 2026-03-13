@@ -13,9 +13,10 @@ interface Props {
     obraId: number | null;
     estados: EstadoAsistencia[];
     onSuccess: () => void;
+    initialDates?: { start: string; end: string } | null;
 }
 
-export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, obraId, estados, onSuccess }) => {
+export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, obraId, estados, onSuccess, initialDates }) => {
     const [estadoId, setEstadoId] = useState<number | null>(null);
     const [fechaInicio, setFechaInicio] = useState('');
     const [fechaFin, setFechaFin] = useState('');
@@ -36,7 +37,6 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
         return Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
     }, [fechaInicio, fechaFin]);
 
-    // Cargar períodos existentes cuando se abre
     React.useEffect(() => {
         if (!isOpen || !worker || !obraId) return;
         setLoadingPeriods(true);
@@ -44,7 +44,15 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             .then(res => setExistingPeriods(res.data.data || []))
             .catch(() => setExistingPeriods([]))
             .finally(() => setLoadingPeriods(false));
-    }, [isOpen, worker, obraId]);
+
+        if (initialDates) {
+            setFechaInicio(initialDates.start);
+            setFechaFin(initialDates.end);
+        } else {
+            setFechaInicio('');
+            setFechaFin('');
+        }
+    }, [isOpen, worker, obraId, initialDates]);
 
     // Detectar superposición
     const overlappingPeriods = useMemo(() => {

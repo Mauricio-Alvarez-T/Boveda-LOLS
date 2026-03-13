@@ -624,13 +624,34 @@ const asistenciaService = {
             await conn.beginTransaction();
 
             // 1. Desactivar períodos superpuestos del mismo trabajador en la misma obra
-            await conn.query(
-                `UPDATE periodos_ausencia 
-                 SET activo = FALSE, updated_at = NOW()
-                 WHERE trabajador_id = ? AND obra_id = ? AND activo = TRUE
-                 AND fecha_inicio <= ? AND fecha_fin >= ?`,
-                [trabajador_id, obra_id, fecha_fin, fecha_inicio]
-            );
+            // REGLA DE SUPERPOSICIÓN: El último periodo gana, PERO la Licencia Médica (LM) 
+            // siempre tiene prioridad sobre otros estados (ej: sobre vacaciones o faltas).
+            // NOTA: Si el nuevo periodo es LM, desactiva todo. Si no lo es, respeta LM existente.
+            
+            const [newEstado] = await conn.query('SELECT codigo FROM estados_asistencia WHERE id = ?', [estado_id]);
+            const nextIsLM = newEstado[0]?.codigo === 'LM';
+
+            if (nextIsLM) {
+                // Si el nuevo es LM, desactivamos cualquier periodo previo que se cruce
+                await conn.query(
+                    `UPDATE periodos_ausencia 
+                     SET activo = FALSE, updated_at = NOW()
+                     WHERE trabajador_id = ? AND obra_id = ? AND activo = TRUE
+                     AND fecha_inicio <= ? AND fecha_fin >= ?`,
+                    [trabajador_id, obra_id, fecha_fin, fecha_inicio]
+                );
+            } else {
+                // Si el nuevo NO es LM, solo desactivamos periodos que NO sean LM
+                await conn.query(
+                    `UPDATE periodos_ausencia p
+                     JOIN estados_asistencia ea ON p.estado_id = ea.id
+                     SET p.activo = FALSE, p.updated_at = NOW()
+                     WHERE p.trabajador_id = ? AND p.obra_id = ? AND p.activo = TRUE
+                     AND p.fecha_inicio <= ? AND p.fecha_fin >= ?
+                     AND ea.codigo <> 'LM'`,
+                    [trabajador_id, obra_id, fecha_fin, fecha_inicio]
+                );
+            }
 
             // 2. Insertar el nuevo período
             const [periodoResult] = await conn.query(
