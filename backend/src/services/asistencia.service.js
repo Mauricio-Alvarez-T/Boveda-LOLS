@@ -543,8 +543,10 @@ const asistenciaService = {
 
         // ── Códigos que suman como día trabajado según RRHH ──
         // A=Asistencia, V=Vacaciones, LM=Licencia Médica, AL=Acumulación Legal,
-        // JI=Jornada Incompleta, AT=Atraso, PSG=Permiso Sin Goce, TO=Turno Otro
+        // JI=Jornada Incompleta, AT=Atraso
+        // FDS=Fin De Semana/Feriado (marcador interno, no es un estado de la BD)
         const codigosSumanDia = ['A', 'V', 'LM', 'AL', 'JI', 'AT'];
+        const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
 
         // ── Agrupar trabajadores por empresa ──
         const empresaGroups = {};
@@ -581,54 +583,49 @@ const asistenciaService = {
                 pageSetup: { paperSize: 9, orientation: 'landscape', fitToPage: true, fitToWidth: 1 }
             });
 
-            // ── 3a. Leyenda Dinámica de Estados (filas 1-6) ──
-            // Lado izquierdo: leyenda con colores reales de los estados de la app
-            estados.forEach((est, i) => {
-                const row = i + 1;
-                // Código
-                const codeCell = ws.getCell(row, 1);
-                codeCell.value = est.codigo;
-                codeCell.font = { bold: true, size: 8 };
+            // ── 3a. Leyenda Dinámica en DOS COLUMNAS (filas 1-4, columnas A-D) ──
+            // Distribuir los estados en dos columnas para evitar solapamiento
+            // También agregar el marcador FDS como entrada de leyenda
+            const legendItems = [
+                ...estados.map(est => ({ codigo: est.codigo, nombre: est.nombre || est.codigo, color: est.color, suma: codigosSumanDia.includes(est.codigo) })),
+                { codigo: MARKER_FDS, nombre: 'Fin de Semana / Feriado', color: null, suma: true }
+            ];
+            const halfLegend = Math.ceil(legendItems.length / 2);
+            
+            legendItems.forEach((item, i) => {
+                // Columna izquierda (A-B): items 0..halfLegend-1
+                // Columna derecha (C-D): items halfLegend..end
+                const isRight = i >= halfLegend;
+                const row = (isRight ? i - halfLegend : i) + 1;
+                const codeCol = isRight ? 3 : 1;
+                const nameCol = isRight ? 4 : 2;
+                
+                const codeCell = ws.getCell(row, codeCol);
+                codeCell.value = item.codigo;
+                codeCell.font = { bold: true, size: 7 };
                 codeCell.alignment = { horizontal: 'center', vertical: 'middle' };
-                if (est.color) {
-                    const safeColor = est.color.startsWith('#') ? est.color.replace('#', 'FF') : 'FF' + est.color;
+                if (item.color) {
+                    const safeColor = item.color.startsWith('#') ? item.color.replace('#', 'FF') : 'FF' + item.color;
                     codeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: safeColor } };
-                    // Si el color es oscuro, usar texto blanco
-                    const hex = est.color.replace('#', '');
-                    const r = parseInt(hex.substring(0, 2), 16);
-                    const g = parseInt(hex.substring(2, 4), 16);
-                    const b = parseInt(hex.substring(4, 6), 16);
+                    const hex = item.color.replace('#', '');
+                    const r = parseInt(hex.substring(0, 2), 16) || 0;
+                    const g = parseInt(hex.substring(2, 4), 16) || 0;
+                    const b = parseInt(hex.substring(4, 6), 16) || 0;
                     const luma = 0.299 * r + 0.587 * g + 0.114 * b;
                     if (luma < 140) {
-                        codeCell.font = { bold: true, size: 8, color: { argb: 'FFFFFFFF' } };
+                        codeCell.font = { bold: true, size: 7, color: { argb: 'FFFFFFFF' } };
                     }
+                } else if (item.codigo === MARKER_FDS) {
+                    codeCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                 }
                 codeCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-                // Nombre del estado
-                const nameCell = ws.getCell(row, 2);
-                nameCell.value = est.nombre || est.codigo;
-                nameCell.font = { size: 8 };
+                const nameCell = ws.getCell(row, nameCol);
+                const sumaIcon = item.suma ? '✓' : '✗';
+                nameCell.value = `${item.nombre} ${sumaIcon}`;
+                nameCell.font = { size: 7, color: { argb: item.suma ? 'FF34C759' : 'FFFF3B30' } };
                 nameCell.alignment = { vertical: 'middle' };
-
-                // Indicador si suma como día trabajado
-                const sumCell = ws.getCell(row, 3);
-                if (codigosSumanDia.includes(est.codigo)) {
-                    sumCell.value = '✓ Suma';
-                    sumCell.font = { size: 7, color: { argb: 'FF34C759' } };
-                } else {
-                    sumCell.value = '✗ No suma';
-                    sumCell.font = { size: 7, color: { argb: 'FFFF3B30' } };
-                }
-                sumCell.alignment = { vertical: 'middle' };
             });
-
-            // Nota adicional sobre fines de semana y feriados
-            const noteRow = estados.length + 1;
-            const noteCell = ws.getCell(noteRow, 1);
-            ws.mergeCells(noteRow, 1, noteRow, 3);
-            noteCell.value = 'Fines de semana y feriados suman como día trabajado';
-            noteCell.font = { size: 7, italic: true, color: { argb: 'FF6E6E73' } };
 
             // ── Título Central ──
             ws.mergeCells('F2:H4');
@@ -751,12 +748,17 @@ const asistenciaService = {
                                 cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
                             }
                         }
+                    } else if (isFeriado || isWeekend) {
+                        // Fin de semana o feriado SIN registro → marcar con FDS para que sume
+                        cell.value = MARKER_FDS;
+                        cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                     } else {
-                        // Sin registro: si es fin de semana o feriado, marcar vacío
+                        // Día laboral sin registro (no suma)
                         cell.value = '';
                     }
 
-                    // Pintar feriados o domingos si no hay registro con color
+                    // Pintar feriados o domingos si tienen un estado registrado pero no fill propio
                     if ((isFeriado || isWeekend) && !cell.fill) {
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                     }
@@ -766,20 +768,17 @@ const asistenciaService = {
                 });
 
                 // ── FÓRMULAS DE SUMATORIA CORREGIDAS ──
-                // Contar múltiples códigos que suman como día trabajado
-                // Además sumar celdas vacías que corresponden a fines de semana y feriados
+                // Contar estados que suman + marcador FDS (fines de semana y feriados)
                 const q1Range = `${ws.getCell(rowIdx, dayColStart).address}:${ws.getCell(rowIdx, dayColStart + 14).address}`;
                 
-                // Construir COUNTIF para cada código que suma + contar fines de semana/feriados vacíos
-                const countifParts = codigosSumanDia.map(cod => `COUNTIF(${q1Range},"${cod}")`);
-                // Sumar celdas vacías (fines de semana y feriados sin registro = día trabajado)
-                countifParts.push(`COUNTBLANK(${q1Range})`);
+                // Construir COUNTIF para cada código que suma + FDS
+                const allCodigos = [...codigosSumanDia, MARKER_FDS];
+                const countifParts = allCodigos.map(cod => `COUNTIF(${q1Range},"${cod}")`);
                 const q1Formula = countifParts.join('+');
                 ws.getCell(rowIdx, q1Col).value = { formula: q1Formula };
 
                 const q2Range = `${ws.getCell(rowIdx, dayColStart + 16).address}:${ws.getCell(rowIdx, dayColStart + 31).address}`;
-                const countifParts2 = codigosSumanDia.map(cod => `COUNTIF(${q2Range},"${cod}")`);
-                countifParts2.push(`COUNTBLANK(${q2Range})`);
+                const countifParts2 = allCodigos.map(cod => `COUNTIF(${q2Range},"${cod}")`);
                 const q2Formula = countifParts2.join('+');
                 ws.getCell(rowIdx, q2Col).value = { formula: q2Formula };
 
