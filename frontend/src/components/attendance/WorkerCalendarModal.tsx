@@ -208,7 +208,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                     style={!periodo && !isSelected ? { 
                                         backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? '#E8ECEF' : '#FFFFFF')) 
                                     } : undefined}
-                                    title={periodo ? `Período: ${periodo.estado_nombre}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : ''))}
+                                    title={periodo ? `Período: ${periodo.estado_nombre}${periodo.observacion ? ' \n📝 ' + periodo.observacion : ''}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : ''))}  
                                 >
                                     <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
                                         {day}
@@ -276,6 +276,36 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     Feriado
                 </div>
             </div>
+
+            {/* Períodos Activos con Observaciones */}
+            {periodos.length > 0 && (
+                <div className="mt-4 md:mt-6">
+                    <h4 className="text-[10px] uppercase font-black text-[#86868B] tracking-widest mb-2">Períodos Activos</h4>
+                    <div className="space-y-2">
+                        {periodos.map(p => (
+                            <div key={p.id} className="flex items-start gap-2 p-2 rounded-xl border border-[#E8E8ED] bg-[#F5F5F7]/50">
+                                <span 
+                                    className="w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" 
+                                    style={{ backgroundColor: p.estado_color || '#6E6E73' }}
+                                />
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold text-[#1D1D1F]">
+                                        {p.estado_nombre || p.estado_codigo}
+                                        <span className="text-[10px] font-normal text-[#86868B] ml-1.5">
+                                            {p.fecha_inicio.split('-').reverse().join('/')} — {p.fecha_fin.split('-').reverse().join('/')}
+                                        </span>
+                                    </p>
+                                    {p.observacion && (
+                                        <p className="text-[11px] text-[#6E6E73] mt-0.5 italic">
+                                            📝 {p.observacion}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </>
     );
 

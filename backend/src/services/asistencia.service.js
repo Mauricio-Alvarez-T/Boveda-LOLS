@@ -531,7 +531,7 @@ const asistenciaService = {
         };
 
         const getEmpresaAbrev = (nombre) => {
-            if (!nombre) return 'SIN EMPRESA';
+            if (!nombre) return 'PROVISORIOS';
             const upper = nombre.toUpperCase().trim();
             // Buscar coincidencia parcial
             for (const [key, val] of Object.entries(empresaAbrevMap)) {
@@ -542,10 +542,12 @@ const asistenciaService = {
         };
 
         // ── Códigos que suman como día trabajado según RRHH ──
-        // A=Asistencia, V=Vacaciones, LM=Licencia Médica, AL=Acumulación Legal,
-        // JI=Jornada Incompleta, AT=Atraso
+        // A=Asistencia, V=Vacaciones, LM=Licencia Médica,
+        // JI=Jornada Incompleta, AT=Atraso,
+        // DF=Defunción, NC=Nacimiento, MT=Matrimonio
+        // NOTA: AL (Accidente Laboral) NO suma
         // FDS=Fin De Semana/Feriado (marcador interno, no es un estado de la BD)
-        const codigosSumanDia = ['A', 'V', 'LM', 'AL', 'JI', 'AT'];
+        const codigosSumanDia = ['A', 'V', 'LM', 'JI', 'AT', 'DF', 'NC', 'MT'];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
 
         // ── Agrupar trabajadores por empresa ──
@@ -562,7 +564,7 @@ const asistenciaService = {
         }
 
         // ── Orden preferido de pestañas ──
-        const tabOrder = ['LOLS', 'MAUA', 'DEDALIUS'];
+        const tabOrder = ['LOLS', 'MAUA', 'DEDALIUS', 'PROVISORIOS'];
         const sortedKeys = [
             ...tabOrder.filter(k => empresaGroups[k]),
             ...Object.keys(empresaGroups).filter(k => !tabOrder.includes(k))
@@ -675,37 +677,31 @@ const asistenciaService = {
 
             // ── Columnas de Resumen ──
             const q1Col = dayColStart + 15;
+            ws.mergeCells(7, q1Col, 8, q1Col);
             const q1Header = ws.getCell(7, q1Col);
-            q1Header.value = 'PRIMERA';
-            ws.getCell(8, q1Col).value = 'QUINCENA';
-            [q1Header, ws.getCell(8, q1Col)].forEach(c => {
-                c.font = { bold: true, size: 8 };
-                c.alignment = { horizontal: 'center', vertical: 'middle' };
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
-                c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-            });
+            q1Header.value = 'PRIMERA QUINCENA';
+            q1Header.font = { bold: true, size: 8 };
+            q1Header.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            q1Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+            q1Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
             const q2Col = dayColStart + 31 + 1;
+            ws.mergeCells(7, q2Col, 8, q2Col);
             const q2Header = ws.getCell(7, q2Col);
-            q2Header.value = 'SEGUNDA';
-            ws.getCell(8, q2Col).value = 'QUINCENA';
-            [q2Header, ws.getCell(8, q2Col)].forEach(c => {
-                c.font = { bold: true, size: 8 };
-                c.alignment = { horizontal: 'center', vertical: 'middle' };
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
-                c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-            });
+            q2Header.value = 'SEGUNDA QUINCENA';
+            q2Header.font = { bold: true, size: 8 };
+            q2Header.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            q2Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+            q2Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
             const totalCol = q2Col + 1;
+            ws.mergeCells(7, totalCol, 8, totalCol);
             const totalHeader = ws.getCell(7, totalCol);
-            totalHeader.value = 'TOTAL';
-            ws.getCell(8, totalCol).value = 'DIAS T';
-            [totalHeader, ws.getCell(8, totalCol)].forEach(c => {
-                c.font = { bold: true, size: 8 };
-                c.alignment = { horizontal: 'center', vertical: 'middle' };
-                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
-                c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-            });
+            totalHeader.value = 'TOTAL DIAS TRABAJADOS';
+            totalHeader.font = { bold: true, size: 8 };
+            totalHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            totalHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+            totalHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
             const obsCol = totalCol + 1;
             const obsHeader = ws.getCell(7, obsCol);
@@ -813,6 +809,10 @@ const asistenciaService = {
             for (let i = 0; i < days.length + 4; i++) {
                 ws.getColumn(dayColStart + i).width = 4;
             }
+            // Ensanchar columnas de resumen
+            ws.getColumn(q1Col).width = 10;
+            ws.getColumn(q2Col).width = 10;
+            ws.getColumn(totalCol).width = 10;
             ws.getColumn(obsCol).width = 20;
         }
 

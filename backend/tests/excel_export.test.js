@@ -130,7 +130,7 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         await workbook.xlsx.load(buffer);
 
         const sheetNames = workbook.worksheets.map(ws => ws.name.toUpperCase());
-        expect(sheetNames.some(n => n.includes('SIN EMPRESA') || n.includes('GENERAL'))).toBe(true);
+        expect(sheetNames.some(n => n.includes('PROVISORIOS'))).toBe(true);
     });
 
     // ── Test 4: Leyenda en dos columnas (no más de 4 filas) ──
