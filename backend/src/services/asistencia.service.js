@@ -482,6 +482,11 @@ const asistenciaService = {
         const [estados] = await db.query('SELECT * FROM estados_asistencia WHERE activo = TRUE ORDER BY id');
         const estadoMap = Object.fromEntries(estados.map(e => [e.id, e]));
 
+        // Filtrar trabajadores: incluir activos, y los inactivos solo si tienen asistencia este mes
+        // Lo verificamos directamente de 'registros'
+        const activeWorkersThisMonth = new Set(registros.map(r => r.trabajador_id));
+        const workersToInlude = workers.filter(w => w.activo === 1 || activeWorkersThisMonth.has(w.id));
+
         // Helper para fechas seguras
         const formatDate = (date) => {
             if (!date) return '';
@@ -527,7 +532,9 @@ const asistenciaService = {
             'LOLS EMPRESAS DE INGENIERIA LTDA': 'LOLS',
             'MIGUEL ANGEL URRUTIA AGUILERA': 'MAUA',
             'TRANSPORTES DEDALIUS LIMITADA': 'DEDALIUS',
-            'TRANSPORTES DEDALIUS': 'DEDALIUS'
+            'TRANSPORTES DEDALIUS': 'DEDALIUS',
+            'PROVISORIO': 'PROVISORIOS',
+            'PROVISORIOS': 'PROVISORIOS'
         };
 
         const getEmpresaAbrev = (nombre) => {
@@ -552,7 +559,7 @@ const asistenciaService = {
 
         // ── Agrupar trabajadores por empresa ──
         const empresaGroups = {};
-        workers.forEach(w => {
+        workersToInlude.forEach(w => {
             const abrev = getEmpresaAbrev(w.empresa_nombre);
             if (!empresaGroups[abrev]) empresaGroups[abrev] = [];
             empresaGroups[abrev].push(w);
