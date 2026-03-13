@@ -41,6 +41,7 @@ export interface Trabajador {
     carnet_frente_url: string | null;
     carnet_dorso_url: string | null;
     fecha_ingreso: string | null;
+    fecha_desvinculacion: string | null;
     categoria_reporte: 'obra' | 'operaciones' | 'rotativo';
     activo: boolean;
 }

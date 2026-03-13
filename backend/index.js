@@ -24,7 +24,19 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(activityLogger);
 
 // Database connection (auto-tests on import)
-require('./src/config/db');
+const db = require('./src/config/db');
+
+// Ensure database schema is up to date
+(async () => {
+  try {
+    await db.query(`ALTER TABLE trabajadores ADD COLUMN fecha_desvinculacion DATE NULL DEFAULT NULL AFTER activo`);
+    console.log("✅ Columna 'fecha_desvinculacion' agregada a la BD");
+  } catch (err) {
+    if (err.code !== 'ER_DUP_FIELDNAME') {
+      console.error("Error al actualizar esquema BD (fecha_desvinculacion):", err.message);
+    }
+  }
+})();
 
 // ============================================
 // ROUTES

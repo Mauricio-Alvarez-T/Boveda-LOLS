@@ -760,6 +760,7 @@ const AttendancePage: React.FC = () => {
                             const currentEstado = estados.find(e => e.id === state.estado_id);
                             const isExpanded = expandedWorkerId === worker.id;
                             const isNotPresent = currentEstado && !currentEstado.es_presente;
+                            const isDesvinculado = worker.fecha_desvinculacion ? date > worker.fecha_desvinculacion : false;
 
                             return (
                                 <motion.div
@@ -771,9 +772,10 @@ const AttendancePage: React.FC = () => {
                                     className={cn(
                                         "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
                                         idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
-                                        isNotPresent && "bg-[#FEF8F8]",
+                                        (isNotPresent || isDesvinculado) && "bg-[#FEF8F8]",
                                         (isSaturday || isSunday) && "bg-[#E8ECEF]",
-                                        feriadoActual && "bg-[#FF3B30]/5"
+                                        feriadoActual && "bg-[#FF3B30]/5",
+                                        isDesvinculado && "opacity-75 grayscale-[30%]"
                                     )}
                                 >
                                     {/* ── MOBILE CARD ── */}
@@ -847,13 +849,14 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                        disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                        title={isDesvinculado ? "Bloqueado por Finiquito" : (!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre)}
                                                         className={cn(
                                                             "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border",
                                                             isActive
                                                                 ? "text-white border-transparent shadow-sm"
                                                                 : "bg-white border-[#E8E8ED] text-[#6E6E73] active:scale-95",
-                                                            (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
+                                                            (!!feriadoActual || isSunday || isDesvinculado) && "opacity-50 cursor-not-allowed"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
@@ -864,10 +867,10 @@ const AttendancePage: React.FC = () => {
                                         </div>                                        {/* Row 4: Expandable detail toggle */}
                                         <button
                                             onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                            disabled={!!feriadoActual || isSunday}
+                                            disabled={isDesvinculado || !!feriadoActual || isSunday}
                                             className={cn(
                                                 "mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#029E4D] font-medium rounded-lg hover:bg-[#029E4D]/5 transition-colors",
-                                                (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed grayscale"
+                                                (!!feriadoActual || isSunday || isDesvinculado) && "opacity-50 cursor-not-allowed grayscale"
                                             )}
                                         >
                                             <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
@@ -934,12 +937,12 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                                                        title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre}
+                                                        disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                        title={isDesvinculado ? "Bloqueado por Finiquito" : (!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre)}
                                                         className={cn(
                                                             "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
                                                             isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]",
-                                                            (!!feriadoActual || isSunday) && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                                                            (!!feriadoActual || isSunday || isDesvinculado) && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
@@ -953,10 +956,11 @@ const AttendancePage: React.FC = () => {
                                             <div className="flex-1">
                                                     <button
                                                         onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                        disabled={!!feriadoActual || isSunday}
+                                                        disabled={isDesvinculado || !!feriadoActual || isSunday}
+                                                        title={isDesvinculado ? "Bloqueado por Finiquito" : "Ver detalle"}
                                                         className={cn(
                                                             "text-[10px] text-[#029E4D] font-medium hover:underline w-full text-center",
-                                                            (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed no-underline"
+                                                            (isDesvinculado || !!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed no-underline grayscale"
                                                         )}
                                                     >
                                                         {isExpanded ? 'Cerrar' : 'Detalle'}

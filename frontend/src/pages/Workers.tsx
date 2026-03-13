@@ -79,7 +79,7 @@ const WorkersPage: React.FC = () => {
     const [completion, setCompletion] = useState<Record<number, { uploaded: number, total: number, percentage: number }>>({});
 
     // Modal states
-    const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
+    const [modalType, setModalType] = useState<'form' | 'docs' | 'finiquito' | null>(null);
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
 
@@ -149,21 +149,28 @@ const WorkersPage: React.FC = () => {
         }
     };
 
-    const handleDelete = (id: number) => {
-        showDeleteToast({
-            onConfirm: async () => {
-                await api.delete(`/trabajadores/${id}`);
+    const handleDelete = (worker: Trabajador) => {
+        setSelectedWorker(worker);
+        setModalType('finiquito');
+    };
+
+    const confirmFiniquito = (date: string) => {
+        if (!selectedWorker) return;
+        api.put(`/trabajadores/${selectedWorker.id}`, { activo: false, fecha_desvinculacion: date })
+            .then(() => {
+                toast.success("Trabajador desvinculado con éxito.");
+                setModalType(null);
                 fetchWorkers();
-            },
-            message: "¿Desactivar?",
-            successMessage: "Trabajador desactivado",
-            errorMessage: "Error al desactivar trabajador"
-        });
+            })
+            .catch(err => {
+                console.error(err);
+                toast.error("Error al desvincular trabajador.");
+            });
     };
 
     const handleReactivate = (id: number) => {
         if (window.confirm("¿Estás seguro de que deseas reactivar a este trabajador? Volverá a aparecer en la nómina activa y en la asistencia.")) {
-            api.put(`/trabajadores/${id}`, { activo: true })
+            api.put(`/trabajadores/${id}`, { activo: true, fecha_desvinculacion: null })
                 .then(() => {
                     toast.success("Trabajador reactivado con éxito.");
                     fetchWorkers();
@@ -531,7 +538,7 @@ const WorkersPage: React.FC = () => {
                                             Editar
                                         </button>
                                         <button
-                                            onClick={() => handleDelete(worker.id)}
+                                            onClick={() => handleDelete(worker)}
                                             disabled={!checkPermission('trabajadores', 'puede_eliminar')}
                                             className={cn(
                                                 "w-11 min-h-[44px] flex items-center justify-center rounded-xl bg-[#FF3B30]/8 border border-[#FF3B30]/20 text-[#FF3B30] active:scale-95 transition-all shrink-0",
@@ -687,7 +694,7 @@ const WorkersPage: React.FC = () => {
                                                             !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         disabled={!checkPermission('trabajadores', 'puede_eliminar')}
-                                                        onClick={() => handleDelete(worker.id)}
+                                                        onClick={() => handleDelete(worker)}
                                                         title={!checkPermission('trabajadores', 'puede_eliminar') ? "No tienes permisos" : "Eliminar/Finiquitar"}
                                                     >
                                                         <Trash2 className="h-5 w-5" />
@@ -838,6 +845,40 @@ const WorkersPage: React.FC = () => {
                     </div>
                 )}
             </Modal>
+
+            {modalType === 'finiquito' && selectedWorker && (
+                <Modal isOpen={true} onClose={() => setModalType(null)} title="Desvincular Trabajador">
+                    <div className="p-5">
+                        <div className="bg-[#FF3B30]/10 border border-[#FF3B30]/20 rounded-xl p-4 mb-5">
+                            <p className="text-sm font-semibold text-[#FF3B30]">
+                                Al desvincular a <strong>{selectedWorker.nombres} {selectedWorker.apellido_paterno}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
+                            </p>
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-[#6E6E73] mb-2 uppercase tracking-wider">Fecha Efectiva de Finiquito</label>
+                            <Input
+                                type="date"
+                                id="fecha_finiquito_input"
+                                defaultValue={new Date().toISOString().split('T')[0]}
+                                className="w-full bg-[#F5F5F7] border-transparent hover:bg-[#E8E8ED] focus:bg-white focus:border-[#029E4D] focus:ring-4 focus:ring-[#029E4D]/10 transition-all font-semibold"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 mt-8">
+                            <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
+                            <Button className="bg-[#FF3B30] text-white hover:bg-[#FF3B30]/90 active:bg-[#FF3B30] border-transparent flex-1" onClick={() => {
+                                const dateInput = document.getElementById('fecha_finiquito_input') as HTMLInputElement;
+                                if (!dateInput?.value) {
+                                    toast.error("Debe especificar una fecha.");
+                                    return;
+                                }
+                                confirmFiniquito(dateInput.value);
+                            }}>
+                                Confirmar Finiquito
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             <WorkerQuickView
                 workerId={quickViewId}
