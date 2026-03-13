@@ -247,7 +247,6 @@ const AttendancePage: React.FC = () => {
     // Handle Excel Export
     const handleExportExcel = useCallback(async () => {
         const { selectedObra: currentObra, date: currentDate } = latestData.current;
-        if (!currentObra) return;
         try {
             const [year, month] = currentDate.split('-');
             const firstDay = `${year}-${month}-01`;
@@ -255,14 +254,16 @@ const AttendancePage: React.FC = () => {
 
             toast.info('Generando reporte Excel...', { id: 'excel-export' });
 
-            const response = await api.get(`/asistencias/exportar/excel?obra_id=${currentObra.id}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
+            const obraIdParam = currentObra ? `obra_id=${currentObra.id}` : 'obra_id=';
+            const response = await api.get(`/asistencias/exportar/excel?${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
                 responseType: 'blob'
             });
 
             const url = window.URL.createObjectURL(new Blob([response.data as any]));
             const link = document.createElement('a');
             link.href = url;
-            link.setAttribute('download', `Asistencia_${currentObra.nombre.replace(/\s+/g, '_')}_${year}_${month}.xlsx`);
+            const fileName = currentObra ? `Asistencia_${currentObra.nombre.replace(/\s+/g, '_')}` : 'Asistencia_Todas_las_Obras';
+            link.setAttribute('download', `${fileName}_${year}_${month}.xlsx`);
             document.body.appendChild(link);
             link.click();
             link.remove();
@@ -472,81 +473,96 @@ const AttendancePage: React.FC = () => {
     ), [selectedObra, formattedDate, shortDate]);
 
     const headerActions = useMemo(() => (
-        selectedObra ? (
-            <div className="flex items-center gap-1 md:gap-2">
-                {/* Mobile Worker Count Chip */}
-                <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E8ED] rounded-full text-[13px] font-bold text-[#1D1D1F] shrink-0">
-                    <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
-                    <span>{summary.total}</span>
-                </div>
+        <div className="flex items-center gap-1 md:gap-2">
+            {selectedObra && (
+                <>
+                    {/* Mobile Worker Count Chip */}
+                    <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E8ED] rounded-full text-[13px] font-bold text-[#1D1D1F] shrink-0">
+                        <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
+                        <span>{summary.total}</span>
+                    </div>
 
-                {/* Mobile WhatsApp Button */}
-                <button
-                    onClick={handleShareWhatsApp}
-                    className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm shrink-0"
-                    title="Enviar por WhatsApp"
-                >
-                    <Send className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
-                    <span>WhatsApp</span>
-                </button>
+                    {/* Mobile WhatsApp Button */}
+                    <button
+                        onClick={handleShareWhatsApp}
+                        className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm shrink-0"
+                        title="Enviar por WhatsApp"
+                    >
+                        <Send className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
+                        <span>WhatsApp</span>
+                    </button>
 
-                {/* Desktop WhatsApp Button */}
-                <Button
-                    onClick={handleShareWhatsApp}
-                    variant="glass"
-                    className="hidden md:flex text-[#6E6E73] hover:text-[#34C759]"
-                    title="Compartir Resumen por WhatsApp"
-                    leftIcon={<Send className="h-4 w-4" />}
-                    size="sm"
-                >
-                    <span className="hidden lg:inline">WhatsApp</span>
-                </Button>
-
-                {/* Export + Save — desktop only */}
-                <Button
-                    onClick={handleExportExcel}
-                    variant="outline"
-                    title="Exportar Asistencia del Mes actual"
-                    leftIcon={<FileDown className="h-4 w-4" />}
-                    size="sm"
-                    className="hidden md:flex"
-                >
-                    <span className="hidden lg:inline">Reporte Mensual</span>
-                </Button>
-                
-                {/* Manual Holiday Toggle */}
-                {checkPermission('asistencia', 'puede_editar') && (
+                    {/* Desktop WhatsApp Button */}
                     <Button
-                        onClick={toggleFeriado}
-                        variant={feriadoActual ? "outline" : "glass"}
+                        onClick={handleShareWhatsApp}
+                        variant="glass"
+                        className="hidden md:flex text-[#6E6E73] hover:text-[#34C759]"
+                        title="Compartir Resumen por WhatsApp"
+                        leftIcon={<Send className="h-4 w-4" />}
                         size="sm"
-                        title={feriadoActual ? "Quitar marcación de feriado" : "Marcar este día como feriado"}
+                    >
+                        <span className="hidden lg:inline">WhatsApp</span>
+                    </Button>
+                </>
+            )}
+
+            {/* Mobile Export Button */}
+            <button
+                onClick={handleExportExcel}
+                className="md:hidden flex items-center justify-center h-9 w-9 rounded-full border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm active:bg-[#F5F5F7]"
+                title="Exportar Reporte Mensual"
+            >
+                <FileDown className="h-4 w-4" />
+            </button>
+
+            {/* Export Monthly Report — always available if user can view assistance */}
+            <Button
+                onClick={handleExportExcel}
+                variant="outline"
+                title="Exportar Asistencia del Mes actual"
+                leftIcon={<FileDown className="h-4 w-4" />}
+                size="sm"
+                className="hidden md:flex"
+            >
+                <span className="hidden lg:inline">Reporte Mensual</span>
+            </Button>
+
+            {selectedObra && (
+                <>
+                    {/* Manual Holiday Toggle */}
+                    {checkPermission('asistencia', 'puede_editar') && (
+                        <Button
+                            onClick={toggleFeriado}
+                            variant={feriadoActual ? "outline" : "glass"}
+                            size="sm"
+                            title={feriadoActual ? "Quitar marcación de feriado" : "Marcar este día como feriado"}
+                            className={cn(
+                                "hidden md:flex",
+                                feriadoActual ? "text-[#FF3B30] border-[#FF3B30]/20 hover:bg-[#FF3B30]/5" : "text-[#6E6E73] hover:text-[#029E4D]"
+                            )}
+                            leftIcon={<CalendarRange className="h-4 w-4" />}
+                        >
+                            <span className="hidden lg:inline">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
+                        </Button>
+                    )}
+
+                    <Button
+                        onClick={handleSave}
+                        isLoading={saving}
+                        disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                        leftIcon={<Save className="h-4 w-4" />}
+                        size="sm"
                         className={cn(
                             "hidden md:flex",
-                            feriadoActual ? "text-[#FF3B30] border-[#FF3B30]/20 hover:bg-[#FF3B30]/5" : "text-[#6E6E73] hover:text-[#029E4D]"
+                            (!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday) && "opacity-40 grayscale-[100%] cursor-not-allowed"
                         )}
-                        leftIcon={<CalendarRange className="h-4 w-4" />}
+                        title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : (feriadoActual || isSunday) ? "Día bloqueado" : "Guardar Asistencia"}
                     >
-                        <span className="hidden lg:inline">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
+                        Guardar
                     </Button>
-                )}
-
-                <Button
-                    onClick={handleSave}
-                    isLoading={saving}
-                    disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                    leftIcon={<Save className="h-4 w-4" />}
-                    size="sm"
-                    className={cn(
-                        "hidden md:flex",
-                        (!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday) && "opacity-40 grayscale-[100%] cursor-not-allowed"
-                    )}
-                    title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : (feriadoActual || isSunday) ? "Día bloqueado" : "Guardar Asistencia"}
-                >
-                    Guardar
-                </Button>
-            </div>
-        ) : null
+                </>
+            )}
+        </div>
     ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission]);
 
     useSetPageHeader(headerTitle, headerActions);
@@ -558,9 +574,19 @@ const AttendancePage: React.FC = () => {
                     <CheckSquare className="h-7 w-7 text-[#6E6E73]" />
                 </div>
                 <h2 className="text-lg font-semibold text-[#1D1D1F]">Selecciona una Obra</h2>
-                <p className="text-[#6E6E73] mt-2 max-w-md text-sm">
-                    Para gestionar la asistencia, primero debes seleccionar una obra en el menú superior.
+                <p className="text-[#6E6E73] mt-2 mb-6 max-w-md text-sm">
+                    Para gestionar la asistencia diaria, debes seleccionar una obra. 
+                    O puedes descargar el reporte consolidado de todas las obras ahora.
                 </p>
+                <div className="flex gap-3">
+                    <Button
+                        onClick={handleExportExcel}
+                        variant="outline"
+                        leftIcon={<FileDown className="h-5 w-5" />}
+                    >
+                        Exportar Reporte Global mensual
+                    </Button>
+                </div>
             </div>
         );
     }

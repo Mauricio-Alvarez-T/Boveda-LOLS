@@ -302,7 +302,10 @@ const asistenciaService = {
         let where = [];
         let params = [];
 
-        if (obra_id && obra_id !== 'null') { where.push('a.obra_id = ?'); params.push(obra_id); }
+        if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') { 
+            where.push('a.obra_id = ?'); 
+            params.push(obra_id); 
+        }
         if (fecha_inicio) { where.push('a.fecha >= ?'); params.push(fecha_inicio); }
         if (fecha_fin) { where.push('a.fecha <= ?'); params.push(fecha_fin); }
         if (trabajador_id) { where.push('a.trabajador_id = ?'); params.push(trabajador_id); }
@@ -463,10 +466,10 @@ const asistenciaService = {
             FROM trabajadores t
             LEFT JOIN cargos c ON t.cargo_id = c.id
             LEFT JOIN obras o ON t.obra_id = o.id
-            WHERE t.activo = 1
+            WHERE 1=1
         `;
 
-        if (obra_id && obra_id !== 'null') {
+        if (obra_id && obra_id !== 'null' && obra_id !== 'undefined') {
             workerQuery += ' AND t.obra_id = ?';
             workerQueryParams.push(obra_id);
         }
