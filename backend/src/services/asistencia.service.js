@@ -302,7 +302,7 @@ const asistenciaService = {
         let where = [];
         let params = [];
 
-        if (obra_id) { where.push('a.obra_id = ?'); params.push(obra_id); }
+        if (obra_id && obra_id !== 'null') { where.push('a.obra_id = ?'); params.push(obra_id); }
         if (fecha_inicio) { where.push('a.fecha >= ?'); params.push(fecha_inicio); }
         if (fecha_fin) { where.push('a.fecha <= ?'); params.push(fecha_fin); }
         if (trabajador_id) { where.push('a.trabajador_id = ?'); params.push(trabajador_id); }
@@ -320,8 +320,8 @@ const asistenciaService = {
              JOIN estados_asistencia ea ON a.estado_id = ea.id
              JOIN trabajadores t ON a.trabajador_id = t.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
-             ${whereClause}
-             ORDER BY a.fecha DESC, t.apellido_paterno`,
+              ${whereClause}
+              ORDER BY t.apellido_paterno, t.apellido_materno, t.nombres, a.fecha DESC`,
             [...params]
         );
 
@@ -446,8 +446,8 @@ const asistenciaService = {
         const { obra_id, fecha_inicio, fecha_fin } = query;
         console.log(`[DEBUG] generarExcel - ObraId: ${obra_id}, Inicio: ${fecha_inicio}, Fin: ${fecha_fin}`);
 
-        if (!obra_id || !fecha_inicio || !fecha_fin) {
-            throw new Error('obra_id, fecha_inicio y fecha_fin son requeridos para exportar');
+        if (!fecha_inicio || !fecha_fin) {
+            throw new Error('fecha_inicio y fecha_fin son requeridos para exportar');
         }
 
         const start = new Date(fecha_inicio + 'T00:00:00');
@@ -455,20 +455,25 @@ const asistenciaService = {
         let curr = new Date(start);
 
         // 1. Obtener Datos
-        const [obraRows] = await db.query('SELECT nombre FROM obras WHERE id = ?', [obra_id]);
-        const obraNombre = obraRows[0]?.nombre || 'Sin Obra';
-        console.log('[DEBUG] Obra cargada:', obraNombre);
+        // Obtener trabajadores activos (filtrar por obra si se solicita)
+        const workerQueryParams = [];
+        let workerQuery = `
+            SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso, 
+                   c.nombre as cargo_nombre, t.activo, o.nombre as obra_actual_nombre
+            FROM trabajadores t
+            LEFT JOIN cargos c ON t.cargo_id = c.id
+            LEFT JOIN obras o ON t.obra_id = o.id
+            WHERE t.activo = 1
+        `;
 
-        // Obtener trabajadores activos asignados a esta obra
-        const [workers] = await db.query(
-            `SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.fecha_ingreso, 
-                    c.nombre as cargo_nombre, t.activo
-             FROM trabajadores t
-             LEFT JOIN cargos c ON t.cargo_id = c.id
-             WHERE t.obra_id = ? AND t.activo = 1
-             ORDER BY t.apellido_paterno, t.nombres`,
-            [obra_id]
-        );
+        if (obra_id && obra_id !== 'null') {
+            workerQuery += ' AND t.obra_id = ?';
+            workerQueryParams.push(obra_id);
+        }
+        
+        workerQuery += ' ORDER BY t.apellido_paterno, t.apellido_materno, t.nombres';
+        
+        const [workers] = await db.query(workerQuery, workerQueryParams);
 
         const { registros, feriados } = await this.getReporte(query);
         const [estados] = await db.query('SELECT * FROM estados_asistencia');
@@ -499,12 +504,12 @@ const asistenciaService = {
             return [fStr, f];
         }));
 
-        // 2. Generar Rango de Días
+        // 2. Generar Rango de Días (FIJO A 31 DÍAS como pidió RRHH)
         const days = [];
-        let loopCurr = new Date(start);
-        while (loopCurr <= end) {
-            days.push(new Date(loopCurr));
-            loopCurr.setDate(loopCurr.getDate() + 1);
+        const startYear = start.getFullYear();
+        const startMonth = start.getMonth();
+        for (let d = 1; d <= 31; d++) {
+            days.push(new Date(startYear, startMonth, d));
         }
 
         const workbook = new ExcelJS.Workbook();
@@ -558,9 +563,12 @@ const asistenciaService = {
         const dayColStart = 9;
         const dowMap = ['D', 'L', 'M', 'MI', 'J', 'V', 'S'];
 
-        days.forEach((day, i) => {
+        // Pintar cabeceras 1-31
+        for (let i = 0; i < 31; i++) {
             const colIdx = dayColStart + (i < 15 ? i : i + 1); // Salto en quincena
-            const dayNum = day.getDate();
+            const dayNum = i + 1;
+            const tempDay = new Date(startYear, startMonth, dayNum);
+            
             const cellNum = worksheet.getCell(7, colIdx);
             cellNum.value = dayNum;
             cellNum.font = { bold: true, size: 9 };
@@ -568,17 +576,17 @@ const asistenciaService = {
             cellNum.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
             const cellDow = worksheet.getCell(8, colIdx);
-            cellDow.value = dowMap[day.getDay()];
+            cellDow.value = dowMap[tempDay.getDay()];
             cellDow.font = { size: 8 };
             cellDow.alignment = { horizontal: 'center' };
             cellDow.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             
             // Highlight weekends
-            if (day.getDay() === 0 || day.getDay() === 6) {
+            if (tempDay.getDay() === 0 || tempDay.getDay() === 6) {
                 cellNum.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                 cellDow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
             }
-        });
+        }
 
         // Columnas de Resumen
         const q1Col = dayColStart + 15;
@@ -593,7 +601,7 @@ const asistenciaService = {
             c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
         });
 
-        const q2Col = dayColStart + days.length + 1;
+        const q2Col = dayColStart + 31 + 1; // Fijo 31 columnas
         const q2Header = worksheet.getCell(7, q2Col);
         q2Header.value = 'SEGUNDA';
         worksheet.getCell(8, q2Col).value = 'QUINCENA';
@@ -627,12 +635,12 @@ const asistenciaService = {
         workers.forEach((worker, wIdx) => {
             const rowIdx = 9 + wIdx;
             worksheet.getCell(rowIdx, 1).value = wIdx + 1;
-            worksheet.getCell(rowIdx, 2).value = worker.apellido_paterno;
+            worksheet.getCell(rowIdx, 2).value = worker.apellido_paterno + (worker.apellido_materno ? ' ' + worker.apellido_materno : '');
             worksheet.getCell(rowIdx, 3).value = worker.nombres;
             worksheet.getCell(rowIdx, 4).value = worker.rut;
             worksheet.getCell(rowIdx, 5).value = formatDate(worker.fecha_ingreso);
             worksheet.getCell(rowIdx, 6).value = worker.cargo_nombre;
-            worksheet.getCell(rowIdx, 7).value = obraNombre;
+            worksheet.getCell(rowIdx, 7).value = worker.obra_actual_nombre || 'Sin Obra';
             worksheet.getCell(rowIdx, 8).value = worker.activo ? 'ACTIVO' : 'FINIQUITADO';
 
             let q1Total = 0;
@@ -679,10 +687,17 @@ const asistenciaService = {
                 cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
             });
 
-            // Totales por fila
-            worksheet.getCell(rowIdx, q1Col).value = q1Total;
-            worksheet.getCell(rowIdx, q2Col).value = q2Total;
-            worksheet.getCell(rowIdx, totalCol).value = q1Total + q2Total;
+            // Totales por fila usando FÓRMULAS DE EXCEL
+            // Q1: Columna I hasta W (dayColStart + 0 hasta dayColStart + 14) 
+            const q1Range = `${worksheet.getCell(rowIdx, dayColStart).address}:${worksheet.getCell(rowIdx, dayColStart + 14).address}`;
+            worksheet.getCell(rowIdx, q1Col).value = { formula: `COUNTIF(${q1Range}, "A")` };
+
+            // Q2: Columna Y hasta AM (dayColStart + 16 hasta dayColStart + 31)
+            const q2Range = `${worksheet.getCell(rowIdx, dayColStart + 16).address}:${worksheet.getCell(rowIdx, dayColStart + 31).address}`;
+            worksheet.getCell(rowIdx, q2Col).value = { formula: `COUNTIF(${q2Range}, "A")` };
+
+            // Total: Q1 + Q2
+            worksheet.getCell(rowIdx, totalCol).value = { formula: `${worksheet.getCell(rowIdx, q1Col).address}+${worksheet.getCell(rowIdx, q2Col).address}` };
             
             [worksheet.getCell(rowIdx, q1Col), worksheet.getCell(rowIdx, q2Col), worksheet.getCell(rowIdx, totalCol)].forEach(c => {
                 c.font = { bold: true, size: 9 };
