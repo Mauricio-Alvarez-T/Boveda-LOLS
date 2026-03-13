@@ -503,7 +503,10 @@ const asistenciaService = {
         }
 
         const workbook = new ExcelJS.Workbook();
-        const monthName = start.toLocaleDateString('es-CL', { month: 'long' }).toUpperCase();
+        
+        // Mapa manual de meses para evitar fallos por locales de ICU en el servidor
+        const meses = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE'];
+        const monthName = meses[start.getMonth()];
         const year = start.getFullYear();
         const worksheet = workbook.addWorksheet(`Asistencia ${monthName}`, {
             views: [{ state: 'frozen', ySplit: 8, xSplit: 8 }],
