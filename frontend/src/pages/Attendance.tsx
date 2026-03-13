@@ -211,10 +211,10 @@ const AttendancePage: React.FC = () => {
         }));
     };
 
-    const latestData = React.useRef({ selectedObra, date, workers, attendance, estados });
+    const latestData = React.useRef({ selectedObra, date, workers, attendance, estados, reportMonth, reportYear });
     React.useEffect(() => {
-        latestData.current = { selectedObra, date, workers, attendance, estados };
-    }, [selectedObra, date, workers, attendance, estados]);
+        latestData.current = { selectedObra, date, workers, attendance, estados, reportMonth, reportYear };
+    }, [selectedObra, date, workers, attendance, estados, reportMonth, reportYear]);
 
     const handleSave = useCallback(async () => {
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance } = latestData.current;
@@ -251,13 +251,19 @@ const AttendancePage: React.FC = () => {
 
     // Handle Excel Export
     const handleExportExcel = useCallback(async () => {
-        const { selectedObra: currentObra, date: currentDate } = latestData.current;
+        const { 
+            selectedObra: currentObra, 
+            date: currentDate, 
+            reportMonth: currentMonth, 
+            reportYear: currentYear 
+        } = latestData.current;
+
         try {
             // Use specific report month/year if no obra is selected, otherwise use current date's month
             let year, month;
             if (!currentObra) {
-                year = reportYear;
-                month = reportMonth;
+                year = currentYear;
+                month = currentMonth;
             } else {
                 [year, month] = currentDate.split('-');
             }
