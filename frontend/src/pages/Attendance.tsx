@@ -26,6 +26,7 @@ import { TimeStepperInput } from '../components/ui/TimeStepperInput';
 import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
 import { PeriodAssignModal } from '../components/attendance/PeriodAssignModal';
 import { Modal } from '../components/ui/Modal';
+import { Select } from '../components/ui/Select';
 import { WorkerForm } from '../components/workers/WorkerForm';
 import { DocumentUploader } from '../components/documents/DocumentUploader';
 import { DocumentList } from '../components/documents/DocumentList';
@@ -55,6 +56,10 @@ const AttendancePage: React.FC = () => {
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
 
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
+
+    // States for Global Report Month/Year selection
+    const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
+    const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
 
     // Modal states for QuickView actions
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
@@ -248,7 +253,15 @@ const AttendancePage: React.FC = () => {
     const handleExportExcel = useCallback(async () => {
         const { selectedObra: currentObra, date: currentDate } = latestData.current;
         try {
-            const [year, month] = currentDate.split('-');
+            // Use specific report month/year if no obra is selected, otherwise use current date's month
+            let year, month;
+            if (!currentObra) {
+                year = reportYear;
+                month = reportMonth;
+            } else {
+                [year, month] = currentDate.split('-');
+            }
+
             const firstDay = `${year}-${month}-01`;
             const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
@@ -573,18 +586,51 @@ const AttendancePage: React.FC = () => {
                 <div className="h-14 w-14 bg-[#F5F5F7] rounded-full flex items-center justify-center mb-4">
                     <CheckSquare className="h-7 w-7 text-[#6E6E73]" />
                 </div>
-                <h2 className="text-lg font-semibold text-[#1D1D1F]">Selecciona una Obra</h2>
-                <p className="text-[#6E6E73] mt-2 mb-6 max-w-md text-sm">
-                    Para gestionar la asistencia diaria, debes seleccionar una obra. 
-                    O puedes descargar el reporte consolidado de todas las obras ahora.
+                <h2 className="text-lg font-semibold text-[#1D1D1F]">Reporte Global de Asistencia</h2>
+                <p className="text-[#6E6E73] mt-2 mb-8 max-w-md text-sm">
+                    Selecciona el período para descargar el reporte consolidado de todas las obras y trabajadores.
                 </p>
-                <div className="flex gap-3">
+                
+                <div className="w-full max-w-sm space-y-6">
+                    <div className="grid grid-cols-2 gap-4">
+                        <Select
+                            label="Mes"
+                            value={reportMonth}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReportMonth(e.target.value)}
+                            options={[
+                                { value: '01', label: 'Enero' },
+                                { value: '02', label: 'Febrero' },
+                                { value: '03', label: 'Marzo' },
+                                { value: '04', label: 'Abril' },
+                                { value: '05', label: 'Mayo' },
+                                { value: '06', label: 'Junio' },
+                                { value: '07', label: 'Julio' },
+                                { value: '08', label: 'Agosto' },
+                                { value: '09', label: 'Septiembre' },
+                                { value: '10', label: 'Octubre' },
+                                { value: '11', label: 'Noviembre' },
+                                { value: '12', label: 'Diciembre' },
+                            ]}
+                        />
+                        <Select
+                            label="Año"
+                            value={reportYear}
+                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReportYear(e.target.value)}
+                            options={[
+                                { value: '2024', label: '2024' },
+                                { value: '2025', label: '2025' },
+                                { value: '2026', label: '2026' },
+                            ]}
+                        />
+                    </div>
+
                     <Button
                         onClick={handleExportExcel}
-                        variant="outline"
+                        variant="primary"
+                        className="w-full h-12 shadow-lg shadow-brand-primary/20"
                         leftIcon={<FileDown className="h-5 w-5" />}
                     >
-                        Exportar Reporte Global mensual
+                        Exportar Reporte Global
                     </Button>
                 </div>
             </div>
