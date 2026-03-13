@@ -47,23 +47,25 @@ app.use('/api/auth', require('./src/routes/auth.routes'));
 
 // Empresas (CRUD genérico)
 const createCrudRoutes = require('./src/routes/crud.routes');
-app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { searchFields: ['rut', 'razon_social'] }));
+app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { searchFields: ['rut', 'razon_social'], orderBy: 'razon_social ASC' }));
 
 app.use('/api/obras', createCrudRoutes('obras', 'obras', {
   searchFields: ['nombre', 'direccion'],
   joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
   selectFields: 'obras.*, e.razon_social as empresa_nombre',
-  activeColumn: 'activa'
+  activeColumn: 'activa',
+  orderBy: 'obras.nombre ASC'
 }));
 
-app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { searchFields: ['nombre'] }));
+app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
 
 app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
   searchFields: ['rut', 'nombres', 'apellido_paterno'],
   joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
   selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
   allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
-  useSoftDelete: true
+  useSoftDelete: true,
+  orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.nombres ASC'
 }));
 
 // Documentos (rutas especializadas)
@@ -81,9 +83,9 @@ app.use('/api/usuarios', require('./src/routes/email-config.routes'));
 // Usuarios + Roles + Permisos
 app.use('/api/usuarios', require('./src/routes/usuarios.routes'));
 
-app.use('/api/tipos-ausencia', createCrudRoutes('asistencia', 'tipos_ausencia', { searchFields: ['nombre'] }));
+app.use('/api/tipos-ausencia', createCrudRoutes('asistencia', 'tipos_ausencia', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
 
-app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asistencia', { searchFields: ['nombre', 'codigo'] }));
+app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asistencia', { searchFields: ['nombre', 'codigo'], orderBy: 'nombre ASC' }));
 
 app.use('/api/feriados', require('./src/routes/feriados.routes'));
 

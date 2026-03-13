@@ -51,9 +51,10 @@ const createCrudService = (tableName, options = {}) => {
             }
 
             const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
+            const orderByClause = options.orderBy ? `ORDER BY ${options.orderBy}` : `ORDER BY ${tableName}.id DESC`;
 
             const [rows] = await db.query(
-                `SELECT ${selectFields} FROM ${tableName} ${joins} ${whereClause} ORDER BY ${tableName}.id DESC LIMIT ? OFFSET ?`,
+                `SELECT ${selectFields} FROM ${tableName} ${joins} ${whereClause} ${orderByClause} LIMIT ? OFFSET ?`,
                 [...params, Number(limit), Number(offset)]
             );
 

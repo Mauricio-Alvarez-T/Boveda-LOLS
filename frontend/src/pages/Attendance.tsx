@@ -434,14 +434,21 @@ const AttendancePage: React.FC = () => {
     const isSaturday = dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
 
-    // Filtered workers
+    // Filtered and sorted workers
     const filteredWorkers = useMemo(() => {
-        if (!searchQuery) return workers;
-        const q = searchQuery.toLowerCase();
-        return workers.filter(w =>
-            `${w.nombres} ${w.apellido_paterno}`.toLowerCase().includes(q) ||
-            w.rut.toLowerCase().includes(q)
-        );
+        let result = workers;
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = workers.filter(w =>
+                `${w.nombres} ${w.apellido_paterno}`.toLowerCase().includes(q) ||
+                w.rut.toLowerCase().includes(q)
+            );
+        }
+        return [...result].sort((a, b) => {
+            const nameA = `${a.apellido_paterno || ''} ${a.nombres || ''}`.trim();
+            const nameB = `${b.apellido_paterno || ''} ${b.nombres || ''}`.trim();
+            return nameA.localeCompare(nameB);
+        });
     }, [workers, searchQuery]);
 
     // Summary stats

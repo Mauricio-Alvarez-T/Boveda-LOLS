@@ -10,7 +10,8 @@ const createCrudController = require('../controllers/crud.controller');
 const service = createCrudService('usuarios', {
     searchFields: ['nombre', 'email'],
     joins: 'LEFT JOIN roles r ON usuarios.rol_id = r.id LEFT JOIN obras o ON usuarios.obra_id = o.id',
-    selectFields: 'usuarios.id, usuarios.nombre, usuarios.email, usuarios.email_corporativo, usuarios.rol_id, usuarios.obra_id, usuarios.activo, usuarios.created_at, r.nombre as rol_nombre, o.nombre as obra_nombre'
+    selectFields: 'usuarios.id, usuarios.nombre, usuarios.email, usuarios.email_corporativo, usuarios.rol_id, usuarios.obra_id, usuarios.activo, usuarios.created_at, r.nombre as rol_nombre, o.nombre as obra_nombre',
+    orderBy: 'usuarios.nombre ASC'
 });
 const controller = createCrudController(service);
 
@@ -49,7 +50,7 @@ router.put('/:id', auth, checkPermission('usuarios', 'puede_editar'), async (req
 router.delete('/:id', auth, checkPermission('usuarios', 'puede_eliminar'), controller.hardRemove);
 
 // Roles CRUD
-const rolService = createCrudService('roles', { searchFields: ['nombre'] });
+const rolService = createCrudService('roles', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
 const rolController = createCrudController(rolService);
 
 router.get('/roles/list', auth, checkPermission('usuarios', 'puede_ver'), rolController.getAll);
