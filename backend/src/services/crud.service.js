@@ -20,11 +20,11 @@ const createCrudService = (tableName, options = {}) => {
             let where = [];
             let params = [];
 
-            if (activo !== undefined) {
+            if (activo !== undefined && activo !== 'all') {
                 where.push(`${tableName}.${activeColumn} = ?`);
                 params.push(activo === 'true' || activo === true || activo === '1' || activo === 1 ? 1 : 0);
-            } else if (options.useSoftDelete) {
-                // Blindar: Si no especifican estado pero es una tabla con soft-delete (como trabajadores) => mostrar SOLO activos por defecto.
+            } else if (activo === undefined && options.useSoftDelete) {
+                // Si no se especifica 'activo', filtrar por activos por defecto para seguridad
                 where.push(`${tableName}.${activeColumn} = 1`);
             }
 
@@ -175,9 +175,9 @@ const createCrudService = (tableName, options = {}) => {
             let where = [];
             let params = [];
 
-            if (activo !== undefined) {
+            if (activo !== undefined && activo !== 'all') {
                 where.push(`${tableName}.${activeColumn} = ?`);
-                params.push(activo === 'true' || activo === true ? 1 : 0);
+                params.push(activo === 'true' || activo === true || activo === '1' || activo === 1 ? 1 : 0);
             }
 
             if (allowedFilters.length > 0) {

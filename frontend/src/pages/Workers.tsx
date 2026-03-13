@@ -113,7 +113,7 @@ const WorkersPage: React.FC = () => {
             const obraQuery = selectedObra ? `&obra_id=${selectedObra.id}` : '';
             const empresaQuery = selectedEmpresa ? `&empresa_id=${selectedEmpresa}` : '';
             const cargoQuery = selectedCargo ? `&cargo_id=${selectedCargo}` : '';
-            const activoQuery = !showInactive ? '&activo=true' : '';
+            const activoQuery = showInactive ? '&activo=all' : '&activo=true';
 
             const response = await api.get<ApiResponse<Trabajador[]>>(`/trabajadores?q=${search}${obraQuery}${empresaQuery}${cargoQuery}${activoQuery}&page=${pageNumber}&limit=50`);
             const data = response.data?.data || [];
