@@ -167,6 +167,38 @@ const AttendancePage: React.FC = () => {
         }
     }, [fetchAttendanceInfo, defaultEstado, selectedObra]);
 
+    const toggleFeriado = async () => {
+        if (!selectedObra || !checkPermission('asistencia', 'puede_editar')) return;
+        
+        if (feriadoActual) {
+            if (window.confirm(`¿Seguro que deseas quitar el feriado "${feriadoActual.nombre}"?`)) {
+                try {
+                    await api.delete(`/feriados/${feriadoActual.id}`);
+                    toast.success('Día habilitado (Feriado eliminado)');
+                    fetchAttendanceInfo();
+                } catch (err) {
+                    toast.error('Error al quitar feriado');
+                }
+            }
+        } else {
+            const nombre = window.prompt('Ingrese el nombre del feriado:', 'Feriado Local');
+            if (nombre) {
+                try {
+                    await api.post('/feriados', {
+                        fecha: date,
+                        nombre: nombre,
+                        tipo: 'nacional',
+                        irrenunciable: false
+                    });
+                    toast.success(`Día marcado como feriado: ${nombre}`);
+                    fetchAttendanceInfo();
+                } catch (err) {
+                    toast.error('Error al marcar feriado');
+                }
+            }
+        }
+    };
+
     const updateAttendance = (workerId: number, data: Partial<Asistencia>) => {
         setAttendance(prev => ({
             ...prev,
@@ -481,6 +513,24 @@ const AttendancePage: React.FC = () => {
                 >
                     <span className="hidden lg:inline">Reporte Mensual</span>
                 </Button>
+                
+                {/* Manual Holiday Toggle */}
+                {checkPermission('asistencia', 'puede_editar') && (
+                    <Button
+                        onClick={toggleFeriado}
+                        variant={feriadoActual ? "outline" : "glass"}
+                        size="sm"
+                        title={feriadoActual ? "Quitar marcación de feriado" : "Marcar este día como feriado"}
+                        className={cn(
+                            "hidden md:flex",
+                            feriadoActual ? "text-[#FF3B30] border-[#FF3B30]/20 hover:bg-[#FF3B30]/5" : "text-[#6E6E73] hover:text-[#029E4D]"
+                        )}
+                        leftIcon={<CalendarRange className="h-4 w-4" />}
+                    >
+                        <span className="hidden lg:inline">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
+                    </Button>
+                )}
+
                 <Button
                     onClick={handleSave}
                     isLoading={saving}

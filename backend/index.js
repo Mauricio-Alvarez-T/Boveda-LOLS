@@ -145,9 +145,11 @@ if (process.env.NODE_ENV === 'production') {
 app.use(errorHandler);
 
 // Start server
-app.listen(PORT, () => {
-  console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
-  console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(PORT, () => {
+    console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
+    console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+  });
+}
 
 module.exports = app;
