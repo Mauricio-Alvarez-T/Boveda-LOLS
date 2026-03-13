@@ -774,7 +774,8 @@ const AttendancePage: React.FC = () => {
                                                             "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border",
                                                             isActive
                                                                 ? "text-white border-transparent shadow-sm"
-                                                                : "bg-white border-[#E8E8ED] text-[#6E6E73] active:scale-95"
+                                                                : "bg-white border-[#E8E8ED] text-[#6E6E73] active:scale-95",
+                                                            (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
@@ -855,7 +856,8 @@ const AttendancePage: React.FC = () => {
                                                         title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre}
                                                         className={cn(
                                                             "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
-                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]"
+                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]",
+                                                            (!!feriadoActual || isSunday) && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
