@@ -467,16 +467,28 @@ const asistenciaService = {
         const [estados] = await db.query('SELECT * FROM estados_asistencia');
         const estadoMap = Object.fromEntries(estados.map(e => [e.id, e]));
 
+        // Helper para fechas seguras
+        const formatDate = (date) => {
+            if (!date) return '';
+            if (typeof date === 'string') return date.split('T')[0];
+            if (date instanceof Date) {
+                if (isNaN(date.getTime())) return '';
+                return date.toISOString().split('T')[0];
+            }
+            return '';
+        };
+
         // Mapear asistencia por trabajador y fecha
         const attendanceMap = {};
         registros.forEach(r => {
-            const f = typeof r.fecha === 'string' ? r.fecha.split('T')[0] : r.fecha.toISOString().split('T')[0];
+            const f = formatDate(r.fecha);
+            if (!f) return;
             if (!attendanceMap[r.trabajador_id]) attendanceMap[r.trabajador_id] = {};
             attendanceMap[r.trabajador_id][f] = r;
         });
 
         const feriadoMap = Object.fromEntries(feriados.map(f => {
-            const fStr = typeof f.fecha === 'string' ? f.fecha.split('T')[0] : f.fecha.toISOString().split('T')[0];
+            const fStr = formatDate(f.fecha);
             return [fStr, f];
         }));
 
@@ -610,7 +622,7 @@ const asistenciaService = {
             worksheet.getCell(rowIdx, 2).value = worker.apellido_paterno;
             worksheet.getCell(rowIdx, 3).value = worker.nombres;
             worksheet.getCell(rowIdx, 4).value = worker.rut;
-            worksheet.getCell(rowIdx, 5).value = worker.fecha_ingreso ? worker.fecha_ingreso.toISOString().split('T')[0] : '';
+            worksheet.getCell(rowIdx, 5).value = formatDate(worker.fecha_ingreso);
             worksheet.getCell(rowIdx, 6).value = worker.cargo_nombre;
             worksheet.getCell(rowIdx, 7).value = obraNombre;
             worksheet.getCell(rowIdx, 8).value = worker.activo ? 'ACTIVO' : 'FINIQUITADO';
@@ -619,7 +631,7 @@ const asistenciaService = {
             let q2Total = 0;
 
             days.forEach((day, dIdx) => {
-                const fStr = day.toISOString().split('T')[0];
+                const fStr = formatDate(day);
                 const colIdx = dayColStart + (dIdx < 15 ? dIdx : dIdx + 1);
                 const cell = worksheet.getCell(rowIdx, colIdx);
                 const reg = attendanceMap[worker.id]?.[fStr];
@@ -628,12 +640,13 @@ const asistenciaService = {
                     const est = estadoMap[reg.estado_id];
                     cell.value = est ? est.codigo : '-';
                     
-                    // Coloreado dinámico basado en DB (o códigos fijos si preferimos visual exacto)
                     if (est) {
                         if (est.codigo === 'A') {
                             cell.font = { size: 8 };
-                        } else {
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: est.color.replace('#', 'FF') } };
+                        } else if (est.color) {
+                            // Validar que el color existe y tiene formato hex
+                            const safeColor = est.color.startsWith('#') ? est.color.replace('#', 'FF') : 'FF' + est.color;
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: safeColor } };
                             cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
                         }
                         
