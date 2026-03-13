@@ -444,13 +444,20 @@ const asistenciaService = {
      */
     async generarExcel(query = {}) {
         const { obra_id, fecha_inicio, fecha_fin } = query;
+        console.log(`[DEBUG] generarExcel - ObraId: ${obra_id}, Inicio: ${fecha_inicio}, Fin: ${fecha_fin}`);
+
         if (!obra_id || !fecha_inicio || !fecha_fin) {
-            throw new Error('obra_id, fecha_inicio y fecha_fin son requeridos');
+            throw new Error('obra_id, fecha_inicio y fecha_fin son requeridos para exportar');
         }
+
+        const start = new Date(fecha_inicio + 'T00:00:00');
+        const end = new Date(fecha_fin + 'T23:59:59');
+        let curr = new Date(start);
 
         // 1. Obtener Datos
         const [obraRows] = await db.query('SELECT nombre FROM obras WHERE id = ?', [obra_id]);
         const obraNombre = obraRows[0]?.nombre || 'Sin Obra';
+        console.log('[DEBUG] Obra cargada:', obraNombre);
 
         // Obtener trabajadores activos asignados a esta obra
         const [workers] = await db.query(
