@@ -42,11 +42,30 @@ const createCrudService = (tableName, options = {}) => {
                 if (words.length > 0) {
                     const blockConditions = [];
                     words.forEach(word => {
-                        const searchConditions = searchFields.map(f => `${tableName}.${f} LIKE ?`).join(' OR ');
+                        const searchConditions = searchFields.map(f => {
+                            if (f === 'rut') return `REPLACE(REPLACE(${tableName}.${f}, '.', ''), '-', '') LIKE ?`;
+                            return `${tableName}.${f} LIKE ?`;
+                        }).join(' OR ');
                         blockConditions.push(`(${searchConditions})`);
-                        searchFields.forEach(() => params.push(`%${word}%`));
+                        
+                        searchFields.forEach(f => {
+                            if (f === 'rut') params.push(`%${word.replace(/[.-]/g, '')}%`);
+                            else params.push(`%${word}%`);
+                        });
                     });
-                    where.push(`(${blockConditions.join(' AND ')})`);
+                    
+                    let finalCondition = `(${blockConditions.join(' AND ')})`;
+                    
+                    // Si hay múltiples palabras (ej. "17 611 988-8") intentamos buscar el string completo sin separadores
+                    if (searchFields.includes('rut') && words.length > 1) {
+                        const collapsedQuery = q.replace(/[\s.-]/g, '');
+                        if (collapsedQuery.length > 0) {
+                            finalCondition = `(${finalCondition} OR REPLACE(REPLACE(${tableName}.rut, '.', ''), '-', '') LIKE ?)`;
+                            params.push(`%${collapsedQuery}%`);
+                        }
+                    }
+                    
+                    where.push(finalCondition);
                 }
             }
 

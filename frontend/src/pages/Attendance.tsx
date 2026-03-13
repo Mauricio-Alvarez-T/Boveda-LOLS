@@ -438,11 +438,17 @@ const AttendancePage: React.FC = () => {
     const filteredWorkers = useMemo(() => {
         let result = workers;
         if (searchQuery) {
-            const q = searchQuery.toLowerCase();
-            result = workers.filter(w =>
-                `${w.nombres} ${w.apellido_paterno}`.toLowerCase().includes(q) ||
-                w.rut.toLowerCase().includes(q)
-            );
+            const q = searchQuery.toLowerCase().trim();
+            const qCollapsed = q.replace(/[\s.-]/g, '');
+            result = workers.filter(w => {
+                const fullName = `${w.nombres} ${w.apellido_paterno}`.toLowerCase();
+                const rutExact = w.rut.toLowerCase();
+                const rutCollapsed = w.rut.toLowerCase().replace(/[\s.-]/g, '');
+                
+                return fullName.includes(q) || 
+                       rutExact.includes(q) || 
+                       (qCollapsed.length > 0 && rutCollapsed.includes(qCollapsed));
+            });
         }
         return [...result].sort((a, b) => {
             const nameA = `${a.apellido_paterno || ''} ${a.nombres || ''}`.trim();
