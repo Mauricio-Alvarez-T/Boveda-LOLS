@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { CrudTable } from '../ui/CrudTable';
 import type { ColumnDef } from '../ui/CrudTable';
 import { FeriadosForm } from './FeriadosForm';
-import { useAuth } from '../../context/AuthContext';
 import { CalendarDays, RefreshCw } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
+import { RequirePermission } from '../auth/RequirePermission';
+import { Button } from '../ui/Button';
+import { useAuth } from '../../context/AuthContext';
 
 const feriadosCols: ColumnDef<any>[] = [
     {
@@ -25,7 +27,7 @@ const feriadosCols: ColumnDef<any>[] = [
         key: 'irrenunciable', label: 'Irrenunciable', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#FF3B30]/10 text-[#FF3B30]" : "bg-[#A1A1A6]/10 text-[#A1A1A6]"
+                v ? "bg-destructive/10 text-destructive" : "bg-muted/10 text-muted"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
@@ -56,22 +58,22 @@ export const FeriadosPanel: React.FC = () => {
         <div className="space-y-6">
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <div>
-                    <h3 className="text-base font-semibold text-[#1D1D1F]">Gestión de Feriados</h3>
-                    <p className="text-sm text-[#6E6E73] mt-1">Configura los días feriados o festivos de la obra y sincroniza los nacionales.</p>
+                    <h3 className="text-base font-semibold text-brand-dark">Gestión de Feriados</h3>
+                    <p className="text-sm text-muted-foreground mt-1">Configura los días feriados o festivos de la obra y sincroniza los nacionales.</p>
                 </div>
-                {checkPermission('asistencia', 'puede_editar') && (
-                    <button
+                <RequirePermission modulo="asistencia" accion="puede_editar">
+                    <Button
                         onClick={handleSync}
                         disabled={isSyncing}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-2 bg-white border border-[#D2D2D7] rounded-xl text-sm font-semibold transition-all shadow-sm",
-                            isSyncing ? "opacity-50 cursor-not-allowed" : "hover:border-[#029E4D] hover:text-[#029E4D]"
+                            "flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-sm font-semibold transition-all shadow-sm",
+                            isSyncing ? "opacity-50 cursor-not-allowed" : "hover:border-brand-primary hover:text-brand-primary"
                         )}
                     >
                         <RefreshCw className={cn("h-4 w-4", isSyncing && "animate-spin")} />
                         <span>Sincronizar Año Actual</span>
-                    </button>
-                )}
+                    </Button>
+                </RequirePermission>
             </div>
 
             <CrudTable
