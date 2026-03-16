@@ -23,7 +23,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
               },
               className: 'shadow-lg border border-[#E8E8ED] !opacity-100',
               classNames: {
-                closeButton: '!bg-[#F5F5F7] !text-[#1D1D1F] !border border-[#E8E8ED] hover:!bg-[#E8E8ED] !opacity-100 focus:!ring-2 focus:!ring-[#029E4D]'
+                closeButton: '!bg-background !text-brand-dark !border border-[#E8E8ED] hover:!bg-[#E8E8ED] !opacity-100 focus:!ring-2 focus:!ring-brand-primary'
               }
             }}
           />

@@ -17,21 +17,21 @@ interface Props {
 
 const alertStyles = {
     critical: {
-        border: 'border-[#FF3B30]/30',
-        bg: 'bg-[#FF3B30]/5',
-        text: 'text-[#FF3B30]',
+        border: 'border-destructive/30',
+        bg: 'bg-destructive/5',
+        text: 'text-destructive',
         icon: AlertTriangle,
     },
     warning: {
-        border: 'border-[#FF9F0A]/30',
-        bg: 'bg-[#FF9F0A]/5',
-        text: 'text-[#FF9F0A]',
+        border: 'border-warning/30',
+        bg: 'bg-warning/5',
+        text: 'text-warning',
         icon: AlertTriangle,
     },
     info: {
-        border: 'border-[#029E4D]/20',
-        bg: 'bg-[#029E4D]/5',
-        text: 'text-[#029E4D]',
+        border: 'border-brand-primary/20',
+        bg: 'bg-brand-primary/5',
+        text: 'text-brand-primary',
         icon: Info,
     },
 };
@@ -39,8 +39,8 @@ const alertStyles = {
 const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
     return (
         <div>
-            <h4 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2 mb-4">
-                <AlertTriangle className={cn("h-4 w-4", alerts.length > 0 ? "text-[#FF3B30]" : "text-[#A1A1A6]")} />
+            <h4 className="text-sm font-semibold text-brand-dark flex items-center gap-2 mb-4">
+                <AlertTriangle className={cn("h-4 w-4", alerts.length > 0 ? "text-destructive" : "text-muted")} />
                 Alertas
             </h4>
             <div className="space-y-3">
@@ -56,7 +56,7 @@ const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
                                         <p className={cn("text-[10px] font-semibold uppercase tracking-widest", style.text)}>
                                             {alert.titulo}
                                         </p>
-                                        <p className="text-xs text-[#1D1D1F] mt-1 leading-relaxed">
+                                        <p className="text-xs text-brand-dark mt-1 leading-relaxed">
                                             {alert.mensaje}
                                         </p>
                                         <button
@@ -72,9 +72,9 @@ const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
                         );
                     })
                 ) : (
-                    <div className="p-4 text-center border border-dashed border-[#D2D2D7] rounded-xl">
-                        <CheckCircle2 className="h-7 w-7 text-[#34C759] mx-auto mb-2 opacity-50" />
-                        <p className="text-xs text-[#6E6E73] italic">No hay alertas pendientes.</p>
+                    <div className="p-4 text-center border border-dashed border-border rounded-xl">
+                        <CheckCircle2 className="h-7 w-7 text-brand-accent mx-auto mb-2 opacity-50" />
+                        <p className="text-xs text-muted-foreground italic">No hay alertas pendientes.</p>
                     </div>
                 )}
             </div>

@@ -79,14 +79,14 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
                                 type="checkbox"
                                 id="obligatorio"
                                 {...register('obligatorio')}
-                                className="h-5 w-5 rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D] cursor-pointer"
+                                className="h-5 w-5 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
                             />
                         </div>
                         <div className="flex flex-col">
-                            <span className="text-sm font-semibold text-[#1D1D1F]">
+                            <span className="text-sm font-semibold text-brand-dark">
                                 Documento Obligatorio
                             </span>
-                            <span className="text-xs text-[#6E6E73] mt-0.5">
+                            <span className="text-xs text-muted-foreground mt-0.5">
                                 Si está marcado, se exigirá este documento a todos los trabajadores. La falta del mismo afectará el nivel de cumplimiento y emitirá alertas.
                             </span>
                         </div>
@@ -94,10 +94,10 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
                 </div>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <Button
                     type="submit"
-                    className="w-full sm:w-auto bg-[#029E4D] text-white hover:bg-[#027A3B]"
+                    className="w-full sm:w-auto bg-brand-primary text-white hover:bg-[#027A3B]"
                     isLoading={isSubmitting}
                     leftIcon={<Save className="h-4 w-4" />}
                 >

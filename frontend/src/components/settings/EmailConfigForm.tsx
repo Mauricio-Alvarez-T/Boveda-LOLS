@@ -55,7 +55,7 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
+                <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
             </div>
         );
     }
@@ -64,8 +64,8 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
         <div className="max-w-lg space-y-6">
             {/* Status Banner */}
             <div className={`flex items-center gap-3 p-4 rounded-xl border ${hasPassword && email
-                    ? 'bg-[#34C759]/8 border-[#34C759]/30 text-[#34C759]'
-                    : 'bg-[#FF9F0A]/8 border-[#FF9F0A]/30 text-[#FF9F0A]'
+                    ? 'bg-brand-accent/8 border-brand-accent/30 text-brand-accent'
+                    : 'bg-warning/8 border-warning/30 text-warning'
                 }`}>
                 {hasPassword && email ? (
                     <>
@@ -93,7 +93,7 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
                     placeholder="tu-nombre@empresa.cl"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    leftIcon={<Mail className="h-4 w-4 text-[#6E6E73]" />}
+                    leftIcon={<Mail className="h-4 w-4 text-muted-foreground" />}
                 />
 
                 <div className="space-y-1.5 relative">
@@ -103,18 +103,18 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
                         placeholder={hasPassword ? '••••••••' : 'Contraseña de tu cuenta de correo'}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        leftIcon={<Lock className="h-4 w-4 text-[#6E6E73]" />}
+                        leftIcon={<Lock className="h-4 w-4 text-muted-foreground" />}
                     />
                     <button
                         type="button"
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-[2.15rem] text-[#6E6E73] hover:text-[#1D1D1F] transition-colors"
+                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-dark transition-colors"
                     >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                 </div>
 
-                <p className="text-xs text-[#A1A1A6] bg-[#F5F5F7] rounded-xl p-3 leading-relaxed">
+                <p className="text-xs text-muted bg-background rounded-xl p-3 leading-relaxed">
                     🔒 Tu contraseña se encripta con AES-256 antes de guardarse. Nadie en el sistema, ni siquiera los administradores, pueden leerla.
                 </p>
 

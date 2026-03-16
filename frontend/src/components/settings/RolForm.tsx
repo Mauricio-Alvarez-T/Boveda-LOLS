@@ -92,17 +92,17 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
             </div>
 
             <div className="space-y-3">
-                <h4 className="text-xs font-bold text-[#6E6E73] uppercase px-1">Matriz de Permisos</h4>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase px-1">Matriz de Permisos</h4>
                 {loadingPerms ? (
-                    <div className="h-40 bg-[#F5F5F7] rounded-2xl flex items-center justify-center border border-[#D2D2D7]">
-                        <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
+                    <div className="h-40 bg-background rounded-2xl flex items-center justify-center border border-border">
+                        <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
                     </div>
                 ) : (
                     <PermissionMatrix permisos={permisos} onChange={setPermisos} />
                 )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-6 border-t border-[#D2D2D7]">
+            <div className="flex justify-end gap-3 pt-6 border-t border-border">
                 <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
                 <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
                     {initialData ? 'Actualizar' : 'Crear'}

@@ -24,7 +24,7 @@ export const SearchableSelect = forwardRef<any, SearchableSelectProps>(
         return (
             <div className="w-full space-y-1.5">
                 {label && (
-                    <label htmlFor={id} className="text-sm font-medium text-[#6E6E73] ml-0.5">
+                    <label htmlFor={id} className="text-sm font-medium text-muted-foreground ml-0.5">
                         {label}
                     </label>
                 )}
@@ -107,12 +107,12 @@ export const SearchableSelect = forwardRef<any, SearchableSelectProps>(
                     />
                 </div>
                 {error && (
-                    <p className="text-xs text-[#FF3B30] font-medium ml-0.5">
+                    <p className="text-xs text-destructive font-medium ml-0.5">
                         {error}
                     </p>
                 )}
                 {helperText && !error && (
-                    <p className="text-xs text-[#6E6E73] ml-0.5">
+                    <p className="text-xs text-muted-foreground ml-0.5">
                         {helperText}
                     </p>
                 )}

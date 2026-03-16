@@ -159,7 +159,7 @@ const PlantillasEmailPanel: React.FC = () => {
     if (loading) {
         return (
             <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />
+                <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
             </div>
         );
     }
@@ -169,7 +169,7 @@ const PlantillasEmailPanel: React.FC = () => {
             {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div>
-                    <p className="text-sm text-[#6E6E73]">
+                    <p className="text-sm text-muted-foreground">
                         {plantillas.length} plantilla{plantillas.length !== 1 ? 's' : ''} configurada{plantillas.length !== 1 ? 's' : ''}
                     </p>
                 </div>
@@ -194,11 +194,11 @@ const PlantillasEmailPanel: React.FC = () => {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className="bg-[#F5F5F7] rounded-2xl border border-[#D2D2D7] p-5 space-y-4"
+                        className="bg-background rounded-2xl border border-border p-5 space-y-4"
                     >
                         <div className="flex items-center justify-between">
-                            <h4 className="font-semibold text-[#1D1D1F]">{editingId ? 'Editar Plantilla' : 'Nueva Plantilla'}</h4>
-                            <button onClick={() => setShowForm(false)} className="text-[#6E6E73] hover:text-[#1D1D1F]">
+                            <h4 className="font-semibold text-brand-dark">{editingId ? 'Editar Plantilla' : 'Nueva Plantilla'}</h4>
+                            <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-brand-dark">
                                 <X className="h-4 w-4" />
                             </button>
                         </div>
@@ -215,11 +215,11 @@ const PlantillasEmailPanel: React.FC = () => {
                             onChange={(e) => setForm(f => ({ ...f, asunto: e.target.value }))}
                         />
                         <div className="space-y-1.5">
-                            <label className="text-sm font-medium text-[#6E6E73]">Cuerpo del Correo</label>
+                            <label className="text-sm font-medium text-muted-foreground">Cuerpo del Correo</label>
                             <textarea
                                 rows={6}
                                 placeholder="Escribe el cuerpo del correo..."
-                                className="w-full rounded-xl border border-[#D2D2D7] bg-white px-4 py-3 text-sm text-[#1D1D1F] placeholder:text-[#A1A1A6] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all resize-none"
+                                className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
                                 value={form.cuerpo}
                                 onChange={(e) => setForm(f => ({ ...f, cuerpo: e.target.value }))}
                             />
@@ -236,7 +236,7 @@ const PlantillasEmailPanel: React.FC = () => {
 
             {/* Template Cards */}
             {plantillas.length === 0 ? (
-                <div className="text-center py-16 text-[#6E6E73]">
+                <div className="text-center py-16 text-muted-foreground">
                     <Mail className="h-10 w-10 mx-auto mb-3 opacity-30" />
                     <p className="font-medium">Sin plantillas configuradas</p>
                     <p className="text-sm mt-1">Crea una plantilla o usa las de ejemplo para empezar.</p>
@@ -248,28 +248,28 @@ const PlantillasEmailPanel: React.FC = () => {
                             key={p.id}
                             className={cn(
                                 "bg-white rounded-2xl border p-5 transition-all",
-                                p.es_predeterminada ? "border-[#029E4D]/40 shadow-sm shadow-[#029E4D]/10" : "border-[#D2D2D7]"
+                                p.es_predeterminada ? "border-brand-primary/40 shadow-sm shadow-brand-primary/10" : "border-border"
                             )}
                         >
                             <div className="flex items-start justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <h4 className="font-semibold text-[#1D1D1F]">{p.nombre}</h4>
+                                        <h4 className="font-semibold text-brand-dark">{p.nombre}</h4>
                                         {p.es_predeterminada && (
-                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-[#029E4D]/10 text-[#029E4D] px-2 py-0.5 rounded-full">
+                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
                                                 Predeterminada
                                             </span>
                                         )}
                                     </div>
-                                    <p className="text-xs text-[#6E6E73] mt-1 truncate">Asunto: {p.asunto}</p>
-                                    <p className="text-xs text-[#A1A1A6] mt-1 line-clamp-2 whitespace-pre-line">{p.cuerpo}</p>
+                                    <p className="text-xs text-muted-foreground mt-1 truncate">Asunto: {p.asunto}</p>
+                                    <p className="text-xs text-muted mt-1 line-clamp-2 whitespace-pre-line">{p.cuerpo}</p>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button
                                         onClick={() => handleSetDefault(p.id)}
                                         className={cn(
                                             "p-2 rounded-lg text-sm transition-colors",
-                                            p.es_predeterminada ? "text-[#FF9F0A]" : "text-[#6E6E73] hover:text-[#FF9F0A] hover:bg-[#FF9F0A]/8"
+                                            p.es_predeterminada ? "text-warning" : "text-muted-foreground hover:text-warning hover:bg-warning/8"
                                         )}
                                         title={p.es_predeterminada ? 'Ya es predeterminada' : 'Marcar como predeterminada'}
                                     >
@@ -277,13 +277,13 @@ const PlantillasEmailPanel: React.FC = () => {
                                     </button>
                                     <button
                                         onClick={() => handleOpenEdit(p)}
-                                        className="p-2 rounded-lg text-[#6E6E73] hover:text-[#029E4D] hover:bg-[#029E4D]/8 transition-colors"
+                                        className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/8 transition-colors"
                                     >
                                         <Pencil className="h-4 w-4" />
                                     </button>
                                     <button
                                         onClick={() => handleDelete(p)}
-                                        className="p-2 rounded-lg text-[#6E6E73] hover:text-[#FF3B30] hover:bg-[#FF3B30]/8 transition-colors"
+                                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors"
                                     >
                                         <Trash2 className="h-4 w-4" />
                                     </button>

@@ -60,7 +60,7 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             <Input label="Razón Social" {...register('razon_social')} error={errors.razon_social?.message} placeholder="Constructora SpA" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Principal 123" />
             <Input label="Teléfono" {...register('telefono')} error={errors.telefono?.message} placeholder="+56 9 1234 5678" />
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
                     Guardar
                 </Button>

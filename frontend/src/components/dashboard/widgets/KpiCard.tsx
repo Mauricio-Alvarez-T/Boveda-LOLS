@@ -22,7 +22,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
     const dataPoints = trendData && trendData.length > 0 ? trendData : defaultData;
     const chartData = dataPoints.map((val, i) => ({ val, i }));
 
-    // Extraer el color hex del string si existe (e.g., text-[#029E4D])
+    // Extraer el color hex del string si existe (e.g., text-brand-primary)
     const hexMatch = color.match(/#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})/);
     const strokeColor = hexMatch ? `#${hexMatch[1]}` : '#029E4D';
 
@@ -32,20 +32,20 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.08 }}
             onClick={onClick}
-            className="bg-white rounded-2xl border border-[#D2D2D7] p-5 relative overflow-hidden group hover:shadow-md hover:border-[#B0B0B5] transition-all cursor-pointer h-[150px] flex flex-col justify-between"
+            className="bg-white rounded-2xl border border-border p-5 relative overflow-hidden group hover:shadow-md hover:border-[#B0B0B5] transition-all cursor-pointer h-[150px] flex flex-col justify-between"
         >
             <div className="flex items-center gap-4 relative z-10">
                 <div className={cn("p-3 rounded-2xl", bg, color)}>
                     <Icon className="h-5 w-5" />
                 </div>
                 <div>
-                    <p className="text-xs font-semibold text-[#6E6E73] uppercase tracking-widest">{label}</p>
-                    <p className="text-3xl font-bold text-[#1D1D1F] mt-0.5 tracking-tight">{value}</p>
+                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">{label}</p>
+                    <p className="text-3xl font-bold text-brand-dark mt-0.5 tracking-tight">{value}</p>
                 </div>
             </div>
 
             <div className="flex items-end justify-between mt-auto relative z-10">
-                <div className="flex items-center gap-1 text-[10px] text-[#6E6E73] opacity-60 group-hover:opacity-100 transition-opacity">
+                <div className="flex items-center gap-1 text-[10px] text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity">
                     <ArrowRight className="h-3 w-3" />
                     <span className="truncate max-w-[120px]">{description}</span>
                 </div>

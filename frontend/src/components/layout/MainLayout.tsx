@@ -14,7 +14,7 @@ export const MainLayout: React.FC = () => {
     const location = useLocation();
 
     return (
-        <div className="flex min-h-screen bg-[#F5F5F7]">
+        <div className="flex min-h-screen bg-background">
             {/* Sidebar */}
             <Sidebar
                 isCollapsed={isCollapsed}
@@ -26,11 +26,11 @@ export const MainLayout: React.FC = () => {
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0">
                 {/* Top Navbar */}
-                <header className="h-14 md:h-16 border-b border-[#D2D2D7] bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 sticky top-0 z-30 shadow-sm relative gap-2">
+                <header className="h-14 md:h-16 border-b border-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 sticky top-0 z-30 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}
                     <button
                         onClick={() => setMobileOpen(true)}
-                        className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl hover:bg-[#F5F5F7] text-[#6E6E73] shrink-0"
+                        className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl hover:bg-background text-muted-foreground shrink-0"
                     >
                         <Menu className="h-5 w-5" />
                     </button>
@@ -55,7 +55,7 @@ export const MainLayout: React.FC = () => {
                             <NotificationBell />
                         </div>
 
-                        <div className="hidden md:block h-6 w-px bg-[#D2D2D7] mx-1" />
+                        <div className="hidden md:block h-6 w-px bg-border mx-1" />
                         <ObraSelector />
                     </div>
                 </header>

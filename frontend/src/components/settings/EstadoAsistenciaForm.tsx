@@ -71,11 +71,11 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
                 error={errors.codigo?.message}
             />
             <div>
-                <label className="block text-xs font-medium text-[#6E6E73] mb-1.5">Color</label>
+                <label className="block text-xs font-medium text-muted-foreground mb-1.5">Color</label>
                 <input
                     type="color"
                     {...register('color')}
-                    className="w-full h-10 rounded-lg border border-[#D2D2D7] cursor-pointer"
+                    className="w-full h-10 rounded-lg border border-border cursor-pointer"
                 />
             </div>
             <div className="flex items-center gap-2">
@@ -83,18 +83,18 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
                     type="checkbox"
                     id="es_presente"
                     {...register('es_presente')}
-                    className="h-4 w-4 rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]"
+                    className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
                 />
-                <label htmlFor="es_presente" className="text-xs text-[#1D1D1F] font-medium">
+                <label htmlFor="es_presente" className="text-xs text-brand-dark font-medium">
                     Cuenta como presente (asistencia)
                 </label>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full sm:w-auto bg-[#029E4D] text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
+                    className="w-full sm:w-auto bg-brand-primary text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
                 >
                     {isSubmitting ? 'Guardando...' : 'Guardar'}
                 </button>

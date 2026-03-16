@@ -11,7 +11,7 @@ interface Props {
 
 const SystemStatus: React.FC<Props> = ({ dbActive, lastCheck, onNavigate }) => {
     return (
-        <div className="p-5 rounded-2xl bg-[#029E4D] text-white space-y-4 shadow-md relative overflow-hidden">
+        <div className="p-5 rounded-2xl bg-brand-primary text-white space-y-4 shadow-md relative overflow-hidden">
             <ShieldCheck className="h-10 w-10 opacity-10 absolute -right-1 -bottom-1 rotate-12" />
             <h4 className="text-base font-semibold relative z-10">Estado del Sistema</h4>
             <div className="space-y-2.5 relative z-10">
@@ -19,7 +19,7 @@ const SystemStatus: React.FC<Props> = ({ dbActive, lastCheck, onNavigate }) => {
                     <span className="flex items-center gap-1.5"><Database className="h-3 w-3" /> Base de Datos</span>
                     <span className={cn(
                         "px-2 py-0.5 rounded-full font-semibold text-[10px]",
-                        dbActive ? "bg-white/20" : "bg-[#FF3B30]/60"
+                        dbActive ? "bg-white/20" : "bg-destructive/60"
                     )}>
                         {dbActive ? 'Activa' : 'Error'}
                     </span>
@@ -39,7 +39,7 @@ const SystemStatus: React.FC<Props> = ({ dbActive, lastCheck, onNavigate }) => {
             </div>
             <Button
                 variant="ghost"
-                className="w-full bg-white text-[#029E4D] hover:bg-[#F5F5F7] mt-2 font-semibold rounded-xl"
+                className="w-full bg-white text-brand-primary hover:bg-background mt-2 font-semibold rounded-xl"
                 onClick={onNavigate}
             >
                 <Settings className="h-4 w-4 mr-2" />

@@ -74,7 +74,7 @@ export const NotificationBell: React.FC = () => {
             {/* Bell button */}
             <button
                 onClick={() => { setOpen(!open); setExpanded10m(false); }}
-                className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-[#F5F5F7] text-[#6E6E73] relative transition-colors focus:outline-none"
+                className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground relative transition-colors focus:outline-none"
                 title="Notificaciones"
             >
                 <Bell className="h-5 w-5" />
@@ -82,7 +82,7 @@ export const NotificationBell: React.FC = () => {
                     <motion.div
                         initial={{ scale: 0 }}
                         animate={{ scale: 1 }}
-                        className="absolute -top-0.5 -right-0.5 h-5 w-5 bg-[#FF3B30] rounded-full flex items-center justify-center border-2 border-white"
+                        className="absolute -top-0.5 -right-0.5 h-5 w-5 bg-destructive rounded-full flex items-center justify-center border-2 border-white"
                     >
                         <span className="text-[9px] font-bold text-white leading-none">
                             {totalCount > 99 ? '99+' : totalCount}
@@ -102,18 +102,18 @@ export const NotificationBell: React.FC = () => {
                         className="absolute right-0 top-full mt-2 w-[340px] md:w-[380px] bg-white rounded-2xl shadow-2xl border border-[#E8E8ED] overflow-hidden z-50 origin-top-right"
                     >
                         {/* Header */}
-                        <div className="px-4 py-3 border-b border-[#E8E8ED] flex items-center justify-between bg-gradient-to-r from-white to-[#F5F5F7]">
-                            <h3 className="font-bold text-[#1D1D1F] text-sm flex items-center gap-2">
-                                <Bell className="h-4 w-4 text-[#029E4D]" />
+                        <div className="px-4 py-3 border-b border-[#E8E8ED] flex items-center justify-between bg-gradient-to-r from-white to-background">
+                            <h3 className="font-bold text-brand-dark text-sm flex items-center gap-2">
+                                <Bell className="h-4 w-4 text-brand-primary" />
                                 Notificaciones
                             </h3>
                             <div className="flex items-center gap-2">
                                 {totalCount > 0 && (
-                                    <span className="text-[10px] bg-[#FF3B30] text-white px-2 py-0.5 rounded-full font-bold">
+                                    <span className="text-[10px] bg-destructive text-white px-2 py-0.5 rounded-full font-bold">
                                         {totalCount}
                                     </span>
                                 )}
-                                <button onClick={() => { setOpen(false); setExpanded10m(false); }} className="text-[#86868B] hover:text-[#1D1D1F]">
+                                <button onClick={() => { setOpen(false); setExpanded10m(false); }} className="text-[#86868B] hover:text-brand-dark">
                                     <X className="h-4 w-4" />
                                 </button>
                             </div>
@@ -126,7 +126,7 @@ export const NotificationBell: React.FC = () => {
                                     No hay notificaciones pendientes 🎉
                                 </div>
                             ) : (
-                                <div className="divide-y divide-[#F5F5F7]">
+                                <div className="divide-y divide-background">
                                     {alerts.map((alert, i) => (
                                         <div key={i} className="px-4 py-3 hover:bg-[#FAFAFA] transition-colors">
                                             {/* Alert header row */}
@@ -143,7 +143,7 @@ export const NotificationBell: React.FC = () => {
                                                 </div>
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center justify-between">
-                                                        <span className="text-xs font-bold text-[#1D1D1F]">{alert.titulo}</span>
+                                                        <span className="text-xs font-bold text-brand-dark">{alert.titulo}</span>
                                                         <span
                                                             className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
                                                             style={{ backgroundColor: `${alertColorMap[alert.tipo]}15`, color: alertColorMap[alert.tipo] }}
@@ -151,13 +151,13 @@ export const NotificationBell: React.FC = () => {
                                                             {alert.count}
                                                         </span>
                                                     </div>
-                                                    <p className="text-[11px] text-[#6E6E73] mt-0.5 leading-relaxed">{alert.mensaje}</p>
+                                                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
 
                                                     {/* Expandable detail for 10-month alert */}
                                                     {alert.detalle10meses && alert.detalle10meses.length > 0 && (
                                                         <button
                                                             onClick={() => setExpanded10m(!expanded10m)}
-                                                            className="mt-1.5 text-[10px] font-semibold text-[#029E4D] hover:text-[#027A3B] flex items-center gap-0.5 transition-colors"
+                                                            className="mt-1.5 text-[10px] font-semibold text-brand-primary hover:text-[#027A3B] flex items-center gap-0.5 transition-colors"
                                                         >
                                                             {expanded10m ? 'Ocultar detalle' : 'Ver listado completo'}
                                                             <ChevronRight className={`h-3 w-3 transition-transform ${expanded10m ? 'rotate-90' : ''}`} />
@@ -179,20 +179,20 @@ export const NotificationBell: React.FC = () => {
                                                         <div className="mt-2 ml-11 rounded-xl border border-[#E8E8ED] overflow-hidden">
                                                             <table className="w-full text-[10px]">
                                                                 <thead>
-                                                                    <tr className="bg-[#F5F5F7] text-[#6E6E73]">
+                                                                    <tr className="bg-background text-muted-foreground">
                                                                         <th className="text-left px-2 py-1.5 font-semibold">Nombre</th>
                                                                         <th className="text-left px-2 py-1.5 font-semibold">RUT</th>
                                                                         <th className="text-left px-2 py-1.5 font-semibold">Empresa</th>
                                                                         <th className="text-left px-2 py-1.5 font-semibold">Cumple 10m</th>
                                                                     </tr>
                                                                 </thead>
-                                                                <tbody className="divide-y divide-[#F5F5F7]">
+                                                                <tbody className="divide-y divide-background">
                                                                     {alert.detalle10meses.map((w) => (
                                                                         <tr key={w.id} className="hover:bg-[#FAFAFA]">
-                                                                            <td className="px-2 py-1.5 text-[#1D1D1F] font-medium truncate max-w-[100px]">{w.nombre}</td>
-                                                                            <td className="px-2 py-1.5 text-[#6E6E73] whitespace-nowrap">{w.rut}</td>
-                                                                            <td className="px-2 py-1.5 text-[#6E6E73] truncate max-w-[80px]">{w.empresa}</td>
-                                                                            <td className="px-2 py-1.5 text-[#029E4D] font-bold whitespace-nowrap">{formatDate(w.fecha_10m)}</td>
+                                                                            <td className="px-2 py-1.5 text-brand-dark font-medium truncate max-w-[100px]">{w.nombre}</td>
+                                                                            <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">{w.rut}</td>
+                                                                            <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px]">{w.empresa}</td>
+                                                                            <td className="px-2 py-1.5 text-brand-primary font-bold whitespace-nowrap">{formatDate(w.fecha_10m)}</td>
                                                                         </tr>
                                                                     ))}
                                                                 </tbody>

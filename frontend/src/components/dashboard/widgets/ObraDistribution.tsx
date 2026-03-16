@@ -16,12 +16,12 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
             <div className="h-full flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
-                        <p className="text-xs text-[#6E6E73]">Capacidad operativa.</p>
+                        <h3 className="text-base font-semibold text-brand-dark">Distribución por Obra</h3>
+                        <p className="text-xs text-muted-foreground">Capacidad operativa.</p>
                     </div>
-                    <TrendingUp className="h-5 w-5 text-[#029E4D]" />
+                    <TrendingUp className="h-5 w-5 text-brand-primary" />
                 </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-[#6E6E73]">
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                     <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
                     <p className="text-sm">No hay obras activas con trabajadores.</p>
                     <Button variant="ghost" className="mt-3 text-xs" onClick={onNavigate}>
@@ -36,10 +36,10 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
         <div>
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-base font-semibold text-[#1D1D1F]">Distribución por Obra</h3>
-                    <p className="text-xs text-[#6E6E73]">Capacidad operativa.</p>
+                    <h3 className="text-base font-semibold text-brand-dark">Distribución por Obra</h3>
+                    <p className="text-xs text-muted-foreground">Capacidad operativa.</p>
                 </div>
-                <TrendingUp className="h-5 w-5 text-[#029E4D]" />
+                <TrendingUp className="h-5 w-5 text-brand-primary" />
             </div>
             <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">

@@ -85,18 +85,18 @@ export const FeriadosForm: React.FC<Props> = ({
                 />
 
                 <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-semibold text-[#1D1D1F] uppercase tracking-wider">Tipo</label>
+                    <label className="text-xs font-semibold text-brand-dark uppercase tracking-wider">Tipo</label>
                     <div className="relative">
                         <select
                             {...register('tipo')}
-                            className="w-full px-3 py-2 bg-white border border-[#D2D2D7] rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#029E4D]/20 focus:border-[#029E4D] transition-colors appearance-none"
+                            className="w-full px-3 py-2 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-colors appearance-none"
                         >
                             <option value="nacional">Nacional</option>
                             <option value="obra">Obra (Específico)</option>
                             <option value="patronal">Patronal</option>
                             <option value="otro">Otro</option>
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#6E6E73]">
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground">
                             <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                             </svg>
@@ -109,14 +109,14 @@ export const FeriadosForm: React.FC<Props> = ({
                         <input
                             type="checkbox"
                             {...register('irrenunciable')}
-                            className="w-4 h-4 text-[#029E4D] bg-white border-[#D2D2D7] rounded focus:ring-[#029E4D] focus:ring-2"
+                            className="w-4 h-4 text-brand-primary bg-white border-border rounded focus:ring-brand-primary focus:ring-2"
                         />
-                        <span className="text-sm text-[#1D1D1F] font-medium">Es Irrenunciable</span>
+                        <span className="text-sm text-brand-dark font-medium">Es Irrenunciable</span>
                     </label>
                 </div>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <Button type="button" variant="outline" onClick={onCancel} className="w-full sm:w-auto">
                     Cancelar
                 </Button>

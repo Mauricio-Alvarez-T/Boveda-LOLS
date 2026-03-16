@@ -86,10 +86,10 @@ export const HorariosConfigPanel: React.FC = () => {
 
     if (!selectedObra) {
         return (
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-12 text-center">
-                <AlertCircle className="h-12 w-12 text-[#FF9F0A] mx-auto mb-4" />
-                <h3 className="text-xl font-bold text-[#1D1D1F]">Selecciona una obra</h3>
-                <p className="text-[#6E6E73] mt-2">
+            <div className="bg-white rounded-2xl border border-border p-12 text-center">
+                <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
+                <h3 className="text-xl font-bold text-brand-dark">Selecciona una obra</h3>
+                <p className="text-muted-foreground mt-2">
                     Debes seleccionar una obra en el selector superior para configurar sus horarios.
                 </p>
             </div>
@@ -97,18 +97,18 @@ export const HorariosConfigPanel: React.FC = () => {
     }
 
     if (loading) {
-        return <div className="p-8 text-center text-[#6E6E73]">Cargando configuración...</div>;
+        return <div className="p-8 text-center text-muted-foreground">Cargando configuración...</div>;
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
-            <div className="p-4 md:p-6 border-b border-[#D2D2D7] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <div className="p-4 md:p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-bold text-[#1D1D1F] flex items-center gap-2">
-                        <Clock className="h-5 w-5 text-[#029E4D]" />
+                    <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
+                        <Clock className="h-5 w-5 text-brand-primary" />
                         Horarios por Defecto
                     </h2>
-                    <p className="text-sm text-[#6E6E73] mt-1">
+                    <p className="text-sm text-muted-foreground mt-1">
                         Configura los horarios estándar semanales para la obra <strong>{selectedObra.nombre}</strong>.
                     </p>
                 </div>
@@ -122,10 +122,10 @@ export const HorariosConfigPanel: React.FC = () => {
                 </Button>
             </div>
 
-            <div className="p-3 md:p-6 bg-[#F5F5F7]/30">
+            <div className="p-3 md:p-6 bg-background/30">
                 {/* ─── DESKTOP VIEW ─── */}
                 <div className="hidden md:block">
-                    <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-[#F5F5F7] rounded-xl text-xs font-bold text-[#6E6E73] uppercase tracking-wider">
+                    <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-background rounded-xl text-xs font-bold text-muted-foreground uppercase tracking-wider">
                         <div>Día</div>
                         <div>Entrada</div>
                         <div>Salida</div>
@@ -139,8 +139,8 @@ export const HorariosConfigPanel: React.FC = () => {
                             if (!horario) return null;
 
                             return (
-                                <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl bg-white border border-[#E8E8ED] hover:border-[#D2D2D7] transition-colors shadow-sm">
-                                    <div className="font-semibold text-[#1D1D1F] capitalize">
+                                <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl bg-white border border-[#E8E8ED] hover:border-border transition-colors shadow-sm">
+                                    <div className="font-semibold text-brand-dark capitalize">
                                         {dia.label}
                                     </div>
                                     <Input type="time" value={horario.hora_entrada} onChange={(e) => updateHorario(dia.key, 'hora_entrada', e.target.value)} className="h-10" />
@@ -160,27 +160,27 @@ export const HorariosConfigPanel: React.FC = () => {
                         if (!horario) return null;
 
                         return (
-                            <div key={dia.key} className="bg-white p-4 rounded-xl border border-[#D2D2D7] shadow-sm space-y-3">
-                                <h3 className="font-bold text-[#1D1D1F] capitalize border-b border-[#F5F5F7] pb-2 mb-3">
+                            <div key={dia.key} className="bg-white p-4 rounded-xl border border-border shadow-sm space-y-3">
+                                <h3 className="font-bold text-brand-dark capitalize border-b border-background pb-2 mb-3">
                                     {dia.label}
                                 </h3>
 
                                 <div className="grid grid-cols-2 gap-3">
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Entrada</label>
-                                        <Input type="time" value={horario.hora_entrada} onChange={(e) => updateHorario(dia.key, 'hora_entrada', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Entrada</label>
+                                        <Input type="time" value={horario.hora_entrada} onChange={(e) => updateHorario(dia.key, 'hora_entrada', e.target.value)} className="h-10 bg-background" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Salida</label>
-                                        <Input type="time" value={horario.hora_salida} onChange={(e) => updateHorario(dia.key, 'hora_salida', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Salida</label>
+                                        <Input type="time" value={horario.hora_salida} onChange={(e) => updateHorario(dia.key, 'hora_salida', e.target.value)} className="h-10 bg-background" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Inicio Col.</label>
-                                        <Input type="time" value={horario.hora_colacion_inicio} onChange={(e) => updateHorario(dia.key, 'hora_colacion_inicio', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Inicio Col.</label>
+                                        <Input type="time" value={horario.hora_colacion_inicio} onChange={(e) => updateHorario(dia.key, 'hora_colacion_inicio', e.target.value)} className="h-10 bg-background" />
                                     </div>
                                     <div className="space-y-1">
-                                        <label className="text-xs font-semibold text-[#6E6E73] uppercase tracking-wider ml-1">Fin Col.</label>
-                                        <Input type="time" value={horario.hora_colacion_fin} onChange={(e) => updateHorario(dia.key, 'hora_colacion_fin', e.target.value)} className="h-10 bg-[#F5F5F7]" />
+                                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider ml-1">Fin Col.</label>
+                                        <Input type="time" value={horario.hora_colacion_fin} onChange={(e) => updateHorario(dia.key, 'hora_colacion_fin', e.target.value)} className="h-10 bg-background" />
                                     </div>
                                 </div>
                             </div>

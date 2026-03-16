@@ -37,13 +37,13 @@ const ChangePasswordForm: React.FC = () => {
     return (
         <div className="max-w-xl space-y-6">
             <div>
-                <h3 className="text-base font-semibold text-[#1D1D1F]">Cambiar Mi Contraseña</h3>
-                <p className="text-sm text-[#6E6E73] mt-1">
+                <h3 className="text-base font-semibold text-brand-dark">Cambiar Mi Contraseña</h3>
+                <p className="text-sm text-muted-foreground mt-1">
                     Actualiza tu contraseña de acceso al sistema. Por seguridad de la empresa, te recomendamos no compartirla con nadie.
                 </p>
             </div>
 
-            <div className="bg-[#F5F5F7] rounded-xl p-4 md:p-6 space-y-5">
+            <div className="bg-background rounded-xl p-4 md:p-6 space-y-5">
                 <div className="space-y-1.5 relative">
                     <Input
                         label="Contraseña Actual"
@@ -51,12 +51,12 @@ const ChangePasswordForm: React.FC = () => {
                         placeholder="••••••••"
                         value={currentPassword}
                         onChange={(e) => setCurrentPassword(e.target.value)}
-                        leftIcon={<Lock className="h-4 w-4 text-[#6E6E73]" />}
+                        leftIcon={<Lock className="h-4 w-4 text-muted-foreground" />}
                     />
                     <button
                         type="button"
                         onClick={() => setShowCurrent(!showCurrent)}
-                        className="absolute right-3 top-[2.15rem] text-[#6E6E73] hover:text-[#1D1D1F] transition-colors"
+                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-dark transition-colors"
                     >
                         {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -69,12 +69,12 @@ const ChangePasswordForm: React.FC = () => {
                         placeholder="Ej: lols150"
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
-                        leftIcon={<Lock className="h-4 w-4 text-[#029E4D]" />}
+                        leftIcon={<Lock className="h-4 w-4 text-brand-primary" />}
                     />
                     <button
                         type="button"
                         onClick={() => setShowNew(!showNew)}
-                        className="absolute right-3 top-[2.15rem] text-[#6E6E73] hover:text-[#1D1D1F] transition-colors"
+                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-dark transition-colors"
                     >
                         {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>

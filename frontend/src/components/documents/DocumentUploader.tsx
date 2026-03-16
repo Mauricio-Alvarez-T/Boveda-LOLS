@@ -124,7 +124,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                     <label className="text-base font-medium text-muted-foreground ml-1">Archivo (PDF, Imagen o TXT)</label>
                     <div
                         className={`relative h-48 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center p-4 cursor-pointer
-              ${file ? 'border-[#029E4D] bg-[#029E4D]/5' : 'border-[#D2D2D7] hover:border-[#029E4D]/50 hover:bg-[#F5F5F7]'}`}
+              ${file ? 'border-brand-primary bg-brand-primary/5' : 'border-border hover:border-brand-primary/50 hover:bg-background'}`}
                     >
                         <input
                             type="file"
@@ -136,12 +136,12 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                         {file ? (
                             <div className="text-center space-y-2">
                                 {preview ? (
-                                    <img src={preview} alt="Vista previa" className="h-20 w-20 object-cover rounded-lg mx-auto border border-[#D2D2D7]" />
+                                    <img src={preview} alt="Vista previa" className="h-20 w-20 object-cover rounded-lg mx-auto border border-border" />
                                 ) : (
                                     <FileText className="h-12 w-12 text-brand-primary mx-auto" />
                                 )}
                                 <div className="flex items-center gap-2 justify-center">
-                                    <span className="text-sm font-semibold text-[#1D1D1F] truncate max-w-[200px]">{file.name}</span>
+                                    <span className="text-sm font-semibold text-brand-dark truncate max-w-[200px]">{file.name}</span>
                                     <button type="button" onClick={() => { setFile(null); setPreview(null); }} className="text-rose-400 hover:text-rose-300">
                                         <X className="h-4 w-4" />
                                     </button>
@@ -150,11 +150,11 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                             </div>
                         ) : (
                             <div className="text-center space-y-2">
-                                <div className="h-12 w-12 rounded-full bg-[#F5F5F7] flex items-center justify-center mx-auto">
+                                <div className="h-12 w-12 rounded-full bg-background flex items-center justify-center mx-auto">
                                     <Upload className="h-6 w-6 text-muted-foreground" />
                                 </div>
                                 <div>
-                                    <p className="text-base font-medium text-[#1D1D1F]">Haz clic o arrastra un archivo</p>
+                                    <p className="text-base font-medium text-brand-dark">Haz clic o arrastra un archivo</p>
                                     <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB)</p>
                                 </div>
                                 <p className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full inline-block">
@@ -166,13 +166,13 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                 </div>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-[#F5F5F7] border-t border-[#D2D2D7] flex justify-end gap-3 mt-6 z-10">
+            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <Button
                     type="submit"
                     isLoading={loading}
                     disabled={!file}
                     leftIcon={<Upload className="h-5 w-5" />}
-                    className="w-full sm:w-auto bg-[#029E4D] text-white hover:bg-[#027A3B]"
+                    className="w-full sm:w-auto bg-brand-primary text-white hover:bg-[#027A3B]"
                 >
                     Subir Documento
                 </Button>

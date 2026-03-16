@@ -95,8 +95,8 @@ const empresaCols: ColumnDef<any>[] = [
         render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]"
-                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
+                v ? "bg-brand-accent/10 text-brand-accent"
+                    : "bg-destructive/10 text-destructive"
             )}>
                 {v ? 'Activo' : 'Finiquitado'}
             </span>
@@ -112,8 +112,8 @@ const obraCols: ColumnDef<any>[] = [
         render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]"
-                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
+                v ? "bg-brand-accent/10 text-brand-accent"
+                    : "bg-destructive/10 text-destructive"
             )}>
                 {v ? 'Activa' : 'Inactiva'}
             </span>
@@ -128,8 +128,8 @@ const cargoCols: ColumnDef<any>[] = [
         render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]"
-                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
+                v ? "bg-brand-accent/10 text-brand-accent"
+                    : "bg-destructive/10 text-destructive"
             )}>
                 {v ? 'Activo' : 'Finiquitado'}
             </span>
@@ -148,8 +148,8 @@ const tipoDocCols: ColumnDef<any>[] = [
         render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#FF9F0A]/10 text-[#FF9F0A]"
-                    : "bg-[#A1A1A6]/10 text-[#A1A1A6]"
+                v ? "bg-warning/10 text-warning"
+                    : "bg-muted/10 text-muted"
             )}>
                 {v ? 'Sí' : 'No'}
             </span>
@@ -167,8 +167,8 @@ const usuarioCols: ColumnDef<any>[] = [
         render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]"
-                    : "bg-[#FF3B30]/10 text-[#FF3B30]"
+                v ? "bg-brand-accent/10 text-brand-accent"
+                    : "bg-destructive/10 text-destructive"
             )}>
                 {v ? 'Activo' : 'Finiquitado'}
             </span>
@@ -185,14 +185,14 @@ const estadoAsistenciaCols: ColumnDef<any>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'codigo', label: 'Código', render: (v) => (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#F5F5F7]">{v}</span>
+            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-background">{v}</span>
         )
     },
     {
         key: 'color', label: 'Color', render: (v) => (
             <div className="flex items-center gap-2">
                 <div className="h-4 w-4 rounded-full border border-[#E8E8ED]" style={{ backgroundColor: v }} />
-                <span className="text-[10px] text-[#6E6E73]">{v}</span>
+                <span className="text-[10px] text-muted-foreground">{v}</span>
             </div>
         )
     },
@@ -200,7 +200,7 @@ const estadoAsistenciaCols: ColumnDef<any>[] = [
         key: 'es_presente', label: 'Cuenta como Presente', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#A1A1A6]/10 text-[#A1A1A6]"
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted/10 text-muted"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
@@ -212,7 +212,7 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
         key: 'es_justificada', label: 'Justificada', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#FF3B30]/10 text-[#FF3B30]"
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
@@ -221,7 +221,7 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
         render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#FF3B30]/10 text-[#FF3B30]"
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
             )}>{v ? 'Activo' : 'Finiquitado'}</span>
         ),
     },
@@ -236,10 +236,10 @@ const SettingsPage: React.FC = () => {
 
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-3">
-            <Settings className="h-6 w-6 text-[#029E4D]" />
+            <Settings className="h-6 w-6 text-brand-primary" />
             <div className="flex flex-col leading-tight">
-                <h1 className="text-lg font-bold text-[#1D1D1F]">Configuración</h1>
-                <p className="text-[#6E6E73] text-xs">Catálogos y Parámetros del Sistema</p>
+                <h1 className="text-lg font-bold text-brand-dark">Configuración</h1>
+                <p className="text-muted-foreground text-xs">Catálogos y Parámetros del Sistema</p>
             </div>
         </div>
     ), []);
@@ -250,7 +250,7 @@ const SettingsPage: React.FC = () => {
     return (
         <div className="space-y-6 pb-20">
             {/* Category Navigation (Horizontal) */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+            <div className="bg-white rounded-2xl border border-border p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
                 {tabGroups.map((group, idx) => {
                     const isActive = activeGroup.title === group.title;
                     return (
@@ -260,8 +260,8 @@ const SettingsPage: React.FC = () => {
                             className={cn(
                                 "flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap shrink-0",
                                 isActive
-                                    ? "bg-[#029E4D] text-white shadow-md shadow-[#029E4D]/20"
-                                    : "text-[#6E6E73] hover:bg-[#F5F5F7]"
+                                    ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
+                                    : "text-muted-foreground hover:bg-background"
                             )}
                         >
                             {group.title}
@@ -279,18 +279,18 @@ const SettingsPage: React.FC = () => {
                         className={cn(
                             "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all border whitespace-nowrap shrink-0",
                             activeTab === tab.key
-                                ? "bg-white border-[#029E4D] text-[#029E4D] ring-4 ring-[#029E4D]/5"
-                                : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:border-[#D2D2D7]"
+                                ? "bg-white border-brand-primary text-brand-primary ring-4 ring-brand-primary/5"
+                                : "bg-white border-[#E8E8ED] text-muted-foreground hover:border-border"
                         )}
                     >
-                        <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-[#029E4D]" : "text-[#6E6E73]")} />
+                        <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground")} />
                         {tab.label}
                     </button>
                 ))}
             </div>
 
             {/* Main Content Area (Full Width) */}
-            <div className="bg-white rounded-2xl md:rounded-3xl border border-[#D2D2D7] p-3 md:p-6 shadow-sm overflow-hidden min-h-[400px] md:min-h-[600px]">
+            <div className="bg-white rounded-2xl md:rounded-3xl border border-border p-3 md:p-6 shadow-sm overflow-hidden min-h-[400px] md:min-h-[600px]">
                 <motion.div
                     key={activeTab}
                     initial={{ opacity: 0, y: 10 }}
@@ -417,8 +417,8 @@ const SettingsPage: React.FC = () => {
                     {activeTab === 'mi_correo' && (
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-base font-semibold text-[#1D1D1F]">Configuración de Correo</h3>
-                                <p className="text-sm text-[#6E6E73] mt-1">Guarda tu correo corporativo y contraseña una sola vez para poder enviar reportes desde Nómina & Reportes sin volver a ingresarlos.</p>
+                                <h3 className="text-base font-semibold text-brand-dark">Configuración de Correo</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Guarda tu correo corporativo y contraseña una sola vez para poder enviar reportes desde Nómina & Reportes sin volver a ingresarlos.</p>
                             </div>
                             <EmailConfigForm />
                         </div>
@@ -426,8 +426,8 @@ const SettingsPage: React.FC = () => {
                     {activeTab === 'plantillas' && (
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-base font-semibold text-[#1D1D1F]">Plantillas de Correo</h3>
-                                <p className="text-sm text-[#6E6E73] mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
+                                <h3 className="text-base font-semibold text-brand-dark">Plantillas de Correo</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
                             </div>
                             <PlantillasEmailPanel />
                         </div>
@@ -435,8 +435,8 @@ const SettingsPage: React.FC = () => {
                     {activeTab === 'logs' && (
                         <div className="space-y-4">
                             <div>
-                                <h3 className="text-base font-semibold text-[#1D1D1F]">Historial de Actividad</h3>
-                                <p className="text-sm text-[#6E6E73] mt-1">Registro detallado de los cambios realizados en el sistema por todos los usuarios.</p>
+                                <h3 className="text-base font-semibold text-brand-dark">Historial de Actividad</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Registro detallado de los cambios realizados en el sistema por todos los usuarios.</p>
                             </div>
                             <ActivityLogsPanel />
                         </div>

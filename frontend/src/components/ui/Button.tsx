@@ -17,11 +17,11 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     ({ className, variant = 'primary', size = 'md', isLoading, leftIcon, rightIcon, children, disabled, ...props }, ref) => {
 
         const variants = {
-            primary: 'bg-[#029E4D] text-white hover:bg-[#027A3B] active:bg-[#006ACC] shadow-sm',
-            secondary: 'bg-[#E8E8ED] text-[#1D1D1F] hover:bg-[#DDDDE2] active:bg-[#D2D2D7]',
-            outline: 'bg-transparent border border-[#029E4D] text-[#029E4D] hover:bg-[#029E4D]/5',
-            ghost: 'bg-transparent text-[#1D1D1F] hover:bg-black/5',
-            glass: 'bg-white border border-[#D2D2D7] text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm',
+            primary: 'bg-brand-primary text-white hover:bg-[#027A3B] active:bg-[#006ACC] shadow-sm',
+            secondary: 'bg-[#E8E8ED] text-brand-dark hover:bg-[#DDDDE2] active:bg-border',
+            outline: 'bg-transparent border border-brand-primary text-brand-primary hover:bg-brand-primary/5',
+            ghost: 'bg-transparent text-brand-dark hover:bg-black/5',
+            glass: 'bg-white border border-border text-brand-dark hover:bg-background shadow-sm',
         };
 
         const sizes = {
@@ -39,7 +39,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
                 whileTap={{ scale: 0.98 }}
                 disabled={isLoading || disabled}
                 className={cn(
-                    'inline-flex items-center justify-center rounded-full font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#029E4D]/40 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2',
+                    'inline-flex items-center justify-center rounded-full font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed gap-2',
                     variants[variant],
                     sizes[size],
                     className

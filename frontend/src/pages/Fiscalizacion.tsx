@@ -187,8 +187,8 @@ const FiscalizacionPage: React.FC = () => {
     // Configuración del Header Global
     const headerTitle = React.useMemo(() => (
         <div className="flex items-center gap-2 md:gap-3">
-            <Archive className="h-5 w-5 md:h-6 md:w-6 text-[#029E4D] shrink-0" />
-            <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Nómina & Reportes</h1>
+            <Archive className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
+            <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Nómina & Reportes</h1>
         </div>
     ), []);
 
@@ -197,7 +197,7 @@ const FiscalizacionPage: React.FC = () => {
             {/* Mobile: filter toggle button */}
             <button
                 onClick={() => setShowMobileFilters(prev => !prev)}
-                className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm"
+                className="md:hidden flex items-center justify-center h-9 w-9 rounded-xl border border-border bg-white text-muted-foreground shadow-sm"
                 title="Filtros"
             >
                 <Filter className="h-4 w-4" />
@@ -217,7 +217,7 @@ const FiscalizacionPage: React.FC = () => {
             <button
                 onClick={() => setEmailModalOpen(true)}
                 disabled={selectedWorkers.size === 0}
-                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm disabled:opacity-40"
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-white text-muted-foreground shadow-sm disabled:opacity-40"
                 title="Enviar por Correo"
             >
                 <Mail className="h-4 w-4" />
@@ -238,7 +238,7 @@ const FiscalizacionPage: React.FC = () => {
             <button
                 onClick={handleExportExcel}
                 disabled={selectedWorkers.size === 0 || exporting}
-                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm disabled:opacity-40"
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-white text-muted-foreground shadow-sm disabled:opacity-40"
                 title="Exportar Excel"
             >
                 <FileDown className="h-4 w-4" />
@@ -285,12 +285,12 @@ const FiscalizacionPage: React.FC = () => {
 
             {/* ── MOBILE: Collapsible Filter Panel ── */}
             {showMobileFilters && (
-                <div className="md:hidden bg-white rounded-2xl border border-[#D2D2D7] p-4">
+                <div className="md:hidden bg-white rounded-2xl border border-border p-4">
                     <div className="flex items-center justify-between mb-3">
-                        <h3 className="font-semibold text-[#1D1D1F] flex items-center gap-2 text-sm">
-                            <Filter className="h-4 w-4 text-[#029E4D]" /> Filtros de Búsqueda
+                        <h3 className="font-semibold text-brand-dark flex items-center gap-2 text-sm">
+                            <Filter className="h-4 w-4 text-brand-primary" /> Filtros de Búsqueda
                         </h3>
-                        <button onClick={() => setShowMobileFilters(false)} className="text-[#6E6E73] p-1">
+                        <button onClick={() => setShowMobileFilters(false)} className="text-muted-foreground p-1">
                             <X className="h-4 w-4" />
                         </button>
                     </div>
@@ -302,10 +302,10 @@ const FiscalizacionPage: React.FC = () => {
             <div className="hidden md:grid grid-cols-1 xl:grid-cols-4 gap-6 items-start">
                 {/* Filter sidebar */}
                 <div className="xl:col-span-1">
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden sticky top-0">
-                        <div className="px-6 py-4 border-b border-[#D2D2D7] bg-[#F5F5F7]">
-                            <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
-                                <Filter className="h-4 w-4 text-[#029E4D]" /> Filtros de Búsqueda
+                    <div className="bg-white rounded-2xl border border-border overflow-hidden sticky top-0">
+                        <div className="px-6 py-4 border-b border-border bg-background">
+                            <h3 className="text-brand-dark font-semibold flex items-center gap-2">
+                                <Filter className="h-4 w-4 text-brand-primary" /> Filtros de Búsqueda
                             </h3>
                         </div>
                         <div className="p-5">{filterPanel}</div>
@@ -314,19 +314,19 @@ const FiscalizacionPage: React.FC = () => {
 
                 {/* Desktop: Results Table */}
                 <div className="xl:col-span-3">
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden min-h-[500px]">
-                        <div className="px-6 py-4 border-b border-[#D2D2D7] flex items-center justify-between bg-[#F5F5F7]">
+                    <div className="bg-white rounded-2xl border border-border overflow-hidden min-h-[500px]">
+                        <div className="px-6 py-4 border-b border-border flex items-center justify-between bg-background">
                             <div className="flex items-center gap-4">
-                                <h3 className="text-[#1D1D1F] font-semibold flex items-center gap-2">
+                                <h3 className="text-brand-dark font-semibold flex items-center gap-2">
                                     Resultados de Búsqueda
-                                    {loading && <Loader2 className="h-4 w-4 animate-spin text-[#029E4D] ml-2" />}
+                                    {loading && <Loader2 className="h-4 w-4 animate-spin text-brand-primary ml-2" />}
                                 </h3>
-                                {workers.length > 0 && <div className="h-6 w-[1px] bg-[#D2D2D7]" />}
+                                {workers.length > 0 && <div className="h-6 w-[1px] bg-border" />}
                                 {workers.length > 0 && (
                                     <div className="flex items-center gap-2">
-                                        <Users className="h-4 w-4 text-[#6E6E73]" />
-                                        <p className="text-xs text-[#6E6E73] font-medium">
-                                            <span className="font-bold text-[#1D1D1F]">{selectedWorkers.size}</span> seleccionados de {workers.length}
+                                        <Users className="h-4 w-4 text-muted-foreground" />
+                                        <p className="text-xs text-muted-foreground font-medium">
+                                            <span className="font-bold text-brand-dark">{selectedWorkers.size}</span> seleccionados de {workers.length}
                                         </p>
                                     </div>
                                 )}
@@ -335,10 +335,10 @@ const FiscalizacionPage: React.FC = () => {
                         <div className="overflow-x-auto">
                             <table className="w-full text-left border-collapse">
                                 <thead>
-                                    <tr className="border-b border-[#E8E8ED] bg-white text-xs tracking-wider text-[#6E6E73] uppercase">
+                                    <tr className="border-b border-[#E8E8ED] bg-white text-xs tracking-wider text-muted-foreground uppercase">
                                         <th className="px-4 py-4 font-semibold w-10 text-center">#</th>
                                         <th className="px-4 py-4 font-semibold w-12 text-center">
-                                            <input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={workers.length > 0 && selectedWorkers.size === workers.length} onChange={handleSelectAll} disabled={workers.length === 0} />
+                                            <input type="checkbox" className="rounded border-border text-brand-primary focus:ring-brand-primary" checked={workers.length > 0 && selectedWorkers.size === workers.length} onChange={handleSelectAll} disabled={workers.length === 0} />
                                         </th>
                                         <th className="px-6 py-4 font-semibold">Trabajador</th>
                                         <th className="px-6 py-4 font-semibold">Ubicación / Rol</th>
@@ -348,44 +348,44 @@ const FiscalizacionPage: React.FC = () => {
                                 </thead>
                                 <tbody className="divide-y divide-[#E8E8ED]">
                                     {workers.length === 0 ? (
-                                        <tr><td colSpan={6} className="px-6 py-20 text-center text-[#6E6E73] italic">No se encontraron trabajadores con los filtros actuales.</td></tr>
+                                        <tr><td colSpan={6} className="px-6 py-20 text-center text-muted-foreground italic">No se encontraron trabajadores con los filtros actuales.</td></tr>
                                     ) : (
                                         workers.map((worker, index) => (
-                                            <tr key={worker.id} className={cn("hover:bg-[#F5F5F7]/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-[#029E4D]/5", markedRows.has(index) && "!bg-[#029E4D]/10 border-l-4 border-l-[#1D1D1F]")} onClick={() => handleSelectWorker(worker.id)}>
+                                            <tr key={worker.id} className={cn("hover:bg-background/50 transition-colors cursor-pointer", selectedWorkers.has(worker.id) && "bg-brand-primary/5", markedRows.has(index) && "!bg-brand-primary/10 border-l-4 border-l-brand-dark")} onClick={() => handleSelectWorker(worker.id)}>
                                                 <td className="px-4 py-4 text-center" onClick={(e) => e.stopPropagation()}>
                                                     <button
                                                         onClick={() => toggleMarkedRow(index)}
                                                         className={cn(
                                                             "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border mx-auto",
                                                             markedRows.has(index)
-                                                                ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-110"
-                                                                : "bg-transparent text-[#A1A1A6] border-transparent hover:border-[#D2D2D7] hover:bg-white"
+                                                                ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110"
+                                                                : "bg-transparent text-muted border-transparent hover:border-border hover:bg-white"
                                                         )}
                                                     >
                                                         {(index + 1).toString().padStart(2, '0')}
                                                     </button>
                                                 </td>
-                                                <td className="px-4 py-4 text-center"><input type="checkbox" className="rounded border-[#D2D2D7] text-[#029E4D] focus:ring-[#029E4D]" checked={selectedWorkers.has(worker.id)} readOnly /></td>
+                                                <td className="px-4 py-4 text-center"><input type="checkbox" className="rounded border-border text-brand-primary focus:ring-brand-primary" checked={selectedWorkers.has(worker.id)} readOnly /></td>
                                                 <td className="px-6 py-4">
-                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm font-bold text-[#1D1D1F]">
+                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm font-bold text-brand-dark">
                                                         {worker.nombres} {worker.apellido_paterno}
                                                     </WorkerLink>
-                                                    <p className="text-xs text-[#6E6E73] font-medium">{worker.rut}</p>
+                                                    <p className="text-xs text-muted-foreground font-medium">{worker.rut}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <p className="text-sm text-[#1D1D1F] font-bold">{worker.empresa_nombre || '-'}</p>
-                                                    <p className="text-xs text-[#6E6E73] font-medium truncate max-w-[200px]">{worker.obra_nombre} • {worker.cargo_nombre}</p>
+                                                    <p className="text-sm text-brand-dark font-bold">{worker.empresa_nombre || '-'}</p>
+                                                    <p className="text-xs text-muted-foreground font-medium truncate max-w-[200px]">{worker.obra_nombre} • {worker.cargo_nombre}</p>
                                                 </td>
                                                 <td className="px-6 py-4">
                                                     <div className="flex items-center gap-2">
                                                         <div className="h-2 w-24 bg-[#E8E8ED] rounded-full overflow-hidden flex-shrink-0">
-                                                            <div className={cn("h-full rounded-full", worker.docs_porcentaje === 100 ? "bg-[#34C759]" : worker.docs_porcentaje > 50 ? "bg-[#FF9F0A]" : "bg-[#FF3B30]")} style={{ width: `${worker.docs_porcentaje}%` }} />
+                                                            <div className={cn("h-full rounded-full", worker.docs_porcentaje === 100 ? "bg-brand-accent" : worker.docs_porcentaje > 50 ? "bg-warning" : "bg-destructive")} style={{ width: `${worker.docs_porcentaje}%` }} />
                                                         </div>
-                                                        <span className="text-xs font-medium text-[#6E6E73] w-10">{worker.docs_porcentaje}%</span>
+                                                        <span className="text-xs font-medium text-muted-foreground w-10">{worker.docs_porcentaje}%</span>
                                                     </div>
                                                 </td>
                                                 <td className="px-6 py-4">
-                                                    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
+                                                    <span className={cn("inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase", worker.activo ? "bg-brand-accent/10 text-brand-accent" : "bg-muted-foreground/10 text-muted-foreground")}>
                                                         {worker.activo ? 'Activo' : 'Finiquitado'}
                                                     </span>
                                                 </td>
@@ -402,27 +402,27 @@ const FiscalizacionPage: React.FC = () => {
             {/* ── MOBILE: Card Results ── */}
             <div className="md:hidden">
                 {/* Mobile context bar */}
-                <div className="flex items-center justify-between bg-white rounded-2xl border border-[#D2D2D7] px-4 py-3 mb-3">
+                <div className="flex items-center justify-between bg-white rounded-2xl border border-border px-4 py-3 mb-3">
                     <div className="flex items-center gap-2">
-                        <Users className="h-4 w-4 text-[#6E6E73]" />
-                        <span className="text-xs text-[#6E6E73] font-medium">
-                            <span className="font-bold text-[#1D1D1F]">{selectedWorkers.size}</span> sel. de {workers.length}
-                            {loading && <Loader2 className="h-3 w-3 animate-spin text-[#029E4D] inline ml-2" />}
+                        <Users className="h-4 w-4 text-muted-foreground" />
+                        <span className="text-xs text-muted-foreground font-medium">
+                            <span className="font-bold text-brand-dark">{selectedWorkers.size}</span> sel. de {workers.length}
+                            {loading && <Loader2 className="h-3 w-3 animate-spin text-brand-primary inline ml-2" />}
                         </span>
                     </div>
                     <button
                         onClick={handleSelectAll}
                         disabled={workers.length === 0}
-                        className="text-[11px] font-semibold text-[#029E4D] px-3 py-1.5 rounded-full border border-[#029E4D]/30 bg-[#029E4D]/5 disabled:opacity-40"
+                        className="text-[11px] font-semibold text-brand-primary px-3 py-1.5 rounded-full border border-brand-primary/30 bg-brand-primary/5 disabled:opacity-40"
                     >
                         {selectedWorkers.size === workers.length && workers.length > 0 ? 'Deseleccionar todo' : 'Seleccionar todo'}
                     </button>
                 </div>
 
                 {workers.length === 0 && !loading ? (
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] py-16 text-center">
-                        <Archive className="h-10 w-10 text-[#A1A1A6] mx-auto mb-3 opacity-40" />
-                        <p className="text-[#6E6E73] text-sm">No se encontraron trabajadores.</p>
+                    <div className="bg-white rounded-2xl border border-border py-16 text-center">
+                        <Archive className="h-10 w-10 text-muted mx-auto mb-3 opacity-40" />
+                        <p className="text-muted-foreground text-sm">No se encontraron trabajadores.</p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
@@ -436,8 +436,8 @@ const FiscalizacionPage: React.FC = () => {
                                     onClick={() => handleSelectWorker(worker.id)}
                                     className={cn(
                                         "bg-white rounded-2xl border p-3.5 cursor-pointer transition-all active:scale-[0.99]",
-                                        isSelected ? "border-[#029E4D] ring-2 ring-[#029E4D]/10 bg-[#029E4D]/3" : "border-[#D2D2D7]",
-                                        isMarked && "!border-[#1D1D1F] !ring-[#1D1D1F]/10"
+                                        isSelected ? "border-brand-primary ring-2 ring-brand-primary/10 bg-brand-primary/3" : "border-border",
+                                        isMarked && "!border-brand-dark !ring-brand-dark/10"
                                     )}
                                 >
                                     <div className="flex items-start gap-3">
@@ -450,8 +450,8 @@ const FiscalizacionPage: React.FC = () => {
                                             className={cn(
                                                 "h-8 w-8 rounded-lg flex items-center justify-center font-black text-[10px] transition-all border shrink-0 mt-0.5",
                                                 isMarked
-                                                    ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-lg scale-110"
-                                                    : "bg-[#F5F5F7] text-[#A1A1A6] border-[#D2D2D7]"
+                                                    ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
+                                                    : "bg-background text-muted border-border"
                                             )}
                                         >
                                             #{(index + 1).toString().padStart(2, '0')}
@@ -460,7 +460,7 @@ const FiscalizacionPage: React.FC = () => {
                                         {/* Checkbox */}
                                         <div className={cn(
                                             "h-6 w-6 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 transition-colors",
-                                            isSelected ? "bg-[#029E4D] border-[#029E4D]" : "border-[#D2D2D7]"
+                                            isSelected ? "bg-brand-primary border-brand-primary" : "border-border"
                                         )}>
                                             {isSelected && <svg className="h-3.5 w-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
                                         </div>
@@ -468,25 +468,25 @@ const FiscalizacionPage: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             {/* Name + status */}
                                             <div className="flex items-center justify-between gap-2">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-[#1D1D1F]">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-brand-dark">
                                                     {worker.nombres} {worker.apellido_paterno}
                                                 </WorkerLink>
-                                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-[#34C759]/10 text-[#34C759]" : "bg-[#6E6E73]/10 text-[#6E6E73]")}>
+                                                <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-brand-accent/10 text-brand-accent" : "bg-muted-foreground/10 text-muted-foreground")}>
                                                     {worker.activo ? 'Activo' : 'Finiquitado'}
                                                 </span>
                                             </div>
-                                            <p className="text-[11px] text-[#6E6E73] font-medium mt-0.5">{worker.rut}</p>
+                                            <p className="text-[11px] text-muted-foreground font-medium mt-0.5">{worker.rut}</p>
 
                                             {/* Company + cargo chips */}
                                             <div className="flex gap-1.5 mt-2 flex-wrap">
                                                 {worker.empresa_nombre && (
-                                                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[10px] font-semibold text-[#1D1D1F]">
-                                                        <Building2 className="h-2.5 w-2.5 text-[#6E6E73]" />
+                                                    <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-background border border-[#E8E8ED] text-[10px] font-semibold text-brand-dark">
+                                                        <Building2 className="h-2.5 w-2.5 text-muted-foreground" />
                                                         {worker.empresa_nombre}
                                                     </span>
                                                 )}
                                                 {worker.cargo_nombre && (
-                                                    <span className="px-2 py-0.5 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[10px] font-semibold text-[#6E6E73]">
+                                                    <span className="px-2 py-0.5 rounded-full bg-background border border-[#E8E8ED] text-[10px] font-semibold text-muted-foreground">
                                                         {worker.cargo_nombre}
                                                     </span>
                                                 )}

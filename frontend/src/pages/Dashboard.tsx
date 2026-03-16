@@ -84,11 +84,11 @@ const Dashboard: React.FC = () => {
     // ─── Page Header ───
     const headerTitle = useMemo(() => (
         <div className="flex flex-col leading-tight">
-            <h1 className="text-lg font-bold text-[#1D1D1F]">
-                Bienvenido, <span className="text-[#029E4D]">{user?.nombre?.split(' ')[0] || ''}</span>
+            <h1 className="text-lg font-bold text-brand-dark">
+                Bienvenido, <span className="text-brand-primary">{user?.nombre?.split(' ')[0] || ''}</span>
             </h1>
-            <p className="text-[#6E6E73] text-xs flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-[#34C759]" />
+            <p className="text-muted-foreground text-xs flex items-center gap-1.5">
+                <ShieldCheck className="h-3.5 w-3.5 text-brand-accent" />
                 Sistema Activo
             </p>
         </div>
@@ -97,9 +97,9 @@ const Dashboard: React.FC = () => {
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-2 md:gap-3">
             {/* Date Display — hidden on mobile to save space */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-[#D2D2D7] pr-4 mr-1">
+            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-border pr-4 mr-1">
                 <Calendar className="h-4 w-4 text-[#86868B]" />
-                <span className="text-[13px] font-medium text-[#1D1D1F] capitalize">
+                <span className="text-[13px] font-medium text-brand-dark capitalize">
                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </span>
             </div>
@@ -107,20 +107,20 @@ const Dashboard: React.FC = () => {
             {/* Reset Button — hidden on mobile */}
             <button
                 onClick={resetLayout}
-                className="hidden md:flex px-4 py-1.5 rounded-full bg-white border border-[#D2D2D7] items-center gap-2 shadow-sm hover:bg-[#F5F5F7] hover:border-[#B0B0B5] transition-all text-xs font-semibold text-[#6E6E73] group"
+                className="hidden md:flex px-4 py-1.5 rounded-full bg-white border border-border items-center gap-2 shadow-sm hover:bg-background hover:border-[#B0B0B5] transition-all text-xs font-semibold text-muted-foreground group"
                 title="Vuelve a poner todos los cuadros en su posición original"
             >
-                <LayoutGrid className="h-3.5 w-3.5 text-[#029E4D] group-hover:scale-110 transition-transform" />
+                <LayoutGrid className="h-3.5 w-3.5 text-brand-primary group-hover:scale-110 transition-transform" />
                 Restaurar Diseño
             </button>
 
             {/* Mobile: compact reset icon only */}
             <button
                 onClick={resetLayout}
-                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm"
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-white text-muted-foreground shadow-sm"
                 title="Restaurar Diseño"
             >
-                <LayoutGrid className="h-4 w-4 text-[#029E4D]" />
+                <LayoutGrid className="h-4 w-4 text-brand-primary" />
             </button>
         </div>
     ), [resetLayout]);
@@ -135,14 +135,14 @@ const Dashboard: React.FC = () => {
                         <div
                             key={idx}
                             onClick={() => navigate(alert.ruta)}
-                            className="p-3 bg-[#F5F5F7] rounded-xl flex items-start gap-3 hover:bg-[#E8E8ED] transition-colors cursor-pointer"
+                            className="p-3 bg-background rounded-xl flex items-start gap-3 hover:bg-[#E8E8ED] transition-colors cursor-pointer"
                         >
-                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-[#FF3B30]' :
-                                alert.tipo === 'warning' ? 'text-[#FF9F0A]' : 'text-[#029E4D]'
+                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' :
+                                alert.tipo === 'warning' ? 'text-warning' : 'text-brand-primary'
                                 }`} />
                             <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-[#1D1D1F]">{alert.titulo}</p>
-                                <p className="text-xs text-[#6E6E73] mt-0.5 leading-relaxed">{alert.mensaje}</p>
+                                <p className="text-xs font-semibold text-brand-dark">{alert.titulo}</p>
+                                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
                             </div>
                         </div>
                     ))}
@@ -179,8 +179,8 @@ const Dashboard: React.FC = () => {
     if (loading || !data) {
         return (
             <div className="h-[80vh] flex flex-col items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin text-[#029E4D]" />
-                <p className="mt-4 text-[#6E6E73] text-sm animate-pulse">Analizando bóveda...</p>
+                <Loader2 className="h-10 w-10 animate-spin text-brand-primary" />
+                <p className="mt-4 text-muted-foreground text-sm animate-pulse">Analizando bóveda...</p>
             </div>
         );
     }
@@ -191,8 +191,8 @@ const Dashboard: React.FC = () => {
             label: 'Trabajadores',
             value: data.counters.trabajadores ?? 0,
             icon: Users,
-            color: 'text-[#029E4D]',
-            bg: 'bg-[#029E4D]/8',
+            color: 'text-brand-primary',
+            bg: 'bg-brand-primary/8',
             route: '/trabajadores',
             description: 'Gestión de personal'
         },
@@ -209,8 +209,8 @@ const Dashboard: React.FC = () => {
             label: 'Asistencia Hoy',
             value: `${data.counters.asistencia_hoy ?? 0}%`,
             icon: CheckSquare,
-            color: 'text-[#34C759]',
-            bg: 'bg-[#34C759]/8',
+            color: 'text-brand-accent',
+            bg: 'bg-brand-accent/8',
             route: '/asistencia',
             description: 'Tasa de presencia hoy'
         },
@@ -218,8 +218,8 @@ const Dashboard: React.FC = () => {
             label: 'Ausencias Hoy',
             value: data.counters.ausentes_hoy ?? 0,
             icon: AlertTriangle,
-            color: (data.counters.ausentes_hoy ?? 0) > 0 ? 'text-[#FF9F0A]' : 'text-[#A1A1A6]',
-            bg: (data.counters.ausentes_hoy ?? 0) > 0 ? 'bg-[#FF9F0A]/8' : 'bg-[#A1A1A6]/8',
+            color: (data.counters.ausentes_hoy ?? 0) > 0 ? 'text-warning' : 'text-muted',
+            bg: (data.counters.ausentes_hoy ?? 0) > 0 ? 'bg-warning/8' : 'bg-muted/8',
             route: '/asistencia',
             description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta'
         },
@@ -269,13 +269,13 @@ const Dashboard: React.FC = () => {
                 <motion.div
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    className="bg-[#029E4D]/5 border-l-4 border-[#029E4D] p-4 rounded-r-2xl"
+                    className="bg-brand-primary/5 border-l-4 border-brand-primary p-4 rounded-r-2xl"
                 >
-                    <p className="text-sm text-[#1D1D1F] leading-relaxed">
-                        <span className="font-bold text-[#029E4D]">Resumen de hoy:</span> Tienes <span className="font-semibold">{data.counters.trabajadores}</span> trabajadores activos en terreno.
-                        La tasa de asistencia es del <span className="font-semibold text-[#34C759]">{data.counters.asistencia_hoy}%</span>
+                    <p className="text-sm text-brand-dark leading-relaxed">
+                        <span className="font-bold text-brand-primary">Resumen de hoy:</span> Tienes <span className="font-semibold">{data.counters.trabajadores}</span> trabajadores activos en terreno.
+                        La tasa de asistencia es del <span className="font-semibold text-brand-accent">{data.counters.asistencia_hoy}%</span>
                         {((data.counters.vencidos ?? 0) > 0 || (data.counters.trabajadoresSinDocs ?? 0) > 0) ? (
-                            <> y tienes <span className="font-semibold text-[#FF3B30]">pendientes</span>:
+                            <> y tienes <span className="font-semibold text-destructive">pendientes</span>:
                                 {(data.counters.vencidos ?? 0) > 0 && <span> {data.counters.vencidos} vencidos</span>}
                                 {(data.counters.vencidos ?? 0) > 0 && (data.counters.trabajadoresSinDocs ?? 0) > 0 && ' y'}
                                 {(data.counters.trabajadoresSinDocs ?? 0) > 0 && <span> {data.counters.trabajadoresSinDocs} trabajadores sin documentos</span>}.

@@ -75,7 +75,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     />
                 </div>
                 {isMobile && (
-                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-[#F5F5F7] text-[#6E6E73] shrink-0">
+                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-background text-muted-foreground shrink-0">
                         <X className="h-5 w-5" />
                     </button>
                 )}
@@ -91,8 +91,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             "flex items-center rounded-xl transition-all group relative text-base whitespace-nowrap overflow-hidden h-12",
                             (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[18px] pr-4 w-full gap-[14px]",
                             isActive
-                                ? "bg-[#029E4D]/8 text-[#029E4D] font-semibold"
-                                : "text-[#6E6E73] hover:bg-[#F5F5F7] hover:text-[#1D1D1F] font-medium"
+                                ? "bg-brand-primary/8 text-brand-primary font-semibold"
+                                : "text-muted-foreground hover:bg-background hover:text-brand-dark font-medium"
                         )}
                         title={(!isMobile && isCollapsed) ? item.label : ''}
                     >
@@ -112,20 +112,20 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* User Section */}
             <div className="p-3 border-t border-[#E8E8ED]">
                 <div className={cn(
-                    "flex items-center rounded-xl bg-[#F5F5F7] transition-all whitespace-nowrap overflow-hidden h-[52px]",
+                    "flex items-center rounded-xl bg-background transition-all whitespace-nowrap overflow-hidden h-[52px]",
                     (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[10px] pr-3 w-full gap-[6px]"
                 )}>
-                    <div className="h-9 w-9 shrink-0 rounded-full bg-[#029E4D] flex items-center justify-center text-sm font-semibold text-white">
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-brand-primary flex items-center justify-center text-sm font-semibold text-white">
                         {user?.nombre?.[0]}
                     </div>
                     {(isMobile || !isCollapsed) && (
                         <div className="flex-1 min-w-0 pr-1">
-                            <p className="text-sm font-bold text-[#1D1D1F] truncate leading-tight">{user?.nombre}</p>
+                            <p className="text-sm font-bold text-brand-dark truncate leading-tight">{user?.nombre}</p>
                             <p className="text-[11px] font-medium text-[#86868B] truncate leading-tight tracking-wide">{user?.rol}</p>
                         </div>
                     )}
                     {(isMobile || !isCollapsed) && (
-                        <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-[#FF3B30] transition-colors shrink-0">
+                        <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-destructive transition-colors shrink-0">
                             <LogOut className="h-4 w-4" />
                         </button>
                     )}
@@ -139,14 +139,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* Desktop Sidebar */}
             <motion.aside
                 animate={{ width: isCollapsed ? '72px' : '260px' }}
-                className="hidden md:flex h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-[#D2D2D7] flex-col z-40 transition-all duration-300"
+                className="hidden md:flex h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-border flex-col z-40 transition-all duration-300"
             >
                 {sidebarContent(false)}
 
                 {/* Collapse Toggle */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute right-[-14px] top-20 h-7 w-7 bg-white border border-[#D2D2D7] rounded-full flex items-center justify-center text-[#6E6E73] hover:text-[#1D1D1F] hover:border-[#B0B0B5] transition-colors z-50 shadow-sm"
+                    className="absolute right-[-14px] top-20 h-7 w-7 bg-white border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-dark hover:border-[#B0B0B5] transition-colors z-50 shadow-sm"
                 >
                     {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
                 </button>

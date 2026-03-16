@@ -30,8 +30,8 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children }) => {
             ref={setNodeRef}
             style={style}
             className={cn(
-                "bg-white rounded-2xl border border-[#D2D2D7] p-5 relative group transition-shadow",
-                isDragging && "shadow-xl ring-2 ring-[#029E4D]/20 z-50 opacity-90",
+                "bg-white rounded-2xl border border-border p-5 relative group transition-shadow",
+                isDragging && "shadow-xl ring-2 ring-brand-primary/20 z-50 opacity-90",
                 !isDragging && "hover:shadow-md hover:border-[#B0B0B5]"
             )}
         >
@@ -39,10 +39,10 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children }) => {
             <div
                 {...attributes}
                 {...listeners}
-                className="absolute top-3 right-3 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing hover:bg-[#F5F5F7]"
+                className="absolute top-3 right-3 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing hover:bg-background"
                 title="Arrastrar para reordenar"
             >
-                <GripVertical className="h-4 w-4 text-[#A1A1A6]" />
+                <GripVertical className="h-4 w-4 text-muted" />
             </div>
             {children}
         </div>

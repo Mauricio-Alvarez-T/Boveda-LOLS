@@ -18,7 +18,7 @@ const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, missingDocs,
 
     return (
         <div className="flex flex-col items-center justify-center text-center h-full">
-            <h3 className="text-sm font-semibold text-[#1D1D1F] mb-5 w-full text-left">Nivel de Cumplimiento</h3>
+            <h3 className="text-sm font-semibold text-brand-dark mb-5 w-full text-left">Nivel de Cumplimiento</h3>
             <div
                 className="relative h-36 w-36 cursor-pointer group"
                 onClick={onClick}
@@ -55,14 +55,14 @@ const ComplianceDonut: React.FC<Props> = ({ totalDocs, expiredDocs, missingDocs,
                     </PieChart>
                 </ResponsiveContainer>
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-                    <span className="text-2xl font-bold text-[#1D1D1F] group-hover:text-[#029E4D] transition-colors">
+                    <span className="text-2xl font-bold text-brand-dark group-hover:text-brand-primary transition-colors">
                         {compliancePercent}%
                     </span>
-                    <span className="text-[8px] text-[#A1A1A6] uppercase font-semibold">Total</span>
+                    <span className="text-[8px] text-muted uppercase font-semibold">Total</span>
                 </div>
             </div>
-            <p className="text-[10px] text-[#6E6E73] mt-5 leading-relaxed">
-                Tu bóveda está <span className={cn("font-bold", compliancePercent >= 80 ? "text-[#34C759]" : "text-[#FF3B30]")}>
+            <p className="text-[10px] text-muted-foreground mt-5 leading-relaxed">
+                Tu bóveda está <span className={cn("font-bold", compliancePercent >= 80 ? "text-brand-accent" : "text-destructive")}>
                     {compliancePercent >= 90 ? 'operativa' : compliancePercent >= 70 ? 'en revisión' : 'crítica'}
                 </span>.
                 {expiredDocs > 0 && ` ${expiredDocs} vencidos.`}

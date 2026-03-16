@@ -106,10 +106,10 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
     if (documents.length === 0) {
         return (
             <div className="py-16 text-center premium-card border-dashed">
-                <div className="h-16 w-16 rounded-full bg-[#F5F5F7] flex items-center justify-center mx-auto mb-4">
+                <div className="h-16 w-16 rounded-full bg-background flex items-center justify-center mx-auto mb-4">
                     <FileText className="h-8 w-8 text-muted-foreground" />
                 </div>
-                <h4 className="text-lg font-semibold text-[#1D1D1F]">Sin documentos</h4>
+                <h4 className="text-lg font-semibold text-brand-dark">Sin documentos</h4>
                 <p className="text-sm text-muted-foreground max-w-xs mx-auto mt-1">
                     Este trabajador no tiene archivos registrados actualmente.
                 </p>
@@ -120,7 +120,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
     return (
         <div className="space-y-4">
             {/* The table container */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+            <div className="bg-white rounded-2xl border border-border overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <tbody className="divide-y divide-[#E8E8ED]">
@@ -132,7 +132,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         animate={{ opacity: 1, x: 0 }}
                                         transition={{ delay: i * 0.05 }}
                                         className={cn(
-                                            "group border-l-4 border-l-transparent hover:border-l-[#029E4D] hover:bg-[#F5F5F7]/80 transition-all duration-300 relative",
+                                            "group border-l-4 border-l-transparent hover:border-l-brand-primary hover:bg-background/80 transition-all duration-300 relative",
                                             !doc.activo && "opacity-50 grayscale",
                                             isExpired(doc.fecha_vencimiento) && "bg-rose-50/20 hover:border-l-rose-500"
                                         )}
@@ -143,15 +143,15 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm border",
                                                     isExpired(doc.fecha_vencimiento)
                                                         ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
-                                                        : "bg-[#029E4D]/10 text-[#029E4D] border-[#029E4D]/20"
+                                                        : "bg-brand-primary/10 text-brand-primary border-brand-primary/20"
                                                 )}>
                                                     <FileText className="h-5 w-5" />
                                                 </div>
                                                 <div className="flex-1 min-w-0 flex flex-col justify-center">
-                                                    <h4 className="text-sm font-bold text-[#1D1D1F] truncate" title={doc.tipo_nombre}>
+                                                    <h4 className="text-sm font-bold text-brand-dark truncate" title={doc.tipo_nombre}>
                                                         {doc.tipo_nombre || 'Documento'}
                                                     </h4>
-                                                    <span className="text-[11px] text-[#A1A1A6] truncate mt-0.5" title={doc.nombre_archivo}>
+                                                    <span className="text-[11px] text-muted truncate mt-0.5" title={doc.nombre_archivo}>
                                                         {doc.nombre_archivo}
                                                     </span>
                                                 </div>
@@ -159,7 +159,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="flex items-center justify-end gap-3">
-                                                <span className="text-[10px] font-bold text-[#6E6E73] flex items-center gap-1.5 bg-[#F5F5F7] px-2 py-1 rounded-md border border-[#E8E8ED]">
+                                                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 bg-background px-2 py-1 rounded-md border border-[#E8E8ED]">
                                                     <Calendar className="h-3 w-3" />
                                                     {new Date(doc.fecha_subida).toLocaleDateString()}
                                                 </span>
@@ -175,7 +175,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                         {isExpired(doc.fecha_vencimiento) ? 'Vencido' : 'Vigente'}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[10px] font-bold text-[#6E6E73] bg-[#F5F5F7] px-2 py-1 rounded-md border border-[#E8E8ED] uppercase tracking-wider">
+                                                    <span className="text-[10px] font-bold text-muted-foreground bg-background px-2 py-1 rounded-md border border-[#E8E8ED] uppercase tracking-wider">
                                                         Indefinido
                                                     </span>
                                                 )}
@@ -186,7 +186,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                 <Button
                                                     variant="glass"
                                                     size="icon"
-                                                    className="h-9 w-9 text-[#029E4D] shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                                    className="h-9 w-9 text-brand-primary shadow-sm hover:scale-110 active:scale-95 transition-all"
                                                     onClick={() => handleDownload(doc)}
                                                 >
                                                     <Download className="h-4 w-4" />

@@ -13,7 +13,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         return (
             <div className="w-full space-y-1.5">
                 {label && (
-                    <label className="text-sm font-medium text-[#6E6E73] ml-0.5">
+                    <label className="text-sm font-medium text-muted-foreground ml-0.5">
                         {label}
                     </label>
                 )}
@@ -26,9 +26,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     <input
                         type={type}
                         className={cn(
-                            "flex h-11 w-full rounded-xl border border-[#D2D2D7] bg-white py-2 text-base text-[#1D1D1F] ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-[#A1A1A6] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#029E4D]/30 focus-visible:border-[#029E4D] transition-all hover:border-[#B0B0B5]",
+                            "flex h-11 w-full rounded-xl border border-border bg-white py-2 text-base text-brand-dark ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[#B0B0B5]",
                             leftIcon ? "pl-10 pr-4" : "px-4",
-                            error && "border-[#FF3B30] focus-visible:ring-[#FF3B30]/30 focus-visible:border-[#FF3B30]",
+                            error && "border-destructive focus-visible:ring-destructive/30 focus-visible:border-destructive",
                             className
                         )}
                         ref={ref}
@@ -36,12 +36,12 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     />
                 </div>
                 {error && (
-                    <p className="text-xs text-[#FF3B30] font-medium ml-0.5">
+                    <p className="text-xs text-destructive font-medium ml-0.5">
                         {error}
                     </p>
                 )}
                 {helperText && !error && (
-                    <p className="text-xs text-[#6E6E73] ml-0.5">
+                    <p className="text-xs text-muted-foreground ml-0.5">
                         {helperText}
                     </p>
                 )}

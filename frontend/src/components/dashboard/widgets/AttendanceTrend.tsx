@@ -16,12 +16,12 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
             <div className="h-full flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-base font-semibold text-[#1D1D1F]">Tendencia de Asistencia</h3>
-                        <p className="text-xs text-[#6E6E73]">Últimos 7 días activos.</p>
+                        <h3 className="text-base font-semibold text-brand-dark">Tendencia de Asistencia</h3>
+                        <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
                     </div>
-                    <Activity className="h-5 w-5 text-[#34C759]" />
+                    <Activity className="h-5 w-5 text-brand-accent" />
                 </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-[#6E6E73]">
+                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                     <CheckSquare className="h-10 w-10 opacity-20 mb-4" />
                     <p className="text-sm">No hay registros de asistencia recientes.</p>
                     <Button variant="ghost" className="mt-3 text-xs" onClick={onNavigate}>
@@ -36,10 +36,10 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
         <div>
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-base font-semibold text-[#1D1D1F]">Tendencia de Asistencia</h3>
-                    <p className="text-xs text-[#6E6E73]">Últimos 7 días activos.</p>
+                    <h3 className="text-base font-semibold text-brand-dark">Tendencia de Asistencia</h3>
+                    <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
                 </div>
-                <Activity className="h-5 w-5 text-[#34C759]" />
+                <Activity className="h-5 w-5 text-brand-accent" />
             </div>
             <div className="h-[200px] w-full">
                 <ResponsiveContainer width="100%" height="100%">

@@ -74,7 +74,7 @@ const LoginPage: React.FC = () => {
                 <div className="bg-white border border-gray-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden">
 
                     {/* Top Green Accent Bar */}
-                    <div className="h-2 w-full bg-[#029E4D]" />
+                    <div className="h-2 w-full bg-brand-primary" />
 
                     <div className="p-8 md:p-10">
                         <div className="flex flex-col items-center mb-10 w-full px-2">
@@ -84,7 +84,7 @@ const LoginPage: React.FC = () => {
                             >
                                 <Logo variant="green" className="w-full h-auto" />
                             </motion.div>
-                            <div className="h-px w-16 bg-[#029E4D]/20 mb-4" />
+                            <div className="h-px w-16 bg-brand-primary/20 mb-4" />
                             <p className="text-[#64748B] text-xs text-center font-bold uppercase tracking-[0.2em]">
                                 Gestión Documental & Asistencia
                             </p>
@@ -99,9 +99,9 @@ const LoginPage: React.FC = () => {
                                         type="email"
                                         error={errors.email?.message}
                                         {...register('email')}
-                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-[#029E4D] focus:ring-1 focus:ring-[#029E4D] h-12 rounded-lg transition-all"
+                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
                                     />
-                                    <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-[#029E4D] transition-colors" />
+                                    <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-brand-primary transition-colors" />
                                 </div>
 
                                 <div className="relative group">
@@ -111,16 +111,16 @@ const LoginPage: React.FC = () => {
                                         type="password"
                                         error={errors.password?.message}
                                         {...register('password')}
-                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-[#029E4D] focus:ring-1 focus:ring-[#029E4D] h-12 rounded-lg transition-all"
+                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
                                     />
-                                    <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-[#029E4D] transition-colors" />
+                                    <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-brand-primary transition-colors" />
                                 </div>
                             </div>
 
                             <div className="pt-4">
                                 <Button
                                     type="submit"
-                                    className="w-full h-12 text-base font-semibold bg-[#029E4D] text-white hover:bg-[#027A3B] rounded-lg shadow-sm transition-all active:scale-[0.98]"
+                                    className="w-full h-12 text-base font-semibold bg-brand-primary text-white hover:bg-[#027A3B] rounded-lg shadow-sm transition-all active:scale-[0.98]"
                                     isLoading={isLoading}
                                     rightIcon={<LogIn className="h-4 w-4" />}
                                 >

@@ -120,7 +120,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                             className={`p-3 rounded-xl border-2 text-left transition-all ${
                                 estadoId === est.id
                                     ? 'border-current shadow-lg scale-[1.02]'
-                                    : 'border-[#E8E8ED] hover:border-[#D2D2D7]'
+                                    : 'border-[#E8E8ED] hover:border-border'
                             }`}
                             style={estadoId === est.id ? { borderColor: est.color, backgroundColor: `${est.color}08` } : {}}
                         >
@@ -129,7 +129,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                     className="w-3 h-3 rounded-full shrink-0"
                                     style={{ backgroundColor: est.color }}
                                 />
-                                <span className="text-sm font-semibold text-[#1D1D1F]">{est.nombre}</span>
+                                <span className="text-sm font-semibold text-brand-dark">{est.nombre}</span>
                             </div>
                             <span className="text-[10px] text-[#86868B] font-medium mt-0.5 block">{est.codigo}</span>
                         </button>
@@ -147,7 +147,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                         type="date"
                         value={fechaInicio}
                         onChange={e => setFechaInicio(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl border border-[#D2D2D7] bg-white text-sm font-medium text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D]"
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                     />
                 </div>
                 <div>
@@ -159,7 +159,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                         value={fechaFin}
                         onChange={e => setFechaFin(e.target.value)}
                         min={fechaInicio}
-                        className="w-full px-3 py-2.5 rounded-xl border border-[#D2D2D7] bg-white text-sm font-medium text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D]"
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                     />
                 </div>
             </div>
@@ -177,10 +177,10 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                         {diasAfectados}
                     </div>
                     <div>
-                        <p className="text-sm font-semibold text-[#1D1D1F]">
+                        <p className="text-sm font-semibold text-brand-dark">
                             {diasAfectados} día{diasAfectados > 1 ? 's' : ''} de {selectedEstado.nombre}
                         </p>
-                        <p className="text-xs text-[#6E6E73]">
+                        <p className="text-xs text-muted-foreground">
                             {fechaInicio.split('-').reverse().join('/')} → {fechaFin.split('-').reverse().join('/')}
                         </p>
                     </div>
@@ -189,17 +189,17 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
 
             {/* Overlap warning */}
             {overlappingPeriods.length > 0 && (
-                <div className="mb-5 p-3 rounded-xl bg-[#FF9F0A]/10 border border-[#FF9F0A]/30">
+                <div className="mb-5 p-3 rounded-xl bg-warning/10 border border-warning/30">
                     <div className="flex items-start gap-2">
-                        <AlertTriangle className="h-4 w-4 text-[#FF9F0A] mt-0.5 shrink-0" />
+                        <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                         <div>
-                            <p className="text-xs font-bold text-[#FF9F0A]">Superposición detectada</p>
+                            <p className="text-xs font-bold text-warning">Superposición detectada</p>
                             <p className="text-xs text-[#86868B] mt-1">
                                 {overlappingPeriods.length === 1 ? 'Un período existente' : `${overlappingPeriods.length} períodos existentes`} se
                                 superpone{overlappingPeriods.length > 1 ? 'n' : ''} con este rango y será{overlappingPeriods.length > 1 ? 'n' : ''} reemplazado{overlappingPeriods.length > 1 ? 's' : ''}:
                             </p>
                             {overlappingPeriods.map(p => (
-                                <p key={p.id} className="text-xs text-[#6E6E73] mt-0.5">
+                                <p key={p.id} className="text-xs text-muted-foreground mt-0.5">
                                     • {p.estado_nombre} ({p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')})
                                 </p>
                             ))}
@@ -218,7 +218,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                     onChange={e => setObservacion(e.target.value)}
                     placeholder="Ej: Licencia médica presentada el día..."
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-xl border border-[#D2D2D7] bg-white text-sm text-[#1D1D1F] resize-none focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D]"
+                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                 />
             </div>
 
@@ -230,9 +230,9 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                     </label>
                     <div className="space-y-1.5 max-h-32 overflow-y-auto">
                         {existingPeriods.map(p => (
-                            <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-[#F5F5F7] text-xs">
+                            <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-background text-xs">
                                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.estado_color }} />
-                                <span className="font-medium text-[#1D1D1F]">{p.estado_nombre}</span>
+                                <span className="font-medium text-brand-dark">{p.estado_nombre}</span>
                                 <span className="text-[#86868B]">
                                     {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
                                 </span>
@@ -272,20 +272,20 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                     className="flex flex-col h-full"
                 >
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-[#029E4D] text-sm font-medium">
+                        <button onClick={onClose} className="flex items-center gap-1 text-brand-primary text-sm font-medium">
                             <ChevronLeft className="h-5 w-5" />
                             <span>Volver</span>
                         </button>
                         <div className="flex-1 text-center pr-12">
-                            <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center justify-center gap-2">
-                                <CalendarRange className="h-4 w-4 text-[#029E4D]" />
+                            <h3 className="text-base font-semibold text-brand-dark flex items-center justify-center gap-2">
+                                <CalendarRange className="h-4 w-4 text-brand-primary" />
                                 Asignar Período
                             </h3>
                         </div>
                     </div>
-                    <div className="px-4 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] shrink-0">
-                        <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
-                        <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                    <div className="px-4 py-3 bg-background border-b border-[#E8E8ED] shrink-0">
+                        <p className="text-sm font-semibold text-brand-dark">{worker.nombres} {worker.apellido_paterno}</p>
+                        <p className="text-xs text-muted-foreground">{worker.rut}</p>
                     </div>
                     <div className="flex-1 overflow-y-auto px-4 py-4">
                         {modalContentNodes}
@@ -303,11 +303,11 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                 >
                     <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
                         <div>
-                            <h2 className="text-lg font-bold text-[#1D1D1F] flex items-center gap-2">
-                                <CalendarRange className="h-5 w-5 text-[#029E4D]" />
+                            <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
+                                <CalendarRange className="h-5 w-5 text-brand-primary" />
                                 Asignar Período
                             </h2>
-                            <p className="text-sm text-[#6E6E73] mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                                 {worker.nombres} {worker.apellido_paterno} · {worker.rut}
                             </p>
                         </div>

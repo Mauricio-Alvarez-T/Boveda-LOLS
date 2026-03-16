@@ -123,32 +123,32 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                         >
                             {/* Header */}
                             <div className="sticky top-0 bg-white/80 backdrop-blur-xl z-10 px-5 py-4 border-b border-[#E8E8ED] flex items-center justify-between">
-                                <h2 className="text-lg font-bold text-[#1D1D1F]">Ficha Rápida</h2>
-                                <button onClick={onClose} className="p-2 rounded-full hover:bg-[#F5F5F7] transition-colors">
-                                    <X className="h-5 w-5 text-[#6E6E73]" />
+                                <h2 className="text-lg font-bold text-brand-dark">Ficha Rápida</h2>
+                                <button onClick={onClose} className="p-2 rounded-full hover:bg-background transition-colors">
+                                    <X className="h-5 w-5 text-muted-foreground" />
                                 </button>
                             </div>
 
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20">
-                                    <Loader2 className="h-8 w-8 animate-spin text-[#029E4D] mb-3" />
-                                    <p className="text-sm text-[#6E6E73]">Cargando información...</p>
+                                    <Loader2 className="h-8 w-8 animate-spin text-brand-primary mb-3" />
+                                    <p className="text-sm text-muted-foreground">Cargando información...</p>
                                 </div>
                             ) : worker ? (
                                 <div className="p-5 space-y-5">
                                     {/* ── Worker Identity Card ── */}
-                                    <div className="bg-gradient-to-br from-[#029E4D]/5 to-[#5AC8FA]/5 rounded-2xl p-5 border border-[#029E4D]/10">
+                                    <div className="bg-gradient-to-br from-brand-primary/5 to-[#5AC8FA]/5 rounded-2xl p-5 border border-brand-primary/10">
                                         <div className="flex items-center gap-4">
-                                            <div className="h-16 w-16 rounded-2xl bg-[#029E4D] text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-[#029E4D]/20">
+                                            <div className="h-16 w-16 rounded-2xl bg-brand-primary text-white flex items-center justify-center font-bold text-xl shadow-lg shadow-brand-primary/20">
                                                 {initials}
                                             </div>
                                             <div className="flex-1 min-w-0">
-                                                <h3 className="text-lg font-bold text-[#1D1D1F]">
+                                                <h3 className="text-lg font-bold text-brand-dark">
                                                     {worker.nombres} {worker.apellido_paterno}
                                                 </h3>
-                                                <p className="text-sm text-[#6E6E73]">{worker.rut}</p>
+                                                <p className="text-sm text-muted-foreground">{worker.rut}</p>
                                                 {!worker.activo && (
-                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[10px] font-bold uppercase">Finiquitado</span>
+                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-destructive/10 text-destructive text-[10px] font-bold uppercase">Finiquitado</span>
                                                 )}
                                             </div>
                                         </div>
@@ -156,18 +156,18 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         {/* Info chips */}
                                         <div className="mt-4 flex flex-wrap gap-2">
                                             {worker.cargo_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                    <Briefcase className="h-3.5 w-3.5 text-[#029E4D]" /> {worker.cargo_nombre}
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-brand-dark border border-[#E8E8ED]">
+                                                    <Briefcase className="h-3.5 w-3.5 text-brand-primary" /> {worker.cargo_nombre}
                                                 </span>
                                             )}
                                             {worker.empresa_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                    <Building2 className="h-3.5 w-3.5 text-[#FF9F0A]" /> {worker.empresa_nombre}
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-brand-dark border border-[#E8E8ED]">
+                                                    <Building2 className="h-3.5 w-3.5 text-warning" /> {worker.empresa_nombre}
                                                 </span>
                                             )}
                                             {worker.obra_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-[#1D1D1F] border border-[#E8E8ED]">
-                                                    <MapPin className="h-3.5 w-3.5 text-[#34C759]" /> {worker.obra_nombre}
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-brand-dark border border-[#E8E8ED]">
+                                                    <MapPin className="h-3.5 w-3.5 text-brand-accent" /> {worker.obra_nombre}
                                                 </span>
                                             )}
                                         </div>
@@ -177,31 +177,31 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {(worker.telefono || worker.email) && (
                                         <div className="space-y-2">
                                             {worker.telefono && (
-                                                <a href={`tel:${worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
-                                                    <Phone className="h-4 w-4 text-[#34C759]" />
-                                                    <span className="text-sm text-[#1D1D1F]">{worker.telefono}</span>
+                                                <a href={`tel:${worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-[#E8E8ED] transition-colors">
+                                                    <Phone className="h-4 w-4 text-brand-accent" />
+                                                    <span className="text-sm text-brand-dark">{worker.telefono}</span>
                                                 </a>
                                             )}
                                             {worker.email && (
-                                                <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED] transition-colors">
-                                                    <Mail className="h-4 w-4 text-[#029E4D]" />
-                                                    <span className="text-sm text-[#1D1D1F] truncate">{worker.email}</span>
+                                                <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-[#E8E8ED] transition-colors">
+                                                    <Mail className="h-4 w-4 text-brand-primary" />
+                                                    <span className="text-sm text-brand-dark truncate">{worker.email}</span>
                                                 </a>
                                             )}
                                         </div>
                                     )}
 
                                     {/* ── Document Compliance ── */}
-                                    <div className="bg-[#F5F5F7] rounded-2xl p-4">
+                                    <div className="bg-background rounded-2xl p-4">
                                         <div className="flex items-center justify-between mb-3">
-                                            <span className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2">
-                                                <FileText className="h-4 w-4 text-[#029E4D]" /> Documentación
+                                            <span className="text-sm font-semibold text-brand-dark flex items-center gap-2">
+                                                <FileText className="h-4 w-4 text-brand-primary" /> Documentación
                                             </span>
                                             <span className={cn(
                                                 "text-xs font-bold px-2.5 py-1 rounded-lg",
-                                                docPct === 100 ? "bg-[#34C759]/10 text-[#34C759]" :
-                                                    docPct > 50 ? "bg-[#FF9F0A]/10 text-[#FF9F0A]" :
-                                                        "bg-[#FF3B30]/10 text-[#FF3B30]"
+                                                docPct === 100 ? "bg-brand-accent/10 text-brand-accent" :
+                                                    docPct > 50 ? "bg-warning/10 text-warning" :
+                                                        "bg-destructive/10 text-destructive"
                                             )}>
                                                 {completedDocs}/{totalRequired}
                                             </span>
@@ -213,12 +213,12 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 transition={{ duration: 0.6, ease: 'easeOut' }}
                                                 className={cn(
                                                     "h-full rounded-full",
-                                                    docPct === 100 ? "bg-[#34C759]" :
-                                                        docPct > 50 ? "bg-[#FF9F0A]" : "bg-[#FF3B30]"
+                                                    docPct === 100 ? "bg-brand-accent" :
+                                                        docPct > 50 ? "bg-warning" : "bg-destructive"
                                                 )}
                                             />
                                         </div>
-                                        <p className="text-[11px] text-[#6E6E73] mt-2">
+                                        <p className="text-[11px] text-muted-foreground mt-2">
                                             {docPct >= 100 ? 'Documentación completa ✓' : `Faltan ${Math.max(totalRequired - completedDocs, 0)} documento(s) obligatorio(s)`}
                                         </p>
                                     </div>
@@ -226,16 +226,16 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {/* ── Recent Documents List ── */}
                                     {docs.length > 0 && (
                                         <div>
-                                            <h4 className="text-sm font-semibold text-[#1D1D1F] flex items-center gap-2 mb-3">
-                                                <FileText className="h-4 w-4 text-[#029E4D]" /> Documentos Subidos
+                                            <h4 className="text-sm font-semibold text-brand-dark flex items-center gap-2 mb-3">
+                                                <FileText className="h-4 w-4 text-brand-primary" /> Documentos Subidos
                                             </h4>
                                             <div className="space-y-2">
                                                 {docs.slice(0, 5).map((doc: any, i: number) => (
-                                                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-[#F5F5F7] hover:bg-[#E8E8ED]/70 transition-colors">
+                                                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-background hover:bg-[#E8E8ED]/70 transition-colors">
                                                         <div className="min-w-0 flex-1">
-                                                            <p className="text-xs font-semibold text-[#1D1D1F] truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
+                                                            <p className="text-xs font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
                                                             {doc.fecha_vencimiento && (
-                                                                <p className="text-[10px] text-[#6E6E73] flex items-center gap-1 mt-0.5">
+                                                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
                                                                     <Clock className="h-3 w-3" />
                                                                     Vence: {new Date(doc.fecha_vencimiento).toLocaleDateString('es-CL')}
                                                                 </p>
@@ -251,27 +251,27 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     <div className="grid grid-cols-3 gap-2 pt-2 pb-4">
                                         <button
                                             onClick={() => onEditWorker?.(worker.id)}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#029E4D]/5 hover:bg-[#029E4D]/10 border border-[#029E4D]/10 transition-colors group"
+                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 transition-colors group"
                                         >
-                                            <Pencil className="h-5 w-5 text-[#029E4D] group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-[#029E4D]">Editar</span>
+                                            <Pencil className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-semibold text-brand-primary">Editar</span>
                                         </button>
                                         <button
                                             onClick={() => onViewDocuments?.(worker.id)}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#FF9F0A]/5 hover:bg-[#FF9F0A]/10 border border-[#FF9F0A]/10 transition-colors group"
+                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-warning/5 hover:bg-warning/10 border border-warning/10 transition-colors group"
                                         >
-                                            <FileText className="h-5 w-5 text-[#FF9F0A] group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-[#FF9F0A]">Docs</span>
+                                            <FileText className="h-5 w-5 text-warning group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-semibold text-warning">Docs</span>
                                         </button>
                                         <button
                                             onClick={() => {
                                                 onClose();
                                                 setShowCalendar(true);
                                             }}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-[#34C759]/5 hover:bg-[#34C759]/10 border border-[#34C759]/10 transition-colors group"
+                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-accent/5 hover:bg-brand-accent/10 border border-brand-accent/10 transition-colors group"
                                         >
-                                            <Calendar className="h-5 w-5 text-[#34C759] group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-[#34C759]">Asistencia</span>
+                                            <Calendar className="h-5 w-5 text-brand-accent group-hover:scale-110 transition-transform" />
+                                            <span className="text-[11px] font-semibold text-brand-accent">Asistencia</span>
                                         </button>
                                     </div>
                                 </div>

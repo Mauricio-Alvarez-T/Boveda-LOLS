@@ -122,7 +122,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
     const CalendarGrid = () => (
         <>
             <div className="flex items-center justify-between mb-4 md:mb-6">
-                <h3 className="text-base md:text-lg font-semibold text-[#1D1D1F]">
+                <h3 className="text-base md:text-lg font-semibold text-brand-dark">
                     {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}
                 </h3>
                 <div className="flex gap-2">
@@ -140,7 +140,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
 
             {loading ? (
                 <div className="h-64 flex items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-[#029E4D]" />
+                    <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                 </div>
             ) : (
                 <div className="grid grid-cols-7 gap-1 md:gap-1.5">
@@ -151,7 +151,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     ))}
 
                     {Array.from({ length: startingDay }).map((_, i) => (
-                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-[#F5F5F7]/30 rounded-xl border border-[#E8E8ED]/30" />
+                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-background/30 rounded-xl border border-[#E8E8ED]/30" />
                     ))}
 
                     {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -186,13 +186,13 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
 
                         let buttonClass = "absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 transition-all group ";
                         if (isDesvinculado) {
-                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03)_5px,transparent_5px,transparent_10px)] border-[#D2D2D7]";
+                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03)_5px,transparent_5px,transparent_10px)] border-border";
                         } else if (!periodo && !isSelected) {
-                            buttonClass += "border-[#E8E8ED] hover:shadow-md hover:border-[#029E4D]/30";
+                            buttonClass += "border-[#E8E8ED] hover:shadow-md hover:border-brand-primary/30";
                         } else if (isSelected) {
-                            buttonClass += "border-transparent bg-transparent border-[#029E4D]/40 ring-2 ring-[#029E4D]/20";
+                            buttonClass += "border-transparent bg-transparent border-brand-primary/40 ring-2 ring-brand-primary/20";
                         } else {
-                            buttonClass += "border-transparent bg-transparent hover:shadow-md hover:border-[#029E4D]/30";
+                            buttonClass += "border-transparent bg-transparent hover:shadow-md hover:border-brand-primary/30";
                         }
 
                         const buttonTitle = isDesvinculado ? 'Bloqueado por Finiquito' : (periodo ? `Período: ${periodo.estado_nombre}${periodo.observacion ? ' \n📝 ' + periodo.observacion : ''}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : '')));
@@ -213,7 +213,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 {/* Bloque de selección nueva (frontend selection) */}
                                 {isSelected && (
                                     <div 
-                                        className={`absolute inset-y-1 w-full bg-[#029E4D]/10 border-y-2 border-[#029E4D]/20 z-0 pointer-events-none ${isStart ? 'rounded-l-xl' : ''} ${isEnd ? 'rounded-r-xl' : ''}`}
+                                        className={`absolute inset-y-1 w-full bg-brand-primary/10 border-y-2 border-brand-primary/20 z-0 pointer-events-none ${isStart ? 'rounded-l-xl' : ''} ${isEnd ? 'rounded-r-xl' : ''}`}
                                     />
                                 )}
                                 
@@ -226,7 +226,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                     } : undefined}
                                     title={buttonTitle}  
                                 >
-                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-[#1D1D1F]' : 'text-[#86868B]'} mb-auto z-20`}>
+                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-brand-dark' : 'text-[#86868B]'} mb-auto z-20`}>
                                         {day}
                                     </span>
                                     {estado && (
@@ -239,7 +239,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                         </div>
                                     )}
                                     {isSelected && !estado && !periodo && (
-                                        <div className="h-1 w-1 bg-[#029E4D] rounded-full z-20" />
+                                        <div className="h-1 w-1 bg-brand-primary rounded-full z-20" />
                                     )}
                                 </button>
                             </div>
@@ -253,11 +253,11 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                 <motion.div 
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="mt-4 p-3 bg-[#F5F5F7] rounded-2xl flex items-center justify-between border border-[#D2D2D7]"
+                    className="mt-4 p-3 bg-background rounded-2xl flex items-center justify-between border border-border"
                 >
                     <div className="flex flex-col">
                         <span className="text-[10px] uppercase font-black text-[#86868B] tracking-widest">Rango Seleccionado</span>
-                        <span className="text-xs font-bold text-[#1D1D1F]">
+                        <span className="text-xs font-bold text-brand-dark">
                             {selectionStart.split('-').reverse().join('/')} 
                             {selectionEnd && selectionEnd !== selectionStart && ` — ${selectionEnd.split('-').reverse().join('/')}`}
                         </span>
@@ -282,13 +282,13 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
             {/* Legend */}
             <div className="mt-4 md:mt-6 flex flex-wrap gap-2 md:gap-3 justify-center">
                 {estados.map(est => (
-                    <div key={est.id} className="flex items-center gap-1.5 text-[11px] md:text-xs text-[#6E6E73]">
+                    <div key={est.id} className="flex items-center gap-1.5 text-[11px] md:text-xs text-muted-foreground">
                         <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: est.color }} />
                         {est.nombre.includes(`(${est.codigo})`) ? est.nombre : `${est.nombre} (${est.codigo})`}
                     </div>
                 ))}
-                <div className="flex items-center gap-1.5 text-[11px] md:text-xs text-[#6E6E73]">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#FF3B30]/20 border border-[#FF3B30]/40" />
+                <div className="flex items-center gap-1.5 text-[11px] md:text-xs text-muted-foreground">
+                    <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40" />
                     Feriado
                 </div>
             </div>
@@ -299,20 +299,20 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     <h4 className="text-[10px] uppercase font-black text-[#86868B] tracking-widest mb-2">Períodos Activos</h4>
                     <div className="space-y-2">
                         {periodos.map(p => (
-                            <div key={p.id} className="flex items-start gap-2 p-2 rounded-xl border border-[#E8E8ED] bg-[#F5F5F7]/50">
+                            <div key={p.id} className="flex items-start gap-2 p-2 rounded-xl border border-[#E8E8ED] bg-background/50">
                                 <span 
                                     className="w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" 
                                     style={{ backgroundColor: p.estado_color || '#6E6E73' }}
                                 />
                                 <div className="min-w-0">
-                                    <p className="text-xs font-semibold text-[#1D1D1F]">
+                                    <p className="text-xs font-semibold text-brand-dark">
                                         {p.estado_nombre || p.estado_codigo}
                                         <span className="text-[10px] font-normal text-[#86868B] ml-1.5">
                                             {p.fecha_inicio.split('-').reverse().join('/')} — {p.fecha_fin.split('-').reverse().join('/')}
                                         </span>
                                     </p>
                                     {p.observacion && (
-                                        <p className="text-[11px] text-[#6E6E73] mt-0.5 italic">
+                                        <p className="text-[11px] text-muted-foreground mt-0.5 italic">
                                             📝 {p.observacion}
                                         </p>
                                     )}
@@ -337,23 +337,23 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     className="flex flex-col h-full"
                 >
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-[#029E4D] text-sm font-medium">
+                        <button onClick={onClose} className="flex items-center gap-1 text-brand-primary text-sm font-medium">
                             <ChevronLeft className="h-5 w-5" />
                             <span>Volver</span>
                         </button>
                         <div className="flex-1 text-center pr-12">
-                            <h3 className="text-base font-semibold text-[#1D1D1F] flex items-center justify-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-[#029E4D]" />
+                            <h3 className="text-base font-semibold text-brand-dark flex items-center justify-center gap-2">
+                                <CalendarIcon className="h-4 w-4 text-brand-primary" />
                                 Calendario
                             </h3>
                         </div>
                     </div>
 
                     {/* Worker info */}
-                    <div className="px-4 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] shrink-0 flex justify-between items-center">
+                    <div className="px-4 py-3 bg-background border-b border-[#E8E8ED] shrink-0 flex justify-between items-center">
                         <div>
-                            <p className="text-sm font-semibold text-[#1D1D1F]">{worker.nombres} {worker.apellido_paterno}</p>
-                            <p className="text-xs text-[#6E6E73]">{worker.rut}</p>
+                            <p className="text-sm font-semibold text-brand-dark">{worker.nombres} {worker.apellido_paterno}</p>
+                            <p className="text-xs text-muted-foreground">{worker.rut}</p>
                         </div>
                         {onAssignPeriod && (
                             <Button variant="outline" size="sm" onClick={onAssignPeriod}>
@@ -378,11 +378,11 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                 >
                     <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
                         <div>
-                            <h2 className="text-xl font-bold text-[#1D1D1F] flex items-center gap-2">
-                                <CalendarIcon className="h-5 w-5 text-[#029E4D]" />
+                            <h2 className="text-xl font-bold text-brand-dark flex items-center gap-2">
+                                <CalendarIcon className="h-5 w-5 text-brand-primary" />
                                 Calendario Mensual
                             </h2>
-                            <p className="text-sm text-[#6E6E73] mt-1">
+                            <p className="text-sm text-muted-foreground mt-1">
                                 {worker.nombres} {worker.apellido_paterno} · {worker.rut}
                             </p>
                         </div>

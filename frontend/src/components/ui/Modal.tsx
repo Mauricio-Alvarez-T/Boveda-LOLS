@@ -60,12 +60,12 @@ export const Modal: React.FC<ModalProps> = ({
                             <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0 safe-area-top">
                                 <button
                                     onClick={handleClose}
-                                    className="flex items-center gap-1 text-[#029E4D] text-sm font-medium active:opacity-60 transition-opacity"
+                                    className="flex items-center gap-1 text-brand-primary text-sm font-medium active:opacity-60 transition-opacity"
                                 >
                                     <ChevronLeft className="h-5 w-5" />
                                     <span>Volver</span>
                                 </button>
-                                <h3 className="flex-1 text-center text-base font-semibold text-[#1D1D1F] truncate pr-12">{title}</h3>
+                                <h3 className="flex-1 text-center text-base font-semibold text-brand-dark truncate pr-12">{title}</h3>
                             </div>
 
                             {/* Mobile body */}
@@ -75,7 +75,7 @@ export const Modal: React.FC<ModalProps> = ({
 
                             {/* Mobile footer */}
                             {footer && (
-                                <div className="px-4 py-3 border-t border-[#E8E8ED] bg-[#F5F5F7] flex justify-end gap-3 shrink-0 safe-area-bottom">
+                                <div className="px-4 py-3 border-t border-[#E8E8ED] bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
                                     {footer}
                                 </div>
                             )}
@@ -103,9 +103,9 @@ export const Modal: React.FC<ModalProps> = ({
                             )}
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-[#D2D2D7]">
-                                <h3 className="text-lg font-semibold text-[#1D1D1F] truncate pr-8">{title}</h3>
-                                <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-[#6E6E73] hover:text-[#1D1D1F] shrink-0">
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-border">
+                                <h3 className="text-lg font-semibold text-brand-dark truncate pr-8">{title}</h3>
+                                <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-muted-foreground hover:text-brand-dark shrink-0">
                                     <X className="h-4 w-4" />
                                 </Button>
                             </div>
@@ -115,7 +115,7 @@ export const Modal: React.FC<ModalProps> = ({
                             </div>
                             {/* Footer */}
                             {footer && (
-                                <div className="px-6 py-4 border-t border-[#D2D2D7] bg-[#F5F5F7] flex justify-end gap-3">
+                                <div className="px-6 py-4 border-t border-border bg-background flex justify-end gap-3">
                                     {footer}
                                 </div>
                             )}
