@@ -251,7 +251,7 @@ const AttendancePage: React.FC = () => {
     }, [fetchAttendanceInfo]);
 
     // Handle Excel Export
-    const handleExportExcel = useCallback(async () => {
+    const handleExportExcel = useCallback(async (returnFile = false) => {
         const { 
             selectedObra: currentObra, 
             date: currentDate, 
@@ -272,27 +272,35 @@ const AttendancePage: React.FC = () => {
             const firstDay = `${year}-${month}-01`;
             const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
-            toast.info('Generando reporte Excel...', { id: 'excel-export' });
+            if (!returnFile) toast.info('Generando reporte Excel...', { id: 'excel-export' });
 
             const obraIdParam = currentObra ? `obra_id=${currentObra.id}` : 'obra_id=';
             const response = await api.get(`/asistencias/exportar/excel?${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
                 responseType: 'blob'
             });
 
+            const fileName = currentObra ? `Asistencia_${currentObra.nombre.replace(/\s+/g, '_')}` : 'Asistencia_Todas_las_Obras';
+            const finalFileName = `${fileName}_${year}_${month}.xlsx`;
+
+            if (returnFile) {
+                return new File([response.data as Blob], finalFileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+            }
+
             const url = window.URL.createObjectURL(new Blob([response.data as any]));
             const link = document.createElement('a');
             link.href = url;
-            const fileName = currentObra ? `Asistencia_${currentObra.nombre.replace(/\s+/g, '_')}` : 'Asistencia_Todas_las_Obras';
-            link.setAttribute('download', `${fileName}_${year}_${month}.xlsx`);
+            link.setAttribute('download', finalFileName);
             document.body.appendChild(link);
             link.click();
             link.remove();
             window.URL.revokeObjectURL(url);
 
             toast.success('Reporte Excel descargado', { id: 'excel-export' });
+            return null;
         } catch (error) {
             console.error('Error exportando Excel', error);
-            toast.error('Error al generar el reporte', { id: 'excel-export' });
+            if (!returnFile) toast.error('Error al generar el reporte', { id: 'excel-export' });
+            return null;
         }
     }, []);
 
@@ -301,37 +309,19 @@ const AttendancePage: React.FC = () => {
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance, estados: currentEstados } = latestData.current;
         if (!currentObra) return;
 
-        await handleExportExcel();
-        toast.success('Excel generado. Solo arrástralo o adjúntalo al chat de WhatsApp que se abrirá', {
-            duration: 6000,
-            id: 'whatsapp-instruction'
-        });
+        toast.info('Preparando reporte para compartir...', { id: 'whatsapp-share', duration: 2000 });
 
         const dateStr = currentDate.split('-').reverse().join('-');
         let text = `Buenas tardes\n`;
         text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
 
         const total = currentWorkers.length;
-
-        const counts: Record<string, number> = {
-            'A': 0,
-            'F': 0,
-            'V': 0,
-            'LM': 0,
-            'JI': 0,
-            'TO': 0,
-            'AT': 0
-        };
+        const counts: Record<string, number> = { 'A': 0, 'F': 0, 'V': 0, 'LM': 0, 'JI': 0, 'TO': 0, 'AT': 0 };
 
         Object.values(currentAttendance).forEach(a => {
             const est = currentEstados.find(e => e.id === a.estado_id);
             if (!est) return;
-            // Incrementar exactamente el código asignado a la asistencia actual
-            if (counts[est.codigo] !== undefined) {
-                counts[est.codigo]++;
-            } else {
-                counts[est.codigo] = 1; // Por si hay algún código extra no contemplado en la inicialización
-            }
+            if (counts[est.codigo] !== undefined) counts[est.codigo]++;
         });
 
         text += `Total: ${total}\n`;
@@ -341,10 +331,7 @@ const AttendancePage: React.FC = () => {
         text += `LM: ${counts['LM'].toString().padStart(2, '0')}\n`;
         text += `JI: ${counts['JI'].toString().padStart(2, '0')}\n`;
         text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n`;
-        // Solo mostramos 'AT' si hay atrasos, para no sobrecargar el mensaje si normalmente es 0
-        if (counts['AT'] > 0) {
-            text += `AT: ${counts['AT'].toString().padStart(2, '0')}\n`;
-        }
+        if (counts['AT'] > 0) text += `AT: ${counts['AT'].toString().padStart(2, '0')}\n`;
         text += `\n`;
 
         const categorias = [
@@ -354,26 +341,21 @@ const AttendancePage: React.FC = () => {
         ];
 
         categorias.forEach(cat => {
-            // Filtrar SOLO a los trabajadores presentes
             const presentWorkersInCat = currentWorkers.filter(w => {
                 const isCat = (w.categoria_reporte || 'obra') === cat.key;
                 if (!isCat) return false;
-                
                 const state = currentAttendance[w.id];
                 if (!state || !state.estado_id) return false;
                 const est = currentEstados.find(e => e.id === state.estado_id);
                 return est && est.es_presente;
             });
-
             if (presentWorkersInCat.length === 0) return;
-
             text += `${cat.label}\n`;
             const cargoCounts: Record<string, number> = {};
             presentWorkersInCat.forEach(w => {
                 const cargo = w.cargo_nombre || 'Sin Cargo';
                 cargoCounts[cargo] = (cargoCounts[cargo] || 0) + 1;
             });
-
             Object.keys(cargoCounts).sort().forEach(cargo => {
                 text += `${cargoCounts[cargo].toString().padStart(2, '0')} ${cargo}\n`;
             });
@@ -392,8 +374,7 @@ const AttendancePage: React.FC = () => {
             excepciones.forEach(w => {
                  const state = currentAttendance[w.id];
                  const est = currentEstados.find(e => e.id === state?.estado_id);
-                 const codigo = est ? est.codigo : '?';
-                 text += `- ${w.apellido_paterno} (${codigo})\n`;
+                 text += `- ${w.apellido_paterno} (${est ? est.codigo : '?'})\n`;
             });
             text += `\n`;
         }
@@ -401,8 +382,37 @@ const AttendancePage: React.FC = () => {
         text += `Saludos cordiales\n\n`;
         text += `_Este mensaje se genero usando Bóveda lols_`;
 
-        const encodedText = encodeURIComponent(text);
-        window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+        try {
+            // 1. Generate the Excel file
+            const excelFile = await handleExportExcel(true);
+            
+            // 2. Try to use Web Share API (Best for Mobile / iOS)
+            if (navigator.share && navigator.canShare && excelFile && navigator.canShare({ files: [excelFile] })) {
+                await navigator.share({
+                    files: [excelFile],
+                    title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
+                    text: text,
+                });
+                toast.success('Compartido exitosamente', { id: 'whatsapp-share' });
+            } else {
+                // 3. Fallback for Desktop or non-supporting browsers
+                // Copy text to clipboard as a courtesy for desktop users
+                try { await navigator.clipboard.writeText(text); } catch(e) {}
+                
+                const encodedText = encodeURIComponent(text);
+                window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+                
+                toast.success('Abriendo WhatsApp. El resumen se ha copiado al portapapeles.', { 
+                    id: 'whatsapp-share',
+                    duration: 5000 
+                });
+            }
+        } catch (error) {
+            console.error('Error sharing via WhatsApp', error);
+            // Even if share fails, fallback to simple link
+            const encodedText = encodeURIComponent(text);
+            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+        }
     }, [handleExportExcel]);
 
     // Navigate date
@@ -541,7 +551,7 @@ const AttendancePage: React.FC = () => {
 
             {/* Mobile Export Button */}
             <button
-                onClick={handleExportExcel}
+                onClick={() => handleExportExcel()}
                 className="md:hidden flex items-center justify-center h-9 w-9 rounded-full border border-border bg-white text-muted-foreground shadow-sm active:bg-background"
                 title="Exportar Reporte Mensual"
             >
@@ -550,7 +560,7 @@ const AttendancePage: React.FC = () => {
 
             {/* Export Monthly Report — always available if user can view assistance */}
             <Button
-                onClick={handleExportExcel}
+                onClick={() => handleExportExcel()}
                 variant="outline"
                 title="Exportar Asistencia del Mes actual"
                 leftIcon={<FileDown className="h-4 w-4" />}
@@ -648,7 +658,7 @@ const AttendancePage: React.FC = () => {
                     </div>
 
                     <Button
-                        onClick={handleExportExcel}
+                        onClick={() => handleExportExcel()}
                         variant="primary"
                         className="w-full h-12 shadow-lg shadow-brand-primary/20"
                         leftIcon={<FileDown className="h-5 w-5" />}
