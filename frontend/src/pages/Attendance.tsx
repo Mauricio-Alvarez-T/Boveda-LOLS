@@ -387,29 +387,49 @@ const AttendancePage: React.FC = () => {
             const excelFile = await handleExportExcel(true);
             
             // 2. Try to use Web Share API (Best for Mobile / iOS)
+            // Note: On many mobile browsers, sharing BOTH file and text in one go can be unreliable (one is ignored).
+            // We prioritize sharing the FILE and copying the TEXT to clipboard.
             if (navigator.share && navigator.canShare && excelFile && navigator.canShare({ files: [excelFile] })) {
+                // Copy text to clipboard so they can paste it in the chat
+                try { await navigator.clipboard.writeText(text); } catch(e) {}
+                
                 await navigator.share({
                     files: [excelFile],
                     title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                    text: text,
                 });
-                toast.success('Compartido exitosamente', { id: 'whatsapp-share' });
+                toast.success('Archivo preparado. El resumen se ha copiado al portapapeles para que lo pegues en el chat.', { 
+                    id: 'whatsapp-share',
+                    duration: 6000
+                });
             } else {
-                // 3. Fallback for Desktop or non-supporting browsers
-                // Copy text to clipboard as a courtesy for desktop users
+                // 3. Fallback for Desktop (Win/Mac)
+                // In Desktop, we want to DOWNLOAD the file AND open the WhatsApp link
+                
+                // Copy text to clipboard as a courtesy
                 try { await navigator.clipboard.writeText(text); } catch(e) {}
                 
+                // Trigger download manually since we used handleExportExcel(true)
+                const url = window.URL.createObjectURL(excelFile as Blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', excelFile?.name || 'asistencia.xlsx');
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                window.URL.revokeObjectURL(url);
+
+                // Open WhatsApp
                 const encodedText = encodeURIComponent(text);
                 window.open(`https://wa.me/?text=${encodedText}`, '_blank');
                 
-                toast.success('Abriendo WhatsApp. El resumen se ha copiado al portapapeles.', { 
+                toast.success('Reporte descargado y WhatsApp abierto. Arrastra el archivo al chat.', { 
                     id: 'whatsapp-share',
-                    duration: 5000 
+                    duration: 6000 
                 });
             }
         } catch (error) {
             console.error('Error sharing via WhatsApp', error);
-            // Even if share fails, fallback to simple link
+            // Even if everything fails, fallback to simple link
             const encodedText = encodeURIComponent(text);
             window.open(`https://wa.me/?text=${encodedText}`, '_blank');
         }
