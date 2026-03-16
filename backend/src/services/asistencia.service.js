@@ -447,7 +447,6 @@ const asistenciaService = {
      */
     async generarExcel(query = {}) {
         const { obra_id, fecha_inicio, fecha_fin } = query;
-        console.log(`[DEBUG] generarExcel - ObraId: ${obra_id}, Inicio: ${fecha_inicio}, Fin: ${fecha_fin}`);
 
         if (!fecha_inicio || !fecha_fin) {
             throw new Error('fecha_inicio y fecha_fin son requeridos para exportar');
@@ -751,6 +750,14 @@ const asistenciaService = {
                                 cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
                             }
                         }
+
+                        // ── Observación como comentario en la celda ──
+                        if (reg.observacion && reg.observacion.trim()) {
+                            cell.note = {
+                                texts: [{ text: reg.observacion.trim() }],
+                                margins: { insetmode: 'auto' }
+                            };
+                        }
                     } else if (isFeriado || isWeekend) {
                         // Fin de semana o feriado SIN registro → marcar con FDS para que sume
                         cell.value = MARKER_FDS;
@@ -931,10 +938,11 @@ const asistenciaService = {
                 const nombreTrab = trabajadorRows[0] ? `${trabajadorRows[0].nombres} ${trabajadorRows[0].apellido_paterno}` : `ID ${trabajador_id}`;
                 const nombreEstado = estadoRows[0] ? estadoRows[0].nombre : `ID ${estado_id}`;
 
-                logManualActivity(req, userId, 'CREATE', 'periodos_ausencia', periodoResult.insertId,
+                logManualActivity(userId, 'periodos_ausencia', 'CREATE', periodoResult.insertId,
                     JSON.stringify({
                         resumen: `Período asignado: ${nombreEstado} para ${nombreTrab} del ${fecha_inicio} al ${fecha_fin} (${diasAfectados} días)`
-                    })
+                    }),
+                    req
                 );
             } catch (logErr) {
                 console.error('Error registrando log de período:', logErr);
@@ -1007,8 +1015,9 @@ const asistenciaService = {
         );
 
         try {
-            logManualActivity(req, userId, 'DELETE', 'periodos_ausencia', periodoId,
-                JSON.stringify({ resumen: `Período #${periodoId} cancelado (${existing[0].fecha_inicio} al ${existing[0].fecha_fin})` })
+            logManualActivity(userId, 'periodos_ausencia', 'DELETE', periodoId,
+                JSON.stringify({ resumen: `Período #${periodoId} cancelado (${existing[0].fecha_inicio} al ${existing[0].fecha_fin})` }),
+                req
             );
         } catch (logErr) {
             console.error('Error registrando log:', logErr);

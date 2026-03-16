@@ -29,8 +29,18 @@ const authService = {
             [user.rol_id]
         );
 
+        // Permisos compactos: solo guardamos { m(odulo), v(er), c(rear), e(ditar), d(eliminar) }
+        // para mantener el JWT liviano
+        const permisosCompactos = permisos.map(p => ({
+            m: p.modulo,
+            v: !!p.puede_ver,
+            c: !!p.puede_crear,
+            e: !!p.puede_editar,
+            d: !!p.puede_eliminar
+        }));
+
         const token = jwt.sign(
-            { id: user.id, email: user.email, rol_id: user.rol_id, obra_id: user.obra_id },
+            { id: user.id, email: user.email, rol_id: user.rol_id, obra_id: user.obra_id, permisos: permisosCompactos },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );

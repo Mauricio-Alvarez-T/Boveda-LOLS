@@ -1,6 +1,3 @@
-const fs = require('fs');
-const path = require('path');
-const db = require('../config/db');
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
@@ -99,9 +96,7 @@ router.post('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_edit
 // Export Excel
 router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
     try {
-        console.log('[DEBUG] Iniciando /exportar/excel con query:', req.query);
         const buffer = await asistenciaService.generarExcel(req.query);
-        console.log('[DEBUG] Excel generado, tamaño buffer:', buffer.length);
         const fileName = `asistencia_${req.query.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
@@ -137,33 +132,6 @@ router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar
     try {
         const result = await asistenciaService.cancelarPeriodo(req.params.id, req.user.id, req);
         res.json({ data: result });
-    } catch (err) { next(err); }
-});
-
-
-
-// Temporary migration endpoint
-router.get('/migrate-periodos-temp', async (req, res, next) => {
-    try {
-        const conn = await db.getConnection();
-        try {
-            await conn.query(`
-                UPDATE estados_asistencia 
-                SET nombre = 'Jornada Incompleta (JI)', codigo = 'JI' 
-                WHERE codigo = '1/2';
-            `);
-            await conn.query(`
-                INSERT IGNORE INTO estados_asistencia (nombre, codigo, color, es_presente, activo) VALUES 
-                ('Accidente Laboral', 'AL', '#E74C3C', 0, 1),
-                ('Permiso sin goce', 'PSG', '#8E44AD', 0, 1),
-                ('Defunción', 'DF', '#34495E', 0, 1),
-                ('Nacimiento', 'NC', '#F1C40F', 0, 1),
-                ('Matrimonio', 'MT', '#E67E22', 0, 1);
-            `);
-            res.send('Migración 013 ejecutada con éxito DIRECTAMENTE en CPanel');
-        } finally {
-            conn.release();
-        }
     } catch (err) { next(err); }
 });
 
