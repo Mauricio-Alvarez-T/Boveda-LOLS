@@ -15,7 +15,7 @@ import { toast } from 'sonner';
 import { showDeleteToast } from '../../utils/toastUtils';
 
 import { Button } from './Button';
-import { Input } from './Input';
+import { SearchBar } from './SearchBar';
 import { Modal } from './Modal';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -167,15 +167,12 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
         <div className="space-y-4">
             {/* Toolbar */}
             <div className="flex flex-col sm:flex-row gap-2 items-stretch sm:items-center justify-between">
-                <div className="relative flex-1 w-full sm:max-w-xs">
-                    <Input
-                        placeholder={searchPlaceholder || `Buscar ${entityNamePlural.toLowerCase()}...`}
-                        value={search}
-                        onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-                        className="pl-10 h-9 text-xs"
-                    />
-                    <Search className="absolute left-3 top-2.5 h-4 w-4 text-[#A1A1A6]" />
-                </div>
+                <SearchBar
+                    value={search}
+                    onChange={(val) => { setSearch(val); setPage(1); }}
+                    placeholder={searchPlaceholder || `Buscar ${entityNamePlural.toLowerCase()}...`}
+                    className="sm:max-w-xs"
+                />
                 <div className="flex items-center gap-2 shrink-0">
                     {canExport && (
                         <Button variant="outline" size="sm" onClick={handleExport} leftIcon={<FileDown className="h-4 w-4" />} className="hidden sm:flex">
@@ -209,13 +206,13 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             <div className="md:hidden space-y-3">
                 {loading ? (
                     <div className="py-16 text-center">
-                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#029E4D] mb-2" />
-                        <p className="text-xs text-[#6E6E73]">Cargando...</p>
+                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-brand-primary mb-2" />
+                        <p className="text-xs text-muted-foreground">Cargando...</p>
                     </div>
                 ) : rows.length === 0 ? (
                     <div className="py-16 text-center">
-                        <AlertCircle className="h-5 w-5 mx-auto text-[#A1A1A6] mb-2" />
-                        <p className="text-xs text-[#6E6E73]">No se encontraron registros.</p>
+                        <AlertCircle className="h-5 w-5 mx-auto text-muted mb-2" />
+                        <p className="text-xs text-muted-foreground">No se encontraron registros.</p>
                     </div>
                 ) : (
                     rows.map((row) => {
@@ -230,11 +227,11 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                 key={row.id}
                                 initial={{ opacity: 0 }}
                                 animate={{ opacity: 1 }}
-                                className="bg-white rounded-xl border border-[#D2D2D7] p-4"
+                                className="bg-white rounded-xl border border-border p-4"
                             >
                                 {/* Card title */}
                                 <div className="flex items-start justify-between gap-2 mb-2">
-                                    <div className="font-semibold text-sm text-[#1D1D1F] flex-1 min-w-0">
+                                    <div className="font-semibold text-sm text-brand-dark flex-1 min-w-0">
                                         {titleValue}
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
@@ -242,7 +239,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                             onClick={() => canEdit && openEdit(row)}
                                             disabled={!canEdit}
                                             className={cn(
-                                                "p-1.5 rounded-lg text-[#029E4D] hover:bg-[#029E4D]/8 transition-colors",
+                                                "p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/8 transition-colors",
                                                 !canEdit && "opacity-30 cursor-not-allowed"
                                             )}
                                         >
@@ -252,7 +249,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                             onClick={() => canDelete && handleDelete(row.id)}
                                             disabled={!canDelete}
                                             className={cn(
-                                                "p-1.5 rounded-lg text-[#FF3B30] hover:bg-[#FF3B30]/8 transition-colors",
+                                                "p-1.5 rounded-lg text-destructive hover:bg-destructive/8 transition-colors",
                                                 !canDelete && "opacity-30 cursor-not-allowed"
                                             )}
                                         >
@@ -268,8 +265,8 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                             const rendered = col.render ? col.render(value, row) : String(value ?? '—');
                                             return (
                                                 <div key={String(col.key)} className="flex items-center justify-between text-xs">
-                                                    <span className="text-[#6E6E73]">{col.label}</span>
-                                                    <span className="text-[#1D1D1F] font-medium text-right max-w-[60%] truncate">{rendered}</span>
+                                                    <span className="text-muted-foreground">{col.label}</span>
+                                                    <span className="text-brand-dark font-medium text-right max-w-[60%] truncate">{rendered}</span>
                                                 </div>
                                             );
                                         })}
@@ -282,11 +279,11 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             </div>
 
             {/* ─── DESKTOP: Table ─── */}
-            <div className="hidden md:block bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+            <div className="hidden md:block bg-white rounded-2xl border border-border overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-xs tracking-widest text-[#6E6E73]">
+                            <tr className="bg-background border-b border-border uppercase text-xs tracking-widest text-muted-foreground">
                                 {columns.map(col => (
                                     <th key={String(col.key)} className={cn("px-5 py-4 font-semibold", col.className)}>
                                         {col.label}
@@ -299,15 +296,15 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                             {loading ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">
-                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-[#029E4D] mb-2" />
-                                        <p className="text-xs text-[#6E6E73]">Cargando...</p>
+                                        <Loader2 className="h-5 w-5 animate-spin mx-auto text-brand-primary mb-2" />
+                                        <p className="text-xs text-muted-foreground">Cargando...</p>
                                     </td>
                                 </tr>
                             ) : rows.length === 0 ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">
-                                        <AlertCircle className="h-5 w-5 mx-auto text-[#A1A1A6] mb-2" />
-                                        <p className="text-xs text-[#6E6E73]">No se encontraron registros.</p>
+                                        <AlertCircle className="h-5 w-5 mx-auto text-muted mb-2" />
+                                        <p className="text-xs text-muted-foreground">No se encontraron registros.</p>
                                     </td>
                                 </tr>
                             ) : (
@@ -316,10 +313,10 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         key={row.id}
                                         initial={{ opacity: 0 }}
                                         animate={{ opacity: 1 }}
-                                        className="hover:bg-[#F5F5F7]/50 transition-colors"
+                                        className="hover:bg-background/50 transition-colors"
                                     >
                                         {columns.map(col => (
-                                            <td key={String(col.key)} className={cn("px-5 py-3 text-sm text-[#1D1D1F]", col.className)}>
+                                            <td key={String(col.key)} className={cn("px-5 py-3 text-sm text-brand-dark", col.className)}>
                                                 {col.render
                                                     ? col.render(getNestedValue(row, String(col.key)), row)
                                                     : String(getNestedValue(row, String(col.key)) ?? '—')
@@ -331,7 +328,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                                 <Button
                                                     variant="ghost" size="icon"
                                                     className={cn(
-                                                        "h-9 w-9 rounded-full text-[#029E4D] hover:bg-[#029E4D]/8",
+                                                        "h-9 w-9 rounded-full text-brand-primary hover:bg-brand-primary/8",
                                                         !canEdit && "opacity-30 grayscale cursor-not-allowed"
                                                     )}
                                                     onClick={() => canEdit && openEdit(row)}
@@ -343,7 +340,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                                 <Button
                                                     variant="ghost" size="icon"
                                                     className={cn(
-                                                        "h-9 w-9 rounded-full text-[#FF3B30] hover:bg-[#FF3B30]/8",
+                                                        "h-9 w-9 rounded-full text-destructive hover:bg-destructive/8",
                                                         !canDelete && "opacity-30 grayscale cursor-not-allowed"
                                                     )}
                                                     onClick={() => canDelete && handleDelete(row.id)}
@@ -364,7 +361,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
 
             {/* Pagination */}
             {pagination.pages > 1 && (
-                <div className="flex items-center justify-between text-sm text-[#6E6E73]">
+                <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{pagination.total} registro{pagination.total !== 1 ? 's' : ''}</span>
                     <div className="flex items-center gap-2">
                         <Button
@@ -375,7 +372,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                         >
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-[#1D1D1F] font-medium">
+                        <span className="text-brand-dark font-medium">
                             {page} / {pagination.pages}
                         </span>
                         <Button

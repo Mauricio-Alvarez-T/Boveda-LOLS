@@ -6,7 +6,6 @@ import {
     Loader2,
     ChevronLeft,
     ChevronRight,
-    Search,
     Calendar,
     Clock,
     BarChart3,
@@ -37,8 +36,10 @@ import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Fe
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
-import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useStandardHeader } from '../components/ui/PageHeader';
+import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
+import { RequirePermission } from '../components/auth/RequirePermission';
 
 const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
@@ -484,12 +485,12 @@ const AttendancePage: React.FC = () => {
     const headerTitle = useMemo(() => (
         selectedObra ? (
             <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-[#029E4D] shrink-0" />
+                <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
                 <div className="flex flex-col leading-tight min-w-0">
-                    <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Asistencia</h1>
-                    <p className="text-[#6E6E73] text-[10px] md:text-xs truncate">
+                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Asistencia</h1>
+                    <p className="text-muted-foreground text-[10px] md:text-xs truncate">
                         <span className="hidden md:inline">{selectedObra.nombre} <span className="mx-1.5">•</span></span>
-                        <span className="font-medium text-[#1D1D1F]">
+                        <span className="font-medium text-brand-dark">
                             <span className="md:hidden">{shortDate}</span>
                             <span className="hidden md:inline">{formattedDate}</span>
                         </span>
@@ -498,8 +499,8 @@ const AttendancePage: React.FC = () => {
             </div>
         ) : (
             <div className="flex items-center gap-3">
-                <CheckSquare className="h-6 w-6 text-[#A1A1A6]" />
-                <h1 className="text-lg font-bold text-[#1D1D1F]">Control de Asistencia</h1>
+                <CheckSquare className="h-6 w-6 text-muted" />
+                <h1 className="text-lg font-bold text-brand-dark">Control de Asistencia</h1>
             </div>
         )
     ), [selectedObra, formattedDate, shortDate]);
@@ -509,15 +510,15 @@ const AttendancePage: React.FC = () => {
             {selectedObra && (
                 <>
                     {/* Mobile Worker Count Chip */}
-                    <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E8ED] rounded-full text-[13px] font-bold text-[#1D1D1F] shrink-0">
-                        <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
+                    <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E8ED] rounded-full text-[13px] font-bold text-brand-dark shrink-0">
+                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
                         <span>{summary.total}</span>
                     </div>
 
                     {/* Mobile WhatsApp Button */}
                     <button
                         onClick={handleShareWhatsApp}
-                        className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-[#D2D2D7] rounded-full text-[13px] font-medium text-[#1D1D1F] hover:bg-[#F5F5F7] shadow-sm shrink-0"
+                        className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-border rounded-full text-[13px] font-medium text-brand-dark hover:bg-background shadow-sm shrink-0"
                         title="Enviar por WhatsApp"
                     >
                         <Send className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
@@ -528,7 +529,7 @@ const AttendancePage: React.FC = () => {
                     <Button
                         onClick={handleShareWhatsApp}
                         variant="glass"
-                        className="hidden md:flex text-[#6E6E73] hover:text-[#34C759]"
+                        className="hidden md:flex text-muted-foreground hover:text-brand-accent"
                         title="Compartir Resumen por WhatsApp"
                         leftIcon={<Send className="h-4 w-4" />}
                         size="sm"
@@ -541,7 +542,7 @@ const AttendancePage: React.FC = () => {
             {/* Mobile Export Button */}
             <button
                 onClick={handleExportExcel}
-                className="md:hidden flex items-center justify-center h-9 w-9 rounded-full border border-[#D2D2D7] bg-white text-[#6E6E73] shadow-sm active:bg-[#F5F5F7]"
+                className="md:hidden flex items-center justify-center h-9 w-9 rounded-full border border-border bg-white text-muted-foreground shadow-sm active:bg-background"
                 title="Exportar Reporte Mensual"
             >
                 <FileDown className="h-4 w-4" />
@@ -562,7 +563,7 @@ const AttendancePage: React.FC = () => {
             {selectedObra && (
                 <>
                     {/* Manual Holiday Toggle */}
-                    {checkPermission('asistencia', 'puede_editar') && (
+                    <RequirePermission modulo="asistencia" accion="puede_editar">
                         <Button
                             onClick={toggleFeriado}
                             variant={feriadoActual ? "outline" : "glass"}
@@ -570,13 +571,13 @@ const AttendancePage: React.FC = () => {
                             title={feriadoActual ? "Quitar marcación de feriado" : "Marcar este día como feriado"}
                             className={cn(
                                 "hidden md:flex",
-                                feriadoActual ? "text-[#FF3B30] border-[#FF3B30]/20 hover:bg-[#FF3B30]/5" : "text-[#6E6E73] hover:text-[#029E4D]"
+                                feriadoActual ? "text-destructive border-destructive/20 hover:bg-destructive/5" : "text-muted-foreground hover:text-brand-primary"
                             )}
                             leftIcon={<CalendarRange className="h-4 w-4" />}
                         >
                             <span className="hidden lg:inline">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
                         </Button>
-                    )}
+                    </RequirePermission>
 
                     <Button
                         onClick={handleSave}
@@ -596,17 +597,20 @@ const AttendancePage: React.FC = () => {
             )}
         </div>
     ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission]);
-
-    useSetPageHeader(headerTitle, headerActions);
+    useStandardHeader({
+        title: headerTitle,
+        icon: CheckSquare, // Is already inside headerTitle but we must pass something to adhere to TS signature
+        actions: headerActions
+    });
 
     if (!selectedObra) {
         return (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
-                <div className="h-14 w-14 bg-[#F5F5F7] rounded-full flex items-center justify-center mb-4">
-                    <CheckSquare className="h-7 w-7 text-[#6E6E73]" />
+                <div className="h-14 w-14 bg-background rounded-full flex items-center justify-center mb-4">
+                    <CheckSquare className="h-7 w-7 text-muted-foreground" />
                 </div>
-                <h2 className="text-lg font-semibold text-[#1D1D1F]">Reporte Global de Asistencia</h2>
-                <p className="text-[#6E6E73] mt-2 mb-8 max-w-md text-sm">
+                <h2 className="text-lg font-semibold text-brand-dark">Reporte Global de Asistencia</h2>
+                <p className="text-muted-foreground mt-2 mb-8 max-w-md text-sm">
                     Selecciona el período para descargar el reporte consolidado de todas las obras y trabajadores.
                 </p>
                 
@@ -659,7 +663,7 @@ const AttendancePage: React.FC = () => {
     return (
         <div className="space-y-3 md:space-y-4 pb-20 md:pb-4">
             {/* ── Date Navigation ── */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-3 md:p-4">
+            <div className="bg-white rounded-2xl border border-border p-3 md:p-4">
                 <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:items-center">
                     {/* Date Nav - Full width on mobile */}
                     <div className="flex items-center gap-2 justify-between w-full md:w-auto">
@@ -667,12 +671,12 @@ const AttendancePage: React.FC = () => {
                             <ChevronLeft className="h-4 w-4" />
                         </Button>
                         <div className="relative flex-1 md:flex-none">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#6E6E73]" />
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <input
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 bg-[#F5F5F7] border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] font-medium focus:outline-none focus:border-[#029E4D] transition-colors"
+                                className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-xl text-sm text-brand-dark font-medium focus:outline-none focus:border-brand-primary transition-colors"
                             />
                         </div>
                         <Button variant="glass" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate(1)}>
@@ -689,17 +693,17 @@ const AttendancePage: React.FC = () => {
                         </Button>
                     </div>
 
-                    <div className="hidden md:block h-8 w-px bg-[#D2D2D7]" />
+                    <div className="hidden md:block h-8 w-px bg-border" />
 
                     {/* Stats Chips - Hidden on Mobile, Visible on Desktop */}
                     <div className="hidden md:flex items-center gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#F5F5F7] rounded-full">
-                            <Users className="h-3.5 w-3.5 text-[#6E6E73]" />
-                            <span className="text-xs font-bold text-[#1D1D1F]">{summary.total}</span>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-full">
+                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                            <span className="text-xs font-bold text-brand-dark">{summary.total}</span>
                         </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#34C759]/8 rounded-full">
-                            <BarChart3 className="h-3.5 w-3.5 text-[#34C759]" />
-                            <span className="text-xs font-bold text-[#34C759]">{summary.porcentaje}%</span>
+                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-accent/8 rounded-full">
+                            <BarChart3 className="h-3.5 w-3.5 text-brand-accent" />
+                            <span className="text-xs font-bold text-brand-accent">{summary.porcentaje}%</span>
                         </div>
                         {summary.desglose.map(({ estado, count }) => (
                             <span
@@ -720,8 +724,8 @@ const AttendancePage: React.FC = () => {
                     <div className={cn(
                         "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border",
                         feriadoActual 
-                            ? "bg-[#FF3B30]/10 text-[#FF3B30] border-[#FF3B30]/20" 
-                            : (isSunday ? "bg-[#FF3B30]/8 text-[#FF3B30] border-transparent" : "bg-[#FF9F0A]/8 text-[#FF9F0A] border-transparent")
+                            ? "bg-destructive/10 text-destructive border-destructive/20" 
+                            : (isSunday ? "bg-destructive/8 text-destructive border-transparent" : "bg-warning/8 text-warning border-transparent")
                     )}>
                         {feriadoActual ? <CalendarDays className="h-4 w-4 shrink-0" /> : <Clock className="h-3.5 w-3.5 shrink-0" />}
                         {feriadoActual 
@@ -732,34 +736,29 @@ const AttendancePage: React.FC = () => {
             </div>
 
             {/* ── Search Bar (sticky on mobile) ── */}
-            <div className="sticky top-14 md:top-16 z-20 -mx-3 px-3 md:mx-0 md:px-0 py-1 md:py-0 bg-[#F5F5F7] md:bg-transparent">
-                <div className="relative">
-                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-[#A1A1A6]" />
-                    <input
-                        type="text"
-                        placeholder="Buscar por nombre o RUT..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full pl-10 pr-4 py-3 bg-white border border-[#D2D2D7] rounded-xl text-sm text-[#1D1D1F] placeholder-[#A1A1A6] focus:outline-none focus:border-[#029E4D] transition-colors"
-                    />
-                </div>
+            <div className="sticky top-14 md:top-16 z-20 -mx-3 px-3 md:mx-0 md:px-0 py-1 md:py-0 bg-background md:bg-transparent">
+                <SearchBar
+                    value={searchQuery}
+                    onChange={setSearchQuery}
+                    placeholder="Buscar por nombre o RUT..."
+                />
             </div>
 
             {/* ── Worker List ── */}
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-[#029E4D]" />
-                    <p className="text-[#6E6E73] mt-4 text-sm">Cargando nómina...</p>
+                    <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                    <p className="text-muted-foreground mt-4 text-sm">Cargando nómina...</p>
                 </div>
             ) : workers.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-[#D2D2D7] py-20 text-center">
-                    <Users className="h-10 w-10 text-[#A1A1A6] mx-auto mb-4 opacity-40" />
-                    <p className="text-[#6E6E73] text-sm">No hay trabajadores asignados a esta obra.</p>
+                <div className="bg-white rounded-2xl border border-border py-20 text-center">
+                    <Users className="h-10 w-10 text-muted mx-auto mb-4 opacity-40" />
+                    <p className="text-muted-foreground text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-[#F5F5F7] md:bg-white md:rounded-2xl md:border md:border-[#D2D2D7] overflow-hidden">
+                <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-background md:bg-white md:rounded-2xl md:border md:border-border overflow-hidden">
                     {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 bg-[#F5F5F7] border-b border-[#E8E8ED] text-xs font-semibold text-[#6E6E73] uppercase tracking-wider items-center">
+                    <div className="hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 bg-background border-b border-[#E8E8ED] text-xs font-semibold text-muted-foreground uppercase tracking-wider items-center">
                         <span className="text-center">#</span>
                         <span>Trabajador</span>
                         <span className="text-center w-full">Estado</span>
@@ -787,7 +786,7 @@ const AttendancePage: React.FC = () => {
                                         idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
                                         (isNotPresent || isDesvinculado) && "bg-[#FEF8F8]",
                                         (isSaturday || isSunday) && "bg-[#E8ECEF]",
-                                        feriadoActual && "bg-[#FF3B30]/5",
+                                        feriadoActual && "bg-destructive/5",
                                         isDesvinculado && "opacity-75 grayscale-[30%]"
                                     )}
                                 >
@@ -800,31 +799,31 @@ const AttendancePage: React.FC = () => {
                                                 className={cn(
                                                     "h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
                                                     markedRows.has(idx)
-                                                        ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-lg scale-110"
-                                                        : "bg-[#F5F5F7] text-[#A1A1A6] border-[#D2D2D7]"
+                                                        ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
+                                                        : "bg-background text-muted border-border"
                                                 )}
                                             >
                                                 #{(idx + 1).toString().padStart(2, '0')}
                                             </button>
                                             <div className="flex-1 min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-[#1D1D1F]">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-brand-dark">
                                                     {worker.apellido_paterno}, {worker.nombres}
                                                 </WorkerLink>
-                                                <p className="text-[11px] text-[#6E6E73] font-medium">
+                                                <p className="text-[11px] text-muted-foreground font-medium">
                                                     {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D] font-bold">{worker.cargo_nombre}</span></>}
+                                                    {worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}
                                                 </p>
                                             </div>
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
-                                                className="p-2 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#029E4D] transition-colors shrink-0"
+                                                className="p-2 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors shrink-0"
                                                 title="Ver Calendario"
                                             >
                                                 <CalendarDays className="h-4 w-4" />
                                             </button>
                                             <button
                                                 onClick={() => setPeriodModalWorker(worker)}
-                                                className="p-2 rounded-full text-[#029E4D] border border-[#029E4D]/30 hover:bg-[#029E4D]/10 hover:text-[#027A3B] transition-colors shrink-0"
+                                                className="p-2 rounded-full text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 hover:text-[#027A3B] transition-colors shrink-0"
                                                 title="Asignar Período de Ausencia"
                                             >
                                                 <CalendarRange className="h-4 w-4" />
@@ -868,7 +867,7 @@ const AttendancePage: React.FC = () => {
                                                             "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border",
                                                             isActive
                                                                 ? "text-white border-transparent shadow-sm"
-                                                                : "bg-white border-[#E8E8ED] text-[#6E6E73] active:scale-95",
+                                                                : "bg-white border-[#E8E8ED] text-muted-foreground active:scale-95",
                                                             (!!feriadoActual || isSunday || isDesvinculado) && "opacity-50 cursor-not-allowed"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
@@ -882,7 +881,7 @@ const AttendancePage: React.FC = () => {
                                             onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
                                             disabled={isDesvinculado || !!feriadoActual || isSunday}
                                             className={cn(
-                                                "mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-[#029E4D] font-medium rounded-lg hover:bg-[#029E4D]/5 transition-colors",
+                                                "mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-brand-primary font-medium rounded-lg hover:bg-brand-primary/5 transition-colors",
                                                 (!!feriadoActual || isSunday || isDesvinculado) && "opacity-50 cursor-not-allowed grayscale"
                                             )}
                                         >
@@ -894,7 +893,7 @@ const AttendancePage: React.FC = () => {
                                     {/* ── DESKTOP ROW ── */}
                                     <div className={cn(
                                         "hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 items-center",
-                                        markedRows.has(idx) && "bg-[#029E4D]/5 italic"
+                                        markedRows.has(idx) && "bg-brand-primary/5 italic"
                                     )}>
                                         <div className="flex justify-center">
                                             <button
@@ -902,8 +901,8 @@ const AttendancePage: React.FC = () => {
                                                 className={cn(
                                                     "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border",
                                                     markedRows.has(idx)
-                                                        ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-110"
-                                                        : "bg-transparent text-[#A1A1A6] border-transparent hover:border-[#D2D2D7] hover:bg-white"
+                                                        ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110"
+                                                        : "bg-transparent text-muted border-transparent hover:border-border hover:bg-white"
                                                 )}
                                             >
                                                 {(idx + 1).toString().padStart(2, '0')}
@@ -911,17 +910,17 @@ const AttendancePage: React.FC = () => {
                                         </div>
                                         <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/30 pl-3">
                                             <div className="min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-[#1D1D1F]">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-brand-dark">
                                                     {worker.apellido_paterno}, {worker.nombres}
                                                 </WorkerLink>
-                                                <p className="text-[10px] text-[#6E6E73] font-medium">
+                                                <p className="text-[10px] text-muted-foreground font-medium">
                                                     {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-[#029E4D] font-bold">{worker.cargo_nombre}</span></>}
+                                                    {worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-1.5 w-full overflow-x-auto pb-1 md:pb-0 scrollbar-thin scrollbar-thumb-[#D2D2D7] scrollbar-track-transparent">
+                                        <div className="flex gap-1.5 w-full overflow-x-auto pb-1 md:pb-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
                                             {estados.map((est) => {
                                                 const isActive = state.estado_id === est.id;
                                                 return (
@@ -954,7 +953,7 @@ const AttendancePage: React.FC = () => {
                                                         title={isDesvinculado ? "Bloqueado por Finiquito" : (!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre)}
                                                         className={cn(
                                                             "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
-                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-[#6E6E73] hover:bg-[#F5F5F7]",
+                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground hover:bg-background",
                                                             (!!feriadoActual || isSunday || isDesvinculado) && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
@@ -972,7 +971,7 @@ const AttendancePage: React.FC = () => {
                                                         disabled={isDesvinculado || !!feriadoActual || isSunday}
                                                         title={isDesvinculado ? "Bloqueado por Finiquito" : "Ver detalle"}
                                                         className={cn(
-                                                            "text-[10px] text-[#029E4D] font-medium hover:underline w-full text-center",
+                                                            "text-[10px] text-brand-primary font-medium hover:underline w-full text-center",
                                                             (isDesvinculado || !!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed no-underline grayscale"
                                                         )}
                                                     >
@@ -983,7 +982,7 @@ const AttendancePage: React.FC = () => {
                                                 onClick={() => setCalendarWorker(worker)}
                                                 disabled={!!feriadoActual || isSunday}
                                                 className={cn(
-                                                    "p-1.5 rounded-full text-[#6E6E73] border border-[#D2D2D7] hover:bg-[#F5F5F7] hover:text-[#029E4D] transition-colors flex-shrink-0",
+                                                    "p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0",
                                                     (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
                                                 )}
                                                 title="Ver Calendario"
@@ -994,7 +993,7 @@ const AttendancePage: React.FC = () => {
                                                 onClick={() => setPeriodModalWorker(worker)}
                                                 disabled={!!feriadoActual || isSunday}
                                                 className={cn(
-                                                    "p-1.5 rounded-full text-[#029E4D] border border-[#029E4D]/30 hover:bg-[#029E4D]/10 hover:text-[#027A3B] transition-colors flex-shrink-0",
+                                                    "p-1.5 rounded-full text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 hover:text-[#027A3B] transition-colors flex-shrink-0",
                                                     (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
                                                 )}
                                                 title="Asignar Período de Ausencia"
@@ -1012,7 +1011,7 @@ const AttendancePage: React.FC = () => {
                                                 placeholder="0"
                                                 disabled={!!feriadoActual || isSunday}
                                                 className={cn(
-                                                    "w-full bg-[#F5F5F7] border border-[#D2D2D7] rounded-lg px-2 py-1.5 text-[10px] text-center text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]",
+                                                    "w-full bg-background border border-border rounded-lg px-2 py-1.5 text-[10px] text-center text-brand-dark focus:outline-none focus:border-brand-primary",
                                                     (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
                                                 )}
                                                 value={state.horas_extra || ''}
@@ -1039,7 +1038,7 @@ const AttendancePage: React.FC = () => {
                                                     <TimeStepperInput disabled={!!feriadoActual || isSunday} label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
                                                     <div className="col-span-2 md:col-span-1 grid grid-cols-2 gap-3">
                                                         <div>
-                                                            <label className="text-[9px] font-semibold text-[#6E6E73] uppercase block mb-1">H. Extra</label>
+                                                            <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
                                                             <input
                                                                 type="number"
                                                                 min="0"
@@ -1048,8 +1047,8 @@ const AttendancePage: React.FC = () => {
                                                                 placeholder="0"
                                                                 disabled={!!feriadoActual || isSunday}
                                                                 className={cn(
-                                                                    "w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-center text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]",
-                                                                    (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed bg-[#F5F5F7]"
+                                                                    "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary",
+                                                                    (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed bg-background"
                                                                 )}
                                                                 value={state.horas_extra || ''}
                                                                 onChange={(e) => updateAttendance(worker.id, {
@@ -1058,14 +1057,14 @@ const AttendancePage: React.FC = () => {
                                                             />
                                                         </div>
                                                         <div>
-                                                            <label className="text-[9px] font-semibold text-[#6E6E73] uppercase block mb-1">Nota</label>
+                                                            <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
                                                             <input
                                                                 type="text"
                                                                 placeholder="..."
                                                                 disabled={!!feriadoActual || isSunday}
                                                                 className={cn(
-                                                                    "w-full h-10 md:h-10 bg-white border border-[#D2D2D7] rounded-xl px-3 text-sm text-[#1D1D1F] focus:outline-none focus:border-[#029E4D]",
-                                                                    (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed bg-[#F5F5F7]"
+                                                                    "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary",
+                                                                    (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed bg-background"
                                                                 )}
                                                                 value={state.observacion || ''}
                                                                 onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
@@ -1089,7 +1088,7 @@ const AttendancePage: React.FC = () => {
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
                     className={cn(
-                        "md:hidden fixed bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-[#029E4D] text-white shadow-lg shadow-[#029E4D]/30 flex items-center justify-center active:scale-90 transition-transform",
+                        "md:hidden fixed bottom-6 right-4 z-40 h-14 w-14 rounded-full bg-brand-primary text-white shadow-lg shadow-brand-primary/30 flex items-center justify-center active:scale-90 transition-transform",
                         (!checkPermission('asistencia', 'puede_editar') || saving) && "opacity-50 pointer-events-none"
                     )}
                     onClick={handleSave}
@@ -1172,10 +1171,10 @@ const AttendancePage: React.FC = () => {
                 )}
                 {modalType === 'docs' && selectedWorker && (
                     <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-[#F5F5F7] p-3 md:p-4 rounded-xl">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-background p-3 md:p-4 rounded-xl">
                             <div className="hidden sm:block">
-                                <h4 className="text-base font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
-                                <p className="text-sm text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
+                                <h4 className="text-base font-semibold text-brand-dark">Bóveda de Documentos</h4>
+                                <p className="text-sm text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
                             </div>
                             <div className="flex gap-2 w-full sm:w-auto">
                                 {!isUploading && (
@@ -1201,7 +1200,7 @@ const AttendancePage: React.FC = () => {
                                                 toast.error('Error al descargar documentos');
                                             }
                                         }}
-                                        className="text-[#029E4D] hover:text-[#027A3B] flex-1 sm:flex-initial"
+                                        className="text-brand-primary hover:text-[#027A3B] flex-1 sm:flex-initial"
                                         leftIcon={<FileDown className="h-4 w-4" />}
                                     >
                                         <span className="hidden sm:inline">Descargar (.zip)</span>

@@ -34,7 +34,8 @@ import api from '../services/api';
 import { cn } from '../utils/cn';
 import type { Trabajador, Empresa, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
-import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useStandardHeader } from '../components/ui/PageHeader';
+import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import WorkerLink from '../components/workers/WorkerLink';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
@@ -203,9 +204,9 @@ const WorkersPage: React.FC = () => {
 
     // Helper function for completion color
     const getCompletionColor = (pct: number) => {
-        if (pct >= 80) return { bar: 'bg-[#34C759]', text: 'text-[#34C759]' };
-        if (pct >= 50) return { bar: 'bg-[#FF9F0A]', text: 'text-[#FF9F0A]' };
-        return { bar: 'bg-[#FF3B30]', text: 'text-[#FF3B30]' };
+        if (pct >= 80) return { bar: 'bg-brand-accent', text: 'text-brand-accent' };
+        if (pct >= 50) return { bar: 'bg-warning', text: 'text-warning' };
+        return { bar: 'bg-destructive', text: 'text-destructive' };
     };
 
     // Filtered and sorted workers
@@ -254,23 +255,8 @@ const WorkersPage: React.FC = () => {
         }
     };
 
-    const headerTitle = React.useMemo(() => (
-        <div className="flex items-center gap-2 md:gap-3">
-            <Users className="h-5 w-5 md:h-6 md:w-6 text-[#029E4D] shrink-0" />
-            <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2 min-w-0">
-                <h1 className="text-sm md:text-lg font-bold text-[#1D1D1F] truncate">Trabajadores</h1>
-                {workers.length > 0 && (
-                    <span className="bg-[#E8E8ED] text-[#6E6E73] text-xs font-semibold px-2 py-0.5 rounded-full w-fit">
-                        {workers.length}
-                    </span>
-                )}
-            </div>
-        </div>
-    ), [workers.length]);
-
     const headerActions = React.useMemo(() => (
         <div className="flex gap-1.5 md:gap-2">
-            {/* Export — icon only on mobile, text on desktop */}
             <Button
                 variant="outline"
                 size="sm"
@@ -290,7 +276,6 @@ const WorkersPage: React.FC = () => {
             >
                 <FileDown className="h-4 w-4" />
             </Button>
-            {/* New Worker — icon only on mobile */}
             <Button
                 onClick={handleNewWorker}
                 disabled={!checkPermission('trabajadores', 'puede_crear')}
@@ -319,22 +304,22 @@ const WorkersPage: React.FC = () => {
         </div>
     ), [handleNewWorker, handleExportExcel, checkPermission]);
 
-    // Global Header
-    useSetPageHeader(headerTitle, headerActions);
+    useStandardHeader({
+        title: 'Trabajadores',
+        icon: Users,
+        badgeCount: workers.length,
+        actions: headerActions
+    });
 
     return (
         <div className="space-y-4 md:space-y-6 pb-20 md:pb-4">
             {/* Filters & Search */}
-            <div className="bg-white rounded-2xl border border-[#D2D2D7] p-4 flex flex-col md:flex-row gap-3">
-                <div className="relative flex-1">
-                    <Input
-                        placeholder="Buscar por RUT o Nombre..."
-                        value={search}
-                        onChange={(e) => setSearch(e.target.value)}
-                        className="pl-10"
-                    />
-                    <Search className="absolute left-3.5 top-3.5 h-4 w-4 text-[#A1A1A6]" />
-                </div>
+            <div className="bg-white rounded-2xl border border-border p-4 flex flex-col md:flex-row gap-3">
+                <SearchBar
+                    value={search}
+                    onChange={setSearch}
+                    placeholder="Buscar por RUT o Nombre..."
+                />
                 <div className="flex gap-2">
                     <Button
                         variant={(selectedEmpresa || selectedCargo) ? 'primary' : (showFilters ? 'primary' : 'glass')}
@@ -367,17 +352,17 @@ const WorkersPage: React.FC = () => {
                     <motion.div
                         initial={{ height: 0, opacity: 0 }}
                         animate={{ height: 'auto', opacity: 1 }}
-                        className="bg-white rounded-2xl border border-[#D2D2D7] p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
+                        className="bg-white rounded-2xl border border-border p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
                     >
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
+                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Building2 className="h-4 w-4" />
                                 Empresa
                             </label>
                             <select
                                 value={selectedEmpresa}
                                 onChange={(e) => setSelectedEmpresa(e.target.value)}
-                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all"
+                                className="w-full bg-white border border-border rounded-xl p-2.5 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
                             >
                                 <option value="">Todas las Empresas</option>
                                 {empresas.map(e => (
@@ -387,14 +372,14 @@ const WorkersPage: React.FC = () => {
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-[#6E6E73] flex items-center gap-2">
+                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                                 <Briefcase className="h-4 w-4" />
                                 Cargo
                             </label>
                             <select
                                 value={selectedCargo}
                                 onChange={(e) => setSelectedCargo(e.target.value)}
-                                className="w-full bg-white border border-[#D2D2D7] rounded-xl p-2.5 text-sm text-[#1D1D1F] focus:outline-none focus:ring-2 focus:ring-[#029E4D]/30 focus:border-[#029E4D] transition-all"
+                                className="w-full bg-white border border-border rounded-xl p-2.5 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
                             >
                                 <option value="">Todos los Cargos</option>
                                 {cargos.map(c => (
@@ -411,7 +396,7 @@ const WorkersPage: React.FC = () => {
                                 <div
                                     className={cn(
                                         "w-10 h-5 rounded-full transition-colors relative",
-                                        showInactive ? "bg-[#029E4D]" : "bg-[#D2D2D7]"
+                                        showInactive ? "bg-brand-primary" : "bg-border"
                                     )}
                                 >
                                     <div className={cn(
@@ -419,7 +404,7 @@ const WorkersPage: React.FC = () => {
                                         showInactive ? "translate-x-5" : "translate-x-0"
                                     )} />
                                 </div>
-                                <span className="text-sm font-medium text-[#6E6E73] group-hover:text-[#1D1D1F] transition-colors">
+                                <span className="text-sm font-medium text-muted-foreground group-hover:text-brand-dark transition-colors">
                                     Mostrar trabajadores finiquitados
                                 </span>
                             </div>
@@ -432,13 +417,13 @@ const WorkersPage: React.FC = () => {
             <div className="md:hidden">
                 {loading ? (
                     <div className="py-20 flex flex-col items-center justify-center">
-                        <Loader2 className="h-8 w-8 animate-spin text-[#029E4D]" />
-                        <p className="text-[#6E6E73] mt-4 text-sm">Cargando trabajadores...</p>
+                        <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                        <p className="text-muted-foreground mt-4 text-sm">Cargando trabajadores...</p>
                     </div>
                 ) : sortedWorkers.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-[#D2D2D7] py-20 text-center">
-                        <Users className="h-10 w-10 text-[#A1A1A6] mx-auto mb-4 opacity-40" />
-                        <p className="text-[#6E6E73] text-sm">No se encontraron trabajadores.</p>
+                    <div className="bg-white rounded-2xl border border-border py-20 text-center">
+                        <Users className="h-10 w-10 text-muted mx-auto mb-4 opacity-40" />
+                        <p className="text-muted-foreground text-sm">No se encontraron trabajadores.</p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
@@ -453,7 +438,7 @@ const WorkersPage: React.FC = () => {
                                     whileInView={{ opacity: 1, y: 0, scale: 1 }}
                                     viewport={{ once: true, margin: '0px 0px -20px 0px' }}
                                     transition={{ type: 'spring', stiffness: 260, damping: 22 }}
-                                    className="bg-white rounded-2xl border border-[#D2D2D7] p-3.5"
+                                    className="bg-white rounded-2xl border border-border p-3.5"
                                 >
                                     {/* Row 1: Avatar + Name + RUT */}
                                     <div className="flex items-center gap-3 mb-3">
@@ -465,37 +450,37 @@ const WorkersPage: React.FC = () => {
                                             className={cn(
                                                 "h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
                                                 markedRows.has(sortedWorkers.indexOf(worker))
-                                                    ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-lg scale-110"
-                                                    : "bg-[#F5F5F7] text-[#A1A1A6] border-[#D2D2D7]"
+                                                    ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
+                                                    : "bg-background text-muted border-border"
                                             )}
                                         >
                                             #{(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
                                         </button>
                                         <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-[#1D1D1F] truncate flex items-center gap-1.5">
+                                            <p className="text-sm font-bold text-brand-dark truncate flex items-center gap-1.5">
                                                 <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
                                                     {worker.nombres} {worker.apellido_paterno}
                                                 </WorkerLink>
                                                 {!worker.activo && (
-                                                    <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20 shrink-0">
+                                                    <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-bold uppercase tracking-wider border border-destructive/20 shrink-0">
                                                         Finiquitado
                                                     </span>
                                                 )}
                                             </p>
-                                            <p className="text-[11px] text-[#6E6E73] mt-0.5">
+                                            <p className="text-[11px] text-muted-foreground mt-0.5">
                                                 {worker.rut}
-                                                {worker.cargo_nombre && <> · <span className="text-[#029E4D] font-medium">{worker.cargo_nombre}</span></>}
+                                                {worker.cargo_nombre && <> · <span className="text-brand-primary font-medium">{worker.cargo_nombre}</span></>}
                                             </p>
                                         </div>
                                     </div>
 
                                     {/* Row 2: Company + Site chips */}
                                     <div className="flex gap-2 mb-3">
-                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[11px] font-semibold text-[#1D1D1F] truncate max-w-[50%]">
-                                            <Building2 className="h-3 w-3 text-[#6E6E73] shrink-0" />
+                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background border border-[#E8E8ED] text-[11px] font-semibold text-brand-dark truncate max-w-[50%]">
+                                            <Building2 className="h-3 w-3 text-muted-foreground shrink-0" />
                                             <span className="truncate">{worker.empresa_nombre || 'Sin Empresa'}</span>
                                         </span>
-                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#F5F5F7] border border-[#E8E8ED] text-[11px] font-semibold text-[#6E6E73] truncate max-w-[50%]">
+                                        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-background border border-[#E8E8ED] text-[11px] font-semibold text-muted-foreground truncate max-w-[50%]">
                                             <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
                                         </span>
                                     </div>
@@ -504,7 +489,7 @@ const WorkersPage: React.FC = () => {
                                     {stats.total > 0 && (
                                         <div className="mb-3">
                                             <div className="flex justify-between items-center mb-1">
-                                                <span className="text-[11px] text-[#6E6E73] font-medium">Documentación</span>
+                                                <span className="text-[11px] text-muted-foreground font-medium">Documentación</span>
                                                 <span className={`text-[11px] font-bold ${colors.text}`}>{pct}%</span>
                                             </div>
                                             <div className="h-1.5 w-full bg-[#E8E8ED] rounded-full overflow-hidden">
@@ -520,7 +505,7 @@ const WorkersPage: React.FC = () => {
                                     <div className="flex gap-2">
                                         <button
                                             onClick={() => { setSelectedWorker(worker); setModalType('docs'); }}
-                                            className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-[#029E4D]/8 border border-[#029E4D]/20 text-[#029E4D] text-xs font-semibold active:scale-95 transition-all"
+                                            className="flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-brand-primary/8 border border-brand-primary/20 text-brand-primary text-xs font-semibold active:scale-95 transition-all"
                                         >
                                             <FileText className="h-4 w-4" />
                                             Documentos
@@ -529,7 +514,7 @@ const WorkersPage: React.FC = () => {
                                             onClick={() => { setSelectedWorker(worker); setModalType('form'); }}
                                             disabled={!checkPermission('trabajadores', 'puede_editar')}
                                             className={cn(
-                                                "flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-[#34C759]/8 border border-[#34C759]/20 text-[#34C759] text-xs font-semibold active:scale-95 transition-all",
+                                                "flex-1 min-h-[44px] flex items-center justify-center gap-1.5 rounded-xl bg-brand-accent/8 border border-brand-accent/20 text-brand-accent text-xs font-semibold active:scale-95 transition-all",
                                                 !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
                                             )}
                                             title={!checkPermission('trabajadores', 'puede_editar') ? 'Sin permisos' : 'Editar'}
@@ -541,7 +526,7 @@ const WorkersPage: React.FC = () => {
                                             onClick={() => handleDelete(worker)}
                                             disabled={!checkPermission('trabajadores', 'puede_eliminar')}
                                             className={cn(
-                                                "w-11 min-h-[44px] flex items-center justify-center rounded-xl bg-[#FF3B30]/8 border border-[#FF3B30]/20 text-[#FF3B30] active:scale-95 transition-all shrink-0",
+                                                "w-11 min-h-[44px] flex items-center justify-center rounded-xl bg-destructive/8 border border-destructive/20 text-destructive active:scale-95 transition-all shrink-0",
                                                 !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale cursor-not-allowed"
                                             )}
                                             title={!checkPermission('trabajadores', 'puede_eliminar') ? 'Sin permisos' : 'Eliminar'}
@@ -557,11 +542,11 @@ const WorkersPage: React.FC = () => {
             </div>
 
             {/* ── DESKTOP Table (hidden on mobile) ── */}
-            <div className="hidden md:block bg-white rounded-2xl border border-[#D2D2D7] overflow-hidden">
+            <div className="hidden md:block bg-white rounded-2xl border border-border overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-[#F5F5F7] border-b border-[#D2D2D7] uppercase text-xs tracking-widest text-[#6E6E73]">
+                            <tr className="bg-background border-b border-border uppercase text-xs tracking-widest text-muted-foreground">
                                 <th className="px-6 py-4 font-semibold w-12 text-center">#</th>
                                 <th className="px-6 py-4 font-semibold">Trabajador</th>
                                 <th className="px-6 py-4 font-semibold">Empresa & Obra</th>
@@ -574,13 +559,13 @@ const WorkersPage: React.FC = () => {
                             {loading ? (
                                 <tr>
                                     <td colSpan={5} className="px-6 py-20 text-center">
-                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-[#029E4D] mb-2" />
-                                        <p className="text-[#6E6E73] text-sm">Cargando trabajadores...</p>
+                                        <Loader2 className="h-6 w-6 animate-spin mx-auto text-brand-primary mb-2" />
+                                        <p className="text-muted-foreground text-sm">Cargando trabajadores...</p>
                                     </td>
                                 </tr>
                             ) : sortedWorkers.length === 0 ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-20 text-center text-[#6E6E73] text-sm">
+                                    <td colSpan={5} className="px-6 py-20 text-center text-muted-foreground text-sm">
                                         No se encontraron trabajadores con los filtros actuales.
                                     </td>
                                 </tr>
@@ -596,8 +581,8 @@ const WorkersPage: React.FC = () => {
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
                                             className={cn(
-                                                "hover:bg-[#F5F5F7]/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-[#029E4D]",
-                                                markedRows.has(sortedWorkers.indexOf(worker)) && "bg-[#029E4D]/5 border-l-[#1D1D1F] italic"
+                                                "hover:bg-background/80 transition-all duration-300 group border-l-4 border-l-transparent hover:border-l-brand-primary",
+                                                markedRows.has(sortedWorkers.indexOf(worker)) && "bg-brand-primary/5 border-l-brand-dark italic"
                                             )}
                                         >
                                             <td className="px-6 py-6 text-center">
@@ -606,8 +591,8 @@ const WorkersPage: React.FC = () => {
                                                     className={cn(
                                                         "w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black transition-all border mx-auto",
                                                         markedRows.has(sortedWorkers.indexOf(worker))
-                                                            ? "bg-[#1D1D1F] text-white border-[#1D1D1F] shadow-md scale-110"
-                                                            : "bg-transparent text-[#A1A1A6] border-transparent hover:border-[#D2D2D7] hover:bg-white"
+                                                            ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110"
+                                                            : "bg-transparent text-muted border-transparent hover:border-border hover:bg-white"
                                                     )}
                                                 >
                                                     {(sortedWorkers.indexOf(worker) + 1).toString().padStart(2, '0')}
@@ -616,32 +601,32 @@ const WorkersPage: React.FC = () => {
                                             <td className="px-6 py-6 border-l border-[#E8E8ED]/30">
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
-                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight font-bold text-[#1D1D1F] group-hover:text-[#029E4D] transition-colors">
+                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight font-bold text-brand-dark group-hover:text-brand-primary transition-colors">
                                                             {worker.nombres} {worker.apellido_paterno}
                                                         </WorkerLink>
                                                         {!worker.activo && (
-                                                            <span className="px-1.5 py-0.5 rounded bg-[#FF3B30]/10 text-[#FF3B30] text-[9px] font-bold uppercase tracking-wider border border-[#FF3B30]/20">
+                                                            <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-bold uppercase tracking-wider border border-destructive/20">
                                                                 Finiquitado
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <p className="text-xs font-semibold text-[#6E6E73] mt-1 tracking-tight">{worker.rut}</p>
+                                                    <p className="text-xs font-semibold text-muted-foreground mt-1 tracking-tight">{worker.rut}</p>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-6 border-l border-[#E8E8ED]/30">
                                                 <div className="flex flex-col">
-                                                    <p className="text-[15px] text-[#1D1D1F] font-bold leading-tight">{worker.empresa_nombre || 'Sin Empresa'}</p>
-                                                    <p className="text-xs text-[#6E6E73] font-semibold mt-1 tracking-tight">{worker.obra_nombre || 'Sin Obra'}</p>
+                                                    <p className="text-[15px] text-brand-dark font-bold leading-tight">{worker.empresa_nombre || 'Sin Empresa'}</p>
+                                                    <p className="text-xs text-muted-foreground font-semibold mt-1 tracking-tight">{worker.obra_nombre || 'Sin Obra'}</p>
                                                 </div>
                                             </td>
                                             <td className="px-6 py-6">
-                                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-[#F5F5F7] border border-[#D2D2D7] text-xs font-bold text-[#1D1D1F]">
+                                                <span className="inline-flex items-center px-3 py-1.5 rounded-xl bg-background border border-border text-xs font-bold text-brand-dark">
                                                     {worker.cargo_nombre || 'No Asignado'}
                                                 </span>
                                             </td>
                                             <td className="px-6 py-6 border-l border-[#E8E8ED]/30">
                                                 <div className="flex flex-col gap-2 w-fit">
-                                                    <span className="text-xs font-bold leading-none whitespace-nowrap text-[#1D1D1F]">
+                                                    <span className="text-xs font-bold leading-none whitespace-nowrap text-brand-dark">
                                                         {stats.total === 0
                                                             ? 'Sin requerimientos obligatorios'
                                                             : (pct === 100 ? 'Documentación obligatoria completada' : `${stats.uploaded} de ${stats.total} documentos obligatorios`)
@@ -662,7 +647,7 @@ const WorkersPage: React.FC = () => {
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
-                                                        className="h-10 w-10 text-[#029E4D] hover:scale-110 active:scale-95 transition-all shadow-sm"
+                                                        className="h-10 w-10 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm"
                                                         onClick={() => {
                                                             setSelectedWorker(worker);
                                                             setModalType('docs');
@@ -674,7 +659,7 @@ const WorkersPage: React.FC = () => {
                                                         variant="glass"
                                                         size="icon"
                                                         className={cn(
-                                                            "h-10 w-10 text-[#34C759] hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                            "h-10 w-10 text-brand-accent hover:scale-110 active:scale-95 transition-all shadow-sm",
                                                             !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         disabled={!checkPermission('trabajadores', 'puede_editar')}
@@ -690,7 +675,7 @@ const WorkersPage: React.FC = () => {
                                                         variant="glass"
                                                         size="icon"
                                                         className={cn(
-                                                            "h-10 w-10 text-[#FF3B30] hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                            "h-10 w-10 text-destructive hover:scale-110 active:scale-95 transition-all shadow-sm",
                                                             !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                         )}
                                                         disabled={!checkPermission('trabajadores', 'puede_eliminar')}
@@ -704,7 +689,7 @@ const WorkersPage: React.FC = () => {
                                                             variant="glass"
                                                             size="icon"
                                                             className={cn(
-                                                                "h-10 w-10 text-[#029E4D] hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                                "h-10 w-10 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
                                                                 !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale-[100%] cursor-not-allowed"
                                                             )}
                                                             disabled={!checkPermission('trabajadores', 'puede_editar')}
@@ -729,7 +714,7 @@ const WorkersPage: React.FC = () => {
             {
                 hasMore && (
                     <div ref={ref} className="py-8 flex justify-center items-center w-full">
-                        {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-[#029E4D]" />}
+                        {isLoadingMore && <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />}
                     </div>
                 )
             }
@@ -762,27 +747,27 @@ const WorkersPage: React.FC = () => {
                 {modalType === 'docs' && selectedWorker && (
                     <div className="space-y-4 md:space-y-6">
                         {/* Worker Details Summary in Modal */}
-                        <div className="bg-[#029E4D]/5 border border-[#029E4D]/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
-                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-[#029E4D] text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
+                        <div className="bg-brand-primary/5 border border-brand-primary/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
+                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-brand-primary text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
                                 {selectedWorker.nombres[0]}{(selectedWorker.apellido_paterno || '')[0]}
                             </div>
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
-                                    <span className="text-sm font-bold text-[#1D1D1F]">{selectedWorker.rut}</span>
-                                    <span className="px-2 py-0.5 rounded-lg bg-[#029E4D]/10 text-[#029E4D] text-[10px] font-black uppercase tracking-wider">
+                                    <span className="text-sm font-bold text-brand-dark">{selectedWorker.rut}</span>
+                                    <span className="px-2 py-0.5 rounded-lg bg-brand-primary/10 text-brand-primary text-[10px] font-black uppercase tracking-wider">
                                         {selectedWorker.obra_nombre || 'Sin Obra'}
                                     </span>
                                 </div>
-                                <p className="text-xs font-medium text-[#6E6E73] mt-1 truncate">
+                                <p className="text-xs font-medium text-muted-foreground mt-1 truncate">
                                     {selectedWorker.empresa_nombre} • {selectedWorker.cargo_nombre || 'Sin Cargo'}
                                 </p>
                             </div>
                         </div>
 
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-[#F5F5F7] p-3 md:p-4 rounded-xl">
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-background p-3 md:p-4 rounded-xl">
                             <div className="hidden sm:block">
-                                <h4 className="text-base font-semibold text-[#1D1D1F]">Bóveda de Documentos</h4>
-                                <p className="text-sm text-[#6E6E73]">Sube y gestiona archivos para este trabajador.</p>
+                                <h4 className="text-base font-semibold text-brand-dark">Bóveda de Documentos</h4>
+                                <p className="text-sm text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
                             </div>
                             <div className="flex gap-2 w-full sm:w-auto">
                                 {!isUploading && (
@@ -808,7 +793,7 @@ const WorkersPage: React.FC = () => {
                                                 toast.error('Error al descargar documentos');
                                             }
                                         }}
-                                        className="text-[#029E4D] hover:text-[#027A3B] flex-1 sm:flex-initial"
+                                        className="text-brand-primary hover:text-[#027A3B] flex-1 sm:flex-initial"
                                         leftIcon={<Download className="h-4 w-4" />}
                                     >
                                         <span className="hidden sm:inline">Descargar Todo (.zip)</span>
@@ -849,23 +834,23 @@ const WorkersPage: React.FC = () => {
             {modalType === 'finiquito' && selectedWorker && (
                 <Modal isOpen={true} onClose={() => setModalType(null)} title="Desvincular Trabajador">
                     <div className="p-5">
-                        <div className="bg-[#FF3B30]/10 border border-[#FF3B30]/20 rounded-xl p-4 mb-5">
-                            <p className="text-sm font-semibold text-[#FF3B30]">
+                        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-5">
+                            <p className="text-sm font-semibold text-destructive">
                                 Al desvincular a <strong>{selectedWorker.nombres} {selectedWorker.apellido_paterno}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
                             </p>
                         </div>
                         <div className="mb-6">
-                            <label className="block text-xs font-bold text-[#6E6E73] mb-2 uppercase tracking-wider">Fecha Efectiva de Finiquito</label>
+                            <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Fecha Efectiva de Finiquito</label>
                             <Input
                                 type="date"
                                 id="fecha_finiquito_input"
                                 defaultValue={new Date().toISOString().split('T')[0]}
-                                className="w-full bg-[#F5F5F7] border-transparent hover:bg-[#E8E8ED] focus:bg-white focus:border-[#029E4D] focus:ring-4 focus:ring-[#029E4D]/10 transition-all font-semibold"
+                                className="w-full bg-background border-transparent hover:bg-[#E8E8ED] focus:bg-white focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
                             />
                         </div>
                         <div className="flex justify-end gap-3 mt-8">
                             <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
-                            <Button className="bg-[#FF3B30] text-white hover:bg-[#FF3B30]/90 active:bg-[#FF3B30] border-transparent flex-1" onClick={() => {
+                            <Button className="bg-destructive text-white hover:bg-destructive/90 active:bg-destructive border-transparent flex-1" onClick={() => {
                                 const dateInput = document.getElementById('fecha_finiquito_input') as HTMLInputElement;
                                 if (!dateInput?.value) {
                                     toast.error("Debe especificar una fecha.");
