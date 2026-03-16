@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const versionService = require('./version.service');
 
 const authService = {
     async login(email, password) {
@@ -39,8 +40,10 @@ const authService = {
             d: !!p.puede_eliminar
         }));
 
+        const rolVersion = versionService.get(user.rol_id);
+
         const token = jwt.sign(
-            { id: user.id, email: user.email, rol_id: user.rol_id, obra_id: user.obra_id, permisos: permisosCompactos },
+            { id: user.id, email: user.email, rol_id: user.rol_id, obra_id: user.obra_id, permisos: permisosCompactos, rv: rolVersion },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );

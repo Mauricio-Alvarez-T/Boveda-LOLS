@@ -8,6 +8,9 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 require('dotenv').config();
+const versionService = require('./src/services/version.service');
+versionService.init();
+
 const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./src/middleware/errorHandler');
@@ -154,5 +157,20 @@ if (process.env.NODE_ENV !== 'test') {
     console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
   });
 }
+
+// Ensure database schema is up to date
+(async () => {
+    try {
+        // 1. Column for worker termination date
+        await db.query(`ALTER TABLE trabajadores ADD COLUMN IF NOT EXISTS fecha_desvinculacion DATE NULL DEFAULT NULL`);
+        
+        // 2. Versioning for roles to invalidate sessions
+        await db.query(`ALTER TABLE roles ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1`);
+        
+        console.log("✅ Esquema de base de datos verificado y actualizado");
+    } catch (err) {
+        console.error("Error al actualizar esquema BD:", err.message);
+    }
+})();
 
 module.exports = app;

@@ -23,10 +23,19 @@ api.interceptors.response.use(
     (response) => response,
     (error) => {
         if (error.response?.status === 401) {
+            const isLogged = !!localStorage.getItem('sgdl_token');
+            const isByVersion = error.response?.data?.expired_by_version;
+
             localStorage.removeItem('sgdl_token');
             localStorage.removeItem('sgdl_user');
+
             if (!window.location.pathname.includes('/login')) {
-                window.location.href = '/login';
+                if (isLogged) {
+                    // Try to use a small delay or a query param to show the toast on the login page
+                    // Since a full redirect clears the memory JS state of the toast, we use sessionStorage
+                    sessionStorage.setItem('sgdl_logout_reason', isByVersion ? 'permissions' : 'expired');
+                    window.location.href = '/login';
+                }
             }
         }
         return Promise.reject(error);

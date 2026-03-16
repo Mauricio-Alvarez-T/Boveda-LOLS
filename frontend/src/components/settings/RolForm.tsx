@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save, Loader2 } from 'lucide-react';
+import { Save, Loader2, LogOut } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -35,6 +35,7 @@ interface Props {
 export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
     const [permisos, setPermisos] = React.useState<Permission[]>([]);
     const [loadingPerms, setLoadingPerms] = React.useState(false);
+    const [resetingSessions, setResetingSessions] = React.useState(false);
 
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
         resolver: zodResolver(schema),
@@ -84,6 +85,21 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
         }
     };
 
+    const handleResetSessions = async () => {
+        if (!initialData) return;
+        if (!confirm('¿Estás seguro de que deseas cerrar la sesión de todos los usuarios con este rol? Esta acción les obligará a re-ingresar.')) return;
+
+        setResetingSessions(true);
+        try {
+            await api.post(`/usuarios/roles/${initialData.id}/reset-sessions`);
+            toast.success('Sesiones de usuarios invalidadas correctamente');
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al resetear sesiones');
+        } finally {
+            setResetingSessions(false);
+        }
+    };
+
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="space-y-4">
@@ -102,11 +118,27 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
                 )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-6 border-t border-border">
-                <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-                    {initialData ? 'Actualizar' : 'Crear'}
-                </Button>
+            <div className="flex justify-between items-center pt-6 border-t border-border">
+                <div>
+                    {initialData && (
+                        <Button
+                            type="button"
+                            variant="destructive"
+                            onClick={handleResetSessions}
+                            isLoading={resetingSessions}
+                            className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-white border-none"
+                            leftIcon={<LogOut className="h-4 w-4" />}
+                        >
+                            Liquidar Sesiones Activas
+                        </Button>
+                    )}
+                </div>
+                <div className="flex gap-3">
+                    <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
+                    <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
+                        {initialData ? 'Actualizar' : 'Crear'}
+                    </Button>
+                </div>
             </div>
         </form>
     );

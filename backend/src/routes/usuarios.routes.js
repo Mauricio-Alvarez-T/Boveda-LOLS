@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const versionService = require('../services/version.service');
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
 
@@ -55,7 +56,21 @@ const rolController = createCrudController(rolService);
 
 router.get('/roles/list', auth, checkPermission('usuarios', 'puede_ver'), rolController.getAll);
 router.post('/roles', auth, checkPermission('usuarios', 'puede_crear'), rolController.create);
-router.put('/roles/:id', auth, checkPermission('usuarios', 'puede_editar'), rolController.update);
+router.put('/roles/:id', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
+    try {
+        const item = await rolService.update(req.params.id, req.body);
+        // Incrementar versión al editar el nombre del rol también por seguridad
+        await versionService.increment(req.params.id);
+        res.json(item);
+    } catch (err) { next(err); }
+});
+// Endpoint especializado para resetear sesiones manualmente
+router.post('/roles/:id/reset-sessions', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
+    try {
+        await versionService.increment(req.params.id);
+        res.json({ message: 'Sesiones liquidadas exitosamente' });
+    } catch (err) { next(err); }
+});
 router.delete('/roles/:id', auth, checkPermission('usuarios', 'puede_eliminar'), async (req, res, next) => {
     try {
         const { id } = req.params;
@@ -88,6 +103,10 @@ router.post('/roles/:rolId/permisos', auth, checkPermission('usuarios', 'puede_c
        ON DUPLICATE KEY UPDATE puede_ver=VALUES(puede_ver), puede_crear=VALUES(puede_crear), puede_editar=VALUES(puede_editar), puede_eliminar=VALUES(puede_eliminar)`,
             [req.params.rolId, modulo, puede_ver || false, puede_crear || false, puede_editar || false, puede_eliminar || false]
         );
+        
+        // Incrementar versión del rol para invalidar sesiones antiguas
+        await versionService.increment(req.params.rolId);
+        
         res.status(201).json({ id: result.insertId, modulo });
     } catch (err) { next(err); }
 });
@@ -116,6 +135,10 @@ router.post('/roles/:rolId/permisos-bulk', auth, checkPermission('usuarios', 'pu
                 );
             }
             await connection.commit();
+
+            // Incrementar versión del rol para invalidar sesiones antiguas
+            await versionService.increment(rolId);
+
             res.json({ message: 'Permisos actualizados correctamente' });
         } catch (err) {
             await connection.rollback();

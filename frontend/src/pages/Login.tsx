@@ -48,6 +48,20 @@ const LoginPage: React.FC = () => {
         }
     };
 
+    React.useEffect(() => {
+        const reason = sessionStorage.getItem('sgdl_logout_reason');
+        if (reason) {
+            if (reason === 'permissions') {
+                toast.error('Sesión expirada por actualización de permisos', {
+                    description: 'Tus permisos han cambiado. Por favor, re-ingresa al sistema.'
+                });
+            } else if (reason === 'expired') {
+                toast.info('Tu sesión ha expirado del servidor');
+            }
+            sessionStorage.removeItem('sgdl_logout_reason');
+        }
+    }, []);
+
     return (
         <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#F8F9FA]"
             style={{

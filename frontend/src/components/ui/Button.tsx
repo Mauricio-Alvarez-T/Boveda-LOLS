@@ -5,7 +5,7 @@ import { cn } from '../../utils/cn';
 import { Loader2 } from 'lucide-react';
 
 interface ButtonProps extends Omit<HTMLMotionProps<"button">, "children"> {
-    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'glass';
+    variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'glass' | 'destructive';
     size?: 'default' | 'sm' | 'md' | 'lg' | 'icon';
     isLoading?: boolean;
     leftIcon?: React.ReactNode;
@@ -22,6 +22,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
             outline: 'bg-transparent border border-brand-primary text-brand-primary hover:bg-brand-primary/5',
             ghost: 'bg-transparent text-brand-dark hover:bg-black/5',
             glass: 'bg-white border border-border text-brand-dark hover:bg-background shadow-sm',
+            destructive: 'bg-destructive/10 text-destructive hover:bg-destructive hover:text-white',
         };
 
         const sizes = {
