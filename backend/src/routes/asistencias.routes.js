@@ -3,7 +3,35 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const asistenciaService = require('../services/asistencia.service');
 
-// Get active attendance states
+/**
+ * RUTAS DE EXPORTACIÓN (Poner arriba para evitar conflictos)
+ */
+
+// Genera un token para descarga pública (Requiere Auth)
+router.get('/token', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+    try {
+        const token = asistenciaService.generatePublicReportToken(req.query);
+        res.json({ data: { token } });
+    } catch (err) { next(err); }
+});
+
+// Descarga pública de Excel
+router.get('/publico/excel', async (req, res, next) => {
+    try {
+        const { token } = req.query;
+        if (!token) return res.status(400).json({ error: 'Token es requerido' });
+
+        const params = asistenciaService.validatePublicReportToken(token);
+        const buffer = await asistenciaService.generarExcel(params);
+        const fileName = `asistencia_${params.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
+
+        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
+        res.send(buffer);
+    } catch (err) {
+        res.status(401).json({ error: 'Link inválido' });
+    }
+});
 router.get('/estados', auth, async (req, res, next) => {
     try {
         const result = await asistenciaService.getEstados();
@@ -109,37 +137,7 @@ router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), 
     }
 });
 
-/**
- * Genera un token para descarga pública (Requiere Auth)
- */
-router.get('/exportar/excel/token', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
-    try {
-        const token = asistenciaService.generatePublicReportToken(req.query);
-        res.json({ data: { token } });
-    } catch (err) { next(err); }
-});
-
-/**
- * Descarga pública de Excel (No requiere Auth de sesión, usa JWT firmado en query)
- */
-router.get('/exportar/excel/publico', async (req, res, next) => {
-    try {
-        const { token } = req.query;
-        if (!token) return res.status(400).json({ error: 'Token de descarga es requerido' });
-
-        const params = asistenciaService.validatePublicReportToken(token);
-        const buffer = await asistenciaService.generarExcel(params);
-        
-        const fileName = `reporte_asistencia_${params.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
-
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
-        res.send(buffer);
-    } catch (err) {
-        console.error('[PUBLIC EXPORT ERROR]:', err.message);
-        res.status(401).json({ error: 'Link de descarga inválido o expirado' });
-    }
-});
+// ═══ PERÍODOS DE AUSENCIA ═══
 
 // ═══ PERÍODOS DE AUSENCIA ═══
 

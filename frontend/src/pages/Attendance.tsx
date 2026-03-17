@@ -430,7 +430,7 @@ const AttendancePage: React.FC = () => {
             const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
             const tokenRes = await api.get<{ data: { token: string } }>(
-                `/asistencias/exportar/excel/token?obra_id=${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`
+                `asistencias/token?obra_id=${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`
             );
             const token = tokenRes.data.data.token;
 
@@ -440,7 +440,7 @@ const AttendancePage: React.FC = () => {
             if (!baseUrl.startsWith('http')) {
                 baseUrl = window.location.origin + (baseUrl.startsWith('/') ? baseUrl : '/' + baseUrl);
             }
-            const publicUrl = `${baseUrl}/asistencias/exportar/excel/publico?token=${token}`;
+            const publicUrl = `${baseUrl}/asistencias/publico/excel?token=${token}`;
 
             // 3. Append to text
             const finalMessage = `${text}\n\n📄 *Ver reporte detallado (Excel):*\n${publicUrl}`;
