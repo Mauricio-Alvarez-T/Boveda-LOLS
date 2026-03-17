@@ -343,22 +343,28 @@ const AttendancePage: React.FC = () => {
         text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
 
         const total = currentWorkers.length;
-        const counts: Record<string, number> = { 'A': 0, 'F': 0, 'V': 0, 'LM': 0, 'JI': 0, 'TO': 0, 'AT': 0 };
+        const counts: Record<string, number> = { A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0, PL: 0 };
 
-        Object.values(currentAttendance).forEach(a => {
-            const est = currentEstados.find(e => e.id === a.estado_id);
+        currentWorkers.forEach(w => {
+            const state = currentAttendance[w.id];
+            if (!state || !state.estado_id) return;
+            const est = currentEstados.find(e => e.id === state.estado_id);
             if (!est) return;
-            if (counts[est.codigo] !== undefined) counts[est.codigo]++;
+            
+            let code = est.codigo;
+            // Consolidación dinâmica para el reporte
+            if (['NAC', 'DEF', 'MAT'].includes(code)) code = 'PL';
+            if (code === 'AT') code = 'JI';
+
+            if (counts[code] !== undefined) counts[code]++;
+            else if (!est.es_presente) counts.PL++; // Default a PL si no es presente y no mapeado
         });
 
         text += `Total: ${total}\n`;
-        text += `A: ${counts['A'].toString().padStart(2, '0')}\n`;
-        text += `F: ${counts['F'].toString().padStart(2, '0')}\n`;
-        text += `V: ${counts['V'].toString().padStart(2, '0')}\n`;
-        text += `LM: ${counts['LM'].toString().padStart(2, '0')}\n`;
-        text += `JI: ${counts['JI'].toString().padStart(2, '0')}\n`;
-        text += `TO: ${counts['TO'].toString().padStart(2, '0')}\n`;
-        if (counts['AT'] > 0) text += `AT: ${counts['AT'].toString().padStart(2, '0')}\n`;
+        ['A', 'F', 'JI', 'TO', 'V', 'LM', 'PL'].forEach(c => {
+            const label = c === 'PL' ? 'P. Legales' : (c === 'JI' ? 'J. Incompleta' : c);
+            text += `${label}: ${counts[c].toString().padStart(2, '0')}\n`;
+        });
         text += `\n`;
 
         const categorias = [
@@ -442,7 +448,7 @@ const AttendancePage: React.FC = () => {
             }
             const publicUrl = `${baseUrl}/asistencias/d/${token}`;
 
-            // 3. Append to text (Link at the TOP as requested)
+            // 3. Construct Final Message (Link at the TOP + Summary)
             const finalMessage = `📊 *REPORTE DETALLADO (Excel):*\n${publicUrl}\n\n${text}`;
 
             // 4. SECOND STEP: User Confirmation (Fresh Gesture)
