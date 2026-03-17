@@ -440,10 +440,10 @@ const AttendancePage: React.FC = () => {
             if (!baseUrl.startsWith('http')) {
                 baseUrl = window.location.origin + (baseUrl.startsWith('/') ? baseUrl : '/' + baseUrl);
             }
-            const publicUrl = `${baseUrl}/asistencias/publico/excel?token=${token}`;
+            const publicUrl = `${baseUrl}/asistencias/d/${token}`;
 
-            // 3. Append to text
-            const finalMessage = `${text}\n\n📄 *Ver reporte detallado (Excel):*\n${publicUrl}`;
+            // 3. Append to text (Link at the TOP as requested)
+            const finalMessage = `📊 *REPORTE DETALLADO (Excel):*\n${publicUrl}\n\n${text}`;
 
             // 4. SECOND STEP: User Confirmation (Fresh Gesture)
             toast.success('¡Reporte y link listos!', {

@@ -15,14 +15,15 @@ router.get('/public-report-token', auth, checkPermission('asistencia', 'puede_ve
     } catch (err) { next(err); }
 });
 
-// Descarga pública de Excel
-router.get('/publico/excel', async (req, res, next) => {
+// Descarga pública de Excel (URL corta)
+router.get('/d/:token', async (req, res, next) => {
     try {
-        const { token } = req.query;
+        const { token } = req.params;
         if (!token) return res.status(400).json({ error: 'Token es requerido' });
 
         const params = asistenciaService.validatePublicReportToken(token);
         const buffer = await asistenciaService.generarExcel(params);
+        
         const fileName = `asistencia_${params.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
