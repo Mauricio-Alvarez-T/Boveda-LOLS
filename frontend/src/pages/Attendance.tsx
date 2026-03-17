@@ -387,32 +387,40 @@ const AttendancePage: React.FC = () => {
             const excelFile = await handleExportExcel(true);
             
             // 2. Try to use Web Share API (Best for Mobile / iOS)
-            if (navigator.share && navigator.canShare && excelFile && navigator.canShare({ files: [excelFile] })) {
-                // IMPORTANT: Try to copy to clipboard BEFORE the share menu opens, as some browsers block it after.
+            // Note: If navigator.share exists, we assume it's a mobile device.
+            if (navigator.share && excelFile) {
+                // Try to copy text to clipboard as a very first step (backup for all cases)
                 try {
                     if (navigator.clipboard && navigator.clipboard.writeText) {
                         await navigator.clipboard.writeText(text);
                     }
                 } catch(e) { console.warn('Clipboard copy failed', e); }
+
+                // Check if we can share this specific file (more relaxed check)
+                const canShareFile = navigator.canShare && navigator.canShare({ files: [excelFile] });
                 
-                // Attempt to share BOTH file and text
                 try {
+                    // Attempt to share BOTH file and text in one go
                     await navigator.share({
-                        files: [excelFile],
+                        files: canShareFile ? [excelFile] : undefined,
                         title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                        text: text, // Many browsers now support both together
+                        text: text
                     });
                     toast.success('Compartido preparado con éxito', { id: 'whatsapp-share' });
                 } catch (shareError) {
-                    // If sharing both fails (some browsers are picky), try just the file
-                    await navigator.share({
-                        files: [excelFile],
-                        title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                    });
-                    toast.success('Archivo preparado. El resumen se ha copiado al portapapeles por si faltó en el envío.', { 
-                        id: 'whatsapp-share',
-                        duration: 6000
-                    });
+                    // Fallback to sharing just the file if combined sharing fails
+                    if (canShareFile) {
+                        await navigator.share({
+                            files: [excelFile],
+                            title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
+                        });
+                        toast.success('Archivo preparado. El resumen se copió al portapapeles.', { 
+                            id: 'whatsapp-share',
+                            duration: 6000
+                        });
+                    } else {
+                        throw shareError; // Fallback to desktop logic
+                    }
                 }
             } else {
                 // 3. Fallback for Desktop (Win/Mac)
@@ -443,6 +451,7 @@ const AttendancePage: React.FC = () => {
             }
         } catch (error) {
             console.error('Error sharing via WhatsApp', error);
+            // Last resort: simple link
             const encodedText = encodeURIComponent(text);
             window.open(`https://wa.me/?text=${encodedText}`, '_blank');
         }
