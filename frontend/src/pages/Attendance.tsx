@@ -435,8 +435,11 @@ const AttendancePage: React.FC = () => {
             const token = tokenRes.data.data.token;
 
             // 2. Construct Public URL
-            // Use the API base URL but for the public endpoint
-            const baseUrl = api.defaults.baseURL || window.location.origin.replace(':5173', ':3000') + '/api';
+            // Ensure we have a full absolute URL
+            let baseUrl = api.defaults.baseURL || '';
+            if (!baseUrl.startsWith('http')) {
+                baseUrl = window.location.origin + (baseUrl.startsWith('/') ? baseUrl : '/' + baseUrl);
+            }
             const publicUrl = `${baseUrl}/asistencias/exportar/excel/publico?token=${token}`;
 
             // 3. Append to text
