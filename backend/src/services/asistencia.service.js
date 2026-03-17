@@ -1,8 +1,28 @@
 const db = require('../config/db');
 const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
+const jwt = require('jsonwebtoken');
+
+const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_12345';
 
 const asistenciaService = {
+    /**
+     * Genera un token firmado para descarga pública
+     */
+    generatePublicReportToken(params) {
+        return jwt.sign(params, JWT_SECRET, { expiresIn: '24h' });
+    },
+
+    /**
+     * Valida un token firmado y retorna los parámetros
+     */
+    validatePublicReportToken(token) {
+        try {
+            return jwt.verify(token, JWT_SECRET);
+        } catch (err) {
+            throw new Error('Token de descarga inválido o expirado');
+        }
+    },
     /**
      * Registro masivo de asistencia (array de trabajadores)
      * Registra logs individuales solo para registros que realmente cambiaron.

@@ -413,71 +413,55 @@ const AttendancePage: React.FC = () => {
             // STEP 0: Immediate copy to clipboard
             await copyToClipboard(text);
 
-            // 1. Generate the Excel file
-            const excelFile = await handleExportExcel(true);
+            // 1. Get Public Download Token
+            toast.loading('Generando link de reporte...', { id: 'whatsapp-share' });
             
-            if (!excelFile) {
-                toast.error('Error: El servidor no pudo generar el archivo Excel.', { id: 'whatsapp-share' });
-                return;
+            const { selectedObra: currentObra, date: currentDate, reportMonth, reportYear } = latestData.current;
+            let year, month;
+            if (!currentObra) {
+                year = reportYear;
+                month = reportMonth;
+            } else {
+                [year, month] = currentDate.split('-');
             }
 
-            // 2. Mobile Logic (navigator.share)
-            if (navigator.share) {
-                // We show a toast WITH AN ACTION to ensure a "fresh user gesture"
-                // This solves the "Permission Denied" error in Android/Safari
-                toast.success('¡Reporte generado con éxito!', {
-                    id: 'whatsapp-share',
-                    description: 'Pulsa el botón para enviar a WhatsApp.',
-                    duration: 15000,
-                    action: {
-                        label: 'COMPARTIR AHORA',
-                        onClick: async () => {
-                            try {
-                                const canShareFile = navigator.canShare && navigator.canShare({ files: [excelFile] });
-                                
-                                await navigator.share({
-                                    files: canShareFile ? [excelFile] : undefined,
-                                    title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                                    // text: text // Note: We omit text here to avoid WhatsApp ignoring the file on Android
-                                });
-                                
-                                toast.success('Enviado. Recuerda que el resumen está en tu portapapeles.');
-                            } catch (shareError: any) {
-                                if (shareError.name !== 'AbortError') {
-                                    console.error('Share failed', shareError);
-                                    // Final fallback if share fails even with fresh gesture
-                                    const encodedText = encodeURIComponent(text);
-                                    window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-                                }
-                            }
-                        }
-                    }
-                });
-            } else {
-                // 3. Fallback for Desktop (Win/Mac)
-                const url = window.URL.createObjectURL(excelFile as Blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', excelFile?.name || 'asistencia.xlsx');
-                document.body.appendChild(link);
-                link.click();
-                link.remove();
-                window.URL.revokeObjectURL(url);
+            const obraIdParam = currentObra ? currentObra.id : '';
+            const firstDay = `${year}-${month}-01`;
+            const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
+            const tokenRes = await api.get<{ data: { token: string } }>(
+                `/asistencias/exportar/excel/token?obra_id=${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`
+            );
+            const token = tokenRes.data.data.token;
+
+            // 2. Construct Public URL
+            // Use the API base URL but for the public endpoint
+            const baseUrl = api.defaults.baseURL || window.location.origin.replace(':5173', ':3000') + '/api';
+            const publicUrl = `${baseUrl}/asistencias/exportar/excel/publico?token=${token}`;
+
+            // 3. Append to text
+            const finalMessage = `${text}\n\n📄 *Ver reporte detallado (Excel):*\n${publicUrl}`;
+
+            // 4. Open WhatsApp
+            const encodedText = encodeURIComponent(finalMessage);
+            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+
+            toast.success('¡Listo! WhatsApp abierto con el resumen y el link de descarga.', { 
+                id: 'whatsapp-share',
+                duration: 5000 
+            });
+
+        } catch (error: any) {
+            console.error('Error preparing WhatsApp link', error);
+            toast.error('No se pudo generar el link de reporte. El resumen se copió al portapapeles.', { id: 'whatsapp-share' });
+            
+            // Fallback to text-only if token generation fails
+            setTimeout(() => {
                 const encodedText = encodeURIComponent(text);
                 window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-                
-                toast.success('💻 1. Reporte descargado. 2. WhatsApp abierto. 3. Arrastra el archivo.', { 
-                    id: 'whatsapp-share',
-                    duration: 10000 
-                });
-            }
-        } catch (error: any) {
-            console.error('Error preparing WhatsApp share', error);
-            const errorMsg = error?.message || 'Error desconocido';
-            toast.error(`Error al preparar reporte: ${errorMsg}`, { id: 'whatsapp-share' });
+            }, 1000);
         }
-    }, [handleExportExcel, copyToClipboard]);
+    }, [copyToClipboard]);
 
     // Navigate date
     const navigateDate = (offset: number) => {
