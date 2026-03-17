@@ -922,9 +922,11 @@ const AttendancePage: React.FC = () => {
                                             </button>
                                         </div>
 
-                                        {/* Row 2: State Buttons — large touch targets */}
-                                        <div className="flex gap-1.5">
-                                            {estados.map((est) => {
+                                                                   {/* Row 2: State Buttons — Favoritos y Dropdown */}
+                                        <div className="flex gap-1.5 items-stretch">
+                                            {['A', 'F', 'JI', 'TO'].map(code => {
+                                                const est = estados.find(e => e.codigo === code);
+                                                if (!est) return null;
                                                 const isActive = state.estado_id === est.id;
                                                 return (
                                                     <button
@@ -936,11 +938,9 @@ const AttendancePage: React.FC = () => {
                                                                 es_sabado: isSaturday
                                                             };
                                                             if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
                                                                 const dayIndex = new Date(date + 'T12:00:00').getDay();
-                                                                const dayStr = dowMap[dayIndex];
+                                                                const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[dayIndex];
                                                                 const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
-
                                                                 if (currentSchedule) {
                                                                     updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
                                                                     updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
@@ -954,13 +954,9 @@ const AttendancePage: React.FC = () => {
                                                             }
                                                         }}
                                                         disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                                                        title={isDesvinculado ? "Bloqueado por Finiquito" : (!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre)}
                                                         className={cn(
-                                                            "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border",
-                                                            isActive
-                                                                ? "text-white border-transparent shadow-sm"
-                                                                : "bg-white border-[#E8E8ED] text-muted-foreground active:scale-95",
-                                                            (!!feriadoActual || isSunday || isDesvinculado) && "opacity-50 cursor-not-allowed"
+                                                            "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border shrink-0",
+                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
@@ -968,7 +964,34 @@ const AttendancePage: React.FC = () => {
                                                     </button>
                                                 );
                                             })}
-                                        </div>                                        {/* Row 4: Expandable detail toggle */}
+                                            <div className="relative flex-1">
+                                                {(() => {
+                                                    const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                    const activeSecondary = secondary.find(e => e.id === state.estado_id);
+                                                    return (
+                                                        <select
+                                                            className={cn(
+                                                                "w-full h-full min-h-[44px] rounded-xl text-[10px] font-bold uppercase appearance-none text-center px-1 border transition-all truncate bg-white outline-none",
+                                                                activeSecondary ? "text-white border-transparent" : "bg-background border-[#E8E8ED] text-muted-foreground"
+                                                            )}
+                                                            style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
+                                                            value={activeSecondary?.id || ""}
+                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                            onChange={(e) => {
+                                                                const estId = parseInt(e.target.value);
+                                                                updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                            }}
+                                                        >
+                                                            <option value="" disabled>{activeSecondary ? activeSecondary.nombre : 'MÁS'}</option>
+                                                            {secondary.map(est => (
+                                                                <option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>
+                                                            ))}
+                                                        </select>
+                                                    );
+                                                })()}
+                                            </div>
+                                        </div>
+                                        {/* Row 4: Expandable detail toggle */}
                                         <button
                                             onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
                                             disabled={isDesvinculado || !!feriadoActual || isSunday}
@@ -1012,8 +1035,11 @@ const AttendancePage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-1.5 w-full overflow-x-auto pb-1 md:pb-0 scrollbar-thin scrollbar-thumb-border scrollbar-track-transparent">
-                                            {estados.map((est) => {
+                                        <div className="flex gap-1.5 w-full items-center">
+                                            {/* 1. Favoritos Escritorio */}
+                                            {['A', 'F', 'JI', 'TO'].map(code => {
+                                                const est = estados.find(e => e.codigo === code);
+                                                if (!est) return null;
                                                 const isActive = state.estado_id === est.id;
                                                 return (
                                                     <button
@@ -1024,11 +1050,9 @@ const AttendancePage: React.FC = () => {
                                                                 es_sabado: isSaturday
                                                             };
                                                             if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
                                                                 const dayIndex = new Date(date + 'T12:00:00').getDay();
-                                                                const dayStr = dowMap[dayIndex];
+                                                                const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[dayIndex];
                                                                 const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
-
                                                                 if (currentSchedule) {
                                                                     updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
                                                                     updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
@@ -1037,16 +1061,11 @@ const AttendancePage: React.FC = () => {
                                                                 }
                                                             }
                                                             updateAttendance(worker.id, updates);
-                                                            if (!est.es_presente && expandedWorkerId !== worker.id) {
-                                                                setExpandedWorkerId(worker.id);
-                                                            }
                                                         }}
                                                         disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                                                        title={isDesvinculado ? "Bloqueado por Finiquito" : (!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : est.nombre)}
                                                         className={cn(
-                                                            "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border",
-                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground hover:bg-background",
-                                                            (!!feriadoActual || isSunday || isDesvinculado) && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                                                            "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border shrink-0",
+                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground hover:bg-background"
                                                         )}
                                                         style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                     >
@@ -1054,8 +1073,34 @@ const AttendancePage: React.FC = () => {
                                                     </button>
                                                 );
                                             })}
-                                        </div>
 
+                                            {/* 2. Dropdown Escritorio */}
+                                            <div className="relative min-w-[80px] flex-shrink-0">
+                                                {(() => {
+                                                    const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                    const activeSecondary = secondary.find(e => e.id === state.estado_id);
+                                                    return (
+                                                        <select
+                                                            className={cn(
+                                                                "w-full px-2 py-1.5 rounded-full text-[10px] font-bold uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer",
+                                                                activeSecondary ? "text-white border-transparent" : "border-[#E8E8ED] text-muted-foreground hover:bg-background"
+                                                            )}
+                                                            style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
+                                                            value={activeSecondary?.id || ""}
+                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                            onChange={(e) => {
+                                                                const estId = parseInt(e.target.value);
+                                                                updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                            }}
+                                                        >
+                                                            <option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
+                                                            {secondary.map(est => (
+                                                                <option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>
+                                                            ))}
+                                                        </select>
+                                                    );
+                                                })()}
+                                            </div>
                                         <div className="w-[180px] flex items-center justify-between gap-2">
                                             <div className="flex-1">
                                                     <button
