@@ -8,7 +8,7 @@ const asistenciaService = require('../services/asistencia.service');
  */
 
 // Genera un token para descarga pública (Requiere Auth)
-router.get('/token', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/public-report-token', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
     try {
         const token = asistenciaService.generatePublicReportToken(req.query);
         res.json({ data: { token } });

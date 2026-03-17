@@ -414,7 +414,7 @@ const AttendancePage: React.FC = () => {
             await copyToClipboard(text);
 
             // 1. Get Public Download Token
-            toast.loading('Generando link de reporte...', { id: 'whatsapp-share' });
+            toast.loading('Preparando link de reporte...', { id: 'whatsapp-share' });
             
             const { selectedObra: currentObra, date: currentDate, reportMonth, reportYear } = latestData.current;
             let year, month;
@@ -429,13 +429,13 @@ const AttendancePage: React.FC = () => {
             const firstDay = `${year}-${month}-01`;
             const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
 
+            // Use the NEW unique endpoint to avoid cache
             const tokenRes = await api.get<{ data: { token: string } }>(
-                `asistencias/token?obra_id=${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`
+                `asistencias/public-report-token?obra_id=${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`
             );
             const token = tokenRes.data.data.token;
 
             // 2. Construct Public URL
-            // Ensure we have a full absolute URL
             let baseUrl = api.defaults.baseURL || '';
             if (!baseUrl.startsWith('http')) {
                 baseUrl = window.location.origin + (baseUrl.startsWith('/') ? baseUrl : '/' + baseUrl);
@@ -445,13 +445,36 @@ const AttendancePage: React.FC = () => {
             // 3. Append to text
             const finalMessage = `${text}\n\n📄 *Ver reporte detallado (Excel):*\n${publicUrl}`;
 
-            // 4. Open WhatsApp
-            const encodedText = encodeURIComponent(finalMessage);
-            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-
-            toast.success('¡Listo! WhatsApp abierto con el resumen y el link de descarga.', { 
+            // 4. SECOND STEP: User Confirmation (Fresh Gesture)
+            toast.success('¡Reporte y link listos!', {
                 id: 'whatsapp-share',
-                duration: 5000 
+                description: 'Pulsa el botón para enviar por WhatsApp.',
+                duration: 15000,
+                action: {
+                    label: 'ENVIAR AHORA',
+                    onClick: async () => {
+                        // DETECT PLATFORM for custom handling
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+                        if (isMobile && navigator.share) {
+                            // Use Native Share (Best for Mobile)
+                            try {
+                                await navigator.share({
+                                    text: finalMessage,
+                                    title: `Asistencia ${currentObra?.nombre || 'Bóveda'}`
+                                });
+                            } catch (e: any) {
+                                if (e.name !== 'AbortError') {
+                                    window.open(`https://wa.me/?text=${encodeURIComponent(finalMessage)}`, '_blank');
+                                }
+                            }
+                        } else {
+                            // Use wa.me (Best for Desktop)
+                            const encodedText = encodeURIComponent(finalMessage);
+                            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+                        }
+                    }
+                }
             });
 
         } catch (error: any) {
@@ -461,10 +484,9 @@ const AttendancePage: React.FC = () => {
             
             toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', duration: 8000 });
             
-            // Fallback to text-only if token generation fails
+            // Final Fallback: Text only
             setTimeout(() => {
-                const encodedText = encodeURIComponent(text);
-                window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
             }, 2000);
         }
     }, [copyToClipboard]);
