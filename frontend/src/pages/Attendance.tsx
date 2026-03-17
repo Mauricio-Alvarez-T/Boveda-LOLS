@@ -410,9 +410,8 @@ const AttendancePage: React.FC = () => {
         text += `_Este mensaje se genero usando Bóveda lols_`;
 
         try {
-            // STEP 0: Immediate copy to clipboard (crucial for mobile context)
-            const copySuccess = await copyToClipboard(text);
-            if (!copySuccess) console.warn('No se pudo copiar el texto al portapapeles inicialmente');
+            // STEP 0: Immediate copy to clipboard
+            await copyToClipboard(text);
 
             // 1. Generate the Excel file
             const excelFile = await handleExportExcel(true);
@@ -424,35 +423,36 @@ const AttendancePage: React.FC = () => {
 
             // 2. Mobile Logic (navigator.share)
             if (navigator.share) {
-                const canShareFile = navigator.canShare && navigator.canShare({ files: [excelFile] });
-                
-                // Construct share object carefully
-                const shareData: ShareData = {
-                    title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                };
-                
-                if (canShareFile) {
-                    shareData.files = [excelFile];
-                    // We don't include 'text' here for Android because it often causes WhatsApp to ignore the file.
-                    // The text is already in the clipboard.
-                } else {
-                    shareData.text = text;
-                }
-
-                try {
-                    await navigator.share(shareData);
-                    toast.success('¡Listo! El resumen está en el portapapeles, pégalo en el chat de WhatsApp.', { 
-                        id: 'whatsapp-share',
-                        duration: 8000
-                    });
-                } catch (shareError: any) {
-                    if (shareError.name === 'AbortError') {
-                        toast.info('Compartido cancelado');
-                        return;
+                // We show a toast WITH AN ACTION to ensure a "fresh user gesture"
+                // This solves the "Permission Denied" error in Android/Safari
+                toast.success('¡Reporte generado con éxito!', {
+                    id: 'whatsapp-share',
+                    description: 'Pulsa el botón para enviar a WhatsApp.',
+                    duration: 15000,
+                    action: {
+                        label: 'COMPARTIR AHORA',
+                        onClick: async () => {
+                            try {
+                                const canShareFile = navigator.canShare && navigator.canShare({ files: [excelFile] });
+                                
+                                await navigator.share({
+                                    files: canShareFile ? [excelFile] : undefined,
+                                    title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
+                                    // text: text // Note: We omit text here to avoid WhatsApp ignoring the file on Android
+                                });
+                                
+                                toast.success('Enviado. Recuerda que el resumen está en tu portapapeles.');
+                            } catch (shareError: any) {
+                                if (shareError.name !== 'AbortError') {
+                                    console.error('Share failed', shareError);
+                                    // Final fallback if share fails even with fresh gesture
+                                    const encodedText = encodeURIComponent(text);
+                                    window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+                                }
+                            }
+                        }
                     }
-                    console.error('navigator.share failed', shareError);
-                    throw shareError;
-                }
+                });
             } else {
                 // 3. Fallback for Desktop (Win/Mac)
                 const url = window.URL.createObjectURL(excelFile as Blob);
@@ -473,15 +473,9 @@ const AttendancePage: React.FC = () => {
                 });
             }
         } catch (error: any) {
-            console.error('Error sharing via WhatsApp', error);
+            console.error('Error preparing WhatsApp share', error);
             const errorMsg = error?.message || 'Error desconocido';
-            toast.error(`Error al compartir: ${errorMsg}. Abriendo chat básico...`, { duration: 6000 });
-            
-            // Backup fallback to simple link after a small delay
-            setTimeout(() => {
-                const encodedText = encodeURIComponent(text);
-                window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-            }, 1500);
+            toast.error(`Error al preparar reporte: ${errorMsg}`, { id: 'whatsapp-share' });
         }
     }, [handleExportExcel, copyToClipboard]);
 
