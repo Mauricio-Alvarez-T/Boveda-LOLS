@@ -362,8 +362,7 @@ const AttendancePage: React.FC = () => {
 
         text += `Total: ${total}\n`;
         ['A', 'F', 'JI', 'TO', 'V', 'LM', 'PL'].forEach(c => {
-            const label = c === 'PL' ? 'P. Legales' : (c === 'JI' ? 'J. Incompleta' : c);
-            text += `${label}: ${counts[c].toString().padStart(2, '0')}\n`;
+            text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
         });
         text += `\n`;
 
