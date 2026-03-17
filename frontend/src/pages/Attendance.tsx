@@ -418,7 +418,7 @@ const AttendancePage: React.FC = () => {
             const excelFile = await handleExportExcel(true);
             
             if (!excelFile) {
-                toast.error('No se pudo generar el archivo Excel. Revisa tu conexión o intenta de nuevo.', { id: 'whatsapp-share' });
+                toast.error('Error: El servidor no pudo generar el archivo Excel.', { id: 'whatsapp-share' });
                 return;
             }
 
@@ -426,23 +426,31 @@ const AttendancePage: React.FC = () => {
             if (navigator.share) {
                 const canShareFile = navigator.canShare && navigator.canShare({ files: [excelFile] });
                 
+                // Construct share object carefully
+                const shareData: ShareData = {
+                    title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
+                };
+                
+                if (canShareFile) {
+                    shareData.files = [excelFile];
+                    // We don't include 'text' here for Android because it often causes WhatsApp to ignore the file.
+                    // The text is already in the clipboard.
+                } else {
+                    shareData.text = text;
+                }
+
                 try {
-                    // Try to share ONLY THE FILE.
-                    await navigator.share({
-                        files: canShareFile ? [excelFile] : undefined,
-                        title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                    });
-                    
-                    toast.success('¡Archivo listo! El resumen se copió al portapapeles, solo pégalo en el chat.', { 
+                    await navigator.share(shareData);
+                    toast.success('¡Listo! El resumen está en el portapapeles, pégalo en el chat de WhatsApp.', { 
                         id: 'whatsapp-share',
                         duration: 8000
                     });
                 } catch (shareError: any) {
-                    // If user cancels, we don't treat it as error
                     if (shareError.name === 'AbortError') {
                         toast.info('Compartido cancelado');
                         return;
                     }
+                    console.error('navigator.share failed', shareError);
                     throw shareError;
                 }
             } else {
@@ -459,16 +467,21 @@ const AttendancePage: React.FC = () => {
                 const encodedText = encodeURIComponent(text);
                 window.open(`https://wa.me/?text=${encodedText}`, '_blank');
                 
-                toast.success('1. Reporte descargado. 2. WhatsApp abierto. 3. Arrastra el archivo al chat.', { 
+                toast.success('💻 1. Reporte descargado. 2. WhatsApp abierto. 3. Arrastra el archivo.', { 
                     id: 'whatsapp-share',
                     duration: 10000 
                 });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error sharing via WhatsApp', error);
-            toast.error('Hubo un problema al compartir. Intentando abrir chat básico...');
-            const encodedText = encodeURIComponent(text);
-            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+            const errorMsg = error?.message || 'Error desconocido';
+            toast.error(`Error al compartir: ${errorMsg}. Abriendo chat básico...`, { duration: 6000 });
+            
+            // Backup fallback to simple link after a small delay
+            setTimeout(() => {
+                const encodedText = encodeURIComponent(text);
+                window.open(`https://wa.me/?text=${encodedText}`, '_blank');
+            }, 1500);
         }
     }, [handleExportExcel, copyToClipboard]);
 
