@@ -304,12 +304,39 @@ const AttendancePage: React.FC = () => {
         }
     }, []);
 
+    // Robust copy to clipboard utility for mobile browsers
+    const copyToClipboard = useCallback(async (text: string) => {
+        try {
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch (e) {}
+        
+        // Fallback for older mobile browsers or security restrictions
+        try {
+            const textArea = document.createElement("textarea");
+            textArea.value = text;
+            textArea.style.position = "fixed";
+            textArea.style.left = "-9999px";
+            textArea.style.top = "0";
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const successful = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return successful;
+        } catch (err) {
+            return false;
+        }
+    }, []);
+
     // Handle WhatsApp Share
     const handleShareWhatsApp = useCallback(async () => {
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance, estados: currentEstados } = latestData.current;
         if (!currentObra) return;
 
-        toast.info('Preparando reporte para compartir...', { id: 'whatsapp-share', duration: 2000 });
+        toast.info('Preparando reporte...', { id: 'whatsapp-share', duration: 2000 });
 
         const dateStr = currentDate.split('-').reverse().join('-');
         let text = `Buenas tardes\n`;
@@ -383,54 +410,35 @@ const AttendancePage: React.FC = () => {
         text += `_Este mensaje se genero usando Bóveda lols_`;
 
         try {
+            // STEP 0: Immediate copy to clipboard (crucial for mobile context)
+            await copyToClipboard(text);
+
             // 1. Generate the Excel file
             const excelFile = await handleExportExcel(true);
             
-            // 2. Try to use Web Share API (Best for Mobile / iOS)
-            // Note: If navigator.share exists, we assume it's a mobile device.
+            // 2. Mobile Logic (navigator.share)
             if (navigator.share && excelFile) {
-                // Try to copy text to clipboard as a very first step (backup for all cases)
-                try {
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(text);
-                    }
-                } catch(e) { console.warn('Clipboard copy failed', e); }
-
-                // Check if we can share this specific file (more relaxed check)
                 const canShareFile = navigator.canShare && navigator.canShare({ files: [excelFile] });
                 
                 try {
-                    // Attempt to share BOTH file and text in one go
+                    // Try to share ONLY THE FILE. This forces WhatsApp to open the file picker/preview.
+                    // The text is already in the clipboard.
                     await navigator.share({
                         files: canShareFile ? [excelFile] : undefined,
                         title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                        text: text
+                        // text: text // We omit text on mobile to avoid conflicts in Android
                     });
-                    toast.success('Compartido preparado con éxito', { id: 'whatsapp-share' });
+                    
+                    toast.success('¡Archivo listo! El resumen se copió al portapapeles, solo pégalo en el chat.', { 
+                        id: 'whatsapp-share',
+                        duration: 8000
+                    });
                 } catch (shareError) {
-                    // Fallback to sharing just the file if combined sharing fails
-                    if (canShareFile) {
-                        await navigator.share({
-                            files: [excelFile],
-                            title: `Asistencia ${currentObra.nombre} - ${dateStr}`,
-                        });
-                        toast.success('Archivo preparado. El resumen se copió al portapapeles.', { 
-                            id: 'whatsapp-share',
-                            duration: 6000
-                        });
-                    } else {
-                        throw shareError; // Fallback to desktop logic
-                    }
+                    // Fallback desktop mode if share fails
+                    throw shareError;
                 }
             } else {
                 // 3. Fallback for Desktop (Win/Mac)
-                try { 
-                    if (navigator.clipboard && navigator.clipboard.writeText) {
-                        await navigator.clipboard.writeText(text); 
-                    }
-                } catch(e) {}
-                
-                // Trigger download manually
                 const url = window.URL.createObjectURL(excelFile as Blob);
                 const link = document.createElement('a');
                 link.href = url;
@@ -440,7 +448,6 @@ const AttendancePage: React.FC = () => {
                 link.remove();
                 window.URL.revokeObjectURL(url);
 
-                // Open WhatsApp
                 const encodedText = encodeURIComponent(text);
                 window.open(`https://wa.me/?text=${encodedText}`, '_blank');
                 
@@ -451,11 +458,10 @@ const AttendancePage: React.FC = () => {
             }
         } catch (error) {
             console.error('Error sharing via WhatsApp', error);
-            // Last resort: simple link
             const encodedText = encodeURIComponent(text);
             window.open(`https://wa.me/?text=${encodedText}`, '_blank');
         }
-    }, [handleExportExcel]);
+    }, [handleExportExcel, copyToClipboard]);
 
     // Navigate date
     const navigateDate = (offset: number) => {
