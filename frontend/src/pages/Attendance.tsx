@@ -850,11 +850,11 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-background md:bg-white md:rounded-2xl md:border md:border-border overflow-hidden">
                     {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 bg-background border-b border-[#E8E8ED] text-xs font-semibold text-muted-foreground uppercase tracking-wider items-center">
+                    <div className="hidden md:grid grid-cols-[48px_minmax(180px,240px)_1fr_140px_60px] gap-4 px-5 py-3 bg-background border-b border-[#E8E8ED] text-xs font-semibold text-muted-foreground uppercase tracking-wider items-center">
                         <span className="text-center">#</span>
                         <span>Trabajador</span>
                         <span className="text-center w-full">Estado</span>
-                        <span className="w-[180px] text-center">Detalle / Calendario</span>
+                        <span className="w-[140px] text-center">Detalle / Calendario</span>
                         <span className="w-[60px] text-center">H.E.</span>
                     </div>
 
@@ -1007,7 +1007,7 @@ const AttendancePage: React.FC = () => {
 
                                     {/* ── DESKTOP ROW ── */}
                                     <div className={cn(
-                                        "hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_180px_60px] gap-4 px-5 py-3 items-center",
+                                        "hidden md:grid grid-cols-[48px_minmax(180px,240px)_1fr_140px_60px] gap-4 px-5 py-3 items-center",
                                         markedRows.has(idx) && "bg-brand-primary/5 italic"
                                     )}>
                                         <div className="flex justify-center">

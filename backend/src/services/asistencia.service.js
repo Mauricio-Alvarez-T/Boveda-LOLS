@@ -569,11 +569,10 @@ const asistenciaService = {
 
         // ── Códigos que suman como día trabajado según RRHH ──
         // A=Asistencia, V=Vacaciones, LM=Licencia Médica,
-        // JI=Jornada Incompleta, AT=Atraso,
-        // DF=Defunción, NC=Nacimiento, MT=Matrimonio
+        // JI=Jornada Incompleta, PL=Permisos Legales
         // NOTA: AL (Accidente Laboral) NO suma
         // FDS=Fin De Semana/Feriado (marcador interno, no es un estado de la BD)
-        const codigosSumanDia = ['A', 'V', 'LM', 'JI', 'AT', 'DF', 'NC', 'MT'];
+        const codigosSumanDia = ['A', 'V', 'LM', 'JI', 'PL'];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
 
         // ── Agrupar trabajadores por empresa ──
@@ -615,7 +614,20 @@ const asistenciaService = {
             // Distribuir los estados en dos columnas para evitar solapamiento
             // También agregar el marcador FDS como entrada de leyenda
             const legendItems = [
-                ...estados.map(est => ({ codigo: est.codigo, nombre: est.nombre || est.codigo, color: est.color, suma: codigosSumanDia.includes(est.codigo) })),
+                ...estados.map(est => {
+                    let codigo = est.codigo;
+                    let nombre = est.nombre || est.codigo;
+                    // Consolidación para la leyenda si son códigos obsoletos
+                    if (['NAC', 'DEF', 'MAT'].includes(codigo)) {
+                        codigo = 'PL';
+                        nombre = 'Permisos Legales';
+                    }
+                    if (codigo === 'AT') {
+                        codigo = 'JI';
+                        nombre = 'Jornada Incompleta';
+                    }
+                    return { codigo, nombre, color: est.color, suma: codigosSumanDia.includes(codigo) };
+                }).filter((v, i, a) => a.findIndex(t => t.codigo === v.codigo) === i), // Unique by consolidated code
                 { codigo: MARKER_FDS, nombre: 'Fin de Semana / Feriado', color: null, suma: true }
             ];
             const halfLegend = Math.ceil(legendItems.length / 2);
@@ -759,10 +771,16 @@ const asistenciaService = {
                     
                     if (reg) {
                         const est = estadoMap[reg.estado_id];
-                        cell.value = est ? est.codigo : '-';
+                        let codigo = est ? est.codigo : '-';
+                        
+                        // Consolidación dinámica para el Excel
+                        if (['NAC', 'DEF', 'MAT'].includes(codigo)) codigo = 'PL';
+                        if (codigo === 'AT') codigo = 'JI';
+
+                        cell.value = codigo;
                         
                         if (est) {
-                            if (est.codigo === 'A') {
+                            if (codigo === 'A') {
                                 cell.font = { size: 8 };
                             } else if (est.color) {
                                 const safeColor = est.color.startsWith('#') ? est.color.replace('#', 'FF') : 'FF' + est.color;
