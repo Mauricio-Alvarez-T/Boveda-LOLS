@@ -849,12 +849,12 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-background md:bg-white md:rounded-2xl md:border md:border-border overflow-hidden">
                     {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[48px_minmax(180px,240px)_1fr_140px_60px] gap-4 px-5 py-3 bg-background border-b border-[#E8E8ED] text-xs font-semibold text-muted-foreground uppercase tracking-wider items-center">
+                    <div className="hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 bg-background border-b border-[#E8E8ED] text-[11px] font-bold text-muted-foreground uppercase tracking-widest items-center">
                         <span className="text-center">#</span>
                         <span>Trabajador</span>
-                        <span className="text-center w-full">Estado</span>
-                        <span className="w-[140px] text-center">Detalle / Calendario</span>
-                        <span className="w-[60px] text-center">H.E.</span>
+                        <span className="text-center">Control de Asistencia</span>
+                        <span className="text-center">Acciones / Cal.</span>
+                        <span className="text-center">H.E.</span>
                     </div>
 
                     <AnimatePresence>
@@ -868,15 +868,15 @@ const AttendancePage: React.FC = () => {
                             return (
                                 <motion.div
                                     key={`${worker.id}-${date}`}
-                                    initial={{ opacity: 0, y: 40, scale: 0.95 }}
+                                    initial={{ opacity: 0, y: 20, scale: 0.98 }}
                                     whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                                    viewport={{ once: false, margin: "0px 0px -20px 0px" }}
-                                    transition={{ type: "spring", stiffness: 260, damping: 20 }}
+                                    viewport={{ once: true, margin: "-20px" }}
+                                    transition={{ duration: 0.2, delay: idx * 0.02 }}
                                     className={cn(
-                                        "md:border-b md:border-[#F0F0F0] md:last:border-b-0 transition-colors rounded-2xl md:rounded-none overflow-hidden",
-                                        idx % 2 === 0 ? "bg-white" : "bg-[#F0F0F5]",
-                                        (isNotPresent || isDesvinculado) && "bg-[#FEF8F8]",
-                                        (isSaturday || isSunday) && "bg-[#E8ECEF]",
+                                        "md:border-b md:border-[#F0F0F5] md:last:border-b-0 transition-all duration-300 rounded-2xl md:rounded-none overflow-hidden hover:shadow-md md:hover:shadow-none relative z-0",
+                                        idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFB]",
+                                        (isNotPresent || isDesvinculado) && "bg-[#FFF9F9] md:hover:bg-[#FFF4F4]",
+                                        (isSaturday || isSunday) && "bg-[#F8FAFC]",
                                         feriadoActual && "bg-destructive/5",
                                         isDesvinculado && "opacity-75 grayscale-[30%]"
                                     )}
@@ -1006,7 +1006,7 @@ const AttendancePage: React.FC = () => {
 
                                     {/* ── DESKTOP ROW ── */}
                                     <div className={cn(
-                                        "hidden md:grid grid-cols-[48px_minmax(180px,240px)_1fr_140px_60px] gap-4 px-5 py-3 items-center",
+                                        "hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-3 items-center group",
                                         markedRows.has(idx) && "bg-brand-primary/5 italic"
                                     )}>
                                         <div className="flex justify-center">
@@ -1016,93 +1016,103 @@ const AttendancePage: React.FC = () => {
                                                     "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border",
                                                     markedRows.has(idx)
                                                         ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110"
-                                                        : "bg-transparent text-muted border-transparent hover:border-border hover:bg-white"
+                                                        : "bg-transparent text-muted/40 border-transparent hover:border-border hover:bg-white hover:text-brand-dark active:scale-95"
                                                 )}
                                             >
                                                 {(idx + 1).toString().padStart(2, '0')}
                                             </button>
                                         </div>
-                                        <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/30 pl-3">
+                                        <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/40 pl-4 group-hover:border-brand-primary/30 transition-colors">
                                             <div className="min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-brand-dark">
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[13px] truncate block font-bold text-slate-700 hover:text-brand-primary transition-colors">
                                                     {worker.apellido_paterno}, {worker.nombres}
                                                 </WorkerLink>
-                                                <p className="text-[10px] text-muted-foreground font-medium">
-                                                    {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}
+                                                <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
+                                                    <span className="bg-slate-100 px-1 rounded uppercase tracking-tighter">{worker.rut}</span>
+                                                    {worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 pl-1.5">{worker.cargo_nombre}</span>}
                                                 </p>
                                             </div>
                                         </div>
 
-                                        <div className="flex gap-1.5 w-full items-center">
-                                            {/* 1. Favoritos Escritorio */}
-                                            {['A', 'F', 'JI', 'TO'].map(code => {
-                                                const est = estados.find(e => e.codigo === code);
-                                                if (!est) return null;
-                                                const isActive = state.estado_id === est.id;
-                                                return (
-                                                    <button
-                                                        key={est.id}
-                                                        onClick={() => {
-                                                            const updates: Partial<Asistencia> = {
-                                                                estado_id: est.id,
-                                                                es_sabado: isSaturday
-                                                            };
-                                                            if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                const dayIndex = new Date(date + 'T12:00:00').getDay();
-                                                                const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[dayIndex];
-                                                                const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
-                                                                if (currentSchedule) {
-                                                                    updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
-                                                                    updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
-                                                                    updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
-                                                                    updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
-                                                                }
-                                                            }
-                                                            updateAttendance(worker.id, updates);
-                                                        }}
-                                                        disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                                                        className={cn(
-                                                            "px-2.5 py-1.5 rounded-full text-[10px] font-bold uppercase transition-all whitespace-nowrap border shrink-0",
-                                                            isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground hover:bg-background"
-                                                        )}
-                                                        style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
-                                                    >
-                                                        {est.codigo}
-                                                    </button>
-                                                );
-                                            })}
-
-                                            {/* 2. Dropdown Escritorio */}
-                                            <div className="relative min-w-[80px] flex-shrink-0">
-                                                {(() => {
-                                                    const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
-                                                    const activeSecondary = secondary.find(e => e.id === state.estado_id);
+                                        <div className="flex justify-center">
+                                            <div className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/50 shadow-inner max-w-fit transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
+                                                {/* 1. Favoritos Escritorio */}
+                                                {['A', 'F', 'JI', 'TO'].map(code => {
+                                                    const est = estados.find(e => e.codigo === code);
+                                                    if (!est) return null;
+                                                    const isActive = state.estado_id === est.id;
                                                     return (
-                                                        <select
-                                                            className={cn(
-                                                                "w-full px-2 py-1.5 rounded-full text-[10px] font-bold uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer",
-                                                                activeSecondary ? "text-white border-transparent" : "border-[#E8E8ED] text-muted-foreground hover:bg-background"
-                                                            )}
-                                                            style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
-                                                            value={activeSecondary?.id || ""}
-                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                                                            onChange={(e) => {
-                                                                const estId = parseInt(e.target.value);
-                                                                updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                        <button
+                                                            key={est.id}
+                                                            onClick={() => {
+                                                                const updates: Partial<Asistencia> = {
+                                                                    estado_id: est.id,
+                                                                    es_sabado: isSaturday
+                                                                };
+                                                                if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
+                                                                    const dayIndex = new Date(date + 'T12:00:00').getDay();
+                                                                    const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[dayIndex];
+                                                                    const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
+                                                                    if (currentSchedule) {
+                                                                        updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
+                                                                        updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                                                                        updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
+                                                                        updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+                                                                    }
+                                                                }
+                                                                updateAttendance(worker.id, updates);
                                                             }}
+                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                            className={cn(
+                                                                "h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]",
+                                                                isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95"
+                                                            )}
+                                                            style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
                                                         >
-                                                            <option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
-                                                            {secondary.map(est => (
-                                                                <option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>
-                                                            ))}
-                                                        </select>
+                                                            {est.codigo}
+                                                        </button>
                                                     );
-                                                })()}
+                                                })}
+
+                                                {/* 2. Dropdown Escritorio */}
+                                                <div className="relative min-w-[90px] flex-shrink-0">
+                                                    {(() => {
+                                                        const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                        const activeSecondary = secondary.find(e => e.id === state.estado_id);
+                                                        return (
+                                                            <div className="relative h-8 group/select">
+                                                                <select
+                                                                    className={cn(
+                                                                        "h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer",
+                                                                        activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
+                                                                    )}
+                                                                    style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
+                                                                    value={activeSecondary?.id || ""}
+                                                                    disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                                    onChange={(e) => {
+                                                                        const estId = parseInt(e.target.value);
+                                                                        updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                                    }}
+                                                                >
+                                                                    <option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
+                                                                    {secondary.map(est => (
+                                                                        <option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>
+                                                                    ))}
+                                                                </select>
+                                                                <div className={cn(
+                                                                    "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-colors",
+                                                                    activeSecondary ? "text-white/70" : "text-slate-300 group-hover/select:text-slate-400"
+                                                                )}>
+                                                                    <ChevronDown className="h-3 w-3" />
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })()}
+                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="w-[180px] flex items-center justify-between gap-2">
+                                        <div className="flex items-center justify-end gap-2">
                                                 <div className="flex-1">
                                                     <button
                                                         onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
