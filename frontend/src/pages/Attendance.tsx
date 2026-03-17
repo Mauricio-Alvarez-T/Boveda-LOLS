@@ -456,13 +456,16 @@ const AttendancePage: React.FC = () => {
 
         } catch (error: any) {
             console.error('Error preparing WhatsApp link', error);
-            toast.error('No se pudo generar el link de reporte. El resumen se copió al portapapeles.', { id: 'whatsapp-share' });
+            const serverMsg = error.response?.data?.error || error.response?.data?.message;
+            const errorDetail = serverMsg ? `: ${serverMsg}` : ` (${error.message})`;
+            
+            toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', duration: 8000 });
             
             // Fallback to text-only if token generation fails
             setTimeout(() => {
                 const encodedText = encodeURIComponent(text);
                 window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-            }, 1000);
+            }, 2000);
         }
     }, [copyToClipboard]);
 
