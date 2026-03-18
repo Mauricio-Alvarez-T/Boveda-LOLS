@@ -9,7 +9,8 @@ import {
     ChevronRight,
     LogOut,
     Settings,
-    X
+    X,
+    SearchCheck
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -51,6 +52,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Nómina & Reportes',
             path: '/fiscalizacion',
             visible: checkPermission('documentos', 'puede_ver')
+        },
+        {
+            icon: SearchCheck,
+            label: 'Consultas',
+            path: '/consultas',
+            visible: checkPermission('trabajadores', 'puede_ver')
         },
         {
             icon: Settings,
