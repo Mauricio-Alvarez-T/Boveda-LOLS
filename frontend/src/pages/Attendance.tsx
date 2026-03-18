@@ -53,6 +53,7 @@ const AttendancePage: React.FC = () => {
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [feriadoActual, setFeriadoActual] = useState<Feriado | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
 
@@ -526,13 +527,31 @@ const AttendancePage: React.FC = () => {
     const isSaturday = dayOfWeek === 6;
     const isSunday = dayOfWeek === 0;
 
+    // Available Empresas in current worker list
+    const availableEmpresas = useMemo(() => {
+        const unique = new Map<number, string>();
+        workers.forEach(w => {
+            if (w.empresa_id && w.empresa_nombre) {
+                unique.set(w.empresa_id, w.empresa_nombre);
+            }
+        });
+        return Array.from(unique.entries())
+            .map(([id, nombre]) => ({ id, nombre }))
+            .sort((a, b) => a.nombre.localeCompare(b.nombre));
+    }, [workers]);
+
     // Filtered and sorted workers
     const filteredWorkers = useMemo(() => {
         let result = workers;
+
+        if (selectedEmpresaId !== null) {
+            result = result.filter(w => w.empresa_id === selectedEmpresaId);
+        }
+
         if (searchQuery) {
             const q = searchQuery.toLowerCase().trim();
             const qCollapsed = q.replace(/[\s.-]/g, '');
-            result = workers.filter(w => {
+            result = result.filter(w => {
                 const fullName = `${w.nombres} ${w.apellido_paterno}`.toLowerCase();
                 const rutExact = w.rut.toLowerCase();
                 const rutCollapsed = w.rut.toLowerCase().replace(/[\s.-]/g, '');
@@ -547,7 +566,7 @@ const AttendancePage: React.FC = () => {
             const nameB = `${b.apellido_paterno || ''} ${b.nombres || ''}`.trim();
             return nameA.localeCompare(nameB);
         });
-    }, [workers, searchQuery]);
+    }, [workers, searchQuery, selectedEmpresaId]);
 
     // Summary stats
     const summary = useMemo(() => {
@@ -826,13 +845,32 @@ const AttendancePage: React.FC = () => {
                 )}
             </div>
 
-            {/* ── Search Bar (sticky on mobile) ── */}
-            <div className="sticky top-14 md:top-16 z-20 -mx-3 px-3 md:mx-0 md:px-0 py-1 md:py-0 bg-background md:bg-transparent">
-                <SearchBar
-                    value={searchQuery}
-                    onChange={setSearchQuery}
-                    placeholder="Buscar por nombre o RUT..."
-                />
+            {/* ── Search Bar & Filter (sticky on mobile) ── */}
+            <div className="sticky top-14 md:top-16 z-20 -mx-3 px-3 md:mx-0 md:px-0 py-1 md:py-0 bg-background md:bg-transparent flex flex-col md:flex-row gap-2">
+                <div className="flex-1">
+                    <SearchBar
+                        value={searchQuery}
+                        onChange={setSearchQuery}
+                        placeholder="Buscar por nombre o RUT..."
+                    />
+                </div>
+                {availableEmpresas.length > 0 && (
+                    <div className="md:w-64 flex-shrink-0 relative">
+                        <select
+                            className="w-full h-10 md:h-[42px] appearance-none bg-white border border-border rounded-xl pl-4 pr-10 text-sm font-medium text-brand-dark focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer shadow-sm"
+                            value={selectedEmpresaId || ''}
+                            onChange={(e) => setSelectedEmpresaId(e.target.value ? Number(e.target.value) : null)}
+                        >
+                            <option value="">Todas las Empresas</option>
+                            {availableEmpresas.map(emp => (
+                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                            ))}
+                        </select>
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/70">
+                            <ChevronDown className="h-4 w-4" />
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* ── Worker List ── */}
