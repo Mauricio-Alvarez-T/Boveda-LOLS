@@ -902,6 +902,8 @@ const AttendancePage: React.FC = () => {
                             const isExpanded = expandedWorkerId === worker.id;
                             const isNotPresent = currentEstado && !currentEstado.es_presente;
                             const isDesvinculado = worker.fecha_desvinculacion ? date > worker.fecha_desvinculacion : false;
+                            const isPreContrato = worker.fecha_ingreso ? date < worker.fecha_ingreso : false;
+                            const isOutOfRange = isDesvinculado || isPreContrato;
 
                             return (
                                 <motion.div
@@ -913,10 +915,10 @@ const AttendancePage: React.FC = () => {
                                     className={cn(
                                         "md:border-b md:border-[#F0F0F5] md:last:border-b-0 transition-all duration-300 rounded-2xl md:rounded-none overflow-hidden hover:shadow-md md:hover:shadow-none relative z-0",
                                         idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFB]",
-                                        (isNotPresent || isDesvinculado) && "bg-[#FFF9F9] md:hover:bg-[#FFF4F4]",
+                                        (isNotPresent || isOutOfRange) && "bg-[#FFF9F9] md:hover:bg-[#FFF4F4]",
                                         (isSaturday || isSunday) && "bg-[#F8FAFC]",
                                         feriadoActual && "bg-destructive/5",
-                                        isDesvinculado && "opacity-75 grayscale-[30%]"
+                                        isOutOfRange && "opacity-75 grayscale-[30%]"
                                     )}
                                 >
                                     {/* ── MOBILE CARD ── */}
@@ -990,7 +992,7 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                        disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                         className={cn(
                                                             "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border shrink-0",
                                                             isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground"
@@ -1013,7 +1015,7 @@ const AttendancePage: React.FC = () => {
                                                             )}
                                                             style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
                                                             value={activeSecondary?.id || ""}
-                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                            disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                             onChange={(e) => {
                                                                 const estId = parseInt(e.target.value);
                                                                 updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
@@ -1031,10 +1033,10 @@ const AttendancePage: React.FC = () => {
                                         {/* Row 4: Expandable detail toggle */}
                                         <button
                                             onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                            disabled={isDesvinculado || !!feriadoActual || isSunday || isSaturday}
+                                            disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday}
                                             className={cn(
                                                 "mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-brand-primary font-medium rounded-lg hover:bg-brand-primary/5 transition-colors",
-                                                (!!feriadoActual || isSunday || isSaturday || isDesvinculado) && "opacity-50 cursor-not-allowed grayscale"
+                                                (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale"
                                             )}
                                         >
                                             <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
@@ -1100,7 +1102,7 @@ const AttendancePage: React.FC = () => {
                                                                 }
                                                                 updateAttendance(worker.id, updates);
                                                             }}
-                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                            disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                             className={cn(
                                                                 "h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]",
                                                                 isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95"
@@ -1126,7 +1128,7 @@ const AttendancePage: React.FC = () => {
                                                                     )}
                                                                     style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
                                                                     value={activeSecondary?.id || ""}
-                                                                    disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                                    disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                                     onChange={(e) => {
                                                                         const estId = parseInt(e.target.value);
                                                                         updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
@@ -1154,11 +1156,11 @@ const AttendancePage: React.FC = () => {
                                                 <div className="flex-1">
                                                     <button
                                                         onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                        disabled={isDesvinculado || !!feriadoActual || isSunday || isSaturday}
-                                                        title={isDesvinculado ? "Bloqueado por Finiquito" : "Ver detalle"}
+                                                        disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday}
+                                                        title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"}
                                                         className={cn(
                                                             "text-[10px] text-brand-primary font-medium hover:underline w-full text-center",
-                                                            (isDesvinculado || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale"
+                                                            (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale"
                                                         )}
                                                     >
                                                         {isExpanded ? 'Cerrar' : 'Detalle'}

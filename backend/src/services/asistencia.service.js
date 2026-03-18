@@ -47,6 +47,24 @@ const asistenciaService = {
                     throw new Error(`No se puede registrar asistencia en feriados o fines de semana (${fechaNormalizada})`);
                 }
 
+                // --- VALIDACIÓN DE RANGO LABORAL: No permitir asistencia fuera del período de contratación ---
+                const [workerCheck] = await conn.query(
+                    'SELECT fecha_ingreso, fecha_desvinculacion FROM trabajadores WHERE id = ?',
+                    [reg.trabajador_id]
+                );
+                if (workerCheck.length > 0) {
+                    const w = workerCheck[0];
+                    const fechaIngresoStr = w.fecha_ingreso ? (typeof w.fecha_ingreso === 'string' ? w.fecha_ingreso.split('T')[0] : w.fecha_ingreso.toISOString().split('T')[0]) : null;
+                    const fechaFinStr = w.fecha_desvinculacion ? (typeof w.fecha_desvinculacion === 'string' ? w.fecha_desvinculacion.split('T')[0] : w.fecha_desvinculacion.toISOString().split('T')[0]) : null;
+
+                    if (fechaIngresoStr && fechaNormalizada < fechaIngresoStr) {
+                        throw new Error(`No se puede registrar asistencia antes de la fecha de contratación (${fechaIngresoStr}) del trabajador ID ${reg.trabajador_id}`);
+                    }
+                    if (fechaFinStr && fechaNormalizada > fechaFinStr) {
+                        throw new Error(`No se puede registrar asistencia después de la fecha de finiquito (${fechaFinStr}) del trabajador ID ${reg.trabajador_id}`);
+                    }
+                }
+
                 const [existing] = await conn.query(
                     'SELECT * FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
                     [reg.trabajador_id, obraId, fechaNormalizada]
@@ -330,10 +348,11 @@ const asistenciaService = {
         if (fecha_fin) { where.push('a.fecha <= ?'); params.push(fecha_fin); }
         if (trabajador_id) { where.push('a.trabajador_id = ?'); params.push(trabajador_id); }
         
-        // Excluir inactivos (soft-deleted) del reporte y del excel
-        where.push('t.activo = 1');
+        // NOTA: No filtramos por t.activo aquí para que los finiquitados
+        // con registros en el rango aparezcan en el Excel/reporte.
+        // El filtrado de quién aparece en el Excel lo maneja generarExcel().
 
-        const whereClause = `WHERE ${where.join(' AND ')}`;
+        const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
         const [rows] = await db.query(
             `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
@@ -478,7 +497,7 @@ const asistenciaService = {
         // 1. Obtener Datos
         const workerQueryParams = [];
         let workerQuery = `
-            SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso, 
+            SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso, t.fecha_desvinculacion,
                    c.nombre as cargo_nombre, t.activo, o.nombre as obra_actual_nombre,
                    e.id as empresa_id, e.razon_social as empresa_nombre
             FROM trabajadores t
@@ -768,8 +787,20 @@ const asistenciaService = {
                     const reg = attendanceMap[worker.id]?.[fStr];
                     const isFeriado = !!feriadoMap[fStr];
                     const isWeekend = day.getDay() === 0 || day.getDay() === 6;
-                    
-                    if (reg) {
+
+                    // ── VALIDACIÓN DE RANGO LABORAL ──
+                    // No marcar ni sumar días FUERA del período de contratación
+                    const workerIngreso = worker.fecha_ingreso ? formatDate(worker.fecha_ingreso) : null;
+                    const workerFin = worker.fecha_desvinculacion ? formatDate(worker.fecha_desvinculacion) : null;
+                    const isBeforeContract = workerIngreso && fStr < workerIngreso;
+                    const isAfterTermination = workerFin && fStr > workerFin;
+                    const isOutOfRange = isBeforeContract || isAfterTermination;
+
+                    if (isOutOfRange) {
+                        // Fuera de rango laboral → celda vacía, no suma nada
+                        cell.value = '';
+                        cell.font = { size: 7, color: { argb: 'FFCCCCCC' } };
+                    } else if (reg) {
                         const est = estadoMap[reg.estado_id];
                         let codigo = est ? est.codigo : '-';
                         
@@ -896,6 +927,24 @@ const asistenciaService = {
 
         const conn = await db.getConnection();
         try {
+            // --- VALIDACIÓN DE RANGO LABORAL ---
+            const [workerCheck] = await conn.query(
+                'SELECT fecha_ingreso, fecha_desvinculacion FROM trabajadores WHERE id = ?',
+                [trabajador_id]
+            );
+            
+            if (workerCheck.length > 0) {
+                const w = workerCheck[0];
+                const fechaIngresoStr = w.fecha_ingreso ? (typeof w.fecha_ingreso === 'string' ? w.fecha_ingreso.split('T')[0] : w.fecha_ingreso.toISOString().split('T')[0]) : null;
+                const fechaFinStr = w.fecha_desvinculacion ? (typeof w.fecha_desvinculacion === 'string' ? w.fecha_desvinculacion.split('T')[0] : w.fecha_desvinculacion.toISOString().split('T')[0]) : null;
+
+                if (fechaIngresoStr && fecha_inicio < fechaIngresoStr) {
+                    throw new Error(`El período no puede iniciar antes de la fecha de contratación (${fechaIngresoStr})`);
+                }
+                if (fechaFinStr && fecha_fin > fechaFinStr) {
+                    throw new Error(`El período no puede extenderse después de la fecha de finiquito (${fechaFinStr})`);
+                }
+            }
             await conn.beginTransaction();
 
             // 1. Desactivar períodos superpuestos del mismo trabajador en la misma obra

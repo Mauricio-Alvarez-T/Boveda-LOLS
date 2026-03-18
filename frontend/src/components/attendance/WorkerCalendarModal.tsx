@@ -169,6 +169,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         const isEnd = selectionEnd === dateStr;
 
                         const isDesvinculado = worker.fecha_desvinculacion ? dateStr > worker.fecha_desvinculacion : false;
+                        const isPreContrato = worker.fecha_ingreso ? dateStr < worker.fecha_ingreso : false;
+                        const isOutOfRange = isDesvinculado || isPreContrato;
 
                         // Clases para el bloque visual conectivo del período
                         let periodClasses = "";
@@ -185,7 +187,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         }
 
                         let buttonClass = "absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 transition-all group ";
-                        if (isDesvinculado) {
+                        if (isOutOfRange) {
                             buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03)_5px,transparent_5px,transparent_10px)] border-border";
                         } else if (!periodo && !isSelected) {
                             buttonClass += "border-[#E8E8ED] hover:shadow-md hover:border-brand-primary/30";
@@ -195,7 +197,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                             buttonClass += "border-transparent bg-transparent hover:shadow-md hover:border-brand-primary/30";
                         }
 
-                        const buttonTitle = isDesvinculado ? 'Bloqueado por Finiquito' : (periodo ? `Período: ${periodo.estado_nombre}${periodo.observacion ? ' \n📝 ' + periodo.observacion : ''}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : '')));
+                        const buttonTitle = isOutOfRange ? (isPreContrato ? 'Bloqueado: Aún no contratado' : 'Bloqueado por Finiquito') : (periodo ? `Período: ${periodo.estado_nombre}${periodo.observacion ? ' \n📝 ' + periodo.observacion : ''}` : (holiday ? `Feriado: ${holiday.nombre}` : (isSelected ? 'Seleccionado para nuevo trámite' : '')));
 
                         return (
                             <div
@@ -218,10 +220,10 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 )}
                                 
                                 <button
-                                    onClick={() => !isDesvinculado && handleDateClick(dateStr)}
-                                    disabled={isDesvinculado}
+                                    onClick={() => !isOutOfRange && handleDateClick(dateStr)}
+                                    disabled={isOutOfRange}
                                     className={buttonClass}
-                                    style={!isDesvinculado && !periodo && !isSelected ? { 
+                                    style={!isOutOfRange && !periodo && !isSelected ? { 
                                         backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? '#E8ECEF' : '#FFFFFF')) 
                                     } : undefined}
                                     title={buttonTitle}  
