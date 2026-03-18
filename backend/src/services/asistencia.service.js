@@ -38,13 +38,13 @@ const asistenciaService = {
             for (const reg of registros) {
                 const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
 
-                // --- VALIDACIÓN DE SEGURIDAD: Bloqueo de Feriados y Domingos ---
+                // --- VALIDACIÓN DE SEGURIDAD: Bloqueo de Feriados y Fines de Semana ---
                 const dateObj = new Date(fechaNormalizada + 'T12:00:00');
-                const isSunday = dateObj.getDay() === 0;
+                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6; // 0=Domingo, 6=Sábado
                 const [feriadoCheck] = await conn.query('SELECT id FROM feriados WHERE fecha = ? AND activo = 1', [fechaNormalizada]);
                 
-                if (isSunday || feriadoCheck.length > 0) {
-                    throw new Error(`No se puede registrar asistencia en feriados o domingos (${fechaNormalizada})`);
+                if (isWeekend || feriadoCheck.length > 0) {
+                    throw new Error(`No se puede registrar asistencia en feriados o fines de semana (${fechaNormalizada})`);
                 }
 
                 const [existing] = await conn.query(

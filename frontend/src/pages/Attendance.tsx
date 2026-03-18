@@ -814,14 +814,14 @@ const AttendancePage: React.FC = () => {
                 {(isSaturday || isSunday || feriadoActual) && (
                     <div className={cn(
                         "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border",
-                        feriadoActual
+                        (feriadoActual || isSaturday || isSunday)
                             ? "bg-destructive/10 text-destructive border-destructive/20"
-                            : (isSunday ? "bg-destructive/8 text-destructive border-transparent" : "bg-warning/8 text-warning border-transparent")
+                            : "bg-warning/8 text-warning border-transparent"
                     )}>
                         {feriadoActual ? <CalendarDays className="h-4 w-4 shrink-0" /> : <Clock className="h-3.5 w-3.5 shrink-0" />}
                         {feriadoActual
                             ? `Feriado ${feriadoActual.tipo === 'nacional' ? 'Nacional' : 'Obra'}: ${feriadoActual.nombre} ${feriadoActual.irrenunciable ? '(Irrenunciable)' : ''}`
-                            : (isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — las horas trabajadas se registran como extras")}
+                            : (isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — no se debe registrar asistencia")}
                     </div>
                 )}
             </div>
@@ -952,7 +952,7 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                        disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                         className={cn(
                                                             "flex-1 min-h-[44px] rounded-xl text-xs font-bold uppercase transition-all border shrink-0",
                                                             isActive ? "text-white border-transparent shadow-sm" : "bg-white border-[#E8E8ED] text-muted-foreground"
@@ -975,7 +975,7 @@ const AttendancePage: React.FC = () => {
                                                             )}
                                                             style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
                                                             value={activeSecondary?.id || ""}
-                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                             onChange={(e) => {
                                                                 const estId = parseInt(e.target.value);
                                                                 updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
@@ -993,10 +993,10 @@ const AttendancePage: React.FC = () => {
                                         {/* Row 4: Expandable detail toggle */}
                                         <button
                                             onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                            disabled={isDesvinculado || !!feriadoActual || isSunday}
+                                            disabled={isDesvinculado || !!feriadoActual || isSunday || isSaturday}
                                             className={cn(
                                                 "mt-2 flex items-center justify-center gap-1 w-full py-1.5 text-[11px] text-brand-primary font-medium rounded-lg hover:bg-brand-primary/5 transition-colors",
-                                                (!!feriadoActual || isSunday || isDesvinculado) && "opacity-50 cursor-not-allowed grayscale"
+                                                (!!feriadoActual || isSunday || isSaturday || isDesvinculado) && "opacity-50 cursor-not-allowed grayscale"
                                             )}
                                         >
                                             <span>{isExpanded ? 'Cerrar detalle' : 'Detalle y Horas Extra'}</span>
@@ -1062,7 +1062,7 @@ const AttendancePage: React.FC = () => {
                                                                 }
                                                                 updateAttendance(worker.id, updates);
                                                             }}
-                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                            disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                             className={cn(
                                                                 "h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]",
                                                                 isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95"
@@ -1088,7 +1088,7 @@ const AttendancePage: React.FC = () => {
                                                                     )}
                                                                     style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
                                                                     value={activeSecondary?.id || ""}
-                                                                    disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                                                                    disabled={isDesvinculado || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
                                                                     onChange={(e) => {
                                                                         const estId = parseInt(e.target.value);
                                                                         updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
@@ -1116,11 +1116,11 @@ const AttendancePage: React.FC = () => {
                                                 <div className="flex-1">
                                                     <button
                                                         onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                        disabled={isDesvinculado || !!feriadoActual || isSunday}
+                                                        disabled={isDesvinculado || !!feriadoActual || isSunday || isSaturday}
                                                         title={isDesvinculado ? "Bloqueado por Finiquito" : "Ver detalle"}
                                                         className={cn(
                                                             "text-[10px] text-brand-primary font-medium hover:underline w-full text-center",
-                                                            (isDesvinculado || !!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed no-underline grayscale"
+                                                            (isDesvinculado || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale"
                                                         )}
                                                     >
                                                         {isExpanded ? 'Cerrar' : 'Detalle'}
@@ -1128,10 +1128,10 @@ const AttendancePage: React.FC = () => {
                                                 </div>
                                                 <button
                                                     onClick={() => setCalendarWorker(worker)}
-                                                    disabled={!!feriadoActual || isSunday}
+                                                    disabled={!!feriadoActual || isSunday || isSaturday}
                                                     className={cn(
                                                         "p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0",
-                                                        (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
+                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
                                                     )}
                                                     title="Ver Calendario"
                                                 >
@@ -1139,10 +1139,10 @@ const AttendancePage: React.FC = () => {
                                                 </button>
                                                 <button
                                                     onClick={() => setPeriodModalWorker(worker)}
-                                                    disabled={!!feriadoActual || isSunday}
+                                                    disabled={!!feriadoActual || isSunday || isSaturday}
                                                     className={cn(
                                                         "p-1.5 rounded-full text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 hover:text-[#027A3B] transition-colors flex-shrink-0",
-                                                        (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
+                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
                                                     )}
                                                     title="Asignar Período de Ausencia"
                                                 >
@@ -1157,10 +1157,10 @@ const AttendancePage: React.FC = () => {
                                                     max="24"
                                                     step="0.5"
                                                     placeholder="0"
-                                                    disabled={!!feriadoActual || isSunday}
+                                                    disabled={!!feriadoActual || isSunday || isSaturday}
                                                     className={cn(
                                                         "w-full bg-background border border-border rounded-lg px-2 py-1.5 text-[10px] text-center text-brand-dark focus:outline-none focus:border-brand-primary",
-                                                        (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed"
+                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
                                                     )}
                                                     value={state.horas_extra || ''}
                                                     onChange={(e) => updateAttendance(worker.id, {
@@ -1180,10 +1180,10 @@ const AttendancePage: React.FC = () => {
                                                     className="overflow-hidden bg-[#FAFAFA]"
                                                 >
                                                     <div className="px-3 md:px-5 pb-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-3">
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday} label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday} label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday} label="Colación Ini." value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
-                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday} label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
+                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
+                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
+                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Colación Ini." value={state.hora_colacion_inicio || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_inicio: val || null })} />
+                                                        <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Colación Fin" value={state.hora_colacion_fin || ''} onChange={(val) => updateAttendance(worker.id, { hora_colacion_fin: val || null })} />
                                                         <div className="col-span-2 md:col-span-1 grid grid-cols-2 gap-3">
                                                             <div>
                                                                 <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
@@ -1193,10 +1193,10 @@ const AttendancePage: React.FC = () => {
                                                                     max="24"
                                                                     step="0.5"
                                                                     placeholder="0"
-                                                                    disabled={!!feriadoActual || isSunday}
+                                                                    disabled={!!feriadoActual || isSunday || isSaturday}
                                                                     className={cn(
                                                                         "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary",
-                                                                        (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed bg-background"
+                                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background"
                                                                     )}
                                                                     value={state.horas_extra || ''}
                                                                     onChange={(e) => updateAttendance(worker.id, {
@@ -1209,10 +1209,10 @@ const AttendancePage: React.FC = () => {
                                                                 <input
                                                                     type="text"
                                                                     placeholder="..."
-                                                                    disabled={!!feriadoActual || isSunday}
+                                                                    disabled={!!feriadoActual || isSunday || isSaturday}
                                                                     className={cn(
                                                                         "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary",
-                                                                        (!!feriadoActual || isSunday) && "opacity-50 cursor-not-allowed bg-background"
+                                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background"
                                                                     )}
                                                                     value={state.observacion || ''}
                                                                     onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
