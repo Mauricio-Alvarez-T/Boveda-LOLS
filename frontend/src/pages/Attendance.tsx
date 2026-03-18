@@ -223,9 +223,17 @@ const AttendancePage: React.FC = () => {
         if (!currentObra) return;
         setSaving(true);
         try {
+            // Filtrar trabajadores que están fuera de rango laboral en esta fecha
+            // para no enviarlos al servidor y evitar que aborte la transacción general.
+            const validWorkers = currentWorkers.filter(w => {
+                const isDesvinculado = w.fecha_desvinculacion ? currentDate > w.fecha_desvinculacion : false;
+                const isPreContrato = w.fecha_ingreso ? currentDate < w.fecha_ingreso : false;
+                return !isDesvinculado && !isPreContrato;
+            });
+
             const payload = {
                 obra_id: currentObra.id,
-                registros: currentWorkers.map(w => ({
+                registros: validWorkers.map(w => ({
                     trabajador_id: w.id,
                     obra_id: currentObra.id,
                     fecha: currentDate,
