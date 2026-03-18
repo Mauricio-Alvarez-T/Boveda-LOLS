@@ -352,7 +352,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                     {/* Worker info */}
                     <div className="px-4 py-3 bg-background border-b border-[#E8E8ED] shrink-0 flex justify-between items-center">
                         <div>
-                            <p className="text-sm font-semibold text-brand-dark">{worker.nombres} {worker.apellido_paterno}</p>
+                            <p className="text-sm font-semibold text-brand-dark">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</p>
                             <p className="text-xs text-muted-foreground">{worker.rut}</p>
                         </div>
                         {onAssignPeriod && (
@@ -383,7 +383,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                                 Calendario Mensual
                             </h2>
                             <p className="text-sm text-muted-foreground mt-1">
-                                {worker.nombres} {worker.apellido_paterno} · {worker.rut}
+                                {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres} · {worker.rut}
                             </p>
                         </div>
                         <div className="flex gap-2">

@@ -94,7 +94,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
     const completedDocs = docs.filter((d: any) => d.activo !== false).length;
     const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
-    const initials = worker ? `${worker.nombres[0]}${(worker.apellido_paterno || '')[0]}` : '';
+    const initials = worker ? `${(worker.apellido_paterno || '')[0]}${worker.nombres[0]}` : '';
 
     return (
         <>
@@ -144,7 +144,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             </div>
                                             <div className="flex-1 min-w-0">
                                                 <h3 className="text-lg font-bold text-brand-dark">
-                                                    {worker.nombres} {worker.apellido_paterno}
+                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                 </h3>
                                                 <p className="text-sm text-muted-foreground">{worker.rut}</p>
                                                 {!worker.activo && (

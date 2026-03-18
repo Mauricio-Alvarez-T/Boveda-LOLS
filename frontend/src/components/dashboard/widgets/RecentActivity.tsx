@@ -7,6 +7,7 @@ interface RecentDoc {
     tipo_nombre: string;
     nombres: string;
     apellido_paterno: string;
+    apellido_materno?: string | null;
     fecha_subida: string;
 }
 
@@ -38,7 +39,7 @@ const RecentActivity: React.FC<Props> = ({ data, onNavigate }) => {
                             </div>
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-semibold text-brand-dark truncate">{act.tipo_nombre}</p>
-                                <p className="text-xs text-muted-foreground truncate">{act.nombres} {act.apellido_paterno}</p>
+                                <p className="text-xs text-muted-foreground truncate">{act.apellido_paterno} {act.apellido_materno || ''} {act.nombres}</p>
                             </div>
                             <div className="text-xs text-muted opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
                                 {new Date(act.fecha_subida).toLocaleDateString()}

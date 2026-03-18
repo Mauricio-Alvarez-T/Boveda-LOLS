@@ -58,7 +58,7 @@ interface DashboardData {
     recentActivity: any[];
     obraDistribution: { nombre: string; count: number }[];
     attendanceTrend: { fecha: string; tasa: number }[];
-    ausentesDetalle?: { nombres: string; apellido_paterno: string; estado: string; obra: string }[];
+    ausentesDetalle?: { nombres: string; apellido_paterno: string; apellido_materno?: string | null; estado: string; obra: string }[];
     alerts: { tipo: 'critical' | 'warning' | 'info'; titulo: string; mensaje: string; count: number; ruta: string }[];
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }

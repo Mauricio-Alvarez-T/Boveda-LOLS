@@ -368,7 +368,7 @@ const FiscalizacionPage: React.FC = () => {
                                                 <td className="px-4 py-4 text-center"><input type="checkbox" className="rounded border-border text-brand-primary focus:ring-brand-primary" checked={selectedWorkers.has(worker.id)} readOnly /></td>
                                                 <td className="px-6 py-4">
                                                     <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm font-bold text-brand-dark">
-                                                        {worker.nombres} {worker.apellido_paterno}
+                                                        {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                     </WorkerLink>
                                                     <p className="text-xs text-muted-foreground font-medium">{worker.rut}</p>
                                                 </td>
@@ -469,7 +469,7 @@ const FiscalizacionPage: React.FC = () => {
                                             {/* Name + status */}
                                             <div className="flex items-center justify-between gap-2">
                                                 <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-brand-dark">
-                                                    {worker.nombres} {worker.apellido_paterno}
+                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                 </WorkerLink>
                                                 <span className={cn("text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0", worker.activo ? "bg-brand-accent/10 text-brand-accent" : "bg-muted-foreground/10 text-muted-foreground")}>
                                                     {worker.activo ? 'Activo' : 'Finiquitado'}

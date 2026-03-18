@@ -458,7 +458,7 @@ const WorkersPage: React.FC = () => {
                                         <div className="flex-1 min-w-0">
                                             <p className="text-sm font-bold text-brand-dark truncate flex items-center gap-1.5">
                                                 <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm">
-                                                    {worker.nombres} {worker.apellido_paterno}
+                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                 </WorkerLink>
                                                 {!worker.activo && (
                                                     <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-bold uppercase tracking-wider border border-destructive/20 shrink-0">
@@ -601,7 +601,7 @@ const WorkersPage: React.FC = () => {
                                                 <div className="flex flex-col">
                                                     <div className="flex items-center gap-2">
                                                         <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[15px] leading-tight font-bold text-brand-dark group-hover:text-brand-primary transition-colors">
-                                                            {worker.nombres} {worker.apellido_paterno}
+                                                            {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                         </WorkerLink>
                                                         {!worker.activo && (
                                                             <span className="px-1.5 py-0.5 rounded bg-destructive/10 text-destructive text-[9px] font-bold uppercase tracking-wider border border-destructive/20">
@@ -728,7 +728,7 @@ const WorkersPage: React.FC = () => {
                 title={
                     modalType === 'form'
                         ? (selectedWorker ? "Editar Trabajador" : "Registrar Nuevo Trabajador")
-                        : `Documentos: ${selectedWorker?.nombres} ${selectedWorker?.apellido_paterno}`
+                        : `Documentos: ${selectedWorker?.apellido_paterno} ${selectedWorker?.apellido_materno || ''} ${selectedWorker?.nombres}`
                 }
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
             >
@@ -782,7 +782,7 @@ const WorkersPage: React.FC = () => {
                                                 const url = window.URL.createObjectURL(new Blob([response.data]));
                                                 const link = document.createElement('a');
                                                 link.href = url;
-                                                link.setAttribute('download', `Documentos_${selectedWorker.nombres}_${selectedWorker.apellido_paterno}.zip`);
+                                                link.setAttribute('download', `Documentos_${selectedWorker.apellido_paterno}_${selectedWorker.nombres}.zip`);
                                                 document.body.appendChild(link);
                                                 link.click();
                                                 link.remove();
@@ -835,7 +835,7 @@ const WorkersPage: React.FC = () => {
                     <div className="p-5">
                         <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-5">
                             <p className="text-sm font-semibold text-destructive">
-                                Al desvincular a <strong>{selectedWorker.nombres} {selectedWorker.apellido_paterno}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
+                                Al desvincular a <strong>{selectedWorker.apellido_paterno} {selectedWorker.nombres}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
                             </p>
                         </div>
                         <div className="mb-6">

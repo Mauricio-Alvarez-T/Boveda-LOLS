@@ -4,6 +4,7 @@ import { UserX } from 'lucide-react';
 interface Ausente {
     nombres: string;
     apellido_paterno: string;
+    apellido_materno?: string | null;
     estado: string;
     obra: string;
 }
@@ -30,7 +31,7 @@ const AbsencesToday: React.FC<Props> = ({ data }) => {
                         <div key={i} className="flex items-center justify-between p-2 rounded-xl hover:bg-background transition-colors">
                             <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-brand-dark truncate">
-                                    {a.nombres} {a.apellido_paterno}
+                                    {a.apellido_paterno} {a.apellido_materno || ''} {a.nombres}
                                 </p>
                                 <p className="text-xs text-muted-foreground truncate">{a.obra || 'Sin obra'}</p>
                             </div>

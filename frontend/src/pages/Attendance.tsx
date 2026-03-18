@@ -552,7 +552,7 @@ const AttendancePage: React.FC = () => {
             const q = searchQuery.toLowerCase().trim();
             const qCollapsed = q.replace(/[\s.-]/g, '');
             result = result.filter(w => {
-                const fullName = `${w.nombres} ${w.apellido_paterno}`.toLowerCase();
+                const fullName = `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.toLowerCase();
                 const rutExact = w.rut.toLowerCase();
                 const rutCollapsed = w.rut.toLowerCase().replace(/[\s.-]/g, '');
 
@@ -936,7 +936,7 @@ const AttendancePage: React.FC = () => {
                                             </button>
                                             <div className="flex-1 min-w-0">
                                                 <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-sm truncate block font-bold text-brand-dark">
-                                                    {worker.apellido_paterno}, {worker.nombres}
+                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                 </WorkerLink>
                                                 <p className="text-[11px] text-muted-foreground font-medium">
                                                     {worker.rut}
@@ -1063,7 +1063,7 @@ const AttendancePage: React.FC = () => {
                                         <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/40 pl-4 group-hover:border-brand-primary/30 transition-colors">
                                             <div className="min-w-0">
                                                 <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[13px] truncate block font-bold text-slate-700 hover:text-brand-primary transition-colors">
-                                                    {worker.apellido_paterno}, {worker.nombres}
+                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                                                 </WorkerLink>
                                                 <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
                                                     <span className="bg-slate-100 px-1 rounded uppercase tracking-tighter">{worker.rut}</span>
@@ -1341,7 +1341,7 @@ const AttendancePage: React.FC = () => {
                 title={
                     modalType === 'form'
                         ? "Editar Trabajador"
-                        : `Documentos: ${selectedWorker?.nombres} ${selectedWorker?.apellido_paterno}`
+                        : `Documentos: ${selectedWorker?.apellido_paterno} ${selectedWorker?.apellido_materno || ''} ${selectedWorker?.nombres}`
                 }
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
             >
@@ -1376,7 +1376,7 @@ const AttendancePage: React.FC = () => {
                                                 const url = window.URL.createObjectURL(new Blob([response.data]));
                                                 const link = document.createElement('a');
                                                 link.href = url;
-                                                link.setAttribute('download', `Documentos_${selectedWorker.nombres}_${selectedWorker.apellido_paterno}.zip`);
+                                                link.setAttribute('download', `Documentos_${selectedWorker.apellido_paterno}_${selectedWorker.nombres}.zip`);
                                                 document.body.appendChild(link);
                                                 link.click();
                                                 link.remove();
