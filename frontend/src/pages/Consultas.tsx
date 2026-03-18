@@ -254,176 +254,208 @@ const ConsultasPage: React.FC = () => {
     useSetPageHeader(headerTitle, headerActions);
 
     const FilterPanel = () => (
-        <div className="flex flex-col gap-4">
-            <div className="flex items-center justify-between pb-2 border-b border-[#E8E8ED]">
-                <h3 className="text-sm font-bold text-brand-dark flex items-center gap-2">
-                    <Filter className="h-4 w-4 text-brand-primary" />
-                    Filtros de Búsqueda
-                </h3>
-                {activeFilterCount > 0 && (
-                    <button 
-                        onClick={handleClearFilters}
-                        className="text-[11px] font-medium text-destructive hover:text-destructive/80 transition-colors bg-destructive/5 px-2 py-1 rounded-md"
-                    >
-                        Limpiar ({activeFilterCount})
-                    </button>
-                )}
+        <div className="p-4 md:p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
+            <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Obra / Proyecto</label>
+                <Select options={obras} value={filterObra} onChange={(e) => setFilterObra(e.target.value)} className="bg-white" />
             </div>
-
-            <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                    placeholder="Buscar por Nombre o RUT..."
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 bg-white"
+            <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Empresa</label>
+                <Select options={empresas} value={filterEmpresa} onChange={(e) => setFilterEmpresa(e.target.value)} className="bg-white" />
+            </div>
+            <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Cargo</label>
+                <Select options={cargos} value={filterCargo} onChange={(e) => setFilterCargo(e.target.value)} className="bg-white" />
+            </div>
+            <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Categoría</label>
+                <Select
+                    className="bg-white"
+                    options={[
+                        { value: '', label: 'Todas las Categorías' },
+                        { value: 'obra', label: 'Personal de Obra' },
+                        { value: 'operaciones', label: 'Operaciones' },
+                        { value: 'rotativo', label: 'Personal Rotativo' }
+                    ]}
+                    value={filterCategoria}
+                    onChange={(e) => setFilterCategoria(e.target.value)}
                 />
             </div>
-
-            <div className="space-y-3">
-                <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Obra / Proyecto</label>
-                    <Select options={obras} value={filterObra} onChange={(e) => setFilterObra(e.target.value)} className="bg-white" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Empresa</label>
-                    <Select options={empresas} value={filterEmpresa} onChange={(e) => setFilterEmpresa(e.target.value)} className="bg-white" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Cargo</label>
-                    <Select options={cargos} value={filterCargo} onChange={(e) => setFilterCargo(e.target.value)} className="bg-white" />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Categoría</label>
-                    <Select
-                        className="bg-white"
-                        options={[
-                            { value: '', label: 'Todas las Categorías' },
-                            { value: 'obra', label: 'Personal de Obra' },
-                            { value: 'operaciones', label: 'Operaciones' },
-                            { value: 'rotativo', label: 'Personal Rotativo' }
-                        ]}
-                        value={filterCategoria}
-                        onChange={(e) => setFilterCategoria(e.target.value)}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Estado Contractual</label>
-                    <Select
-                        className="bg-white"
-                        options={[
-                            { value: '', label: 'Todos' },
-                            { value: 'true', label: 'Solo Activos' },
-                            { value: 'false', label: 'Solo Finiquitados' }
-                        ]}
-                        value={filterActivo}
-                        onChange={(e) => setFilterActivo(e.target.value)}
-                    />
-                </div>
-                <div className="space-y-1.5">
-                    <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Documentación</label>
-                    <Select
-                        className="bg-white"
-                        options={[
-                            { value: '', label: 'Cualquier estado' },
-                            { value: '100', label: 'Al día (100%)' },
-                            { value: 'faltantes', label: 'Con pendientes' }
-                        ]}
-                        value={filterCompletitud}
-                        onChange={(e) => setFilterCompletitud(e.target.value)}
-                    />
-                </div>
+            <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Estado Contractual</label>
+                <Select
+                    className="bg-white"
+                    options={[
+                        { value: '', label: 'Todos' },
+                        { value: 'true', label: 'Solo Activos' },
+                        { value: 'false', label: 'Solo Finiquitados' }
+                    ]}
+                    value={filterActivo}
+                    onChange={(e) => setFilterActivo(e.target.value)}
+                />
+            </div>
+            <div className="space-y-1.5 flex flex-col justify-end">
+                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Documentación</label>
+                <Select
+                    className="bg-white"
+                    options={[
+                        { value: '', label: 'Cualquier estado' },
+                        { value: '100', label: 'Al día (100%)' },
+                        { value: 'faltantes', label: 'Con pendientes' }
+                    ]}
+                    value={filterCompletitud}
+                    onChange={(e) => setFilterCompletitud(e.target.value)}
+                />
             </div>
         </div>
     );
 
     return (
-        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-100px)] flex flex-col lg:flex-row gap-4 lg:gap-6 p-4 md:p-6 overflow-hidden max-w-7xl mx-auto w-full">
-            {/* Desktop Filters */}
-            <div className="hidden lg:flex w-[260px] shrink-0 flex-col bg-white/60 backdrop-blur-xl border border-white rounded-3xl p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] h-full overflow-y-auto custom-scrollbar">
-                <FilterPanel />
+        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-100px)] flex flex-col gap-4 lg:gap-6 p-4 md:p-6 overflow-hidden max-w-7xl mx-auto w-full">
+            {/* Top Bar: Search and Actions */}
+            <div className="flex flex-col gap-4 shrink-0">
+                <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                            placeholder="Buscar por Nombre, RUT..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            className="pl-10 h-11 bg-white/60 backdrop-blur-xl border-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
+                        />
+                    </div>
+                    <div className="flex gap-2">
+                        <Button
+                            onClick={() => setShowMobileFilters(!showMobileFilters)}
+                            variant="outline"
+                            className={cn(
+                                "h-11 px-4 lg:px-6 rounded-2xl transition-all font-semibold gap-2 border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
+                                showMobileFilters
+                                    ? "bg-brand-primary text-white hover:bg-brand-primary/90 border-transparent shadow-brand-primary/20"
+                                    : "bg-white/60 backdrop-blur-xl text-brand-dark hover:bg-white"
+                            )}
+                        >
+                            <Filter className="h-4 w-4" />
+                            <span className="hidden sm:inline">Filtros</span>
+                            {activeFilterCount > 0 && (
+                                <span className={cn(
+                                    "flex h-5 w-5 items-center justify-center rounded-full text-[10px]",
+                                    showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
+                                )}>
+                                    {activeFilterCount}
+                                </span>
+                            )}
+                        </Button>
+
+                        {/* Export Button inside Search Bar area */}
+                        <Button
+                            variant="outline"
+                            onClick={() => handleExportExcel(true)}
+                            isLoading={exporting}
+                            disabled={workers.length === 0}
+                            leftIcon={<FileDown className="h-4 w-4 text-brand-primary" />}
+                            className="h-11 px-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/60 backdrop-blur-xl border-white hover:bg-white"
+                        >
+                            <span className="hidden sm:inline">Exportar Vista</span>
+                        </Button>
+
+                        {activeFilterCount > 0 && (
+                            <Button
+                                variant="glass"
+                                onClick={handleClearFilters}
+                                className="h-11 px-3 text-destructive hover:bg-destructive/10 hidden sm:flex border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/60 backdrop-blur-xl"
+                                title="Limpiar Filtros"
+                            >
+                                <X className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+                </div>
+
+                <AnimatePresence>
+                    {showMobileFilters && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0, y: -10 }}
+                            animate={{ height: 'auto', opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="overflow-hidden"
+                        >
+                            <FilterPanel />
+                            {/* Clear filters mobile */}
+                            {activeFilterCount > 0 && (
+                                <div className="mt-2 text-right sm:hidden">
+                                     <button
+                                        onClick={handleClearFilters}
+                                        className="text-[12px] font-semibold text-destructive hover:underline"
+                                    >
+                                        Limpiar Filtros
+                                    </button>
+                                </div>
+                            )}
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
 
-            {/* Mobile/Tablet Filters Drawer */}
-            <AnimatePresence>
-                {showMobileFilters && (
-                    <>
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            className="fixed inset-0 bg-black/40 z-40 lg:hidden backdrop-blur-sm"
-                            onClick={() => setShowMobileFilters(false)}
-                        />
-                        <motion.div
-                            initial={{ x: '-100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '-100%' }}
-                            transition={{ type: "spring", damping: 25, stiffness: 200 }}
-                            className="fixed inset-y-0 left-0 w-[280px] bg-white z-50 p-5 shadow-2xl overflow-y-auto lg:hidden"
-                        >
-                            <div className="flex justify-end mb-4">
-                                <button onClick={() => setShowMobileFilters(false)} className="p-2 bg-background rounded-full hover:bg-muted">
-                                    <X className="h-5 w-5 text-muted-foreground" />
-                                </button>
-                            </div>
-                            <FilterPanel />
-                        </motion.div>
-                    </>
-                )}
-            </AnimatePresence>
-
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 bg-white/60 backdrop-blur-xl border border-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden relative">
+            <div className="flex-1 flex flex-col min-w-0 bg-white/60 backdrop-blur-xl border border-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden relative">
                 
                 {/* Header Acciones Múltiples */}
-                <div className="h-16 border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4">
+                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
+                    <div className="flex items-center gap-4 hidden sm:flex">
+                         <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
+                            <SearchCheck className="h-4 w-4 text-brand-primary" />
+                        </div>
+                        <h2 className="text-sm font-bold text-brand-dark">Resultados</h2>
+                    </div>
+
+                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                         <label className="flex items-center gap-3 cursor-pointer group">
                             <div className="relative flex items-center">
                                 <input
                                     type="checkbox"
                                     checked={workers.length > 0 && selectedWorkers.size === workers.length}
                                     onChange={handleSelectAll}
-                                    className="peer h-5 w-5 appearance-none rounded border-2 border-[#D1D1D6] bg-white checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer disabled:opacity-50"
+                                    className="peer h-[18px] w-[18px] appearance-none rounded border-2 border-[#D1D1D6] bg-white checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer disabled:opacity-50"
                                 />
                                 <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
                             </div>
-                            <span className="text-sm font-semibold text-brand-dark group-hover:text-brand-primary transition-colors">
-                                {selectedWorkers.size > 0 ? `${selectedWorkers.size} seleccionados` : 'Seleccionar Todo'}
+                            <span className="text-xs sm:text-sm font-semibold text-brand-dark group-hover:text-brand-primary transition-colors">
+                                {selectedWorkers.size > 0 ? `${selectedWorkers.size} seleccionados` : 'Todos'}
                             </span>
                         </label>
-                    </div>
 
-                    <AnimatePresence>
-                        {selectedWorkers.size > 0 && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95 }}
-                                animate={{ opacity: 1, scale: 1 }}
-                                exit={{ opacity: 0, scale: 0.95 }}
-                                className="flex items-center gap-2"
-                            >
-                                <Button
-                                    variant="glass"
-                                    size="sm"
-                                    onClick={() => setEmailModalOpen(true)}
-                                    leftIcon={<Mail className="h-4 w-4" />}
-                                    className="h-9 px-3 text-xs md:text-sm"
+                        <AnimatePresence>
+                            {selectedWorkers.size > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, scale: 0.95 }}
+                                    animate={{ opacity: 1, scale: 1 }}
+                                    exit={{ opacity: 0, scale: 0.95 }}
+                                    className="flex items-center gap-2"
                                 >
-                                    Enviar
-                                </Button>
-                                <Button
-                                    variant="outline"
-                                    size="sm"
-                                    onClick={() => handleExportExcel(false)}
-                                    leftIcon={<FileDown className="h-4 w-4" />}
-                                    className="h-9 px-3 text-xs md:text-sm"
-                                >
-                                    Exportar Selección
-                                </Button>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
+                                    <Button
+                                        variant="glass"
+                                        size="sm"
+                                        onClick={() => setEmailModalOpen(true)}
+                                        leftIcon={<Mail className="h-4 w-4" />}
+                                        className="h-9 px-3 text-xs md:text-sm bg-white"
+                                    >
+                                        <span className="hidden sm:inline">Enviar</span>
+                                    </Button>
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => handleExportExcel(false)}
+                                        leftIcon={<FileDown className="h-4 w-4" />}
+                                        className="h-9 px-3 text-xs md:text-sm bg-white"
+                                    >
+                                        <span className="hidden sm:inline">Exportar</span>
+                                    </Button>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </div>
                 </div>
 
                 {/* Grilla / Resultados */}
@@ -455,13 +487,14 @@ const ConsultasPage: React.FC = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.2) }}
                                     className={cn(
-                                        "bg-white rounded-2xl border transition-all duration-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] p-3",
-                                        selectedWorkers.has(worker.id) ? "border-brand-primary ring-1 ring-brand-primary/20" : "border-border hover:border-brand-primary/30",
+                                        "bg-white rounded-2xl border transition-all duration-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] p-3 relative cursor-pointer",
+                                        selectedWorkers.has(worker.id) ? "border-brand-primary ring-1 ring-brand-primary/20" : "border-border hover:border-brand-primary/30 hover:shadow-md",
                                         !worker.activo && "bg-background/50 border-dashed opacity-80"
                                     )}
+                                    onClick={() => setQuickViewId(worker.id)}
                                 >
                                     <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                        <div className="flex items-center gap-3 md:w-[60px] shrink-0">
+                                        <div className="flex items-center gap-3 md:w-[60px] shrink-0" onClick={(e) => e.stopPropagation()}>
                                             <div className="relative flex items-center h-full">
                                                 <input
                                                     type="checkbox"
@@ -469,15 +502,15 @@ const ConsultasPage: React.FC = () => {
                                                     onChange={() => handleSelectWorker(worker.id)}
                                                     className="peer h-5 w-5 appearance-none rounded border-2 border-[#D1D1D6] bg-white checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer"
                                                 />
-                                                <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                                <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity cursor-pointer pointer-events-none" />
                                             </div>
                                             <span className="text-xs font-bold text-muted-foreground tabular-nums">{(idx + 1).toString().padStart(2, '0')}</span>
                                         </div>
 
-                                        <div className="flex-1 min-w-0 flex flex-col items-start cursor-pointer" onClick={() => setQuickViewId(worker.id)}>
-                                            <button className="text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors text-left truncate flexitems-center gap-2">
+                                        <div className="flex-1 min-w-0 flex flex-col items-start pr-4">
+                                            <span className="text-sm font-bold text-brand-dark group-hover:text-brand-primary transition-colors text-left truncate flex items-center gap-2">
                                                 {worker.apellido_paterno} {worker.apellido_materno} {worker.nombres}
-                                            </button>
+                                            </span>
                                             <div className="flex items-center gap-2 mt-1">
                                                 <span className="text-[11px] font-medium text-muted-foreground">{worker.rut}</span>
                                                 {!worker.activo && (
@@ -488,7 +521,7 @@ const ConsultasPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex-1 min-w-0 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 items-center">
+                                        <div className="flex-[1.5] min-w-0 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 items-center">
                                             {/* Empresa & Obra */}
                                             <div className="flex flex-col gap-1 min-w-0">
                                                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -502,11 +535,10 @@ const ConsultasPage: React.FC = () => {
                                             </div>
 
                                             {/* Cargo */}
-                                            <div className="hidden md:flex flex-col gap-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                                    <Briefcase className="h-3 w-3 shrink-0" />
-                                                    <span className="truncate font-medium">{worker.cargo_nombre || '—'}</span>
-                                                </div>
+                                            <div className="hidden md:flex flex-col gap-1 min-w-0 justify-center h-full">
+                                                <span className="inline-flex max-w-fit items-center rounded-full bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary truncate border border-brand-primary/20">
+                                                    {worker.cargo_nombre || '—'}
+                                                </span>
                                             </div>
 
                                             {/* Documentación */}
@@ -530,7 +562,6 @@ const ConsultasPage: React.FC = () => {
                                                 </div>
                                             </div>
                                         </div>
-
                                     </div>
                                 </motion.div>
                             ))}
