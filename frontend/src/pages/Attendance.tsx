@@ -562,8 +562,8 @@ const AttendancePage: React.FC = () => {
             });
         }
         return [...result].sort((a, b) => {
-            const nameA = `${a.apellido_paterno || ''} ${a.nombres || ''}`.trim();
-            const nameB = `${b.apellido_paterno || ''} ${b.nombres || ''}`.trim();
+            const nameA = `${a.apellido_paterno || ''} ${a.apellido_materno || ''} ${a.nombres || ''}`.trim().toLowerCase();
+            const nameB = `${b.apellido_paterno || ''} ${b.apellido_materno || ''} ${b.nombres || ''}`.trim().toLowerCase();
             return nameA.localeCompare(nameB);
         });
     }, [workers, searchQuery, selectedEmpresaId]);

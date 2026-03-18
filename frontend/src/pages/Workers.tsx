@@ -211,8 +211,8 @@ const WorkersPage: React.FC = () => {
 
     // Filtered and sorted workers
     const sortedWorkers = [...workers].sort((a, b) => {
-        const nameA = `${a.apellido_paterno} ${a.nombres}`.toLowerCase();
-        const nameB = `${b.apellido_paterno} ${b.nombres}`.toLowerCase();
+        const nameA = `${a.apellido_paterno} ${a.apellido_materno || ''} ${a.nombres}`.trim().toLowerCase();
+        const nameB = `${b.apellido_paterno} ${b.apellido_materno || ''} ${b.nombres}`.trim().toLowerCase();
         return sortOrder === 'asc' ? nameA.localeCompare(nameB) : nameB.localeCompare(nameA);
     });
 
