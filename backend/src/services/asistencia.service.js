@@ -568,11 +568,11 @@ const asistenciaService = {
         };
 
         // ── Códigos que suman como día trabajado según RRHH ──
-        // A=Asistencia, V=Vacaciones, LM=Licencia Médica,
-        // JI=Jornada Incompleta, PL=Permisos Legales
-        // NOTA: AL (Accidente Laboral) NO suma
+        // A=Asistencia, V=Vacaciones, JI=Jornada Incompleta, PL=Permisos Legales
+        // NOTA: LM (Licencia Médica) NO suma — requerimiento RRHH 2026-03-18
+        // NOTA: AL (Accidente Laboral) ELIMINADO del sistema
         // FDS=Fin De Semana/Feriado (marcador interno, no es un estado de la BD)
-        const codigosSumanDia = ['A', 'V', 'LM', 'JI', 'PL'];
+        const codigosSumanDia = ['A', 'V', 'JI', 'PL'];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
 
         // ── Agrupar trabajadores por empresa ──
