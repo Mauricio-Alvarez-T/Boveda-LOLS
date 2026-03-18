@@ -37,6 +37,7 @@ import type { ApiResponse } from '../types';
 import { useStandardHeader } from '../components/ui/PageHeader';
 import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
+import { FilterSelect, FilterToggle } from '../components/ui/Filters';
 import WorkerLink from '../components/workers/WorkerLink';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 
@@ -353,61 +354,27 @@ const WorkersPage: React.FC = () => {
                         animate={{ height: 'auto', opacity: 1 }}
                         className="bg-white rounded-2xl border border-border p-4 grid grid-cols-1 md:grid-cols-3 gap-4"
                     >
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                <Building2 className="h-4 w-4" />
-                                Empresa
-                            </label>
-                            <select
-                                value={selectedEmpresa}
-                                onChange={(e) => setSelectedEmpresa(e.target.value)}
-                                className="w-full bg-white border border-border rounded-xl p-2.5 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
-                            >
-                                <option value="">Todas las Empresas</option>
-                                {empresas.map(e => (
-                                    <option key={e.id} value={e.id}>{e.razon_social}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <FilterSelect
+                            label={<><Building2 className="h-4 w-4" /> Empresa</>}
+                            options={empresas.map(e => ({ value: e.id, label: e.razon_social }))}
+                            value={selectedEmpresa}
+                            onChange={(e) => setSelectedEmpresa(e.target.value)}
+                            placeholder="Todas las Empresas"
+                        />
 
-                        <div className="space-y-2">
-                            <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                                <Briefcase className="h-4 w-4" />
-                                Cargo
-                            </label>
-                            <select
-                                value={selectedCargo}
-                                onChange={(e) => setSelectedCargo(e.target.value)}
-                                className="w-full bg-white border border-border rounded-xl p-2.5 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
-                            >
-                                <option value="">Todos los Cargos</option>
-                                {cargos.map(c => (
-                                    <option key={c.id} value={c.id}>{c.nombre}</option>
-                                ))}
-                            </select>
-                        </div>
+                        <FilterSelect
+                            label={<><Briefcase className="h-4 w-4" /> Cargo</>}
+                            options={cargos.map(c => ({ value: c.id, label: c.nombre }))}
+                            value={selectedCargo}
+                            onChange={(e) => setSelectedCargo(e.target.value)}
+                            placeholder="Todos los Cargos"
+                        />
 
-                        <div className="space-y-2 flex flex-col justify-end pb-1">
-                            <div
-                                className="flex items-center gap-3 cursor-pointer group"
-                                onClick={() => setShowInactive(!showInactive)}
-                            >
-                                <div
-                                    className={cn(
-                                        "w-10 h-5 rounded-full transition-colors relative",
-                                        showInactive ? "bg-brand-primary" : "bg-border"
-                                    )}
-                                >
-                                    <div className={cn(
-                                        "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
-                                        showInactive ? "translate-x-5" : "translate-x-0"
-                                    )} />
-                                </div>
-                                <span className="text-sm font-medium text-muted-foreground group-hover:text-brand-dark transition-colors">
-                                    Mostrar trabajadores finiquitados
-                                </span>
-                            </div>
-                        </div>
+                        <FilterToggle
+                            label="Mostrar trabajadores finiquitados"
+                            checked={showInactive}
+                            onChange={setShowInactive}
+                        />
                     </motion.div>
                 )
             }

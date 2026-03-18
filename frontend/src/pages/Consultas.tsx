@@ -9,15 +9,17 @@ import {
     X,
     Building2,
     CheckSquare,
-    Briefcase
+    Briefcase,
+    Users,
+    UserCheck,
+    FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
-import { Select } from '../components/ui/Select';
-import type { SelectOption } from '../components/ui/Select';
+import { FilterSelect } from '../components/ui/Filters';
 import api from '../services/api';
 import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -36,9 +38,9 @@ const ConsultasPage: React.FC = () => {
     const { selectedObra } = useObra();
 
     // Catálogos
-    const [empresas, setEmpresas] = useState<SelectOption[]>([]);
-    const [obras, setObras] = useState<SelectOption[]>([]);
-    const [cargos, setCargos] = useState<SelectOption[]>([]);
+    const [empresas, setEmpresas] = useState<{value: string | number; label: string}[]>([]);
+    const [obras, setObras] = useState<{value: string | number; label: string}[]>([]);
+    const [cargos, setCargos] = useState<{value: string | number; label: string}[]>([]);
 
     // Filtros
     const [search, setSearch] = useState('');
@@ -255,58 +257,58 @@ const ConsultasPage: React.FC = () => {
 
     const FilterPanel = () => (
         <div className="p-4 md:p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4 items-end">
-            <div className="space-y-1.5 flex flex-col justify-end">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Obra / Proyecto</label>
-                <Select options={obras} value={filterObra} onChange={(e) => setFilterObra(e.target.value)} className="bg-white" />
-            </div>
-            <div className="space-y-1.5 flex flex-col justify-end">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Empresa</label>
-                <Select options={empresas} value={filterEmpresa} onChange={(e) => setFilterEmpresa(e.target.value)} className="bg-white" />
-            </div>
-            <div className="space-y-1.5 flex flex-col justify-end">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Cargo</label>
-                <Select options={cargos} value={filterCargo} onChange={(e) => setFilterCargo(e.target.value)} className="bg-white" />
-            </div>
-            <div className="space-y-1.5 flex flex-col justify-end">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Categoría</label>
-                <Select
-                    className="bg-white"
-                    options={[
-                        { value: '', label: 'Todas las Categorías' },
-                        { value: 'obra', label: 'Personal de Obra' },
-                        { value: 'operaciones', label: 'Operaciones' },
-                        { value: 'rotativo', label: 'Personal Rotativo' }
-                    ]}
-                    value={filterCategoria}
-                    onChange={(e) => setFilterCategoria(e.target.value)}
-                />
-            </div>
-            <div className="space-y-1.5 flex flex-col justify-end">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Estado Contractual</label>
-                <Select
-                    className="bg-white"
-                    options={[
-                        { value: '', label: 'Todos' },
-                        { value: 'true', label: 'Solo Activos' },
-                        { value: 'false', label: 'Solo Finiquitados' }
-                    ]}
-                    value={filterActivo}
-                    onChange={(e) => setFilterActivo(e.target.value)}
-                />
-            </div>
-            <div className="space-y-1.5 flex flex-col justify-end">
-                <label className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider pl-1">Documentación</label>
-                <Select
-                    className="bg-white"
-                    options={[
-                        { value: '', label: 'Cualquier estado' },
-                        { value: '100', label: 'Al día (100%)' },
-                        { value: 'faltantes', label: 'Con pendientes' }
-                    ]}
-                    value={filterCompletitud}
-                    onChange={(e) => setFilterCompletitud(e.target.value)}
-                />
-            </div>
+            <FilterSelect
+                label={<><Building2 className="h-4 w-4" /> Obra / Proyecto</>}
+                options={obras.map(o => ({ value: o.value, label: o.label }))}
+                value={filterObra}
+                onChange={(e) => setFilterObra(e.target.value)}
+                placeholder="Todas las Obras"
+            />
+            <FilterSelect
+                label={<><Building2 className="h-4 w-4" /> Empresa</>}
+                options={empresas.map(e => ({ value: e.value, label: e.label }))}
+                value={filterEmpresa}
+                onChange={(e) => setFilterEmpresa(e.target.value)}
+                placeholder="Todas las Empresas"
+            />
+            <FilterSelect
+                label={<><Briefcase className="h-4 w-4" /> Cargo</>}
+                options={cargos.map(c => ({ value: c.value, label: c.label }))}
+                value={filterCargo}
+                onChange={(e) => setFilterCargo(e.target.value)}
+                placeholder="Todos los Cargos"
+            />
+            <FilterSelect
+                label={<><Users className="h-4 w-4" /> Categoría</>}
+                options={[
+                    { value: 'obra', label: 'Personal de Obra' },
+                    { value: 'operaciones', label: 'Operaciones' },
+                    { value: 'rotativo', label: 'Personal Rotativo' }
+                ]}
+                value={filterCategoria}
+                onChange={(e) => setFilterCategoria(e.target.value)}
+                placeholder="Todas las Categorías"
+            />
+            <FilterSelect
+                label={<><UserCheck className="h-4 w-4" /> Estado Contractual</>}
+                options={[
+                    { value: 'true', label: 'Solo Activos' },
+                    { value: 'false', label: 'Solo Finiquitados' }
+                ]}
+                value={filterActivo}
+                onChange={(e) => setFilterActivo(e.target.value)}
+                placeholder="Todos los Estados"
+            />
+            <FilterSelect
+                label={<><FileText className="h-4 w-4" /> Documentación</>}
+                options={[
+                    { value: '100', label: 'Al día (100%)' },
+                    { value: 'faltantes', label: 'Con pendientes' }
+                ]}
+                value={filterCompletitud}
+                onChange={(e) => setFilterCompletitud(e.target.value)}
+                placeholder="Cualquier estado"
+            />
         </div>
     );
 
