@@ -226,8 +226,10 @@ const AttendancePage: React.FC = () => {
             // Filtrar trabajadores que están fuera de rango laboral en esta fecha
             // para no enviarlos al servidor y evitar que aborte la transacción general.
             const validWorkers = currentWorkers.filter(w => {
-                const isDesvinculado = w.fecha_desvinculacion ? currentDate > w.fecha_desvinculacion : false;
-                const isPreContrato = w.fecha_ingreso ? currentDate < w.fecha_ingreso : false;
+                const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
+                const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
+                const isDesvinculado = fDesvinc ? currentDate > fDesvinc : false;
+                const isPreContrato = fIngreso ? currentDate < fIngreso : false;
                 return !isDesvinculado && !isPreContrato;
             });
 
@@ -909,8 +911,10 @@ const AttendancePage: React.FC = () => {
                             const currentEstado = estados.find(e => e.id === state.estado_id);
                             const isExpanded = expandedWorkerId === worker.id;
                             const isNotPresent = currentEstado && !currentEstado.es_presente;
-                            const isDesvinculado = worker.fecha_desvinculacion ? date > worker.fecha_desvinculacion : false;
-                            const isPreContrato = worker.fecha_ingreso ? date < worker.fecha_ingreso : false;
+                            const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
+                            const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
+                            const isDesvinculado = fDesvinc ? date > fDesvinc : false;
+                            const isPreContrato = fIngreso ? date < fIngreso : false;
                             const isOutOfRange = isDesvinculado || isPreContrato;
 
                             return (

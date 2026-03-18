@@ -168,8 +168,10 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
                         const isStart = selectionStart === dateStr;
                         const isEnd = selectionEnd === dateStr;
 
-                        const isDesvinculado = worker.fecha_desvinculacion ? dateStr > worker.fecha_desvinculacion : false;
-                        const isPreContrato = worker.fecha_ingreso ? dateStr < worker.fecha_ingreso : false;
+                        const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
+                        const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
+                        const isDesvinculado = fDesvinc ? dateStr > fDesvinc : false;
+                        const isPreContrato = fIngreso ? dateStr < fIngreso : false;
                         const isOutOfRange = isDesvinculado || isPreContrato;
 
                         // Clases para el bloque visual conectivo del período
