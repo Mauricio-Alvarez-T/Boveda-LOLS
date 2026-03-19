@@ -360,7 +360,7 @@ const ConsultasPage: React.FC = () => {
     );
 
     return (
-        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-100px)] flex flex-col gap-4 lg:gap-6 p-4 md:p-6 overflow-hidden max-w-7xl mx-auto w-full">
+        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
             {/* Mobile Search - Only visible on small screens */}
             <div className="md:hidden relative shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
