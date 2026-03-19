@@ -82,6 +82,8 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                             />
                         </div>
                         <ul className="max-h-64 overflow-y-auto custom-scrollbar py-1">
+                        {/* Solo mostrar el placeholder manual si no hay una opción con valor vacío en el array original para evitar duplicados */}
+                        {!options.some(opt => opt.value === '' || opt.value === undefined) && (
                             <li 
                                 className={cn(
                                     "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-colors",
@@ -91,6 +93,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                             >
                                 {placeholder}
                             </li>
+                        )}
                             {filteredOptions.length === 0 ? (
                                 <li className="px-4 py-6 text-sm text-muted-foreground text-center italic">No hay resultados</li>
                             ) : (
