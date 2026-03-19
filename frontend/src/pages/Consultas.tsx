@@ -308,7 +308,7 @@ const ConsultasPage: React.FC = () => {
                     variant={showCreatePanel ? 'primary' : 'outline'} 
                     size="sm" 
                     onClick={() => {
-                        setShowCreatePanel(!showCreatePanel);
+                        setShowCreatePanel(prev => !prev);
                         setShowMobileFilters(false);
                     }}
                     leftIcon={<Plus className="h-4 w-4" />}
@@ -410,7 +410,7 @@ const ConsultasPage: React.FC = () => {
                 </button>
             </div>
         </div>
-    ), [workers.length, exporting, activeFilterCount, showMobileFilters]);
+    ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -650,7 +650,7 @@ const ConsultasPage: React.FC = () => {
                 </div>
 
                 {/* Grilla / Resultados */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-background/30 p-2 md:p-4">
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4">
                     {loading ? (
                         <div className="h-full flex flex-col items-center justify-center text-brand-primary">
                             <Loader2 className="h-10 w-10 animate-spin mb-4" />
@@ -678,8 +678,8 @@ const ConsultasPage: React.FC = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.2) }}
                                     className={cn(
-                                        "bg-white rounded-2xl border transition-all duration-200 shadow-[0_2px_10px_rgb(0,0,0,0.02)] p-3 relative cursor-pointer",
-                                        selectedWorkers.has(worker.id) ? "border-brand-primary ring-1 ring-brand-primary/20" : "border-border hover:border-brand-primary/30 hover:shadow-md",
+                                        "bg-white rounded-2xl border transition-all duration-200 shadow-[0_4px_12px_rgb(0,0,0,0.05)] p-3 relative cursor-pointer",
+                                        selectedWorkers.has(worker.id) ? "border-brand-primary ring-1 ring-brand-primary/20" : "border-border hover:border-brand-primary/30 hover:shadow-lg",
                                         !worker.activo && "bg-background/50 border-dashed opacity-80"
                                     )}
                                     onClick={() => setQuickViewId(worker.id)}
