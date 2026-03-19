@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, Loader2, Calendar as CalendarIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado } from '../../types/entities';
 import { CalendarRange } from 'lucide-react';
@@ -330,82 +331,35 @@ export const WorkerCalendarModal: React.FC<Props> = ({ isOpen, onClose, worker, 
     );
 
     return (
-        <AnimatePresence>
-            {/* ── MOBILE: Fullscreen ── */}
-            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-white">
-                <motion.div
-                    initial={{ opacity: 0, x: 60 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 60 }}
-                    transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                    className="flex flex-col h-full"
-                >
-                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-brand-primary text-sm font-medium">
-                            <ChevronLeft className="h-5 w-5" />
-                            <span>Volver</span>
-                        </button>
-                        <div className="flex-1 text-center pr-12">
-                            <h3 className="text-base font-semibold text-brand-dark flex items-center justify-center gap-2">
-                                <CalendarIcon className="h-4 w-4 text-brand-primary" />
-                                Calendario
-                            </h3>
-                        </div>
+        <Modal
+            isOpen={isOpen && !!worker}
+            onClose={onClose}
+            title="Calendario Mensual"
+            size="dynamic"
+        >
+            <div className="flex flex-col">
+                <div className="mb-6 bg-brand-primary/5 p-4 rounded-2xl flex items-center justify-between border border-brand-primary/10">
+                    <div>
+                        <h4 className="text-sm font-bold text-brand-dark">
+                            {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
+                        </h4>
+                        <p className="text-xs text-muted-foreground font-medium">{worker.rut}</p>
                     </div>
+                    {onAssignPeriod && (
+                        <Button 
+                            variant="primary" 
+                            size="sm" 
+                            onClick={onAssignPeriod} 
+                            leftIcon={<CalendarRange className="h-4 w-4" />}
+                            className="shadow-sm"
+                        >
+                            Asignar Período
+                        </Button>
+                    )}
+                </div>
 
-                    {/* Worker info */}
-                    <div className="px-4 py-3 bg-background border-b border-[#E8E8ED] shrink-0 flex justify-between items-center">
-                        <div>
-                            <p className="text-sm font-semibold text-brand-dark">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</p>
-                            <p className="text-xs text-muted-foreground">{worker.rut}</p>
-                        </div>
-                        {onAssignPeriod && (
-                            <Button variant="outline" size="sm" onClick={onAssignPeriod}>
-                                Asignar Período
-                            </Button>
-                        )}
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto px-4 py-4">
-                        <CalendarGrid />
-                    </div>
-                </motion.div>
+                <CalendarGrid />
             </div>
-
-            {/* ── DESKTOP: Centered card ── */}
-            <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.95 }}
-                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-lg border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
-                >
-                    <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
-                        <div>
-                            <h2 className="text-xl font-bold text-brand-dark flex items-center gap-2">
-                                <CalendarIcon className="h-5 w-5 text-brand-primary" />
-                                Calendario Mensual
-                            </h2>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres} · {worker.rut}
-                            </p>
-                        </div>
-                        <div className="flex gap-2">
-                            {onAssignPeriod && (
-                                <Button variant="outline" size="sm" onClick={onAssignPeriod} className="hidden sm:flex whitespace-nowrap" leftIcon={<CalendarRange className="h-4 w-4" />}>
-                                    Asignar Período
-                                </Button>
-                            )}
-                            <Button variant="ghost" size="icon" onClick={onClose}>
-                                <X className="h-5 w-5" />
-                            </Button>
-                        </div>
-                    </div>
-                    <div className="p-6 overflow-y-auto">
-                        <CalendarGrid />
-                    </div>
-                </motion.div>
-            </div>
-        </AnimatePresence>
+        </Modal>
     );
 };

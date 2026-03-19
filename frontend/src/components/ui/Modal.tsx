@@ -1,4 +1,4 @@
-import React from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft } from 'lucide-react';
 import { cn } from '../../utils/cn';
@@ -43,7 +43,7 @@ export const Modal: React.FC<ModalProps> = ({
         onClose();
     };
 
-    return (
+    return createPortal(
         <AnimatePresence>
             {isOpen && (
                 <>
@@ -123,6 +123,7 @@ export const Modal: React.FC<ModalProps> = ({
                     </div>
                 </>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.body
     );
 };
