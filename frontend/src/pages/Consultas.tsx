@@ -590,7 +590,7 @@ const ConsultasPage: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 min-h-0 flex flex-col bg-white/60 backdrop-blur-xl border border-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                 
                 {/* Header Acciones Múltiples */}
                 <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
@@ -808,8 +808,11 @@ const ConsultasPage: React.FC = () => {
                 </div>
 
                 {/* Status Bar */}
-                <div className="h-8 bg-background border-t border-[#E8E8ED] flex items-center justify-between px-4 text-[11px] font-medium text-muted-foreground shrink-0">
-                    <span>{workers.length} {workers.length === 1 ? 'coincidencia' : 'coincidencias'}</span>
+                <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest">
+                    <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
+                        <span>{workers.length} {workers.length === 1 ? 'coincidencia' : 'coincidencias'}</span>
+                    </div>
                     <span>Actualizado en tiempo real</span>
                 </div>
             </div>
