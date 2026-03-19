@@ -279,7 +279,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
             {showLegend && (
                 <div className="mt-6 pt-6 border-t border-[#F1F1F4]">
-                    <span className="text-[10px] uppercase font-black text-brand-primary/60 tracking-widest leading-none mb-3 block">Nomenclaturas y Estados</span>
+                    <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-3 block">Nomenclaturas y Estados</span>
                     <div className="flex flex-wrap gap-2">
                         {estados.map(est => (
                             <div 
@@ -302,7 +302,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
             {showActivePeriods && periodos.length > 0 && (
                 <div className="mt-6">
-                    <span className="text-[10px] uppercase font-black text-brand-primary/60 tracking-widest leading-none mb-3 block">Resumen de Períodos Activos</span>
+                    <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-3 block">Resumen de Períodos Activos</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {periodos.map(p => (
                             <div 
@@ -314,7 +314,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <span className="w-2 h-2 rounded-full shadow-inner" style={{ backgroundColor: p.estado_color || '#6E6E73' }} />
                                         <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
                                     </div>
-                                    <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-primary tracking-tight">
+                                    <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
                                         ACTIVO
                                     </div>
                                 </div>

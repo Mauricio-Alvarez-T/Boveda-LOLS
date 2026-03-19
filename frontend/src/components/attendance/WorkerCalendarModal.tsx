@@ -29,12 +29,12 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     const modalTitle = (
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 w-full pr-8">
             <div className="flex flex-col min-w-0">
-                <span className="text-[10px] uppercase font-black text-brand-primary/60 tracking-widest leading-none mb-1">Calendario de Asistencia</span>
+                <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-1">Calendario de Asistencia</span>
                 <div className="flex items-center gap-2">
                     <h3 className="text-sm md:text-base font-bold text-brand-dark truncate">
                         {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                     </h3>
-                    <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-primary text-[10px] font-bold">
+                    <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-dark text-[10px] font-bold">
                         {worker.rut}
                     </span>
                 </div>
