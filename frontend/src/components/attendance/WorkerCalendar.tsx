@@ -279,22 +279,36 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
             {showLegend && (
                 <div className="mt-6 pt-6 border-t border-[#F1F1F4]">
-                    <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-3 block">Nomenclaturas y Estados</span>
-                    <div className="flex flex-wrap gap-2">
-                        {estados.map(est => (
-                            <div 
-                                key={est.id} 
-                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-background border border-border/50 shadow-sm hover:border-brand-primary/20 transition-colors group"
-                            >
-                                <span className="w-2.5 h-2.5 rounded-full shadow-inner" style={{ backgroundColor: est.color }} />
-                                <span className="text-[11px] font-bold text-brand-dark">
-                                    {est.nombre.includes(`(${est.codigo})`) ? est.nombre : `${est.nombre} (${est.codigo})`}
-                                </span>
+                    <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-4 block text-center md:text-left">Nomenclaturas y Estados</span>
+                    <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {estados.map(est => {
+                            // Limpiar el nombre si viene con el código entre paréntesis
+                            const cleanName = est.nombre.split(' (')[0];
+                            return (
+                                <div 
+                                    key={est.id} 
+                                    className="flex flex-col gap-1 p-3 rounded-2xl bg-white border border-[#E8E8ED] shadow-sm hover:border-brand-primary/20 transition-all group"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2.5 h-2.5 rounded-full shadow-inner shrink-0" style={{ backgroundColor: est.color }} />
+                                        <span className="text-[13px] font-bold text-brand-dark truncate">
+                                            {cleanName}
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] font-bold text-muted-foreground uppercase pl-4.5">
+                                        {est.codigo}
+                                    </span>
+                                </div>
+                            );
+                        })}
+                        <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white border border-[#E8E8ED] shadow-sm hover:border-brand-primary/20 transition-all">
+                            <div className="flex items-center gap-2">
+                                <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40 shadow-inner shrink-0" />
+                                <span className="text-[13px] font-bold text-brand-dark">Feriado</span>
                             </div>
-                        ))}
-                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-background border border-border/50 shadow-sm hover:border-brand-primary/20 transition-colors">
-                            <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40 shadow-inner" />
-                            <span className="text-[11px] font-bold text-brand-dark">Feriado</span>
+                            <span className="text-[10px] font-bold text-muted-foreground uppercase pl-4.5">
+                                FER
+                            </span>
                         </div>
                     </div>
                 </div>
