@@ -15,7 +15,9 @@ import {
     FileText,
     UserPlus,
     Trash2,
-    UserPen
+    UserPen,
+    Plus,
+    PlusCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -24,6 +26,10 @@ import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { WorkerForm } from '../components/workers/WorkerForm';
+import { EmpresaForm } from '../components/settings/EmpresaForm';
+import { ObraForm } from '../components/settings/ObraForm';
+import { CargoForm } from '../components/settings/CargoForm';
+import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
 import { FilterSelect } from '../components/ui/Filters';
 import api from '../services/api';
 import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
@@ -72,28 +78,30 @@ const ConsultasPage: React.FC = () => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
 
     // Worker Management Modals
-    const [modalType, setModalType] = useState<'form' | 'finiquito' | null>(null);
+    const [modalType, setModalType] = useState<'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | null>(null);
     const [selectedWorkerForAction, setSelectedWorkerForAction] = useState<Trabajador | null>(null);
+    const [showCreatePanel, setShowCreatePanel] = useState(false);
 
     // Cargar catálogos
-    useEffect(() => {
-        const fetchCatalogs = async () => {
-            try {
-                const [empRes, obraRes, cargoRes] = await Promise.all([
-                    api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
-                    api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
-                    api.get<ApiResponse<Cargo[]>>('/cargos?activo=true')
-                ]);
+    const fetchCatalogs = useCallback(async () => {
+        try {
+            const [empRes, obraRes, cargoRes] = await Promise.all([
+                api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
+                api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
+                api.get<ApiResponse<Cargo[]>>('/cargos?activo=true')
+            ]);
 
-                setEmpresas([{ value: '', label: 'Todas las Empresas' }, ...empRes.data.data.map(e => ({ value: e.id, label: e.razon_social }))]);
-                setObras([{ value: '', label: 'Todas las Obras' }, ...obraRes.data.data.map(o => ({ value: o.id, label: o.nombre }))]);
-                setCargos([{ value: '', label: 'Todos los Cargos' }, ...cargoRes.data.data.map(c => ({ value: c.id, label: c.nombre }))]);
-            } catch (err) {
-                console.error('Error fetching catalogs', err);
-            }
-        };
-        fetchCatalogs();
+            setEmpresas([{ value: '', label: 'Todas las Empresas' }, ...empRes.data.data.map(e => ({ value: e.id, label: e.razon_social }))]);
+            setObras([{ value: '', label: 'Todas las Obras' }, ...obraRes.data.data.map(o => ({ value: o.id, label: o.nombre }))]);
+            setCargos([{ value: '', label: 'Todos los Cargos' }, ...cargoRes.data.data.map(c => ({ value: c.id, label: c.nombre }))]);
+        } catch (err) {
+            console.error('Error fetching catalogs', err);
+        }
     }, []);
+
+    useEffect(() => {
+        fetchCatalogs();
+    }, [fetchCatalogs]);
 
     // Aplicar filtro de obra contextual
     useEffect(() => {
@@ -296,23 +304,29 @@ const ConsultasPage: React.FC = () => {
         <div className="flex items-center gap-1.5 md:gap-2">
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
-                {checkPermission('trabajadores', 'puede_crear') && (
-                    <Button 
-                        variant="primary" 
-                        size="sm" 
-                        onClick={() => {
-                            setSelectedWorkerForAction(null);
-                            setModalType('form');
-                        }}
-                        leftIcon={<UserPlus className="h-4 w-4" />}
-                        className="bg-brand-primary border-none shadow-lg shadow-brand-primary/20 hover:scale-105 active:scale-95 transition-all text-xs font-black h-9 px-4"
-                    >
-                        NUEVO TRABAJADOR
-                    </Button>
-                )}
+                <Button 
+                    variant={showCreatePanel ? 'primary' : 'outline'} 
+                    size="sm" 
+                    onClick={() => {
+                        setShowCreatePanel(!showCreatePanel);
+                        setShowMobileFilters(false);
+                    }}
+                    leftIcon={<Plus className="h-4 w-4" />}
+                    className={cn(
+                        "h-9 px-4 rounded-xl font-bold transition-all shadow-sm border-border",
+                        showCreatePanel 
+                            ? "bg-brand-primary text-white border-transparent" 
+                            : "bg-white text-brand-dark hover:bg-background"
+                    )}
+                >
+                    CREAR
+                </Button>
                 <Button
                     size="sm"
-                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                    onClick={() => {
+                        setShowMobileFilters(!showMobileFilters);
+                        setShowCreatePanel(false);
+                    }}
                     variant={showMobileFilters ? 'primary' : 'outline'}
                     className={cn(
                         "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm",
@@ -358,19 +372,43 @@ const ConsultasPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Mobile Filter Toggle */}
-            <button
-                onClick={() => setShowMobileFilters(prev => !prev)}
-                className="lg:hidden flex items-center justify-center h-9 w-9 rounded-xl border border-border bg-white text-brand-dark shadow-sm relative"
-                title="Filtros"
-            >
-                <Filter className="h-4 w-4" />
-                {activeFilterCount > 0 && (
-                    <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-brand-primary text-[9px] font-bold text-white">
-                        {activeFilterCount}
-                    </span>
-                )}
-            </button>
+            {/* Mobile Actions */}
+            <div className="lg:hidden flex items-center gap-2">
+                <button
+                    onClick={() => {
+                        setShowCreatePanel(prev => !prev);
+                        setShowMobileFilters(false);
+                    }}
+                    className={cn(
+                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all",
+                        showCreatePanel ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark"
+                    )}
+                    title="Crear"
+                >
+                    <Plus className="h-4 w-4" />
+                </button>
+                <button
+                    onClick={() => {
+                        setShowMobileFilters(prev => !prev);
+                        setShowCreatePanel(false);
+                    }}
+                    className={cn(
+                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm relative transition-all",
+                        showMobileFilters ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark"
+                    )}
+                    title="Filtros"
+                >
+                    <Filter className="h-4 w-4" />
+                    {activeFilterCount > 0 && (
+                        <span className={cn(
+                            "absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold",
+                            showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
+                        )}>
+                            {activeFilterCount}
+                        </span>
+                    )}
+                </button>
+            </div>
         </div>
     ), [workers.length, exporting, activeFilterCount, showMobileFilters]);
 
@@ -433,6 +471,73 @@ const ConsultasPage: React.FC = () => {
         </div>
     );
 
+    const CreatePanel = () => (
+        <div className="p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+            {checkPermission('trabajadores', 'puede_crear') && (
+                <button
+                    onClick={() => {
+                        setSelectedWorkerForAction(null);
+                        setModalType('form');
+                    }}
+                    className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
+                >
+                    <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                        <UserPlus className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Trabajador</span>
+                </button>
+            )}
+
+            {checkPermission('empresas', 'puede_crear') && (
+                <button
+                    onClick={() => setModalType('empresa')}
+                    className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
+                >
+                    <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                        <Building2 className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Empresa</span>
+                </button>
+            )}
+
+            {checkPermission('obras', 'puede_crear') && (
+                <button
+                    onClick={() => setModalType('obra')}
+                    className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
+                >
+                    <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                        <PlusCircle className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Obra / Proyecto</span>
+                </button>
+            )}
+
+            {checkPermission('cargos', 'puede_crear') && (
+                <button
+                    onClick={() => setModalType('cargo')}
+                    className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
+                >
+                    <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                        <Briefcase className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Cargo</span>
+                </button>
+            )}
+
+            {checkPermission('documentos', 'puede_crear') && (
+                <button
+                    onClick={() => setModalType('tipodoc')}
+                    className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
+                >
+                    <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
+                        <FileText className="h-5 w-5" />
+                    </div>
+                    <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Tipo de Docto</span>
+                </button>
+            )}
+        </div>
+    );
+
     return (
         <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
             {/* Mobile Search - Only visible on small screens */}
@@ -468,6 +573,17 @@ const ConsultasPage: React.FC = () => {
                                     </button>
                                 </div>
                             )}
+                        </motion.div>
+                    )}
+                    {showCreatePanel && (
+                        <motion.div
+                            initial={{ height: 0, opacity: 0, y: -10 }}
+                            animate={{ height: 'auto', opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="relative"
+                        >
+                            <CreatePanel />
                         </motion.div>
                     )}
                 </AnimatePresence>
@@ -759,6 +875,66 @@ const ConsultasPage: React.FC = () => {
                     </div>
                 </Modal>
             )}
+
+            {/* Other Create Modals */}
+            <Modal
+                isOpen={modalType === 'empresa'}
+                onClose={() => setModalType(null)}
+                title="Nueva Empresa"
+                size="md"
+            >
+                <EmpresaForm
+                    onCancel={() => setModalType(null)}
+                    onSuccess={() => {
+                        setModalType(null);
+                        fetchCatalogs();
+                    }}
+                />
+            </Modal>
+
+            <Modal
+                isOpen={modalType === 'obra'}
+                onClose={() => setModalType(null)}
+                title="Nueva Obra / Proyecto"
+                size="md"
+            >
+                <ObraForm
+                    onCancel={() => setModalType(null)}
+                    onSuccess={() => {
+                        setModalType(null);
+                        fetchCatalogs();
+                    }}
+                />
+            </Modal>
+
+            <Modal
+                isOpen={modalType === 'cargo'}
+                onClose={() => setModalType(null)}
+                title="Nuevo Cargo"
+                size="md"
+            >
+                <CargoForm
+                    onCancel={() => setModalType(null)}
+                    onSuccess={() => {
+                        setModalType(null);
+                        fetchCatalogs();
+                    }}
+                />
+            </Modal>
+
+            <Modal
+                isOpen={modalType === 'tipodoc'}
+                onClose={() => setModalType(null)}
+                title="Nuevo Tipo de Documento"
+                size="md"
+            >
+                <TipoDocumentoForm
+                    onCancel={() => setModalType(null)}
+                    onSuccess={() => {
+                        setModalType(null);
+                    }}
+                />
+            </Modal>
 
             {quickViewId && (
                 <WorkerQuickView
