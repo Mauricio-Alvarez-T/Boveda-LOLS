@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import {
     Search,
     Loader2,
@@ -12,13 +12,18 @@ import {
     Briefcase,
     Users,
     UserCheck,
-    FileText
+    FileText,
+    UserPlus,
+    Trash2,
+    UserPen
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '../components/ui/Button';
 import { Input } from '../components/ui/Input';
+import { Modal } from '../components/ui/Modal';
+import { WorkerForm } from '../components/workers/WorkerForm';
 import { FilterSelect } from '../components/ui/Filters';
 import api from '../services/api';
 import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
@@ -59,8 +64,16 @@ const ConsultasPage: React.FC = () => {
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [exporting, setExporting] = useState(false);
-    const { checkPermission } = useAuth();
     const [showMobileFilters, setShowMobileFilters] = useState(false);
+    const { checkPermission } = useAuth();
+    const fetchingRef = useRef(false);
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+    // Worker Management Modals
+    const [modalType, setModalType] = useState<'form' | 'finiquito' | null>(null);
+    const [selectedWorkerForAction, setSelectedWorkerForAction] = useState<Trabajador | null>(null);
 
     // Cargar catálogos
     useEffect(() => {
@@ -92,8 +105,17 @@ const ConsultasPage: React.FC = () => {
     }, [selectedObra]);
 
     // Búsqueda en el servidor
-    const performSearch = async () => {
-        setLoading(true);
+    const performSearch = useCallback(async (isInitial: boolean = false) => {
+        if (fetchingRef.current) return;
+        fetchingRef.current = true;
+
+        if (isInitial) {
+            setLoading(true);
+            setPage(1);
+        } else {
+            setIsLoadingMore(true);
+        }
+
         try {
             const params = new URLSearchParams();
             if (search) params.append('q', search);
@@ -103,30 +125,68 @@ const ConsultasPage: React.FC = () => {
             if (filterCategoria) params.append('categoria_reporte', filterCategoria);
             if (filterActivo) params.append('activo', filterActivo);
             if (filterCompletitud) params.append('completitud', filterCompletitud);
+            params.append('page', isInitial ? '1' : page.toString());
+            params.append('limit', '50');
 
             const res = await api.get<{ data: TrabajadorAvanzado[] }>(`/fiscalizacion/trabajadores-avanzado?${params.toString()}`);
-            setWorkers(res.data.data);
+            const data = res.data.data || [];
+            
+            setWorkers(prev => isInitial ? data : [...prev, ...data]);
+            setHasMore(data.length === 50);
 
-            // Reseleccionar los previamente seleccionados que siguen en la lista
-            const currentIds = new Set(res.data.data.map(w => w.id));
-            setSelectedWorkers(prev => {
-                const next = new Set<number>();
-                prev.forEach(id => {
-                    if (currentIds.has(id)) next.add(id);
-                });
-                return next;
-            });
+            // Reseleccionar los previamente seleccionados si es inicial
+            if (isInitial) {
+                setSelectedWorkers(new Set());
+            }
         } catch (err) {
             toast.error('Error al realizar la búsqueda');
         } finally {
             setLoading(false);
+            setIsLoadingMore(false);
+            setTimeout(() => {
+                fetchingRef.current = false;
+            }, 200);
+        }
+    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, page]);
+
+    // Worker Management Logic
+    const handleDelete = (worker: Trabajador) => {
+        setSelectedWorkerForAction(worker);
+        setModalType('finiquito');
+    };
+
+    const confirmFiniquito = (date: string) => {
+        if (!selectedWorkerForAction) return;
+        api.put(`/trabajadores/${selectedWorkerForAction.id}`, { activo: false, fecha_desvinculacion: date })
+            .then(() => {
+                toast.success("Trabajador desvinculado con éxito.");
+                setModalType(null);
+                performSearch(true);
+            })
+            .catch(err => {
+                console.error(err);
+                toast.error("Error al desvincular trabajador.");
+            });
+    };
+
+    const handleReactivate = (id: number) => {
+        if (window.confirm("¿Estás seguro de que deseas reactivar a este trabajador?")) {
+            api.put(`/trabajadores/${id}`, { activo: true, fecha_desvinculacion: null })
+                .then(() => {
+                    toast.success("Trabajador reactivado con éxito.");
+                    performSearch(true);
+                })
+                .catch((err) => {
+                    console.error(err);
+                    toast.error("Error al reactivar trabajador.");
+                });
         }
     };
 
     // Trigger de búsqueda (con debounce en el texto)
     useEffect(() => {
         const timeoutId = setTimeout(() => {
-            performSearch();
+            performSearch(true);
         }, 300);
         return () => clearTimeout(timeoutId);
     }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud]);
@@ -236,6 +296,20 @@ const ConsultasPage: React.FC = () => {
         <div className="flex items-center gap-1.5 md:gap-2">
             {/* Desktop Desktop Actions */}
             <div className="hidden md:flex items-center gap-2">
+                {checkPermission('trabajadores', 'puede_crear') && (
+                    <Button 
+                        variant="primary" 
+                        size="sm" 
+                        onClick={() => {
+                            setSelectedWorkerForAction(null);
+                            setModalType('form');
+                        }}
+                        leftIcon={<UserPlus className="h-4 w-4" />}
+                        className="bg-brand-primary border-none shadow-lg shadow-brand-primary/20 hover:scale-105 active:scale-95 transition-all text-xs font-black h-9 px-4"
+                    >
+                        NUEVO TRABAJADOR
+                    </Button>
+                )}
                 <Button
                     size="sm"
                     onClick={() => setShowMobileFilters(!showMobileFilters)}
@@ -542,28 +616,75 @@ const ConsultasPage: React.FC = () => {
                                                 </span>
                                             </div>
 
-                                            {/* Documentación */}
-                                            <div className="flex flex-col gap-1.5 pt-1">
-                                                <div className="flex items-center justify-between text-[10px] font-bold">
-                                                    <span className="text-muted-foreground uppercase tracking-widest">Docs</span>
-                                                    <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
-                                                        {worker.docs_porcentaje}%
-                                                    </span>
+                                                        {/* Documentación */}
+                                                        <div className="flex flex-col gap-1.5 pt-1">
+                                                            <div className="flex items-center justify-between text-[10px] font-bold">
+                                                                <span className="text-muted-foreground uppercase tracking-widest">Docs</span>
+                                                                <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
+                                                                    {worker.docs_porcentaje}%
+                                                                </span>
+                                                            </div>
+                                                            <div className="h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
+                                                                <div 
+                                                                    className={cn(
+                                                                        "h-full rounded-full transition-all duration-500",
+                                                                        worker.docs_porcentaje === 100 
+                                                                            ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
+                                                                            : "bg-gradient-to-r from-destructive to-[#F87171]"
+                                                                    )}
+                                                                    style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
+                                                                />
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Acciones Rápidas */}
+                                                        <div className="flex items-center gap-1 ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                            <Button
+                                                                variant="glass"
+                                                                size="icon"
+                                                                className={cn(
+                                                                    "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                                    !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                                )}
+                                                                disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                                onClick={() => {
+                                                                    setSelectedWorkerForAction(worker);
+                                                                    setModalType('form');
+                                                                }}
+                                                            >
+                                                                <UserPen className="h-4 w-4" />
+                                                            </Button>
+                                                            
+                                                            {worker.activo ? (
+                                                                <Button
+                                                                    variant="glass"
+                                                                    size="icon"
+                                                                    className={cn(
+                                                                        "h-8 w-8 text-destructive hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                                        !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale cursor-not-allowed"
+                                                                    )}
+                                                                    disabled={!checkPermission('trabajadores', 'puede_eliminar')}
+                                                                    onClick={() => handleDelete(worker)}
+                                                                >
+                                                                    <Trash2 className="h-4 w-4" />
+                                                                </Button>
+                                                            ) : (
+                                                                <Button
+                                                                    variant="glass"
+                                                                    size="icon"
+                                                                    className={cn(
+                                                                        "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                                        !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                                    )}
+                                                                    disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                                    onClick={() => handleReactivate(worker.id)}
+                                                                >
+                                                                    <UserCheck className="h-4 w-4" />
+                                                                </Button>
+                                                            )}
+                                                        </div>
+                                                    </div>
                                                 </div>
-                                                <div className="h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
-                                                    <div 
-                                                        className={cn(
-                                                            "h-full rounded-full transition-all duration-500",
-                                                            worker.docs_porcentaje === 100 
-                                                                ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
-                                                                : "bg-gradient-to-r from-destructive to-[#F87171]"
-                                                        )}
-                                                        style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
                                 </motion.div>
                             ))}
                         </div>
@@ -584,6 +705,60 @@ const ConsultasPage: React.FC = () => {
                 destinatarioEmail=""
                 trabajadores={workers.filter(w => selectedWorkers.has(w.id))}
             />
+
+            {/* Worker Form Modal (Create/Edit) */}
+            <Modal
+                isOpen={modalType === 'form'}
+                onClose={() => setModalType(null)}
+                title={selectedWorkerForAction ? "Editar Trabajador" : "Registrar Nuevo Trabajador"}
+                size="md"
+            >
+                {modalType === 'form' && (
+                    <WorkerForm
+                        initialData={selectedWorkerForAction}
+                        onCancel={() => setModalType(null)}
+                        onSuccess={() => {
+                            setModalType(null);
+                            performSearch(true);
+                        }}
+                    />
+                )}
+            </Modal>
+
+            {/* Finiquito Modal */}
+            {modalType === 'finiquito' && selectedWorkerForAction && (
+                <Modal isOpen={true} onClose={() => setModalType(null)} title="Desvincular Trabajador">
+                    <div className="p-5">
+                        <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-5">
+                            <p className="text-sm font-semibold text-destructive">
+                                Al desvincular a <strong>{selectedWorkerForAction.apellido_paterno} {selectedWorkerForAction.nombres}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
+                            </p>
+                        </div>
+                        <div className="mb-6">
+                            <label className="block text-xs font-bold text-muted-foreground mb-2 uppercase tracking-wider">Fecha Efectiva de Finiquito</label>
+                            <Input
+                                type="date"
+                                id="fecha_finiquito_input_consultas"
+                                defaultValue={new Date().toISOString().split('T')[0]}
+                                className="w-full bg-background border-transparent hover:bg-[#E8E8ED] focus:bg-white focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
+                            />
+                        </div>
+                        <div className="flex justify-end gap-3 mt-8">
+                            <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
+                            <Button className="bg-destructive text-white hover:bg-destructive/90 active:bg-destructive border-transparent flex-1" onClick={() => {
+                                const dateInput = document.getElementById('fecha_finiquito_input_consultas') as HTMLInputElement;
+                                if (!dateInput?.value) {
+                                    toast.error("Debe especificar una fecha.");
+                                    return;
+                                }
+                                confirmFiniquito(dateInput.value);
+                            }}>
+                                Confirmar Finiquito
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
 
             {quickViewId && (
                 <WorkerQuickView
