@@ -105,6 +105,19 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
         }
     }, [loading, isLoadingMore, hasMore]);
 
+    // Trigger de búsqueda automática (con debounce)
+    useEffect(() => {
+        const timeoutId = setTimeout(() => {
+            performSearch(true);
+        }, 300);
+        return () => clearTimeout(timeoutId);
+    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud]);
+
+    // Carga inicial de catálogos
+    useEffect(() => {
+        fetchCatalogs();
+    }, [fetchCatalogs]);
+
 
     return {
         empresas, setEmpresas,
