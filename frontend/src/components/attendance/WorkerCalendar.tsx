@@ -278,36 +278,62 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             )}
 
             {showLegend && (
-                <div className="mt-4 md:mt-6 flex flex-wrap gap-2 md:gap-3 justify-center">
-                    {estados.map(est => (
-                        <div key={est.id} className="flex items-center gap-1.5 text-[11px] md:text-xs text-muted-foreground">
-                            <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: est.color }} />
-                            {est.nombre.includes(`(${est.codigo})`) ? est.nombre : `${est.nombre} (${est.codigo})`}
+                <div className="mt-6 pt-6 border-t border-[#F1F1F4]">
+                    <span className="text-[10px] uppercase font-black text-brand-primary/60 tracking-widest leading-none mb-3 block">Nomenclaturas y Estados</span>
+                    <div className="flex flex-wrap gap-2">
+                        {estados.map(est => (
+                            <div 
+                                key={est.id} 
+                                className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-background border border-border/50 shadow-sm hover:border-brand-primary/20 transition-colors group"
+                            >
+                                <span className="w-2.5 h-2.5 rounded-full shadow-inner" style={{ backgroundColor: est.color }} />
+                                <span className="text-[11px] font-bold text-brand-dark">
+                                    {est.nombre.includes(`(${est.codigo})`) ? est.nombre : `${est.nombre} (${est.codigo})`}
+                                </span>
+                            </div>
+                        ))}
+                        <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-xl bg-background border border-border/50 shadow-sm hover:border-brand-primary/20 transition-colors">
+                            <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40 shadow-inner" />
+                            <span className="text-[11px] font-bold text-brand-dark">Feriado</span>
                         </div>
-                    ))}
-                    <div className="flex items-center gap-1.5 text-[11px] md:text-xs text-muted-foreground">
-                        <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40" />
-                        Feriado
                     </div>
                 </div>
             )}
 
             {showActivePeriods && periodos.length > 0 && (
-                <div className="mt-4 md:mt-6">
-                    <h4 className="text-[10px] uppercase font-black text-[#86868B] tracking-widest mb-2">Períodos Activos</h4>
-                    <div className="space-y-2">
+                <div className="mt-6">
+                    <span className="text-[10px] uppercase font-black text-brand-primary/60 tracking-widest leading-none mb-3 block">Resumen de Períodos Activos</span>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {periodos.map(p => (
-                            <div key={p.id} className="flex items-start gap-2 p-2 rounded-xl border border-[#E8E8ED] bg-background/50">
-                                <span className="w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" style={{ backgroundColor: p.estado_color || '#6E6E73' }} />
-                                <div className="min-w-0">
-                                    <p className="text-xs font-semibold text-brand-dark">
-                                        {p.estado_nombre || p.estado_codigo}
-                                        <span className="text-[10px] font-normal text-[#86868B] ml-1.5">
-                                            {p.fecha_inicio.split('-').reverse().join('/')} — {p.fecha_fin.split('-').reverse().join('/')}
-                                        </span>
-                                    </p>
-                                    {p.observacion && <p className="text-[11px] text-muted-foreground mt-0.5 italic">📝 {p.observacion}</p>}
+                            <div 
+                                key={p.id} 
+                                className="flex flex-col gap-2 p-3 rounded-2xl border border-brand-primary/10 bg-brand-primary/[0.02] hover:bg-brand-primary/[0.04] transition-all group"
+                            >
+                                <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <span className="w-2 h-2 rounded-full shadow-inner" style={{ backgroundColor: p.estado_color || '#6E6E73' }} />
+                                        <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
+                                    </div>
+                                    <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-primary tracking-tight">
+                                        ACTIVO
+                                    </div>
                                 </div>
+
+                                <div className="flex items-center gap-2 text-[11px] font-semibold text-[#86868B]">
+                                    <CalendarRange className="h-3 w-3" />
+                                    <span>
+                                        {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')}
+                                        <span className="mx-1.5 opacity-40">—</span>
+                                        {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
+                                    </span>
+                                </div>
+
+                                {p.observacion && (
+                                    <div className="mt-1 p-2 rounded-xl bg-white/50 border border-border/50 text-[11px] text-muted-foreground italic flex items-start gap-1.5">
+                                        <span className="shrink-0 leading-none mt-0.5 text-xs">📝</span>
+                                        <p className="leading-relaxed">{p.observacion}</p>
+                                    </div>
+                                )}
                             </div>
                         ))}
                     </div>
