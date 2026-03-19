@@ -68,7 +68,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                 </button>
 
                 {isOpen && (
-                    <div className="absolute z-[100] w-full min-w-[200px] mt-1 bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
+                    <div className="absolute z-40 w-full min-w-[200px] mt-1 bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
                         <div className="p-2 border-b border-border relative bg-background/50">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                             <input 

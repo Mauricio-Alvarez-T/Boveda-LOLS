@@ -48,7 +48,7 @@ export const Modal: React.FC<ModalProps> = ({
             {isOpen && (
                 <>
                     {/* ─── MOBILE: Fullscreen page overlay ─── */}
-                    <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-white">
+                    <div className="md:hidden fixed inset-0 z-[1000] flex flex-col bg-white">
                         <motion.div
                             initial={{ opacity: 0, x: 60 }}
                             animate={{ opacity: 1, x: 0 }}
@@ -83,7 +83,7 @@ export const Modal: React.FC<ModalProps> = ({
                     </div>
 
                     {/* ─── DESKTOP: Classic centered card modal ─── */}
-                    <div className="hidden md:flex fixed inset-0 z-50 items-center justify-center p-4">
+                    <div className="hidden md:flex fixed inset-0 z-[1000] items-center justify-center p-4">
                         {/* Backdrop */}
                         <motion.div
                             initial={{ opacity: 0 }}

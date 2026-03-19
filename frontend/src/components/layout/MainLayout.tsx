@@ -26,7 +26,7 @@ export const MainLayout: React.FC = () => {
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0">
                 {/* Top Navbar */}
-                <header className="h-14 md:h-16 border-b border-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 sticky top-0 z-30 shadow-sm relative gap-2">
+                <header className="h-14 md:h-16 border-b border-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 sticky top-0 z-50 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}
                     <button
                         onClick={() => setMobileOpen(true)}

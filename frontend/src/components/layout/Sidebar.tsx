@@ -146,7 +146,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* Desktop Sidebar */}
             <motion.aside
                 animate={{ width: isCollapsed ? '72px' : '260px' }}
-                className="hidden md:flex h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-border flex-col z-40 transition-all duration-300"
+                className="hidden md:flex h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
             >
                 {sidebarContent(false)}
 
@@ -169,7 +169,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             animate={{ opacity: 1 }}
                             exit={{ opacity: 0 }}
                             transition={{ duration: 0.2 }}
-                            className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-50"
+                            className="md:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-[100]"
                             onClick={() => setMobileOpen(false)}
                         />
                         {/* Drawer */}
@@ -178,7 +178,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="md:hidden fixed inset-y-0 left-0 w-[280px] bg-white flex flex-col z-50 shadow-2xl"
+                            className="md:hidden fixed inset-y-0 left-0 w-[280px] bg-white flex flex-col z-[100] shadow-2xl"
                         >
                             {sidebarContent(true)}
                         </motion.aside>
