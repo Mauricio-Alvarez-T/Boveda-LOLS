@@ -231,25 +231,6 @@ const ConsultasPage: React.FC = () => {
                     </span>
                 )}
             </button>
-            <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleExportExcel(true)}
-                isLoading={exporting}
-                disabled={workers.length === 0}
-                leftIcon={<FileDown className="h-4 w-4" />}
-                className="hidden lg:flex"
-            >
-                Exportar Vista
-            </Button>
-            <button
-                onClick={() => handleExportExcel(true)}
-                disabled={workers.length === 0 || exporting}
-                className="lg:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-white text-muted-foreground shadow-sm disabled:opacity-40"
-                title="Exportar Excel"
-            >
-                <FileDown className="h-4 w-4" />
-            </button>
         </div>
     ), [workers.length, exporting, activeFilterCount]);
 
