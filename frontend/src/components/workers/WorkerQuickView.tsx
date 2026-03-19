@@ -1,10 +1,17 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus } from 'lucide-react';
+import { toast } from 'sonner';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
-import type { EstadoAsistencia } from '../../types/entities';
+import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { WorkerForm } from './WorkerForm';
+import { DocumentUploader } from '../documents/DocumentUploader';
+import { DocumentList } from '../documents/DocumentList';
+import { useAuth } from '../../context/AuthContext';
+import type { Trabajador, EstadoAsistencia } from '../../types/entities';
 
 interface WorkerData {
     id: number;
@@ -37,10 +44,11 @@ interface WorkerQuickViewProps {
     onEditWorker?: (id: number) => void;
     onViewDocuments?: (id: number) => void;
     onViewAttendance?: (id: number) => void;
+    onUpdate?: () => void;
 }
 
 const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
-    workerId, onClose, onEditWorker, onViewDocuments, onViewAttendance
+    workerId, onClose, onEditWorker, onViewDocuments, onViewAttendance, onUpdate
 }) => {
     const [worker, setWorker] = useState<WorkerData | null>(null);
     const [docs, setDocs] = useState<DocInfo[]>([]);
@@ -48,6 +56,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [loading, setLoading] = useState(false);
     const [showCalendar, setShowCalendar] = useState(false);
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
+    const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [refreshKey, setRefreshKey] = useState(0);
+    const { checkPermission } = useAuth();
 
     useEffect(() => {
         if (!workerId) return;
@@ -88,7 +100,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
             .catch(() => { });
 
         Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
-    }, [workerId]);
+    }, [workerId, refreshKey]);
 
     const isOpen = workerId !== null;
 
@@ -250,14 +262,26 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {/* ── Quick Actions ── */}
                                     <div className="grid grid-cols-3 gap-2 pt-2 pb-4">
                                         <button
-                                            onClick={() => onEditWorker?.(worker.id)}
+                                            onClick={() => {
+                                                if (onEditWorker) {
+                                                    onEditWorker(worker.id);
+                                                } else {
+                                                    setModalType('form');
+                                                }
+                                            }}
                                             className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 transition-colors group"
                                         >
                                             <Pencil className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
                                             <span className="text-[11px] font-semibold text-brand-primary">Editar</span>
                                         </button>
                                         <button
-                                            onClick={() => onViewDocuments?.(worker.id)}
+                                            onClick={() => {
+                                                if (onViewDocuments) {
+                                                    onViewDocuments(worker.id);
+                                                } else {
+                                                    setModalType('docs');
+                                                }
+                                            }}
                                             className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-warning/5 hover:bg-warning/10 border border-warning/10 transition-colors group"
                                         >
                                             <FileText className="h-5 w-5 text-warning group-hover:scale-110 transition-transform" />
@@ -280,13 +304,128 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                 )}
             </AnimatePresence>
 
-            {/* Calendar Modal — rendered outside the panel so it overlays everything */}
+            {/* Calendar Modal */}
             <WorkerCalendarModal
                 isOpen={showCalendar}
                 onClose={() => setShowCalendar(false)}
                 worker={worker as any}
                 estados={estados}
             />
+
+            {/* Action Modal (Edit/Docs) */}
+            <Modal
+                isOpen={modalType !== null}
+                onClose={() => {
+                    setModalType(null);
+                    setIsUploading(false);
+                }}
+                title={
+                    modalType === 'form'
+                        ? "Editar Trabajador"
+                        : `Documentos: ${worker?.apellido_paterno} ${worker?.apellido_materno || ''} ${worker?.nombres}`
+                }
+                size={modalType === 'docs' ? 'dynamic' : 'md'}
+            >
+                {modalType === 'form' && worker && (
+                    <WorkerForm
+                        initialData={worker as unknown as Trabajador}
+                        onCancel={() => setModalType(null)}
+                        onSuccess={() => {
+                            setModalType(null);
+                            onUpdate?.();
+                            // Re-fetch data for the quick view itself
+                            setRefreshKey(prev => prev + 1);
+                        }}
+                    />
+                )}
+
+                {modalType === 'docs' && worker && (
+                    <div className="space-y-4 md:space-y-6">
+                        <div className="bg-brand-primary/5 border border-brand-primary/10 p-3 md:p-4 rounded-2xl flex items-center gap-3 md:gap-4">
+                            <div className="h-10 w-10 md:h-12 md:w-12 rounded-xl bg-brand-primary text-white flex items-center justify-center font-bold text-lg md:text-xl shrink-0">
+                                {initials}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="text-sm font-bold text-brand-dark">{worker.rut}</span>
+                                    <span className="px-2 py-0.5 rounded-lg bg-brand-primary/10 text-brand-primary text-[10px] font-black uppercase tracking-wider">
+                                        {worker.obra_nombre || 'Sin Obra'}
+                                    </span>
+                                </div>
+                                <p className="text-xs font-medium text-muted-foreground mt-1 truncate">
+                                    {worker.empresa_nombre} • {worker.cargo_nombre || 'Sin Cargo'}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-background p-3 md:p-4 rounded-xl">
+                            <div className="hidden sm:block">
+                                <h4 className="text-base font-semibold text-brand-dark">Bóveda de Documentos</h4>
+                                <p className="text-sm text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
+                            </div>
+                            <div className="flex gap-2 w-full sm:w-auto">
+                                {!isUploading && (
+                                    <Button
+                                        size="sm"
+                                        variant="glass"
+                                        onClick={async () => {
+                                            try {
+                                                const nid = toast.loading('Generando ZIP...');
+                                                const response = await api.get(`/documentos/download-all/${worker.id}`, {
+                                                    responseType: 'blob',
+                                                });
+                                                const url = window.URL.createObjectURL(new Blob([response.data]));
+                                                const link = document.createElement('a');
+                                                link.href = url;
+                                                link.setAttribute('download', `Documentos_${worker.apellido_paterno}_${worker.nombres}.zip`);
+                                                document.body.appendChild(link);
+                                                link.click();
+                                                link.remove();
+                                                toast.dismiss(nid);
+                                                toast.success('Descarga iniciada');
+                                            } catch (err) {
+                                                toast.error('Error al descargar documentos');
+                                            }
+                                        }}
+                                        className="text-brand-primary hover:text-[#027A3B] flex-1 sm:flex-initial"
+                                        leftIcon={<Download className="h-4 w-4" />}
+                                    >
+                                        <span className="hidden sm:inline">Descargar Todo (.zip)</span>
+                                        <span className="sm:hidden">Descargar</span>
+                                    </Button>
+                                )}
+                                <Button
+                                    size="sm"
+                                    variant={isUploading ? 'glass' : 'primary'}
+                                    disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
+                                    onClick={() => setIsUploading(!isUploading)}
+                                    leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                                    className={`flex-1 sm:flex-initial ${(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                                    title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
+                                >
+                                    <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
+                                    <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
+                                </Button>
+                            </div>
+                        </div>
+
+                        {isUploading ? (
+                            <DocumentUploader
+                                trabajadorId={worker.id}
+                                onCancel={() => setIsUploading(false)}
+                                onSuccess={() => {
+                                    setIsUploading(false);
+                                    onUpdate?.();
+                                    // Refresh quick view document list
+                                    setRefreshKey(prev => prev + 1);
+                                }}
+                            />
+                        ) : (
+                            <DocumentList trabajadorId={worker.id} />
+                        )}
+                    </div>
+                )}
+            </Modal>
         </>
     );
 };
