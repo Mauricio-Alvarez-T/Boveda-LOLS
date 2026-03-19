@@ -265,7 +265,6 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         </button>
                                         <button
                                             onClick={() => {
-                                                onClose();
                                                 setShowCalendar(true);
                                             }}
                                             className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-accent/5 hover:bg-brand-accent/10 border border-brand-accent/10 transition-colors group"
