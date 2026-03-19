@@ -37,7 +37,9 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
             opt.label.toLowerCase().includes(searchQuery.toLowerCase())
         );
 
-        const selectedOption = options.find(opt => opt.value === value);
+        // Convertir ambos a String para evitar fallos de coincidencia entre Number y String
+        const selectedOption = options.find(opt => String(opt.value) === String(value));
+        const isFilterActive = value !== undefined && value !== '' && value !== 'all';
 
         const handleSelect = (selectedValue: string | number) => {
             if (onChange) {
@@ -50,7 +52,10 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
 
         return (
             <div className="space-y-2 relative" ref={containerRef || ref}>
-                <label className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <label className={cn(
+                    "text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors",
+                    isFilterActive ? "text-brand-primary" : "text-muted-foreground/60"
+                )}>
                     {label}
                 </label>
                 
@@ -58,13 +63,22 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                     type="button"
                     onClick={() => setIsOpen(!isOpen)}
                     className={cn(
-                        "w-full bg-white border rounded-xl p-2.5 text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 transition-all text-left flex items-center justify-between",
-                        isOpen ? "border-brand-primary" : "border-border hover:border-brand-primary/50",
+                        "w-full border rounded-xl p-2.5 text-sm transition-all text-left flex items-center justify-between",
+                        // Base desaturada
+                        "bg-white border-border hover:border-brand-primary/40",
+                        // Estado Activo (Filtro aplicado)
+                        isFilterActive && "bg-brand-primary/[0.03] border-brand-primary shadow-[0_0_0_1px_rgba(var(--brand-primary-rgb),0.1)] ring-1 ring-brand-primary/20 text-brand-primary font-semibold",
+                        // Estado Abierto/Foco
+                        isOpen && "ring-4 ring-brand-primary/10 border-brand-primary",
                         className
                     )}
                 >
                     <span className="truncate pr-2">{selectedOption ? selectedOption.label : placeholder}</span>
-                    <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", isOpen && "rotate-180")} />
+                    <ChevronDown className={cn(
+                        "h-4 w-4 transition-transform shrink-0", 
+                        isOpen ? "rotate-180 text-brand-primary" : "text-muted-foreground/40",
+                        isFilterActive && "text-brand-primary"
+                    )} />
                 </button>
 
                 {isOpen && (
