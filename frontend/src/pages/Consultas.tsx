@@ -360,7 +360,7 @@ const ConsultasPage: React.FC = () => {
     );
 
     return (
-        <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-64px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
             {/* Mobile Search - Only visible on small screens */}
             <div className="md:hidden relative shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -400,7 +400,7 @@ const ConsultasPage: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 flex flex-col min-w-0 bg-white/60 backdrop-blur-xl border border-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col bg-white/60 backdrop-blur-xl border border-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.06)] overflow-hidden relative">
                 
                 {/* Header Acciones Múltiples */}
                 <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
