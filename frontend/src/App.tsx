@@ -3,9 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import Dashboard from './pages/Dashboard';
-import WorkersPage from './pages/Workers';
 import AttendancePage from './pages/Attendance';
-import FiscalizacionPage from './pages/Fiscalizacion';
 import ConsultasPage from './pages/Consultas';
 import SettingsPage from './pages/Settings';
 import { MainLayout } from './components/layout/MainLayout';
@@ -44,9 +42,7 @@ const App: React.FC = () => {
           }
         >
           <Route index element={<Dashboard />} />
-          <Route path="trabajadores" element={<WorkersPage />} />
           <Route path="asistencia" element={<AttendancePage />} />
-          <Route path="fiscalizacion" element={<FiscalizacionPage />} />
           <Route path="consultas" element={<ConsultasPage />} />
           <Route path="configuracion" element={<SettingsPage />} />
         </Route>

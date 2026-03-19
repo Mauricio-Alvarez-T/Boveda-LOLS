@@ -36,22 +36,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     const menuItems = [
         { icon: LayoutDashboard, label: 'Dashboard', path: '/', visible: true },
         {
-            icon: Users,
-            label: 'Trabajadores',
-            path: '/trabajadores',
-            visible: checkPermission('trabajadores', 'puede_ver')
-        },
-        {
             icon: CheckSquare,
             label: 'Asistencia',
             path: '/asistencia',
             visible: checkPermission('asistencia', 'puede_ver')
-        },
-        {
-            icon: FileText,
-            label: 'Nómina & Reportes',
-            path: '/fiscalizacion',
-            visible: checkPermission('documentos', 'puede_ver')
         },
         {
             icon: SearchCheck,
