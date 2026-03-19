@@ -712,7 +712,7 @@ const ConsultasPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex-[1.5] min-w-0 grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4 items-center">
+                                        <div className="flex-[2] min-w-0 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 items-center">
                                             {/* Empresa & Obra */}
                                             <div className="flex flex-col gap-1 min-w-0">
                                                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
@@ -732,75 +732,75 @@ const ConsultasPage: React.FC = () => {
                                                 </span>
                                             </div>
 
-                                                        {/* Documentación */}
-                                                        <div className="flex flex-col gap-1.5 pt-1">
-                                                            <div className="flex items-center justify-between text-[10px] font-bold">
-                                                                <span className="text-muted-foreground uppercase tracking-widest">Docs</span>
-                                                                <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
-                                                                    {worker.docs_porcentaje}%
-                                                                </span>
-                                                            </div>
-                                                            <div className="h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
-                                                                <div 
-                                                                    className={cn(
-                                                                        "h-full rounded-full transition-all duration-500",
-                                                                        worker.docs_porcentaje === 100 
-                                                                            ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
-                                                                            : "bg-gradient-to-r from-destructive to-[#F87171]"
-                                                                    )}
-                                                                    style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
-                                                                />
-                                                            </div>
-                                                        </div>
-
-                                                        {/* Acciones Rápidas */}
-                                                        <div className="flex items-center gap-1 ml-auto shrink-0" onClick={(e) => e.stopPropagation()}>
-                                                            <Button
-                                                                variant="glass"
-                                                                size="icon"
-                                                                className={cn(
-                                                                    "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                                    !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
-                                                                )}
-                                                                disabled={!checkPermission('trabajadores', 'puede_editar')}
-                                                                onClick={() => {
-                                                                    setSelectedWorkerForAction(worker);
-                                                                    setModalType('form');
-                                                                }}
-                                                            >
-                                                                <UserPen className="h-4 w-4" />
-                                                            </Button>
-                                                            
-                                                            {worker.activo ? (
-                                                                <Button
-                                                                    variant="glass"
-                                                                    size="icon"
-                                                                    className={cn(
-                                                                        "h-8 w-8 text-destructive hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                                        !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale cursor-not-allowed"
-                                                                    )}
-                                                                    disabled={!checkPermission('trabajadores', 'puede_eliminar')}
-                                                                    onClick={() => handleDelete(worker)}
-                                                                >
-                                                                    <Trash2 className="h-4 w-4" />
-                                                                </Button>
-                                                            ) : (
-                                                                <Button
-                                                                    variant="glass"
-                                                                    size="icon"
-                                                                    className={cn(
-                                                                        "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                                        !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
-                                                                    )}
-                                                                    disabled={!checkPermission('trabajadores', 'puede_editar')}
-                                                                    onClick={() => handleReactivate(worker.id)}
-                                                                >
-                                                                    <UserCheck className="h-4 w-4" />
-                                                                </Button>
-                                                            )}
-                                                        </div>
-                                                    </div>
+                                            {/* Documentación */}
+                                            <div className="flex flex-col gap-1.5 pt-1">
+                                                <div className="flex items-center justify-between text-[10px] font-bold">
+                                                    <span className="text-muted-foreground uppercase tracking-widest">Docs</span>
+                                                    <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
+                                                        {worker.docs_porcentaje}%
+                                                    </span>
                                                 </div>
+                                                <div className="h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
+                                                    <div 
+                                                        className={cn(
+                                                            "h-full rounded-full transition-all duration-500",
+                                                            worker.docs_porcentaje === 100 
+                                                                ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
+                                                                : "bg-gradient-to-r from-destructive to-[#F87171]"
+                                                        )}
+                                                        style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Acciones Rápidas */}
+                                            <div className="flex items-center gap-1 md:justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+                                                <Button
+                                                    variant="glass"
+                                                    size="icon"
+                                                    className={cn(
+                                                        "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                        !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                    )}
+                                                    disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                    onClick={() => {
+                                                        setSelectedWorkerForAction(worker);
+                                                        setModalType('form');
+                                                    }}
+                                                >
+                                                    <UserPen className="h-4 w-4" />
+                                                </Button>
+                                                
+                                                {worker.activo ? (
+                                                    <Button
+                                                        variant="glass"
+                                                        size="icon"
+                                                        className={cn(
+                                                            "h-8 w-8 text-destructive hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                            !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale cursor-not-allowed"
+                                                        )}
+                                                        disabled={!checkPermission('trabajadores', 'puede_eliminar')}
+                                                        onClick={() => handleDelete(worker)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                ) : (
+                                                    <Button
+                                                        variant="glass"
+                                                        size="icon"
+                                                        className={cn(
+                                                            "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                            !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                        )}
+                                                        disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                        onClick={() => handleReactivate(worker.id)}
+                                                    >
+                                                        <UserCheck className="h-4 w-4" />
+                                                    </Button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
                                 </motion.div>
                             ))}
                         </div>
