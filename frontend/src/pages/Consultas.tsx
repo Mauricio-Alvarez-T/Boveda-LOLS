@@ -41,243 +41,69 @@ import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
 
-// Interface extendida para la búsqueda avanzada
-interface TrabajadorAvanzado extends Trabajador {
-    docs_porcentaje: number;
-}
+import {
+    useConsultasFilters,
+    useConsultasData,
+    useConsultasSelection,
+    useConsultasExport,
+    useConsultasActions,
+    TrabajadorAvanzado
+} from '../hooks/consultas';
 
 const ConsultasPage: React.FC = () => {
     const { selectedObra } = useObra();
 
-    // Catálogos
-    const [empresas, setEmpresas] = useState<{value: string | number; label: string}[]>([]);
-    const [obras, setObras] = useState<{value: string | number; label: string}[]>([]);
-    const [cargos, setCargos] = useState<{value: string | number; label: string}[]>([]);
+    // --- Custom Hooks ---
+    // 1. Filtros
+    const {
+        search, setSearch,
+        filterObra, setFilterObra,
+        filterEmpresa, setFilterEmpresa,
+        filterCargo, setFilterCargo,
+        filterCategoria, setFilterCategoria,
+        filterActivo, setFilterActivo,
+        filterCompletitud, setFilterCompletitud,
+        handleClearFilters,
+        activeFilterCount
+    } = useConsultasFilters();
 
-    // Filtros
-    const [search, setSearch] = useState('');
-    const [filterObra, setFilterObra] = useState<string>('');
-    const [filterEmpresa, setFilterEmpresa] = useState<string>('');
-    const [filterCargo, setFilterCargo] = useState<string>('');
-    const [filterCategoria, setFilterCategoria] = useState<string>('');
-    const [filterActivo, setFilterActivo] = useState<string>('true');
-    const [filterCompletitud, setFilterCompletitud] = useState<string>('');
+    // 2. Data & Paginación
+    const {
+        empresas, obras, cargos, fetchCatalogs,
+        workers, loading, hasMore, isLoadingMore,
+        loadMore, performSearch
+    } = useConsultasData({
+        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud
+    });
 
-    // Estado local
-    const [loading, setLoading] = useState(false);
-    const [workers, setWorkers] = useState<TrabajadorAvanzado[]>([]);
-    const [selectedWorkers, setSelectedWorkers] = useState<Set<number>>(new Set());
+    // 3. Selección
+    const {
+        selectedWorkers,
+        handleSelectAll,
+        handleSelectWorker
+    } = useConsultasSelection(workers.length, workers.map(w => w.id));
+
+    // 4. Exportación
+    const {
+        exporting,
+        handleExportExcel
+    } = useConsultasExport(workers, selectedWorkers);
+
+    // 5. Acciones CRUD (Eliminar/Reactivar)
+    const {
+        modalType, setModalType,
+        selectedWorkerForAction, setSelectedWorkerForAction,
+        handleDelete, confirmFiniquito, handleReactivate
+    } = useConsultasActions(() => performSearch(true));
+
+    // Estados Locales UI Varios
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
-    const [exporting, setExporting] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
-    const { checkPermission } = useAuth();
-    const fetchingRef = useRef(false);
-    const [page, setPage] = useState(1);
-    const [hasMore, setHasMore] = useState(true);
-    const [isLoadingMore, setIsLoadingMore] = useState(false);
-
-    // Worker Management Modals
-    const [modalType, setModalType] = useState<'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | null>(null);
-    const [selectedWorkerForAction, setSelectedWorkerForAction] = useState<Trabajador | null>(null);
     const [showCreatePanel, setShowCreatePanel] = useState(false);
+    
+    const { checkPermission } = useAuth();
 
-    // Cargar catálogos
-    const fetchCatalogs = useCallback(async () => {
-        try {
-            const [empRes, obraRes, cargoRes] = await Promise.all([
-                api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
-                api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
-                api.get<ApiResponse<Cargo[]>>('/cargos?activo=true')
-            ]);
-
-            setEmpresas([{ value: '', label: 'Todas las Empresas' }, ...empRes.data.data.map(e => ({ value: e.id, label: e.razon_social }))]);
-            setObras([{ value: '', label: 'Todas las Obras' }, ...obraRes.data.data.map(o => ({ value: o.id, label: o.nombre }))]);
-            setCargos([{ value: '', label: 'Todos los Cargos' }, ...cargoRes.data.data.map(c => ({ value: c.id, label: c.nombre }))]);
-        } catch (err) {
-            console.error('Error fetching catalogs', err);
-        }
-    }, []);
-
-    useEffect(() => {
-        fetchCatalogs();
-    }, [fetchCatalogs]);
-
-    // Aplicar filtro de obra contextual
-    useEffect(() => {
-        if (selectedObra) {
-            setFilterObra(selectedObra.id.toString());
-        } else {
-            setFilterObra('');
-        }
-    }, [selectedObra]);
-
-    // Búsqueda en el servidor
-    const performSearch = useCallback(async (isInitial: boolean = false) => {
-        if (fetchingRef.current) return;
-        fetchingRef.current = true;
-
-        if (isInitial) {
-            setLoading(true);
-            setPage(1);
-        } else {
-            setIsLoadingMore(true);
-        }
-
-        try {
-            const params = new URLSearchParams();
-            if (search) params.append('q', search);
-            if (filterObra) params.append('obra_id', filterObra);
-            if (filterEmpresa) params.append('empresa_id', filterEmpresa);
-            if (filterCargo) params.append('cargo_id', filterCargo);
-            if (filterCategoria) params.append('categoria_reporte', filterCategoria);
-            if (filterActivo) params.append('activo', filterActivo);
-            if (filterCompletitud) params.append('completitud', filterCompletitud);
-            params.append('page', isInitial ? '1' : page.toString());
-            params.append('limit', '50');
-
-            const res = await api.get<{ data: TrabajadorAvanzado[] }>(`/fiscalizacion/trabajadores-avanzado?${params.toString()}`);
-            const data = res.data.data || [];
-            
-            setWorkers(prev => isInitial ? data : [...prev, ...data]);
-            setHasMore(data.length === 50);
-
-            // Reseleccionar los previamente seleccionados si es inicial
-            if (isInitial) {
-                setSelectedWorkers(new Set());
-            }
-        } catch (err) {
-            toast.error('Error al realizar la búsqueda');
-        } finally {
-            setLoading(false);
-            setIsLoadingMore(false);
-            setTimeout(() => {
-                fetchingRef.current = false;
-            }, 200);
-        }
-    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, page]);
-
-    // Worker Management Logic
-    const handleDelete = (worker: Trabajador) => {
-        setSelectedWorkerForAction(worker);
-        setModalType('finiquito');
-    };
-
-    const confirmFiniquito = (date: string) => {
-        if (!selectedWorkerForAction) return;
-        api.put(`/trabajadores/${selectedWorkerForAction.id}`, { activo: false, fecha_desvinculacion: date })
-            .then(() => {
-                toast.success("Trabajador desvinculado con éxito.");
-                setModalType(null);
-                performSearch(true);
-            })
-            .catch(err => {
-                console.error(err);
-                toast.error("Error al desvincular trabajador.");
-            });
-    };
-
-    const handleReactivate = (id: number) => {
-        if (window.confirm("¿Estás seguro de que deseas reactivar a este trabajador?")) {
-            api.put(`/trabajadores/${id}`, { activo: true, fecha_desvinculacion: null })
-                .then(() => {
-                    toast.success("Trabajador reactivado con éxito.");
-                    performSearch(true);
-                })
-                .catch((err) => {
-                    console.error(err);
-                    toast.error("Error al reactivar trabajador.");
-                });
-        }
-    };
-
-    // Trigger de búsqueda (con debounce en el texto)
-    useEffect(() => {
-        const timeoutId = setTimeout(() => {
-            performSearch(true);
-        }, 300);
-        return () => clearTimeout(timeoutId);
-    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud]);
-
-    // Checkboxes
-    const handleSelectAll = () => {
-        if (selectedWorkers.size === workers.length) {
-            setSelectedWorkers(new Set());
-        } else {
-            setSelectedWorkers(new Set(workers.map(w => w.id)));
-        }
-    };
-
-    const handleSelectWorker = (id: number) => {
-        setSelectedWorkers(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id);
-            else next.add(id);
-            return next;
-        });
-    };
-
-    // Funciones útiles para memoización
-    const latestData = useRef({ workers, selectedWorkers });
-    useEffect(() => {
-        latestData.current = { workers, selectedWorkers };
-    }, [workers, selectedWorkers]);
-
-    const handleClearFilters = () => {
-        setSearch('');
-        setFilterObra(selectedObra ? selectedObra.id.toString() : '');
-        setFilterEmpresa('');
-        setFilterCargo('');
-        setFilterCategoria('');
-        setFilterActivo('true');
-        setFilterCompletitud('');
-    };
-
-    const activeFilterCount = [
-        !!search,
-        !!filterObra && filterObra !== (selectedObra?.id.toString() || ''),
-        !!filterEmpresa,
-        !!filterCargo,
-        !!filterCategoria,
-        filterActivo !== 'true',
-        !!filterCompletitud
-    ].filter(Boolean).length;
-
-    // Exportación
-    const handleExportExcel = async (exportAll: boolean) => {
-        const { workers: currentWorkers, selectedWorkers: currentSelected } = latestData.current;
-        const dataToExport = exportAll ? currentWorkers : currentWorkers.filter(w => currentSelected.has(w.id));
-        
-        if (dataToExport.length === 0) {
-            toast.warning('No hay datos para exportar');
-            return;
-        }
-
-        setExporting(true);
-        toast.info('Generando reporte Excel...', { id: 'excel-export' });
-
-        try {
-            const response = await api.post('/fiscalizacion/exportar-excel', {
-                trabajadores: dataToExport
-            }, { responseType: 'blob' });
-
-            const url = window.URL.createObjectURL(new Blob([response.data as any]));
-            const link = document.createElement('a');
-            link.href = url;
-            const timeString = new Date().toTimeString().split(' ')[0].replace(/:/g, '');
-            link.setAttribute('download', `Consultas_${new Date().toISOString().split('T')[0]}_${timeString}.xlsx`);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-
-            toast.success('Reporte Excel descargado', { id: 'excel-export' });
-        } catch (err) {
-            toast.error('Error al generar Excel', { id: 'excel-export' });
-        } finally {
-            setExporting(false);
-        }
-    };
 
     // Modificando Header Global
     const headerTitle = useMemo(() => (
@@ -943,7 +769,7 @@ const ConsultasPage: React.FC = () => {
                 <WorkerQuickView
                     workerId={quickViewId}
                     onClose={() => setQuickViewId(null)}
-                    onUpdate={() => performSearch()}
+                    onUpdate={() => performSearch(true)}
                 />
             )}
         </div>
