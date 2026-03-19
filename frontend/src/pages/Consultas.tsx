@@ -213,14 +213,78 @@ const ConsultasPage: React.FC = () => {
 
     // Modificando Header Global
     const headerTitle = useMemo(() => (
-        <div className="flex items-center gap-2 md:gap-3">
-            <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
-            <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Consultas</h1>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+            <div className="flex items-center gap-2 md:gap-3 shrink-0">
+                <SearchCheck className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
+                <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Consultas</h1>
+            </div>
+
+            {/* Desktop Search Bar - integrated into title area */}
+            <div className="hidden md:block relative max-w-md w-full ml-4">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                    placeholder="Buscar por Nombre, RUT..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9 h-10 bg-background/50 border-border focus:bg-white transition-all rounded-xl text-sm"
+                />
+            </div>
         </div>
-    ), []);
+    ), [search]);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-1.5 md:gap-2">
+            {/* Desktop Desktop Actions */}
+            <div className="hidden md:flex items-center gap-2">
+                <Button
+                    size="sm"
+                    onClick={() => setShowMobileFilters(!showMobileFilters)}
+                    variant={showMobileFilters ? 'primary' : 'outline'}
+                    className={cn(
+                        "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm",
+                        showMobileFilters 
+                            ? "bg-brand-primary text-white border-transparent" 
+                            : "bg-white text-brand-dark hover:bg-background"
+                    )}
+                >
+                    <Filter className="h-3.5 w-3.5" />
+                    <span>Filtros</span>
+                    {activeFilterCount > 0 && (
+                        <span className={cn(
+                            "flex h-4 w-4 items-center justify-center rounded-full text-[9px]",
+                            showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
+                        )}>
+                            {activeFilterCount}
+                        </span>
+                    )}
+                </Button>
+
+                <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => handleExportExcel(true)}
+                    isLoading={exporting}
+                    disabled={workers.length === 0}
+                    leftIcon={<FileDown className="h-3.5 w-3.5 text-brand-primary" />}
+                    className="h-9 px-4 rounded-xl shadow-sm bg-white border-border hover:bg-background"
+                >
+                    <span>Exportar</span>
+                </Button>
+
+                {activeFilterCount > 0 && (
+                    <Button
+                        size="sm"
+                        variant="glass"
+                        onClick={handleClearFilters}
+                        className="h-9 px-3 text-destructive hover:bg-destructive/10 border-border shadow-sm flex items-center justify-center p-0 w-9"
+                        title="Limpiar Filtros"
+                    >
+                        <X className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
+
+            {/* Mobile Filter Toggle */}
             <button
                 onClick={() => setShowMobileFilters(prev => !prev)}
                 className="lg:hidden flex items-center justify-center h-9 w-9 rounded-xl border border-border bg-white text-brand-dark shadow-sm relative"
@@ -234,7 +298,7 @@ const ConsultasPage: React.FC = () => {
                 )}
             </button>
         </div>
-    ), [workers.length, exporting, activeFilterCount]);
+    ), [workers.length, exporting, activeFilterCount, showMobileFilters]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -297,66 +361,18 @@ const ConsultasPage: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-64px)] md:h-[calc(100vh-100px)] flex flex-col gap-4 lg:gap-6 p-4 md:p-6 overflow-hidden max-w-7xl mx-auto w-full">
-            {/* Top Bar: Search and Actions */}
+            {/* Mobile Search - Only visible on small screens */}
+            <div className="md:hidden relative shrink-0">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                <Input
+                    placeholder="Buscar por Nombre, RUT..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-10 h-11 bg-white rounded-2xl border-border shadow-sm"
+                />
+            </div>
+
             <div className="flex flex-col gap-4 shrink-0">
-                <div className="flex flex-col sm:flex-row gap-3">
-                    <div className="relative flex-1">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                        <Input
-                            placeholder="Buscar por Nombre, RUT..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            className="pl-10 h-11 bg-white/60 backdrop-blur-xl border-white rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)]"
-                        />
-                    </div>
-                    <div className="flex gap-2">
-                        <Button
-                            onClick={() => setShowMobileFilters(!showMobileFilters)}
-                            variant="outline"
-                            className={cn(
-                                "h-11 px-4 lg:px-6 rounded-2xl transition-all font-semibold gap-2 border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)]",
-                                showMobileFilters
-                                    ? "bg-brand-primary text-white hover:bg-brand-primary/90 border-transparent shadow-brand-primary/20"
-                                    : "bg-white/60 backdrop-blur-xl text-brand-dark hover:bg-white"
-                            )}
-                        >
-                            <Filter className="h-4 w-4" />
-                            <span className="hidden sm:inline">Filtros</span>
-                            {activeFilterCount > 0 && (
-                                <span className={cn(
-                                    "flex h-5 w-5 items-center justify-center rounded-full text-[10px]",
-                                    showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
-                                )}>
-                                    {activeFilterCount}
-                                </span>
-                            )}
-                        </Button>
-
-                        {/* Export Button inside Search Bar area */}
-                        <Button
-                            variant="outline"
-                            onClick={() => handleExportExcel(true)}
-                            isLoading={exporting}
-                            disabled={workers.length === 0}
-                            leftIcon={<FileDown className="h-4 w-4 text-brand-primary" />}
-                            className="h-11 px-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/60 backdrop-blur-xl border-white hover:bg-white"
-                        >
-                            <span className="hidden sm:inline">Exportar Vista</span>
-                        </Button>
-
-                        {activeFilterCount > 0 && (
-                            <Button
-                                variant="glass"
-                                onClick={handleClearFilters}
-                                className="h-11 px-3 text-destructive hover:bg-destructive/10 hidden sm:flex border-white shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white/60 backdrop-blur-xl"
-                                title="Limpiar Filtros"
-                            >
-                                <X className="h-4 w-4" />
-                            </Button>
-                        )}
-                    </div>
-                </div>
-
                 <AnimatePresence>
                     {showMobileFilters && (
                         <motion.div
