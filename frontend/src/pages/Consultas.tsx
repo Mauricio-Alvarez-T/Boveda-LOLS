@@ -808,7 +808,7 @@ const ConsultasPage: React.FC = () => {
                 </div>
 
                 {/* Status Bar */}
-                <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest">
+                <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
                     <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
                         <span>{workers.length} {workers.length === 1 ? 'coincidencia' : 'coincidencias'}</span>
