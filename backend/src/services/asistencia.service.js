@@ -283,7 +283,7 @@ const asistenciaService = {
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              LEFT JOIN usuarios u ON a.registrado_por = u.id
              WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1
-             ORDER BY t.apellido_paterno`,
+             ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`,
             [obraId, fecha]
         );
         return {
@@ -363,7 +363,7 @@ const asistenciaService = {
              JOIN trabajadores t ON a.trabajador_id = t.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
               ${whereClause}
-              ORDER BY t.apellido_paterno, t.apellido_materno, t.nombres, a.fecha DESC`,
+              ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC, a.fecha DESC`,
             [...params]
         );
 
@@ -512,7 +512,7 @@ const asistenciaService = {
             workerQueryParams.push(obra_id);
         }
         
-        workerQuery += ' ORDER BY t.apellido_paterno, t.apellido_materno, t.nombres';
+        workerQuery += ' ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC';
         
         const [workers] = await db.query(workerQuery, workerQueryParams);
 

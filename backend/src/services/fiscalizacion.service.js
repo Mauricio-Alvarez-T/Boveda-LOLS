@@ -99,7 +99,7 @@ class FiscalizacionService {
             }
         }
 
-        query += ` ORDER BY t.nombres ASC, t.apellido_paterno ASC`;
+        query += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
 
         const [rows] = await db.query(query, params);
 

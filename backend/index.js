@@ -57,7 +57,7 @@ app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
   selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
   allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
   useSoftDelete: true,
-  orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.nombres ASC'
+  orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC'
 }));
 
 // Documentos (rutas especializadas)

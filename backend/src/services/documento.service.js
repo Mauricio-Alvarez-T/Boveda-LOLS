@@ -92,7 +92,7 @@ const documentoService = {
        CROSS JOIN tipos_documento td
        LEFT JOIN documentos d ON d.trabajador_id = t.id AND d.tipo_documento_id = td.id AND d.activo = TRUE
        WHERE t.activo = TRUE AND td.obligatorio = TRUE AND td.activo = TRUE AND d.id IS NULL
-       ORDER BY t.apellido_paterno, td.nombre`
+       ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC, td.nombre ASC`
         );
         return rows;
     },

@@ -171,7 +171,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             JOIN estados_asistencia ea ON a.estado_id = ea.id
             LEFT JOIN obras o ON a.obra_id = o.id
             WHERE a.fecha = ? AND ea.es_presente = 0 ${asistFilter}
-            ORDER BY t.apellido_paterno ASC
+            ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
             LIMIT 20
         `, [today, ...params]);
         result.ausentesDetalle = ausentesDetalle;
@@ -229,7 +229,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
               AND t.fecha_ingreso IS NOT NULL
               AND MONTH(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
               AND YEAR(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
-            ORDER BY DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH) ASC
+            ORDER BY DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH) ASC, t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
         `, [realNextMonth, nextYear]);
 
         if (workers10m.length > 0) {
