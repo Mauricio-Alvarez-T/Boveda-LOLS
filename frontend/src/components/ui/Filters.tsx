@@ -68,12 +68,12 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                 </button>
 
                 {isOpen && (
-                    <div className="absolute z-[60] w-full mt-1 bg-white border border-border rounded-xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden">
+                    <div className="absolute z-[100] w-full min-w-[200px] mt-1 bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
                         <div className="p-2 border-b border-border relative bg-background/50">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                             <input 
                                 type="text"
-                                className="w-full bg-white border border-border rounded-lg py-1.5 pl-8 pr-3 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all placeholder:text-muted-foreground/60"
+                                className="w-full bg-white border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
                                 placeholder="Buscar..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
@@ -81,25 +81,25 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                                 autoFocus
                             />
                         </div>
-                        <ul className="max-h-60 overflow-y-auto custom-scrollbar py-1">
+                        <ul className="max-h-64 overflow-y-auto custom-scrollbar py-1">
                             <li 
                                 className={cn(
-                                    "px-3 py-2 text-sm cursor-pointer hover:bg-brand-primary/10 transition-colors",
-                                    (value === '' || value === undefined) && "bg-brand-primary/5 font-semibold text-brand-primary"
+                                    "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-colors",
+                                    (value === '' || value === undefined) && "bg-brand-primary/10 font-bold text-brand-primary"
                                 )}
                                 onClick={() => handleSelect('')}
                             >
                                 {placeholder}
                             </li>
                             {filteredOptions.length === 0 ? (
-                                <li className="px-3 py-4 text-sm text-muted-foreground text-center">No se encontraron resultados</li>
+                                <li className="px-4 py-6 text-sm text-muted-foreground text-center italic">No hay resultados</li>
                             ) : (
                                 filteredOptions.map(opt => (
                                     <li
                                         key={opt.value}
                                         className={cn(
-                                            "px-3 py-2 text-sm cursor-pointer hover:bg-brand-primary/10 transition-colors",
-                                            value === String(opt.value) && "bg-brand-primary/5 font-semibold text-brand-primary"
+                                            "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-all",
+                                            value === String(opt.value) && "bg-brand-primary/10 font-bold text-brand-primary border-r-4 border-brand-primary"
                                         )}
                                         onClick={() => handleSelect(opt.value)}
                                     >
