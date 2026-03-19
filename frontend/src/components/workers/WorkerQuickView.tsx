@@ -5,6 +5,7 @@ import { toast } from 'sonner';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
+import { PeriodAssignModal } from '../attendance/PeriodAssignModal';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { WorkerForm } from './WorkerForm';
@@ -58,6 +59,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
     const [isUploading, setIsUploading] = useState(false);
+    const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
     const { checkPermission } = useAuth();
 
@@ -107,6 +109,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const completedDocs = docs.filter((d: any) => d.activo !== false).length;
     const docPct = totalRequired > 0 ? Math.round((completedDocs / totalRequired) * 100) : 0;
     const initials = worker ? `${(worker.apellido_paterno || '')[0]}${worker.nombres[0]}` : '';
+
+    const handleCalendarSelectRange = (start: string, end: string) => {
+        setPeriodSelection({ start, end });
+    };
 
     return (
         <>
@@ -310,6 +316,23 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                 onClose={() => setShowCalendar(false)}
                 worker={worker as any}
                 estados={estados}
+                onSelectRange={handleCalendarSelectRange}
+            />
+
+            {/* Period Assignment Modal */}
+            <PeriodAssignModal
+                isOpen={!!periodSelection}
+                onClose={() => setPeriodSelection(null)}
+                worker={worker as any}
+                obraId={worker?.obra_id || null}
+                estados={estados}
+                initialDates={periodSelection}
+                onSuccess={() => {
+                    setPeriodSelection(null);
+                    // Refresh internal data
+                    setRefreshKey(prev => prev + 1);
+                    if (onUpdate) onUpdate();
+                }}
             />
 
             {/* Action Modal (Edit/Docs) */}

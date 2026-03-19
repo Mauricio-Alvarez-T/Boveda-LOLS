@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarRange, AlertTriangle, Check, Loader2, ChevronLeft } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { Modal } from '../ui/Modal';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/entities';
 import { toast } from 'sonner';
@@ -261,65 +262,24 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
     );
 
     return (
-        <AnimatePresence>
-            {/* MOBILE: Fullscreen */}
-            <div className="md:hidden fixed inset-0 z-[60] flex flex-col bg-white">
-                <motion.div
-                    initial={{ opacity: 0, x: 60 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: 60 }}
-                    transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                    className="flex flex-col h-full"
-                >
-                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-brand-primary text-sm font-medium">
-                            <ChevronLeft className="h-5 w-5" />
-                            <span>Volver</span>
-                        </button>
-                        <div className="flex-1 text-center pr-12">
-                            <h3 className="text-base font-semibold text-brand-dark flex items-center justify-center gap-2">
-                                <CalendarRange className="h-4 w-4 text-brand-primary" />
-                                Asignar Período
-                            </h3>
-                        </div>
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Asignar Período de Ausencia"
+            size="2xl"
+        >
+            <div className="flex flex-col">
+                <div className="mb-6 bg-brand-primary/5 p-4 rounded-2xl flex items-center justify-between border border-brand-primary/10">
+                    <div>
+                        <h4 className="text-sm font-bold text-brand-dark">
+                            {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
+                        </h4>
+                        <p className="text-xs text-muted-foreground font-medium">{worker.rut}</p>
                     </div>
-                    <div className="px-4 py-3 bg-background border-b border-[#E8E8ED] shrink-0">
-                        <p className="text-sm font-semibold text-brand-dark">{worker.nombres} {worker.apellido_paterno}</p>
-                        <p className="text-xs text-muted-foreground">{worker.rut}</p>
-                    </div>
-                    <div className="flex-1 overflow-y-auto px-4 py-4">
-                        {modalContentNodes}
-                    </div>
-                </motion.div>
-            </div>
+                </div>
 
-            {/* DESKTOP: Centered card */}
-            <div className="hidden md:flex fixed inset-0 z-[60] items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-                <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 10 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 10 }}
-                    className="bg-white/90 backdrop-blur-xl rounded-3xl shadow-2xl w-full max-w-2xl border border-white/20 overflow-hidden flex flex-col max-h-[90vh]"
-                >
-                    <div className="flex items-center justify-between p-5 border-b border-[#E8E8ED]">
-                        <div>
-                            <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
-                                <CalendarRange className="h-5 w-5 text-brand-primary" />
-                                Asignar Período
-                            </h2>
-                            <p className="text-sm text-muted-foreground mt-1">
-                                {worker.nombres} {worker.apellido_paterno} · {worker.rut}
-                            </p>
-                        </div>
-                        <Button variant="ghost" size="icon" onClick={onClose}>
-                            <X className="h-5 w-5" />
-                        </Button>
-                    </div>
-                    <div className="p-6 overflow-y-auto">
-                        {modalContentNodes}
-                    </div>
-                </motion.div>
+                {modalContentNodes}
             </div>
-        </AnimatePresence>
+        </Modal>
     );
 };
