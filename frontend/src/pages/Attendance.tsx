@@ -15,7 +15,12 @@ import {
     FileDown,
     ChevronDown,
     FilePlus,
-    ArrowLeft
+    ArrowLeft,
+    Search,
+    Building2,
+    Filter,
+    Plus,
+    X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -608,113 +613,149 @@ const AttendancePage: React.FC = () => {
     }, [attendance, estados]);
 
     const headerTitle = useMemo(() => (
-        <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20">
-                <CheckSquare className="h-5 w-5" />
+        <div className="flex flex-col md:flex-row md:items-center gap-4 lg:gap-8">
+            <div className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20 shrink-0">
+                    <CheckSquare className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                    <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
+                        {selectedObra ? 'Asistencia' : 'Reporte Global'}
+                    </h1>
+                    <p className="text-[10px] text-muted-foreground font-bold truncate opacity-80">
+                        {selectedObra ? selectedObra.nombre : 'Consolidado'}
+                    </p>
+                </div>
             </div>
-            <div className="min-w-0">
-                <h1 className="text-lg font-bold text-brand-dark tracking-tight leading-tight">
-                    {selectedObra ? 'Control de Asistencia' : 'Reporte Global'}
-                </h1>
-                <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider opacity-60 truncate">
-                    {selectedObra ? `${selectedObra.nombre} • ${formattedDate}` : 'Consolidado de todas las obras'}
-                </p>
-            </div>
-        </div>
-    ), [selectedObra, formattedDate]);
 
-    const headerActions = useMemo(() => (
-        <div className="flex items-center gap-1 md:gap-2">
             {selectedObra && (
-                <>
-                    {/* Mobile Worker Count Chip */}
-                    <div className="md:hidden flex items-center gap-1.5 px-3 py-1.5 bg-[#E8E8ED] rounded-full text-[13px] font-bold text-brand-dark shrink-0">
-                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                        <span>{summary.total}</span>
+                <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
+                            <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <div className="relative group flex items-center px-1">
+                            <input
+                                type="date"
+                                value={date}
+                                onChange={(e) => setDate(e.target.value)}
+                                className="w-[115px] bg-transparent text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
+                            />
+                        </div>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
+                            <ChevronRight className="h-4 w-4" />
+                        </Button>
                     </div>
 
-                    {/* Mobile WhatsApp Button */}
-                    <button
-                        onClick={handleShareWhatsApp}
-                        className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-border rounded-full text-[13px] font-medium text-brand-dark hover:bg-background shadow-sm shrink-0"
-                        title="Enviar por WhatsApp"
-                    >
-                        <Send className="h-4 w-4 text-[#25D366]" fill="#25D366" stroke="white" strokeWidth={1.5} />
-                        <span>WhatsApp</span>
-                    </button>
-
-                    {/* Desktop WhatsApp Button */}
-                    <Button
-                        onClick={handleShareWhatsApp}
-                        variant="glass"
-                        className="hidden md:flex text-muted-foreground hover:text-brand-accent"
-                        title="Compartir Resumen por WhatsApp"
-                        leftIcon={<Send className="h-4 w-4" />}
-                        size="sm"
-                    >
-                        <span className="hidden lg:inline">WhatsApp</span>
-                    </Button>
-                </>
+                    <div className="hidden lg:flex items-center gap-1.5 ml-2 border-l border-[#E8E8ED] pl-4">
+                        <div className="flex items-center gap-1 px-2 py-1 bg-brand-primary/5 rounded-lg border border-brand-primary/10">
+                            <span className="text-[10px] font-black text-brand-primary uppercase tabular-nums">{summary.total}</span>
+                            <Users className="h-3 w-3 text-brand-primary/60" />
+                        </div>
+                        <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg border border-brand-accent/10">
+                            <span className="text-[10px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
+                            <BarChart3 className="h-3 w-3 text-brand-accent/60" />
+                        </div>
+                    </div>
+                </div>
             )}
+        </div>
+    ), [selectedObra, date, summary, navigateDate]);
 
-            {/* Mobile Export Button */}
-            <button
-                onClick={() => handleExportExcel()}
-                className="md:hidden flex items-center justify-center h-9 w-9 rounded-full border border-border bg-white text-muted-foreground shadow-sm active:bg-background"
-                title="Exportar Reporte Mensual"
-            >
-                <FileDown className="h-4 w-4" />
-            </button>
+    const [showSearchBox, setShowSearchBox] = useState(false);
 
-            {/* Export Monthly Report — always available if user can view assistance */}
-            <Button
-                onClick={() => handleExportExcel()}
-                variant="outline"
-                title="Exportar Asistencia del Mes actual"
-                leftIcon={<FileDown className="h-4 w-4" />}
-                size="sm"
-                className="hidden md:flex"
-            >
-                <span className="hidden lg:inline">Reporte Mensual</span>
-            </Button>
-
+    const headerActions = useMemo(() => (
+        <div className="flex items-center gap-2">
             {selectedObra && (
                 <>
-                    {/* Manual Holiday Toggle */}
-                    <RequirePermission modulo="asistencia" accion="puede_editar">
-                        <Button
-                            onClick={toggleFeriado}
-                            variant={feriadoActual ? "outline" : "glass"}
-                            size="sm"
-                            title={feriadoActual ? "Quitar marcación de feriado" : "Marcar este día como feriado"}
-                            className={cn(
-                                "hidden md:flex",
-                                feriadoActual ? "text-destructive border-destructive/20 hover:bg-destructive/5" : "text-muted-foreground hover:text-brand-primary"
-                            )}
-                            leftIcon={<CalendarRange className="h-4 w-4" />}
-                        >
-                            <span className="hidden lg:inline">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
-                        </Button>
-                    </RequirePermission>
-
-                    <Button
-                        onClick={handleSave}
-                        isLoading={saving}
-                        disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
-                        leftIcon={<Save className="h-4 w-4" />}
-                        size="sm"
+                    {/* Mobile Search Toggle */}
+                    <button
+                        onClick={() => setShowSearchBox(!showSearchBox)}
                         className={cn(
-                            "hidden md:flex",
-                            (!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday) && "opacity-40 grayscale-[100%] cursor-not-allowed"
+                            "md:hidden flex h-9 w-9 items-center justify-center rounded-xl border-border transition-all",
+                            showSearchBox ? "bg-brand-primary text-white border-transparent" : "bg-white text-muted-foreground border hover:bg-background shadow-sm"
                         )}
-                        title={!checkPermission('asistencia', 'puede_editar') ? "No tienes permisos" : (feriadoActual || isSunday) ? "Día bloqueado" : "Guardar Asistencia"}
                     >
-                        Guardar
-                    </Button>
+                        {showSearchBox ? <X className="h-4 w-4" /> : <Search className="h-4 w-4" />}
+                    </button>
+
+                    {/* Search & Company Filter Group (Desktop) */}
+                    <div className="hidden md:flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm overflow-hidden min-w-[300px] lg:min-w-[450px]">
+                        <div className="relative flex-1 group">
+                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" />
+                            <input
+                                type="text"
+                                placeholder="Buscar trabajador..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full h-8 pl-8 pr-3 bg-transparent text-xs font-medium focus:outline-none"
+                            />
+                        </div>
+                        <div className="h-4 w-px bg-[#E8E8ED]" />
+                        <select
+                            value={selectedEmpresaId || ""}
+                            onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
+                            className="h-8 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[140px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
+                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat' }}
+                        >
+                            <option value="">Todas las Empresas</option>
+                            {availableEmpresas.map(emp => (
+                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    <div className="h-8 w-px bg-border/40 mx-1 hidden md:block" />
+
+                    <div className="flex items-center gap-1">
+                        <Button
+                            onClick={handleShareWhatsApp}
+                            variant="glass"
+                            className="h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary hover:bg-brand-primary/5 shadow-sm"
+                            title="Compartir por WhatsApp"
+                        >
+                            <Send className="h-4 w-4" fill="currentColor" />
+                        </Button>
+                        <Button
+                            onClick={() => handleExportExcel()}
+                            variant="glass"
+                            className="h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-muted-foreground hover:bg-background shadow-sm"
+                            title="Reporte Mensual"
+                        >
+                            <FileDown className="h-4 w-4" />
+                        </Button>
+                        <RequirePermission modulo="asistencia" accion="puede_editar">
+                            <Button
+                                onClick={toggleFeriado}
+                                variant={feriadoActual ? "outline" : "glass"}
+                                className={cn(
+                                    "h-9 w-9 p-0 flex items-center justify-center rounded-xl transition-all shadow-sm border",
+                                    feriadoActual 
+                                        ? "bg-destructive text-white border-transparent" 
+                                        : "bg-white border-[#E8E8ED] text-muted-foreground hover:text-brand-primary"
+                                )}
+                                title={feriadoActual ? "Quitar Feriado" : "Marcar Feriado"}
+                            >
+                                <CalendarRange className="h-4 w-4" />
+                            </Button>
+                        </RequirePermission>
+                        <Button
+                            onClick={handleSave}
+                            isLoading={saving}
+                            disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                            className={cn(
+                                "h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-brand-primary/20",
+                                (!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
+                            )}
+                        >
+                            <span className="hidden lg:inline mr-2 underline decoration-white/30 active:translate-y-px transition-all">Guardar</span>
+                            <Save className="h-4 w-4" />
+                        </Button>
+                    </div>
                 </>
             )}
         </div>
-    ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission]);
+    ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission, feriadoActual, toggleFeriado, showSearchBox]);
     useSetPageHeader(headerTitle, headerActions);
 
     if (!selectedObra) {
@@ -776,109 +817,42 @@ const AttendancePage: React.FC = () => {
 
     return (
         <div className="space-y-3 md:space-y-4 pb-20 md:pb-4">
-            {/* ── Date Navigation ── */}
-            <div className="bg-white rounded-2xl border border-[#E8E8ED] p-4 shadow-sm">
-                <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between">
-                    {/* Date Nav */}
-                    <div className="flex items-center gap-2">
-                        <Button variant="glass" size="icon" className="h-10 w-10 shrink-0 border-border/50" onClick={() => navigateDate(-1)}>
-                            <ChevronLeft className="h-5 w-5" />
-                        </Button>
-                        <div className="relative group flex-1 md:flex-none">
-                            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-primary opacity-50 group-hover:opacity-100 transition-opacity" />
+            {/* ── Search Bar & Filter (Mobile Expandable) ── */}
+            <AnimatePresence>
+                {showSearchBox && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="md:hidden space-y-2 overflow-hidden pb-2"
+                    >
+                        <div className="relative group">
+                            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
                             <input
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="w-full md:w-48 pl-10 pr-4 h-10 bg-background border border-border/60 rounded-xl text-sm text-brand-dark font-bold focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/5 transition-all"
+                                type="text"
+                                placeholder="Buscar trabajador..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full h-11 pl-11 pr-4 bg-white border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
                             />
                         </div>
-                        <Button variant="glass" size="icon" className="h-10 w-10 shrink-0 border-border/50" onClick={() => navigateDate(1)}>
-                            <ChevronRight className="h-5 w-5" />
-                        </Button>
-                        <Button
-                            variant="glass"
-                            size="sm"
-                            className="h-10 px-4 text-xs font-bold rounded-xl border-border/50"
-                            onClick={() => setDate(new Date().toISOString().split('T')[0])}
-                        >
-                            Configurar Hoy
-                        </Button>
-                    </div>
-
-                    <div className="hidden md:block h-8 w-px bg-border" />
-
-                    {/* Stats Chips - Hidden on Mobile, Visible on Desktop */}
-                    {/* Stats Chips */}
-                    <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
-                        <div className="flex items-center gap-2 px-3 py-2 bg-background border border-border/40 rounded-xl shrink-0">
-                            <div className="h-2 w-2 rounded-full bg-brand-primary" />
-                            <span className="text-[11px] font-bold text-brand-dark uppercase tracking-tight">{summary.total} Trabajadores</span>
-                        </div>
-                        <div className="flex items-center gap-2 px-3 py-2 bg-brand-accent/5 border border-brand-accent/10 rounded-xl shrink-0">
-                            <BarChart3 className="h-3.5 w-3.5 text-brand-accent" />
-                            <span className="text-[11px] font-bold text-brand-accent uppercase tracking-tight">{summary.porcentaje}% Asistencia</span>
-                        </div>
-                        {summary.desglose.map(({ estado, count }) => (
-                            <div
-                                key={estado.id}
-                                className="flex items-center gap-2 px-3 py-2 rounded-xl shrink-0 border"
-                                style={{
-                                    backgroundColor: `${estado.color}08`,
-                                    borderColor: `${estado.color}15`,
-                                    color: estado.color
-                                }}
+                        <div className="relative">
+                            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
+                            <select
+                                value={selectedEmpresaId || ""}
+                                onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
+                                className="w-full h-11 pl-11 pr-10 bg-white border border-border rounded-xl text-sm font-semibold text-brand-dark appearance-none outline-none focus:border-brand-primary/40 shadow-sm"
                             >
-                                <span className="text-[10px] font-black">{estado.codigo}</span>
-                                <span className="text-[11px] font-bold uppercase tracking-tighter">{count}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                {(isSaturday || isSunday || feriadoActual) && (
-                    <div className={cn(
-                        "mt-3 px-3 py-2 rounded-xl text-xs font-medium flex items-center gap-2 border",
-                        (feriadoActual || isSaturday || isSunday)
-                            ? "bg-destructive/10 text-destructive border-destructive/20"
-                            : "bg-warning/8 text-warning border-transparent"
-                    )}>
-                        {feriadoActual ? <CalendarDays className="h-4 w-4 shrink-0" /> : <Clock className="h-3.5 w-3.5 shrink-0" />}
-                        {feriadoActual
-                            ? `Feriado ${feriadoActual.tipo === 'nacional' ? 'Nacional' : 'Obra'}: ${feriadoActual.nombre} ${feriadoActual.irrenunciable ? '(Irrenunciable)' : ''}`
-                            : (isSunday ? "Domingo — no se debe registrar asistencia" : "Sábado — no se debe registrar asistencia")}
-                    </div>
-                )}
-            </div>
-
-            {/* ── Search Bar & Filter ── */}
-            <div className="flex flex-col md:flex-row gap-3 items-stretch">
-                <div className="flex-1">
-                    <SearchBar
-                        value={searchQuery}
-                        onChange={setSearchQuery}
-                        placeholder="Buscar por nombre o RUT..."
-                        className="shadow-sm"
-                    />
-                </div>
-                {availableEmpresas.length > 0 && (
-                    <div className="md:w-72 flex-shrink-0 relative">
-                        <select
-                            className="w-full h-[42px] appearance-none bg-white border border-[#E8E8ED] rounded-xl pl-4 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 transition-all cursor-pointer shadow-sm"
-                            value={selectedEmpresaId || ''}
-                            onChange={(e) => setSelectedEmpresaId(e.target.value ? Number(e.target.value) : null)}
-                        >
-                            <option value="">Todas las Empresas</option>
-                            {availableEmpresas.map(emp => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
-                        </select>
-                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/50">
-                            <ChevronDown className="h-4 w-4" />
+                                <option value="">Todas las Empresas</option>
+                                {availableEmpresas.map(emp => (
+                                    <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                                ))}
+                            </select>
+                            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         </div>
-                    </div>
+                    </motion.div>
                 )}
-            </div>
+            </AnimatePresence>
 
             {/* ── Worker List ── */}
             {loading ? (
