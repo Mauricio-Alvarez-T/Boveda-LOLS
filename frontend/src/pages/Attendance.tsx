@@ -898,14 +898,6 @@ const AttendancePage: React.FC = () => {
 
                 {/* Grilla / Resultados */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2">
-                    {/* Desktop Header - Aligned with cards */}
-                    <div className="hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest items-center">
-                        <span className="text-center">#</span>
-                        <span>Trabajador</span>
-                        <span>Estado de Asistencia</span>
-                        <span className="text-center">Horario</span>
-                        <span className="text-right pr-2">Acción</span>
-                    </div>
 
                     <AnimatePresence>
                         {filteredWorkers.map((worker, idx) => {
