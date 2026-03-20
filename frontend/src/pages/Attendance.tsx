@@ -613,54 +613,20 @@ const AttendancePage: React.FC = () => {
     }, [attendance, estados]);
 
     const headerTitle = useMemo(() => (
-        <div className="flex flex-col md:flex-row md:items-center gap-4 lg:gap-8">
-            <div className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20 shrink-0">
-                    <CheckSquare className="h-5 w-5" />
-                </div>
-                <div className="min-w-0">
-                    <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
-                        {selectedObra ? 'Asistencia' : 'Reporte Global'}
-                    </h1>
-                    <p className="text-[10px] text-muted-foreground font-bold truncate opacity-80">
-                        {selectedObra ? selectedObra.nombre : 'Consolidado'}
-                    </p>
-                </div>
+        <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20 shrink-0">
+                <CheckSquare className="h-5 w-5" />
             </div>
-
-            {selectedObra && (
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
-                        <div className="relative group flex items-center px-1">
-                            <input
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="w-[115px] bg-transparent text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
-                            />
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
-                    </div>
-
-                    <div className="hidden lg:flex items-center gap-1.5 ml-2 border-l border-[#E8E8ED] pl-4">
-                        <div className="flex items-center gap-1 px-2 py-1 bg-brand-primary/5 rounded-lg border border-brand-primary/10">
-                            <span className="text-[10px] font-black text-brand-primary uppercase tabular-nums">{summary.total}</span>
-                            <Users className="h-3 w-3 text-brand-primary/60" />
-                        </div>
-                        <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg border border-brand-accent/10">
-                            <span className="text-[10px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
-                            <BarChart3 className="h-3 w-3 text-brand-accent/60" />
-                        </div>
-                    </div>
-                </div>
-            )}
+            <div className="min-w-0">
+                <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
+                    {selectedObra ? 'Asistencia' : 'Reporte Global'}
+                </h1>
+                <p className="text-[10px] text-muted-foreground font-bold truncate opacity-80">
+                    {selectedObra ? selectedObra.nombre : 'Consolidado'}
+                </p>
+            </div>
         </div>
-    ), [selectedObra, date, summary, navigateDate]);
+    ), [selectedObra]);
 
     const [showSearchBox, setShowSearchBox] = useState(false);
 
@@ -868,6 +834,46 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                     {/* Main Content Area */}
+                    <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
+                        <div className="flex items-center gap-4 hidden sm:flex">
+                             <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
+                                <CheckSquare className="h-4 w-4 text-brand-primary" />
+                            </div>
+                            <h2 className="text-sm font-bold text-brand-dark">Registro Diario</h2>
+                        </div>
+
+                        {selectedObra && (
+                            <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
+                                <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm">
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
+                                        <ChevronLeft className="h-4 w-4" />
+                                    </Button>
+                                    <div className="relative group flex items-center px-1">
+                                        <input
+                                            type="date"
+                                            value={date}
+                                            onChange={(e) => setDate(e.target.value)}
+                                            className="w-[115px] bg-transparent text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
+                                        />
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
+                                        <ChevronRight className="h-4 w-4" />
+                                    </Button>
+                                </div>
+
+                                <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-[#E8E8ED] pl-4">
+                                    <div className="flex items-center gap-1 px-2 py-1 bg-brand-primary/5 rounded-lg border border-brand-primary/10">
+                                        <span className="text-[10px] font-black text-brand-primary uppercase tabular-nums">{summary.total}</span>
+                                        <Users className="h-3 w-3 text-brand-primary/60" />
+                                    </div>
+                                    <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg border border-brand-accent/10">
+                                        <span className="text-[10px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
+                                        <BarChart3 className="h-3 w-3 text-brand-accent/60" />
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </div>
                 
                 {/* Grilla / Resultados */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2">
