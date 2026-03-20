@@ -40,7 +40,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const distParams = obraId ? [obraId] : [];
         const distFilter = obraId ? 'AND o.id = ?' : '';
         const [obraDistribution] = await pool.query(`
-            SELECT o.nombre, COUNT(t.id) as count
+            SELECT o.id, o.nombre, COUNT(t.id) as count
             FROM obras o
             LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1
             WHERE o.activa = 1 ${distFilter}
@@ -94,7 +94,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
 
         // Actividad reciente (últimos 5 docs subidos)
         const [recentDocs] = await pool.query(`
-            SELECT d.*, t.nombre as tipo_nombre, tr.nombres, tr.apellido_paterno
+            SELECT d.*, t.nombre as tipo_nombre, tr.nombres, tr.apellido_paterno, tr.rut
             FROM documentos d
             JOIN tipos_documento t ON d.tipo_documento_id = t.id
             JOIN trabajadores tr ON d.trabajador_id = tr.id
@@ -111,7 +111,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Documentos Vencidos',
                 mensaje: `Hay ${expired[0].count} documentos caducados que requieren atención inmediata.`,
                 count: expired[0].count,
-                ruta: '/trabajadores'
+                ruta: '/consultas?completitud=faltantes'
             });
         }
         if (expiringSoon[0].count > 0) {
@@ -120,7 +120,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Documentos por Vencer',
                 mensaje: `${expiringSoon[0].count} documentos vencen en los próximos 7 días.`,
                 count: expiringSoon[0].count,
-                ruta: '/trabajadores'
+                ruta: '/consultas'
             });
         }
         if (noDocWorkers[0].count > 0) {
@@ -129,7 +129,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Trabajadores sin Documentos',
                 mensaje: `${noDocWorkers[0].count} trabajadores activos no tienen documentos registrados.`,
                 count: noDocWorkers[0].count,
-                ruta: '/trabajadores'
+                ruta: '/consultas?completitud=faltantes'
             });
         }
     }
@@ -201,7 +201,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: 'Asistencia Baja',
                 mensaje: `La asistencia de hoy es del ${attendanceRate}%, por debajo del 80% esperado.`,
                 count: stats.total - presentCount,
-                ruta: '/asistencia'
+                ruta: '/consultas?ausentes=true'
             });
         }
     }
@@ -238,7 +238,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: '10 Meses de Contrato',
                 mensaje: `${workers10m.length} trabajador(es) cumplen 10 meses de contratado en ${nextMonthStr}/${nextYear}.`,
                 count: workers10m.length,
-                ruta: '/trabajadores',
+                ruta: '/consultas',
                 detalle10meses: workers10m.map(w => ({
                     id: w.id,
                     rut: w.rut,

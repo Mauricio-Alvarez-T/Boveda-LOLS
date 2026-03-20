@@ -99,6 +99,17 @@ class FiscalizacionService {
             }
         }
 
+        if (filters.ausentes === 'true') {
+            const today = new Date().toISOString().split('T')[0];
+            query += ` AND t.id IN (
+                SELECT a.trabajador_id 
+                FROM asistencias a 
+                JOIN estados_asistencia ea ON a.estado_id = ea.id
+                WHERE a.fecha = ? AND ea.es_presente = FALSE
+            )`;
+            params.push(today);
+        }
+
         query += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
 
         const [rows] = await db.query(query, params);

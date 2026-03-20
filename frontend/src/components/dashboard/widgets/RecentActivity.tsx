@@ -9,11 +9,12 @@ interface RecentDoc {
     apellido_paterno: string;
     apellido_materno?: string | null;
     fecha_subida: string;
+    rut: string;
 }
 
 interface Props {
     data: RecentDoc[];
-    onNavigate: () => void;
+    onNavigate: (filter?: string) => void;
 }
 
 const RecentActivity: React.FC<Props> = ({ data, onNavigate }) => {
@@ -32,7 +33,7 @@ const RecentActivity: React.FC<Props> = ({ data, onNavigate }) => {
                         <div
                             key={act.id}
                             className="flex items-center gap-3 p-2 rounded-xl hover:bg-background transition-colors group cursor-pointer"
-                            onClick={onNavigate}
+                            onClick={() => onNavigate(act.rut)}
                         >
                             <div className="h-8 w-8 rounded-lg bg-brand-primary/8 flex items-center justify-center text-brand-primary shrink-0">
                                 <FileText className="h-4 w-4" />
@@ -57,7 +58,7 @@ const RecentActivity: React.FC<Props> = ({ data, onNavigate }) => {
                 variant="ghost"
                 className="w-full mt-4 text-[10px] h-8"
                 rightIcon={<ArrowRight className="h-3 w-3" />}
-                onClick={onNavigate}
+                onClick={() => onNavigate()}
             >
                 Ver registros
             </Button>

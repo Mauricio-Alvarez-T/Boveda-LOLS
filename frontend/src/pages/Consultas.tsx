@@ -14,6 +14,7 @@ import {
     UserCheck,
     FileText,
     UserPlus,
+    UserX,
     Trash2,
     UserPen,
     Plus,
@@ -63,6 +64,7 @@ const ConsultasPage: React.FC = () => {
         filterCategoria, setFilterCategoria,
         filterActivo, setFilterActivo,
         filterCompletitud, setFilterCompletitud,
+        filterAusentes, setFilterAusentes,
         handleClearFilters,
         activeFilterCount
     } = useConsultasFilters();
@@ -73,7 +75,7 @@ const ConsultasPage: React.FC = () => {
         workers, loading, hasMore, isLoadingMore,
         loadMore, performSearch
     } = useConsultasData({
-        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud
+        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes
     });
 
     // 3. Selección
@@ -294,6 +296,29 @@ const ConsultasPage: React.FC = () => {
                 onChange={(e) => setFilterCompletitud(e.target.value)}
                 placeholder="Cualquier estado"
             />
+
+            <div className="flex flex-col gap-1.5">
+                <label className="text-xs font-semibold text-brand-dark px-1 flex items-center gap-1.5 opacity-60 uppercase tracking-wider">
+                    <UserX className="h-3.5 w-3.5" /> Asistencia
+                </label>
+                <div 
+                    onClick={() => setFilterAusentes(!filterAusentes)}
+                    className={cn(
+                        "h-10 px-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all",
+                        filterAusentes 
+                            ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary font-bold shadow-sm" 
+                            : "bg-white border-border text-brand-dark hover:bg-background"
+                    )}
+                >
+                    <span className="text-sm">Ausentes Hoy</span>
+                    <div className={cn(
+                        "w-4 h-4 rounded-full border flex items-center justify-center transition-all",
+                        filterAusentes ? "bg-brand-primary border-brand-primary text-white" : "border-border text-transparent"
+                    )}>
+                        {filterAusentes && <div className="w-1.5 h-1.5 rounded-full bg-white shadow-sm" />}
+                    </div>
+                </div>
+            </div>
         </div>
     );
 

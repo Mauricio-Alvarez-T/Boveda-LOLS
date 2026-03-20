@@ -17,6 +17,7 @@ export interface FetchWorkersParams {
     filterCategoria: string;
     filterActivo: string;
     filterCompletitud: string;
+    filterAusentes: boolean;
 }
 
 export const useConsultasData = (filters: FetchWorkersParams) => {
@@ -74,6 +75,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             if (filters.filterCategoria) urlParams.append('categoria_reporte', filters.filterCategoria);
             if (filters.filterActivo) urlParams.append('activo', filters.filterActivo);
             if (filters.filterCompletitud) urlParams.append('completitud', filters.filterCompletitud);
+            if (filters.filterAusentes) urlParams.append('ausentes', 'true');
             urlParams.append('page', isInitial ? '1' : page.toString());
             urlParams.append('limit', '50');
 
@@ -111,7 +113,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             performSearch(true);
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud]);
+    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes]);
 
     // Carga inicial de catálogos
     useEffect(() => {

@@ -56,7 +56,7 @@ interface DashboardData {
         ausentes_hoy?: number;
     };
     recentActivity: any[];
-    obraDistribution: { nombre: string; count: number }[];
+    obraDistribution: { id: number; nombre: string; count: number }[];
     attendanceTrend: { fecha: string; tasa: number }[];
     ausentesDetalle?: { nombres: string; apellido_paterno: string; apellido_materno?: string | null; estado: string; obra: string }[];
     alerts: { tipo: 'critical' | 'warning' | 'info'; titulo: string; mensaje: string; count: number; ruta: string }[];
@@ -193,7 +193,7 @@ const Dashboard: React.FC = () => {
             icon: Users,
             color: 'text-brand-primary',
             bg: 'bg-brand-primary/8',
-            route: '/consultas',
+            route: '/consultas?activo=true',
             description: 'Gestión de personal'
         },
         kpi_docs: {
@@ -202,7 +202,7 @@ const Dashboard: React.FC = () => {
             icon: FileText,
             color: 'text-[#5856D6]',
             bg: 'bg-[#5856D6]/8',
-            route: '/consultas',
+            route: '/consultas?completitud=faltantes',
             description: 'Bóveda documental'
         },
         kpi_attendance: {
@@ -220,7 +220,7 @@ const Dashboard: React.FC = () => {
             icon: AlertTriangle,
             color: (data.counters.ausentes_hoy ?? 0) > 0 ? 'text-warning' : 'text-muted',
             bg: (data.counters.ausentes_hoy ?? 0) > 0 ? 'bg-warning/8' : 'bg-muted/8',
-            route: '/asistencia',
+            route: '/consultas?ausentes=true',
             description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta'
         },
     };
@@ -229,7 +229,7 @@ const Dashboard: React.FC = () => {
     const renderWidget = (widgetId: string) => {
         switch (widgetId) {
             case 'chart_obra_distribution':
-                return <ObraDistribution data={data.obraDistribution} onNavigate={() => navigate('/consultas')} />;
+                return <ObraDistribution data={data.obraDistribution} onNavigate={(id) => navigate(id ? `/consultas?obra_id=${id}` : '/consultas')} />;
             case 'chart_attendance_trend':
                 return <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />;
             case 'chart_compliance':
@@ -237,10 +237,10 @@ const Dashboard: React.FC = () => {
                     totalDocs={data.counters.documentos ?? 0}
                     expiredDocs={data.counters.vencidos ?? 0}
                     missingDocs={data.counters.trabajadoresSinDocs ?? 0}
-                    onClick={() => navigate('/consultas')}
+                    onClick={() => navigate('/consultas?completitud=faltantes')}
                 />;
             case 'list_recent_activity':
-                return <RecentActivity data={data.recentActivity} onNavigate={() => navigate('/consultas')} />;
+                return <RecentActivity data={data.recentActivity} onNavigate={(q) => navigate(q ? `/consultas?q=${q}` : '/consultas')} />;
             case 'list_absences_today':
                 return <AbsencesToday data={data.ausentesDetalle ?? []} />;
             case 'alerts_critical':

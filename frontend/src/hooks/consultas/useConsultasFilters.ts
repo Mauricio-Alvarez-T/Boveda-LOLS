@@ -1,25 +1,26 @@
 import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useObra } from '../../context/ObraContext';
 
 export const useConsultasFilters = () => {
     const { selectedObra } = useObra();
+    const [searchParams, setSearchParams] = useSearchParams();
 
-    const [search, setSearch] = useState('');
-    const [filterObra, setFilterObra] = useState<string>('');
-    const [filterEmpresa, setFilterEmpresa] = useState<string>('');
-    const [filterCargo, setFilterCargo] = useState<string>('');
-    const [filterCategoria, setFilterCategoria] = useState<string>('');
-    const [filterActivo, setFilterActivo] = useState<string>('true');
-    const [filterCompletitud, setFilterCompletitud] = useState<string>('');
+    const [search, setSearch] = useState(searchParams.get('q') || '');
+    const [filterObra, setFilterObra] = useState<string>(searchParams.get('obra_id') || '');
+    const [filterEmpresa, setFilterEmpresa] = useState<string>(searchParams.get('empresa_id') || '');
+    const [filterCargo, setFilterCargo] = useState<string>(searchParams.get('cargo_id') || '');
+    const [filterCategoria, setFilterCategoria] = useState<string>(searchParams.get('categoria') || '');
+    const [filterActivo, setFilterActivo] = useState<string>(searchParams.get('activo') || 'true');
+    const [filterCompletitud, setFilterCompletitud] = useState<string>(searchParams.get('completitud') || '');
+    const [filterAusentes, setFilterAusentes] = useState<boolean>(searchParams.get('ausentes') === 'true');
 
-    // Aplicar filtro de obra contextual
+    // Aplicar filtro de obra contextual solo si no viene de la URL
     useEffect(() => {
-        if (selectedObra) {
+        if (selectedObra && !searchParams.get('obra_id')) {
             setFilterObra(selectedObra.id.toString());
-        } else {
-            setFilterObra('');
         }
-    }, [selectedObra]);
+    }, [selectedObra, searchParams]);
 
     const handleClearFilters = useCallback(() => {
         setSearch('');
@@ -29,7 +30,9 @@ export const useConsultasFilters = () => {
         setFilterCategoria('');
         setFilterActivo('true');
         setFilterCompletitud('');
-    }, [selectedObra]);
+        setFilterAusentes(false);
+        setSearchParams({}); // Clear URL params too
+    }, [selectedObra, setSearchParams]);
 
     const activeFilterCount = useMemo(() => {
         return [
@@ -39,9 +42,10 @@ export const useConsultasFilters = () => {
             !!filterCargo,
             !!filterCategoria,
             filterActivo !== 'true',
-            !!filterCompletitud
+            !!filterCompletitud,
+            filterAusentes
         ].filter(Boolean).length;
-    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, selectedObra]);
+    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, selectedObra]);
 
     return {
         search, setSearch,
@@ -51,6 +55,7 @@ export const useConsultasFilters = () => {
         filterCategoria, setFilterCategoria,
         filterActivo, setFilterActivo,
         filterCompletitud, setFilterCompletitud,
+        filterAusentes, setFilterAusentes,
         handleClearFilters,
         activeFilterCount
     };

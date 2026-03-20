@@ -6,8 +6,8 @@ import { TrendingUp } from 'lucide-react';
 import { Button } from '../../ui/Button';
 
 interface Props {
-    data: { nombre: string; count: number }[];
-    onNavigate: () => void;
+    data: { id: number; nombre: string; count: number }[];
+    onNavigate: (obraId?: number) => void;
 }
 
 const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
@@ -24,7 +24,7 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
                 <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
                     <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
                     <p className="text-sm">No hay obras activas con trabajadores.</p>
-                    <Button variant="ghost" className="mt-3 text-xs" onClick={onNavigate}>
+                    <Button variant="ghost" className="mt-3 text-xs" onClick={() => onNavigate()}>
                         Ir a Consultas
                     </Button>
                 </div>
@@ -51,7 +51,12 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
                             cursor={{ fill: '#F5F5F7' }}
                             contentStyle={{ backgroundColor: '#FFFFFF', border: '1px solid #D2D2D7', borderRadius: '12px', fontSize: '12px', color: '#1D1D1F' }}
                         />
-                        <Bar dataKey="count" radius={[6, 6, 0, 0]}>
+                        <Bar 
+                            dataKey="count" 
+                            radius={[6, 6, 0, 0]}
+                            onClick={(data: any) => onNavigate(data.id)}
+                            cursor="pointer"
+                        >
                             {data.map((_, index) => (
                                 <Cell key={`cell-${index}`} fill={index % 2 === 0 ? '#029E4D' : '#5856D6'} fillOpacity={0.85} />
                             ))}
