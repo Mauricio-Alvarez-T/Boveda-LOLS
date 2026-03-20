@@ -17,9 +17,9 @@ interface QuickAction {
 }
 
 const ALL_ACTIONS: QuickAction[] = [
-    { label: 'Gestionar Trabajadores', icon: Users, route: '/trabajadores', requiredModule: 'trabajadores', requiredAction: 'puede_ver' },
+    { label: 'Gestionar Trabajadores', icon: Users, route: '/consultas', requiredModule: 'trabajadores', requiredAction: 'puede_ver' },
     { label: 'Registrar Asistencia', icon: CheckSquare, route: '/asistencia', requiredModule: 'asistencia', requiredAction: 'puede_crear' },
-    { label: 'Exportar Fiscalización', icon: FileText, route: '/fiscalizacion', requiredModule: 'fiscalizacion', requiredAction: 'puede_ver' },
+    { label: 'Exportar Reportes', icon: FileText, route: '/consultas', requiredModule: 'fiscalizacion', requiredAction: 'puede_ver' },
     { label: 'Configuración', icon: Settings, route: '/configuracion', requiredModule: 'configuracion', requiredAction: 'puede_ver' },
 ];
 

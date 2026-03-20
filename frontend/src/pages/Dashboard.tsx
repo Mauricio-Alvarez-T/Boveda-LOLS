@@ -193,7 +193,7 @@ const Dashboard: React.FC = () => {
             icon: Users,
             color: 'text-brand-primary',
             bg: 'bg-brand-primary/8',
-            route: '/trabajadores',
+            route: '/consultas',
             description: 'Gestión de personal'
         },
         kpi_docs: {
@@ -202,7 +202,7 @@ const Dashboard: React.FC = () => {
             icon: FileText,
             color: 'text-[#5856D6]',
             bg: 'bg-[#5856D6]/8',
-            route: '/trabajadores',
+            route: '/consultas',
             description: 'Bóveda documental'
         },
         kpi_attendance: {
@@ -229,7 +229,7 @@ const Dashboard: React.FC = () => {
     const renderWidget = (widgetId: string) => {
         switch (widgetId) {
             case 'chart_obra_distribution':
-                return <ObraDistribution data={data.obraDistribution} onNavigate={() => navigate('/trabajadores')} />;
+                return <ObraDistribution data={data.obraDistribution} onNavigate={() => navigate('/consultas')} />;
             case 'chart_attendance_trend':
                 return <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />;
             case 'chart_compliance':
@@ -237,10 +237,10 @@ const Dashboard: React.FC = () => {
                     totalDocs={data.counters.documentos ?? 0}
                     expiredDocs={data.counters.vencidos ?? 0}
                     missingDocs={data.counters.trabajadoresSinDocs ?? 0}
-                    onClick={() => navigate('/trabajadores')}
+                    onClick={() => navigate('/consultas')}
                 />;
             case 'list_recent_activity':
-                return <RecentActivity data={data.recentActivity} onNavigate={() => navigate('/trabajadores')} />;
+                return <RecentActivity data={data.recentActivity} onNavigate={() => navigate('/consultas')} />;
             case 'list_absences_today':
                 return <AbsencesToday data={data.ausentesDetalle ?? []} />;
             case 'alerts_critical':

@@ -138,7 +138,7 @@ class FiscalizacionService {
         // Subtitle / Info
         sheet.mergeCells('A3:I3');
         const subTitle = sheet.getCell('A3');
-        subTitle.value = 'Estado Documental y Contractual de Nómina';
+        subTitle.value = 'Estado Documental y Contractual de Personal';
         subTitle.font = { name: 'Segoe UI', size: 11, italic: true, color: { argb: 'FF64748B' } };
         subTitle.alignment = { horizontal: 'center' };
 

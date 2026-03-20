@@ -25,7 +25,7 @@ const ObraDistribution: React.FC<Props> = ({ data, onNavigate }) => {
                     <TrendingUp className="h-10 w-10 opacity-20 mb-4" />
                     <p className="text-sm">No hay obras activas con trabajadores.</p>
                     <Button variant="ghost" className="mt-3 text-xs" onClick={onNavigate}>
-                        Ir a Trabajadores
+                        Ir a Consultas
                     </Button>
                 </div>
             </div>

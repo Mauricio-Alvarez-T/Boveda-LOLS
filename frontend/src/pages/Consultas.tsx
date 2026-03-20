@@ -36,7 +36,7 @@ import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
-import EnvioEmailModal from '../components/fiscalizacion/EnvioEmailModal';
+import EnvioEmailModal from '../components/workers/EnvioEmailModal';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';

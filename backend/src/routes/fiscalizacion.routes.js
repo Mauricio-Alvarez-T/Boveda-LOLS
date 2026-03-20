@@ -73,8 +73,8 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
             from: credentials.email,
             fromPassword: credentials.password,
             to: destinatario_email,
-            subject: asunto || 'Reporte de Nómina y Documentación - Bóveda LOLS',
-            body: cuerpo || 'Adjunto la nómina y la documentación respaldatoria solicitada.',
+            subject: asunto || 'Reporte de Personal y Documentación - Bóveda LOLS',
+            body: cuerpo || 'Adjunto el reporte y la documentación respaldatoria solicitada.',
             attachmentPaths
         });
 
@@ -86,19 +86,5 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
     } catch (err) { next(err); }
 });
 
-
-// Legacy Export ZIP (Keep for backwards compatibility if needed)
-router.post('/exportar', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
-    try {
-        const { trabajador_ids } = req.body;
-        if (!trabajador_ids || !Array.isArray(trabajador_ids)) {
-            return res.status(400).json({ error: 'trabajador_ids[] es requerido' });
-        }
-        const zipPath = await zipService.createZip(trabajador_ids);
-        res.download(zipPath, 'fiscalizacion.zip', () => {
-            if (fs.existsSync(zipPath)) fs.unlinkSync(zipPath);
-        });
-    } catch (err) { next(err); }
-});
 
 module.exports = router;
