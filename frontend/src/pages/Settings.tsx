@@ -94,9 +94,9 @@ const empresaCols: ColumnDef<any>[] = [
         key: 'activo', label: 'Estado',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent"
-                    : "bg-destructive/10 text-destructive"
+                "text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider",
+                v ? "bg-brand-accent/10 text-brand-accent border border-brand-accent/20"
+                    : "bg-destructive/10 text-destructive border border-destructive/20"
             )}>
                 {v ? 'Activo' : 'Finiquitado'}
             </span>
@@ -111,9 +111,9 @@ const obraCols: ColumnDef<any>[] = [
         key: 'activa', label: 'Estado',
         render: (v) => (
             <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent"
-                    : "bg-destructive/10 text-destructive"
+                "text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider",
+                v ? "bg-brand-accent/10 text-brand-accent border border-brand-accent/20"
+                    : "bg-destructive/10 text-destructive border border-destructive/20"
             )}>
                 {v ? 'Activa' : 'Inactiva'}
             </span>
@@ -250,7 +250,7 @@ const SettingsPage: React.FC = () => {
     return (
         <div className="space-y-6 pb-20">
             {/* Category Navigation (Horizontal) */}
-            <div className="bg-white rounded-2xl border border-border p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm sticky top-16 z-30">
                 {tabGroups.map((group, idx) => {
                     const isActive = activeGroup.title === group.title;
                     return (
@@ -258,13 +258,19 @@ const SettingsPage: React.FC = () => {
                             key={idx}
                             onClick={() => setActiveTab(group.items[0].key)}
                             className={cn(
-                                "flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-xl text-[10px] md:text-xs font-bold uppercase tracking-widest transition-all whitespace-nowrap shrink-0",
+                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
                                 isActive
-                                    ? "bg-brand-primary text-white shadow-md shadow-brand-primary/20"
-                                    : "text-muted-foreground hover:bg-background"
+                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
+                                    : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                             )}
                         >
-                            {group.title}
+                            <span className="relative z-10">{group.title}</span>
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeCategoryGlow"
+                                    className="absolute inset-0 bg-white/10"
+                                />
+                            )}
                         </button>
                     );
                 })}
@@ -277,20 +283,21 @@ const SettingsPage: React.FC = () => {
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
                         className={cn(
-                            "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-xs md:text-sm font-medium transition-all border whitespace-nowrap shrink-0",
+                            "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
                             activeTab === tab.key
-                                ? "bg-white border-brand-primary text-brand-primary ring-4 ring-brand-primary/5"
-                                : "bg-white border-[#E8E8ED] text-muted-foreground hover:border-border"
+                                ? "bg-white border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
+                                : "bg-white/50 border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
                         )}
                     >
-                        <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground")} />
+                        <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
                         {tab.label}
                     </button>
                 ))}
             </div>
 
             {/* Main Content Area (Full Width) */}
-            <div className="bg-white rounded-2xl md:rounded-3xl border border-border p-3 md:p-6 shadow-sm overflow-hidden min-h-[400px] md:min-h-[600px]">
+            <div className="bg-white rounded-3xl border border-[#E8E8ED] p-4 md:p-8 shadow-sm overflow-hidden min-h-[400px] md:min-h-[600px] relative">
+                <div className="absolute top-0 left-0 w-full h-1.5 bg-[#F9F9FB] border-b border-[#E8E8ED]" />
                 <motion.div
                     key={activeTab}
                     initial={{ opacity: 0, y: 10 }}

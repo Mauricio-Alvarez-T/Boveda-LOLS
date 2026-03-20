@@ -36,7 +36,7 @@ import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Fe
 import type { ApiResponse } from '../types';
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
-import { useStandardHeader } from '../components/ui/PageHeader';
+import { useSetPageHeader } from '../context/PageHeaderContext';
 import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import { RequirePermission } from '../components/auth/RequirePermission';
@@ -572,9 +572,14 @@ const AttendancePage: React.FC = () => {
             });
         }
         return [...result].sort((a, b) => {
-            const nameA = `${a.apellido_paterno || ''} ${a.apellido_materno || ''} ${a.nombres || ''}`.trim().toLowerCase();
-            const nameB = `${b.apellido_paterno || ''} ${b.apellido_materno || ''} ${b.nombres || ''}`.trim().toLowerCase();
-            return nameA.localeCompare(nameB);
+            const getFullNameSort = (w: any) => {
+                return `${w.apellido_paterno || ''} ${w.apellido_materno || ''} ${w.nombres || ''}`
+                    .toLowerCase()
+                    .trim()
+                    .normalize("NFD")
+                    .replace(/[\u0300-\u036f]/g, ""); // Remove accents for cleaner sorting
+            };
+            return getFullNameSort(a).localeCompare(getFullNameSort(b), 'es', { sensitivity: 'base' });
         });
     }, [workers, searchQuery, selectedEmpresaId]);
 
@@ -603,27 +608,20 @@ const AttendancePage: React.FC = () => {
     }, [attendance, estados]);
 
     const headerTitle = useMemo(() => (
-        selectedObra ? (
-            <div className="flex items-center gap-2 md:gap-3 min-w-0">
-                <CheckSquare className="h-5 w-5 md:h-6 md:w-6 text-brand-primary shrink-0" />
-                <div className="flex flex-col leading-tight min-w-0">
-                    <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">Asistencia</h1>
-                    <p className="text-muted-foreground text-[10px] md:text-xs truncate">
-                        <span className="hidden md:inline">{selectedObra.nombre} <span className="mx-1.5">•</span></span>
-                        <span className="font-medium text-brand-dark">
-                            <span className="md:hidden">{shortDate}</span>
-                            <span className="hidden md:inline">{formattedDate}</span>
-                        </span>
-                    </p>
-                </div>
+        <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20">
+                <CheckSquare className="h-5 w-5" />
             </div>
-        ) : (
-            <div className="flex items-center gap-3">
-                <CheckSquare className="h-6 w-6 text-muted" />
-                <h1 className="text-lg font-bold text-brand-dark">Control de Asistencia</h1>
+            <div className="min-w-0">
+                <h1 className="text-lg font-bold text-brand-dark tracking-tight leading-tight">
+                    {selectedObra ? 'Control de Asistencia' : 'Reporte Global'}
+                </h1>
+                <p className="text-[10px] text-muted-foreground uppercase font-semibold tracking-wider opacity-60 truncate">
+                    {selectedObra ? `${selectedObra.nombre} • ${formattedDate}` : 'Consolidado de todas las obras'}
+                </p>
             </div>
-        )
-    ), [selectedObra, formattedDate, shortDate]);
+        </div>
+    ), [selectedObra, formattedDate]);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-1 md:gap-2">
@@ -717,11 +715,7 @@ const AttendancePage: React.FC = () => {
             )}
         </div>
     ), [selectedObra, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission]);
-    useStandardHeader({
-        title: headerTitle,
-        icon: CheckSquare, // Is already inside headerTitle but we must pass something to adhere to TS signature
-        actions: headerActions
-    });
+    useSetPageHeader(headerTitle, headerActions);
 
     if (!selectedObra) {
         return (
@@ -783,59 +777,61 @@ const AttendancePage: React.FC = () => {
     return (
         <div className="space-y-3 md:space-y-4 pb-20 md:pb-4">
             {/* ── Date Navigation ── */}
-            <div className="bg-white rounded-2xl border border-border p-3 md:p-4">
-                <div className="flex flex-col gap-3 md:flex-row md:gap-4 md:items-center">
-                    {/* Date Nav - Full width on mobile */}
-                    <div className="flex items-center gap-2 justify-between w-full md:w-auto">
-                        <Button variant="glass" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate(-1)}>
-                            <ChevronLeft className="h-4 w-4" />
+            <div className="bg-white rounded-2xl border border-[#E8E8ED] p-4 shadow-sm">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center justify-between">
+                    {/* Date Nav */}
+                    <div className="flex items-center gap-2">
+                        <Button variant="glass" size="icon" className="h-10 w-10 shrink-0 border-border/50" onClick={() => navigateDate(-1)}>
+                            <ChevronLeft className="h-5 w-5" />
                         </Button>
-                        <div className="relative flex-1 md:flex-none">
-                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <div className="relative group flex-1 md:flex-none">
+                            <Calendar className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-brand-primary opacity-50 group-hover:opacity-100 transition-opacity" />
                             <input
                                 type="date"
                                 value={date}
                                 onChange={(e) => setDate(e.target.value)}
-                                className="w-full pl-9 pr-3 py-2 bg-background border border-border rounded-xl text-sm text-brand-dark font-medium focus:outline-none focus:border-brand-primary transition-colors"
+                                className="w-full md:w-48 pl-10 pr-4 h-10 bg-background border border-border/60 rounded-xl text-sm text-brand-dark font-bold focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/5 transition-all"
                             />
                         </div>
-                        <Button variant="glass" size="icon" className="h-9 w-9 shrink-0" onClick={() => navigateDate(1)}>
-                            <ChevronRight className="h-4 w-4" />
+                        <Button variant="glass" size="icon" className="h-10 w-10 shrink-0 border-border/50" onClick={() => navigateDate(1)}>
+                            <ChevronRight className="h-5 w-5" />
                         </Button>
                         <Button
                             variant="glass"
                             size="sm"
-                            className="text-xs shrink-0"
+                            className="h-10 px-4 text-xs font-bold rounded-xl border-border/50"
                             onClick={() => setDate(new Date().toISOString().split('T')[0])}
                         >
-                            <span className="md:hidden">Hoy</span>
-                            <span className="hidden md:inline">Hoy</span>
+                            Configurar Hoy
                         </Button>
                     </div>
 
                     <div className="hidden md:block h-8 w-px bg-border" />
 
                     {/* Stats Chips - Hidden on Mobile, Visible on Desktop */}
-                    <div className="hidden md:flex items-center gap-2 flex-wrap">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-background rounded-full">
-                            <Users className="h-3.5 w-3.5 text-muted-foreground" />
-                            <span className="text-xs font-bold text-brand-dark">{summary.total}</span>
+                    {/* Stats Chips */}
+                    <div className="flex items-center gap-2 overflow-x-auto pb-1 md:pb-0 scrollbar-hide">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-background border border-border/40 rounded-xl shrink-0">
+                            <div className="h-2 w-2 rounded-full bg-brand-primary" />
+                            <span className="text-[11px] font-bold text-brand-dark uppercase tracking-tight">{summary.total} Trabajadores</span>
                         </div>
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-accent/8 rounded-full">
+                        <div className="flex items-center gap-2 px-3 py-2 bg-brand-accent/5 border border-brand-accent/10 rounded-xl shrink-0">
                             <BarChart3 className="h-3.5 w-3.5 text-brand-accent" />
-                            <span className="text-xs font-bold text-brand-accent">{summary.porcentaje}%</span>
+                            <span className="text-[11px] font-bold text-brand-accent uppercase tracking-tight">{summary.porcentaje}% Asistencia</span>
                         </div>
                         {summary.desglose.map(({ estado, count }) => (
-                            <span
+                            <div
                                 key={estado.id}
-                                className="text-[10px] font-bold px-2.5 py-1 rounded-full"
+                                className="flex items-center gap-2 px-3 py-2 rounded-xl shrink-0 border"
                                 style={{
-                                    backgroundColor: `${estado.color}14`,
+                                    backgroundColor: `${estado.color}08`,
+                                    borderColor: `${estado.color}15`,
                                     color: estado.color
                                 }}
                             >
-                                {estado.codigo}: {count}
-                            </span>
+                                <span className="text-[10px] font-black">{estado.codigo}</span>
+                                <span className="text-[11px] font-bold uppercase tracking-tighter">{count}</span>
+                            </div>
                         ))}
                     </div>
                 </div>
@@ -855,19 +851,20 @@ const AttendancePage: React.FC = () => {
                 )}
             </div>
 
-            {/* ── Search Bar & Filter (sticky on mobile) ── */}
-            <div className="sticky top-14 md:top-16 z-20 -mx-3 px-3 md:mx-0 md:px-0 py-1 md:py-0 bg-background md:bg-transparent flex flex-col md:flex-row gap-2">
+            {/* ── Search Bar & Filter ── */}
+            <div className="flex flex-col md:flex-row gap-3 items-stretch">
                 <div className="flex-1">
                     <SearchBar
                         value={searchQuery}
                         onChange={setSearchQuery}
                         placeholder="Buscar por nombre o RUT..."
+                        className="shadow-sm"
                     />
                 </div>
                 {availableEmpresas.length > 0 && (
-                    <div className="md:w-64 flex-shrink-0 relative">
+                    <div className="md:w-72 flex-shrink-0 relative">
                         <select
-                            className="w-full h-10 md:h-[42px] appearance-none bg-white border border-border rounded-xl pl-4 pr-10 text-sm font-medium text-brand-dark focus:outline-none focus:border-brand-primary/50 focus:ring-4 focus:ring-brand-primary/10 transition-all cursor-pointer shadow-sm"
+                            className="w-full h-[42px] appearance-none bg-white border border-[#E8E8ED] rounded-xl pl-4 pr-10 text-sm font-bold text-brand-dark focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 transition-all cursor-pointer shadow-sm"
                             value={selectedEmpresaId || ''}
                             onChange={(e) => setSelectedEmpresaId(e.target.value ? Number(e.target.value) : null)}
                         >
@@ -876,7 +873,7 @@ const AttendancePage: React.FC = () => {
                                 <option key={emp.id} value={emp.id}>{emp.nombre}</option>
                             ))}
                         </select>
-                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/70">
+                        <div className="absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none text-muted-foreground/50">
                             <ChevronDown className="h-4 w-4" />
                         </div>
                     </div>
@@ -895,14 +892,14 @@ const AttendancePage: React.FC = () => {
                     <p className="text-muted-foreground text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-2 p-2 md:p-0 md:gap-0 md:block bg-background md:bg-white md:rounded-2xl md:border md:border-border overflow-hidden">
+                <div className="flex flex-col gap-3 md:gap-0 bg-transparent md:bg-white md:rounded-2xl md:border md:border-[#E8E8ED] md:shadow-sm overflow-hidden">
                     {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 bg-background border-b border-[#E8E8ED] text-[11px] font-bold text-muted-foreground uppercase tracking-widest items-center">
+                    <div className="hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 bg-[#F9F9FB] border-b border-[#E8E8ED] text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest items-center">
                         <span className="text-center">#</span>
                         <span>Trabajador</span>
-                        <span className="text-center">Control de Asistencia</span>
-                        <span className="text-center">Acciones / Cal.</span>
-                        <span className="text-center">H.E.</span>
+                        <span>Estado de Asistencia</span>
+                        <span className="text-center">Horario</span>
+                        <span className="text-right">Acción</span>
                     </div>
 
                     <AnimatePresence>
@@ -920,17 +917,13 @@ const AttendancePage: React.FC = () => {
                             return (
                                 <motion.div
                                     key={`${worker.id}-${date}`}
-                                    initial={{ opacity: 0, y: 20, scale: 0.98 }}
-                                    whileInView={{ opacity: 1, y: 0, scale: 1 }}
-                                    viewport={{ once: true, margin: "-20px" }}
-                                    transition={{ duration: 0.2, delay: idx * 0.02 }}
+                                    initial={{ opacity: 0, y: 10 }}
+                                    whileInView={{ opacity: 1, y: 0 }}
+                                    viewport={{ once: true }}
                                     className={cn(
-                                        "md:border-b md:border-[#F0F0F5] md:last:border-b-0 transition-all duration-300 rounded-2xl md:rounded-none overflow-hidden hover:shadow-md md:hover:shadow-none relative z-0",
-                                        idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFB]",
-                                        (isNotPresent || isOutOfRange) && "bg-[#FFF9F9] md:hover:bg-[#FFF4F4]",
-                                        (isSaturday || isSunday) && "bg-[#F8FAFC]",
-                                        feriadoActual && "bg-destructive/5",
-                                        isOutOfRange && "opacity-75 grayscale-[30%]"
+                                        "transition-all duration-200 bg-white md:bg-transparent rounded-2xl md:rounded-none border border-[#E8E8ED] md:border-0 md:border-b md:border-[#F0F0F5] md:last:border-b-0 hover:shadow-md md:hover:shadow-none hover:border-brand-primary/20 group relative",
+                                        (isNotPresent || isOutOfRange) && "bg-[#FFF9F9]/50",
+                                        feriadoActual && "bg-destructive/[0.02]"
                                     )}
                                 >
                                     {/* ── MOBILE CARD ── */}
@@ -1276,7 +1269,7 @@ const AttendancePage: React.FC = () => {
                                             )}
                                         </AnimatePresence>
                                 </motion.div>
-                            );
+                            )
                         })}
                     </AnimatePresence>
                 </div>
@@ -1369,73 +1362,81 @@ const AttendancePage: React.FC = () => {
                         onCancel={() => setModalType(null)}
                     />
                 )}
-                {modalType === 'docs' && selectedWorker && (
-                    <div className="flex flex-col gap-4">
-                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-background p-3 md:p-4 rounded-xl">
-                            <div className="hidden sm:block">
-                                <h4 className="text-base font-semibold text-brand-dark">Bóveda de Documentos</h4>
-                                <p className="text-sm text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
-                            </div>
-                            <div className="flex gap-2 w-full sm:w-auto">
-                                {!isUploading && (
+                {modalType === 'docs' && selectedWorker && (() => {
+                    const worker = selectedWorker; // Local constant for TS
+                    return (
+                        <div className="flex flex-col gap-4">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-[#F9F9FB] p-5 rounded-2xl border border-[#E8E8ED]">
+                                <div>
+                                    <h4 className="text-base font-bold text-brand-dark tracking-tight">Bóveda de Documentos</h4>
+                                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider opacity-70">
+                                        Expediente digital de {worker.apellido_paterno} {worker.nombres}
+                                    </p>
+                                </div>
+                                <div className="flex gap-2 w-full sm:w-auto">
+                                    {!isUploading && (
+                                        <Button
+                                            size="sm"
+                                            variant="glass"
+                                            onClick={async () => {
+                                                try {
+                                                    const nid = toast.loading('Generando ZIP...');
+                                                    const response = await api.get(`/documentos/download-all/${worker.id}`, {
+                                                        responseType: 'blob',
+                                                    });
+                                                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                                                    const link = document.createElement('a');
+                                                    link.href = url;
+                                                    link.setAttribute('download', `Documentos_${worker.apellido_paterno}_${worker.nombres}.zip`);
+                                                    document.body.appendChild(link);
+                                                    link.click();
+                                                    link.remove();
+                                                    toast.dismiss(nid);
+                                                    toast.success('Descarga iniciada');
+                                                } catch (err) {
+                                                    toast.error('Error al descargar documentos');
+                                                }
+                                            }}
+                                            className="text-brand-primary font-bold border-brand-primary/20 flex-1 sm:flex-initial"
+                                            leftIcon={<FileDown className="h-4 w-4" />}
+                                        >
+                                            <span className="hidden sm:inline">Descargar (.zip)</span>
+                                            <span className="sm:hidden">Descargar</span>
+                                        </Button>
+                                    )}
                                     <Button
                                         size="sm"
-                                        variant="glass"
-                                        onClick={async () => {
-                                            try {
-                                                const nid = toast.loading('Generando ZIP...');
-                                                const response = await api.get(`/documentos/download-all/${selectedWorker.id}`, {
-                                                    responseType: 'blob',
-                                                });
-                                                const url = window.URL.createObjectURL(new Blob([response.data]));
-                                                const link = document.createElement('a');
-                                                link.href = url;
-                                                link.setAttribute('download', `Documentos_${selectedWorker.apellido_paterno}_${selectedWorker.nombres}.zip`);
-                                                document.body.appendChild(link);
-                                                link.click();
-                                                link.remove();
-                                                toast.dismiss(nid);
-                                                toast.success('Descarga iniciada');
-                                            } catch (err) {
-                                                toast.error('Error al descargar documentos');
-                                            }
-                                        }}
-                                        className="text-brand-primary hover:text-[#027A3B] flex-1 sm:flex-initial"
-                                        leftIcon={<FileDown className="h-4 w-4" />}
+                                        variant={isUploading ? 'glass' : 'primary'}
+                                        disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
+                                        onClick={() => setIsUploading(!isUploading)}
+                                        leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
+                                        className={cn(
+                                            "flex-1 sm:flex-initial font-bold shadow-sm",
+                                            (!checkPermission('documentos', 'puede_crear') && !isUploading) && "opacity-50 grayscale cursor-not-allowed"
+                                        )}
+                                        title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
                                     >
-                                        <span className="hidden sm:inline">Descargar (.zip)</span>
-                                        <span className="sm:hidden">Descargar</span>
+                                        <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
+                                        <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
                                     </Button>
-                                )}
-                                <Button
-                                    size="sm"
-                                    variant={isUploading ? 'glass' : 'primary'}
-                                    disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
-                                    onClick={() => setIsUploading(!isUploading)}
-                                    leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
-                                    className={`flex-1 sm:flex-initial ${(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
-                                    title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
-                                >
-                                    <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
-                                    <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
-                                </Button>
+                                </div>
                             </div>
-                        </div>
 
-                        {isUploading ? (
-                            <DocumentUploader
-                                trabajadorId={selectedWorker.id}
-                                onCancel={() => setIsUploading(false)}
-                                onSuccess={() => {
-                                    setIsUploading(false);
-                                    fetchAttendanceInfo();
-                                }}
-                            />
-                        ) : (
-                            <DocumentList trabajadorId={selectedWorker.id} />
-                        )}
-                    </div>
-                )}
+                            {isUploading ? (
+                                <DocumentUploader
+                                    trabajadorId={worker.id}
+                                    onCancel={() => setIsUploading(false)}
+                                    onSuccess={() => {
+                                        setIsUploading(false);
+                                        fetchAttendanceInfo();
+                                    }}
+                                />
+                            ) : (
+                                <DocumentList trabajadorId={worker.id} />
+                            )}
+                        </div>
+                    );
+                })()}
             </Modal>
         </div>
     );
