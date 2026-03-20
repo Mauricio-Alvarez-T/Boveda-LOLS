@@ -892,14 +892,14 @@ const AttendancePage: React.FC = () => {
                     <p className="text-muted-foreground text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
-                <div className="flex flex-col gap-3 md:gap-0 bg-transparent md:bg-white md:rounded-2xl md:border md:border-[#E8E8ED] md:shadow-sm overflow-hidden">
-                    {/* Desktop Header */}
-                    <div className="hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 bg-[#F9F9FB] border-b border-[#E8E8ED] text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest items-center">
+                <div className="flex flex-col gap-3 bg-[#F1F1F4]/80 rounded-2xl md:rounded-3xl border border-[#E8E8ED] p-2 md:p-6 shadow-inner overflow-hidden">
+                    {/* Desktop Header - Outside cards but aligned */}
+                    <div className="hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 text-[10px] font-black text-muted-foreground/70 uppercase tracking-widest items-center">
                         <span className="text-center">#</span>
                         <span>Trabajador</span>
                         <span>Estado de Asistencia</span>
                         <span className="text-center">Horario</span>
-                        <span className="text-right">Acción</span>
+                        <span className="text-right pr-2">Acción</span>
                     </div>
 
                     <AnimatePresence>
@@ -921,8 +921,9 @@ const AttendancePage: React.FC = () => {
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true }}
                                     className={cn(
-                                        "transition-all duration-200 bg-white md:bg-transparent rounded-2xl md:rounded-none border border-[#E8E8ED] md:border-0 md:border-b md:border-[#F0F0F5] md:last:border-b-0 hover:shadow-md md:hover:shadow-none hover:border-brand-primary/20 group relative",
-                                        (isNotPresent || isOutOfRange) && "bg-[#FFF9F9]/50",
+                                        "transition-all duration-200 bg-white rounded-2xl border border-[#E8E8ED] shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
+                                        markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
+                                        (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-white/90",
                                         feriadoActual && "bg-destructive/[0.02]"
                                     )}
                                 >
@@ -1051,8 +1052,8 @@ const AttendancePage: React.FC = () => {
 
                                     {/* ── DESKTOP ROW ── */}
                                     <div className={cn(
-                                        "hidden md:grid grid-cols-[48px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-3 items-center group",
-                                        markedRows.has(idx) && "bg-brand-primary/5 italic"
+                                        "hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 items-center group",
+                                        markedRows.has(idx) && "bg-brand-primary/5 rounded-2xl"
                                     )}>
                                         <div className="flex justify-center">
                                             <button
