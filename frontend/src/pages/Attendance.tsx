@@ -934,7 +934,7 @@ const AttendancePage: React.FC = () => {
                                                     "h-10 w-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
                                                     markedRows.has(idx)
                                                         ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
-                                                        : "bg-background text-muted border-border"
+                                                        : "bg-slate-50 text-slate-500 border-slate-200"
                                                 )}
                                             >
                                                 #{(idx + 1).toString().padStart(2, '0')}
@@ -1059,7 +1059,7 @@ const AttendancePage: React.FC = () => {
                                                     "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border",
                                                     markedRows.has(idx)
                                                         ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110"
-                                                        : "bg-transparent text-muted/40 border-transparent hover:border-border hover:bg-white hover:text-brand-dark active:scale-95"
+                                                        : "bg-slate-50 text-slate-500 border-slate-200 hover:border-brand-primary/30 hover:bg-white hover:text-brand-primary active:scale-95"
                                                 )}
                                             >
                                                 {(idx + 1).toString().padStart(2, '0')}
