@@ -529,28 +529,39 @@ const ConsultasPage: React.FC = () => {
                                     animate={{ opacity: 1, y: 0 }}
                                     transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.2) }}
                                     className={cn(
-                                        "bg-white rounded-2xl border transition-all duration-200 shadow-[0_4px_12px_rgb(0,0,0,0.05)] p-3 relative cursor-pointer",
-                                        selectedWorkers.has(worker.id) ? "border-brand-primary ring-1 ring-brand-primary/20" : "border-border hover:border-brand-primary/30 hover:shadow-lg",
+                                        "bg-white rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
+                                        selectedWorkers.has(worker.id) 
+                                            ? "bg-brand-primary/[0.03] border-brand-primary ring-1 ring-brand-primary/20 shadow-md" 
+                                            : "border-border hover:border-brand-primary/30 shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg",
                                         !worker.activo && "bg-background/50 border-dashed opacity-80"
                                     )}
-                                    onClick={() => setQuickViewId(worker.id)}
+                                    onClick={() => handleSelectWorker(worker.id)}
                                 >
                                     <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                        <div className="flex items-center gap-3 md:w-[60px] shrink-0" onClick={(e) => e.stopPropagation()}>
-                                            <div className="relative flex items-center h-full">
+                                        <div className="flex items-center gap-3 md:w-[60px] shrink-0">
+                                            <div className="relative flex items-center justify-center h-full w-full">
+                                                {/* Hidden checkbox for accessibility/form compliance if needed, but UI is driven by div click */}
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedWorkers.has(worker.id)}
-                                                    onChange={() => handleSelectWorker(worker.id)}
-                                                    className="peer h-5 w-5 appearance-none rounded border-2 border-[#D1D1D6] bg-white checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer"
+                                                    onChange={() => {}} // Handled by parent div
+                                                    className="sr-only"
                                                 />
-                                                <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity cursor-pointer pointer-events-none" />
+                                                <div
+                                                    className={cn(
+                                                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
+                                                        selectedWorkers.has(worker.id)
+                                                            ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
+                                                            : "bg-background text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
+                                                    )}
+                                                >
+                                                    {(idx + 1).toString().padStart(2, '0')}
+                                                </div>
                                             </div>
-                                            <span className="text-xs font-bold text-muted-foreground tabular-nums">{(idx + 1).toString().padStart(2, '0')}</span>
                                         </div>
 
-                                        <div className="flex-1 min-w-0 flex flex-col items-start pr-4">
-                                            <span className="text-sm font-bold text-brand-dark group-hover:text-brand-primary transition-colors text-left truncate flex items-center gap-2">
+                                        <div className="flex-1 min-w-0 flex flex-col items-start pr-4" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
+                                            <span className="text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors text-left truncate flex items-center gap-2">
                                                 {worker.apellido_paterno} {worker.apellido_materno} {worker.nombres}
                                             </span>
                                             <div className="flex items-center gap-2 mt-1">
@@ -563,7 +574,7 @@ const ConsultasPage: React.FC = () => {
                                             </div>
                                         </div>
 
-                                        <div className="flex-[2] min-w-0 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 items-center">
+                                        <div className="flex-[2] min-w-0 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 items-center" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
                                             {/* Empresa & Obra */}
                                             <div className="flex flex-col gap-1 min-w-0">
                                                 <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
