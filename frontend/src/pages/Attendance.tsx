@@ -869,33 +869,6 @@ const AttendancePage: React.FC = () => {
                 <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                     {/* Main Content Area */}
                 
-                {/* Header Registro Diario */}
-                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4 hidden sm:flex">
-                         <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
-                            <CheckSquare className="h-4 w-4 text-brand-primary" />
-                        </div>
-                        <h2 className="text-sm font-bold text-brand-dark">Registro Diario</h2>
-                    </div>
-
-                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                        <div className="flex items-center gap-1.5 border-r border-[#E8E8ED] pr-4 mr-2 hidden lg:flex">
-                            <div className="flex items-center gap-1 px-2 py-1 bg-brand-primary/5 rounded-lg border border-brand-primary/10">
-                                <span className="text-[10px] font-black text-brand-primary uppercase tabular-nums">{summary.total}</span>
-                                <Users className="h-3 w-3 text-brand-primary/60" />
-                            </div>
-                            <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg border border-brand-accent/10">
-                                <span className="text-[10px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
-                                <BarChart3 className="h-3 w-3 text-brand-accent/60" />
-                            </div>
-                        </div>
-
-                        <span className="text-xs font-semibold text-brand-dark hidden sm:block">
-                            {formattedDate}
-                        </span>
-                    </div>
-                </div>
-
                 {/* Grilla / Resultados */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2">
 
@@ -1278,7 +1251,6 @@ const AttendancePage: React.FC = () => {
                         <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
                         <span>{filteredWorkers.length} {filteredWorkers.length === 1 ? 'trabajador' : 'trabajadores'}</span>
                     </div>
-                    <span>{formattedDate}</span>
                 </div>
             </div>
             )}
