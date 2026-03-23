@@ -1,28 +1,48 @@
 <?php
 header('Content-Type: text/plain');
-echo "=== BOVEDA LOLS DIAGNOSTIC SECURE PROBE ===\n\n";
+echo "=== BOVEDA LOLS DIAGNOSTIC SECURE PROBE V2 ===\n\n";
+
+$baseDirs = [
+    __DIR__ . '/../boveda/',
+    __DIR__ . '/../../boveda/',
+    __DIR__ . '/../../../boveda/'
+];
+
+$foundBase = null;
+foreach ($baseDirs as $dir) {
+    if (is_dir($dir)) {
+        $foundBase = $dir;
+        break;
+    }
+}
+
+if (!$foundBase) {
+    echo "NO SE ENCONTRÓ EL DIRECTORIO BACKEND 'boveda'.\n";
+    echo "Ruta actual: " . __DIR__ . "\n";
+    exit;
+}
 
 $logPaths = [
-    '../boveda/stderr.log',
-    '../boveda/startup_debug.log',
-    '../boveda/error_debug.log',
-    '../boveda/package.json'
+    $foundBase . 'stderr.log',
+    $foundBase . 'startup_debug.log',
+    $foundBase . 'error_debug.log',
+    $foundBase . 'package.json'
 ];
 
 foreach ($logPaths as $path) {
-    echo "--- LEYENDO: $path ---\n";
+    $real = realpath($path) ?: $path;
+    echo "--- LEYENDO: $real ---\n";
     if (file_exists($path)) {
         $content = file_get_contents($path);
-        // Si el archivo es muy grande, mostrar solo las últimas 50 líneas
         $lines = explode("\n", $content);
         if (count($lines) > 50) {
-            echo "... (archivo truncado) ...\n";
+            echo "... (archivo muy largo, mostrando 50 líneas finales) ...\n";
             echo implode("\n", array_slice($lines, -50));
         } else {
             echo $content;
         }
     } else {
-        echo "[ERROR] Archivo no encontrado en esta ruta.\n";
+        echo "[ERROR] Archivo no encontrado.\n";
     }
     echo "\n\n";
 }
