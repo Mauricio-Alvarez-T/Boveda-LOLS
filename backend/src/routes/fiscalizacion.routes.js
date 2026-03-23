@@ -9,7 +9,7 @@ const fs = require('fs');
 const path = require('path');
 
 // Advanced Search Endpoint
-router.get('/trabajadores-avanzado', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+router.get('/trabajadores-avanzado', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
         const result = await fiscalizacionService.searchTrabajadores(req.query);
         res.json({ data: result });

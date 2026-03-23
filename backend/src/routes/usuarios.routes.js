@@ -20,6 +20,14 @@ const usuariosService = createCrudService('usuarios', {
 const rolesService = createCrudService('roles', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
 const rolesController = createCrudController(rolesService);
 
+// Alias /roles/list para consumo específico en ciertos dropdowns del frontend
+router.get('/roles/list', auth, checkPermission('usuarios.roles.ver'), async (req, res, next) => {
+    try {
+        const result = await rolesService.getAll(req.query);
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
 router.use('/roles', createCrudRoutes(rolesController, {
     ver: 'usuarios.roles.ver',
     crear: 'usuarios.roles.crear',

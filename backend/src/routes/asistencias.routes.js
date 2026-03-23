@@ -8,7 +8,7 @@ const asistenciaService = require('../services/asistencia.service');
  */
 
 // Genera un token para descarga pública (Requiere Auth)
-router.get('/public-report-token', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/public-report-token', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
     try {
         const token = asistenciaService.generatePublicReportToken(req.query);
         res.json({ data: { token } });
@@ -41,7 +41,7 @@ router.get('/estados', auth, async (req, res, next) => {
 });
 
 // Bulk create/update
-router.post('/bulk/:obra_id', auth, checkPermission('asistencia', 'puede_crear'), async (req, res, next) => {
+router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
     try {
         const { obra_id } = req.params;
         const { registros } = req.body;
@@ -54,7 +54,7 @@ router.post('/bulk/:obra_id', auth, checkPermission('asistencia', 'puede_crear')
 });
 
 // Get by obra and date
-router.get('/obra/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/obra/:obraId', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
     try {
         const { obraId } = req.params;
         const { fecha } = req.query;
@@ -67,7 +67,7 @@ router.get('/obra/:obraId', auth, checkPermission('asistencia', 'puede_ver'), as
 });
 
 // Daily summary/KPIs for an obra
-router.get('/resumen/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/resumen/:obraId', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
     try {
         const { obraId } = req.params;
         const { fecha } = req.query;
@@ -80,7 +80,7 @@ router.get('/resumen/:obraId', auth, checkPermission('asistencia', 'puede_ver'),
 });
 
 // Update with audit log
-router.put('/:id', auth, checkPermission('asistencia', 'puede_editar'), async (req, res, next) => {
+router.put('/:id', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
     try {
         const result = await asistenciaService.update(req.params.id, req.body, req.user.id);
         res.json(result);
@@ -88,7 +88,7 @@ router.put('/:id', auth, checkPermission('asistencia', 'puede_editar'), async (r
 });
 
 // Report
-router.get('/reporte', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/reporte', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
     try {
         const result = await asistenciaService.getReporte(req.query);
         res.json(result);
@@ -96,7 +96,7 @@ router.get('/reporte', auth, checkPermission('asistencia', 'puede_ver'), async (
 });
 
 // Audit log for a specific attendance record
-router.get('/log/:asistenciaId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/log/:asistenciaId', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
     try {
         const result = await asistenciaService.getLog(req.params.asistenciaId);
         res.json({ data: result });
@@ -104,14 +104,14 @@ router.get('/log/:asistenciaId', auth, checkPermission('asistencia', 'puede_ver'
 });
 
 // Schedule configuration
-router.get('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/horarios/:obraId', auth, checkPermission('asistencia.horarios.ver'), async (req, res, next) => {
     try {
         const result = await asistenciaService.getHorarios(req.params.obraId);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
 
-router.post('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_editar'), async (req, res, next) => {
+router.post('/horarios/:obraId', auth, checkPermission('asistencia.horarios.editar'), async (req, res, next) => {
     try {
         const { horarios } = req.body;
         if (!horarios || !Array.isArray(horarios)) {
