@@ -877,13 +877,13 @@ const AttendancePage: React.FC = () => {
                                             animate={{ opacity: 1, scale: 1 }}
                                             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm"
                                             style={{ 
-                                                backgroundColor: `${estado.color}15`, 
-                                                borderColor: `${estado.color}30`,
-                                                color: estado.color 
+                                                backgroundColor: `color-mix(in srgb, ${estado.color}, transparent 90%)`, 
+                                                borderColor: `color-mix(in srgb, ${estado.color}, transparent 60%)`,
+                                                color: `color-mix(in srgb, ${estado.color}, black 45%)` 
                                             }}
                                         >
-                                            <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">{estado.codigo}</span>
-                                            <div className="h-4 w-px opacity-20" style={{ backgroundColor: estado.color }} />
+                                            <span className="text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
+                                            <div className="h-4 w-px opacity-20" style={{ backgroundColor: `color-mix(in srgb, ${estado.color}, black 45%)` }} />
                                             <span className="text-[13px] font-black tabular-nums">{count}</span>
                                         </motion.div>
                                     ))}
