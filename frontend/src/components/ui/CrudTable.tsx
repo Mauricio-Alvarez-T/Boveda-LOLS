@@ -46,6 +46,7 @@ interface CrudTableProps<T extends { id: number }> {
     canDelete?: boolean;
     canExport?: boolean;
     queryParams?: Record<string, string | number | boolean>;
+    renderActions?: (row: T) => React.ReactNode;
 }
 
 export function CrudTable<T extends { id: number; activo?: boolean }>({
@@ -60,6 +61,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
     canDelete = true,
     canExport = true,
     queryParams = {},
+    renderActions,
 }: CrudTableProps<T>) {
     const [rows, setRows] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
@@ -235,6 +237,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         {titleValue}
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
+                                        {renderActions && renderActions(row)}
                                         <button
                                             onClick={() => canEdit && openEdit(row)}
                                             disabled={!canEdit}
@@ -325,6 +328,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         ))}
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
+                                                {renderActions && renderActions(row)}
                                                 <Button
                                                     variant="ghost" size="icon"
                                                     className={cn(

@@ -1,28 +1,32 @@
-import React, { ReactNode } from 'react';
+import React from 'react';
 import { useAuth } from '../../context/AuthContext';
 
-export interface RequirePermissionProps {
-    modulo: string;
-    accion: 'puede_ver' | 'puede_crear' | 'puede_editar' | 'puede_eliminar';
-    children: ReactNode;
-    fallback?: ReactNode;
+interface RequirePermissionProps {
+    children: React.ReactNode;
+    permiso?: string; // Nuevo: ej. 'asistencia.guardar'
+    modulo?: string;  // Legacy
+    accion?: 'puede_ver' | 'puede_crear' | 'puede_editar' | 'puede_eliminar'; // Legacy
 }
 
-/**
- * Wrapper component to conditionally render UI elements based on user permissions.
- * Replaces repetitive hooks like `if (checkPermission('modulo', 'accion')) return <Component />`.
- */
-export const RequirePermission: React.FC<RequirePermissionProps> = ({ 
-    modulo, 
-    accion, 
+const RequirePermission: React.FC<RequirePermissionProps> = ({ 
     children, 
-    fallback = null 
+    permiso, 
+    modulo, 
+    accion 
 }) => {
-    const { checkPermission } = useAuth();
+    const { hasPermission, checkPermission } = useAuth();
 
-    if (checkPermission(modulo, accion)) {
-        return <>{children}</>;
+    // Prioridad 1: Permiso atómico directo
+    if (permiso) {
+        return hasPermission(permiso) ? <>{children}</> : null;
     }
 
-    return <>{fallback}</>;
+    // Prioridad 2: Retrocompatibilidad (modulo + accion)
+    if (modulo && accion) {
+        return checkPermission(modulo, accion) ? <>{children}</> : null;
+    }
+
+    return null;
 };
+
+export default RequirePermission;

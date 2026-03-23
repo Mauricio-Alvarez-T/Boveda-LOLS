@@ -1,45 +1,30 @@
 /**
- * Middleware de RBAC dinámico — versión optimizada.
- * Lee los permisos directamente del JWT (inyectados al hacer login)
- * en lugar de consultar la BD en cada petición.
- *
- * Formato compacto del JWT: { m: modulo, v: puede_ver, c: puede_crear, e: puede_editar, d: puede_eliminar }
- *
- * @param {string} modulo - Nombre del módulo (ej: 'trabajadores', 'asistencia')
- * @param {string} accion - Permiso requerido (puede_ver, puede_crear, puede_editar, puede_eliminar)
+ * Middleware RBAC v2 — permisos atómicos.
+ * Los permisos están en req.user.p como array de strings.
+ * 
+ * Uso: checkPermission('asistencia.guardar')
+ * Uso múltiple: checkPermission('asistencia.guardar', 'asistencia.ver')
+ *   → pasa si tiene AL MENOS UNO de los permisos listados
  */
-const accionMap = {
-    puede_ver: 'v',
-    puede_crear: 'c',
-    puede_editar: 'e',
-    puede_eliminar: 'd'
-};
-
-const checkPermission = (modulo, accion) => {
+const checkPermission = (...requiredPermisos) => {
     return (req, res, next) => {
         try {
-            const permisos = req.user?.permisos;
+            const userPermisos = req.user?.p;
 
-            if (!permisos || !Array.isArray(permisos)) {
+            if (!userPermisos || !Array.isArray(userPermisos)) {
                 return res.status(403).json({
-                    error: 'No tienes permisos para esta acción (token sin permisos, re-inicia sesión)',
-                    modulo,
-                    accion
+                    error: 'No tienes permisos (token sin permisos, re-inicia sesión)',
+                    required: requiredPermisos
                 });
             }
 
-            const key = accionMap[accion];
-            if (!key) {
-                return res.status(500).json({ error: `Acción de permiso desconocida: ${accion}` });
-            }
+            // Verificar que al menos uno de los permisos requeridos esté presente
+            const hasPermission = requiredPermisos.some(p => userPermisos.includes(p));
 
-            const permiso = permisos.find(p => p.m === modulo);
-
-            if (!permiso || !permiso[key]) {
+            if (!hasPermission) {
                 return res.status(403).json({
                     error: 'No tienes permisos para esta acción',
-                    modulo,
-                    accion
+                    required: requiredPermisos,
                 });
             }
 

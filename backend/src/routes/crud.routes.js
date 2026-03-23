@@ -1,31 +1,35 @@
 const express = require('express');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
-const createCrudService = require('../services/crud.service');
-const createCrudController = require('../controllers/crud.controller');
 
 /**
  * Genera rutas CRUD completas para una entidad.
- * @param {string} moduleName - Nombre del módulo (para RBAC)
- * @param {string} tableName - Nombre de la tabla en BD
- * @param {object} options - Opciones para el servicio CRUD
+ * @param {object} controller - El controlador CRUD ya instanciado.
+ * @param {object|string} permisos - Un mapa de permisos (ej. { ver: 'modulo.ver', crear: 'modulo.crear' })
  */
-const createCrudRoutes = (moduleName, tableName, options = {}) => {
+const createCrudRoutes = (controller, permisos = {}) => {
     const router = express.Router();
-    const service = createCrudService(tableName, options);
-    const controller = createCrudController(service);
 
-    router.get('/', auth, checkPermission(moduleName, 'puede_ver'), controller.getAll);
-    router.get('/export', auth, checkPermission(moduleName, 'puede_ver'), controller.exportExcel);
-    router.get('/:id', auth, checkPermission(moduleName, 'puede_ver'), controller.getById);
-    router.post('/', auth, checkPermission(moduleName, 'puede_crear'), controller.create);
-    router.put('/:id', auth, checkPermission(moduleName, 'puede_editar'), controller.update);
+    const getP = (action) => {
+        if (typeof permisos === 'string') return `${permisos}.${action}`;
+        return permisos[action];
+    };
 
-    // Default to hard-delete for all generic catalogs unless explicitly requested to use soft-delete
-    if (options.useSoftDelete) {
-        router.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.remove);
-    } else {
-        router.delete('/:id', auth, checkPermission(moduleName, 'puede_eliminar'), controller.hardRemove);
+    if (getP('ver')) {
+        router.get('/', auth, checkPermission(getP('ver')), controller.getAll);
+        router.get('/:id', auth, checkPermission(getP('ver')), controller.getById);
+    }
+    
+    if (getP('crear')) {
+        router.post('/', auth, checkPermission(getP('crear')), controller.create);
+    }
+    
+    if (getP('editar')) {
+        router.put('/:id', auth, checkPermission(getP('editar')), controller.update);
+    }
+    
+    if (getP('eliminar')) {
+        router.delete('/:id', auth, checkPermission(getP('eliminar')), controller.hardRemove);
     }
 
     return router;

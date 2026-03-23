@@ -3,24 +3,88 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
+const usuariosService = require('../services/usuarios.service');
+const permisosService = require('../services/permisos.service');
 const versionService = require('../services/version.service');
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
+const createCrudRoutes = require('./crud.routes');
 
-// Base CRUD for usuarios (without password in responses)
-const service = createCrudService('usuarios', {
-    searchFields: ['nombre', 'email'],
-    joins: 'LEFT JOIN roles r ON usuarios.rol_id = r.id LEFT JOIN obras o ON usuarios.obra_id = o.id',
-    selectFields: 'usuarios.id, usuarios.nombre, usuarios.email, usuarios.email_corporativo, usuarios.rol_id, usuarios.obra_id, usuarios.activo, usuarios.created_at, r.nombre as rol_nombre, o.nombre as obra_nombre',
-    orderBy: 'usuarios.nombre ASC'
+// basic CRUD for roles
+const rolesService = createCrudService('roles', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
+const rolesController = createCrudController(rolesService);
+
+router.use('/roles', createCrudRoutes(rolesController, {
+    ver: 'usuarios.roles.ver',
+    crear: 'usuarios.roles.crear',
+    editar: 'usuarios.roles.editar',
+    eliminar: 'usuarios.roles.eliminar'
+}));
+
+// --- PERMISSIONS MANAGEMENT (NEW) ---
+
+/** GET /usuarios/permisos/catalogo */
+router.get('/permisos/catalogo', auth, checkPermission('usuarios.permisos.gestionar'), async (req, res, next) => {
+    try {
+        const catalogo = await permisosService.getCatalogo();
+        res.json(catalogo);
+    } catch (err) { next(err); }
 });
-const controller = createCrudController(service);
 
-router.get('/', auth, checkPermission('usuarios', 'puede_ver'), controller.getAll);
-router.get('/:id', auth, checkPermission('usuarios', 'puede_ver'), controller.getById);
+/** GET /usuarios/roles/:id/permisos */
+router.get('/roles/:id/permisos', auth, checkPermission('usuarios.roles.ver'), async (req, res, next) => {
+    try {
+        const permisos = await permisosService.getPermisosRol(req.params.id);
+        res.json(permisos);
+    } catch (err) { next(err); }
+});
 
-// Create user (with password hashing)
-router.post('/', auth, checkPermission('usuarios', 'puede_crear'), async (req, res, next) => {
+/** POST /usuarios/roles/:id/permisos */
+router.post('/roles/:id/permisos', auth, checkPermission('usuarios.permisos.gestionar'), async (req, res, next) => {
+    try {
+        const { permisos } = req.body; // Array of keys
+        await permisosService.setPermisosRol(req.params.id, permisos);
+        
+        // BUMP VERSION to invalidate sessions
+        await versionService.increment(req.params.id);
+        
+        res.json({ message: 'Permisos de rol actualizados exitosamente' });
+    } catch (err) { next(err); }
+});
+
+/** GET /usuarios/user-overrides/:id */
+router.get('/user-overrides/:id', auth, checkPermission('usuarios.permisos.gestionar'), async (req, res, next) => {
+    try {
+        const overrides = await permisosService.getOverrides(req.params.id);
+        res.json(overrides);
+    } catch (err) { next(err); }
+});
+
+/** POST /usuarios/user-overrides/:id */
+router.post('/user-overrides/:id', auth, checkPermission('usuarios.permisos.gestionar'), async (req, res, next) => {
+    try {
+        const { overrides, rol_id } = req.body; // overrides: [{ permiso_clave, tipo }], rol_id (optional for bump)
+        await permisosService.setOverrides(req.params.id, overrides);
+        
+        // BUMP VERSION for this user's role to force logout/re-login (simplest way to invalidate one user for now)
+        if (rol_id) {
+            await versionService.increment(rol_id);
+        }
+        
+        res.json({ message: 'Permisos del usuario actualizados exitosamente' });
+    } catch (err) { next(err); }
+});
+
+// --- USUARIOS CRUD ---
+
+router.get('/', auth, checkPermission('usuarios.ver'), async (req, res, next) => {
+    try {
+        const users = await usuariosService.getAll();
+        res.json(users);
+    } catch (err) { next(err); }
+});
+
+router.post('/', auth, checkPermission('usuarios.crear'), async (req, res, next) => {
     try {
         const { nombre, email, password, rol_id, obra_id, email_corporativo } = req.body;
         if (!nombre || !email || !password || !rol_id) {
@@ -35,117 +99,29 @@ router.post('/', auth, checkPermission('usuarios', 'puede_crear'), async (req, r
     } catch (err) { next(err); }
 });
 
-// Update user
-router.put('/:id', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
+router.put('/:id', auth, checkPermission('usuarios.editar'), async (req, res, next) => {
     try {
         const data = { ...req.body };
         if (data.password) {
             data.password_hash = await bcrypt.hash(data.password, 10);
             delete data.password;
         }
-        const item = await service.update(req.params.id, data);
-        res.json(item);
+        const user = await usuariosService.update(req.params.id, data);
+        res.json(user);
     } catch (err) { next(err); }
 });
 
-router.delete('/:id', auth, checkPermission('usuarios', 'puede_eliminar'), controller.hardRemove);
-
-// Roles CRUD
-const rolService = createCrudService('roles', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
-const rolController = createCrudController(rolService);
-
-router.get('/roles/list', auth, checkPermission('usuarios', 'puede_ver'), rolController.getAll);
-router.post('/roles', auth, checkPermission('usuarios', 'puede_crear'), rolController.create);
-router.put('/roles/:id', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
+router.get('/:id', auth, checkPermission('usuarios.ver'), async (req, res, next) => {
     try {
-        const item = await rolService.update(req.params.id, req.body);
-        // Incrementar versión al editar el nombre del rol también por seguridad
-        await versionService.increment(req.params.id);
-        res.json(item);
-    } catch (err) { next(err); }
-});
-// Endpoint especializado para resetear sesiones manualmente
-router.post('/roles/:id/reset-sessions', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
-    try {
-        await versionService.increment(req.params.id);
-        res.json({ message: 'Sesiones liquidadas exitosamente' });
-    } catch (err) { next(err); }
-});
-router.delete('/roles/:id', auth, checkPermission('usuarios', 'puede_eliminar'), async (req, res, next) => {
-    try {
-        const { id } = req.params;
-
-        // Check if role is used by any user
-        const [users] = await db.query('SELECT id FROM usuarios WHERE rol_id = ? AND activo = TRUE', [id]);
-        if (users.length > 0) {
-            return res.status(400).json({ error: 'No se puede eliminar un rol que tiene usuarios activos asignados.' });
-        }
-
-        await rolService.hardDelete(id);
-        res.json({ message: 'Rol eliminado exitosamente' });
+        const user = await usuariosService.getById(req.params.id);
+        res.json(user);
     } catch (err) { next(err); }
 });
 
-// Permisos de rol
-router.get('/roles/:rolId/permisos', auth, checkPermission('usuarios', 'puede_ver'), async (req, res, next) => {
+router.delete('/:id', auth, checkPermission('usuarios.eliminar'), async (req, res, next) => {
     try {
-        const [rows] = await db.query('SELECT * FROM permisos_rol WHERE rol_id = ?', [req.params.rolId]);
-        res.json(rows);
-    } catch (err) { next(err); }
-});
-
-router.post('/roles/:rolId/permisos', auth, checkPermission('usuarios', 'puede_crear'), async (req, res, next) => {
-    try {
-        const { modulo, puede_ver, puede_crear, puede_editar, puede_eliminar } = req.body;
-        const [result] = await db.query(
-            `INSERT INTO permisos_rol (rol_id, modulo, puede_ver, puede_crear, puede_editar, puede_eliminar) 
-       VALUES (?, ?, ?, ?, ?, ?)
-       ON DUPLICATE KEY UPDATE puede_ver=VALUES(puede_ver), puede_crear=VALUES(puede_crear), puede_editar=VALUES(puede_editar), puede_eliminar=VALUES(puede_eliminar)`,
-            [req.params.rolId, modulo, puede_ver || false, puede_crear || false, puede_editar || false, puede_eliminar || false]
-        );
-        
-        // Incrementar versión del rol para invalidar sesiones antiguas
-        await versionService.increment(req.params.rolId);
-        
-        res.status(201).json({ id: result.insertId, modulo });
-    } catch (err) { next(err); }
-});
-
-// Bulk update permissions
-router.post('/roles/:rolId/permisos-bulk', auth, checkPermission('usuarios', 'puede_editar'), async (req, res, next) => {
-    try {
-        const { rolId } = req.params;
-        const { permisos } = req.body; // Array of { modulo, puede_ver, ... }
-
-        if (!Array.isArray(permisos)) {
-            return res.status(400).json({ error: 'permisos debe ser un array' });
-        }
-
-        // Use a transaction for bulk update
-        const connection = await db.getConnection();
-        await connection.beginTransaction();
-
-        try {
-            for (const p of permisos) {
-                await connection.query(
-                    `INSERT INTO permisos_rol (rol_id, modulo, puede_ver, puede_crear, puede_editar, puede_eliminar) 
-                     VALUES (?, ?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE puede_ver=VALUES(puede_ver), puede_crear=VALUES(puede_crear), puede_editar=VALUES(puede_editar), puede_eliminar=VALUES(puede_eliminar)`,
-                    [rolId, p.modulo, p.puede_ver || false, p.puede_crear || false, p.puede_editar || false, p.puede_eliminar || false]
-                );
-            }
-            await connection.commit();
-
-            // Incrementar versión del rol para invalidar sesiones antiguas
-            await versionService.increment(rolId);
-
-            res.json({ message: 'Permisos actualizados correctamente' });
-        } catch (err) {
-            await connection.rollback();
-            throw err;
-        } finally {
-            connection.release();
-        }
+        await usuariosService.delete(req.params.id);
+        res.json({ message: 'Usuario eliminado' });
     } catch (err) { next(err); }
 });
 

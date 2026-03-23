@@ -5,7 +5,7 @@ import { FeriadosForm } from './FeriadosForm';
 import { CalendarDays, RefreshCw } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
-import { RequirePermission } from '../auth/RequirePermission';
+import RequirePermission from '../auth/RequirePermission';
 import { Button } from '../ui/Button';
 import { useAuth } from '../../context/AuthContext';
 

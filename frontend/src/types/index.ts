@@ -1,20 +1,14 @@
+export type Permission = string;
+
 export interface User {
     id: number;
     nombre: string;
     email: string;
-    email_corporativo: string | null;
+    email_corporativo?: string;
     rol: string;
     rol_id: number;
-    obra_id: number | null;
-    permisos: Permission[];
-}
-
-export interface Permission {
-    modulo: string;
-    puede_ver: boolean;
-    puede_crear: boolean;
-    puede_editar: boolean;
-    puede_eliminar: boolean;
+    obra_id?: number | null;
+    permisos: Permission[]; // Now a simple array of strings like ['asistencia.ver', ...]
 }
 
 export interface AuthResponse {
@@ -22,13 +16,19 @@ export interface AuthResponse {
     user: User;
 }
 
+export interface LoginError {
+    error: string;
+    details?: any;
+}
+
 export interface ApiResponse<T> {
     data: T;
+    message?: string;
+    total?: number;
     pagination?: {
-        page: number;
-        limit: number;
         total: number;
         pages: number;
+        page: number;
+        limit: number;
     };
-    error?: string;
 }

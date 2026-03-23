@@ -12,84 +12,78 @@ const tipoDocService = createCrudService('tipos_documento', { searchFields: ['no
 const tipoDocController = createCrudController(tipoDocService);
 
 // KPIs
-router.get('/kpi/vencidos', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+router.get('/kpi/vencidos', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const dias = req.query.dias || 30;
-        const result = await documentoService.getVencidos(Number(dias));
-        res.json(result);
+        const data = await documentoService.getKPIVencidos();
+        res.json(data);
     } catch (err) { next(err); }
 });
 
-router.get('/kpi/faltantes', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+router.get('/kpi/faltantes', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const result = await documentoService.getFaltantes();
-        res.json(result);
+        const data = await documentoService.getKPIFaltantes(req.query);
+        res.json(data);
     } catch (err) { next(err); }
 });
 
-// Document completion percentage per worker
-router.post('/kpi/completitud', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+router.post('/kpi/completitud', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const { trabajador_ids } = req.body;
-        if (!trabajador_ids || !Array.isArray(trabajador_ids)) {
-            return res.status(400).json({ error: 'trabajador_ids es requerido (array de IDs)' });
-        }
-        const result = await documentoService.getCompletionByTrabajadores(trabajador_ids);
-        res.json(result);
+        const data = await documentoService.getKPICompletitud(req.body);
+        res.json(data);
     } catch (err) { next(err); }
 });
 
-// Upload
-router.post('/upload/:trabajadorId', auth, checkPermission('documentos', 'puede_crear'), upload.single('archivo'), async (req, res, next) => {
+// Upload document
+router.post('/upload/:trabajadorId', auth, checkPermission('documentos.subir'), upload.single('archivo'), async (req, res, next) => {
     try {
-        if (!req.file) {
-            return res.status(400).json({ error: 'No se proporcionó ningún archivo' });
-        }
-        const { tipo_documento_id } = req.body;
-        if (!tipo_documento_id) {
-            return res.status(400).json({ error: 'tipo_documento_id es requerido' });
-        }
-        const result = await documentoService.upload(
-            req.params.trabajadorId, req.file, tipo_documento_id, req.user.id
+        if (!req.file) return res.status(400).json({ error: 'No se subió ningún archivo' });
+        
+        const data = await documentoService.upload(
+            req.params.trabajadorId, 
+            req.body.tipo_id, 
+            req.file, 
+            req.user.id
         );
-        res.status(201).json(result);
+        res.status(201).json(data);
     } catch (err) { next(err); }
 });
 
-// Get docs by worker
-router.get('/trabajador/:trabajadorId', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+// List documents for a worker
+router.get('/trabajador/:trabajadorId', auth, checkPermission('documentos.ver'), async (req, res, next) => {
     try {
-        const docs = await documentoService.getByTrabajador(req.params.trabajadorId);
-        res.json({ data: docs });
+        const data = await documentoService.getByTrabajador(req.params.trabajadorId);
+        res.json(data);
     } catch (err) { next(err); }
 });
 
-// Download
-router.get('/download/:id', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+// Download individual document
+router.get('/download/:id', auth, checkPermission('documentos.descargar'), async (req, res, next) => {
     try {
-        const { fullPath, fileName } = await documentoService.getFilePath(req.params.id);
-        res.download(fullPath, fileName);
+        const { filePath, fileName } = await documentoService.getDownloadPath(req.params.id);
+        res.download(filePath, fileName);
     } catch (err) { next(err); }
 });
 
-router.get('/download-all/:trabajadorId', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+// Download all documents for a worker as ZIP
+router.get('/download-all/:trabajadorId', auth, checkPermission('documentos.descargar'), async (req, res, next) => {
     try {
-        await documentoService.downloadAll(req.params.trabajadorId, res);
+        const { zipPath, fileName } = await documentoService.getZipPath(req.params.trabajadorId);
+        res.download(zipPath, fileName);
     } catch (err) { next(err); }
 });
 
-// Delete (Soft Delete)
-router.delete('/:id', auth, checkPermission('documentos', 'puede_eliminar'), async (req, res, next) => {
+// Delete document
+router.delete('/:id', auth, checkPermission('documentos.eliminar'), async (req, res, next) => {
     try {
-        await documentoService.delete(req.params.id);
-        res.json({ message: 'Documento eliminado' });
+        await documentoService.delete(req.params.id, req.user.id);
+        res.json({ message: 'Documento eliminado correctamente' });
     } catch (err) { next(err); }
 });
 
-// Tipos documento CRUD
-router.get('/tipos', auth, checkPermission('documentos', 'puede_ver'), tipoDocController.getAll);
-router.post('/tipos', auth, checkPermission('documentos', 'puede_crear'), tipoDocController.create);
-router.put('/tipos/:id', auth, checkPermission('documentos', 'puede_editar'), tipoDocController.update);
-router.delete('/tipos/:id', auth, checkPermission('documentos', 'puede_eliminar'), tipoDocController.remove);
+// Tipos de Documento
+router.get('/tipos', auth, checkPermission('documentos.ver', 'sistema.tipos_doc.gestionar'), tipoDocController.getAll);
+router.post('/tipos', auth, checkPermission('sistema.tipos_doc.gestionar'), tipoDocController.create);
+router.put('/tipos/:id', auth, checkPermission('sistema.tipos_doc.gestionar'), tipoDocController.update);
+router.delete('/tipos/:id', auth, checkPermission('sistema.tipos_doc.gestionar'), tipoDocController.remove);
 
 module.exports = router;

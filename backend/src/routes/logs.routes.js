@@ -3,7 +3,7 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const db = require('../config/db');
 
-router.get('/', auth, checkPermission('usuarios', 'puede_ver'), async (req, res, next) => {
+router.get('/', auth, checkPermission('sistema.logs.ver'), async (req, res, next) => {
     try {
         const { q, page = 1, limit = 20 } = req.query;
         const offset = (page - 1) * limit;

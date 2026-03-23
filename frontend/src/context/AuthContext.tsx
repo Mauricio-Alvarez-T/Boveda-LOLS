@@ -8,6 +8,7 @@ interface AuthContextType {
     isLoading: boolean;
     login: (data: AuthResponse) => void;
     logout: () => void;
+    hasPermission: (permiso: string) => boolean;
     checkPermission: (modulo: string, accion: 'puede_ver' | 'puede_crear' | 'puede_editar' | 'puede_eliminar') => boolean;
 }
 
@@ -50,10 +51,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.removeItem('sgdl_user');
     };
 
-    const checkPermission = (modulo: string, accion: 'puede_ver' | 'puede_crear' | 'puede_editar' | 'puede_eliminar') => {
-        if (!user) return false;
-        const permission = user.permisos.find(p => p.modulo === modulo);
-        return !!(permission ? permission[accion] : false);
+    /** NUEVO: verifica permiso atómico por string */
+    const hasPermission = (permiso: string): boolean => {
+        if (!user || !user.permisos) return false;
+        return user.permisos.includes(permiso);
+    };
+
+    /** LEGACY: Mapea el sistema antiguo al nuevo para no romper la UI actual */
+    const checkPermission = (modulo: string, accion: 'puede_ver' | 'puede_crear' | 'puede_editar' | 'puede_eliminar'): boolean => {
+        if (!user || !user.permisos) return false;
+        
+        const accionMap = {
+            puede_ver: 'ver',
+            puede_crear: 'crear',
+            puede_editar: 'editar',
+            puede_eliminar: 'eliminar'
+        };
+
+        const key = `${modulo}.${accionMap[accion]}`;
+        
+        // Excepciones o casos especiales en el mapeo si fuera necesario
+        // Por ahora, el mapeo estándar modulo.accion cubre el 90%
+        return user.permisos.includes(key);
     };
 
     return (
@@ -64,6 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             isLoading,
             login,
             logout,
+            hasPermission,
             checkPermission
         }}>
             {children}

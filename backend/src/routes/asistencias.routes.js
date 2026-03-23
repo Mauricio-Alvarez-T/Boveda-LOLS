@@ -123,7 +123,7 @@ router.post('/horarios/:obraId', auth, checkPermission('asistencia', 'puede_edit
 });
 
 // Export Excel (Authenticated)
-router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel'), async (req, res, next) => {
     try {
         const buffer = await asistenciaService.generarExcel(req.query);
         const fileName = `asistencia_${req.query.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
@@ -143,7 +143,7 @@ router.get('/exportar/excel', auth, checkPermission('asistencia', 'puede_ver'), 
 // ═══ PERÍODOS DE AUSENCIA ═══
 
 // Create period
-router.post('/periodos', auth, checkPermission('asistencia', 'puede_crear'), async (req, res, next) => {
+router.post('/periodos', auth, checkPermission('asistencia.periodo.crear'), async (req, res, next) => {
     try {
         const result = await asistenciaService.crearPeriodo(req.body, req.user.id, req);
         res.status(201).json({ data: result });
@@ -151,7 +151,7 @@ router.post('/periodos', auth, checkPermission('asistencia', 'puede_crear'), asy
 });
 
 // Get periods
-router.get('/periodos', auth, checkPermission('asistencia', 'puede_ver'), async (req, res, next) => {
+router.get('/periodos', auth, checkPermission('asistencia.periodo.ver'), async (req, res, next) => {
     try {
         const result = await asistenciaService.getPeriodos(req.query);
         res.json({ data: result });
@@ -159,7 +159,7 @@ router.get('/periodos', auth, checkPermission('asistencia', 'puede_ver'), async 
 });
 
 // Cancel period
-router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar'), async (req, res, next) => {
+router.delete('/periodos/:id', auth, checkPermission('asistencia.periodo.eliminar'), async (req, res, next) => {
     try {
         const result = await asistenciaService.cancelarPeriodo(req.params.id, req.user.id, req);
         res.json({ data: result });
@@ -167,4 +167,3 @@ router.delete('/periodos/:id', auth, checkPermission('asistencia', 'puede_editar
 });
 
 module.exports = router;
-

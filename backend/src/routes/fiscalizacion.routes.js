@@ -19,7 +19,7 @@ router.get('/trabajadores-avanzado', auth, checkPermission('documentos', 'puede_
 // Export Excel Endpoint - DEPRECATED (Moved to asistencia service)
 
 // Export + Send Excel via email (uses saved credentials from the user's profile)
-router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
+router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), async (req, res, next) => {
     try {
         const { filters, trabajador_ids, destinatario_email, asunto, cuerpo } = req.body;
 

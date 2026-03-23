@@ -33,6 +33,10 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
+import { ShieldCheck, UserCog } from 'lucide-react';
+import PermisosRolPanel from '../components/settings/PermisosRolPanel';
+import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
+import { Modal } from '../components/ui/Modal';
 
 type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad';
 
@@ -230,6 +234,10 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
 const SettingsPage: React.FC = () => {
     const { checkPermission } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
+    
+    // Estados para gestión de permisos
+    const [rolPermsModal, setRolPermsModal] = useState<{ open: boolean; rol: any | null }>({ open: false, rol: null });
+    const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: any | null }>({ open: false, user: null });
 
     // Find current active group for navigation
     const activeGroup = tabGroups.find(g => g.items.some(t => t.key === activeTab)) || tabGroups[0];
@@ -374,6 +382,15 @@ const SettingsPage: React.FC = () => {
                             canEdit={checkPermission('usuarios', 'puede_editar')}
                             canDelete={checkPermission('usuarios', 'puede_eliminar')}
                             canExport={false}
+                            renderActions={(row) => (
+                                <button 
+                                    onClick={() => setUserPermsModal({ open: true, user: row })}
+                                    className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/8 transition-colors"
+                                    title="Gestionar Permisos Especiales"
+                                >
+                                    <UserCog className="h-4 w-4" />
+                                </button>
+                            )}
                         />
                     )}
                     {activeTab === 'roles' && (
@@ -387,6 +404,15 @@ const SettingsPage: React.FC = () => {
                             canEdit={checkPermission('usuarios', 'puede_editar')}
                             canDelete={checkPermission('usuarios', 'puede_eliminar')}
                             canExport={false}
+                            renderActions={(row) => (
+                                <button 
+                                    onClick={() => setRolPermsModal({ open: true, rol: row })}
+                                    className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/8 transition-colors"
+                                    title="Configurar Permisos del Rol"
+                                >
+                                    <ShieldCheck className="h-4 w-4" />
+                                </button>
+                            )}
                         />
                     )}
                     {activeTab === 'estados_asistencia' && (
@@ -456,6 +482,39 @@ const SettingsPage: React.FC = () => {
                 </motion.div>
                 </div>
             </div>
+
+            {/* Modales de Permisos */}
+            <Modal
+                isOpen={rolPermsModal.open}
+                onClose={() => setRolPermsModal({ open: false, rol: null })}
+                title="Configuración de Permisos de Rol"
+                size="lg"
+            >
+                {rolPermsModal.rol && (
+                    <PermisosRolPanel 
+                        rolId={rolPermsModal.rol.id}
+                        rolNombre={rolPermsModal.rol.nombre}
+                        onClose={() => setRolPermsModal({ open: false, rol: null })}
+                    />
+                )}
+            </Modal>
+
+            <Modal
+                isOpen={userPermsModal.open}
+                onClose={() => setUserPermsModal({ open: false, user: null })}
+                title="Overrides de Permisos de Usuario"
+                size="lg"
+            >
+                {userPermsModal.user && (
+                    <PermisosUsuarioPanel 
+                        usuarioId={userPermsModal.user.id}
+                        usuarioNombre={userPermsModal.user.nombre}
+                        rolId={userPermsModal.user.rol_id}
+                        rolNombre={userPermsModal.user.rol_nombre}
+                        onClose={() => setUserPermsModal({ open: false, user: null })}
+                    />
+                )}
+            </Modal>
         </div>
     );
 };

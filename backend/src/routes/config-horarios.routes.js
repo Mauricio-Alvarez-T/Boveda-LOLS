@@ -1,34 +1,35 @@
 const express = require('express');
 const router = express.Router();
-const configHorariosService = require('../services/config-horarios.service');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
+const db = require('../config/db');
 
-// Get weekly config for a specific obra
-router.get('/obra/:obraId', auth, checkPermission('asistencia', 'puede_ver'), async (req, res) => {
+// Obtener configuración global de horarios
+router.get('/', auth, checkPermission('asistencia.horarios.ver'), async (req, res, next) => {
     try {
-        const data = await configHorariosService.getByObraId(req.params.obraId);
-        res.json({ data });
-    } catch (error) {
-        console.error('Error fetching config horarios:', error);
-        res.status(500).json({ error: 'Error del servidor al obtener la configuración de horarios.' });
-    }
+        const [rows] = await db.query('SELECT * FROM configuracion_asistencia LIMIT 1');
+        res.json(rows[0] || {});
+    } catch (err) { next(err); }
 });
 
-// Update weekly config for a specific obra
-router.put('/obra/:obraId/bulk', auth, checkPermission('asistencia', 'puede_editar'), async (req, res) => {
+// Guardar configuración global
+router.post('/', auth, checkPermission('asistencia.horarios.editar'), async (req, res, next) => {
     try {
-        const { schedules } = req.body;
-        if (!Array.isArray(schedules)) {
-            return res.status(400).json({ error: 'El formato de horarios es inválido.' });
-        }
-
-        const result = await configHorariosService.updateWeeklyConfig(req.params.obraId, schedules);
-        res.json(result);
-    } catch (error) {
-        console.error('Error updating config horarios:', error);
-        res.status(500).json({ error: 'Error del servidor al actualizar la configuración de horarios.' });
-    }
+        const { tolerancia_atraso, tolerancia_salida_temprana, hora_inicio_jornada, hora_fin_jornada } = req.body;
+        
+        await db.query(
+            `INSERT INTO configuracion_asistencia (id, tolerancia_atraso, tolerancia_salida_temprana, hora_inicio_jornada, hora_fin_jornada)
+             VALUES (1, ?, ?, ?, ?)
+             ON DUPLICATE KEY UPDATE 
+                tolerancia_atraso = VALUES(tolerancia_atraso),
+                tolerancia_salida_temprana = VALUES(tolerancia_salida_temprana),
+                hora_inicio_jornada = VALUES(hora_inicio_jornada),
+                hora_fin_jornada = VALUES(hora_fin_jornada)`,
+            [tolerancia_atraso, tolerancia_salida_temprana, hora_inicio_jornada, hora_fin_jornada]
+        );
+        
+        res.json({ message: 'Configuración guardada exitosamente' });
+    } catch (err) { next(err); }
 });
 
 module.exports = router;

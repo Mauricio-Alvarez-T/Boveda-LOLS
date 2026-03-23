@@ -24,26 +24,21 @@ const authService = {
             throw Object.assign(new Error('Credenciales inválidas'), { statusCode: 401 });
         }
 
-        // Get permissions for this role
-        const [permisos] = await db.query(
-            'SELECT modulo, puede_ver, puede_crear, puede_editar, puede_eliminar FROM permisos_rol WHERE rol_id = ?',
-            [user.rol_id]
-        );
-
-        // Permisos compactos: solo guardamos { m(odulo), v(er), c(rear), e(ditar), d(eliminar) }
-        // para mantener el JWT liviano
-        const permisosCompactos = permisos.map(p => ({
-            m: p.modulo,
-            v: !!p.puede_ver,
-            c: !!p.puede_crear,
-            e: !!p.puede_editar,
-            d: !!p.puede_eliminar
-        }));
+        // Get effective permissions (Role + User overrides)
+        const permisosService = require('./permisos.service');
+        const permisosEfectivos = await permisosService.getPermisosEfectivos(user.id, user.rol_id);
 
         const rolVersion = versionService.get(user.rol_id);
 
         const token = jwt.sign(
-            { id: user.id, email: user.email, rol_id: user.rol_id, obra_id: user.obra_id, permisos: permisosCompactos, rv: rolVersion },
+            { 
+                id: user.id, 
+                email: user.email, 
+                rol_id: user.rol_id, 
+                obra_id: user.obra_id, 
+                p: permisosEfectivos, // Permissions as array of strings
+                rv: rolVersion 
+            },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
         );
@@ -58,7 +53,7 @@ const authService = {
                 rol: user.rol_nombre,
                 rol_id: user.rol_id,
                 obra_id: user.obra_id,
-                permisos
+                permisos: permisosEfectivos
             }
         };
     },
@@ -75,10 +70,8 @@ const authService = {
             throw Object.assign(new Error('Usuario no encontrado'), { statusCode: 404 });
         }
 
-        const [permisos] = await db.query(
-            'SELECT modulo, puede_ver, puede_crear, puede_editar, puede_eliminar FROM permisos_rol WHERE rol_id = ?',
-            [users[0].rol_id]
-        );
+        const permisosService = require('./permisos.service');
+        const permisos = await permisosService.getPermisosEfectivos(users[0].id, users[0].rol_id);
 
         return { ...users[0], permisos };
     },
