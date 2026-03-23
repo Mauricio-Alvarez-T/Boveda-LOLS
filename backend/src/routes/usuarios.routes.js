@@ -3,12 +3,18 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const db = require('../config/db');
 const bcrypt = require('bcryptjs');
-const usuariosService = require('../services/usuarios.service');
 const permisosService = require('../services/permisos.service');
 const versionService = require('../services/version.service');
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
 const createCrudRoutes = require('./crud.routes');
+
+// Instantiate missing user service dynamically since the file doesnt exist
+const usuariosService = createCrudService('usuarios', { 
+    searchFields: ['nombre', 'email'], 
+    joins: 'LEFT JOIN roles r ON usuarios.rol_id = r.id LEFT JOIN obras o ON usuarios.obra_id = o.id',
+    selectFields: 'usuarios.*, r.nombre as rol_nombre, o.nombre as obra_nombre'
+});
 
 // basic CRUD for roles
 const rolesService = createCrudService('roles', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
@@ -120,7 +126,7 @@ router.get('/:id', auth, checkPermission('usuarios.ver'), async (req, res, next)
 
 router.delete('/:id', auth, checkPermission('usuarios.eliminar'), async (req, res, next) => {
     try {
-        await usuariosService.delete(req.params.id);
+        await usuariosService.softDelete(req.params.id);
         res.json({ message: 'Usuario eliminado' });
     } catch (err) { next(err); }
 });
