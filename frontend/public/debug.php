@@ -24,7 +24,7 @@ if (!$foundBase) {
 
 $logPaths = [
     $foundBase . 'stderr.log',
-    $foundBase . 'startup_debug.log',
+    $foundBase . 'startup_app.log',
     $foundBase . 'error_debug.log',
     $foundBase . 'package.json'
 ];
