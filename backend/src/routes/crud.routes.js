@@ -2,13 +2,30 @@ const express = require('express');
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 
+const createCrudService = require('../services/crud.service');
+const createCrudController = require('../controllers/crud.controller');
+
 /**
  * Genera rutas CRUD completas para una entidad.
- * @param {object} controller - El controlador CRUD ya instanciado.
- * @param {object|string} permisos - Un mapa de permisos (ej. { ver: 'modulo.ver', crear: 'modulo.crear' })
+ * @param {object|string} controllerOrModulo - Controlador instanciado O string del módulo (ej. 'empresas')
+ * @param {object|string} permisosOrTable - Mapa de permisos O nombre de tabla
+ * @param {object} optionsOrEmpty - Opciones genéricas para crud.service si se usa formato string
  */
-const createCrudRoutes = (controller, permisos = {}) => {
+const createCrudRoutes = (controllerOrModulo, permisosOrTable = {}, optionsOrEmpty = {}) => {
     const router = express.Router();
+
+    let controller, permisos;
+
+    if (typeof controllerOrModulo === 'string') {
+        // Legacy/String format: (modulo, tableName, options)
+        const service = createCrudService(permisosOrTable, optionsOrEmpty);
+        controller = createCrudController(service);
+        permisos = controllerOrModulo;
+    } else {
+        // Object format: (controller, permisosMap)
+        controller = controllerOrModulo;
+        permisos = permisosOrTable;
+    }
 
     const getP = (action) => {
         if (typeof permisos === 'string') return `${permisos}.${action}`;
