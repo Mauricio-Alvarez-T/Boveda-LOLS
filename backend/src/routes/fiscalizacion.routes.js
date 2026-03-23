@@ -3,8 +3,10 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const zipService = require('../services/zip.service');
 const fiscalizacionService = require('../services/fiscalizacion.service');
-const emailService = require('../services/email.service');
+const asistenciaService = require('../services/asistencia.service');
+const emailService = require('./email.service');
 const fs = require('fs');
+const path = require('path');
 
 // Advanced Search Endpoint
 router.get('/trabajadores-avanzado', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
@@ -14,29 +16,15 @@ router.get('/trabajadores-avanzado', auth, checkPermission('documentos', 'puede_
     } catch (err) { next(err); }
 });
 
-// Export Excel Endpoint
-router.post('/exportar-excel', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
-    try {
-        const { trabajadores } = req.body;
-        console.log(`[EXPORT EXCEL] Recibida petición con ${trabajadores ? trabajadores.length : 'undefined'} trabajadores`);
-        if (!trabajadores || !Array.isArray(trabajadores)) {
-            return res.status(400).json({ error: 'Lista de trabajadores es requerida' });
-        }
-
-        const excelPath = await fiscalizacionService.generarExcel(trabajadores);
-        res.download(excelPath, 'Fiscalizacion.xlsx', () => {
-            if (fs.existsSync(excelPath)) fs.unlinkSync(excelPath);
-        });
-    } catch (err) { next(err); }
-});
+// Export Excel Endpoint - DEPRECATED (Moved to asistencia service)
 
 // Export + Send Excel via email (uses saved credentials from the user's profile)
 router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), async (req, res, next) => {
     try {
-        const { trabajadores, destinatario_email, asunto, cuerpo } = req.body;
+        const { filters, trabajador_ids, destinatario_email, asunto, cuerpo } = req.body;
 
-        if (!trabajadores || !destinatario_email) {
-            return res.status(400).json({ error: 'trabajadores y destinatario_email son requeridos' });
+        if (!destinatario_email) {
+            return res.status(400).json({ error: 'destinatario_email es requerido' });
         }
 
         // Retrieve saved credentials from the user's profile
@@ -53,14 +41,27 @@ router.post('/enviar-excel', auth, checkPermission('documentos', 'puede_ver'), a
         }
 
         console.log(`[EMAIL DEBUG] Autenticando con: ${credentials.email}`);
-        const trabajadorIds = trabajadores.map(t => t.id);
+        
+        // Generar Excel usando el servicio de asistencia (nuevo formato unificado)
+        const buffer = await asistenciaService.generarExcel({
+            ...filters,
+            trabajador_ids
+        });
 
-        const excelPath = await fiscalizacionService.generarExcel(trabajadores);
+        const excelPath = path.join(__dirname, '..', '..', 'tmp', `Reporte_Asistencia_${Date.now()}.xlsx`);
+        if (!fs.existsSync(path.dirname(excelPath))) {
+            fs.mkdirSync(path.dirname(excelPath), { recursive: true });
+        }
+        fs.writeFileSync(excelPath, buffer);
+
         let zipPath = null;
-        try {
-            zipPath = await zipService.createZip(trabajadorIds);
-        } catch (e) {
-            console.error('Error generando ZIP de documentos:', e);
+        const workerIds = trabajador_ids || (filters.trabajador_id ? [filters.trabajador_id] : []);
+        if (workerIds.length > 0) {
+            try {
+                zipPath = await zipService.createZip(workerIds);
+            } catch (e) {
+                console.error('Error generando ZIP de documentos:', e);
+            }
         }
 
         const attachmentPaths = [excelPath];

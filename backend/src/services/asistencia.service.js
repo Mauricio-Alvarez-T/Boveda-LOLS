@@ -336,7 +336,7 @@ const asistenciaService = {
      * Reporte de asistencia por rango de fechas
      */
     async getReporte(query = {}) {
-        const { obra_id, fecha_inicio, fecha_fin, trabajador_id } = query;
+        const { obra_id, fecha_inicio, fecha_fin, trabajador_id, empresa_id, cargo_id, categoria_reporte, activo, trabajador_ids } = query;
         let where = [];
         let params = [];
 
@@ -347,10 +347,26 @@ const asistenciaService = {
         if (fecha_inicio) { where.push('a.fecha >= ?'); params.push(fecha_inicio); }
         if (fecha_fin) { where.push('a.fecha <= ?'); params.push(fecha_fin); }
         if (trabajador_id) { where.push('a.trabajador_id = ?'); params.push(trabajador_id); }
+        if (trabajador_ids) {
+            const ids = Array.isArray(trabajador_ids) ? trabajador_ids : trabajador_ids.split(',').filter(Boolean);
+            if (ids.length > 0) {
+                where.push(`a.trabajador_id IN (${ids.map(() => '?').join(',')})`);
+                params.push(...ids);
+            }
+        }
         
-        // NOTA: No filtramos por t.activo aquí para que los finiquitados
+        // Filtros adicionales desde Consultas
+        if (empresa_id) { where.push('t.empresa_id = ?'); params.push(empresa_id); }
+        if (cargo_id) { where.push('t.cargo_id = ?'); params.push(cargo_id); }
+        if (categoria_reporte) { where.push('t.categoria_reporte = ?'); params.push(categoria_reporte); }
+        if (activo !== undefined && activo !== '' && activo !== 'todos') { 
+            where.push('t.activo = ?'); 
+            params.push(activo === 'true' || activo === '1' ? 1 : 0); 
+        }
+
+        // NOTA: No filtramos por t.activo globalmente aquí para que los finiquitados
         // con registros en el rango aparezcan en el Excel/reporte.
-        // El filtrado de quién aparece en el Excel lo maneja generarExcel().
+        // El filtrado por 'activo' pasado en la query sí se respeta.
 
         const whereClause = where.length > 0 ? `WHERE ${where.join(' AND ')}` : '';
 
@@ -485,7 +501,7 @@ const asistenciaService = {
      * Generar archivo Excel con reporte de asistencia
      */
     async generarExcel(query = {}) {
-        const { obra_id, fecha_inicio, fecha_fin } = query;
+        const { obra_id, fecha_inicio, fecha_fin, empresa_id, cargo_id, categoria_reporte, activo, trabajador_ids } = query;
 
         if (!fecha_inicio || !fecha_fin) {
             throw new Error('fecha_inicio y fecha_fin son requeridos para exportar');
@@ -499,7 +515,7 @@ const asistenciaService = {
         let workerQuery = `
             SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.fecha_ingreso, t.fecha_desvinculacion,
                    c.nombre as cargo_nombre, t.activo, o.nombre as obra_actual_nombre,
-                   e.id as empresa_id, e.razon_social as empresa_nombre
+                   e.id as empresa_id, e.razon_social as empresa_nombre, t.categoria_reporte
             FROM trabajadores t
             LEFT JOIN cargos c ON t.cargo_id = c.id
             LEFT JOIN obras o ON t.obra_id = o.id
@@ -510,6 +526,34 @@ const asistenciaService = {
         if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') {
             workerQuery += ' AND t.obra_id = ?';
             workerQueryParams.push(obra_id);
+        }
+
+        if (empresa_id) {
+            workerQuery += ' AND t.empresa_id = ?';
+            workerQueryParams.push(empresa_id);
+        }
+
+        if (cargo_id) {
+            workerQuery += ' AND t.cargo_id = ?';
+            workerQueryParams.push(cargo_id);
+        }
+
+        if (categoria_reporte) {
+            workerQuery += ' AND t.categoria_reporte = ?';
+            workerQueryParams.push(categoria_reporte);
+        }
+
+        if (activo !== undefined && activo !== '' && activo !== 'todos') {
+            workerQuery += ' AND t.activo = ?';
+            workerQueryParams.push(activo === 'true' || activo === '1' ? 1 : 0);
+        }
+
+        if (trabajador_ids) {
+            const ids = Array.isArray(trabajador_ids) ? trabajador_ids : trabajador_ids.split(',').filter(Boolean);
+            if (ids.length > 0) {
+                workerQuery += ` AND t.id IN (${ids.map(() => '?').join(',')})`;
+                workerQueryParams.push(...ids);
+            }
         }
         
         workerQuery += ' ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC';
