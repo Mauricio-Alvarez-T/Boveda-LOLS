@@ -46,7 +46,7 @@ import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
-import { RequirePermission } from '../components/auth/RequirePermission';
+import RequirePermission from '../components/auth/RequirePermission';
 
 const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();

@@ -9,8 +9,6 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 
-import { PermissionMatrix } from './PermissionMatrix';
-import type { Permission } from './PermissionMatrix';
 
 interface RoleData {
     id: number;
@@ -33,8 +31,6 @@ interface Props {
 }
 
 export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
-    const [permisos, setPermisos] = React.useState<Permission[]>([]);
-    const [loadingPerms, setLoadingPerms] = React.useState(false);
     const [resetingSessions, setResetingSessions] = React.useState(false);
 
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
@@ -45,22 +41,7 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
         },
     });
 
-    React.useEffect(() => {
-        if (initialData) {
-            const fetchPerms = async () => {
-                setLoadingPerms(true);
-                try {
-                    const res = await api.get(`/usuarios/roles/${initialData.id}/permisos`);
-                    setPermisos(res.data);
-                } catch (err) {
-                    console.error('Error fetching perms', err);
-                } finally {
-                    setLoadingPerms(false);
-                }
-            };
-            fetchPerms();
-        }
-    }, [initialData]);
+    // Removida lógica de carga de permisos antiguos para evitar conflictos de tipos
 
     const onSubmit = async (data: FormData) => {
         try {
@@ -73,10 +54,7 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
                 rolId = res.data.id;
             }
 
-            // Save permissions
-            if (rolId) {
-                await api.post(`/usuarios/roles/${rolId}/permisos-bulk`, { permisos });
-            }
+            // Permisos se guardan por separado ahora con el nuevo panel
 
             toast.success(initialData ? 'Rol actualizado' : 'Rol creado');
             onSuccess();
@@ -107,16 +85,7 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
                 <Input label="Descripción" {...register('descripcion')} error={errors.descripcion?.message} placeholder="Descripción del rol" />
             </div>
 
-            <div className="space-y-3">
-                <h4 className="text-xs font-bold text-muted-foreground uppercase px-1">Matriz de Permisos</h4>
-                {loadingPerms ? (
-                    <div className="h-40 bg-background rounded-2xl flex items-center justify-center border border-border">
-                        <Loader2 className="h-6 w-6 animate-spin text-brand-primary" />
-                    </div>
-                ) : (
-                    <PermissionMatrix permisos={permisos} onChange={setPermisos} />
-                )}
-            </div>
+            {/* Permisos se gestionan ahora desde el icono de escudo en la tabla de roles */}
 
             <div className="flex justify-between items-center pt-6 border-t border-border">
                 <div>
