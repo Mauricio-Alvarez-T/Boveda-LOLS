@@ -1101,6 +1101,17 @@ const asistenciaService = {
             [periodoId]
         );
 
+        // Limpiar registros diarios que pertenecen a este periodo y aun tienen el mismo estado
+        const period = existing[0];
+        await db.query(
+            `DELETE FROM asistencias 
+             WHERE trabajador_id = ? 
+             AND obra_id = ? 
+             AND fecha BETWEEN ? AND ? 
+             AND estado_id = ?`,
+            [period.trabajador_id, period.obra_id, period.fecha_inicio, period.fecha_fin, period.estado_id]
+        );
+
         try {
             logManualActivity(userId, 'periodos_ausencia', 'DELETE', periodoId,
                 JSON.stringify({ resumen: `Período #${periodoId} cancelado (${existing[0].fecha_inicio} al ${existing[0].fecha_fin})` }),
