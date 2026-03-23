@@ -25,8 +25,14 @@ const ALL_ACTIONS: QuickAction[] = [
 
 const QuickActions: React.FC<Props> = ({ permisos, onNavigate }) => {
     const canDo = (modulo: string, accion: string) => {
-        const perm = permisos.find(p => p.modulo === modulo);
-        return perm ? !!(perm as any)[accion] : false;
+        const accionMap: Record<string, string> = {
+            puede_ver: 'ver',
+            puede_crear: 'crear',
+            puede_editar: 'editar',
+            puede_eliminar: 'eliminar'
+        };
+        const key = `${modulo}.${accionMap[accion] || accion}`;
+        return permisos.includes(key);
     };
 
     const availableActions = ALL_ACTIONS.filter(a => canDo(a.requiredModule, a.requiredAction));

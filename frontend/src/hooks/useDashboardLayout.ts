@@ -13,9 +13,14 @@ export function useDashboardLayout(userId: number, permisos: Permission[]) {
     const allowedWidgets = useMemo(() => {
         return WIDGET_REGISTRY.filter(w => {
             if (!w.requiredPermission) return true;
-            const perm = permisos.find(p => p.modulo === w.requiredPermission!.modulo);
-            if (!perm) return false;
-            return !!(perm as any)[w.requiredPermission!.accion];
+            const { modulo, accion } = w.requiredPermission!;
+            const accionMap: Record<string, string> = {
+                puede_ver: 'ver',
+                puede_crear: 'crear',
+                puede_editar: 'editar',
+                puede_eliminar: 'eliminar'
+            };
+            return permisos.includes(`${modulo}.${accionMap[accion] || accion}`);
         });
     }, [permisos]);
 
