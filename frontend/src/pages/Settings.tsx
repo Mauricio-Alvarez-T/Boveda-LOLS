@@ -249,35 +249,37 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="space-y-6 pb-20">
-            {/* Category Navigation (Horizontal) */}
-            <div className="bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm sticky top-16 z-30">
-                {tabGroups.map((group, idx) => {
-                    const isActive = activeGroup.title === group.title;
-                    return (
-                        <button
-                            key={idx}
-                            onClick={() => setActiveTab(group.items[0].key)}
-                            className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
-                                isActive
-                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
-                                    : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                            )}
-                        >
-                            <span className="relative z-10">{group.title}</span>
-                            {isActive && (
-                                <motion.div
-                                    layoutId="activeCategoryGlow"
-                                    className="absolute inset-0 bg-white/10"
-                                />
-                            )}
-                        </button>
-                    );
-                })}
-            </div>
+            {/* Sticky Navigation Header */}
+            <div className="sticky top-14 md:top-16 z-30 bg-background/95 backdrop-blur-xl pt-4 pb-2 -mx-3 px-3 md:-mx-5 md:px-5 space-y-4 shadow-sm border-b border-[#E8E8ED]/50">
+                {/* Category Navigation (Horizontal) */}
+                <div className="bg-white/80 rounded-2xl border border-[#E8E8ED] p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+                    {tabGroups.map((group, idx) => {
+                        const isActive = activeGroup.title === group.title;
+                        return (
+                            <button
+                                key={idx}
+                                onClick={() => setActiveTab(group.items[0].key)}
+                                className={cn(
+                                    "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
+                                    isActive
+                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
+                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
+                                )}
+                            >
+                                <span className="relative z-10">{group.title}</span>
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeCategoryGlow"
+                                        className="absolute inset-0 bg-white/10"
+                                    />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
 
-            {/* Sub-tabs Pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+                {/* Sub-tabs Pills */}
+                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
                 {activeGroup.items.map(tab => (
                     <button
                         key={tab.key}
@@ -293,6 +295,7 @@ const SettingsPage: React.FC = () => {
                         {tab.label}
                     </button>
                 ))}
+                </div>
             </div>
 
             {/* Main Content Area (Full Width) */}
