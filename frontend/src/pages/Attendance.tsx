@@ -875,21 +875,15 @@ const AttendancePage: React.FC = () => {
                                             key={estado.id}
                                             initial={{ opacity: 0, scale: 0.9 }}
                                             animate={{ opacity: 1, scale: 1 }}
-                                            className={cn(
-                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0",
-                                                estado.codigo === 'A' ? "bg-brand-primary/[0.08] border-brand-primary/20 text-brand-primary shadow-sm shadow-brand-primary/5" :
-                                                estado.codigo === 'F' ? "bg-destructive/[0.08] border-destructive/20 text-destructive shadow-sm shadow-destructive/5" :
-                                                estado.codigo === 'JI' ? "bg-purple-500/[0.08] border-purple-500/20 text-purple-600 shadow-sm shadow-purple-500/5" :
-                                                "bg-amber-500/[0.08] border-amber-500/20 text-amber-600 shadow-sm shadow-amber-500/5"
-                                            )}
+                                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm"
+                                            style={{ 
+                                                backgroundColor: `${estado.color}15`, 
+                                                borderColor: `${estado.color}30`,
+                                                color: estado.color 
+                                            }}
                                         >
                                             <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">{estado.codigo}</span>
-                                            <div className={cn(
-                                                "h-4 w-px opacity-20",
-                                                estado.codigo === 'A' ? "bg-brand-primary" :
-                                                estado.codigo === 'F' ? "bg-destructive" :
-                                                estado.codigo === 'JI' ? "bg-purple-500" : "bg-amber-500"
-                                            )} />
+                                            <div className="h-4 w-px opacity-20" style={{ backgroundColor: estado.color }} />
                                             <span className="text-[13px] font-black tabular-nums">{count}</span>
                                         </motion.div>
                                     ))}
