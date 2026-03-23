@@ -248,11 +248,9 @@ const SettingsPage: React.FC = () => {
     useSetPageHeader(headerTitle);
 
     return (
-        <div className="space-y-6 pb-20">
-            {/* Sticky Navigation Header */}
-            <div className="sticky top-14 md:top-16 z-30 bg-background/95 backdrop-blur-xl pt-4 pb-2 -mx-3 px-3 md:-mx-5 md:px-5 space-y-4 shadow-sm border-b border-[#E8E8ED]/50">
-                {/* Category Navigation (Horizontal) */}
-                <div className="bg-white/80 rounded-2xl border border-[#E8E8ED] p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-3 md:gap-4 lg:gap-5 p-0 overflow-hidden w-full">
+            {/* Top Navigation - Category Tabs */}
+            <div className="flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
                     {tabGroups.map((group, idx) => {
                         const isActive = activeGroup.title === group.title;
                         return (
@@ -278,35 +276,36 @@ const SettingsPage: React.FC = () => {
                     })}
                 </div>
 
-                {/* Sub-tabs Pills */}
-                <div className="flex items-center gap-2 overflow-x-auto scrollbar-none">
-                {activeGroup.items.map(tab => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
-                            activeTab === tab.key
-                                ? "bg-white border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
-                                : "bg-white/50 border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
-                        )}
-                    >
-                        <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
-                        {tab.label}
-                    </button>
-                ))}
-                </div>
-            </div>
-
             {/* Main Content Area (Full Width) */}
-            <div className="bg-white rounded-3xl border border-[#E8E8ED] p-4 md:p-8 shadow-sm overflow-hidden min-h-[400px] md:min-h-[600px] relative">
-                <div className="absolute top-0 left-0 w-full h-1.5 bg-[#F9F9FB] border-b border-[#E8E8ED]" />
-                <motion.div
-                    key={activeTab}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.2 }}
-                >
+            <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
+                
+                {/* Internal Header: Sub-Tabs */}
+                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-3 lg:px-5 flex items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
+                    {activeGroup.items.map(tab => (
+                        <button
+                            key={tab.key}
+                            onClick={() => setActiveTab(tab.key)}
+                            className={cn(
+                                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
+                                activeTab === tab.key
+                                    ? "bg-white border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
+                                    : "bg-white/50 border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
+                            )}
+                        >
+                            <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
+                            {tab.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Inner Content Area - Scrollable */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F9F9FB] p-4 md:p-6 lg:p-8">
+                    <motion.div
+                        key={activeTab}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
+                    >
                     {activeTab === 'empresas' && (
                         <CrudTable
                             endpoint="/empresas"
@@ -455,6 +454,7 @@ const SettingsPage: React.FC = () => {
                         <ChangePasswordForm />
                     )}
                 </motion.div>
+                </div>
             </div>
         </div>
     );
