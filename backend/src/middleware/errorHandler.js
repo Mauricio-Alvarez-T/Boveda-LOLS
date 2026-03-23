@@ -1,13 +1,34 @@
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger-structured');
 
 const errorHandler = (err, req, res, next) => {
-    console.error(`[${new Date().toISOString()}] ERROR:`, err.message);
-    console.error(err.stack);
+    // Categorize the error
+    let category = 'UNKNOWN';
+    if (err.code && err.code.startsWith('ER_')) category = 'DATABASE';
+    else if (err.statusCode === 401 || err.statusCode === 403) category = 'AUTH';
+    else if (err.statusCode === 400 || err.name === 'MulterError') category = 'VALIDATION';
+    else if (err.statusCode === 404) category = 'NOT_FOUND';
+    else category = 'SERVER';
 
-    // Escribir a un archivo para depurar en cPanel
+    const meta = {
+        category,
+        method: req.method,
+        url: req.originalUrl,
+        userId: req.user?.id || 'anon',
+        stack: err.stack
+    };
+
+    // Log with appropriate level
+    if (category === 'SERVER' || category === 'DATABASE') {
+        logger.error(`[${category}] ${err.message}`, meta);
+    } else {
+        logger.warn(`[${category}] ${err.message}`, meta);
+    }
+
+    // Also write to legacy error_debug.log for backward compatibility
     try {
-        const logContent = `[${new Date().toISOString()}] ${req.method} ${req.originalUrl}\nERROR: ${err.message}\nSTACK: ${err.stack}\n\n`;
+        const logContent = `[${new Date().toISOString()}] [${category}] ${req.method} ${req.originalUrl}\nERROR: ${err.message}\nSTACK: ${err.stack}\n\n`;
         fs.appendFileSync(path.join(__dirname, '../../error_debug.log'), logContent);
     } catch (e) { }
 
@@ -44,3 +65,4 @@ const errorHandler = (err, req, res, next) => {
 };
 
 module.exports = errorHandler;
+

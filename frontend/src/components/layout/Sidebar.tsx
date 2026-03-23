@@ -25,7 +25,7 @@ interface SidebarProps {
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, mobileOpen, setMobileOpen }) => {
-    const { user, logout, checkPermission } = useAuth();
+    const { user, logout, hasPermission } = useAuth();
     const location = useLocation();
 
     // Auto-close mobile drawer on route change
@@ -39,19 +39,19 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             icon: CheckSquare,
             label: 'Asistencia',
             path: '/asistencia',
-            visible: checkPermission('asistencia', 'puede_ver')
+            visible: hasPermission('asistencia.ver')
         },
         {
             icon: SearchCheck,
             label: 'Consultas',
             path: '/consultas',
-            visible: checkPermission('trabajadores', 'puede_ver')
+            visible: hasPermission('trabajadores.ver')
         },
         {
             icon: Settings,
             label: 'Configuración',
             path: '/configuracion',
-            visible: checkPermission('usuarios', 'puede_ver')
+            visible: hasPermission('usuarios.ver')
         },
     ].filter(i => i.visible);
 

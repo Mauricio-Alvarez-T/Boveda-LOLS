@@ -4,7 +4,7 @@ const pool = require('../config/db');
  * Helper: check if user can see a module
  */
 const canSee = (permisos, modulo) =>
-    Array.isArray(permisos) && permisos.some(p => p.modulo === modulo && p.puede_ver);
+    Array.isArray(permisos) && permisos.includes(`${modulo}.ver`);
 
 /**
  * Service to aggregate KPIs for the main dashboard.

@@ -15,6 +15,7 @@ const express = require('express');
 const cors = require('cors');
 const errorHandler = require('./src/middleware/errorHandler');
 const activityLogger = require('./src/middleware/logger').activityLogger;
+const logger = require('./src/utils/logger-structured');
 const dashboardService = require('./src/services/dashboard.service');
 
 const app = express();
@@ -25,65 +26,74 @@ app.use(cors());
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use(activityLogger);
+app.use(logger.requestLogger);
 
 // Database connection (auto-tests on import)
 const db = require('./src/config/db');
+
+// Helper: safely load a route module
+function safeRoute(path, routeModule, routeName) {
+  try {
+    if (typeof routeModule === 'function') {
+      app.use(path, routeModule);
+    } else {
+      app.use(path, require(routeModule));
+    }
+    logger.info(`✅ Ruta cargada: ${routeName || path}`);
+  } catch (err) {
+    logger.error(`❌ Error cargando ruta ${routeName || path}: ${err.message}`, { stack: err.stack });
+    // Mount a fallback that returns 503 for this path
+    app.use(path, (req, res) => {
+      res.status(503).json({ error: `Módulo ${routeName || path} no disponible`, detail: err.message });
+    });
+  }
+}
 
 
 // ============================================
 // ROUTES
 // ============================================
 
-// Auth
+// Auth (critical — always load directly)
 app.use('/api/auth', require('./src/routes/auth.routes'));
 
-// Empresas (CRUD genérico)
+// CRUD routes (safe loading)
 const createCrudRoutes = require('./src/routes/crud.routes');
-app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { searchFields: ['rut', 'razon_social'], orderBy: 'razon_social ASC' }));
 
-app.use('/api/obras', createCrudRoutes('obras', 'obras', {
-  searchFields: ['nombre', 'direccion'],
-  joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
-  selectFields: 'obras.*, e.razon_social as empresa_nombre',
-  activeColumn: 'activa',
-  orderBy: 'obras.nombre ASC'
-}));
+try {
+  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { searchFields: ['rut', 'razon_social'], orderBy: 'razon_social ASC' }));
+  app.use('/api/obras', createCrudRoutes('obras', 'obras', {
+    searchFields: ['nombre', 'direccion'],
+    joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
+    selectFields: 'obras.*, e.razon_social as empresa_nombre',
+    activeColumn: 'activa',
+    orderBy: 'obras.nombre ASC'
+  }));
+  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
+  app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
+    searchFields: ['rut', 'nombres', 'apellido_paterno'],
+    joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
+    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
+    allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
+    useSoftDelete: true,
+    orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC'
+  }));
+  app.use('/api/tipos-ausencia', createCrudRoutes('asistencia', 'tipos_ausencia', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
+  app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asistencia', { searchFields: ['nombre', 'codigo'], orderBy: 'nombre ASC' }));
+  logger.info('✅ Rutas CRUD genéricas cargadas');
+} catch (err) {
+  logger.error('❌ Error cargando rutas CRUD genéricas', { error: err.message, stack: err.stack });
+}
 
-app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
-
-app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
-  searchFields: ['rut', 'nombres', 'apellido_paterno'],
-  joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
-  selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
-  allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
-  useSoftDelete: true,
-  orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC'
-}));
-
-// Documentos (rutas especializadas)
-app.use('/api/documentos', require('./src/routes/documentos.routes'));
-
-// Asistencia
-app.use('/api/asistencias', require('./src/routes/asistencias.routes'));
-
-// Fiscalización
-app.use('/api/fiscalizacion', require('./src/routes/fiscalizacion.routes'));
-
-// Email Config & Templates (per-user) - Mounted explicitly to avoid blocking /api/usuarios
-app.use('/api/usuarios/me/email-config', require('./src/routes/email-config.routes'));
-
-// Usuarios + Roles + Permisos
-app.use('/api/usuarios', require('./src/routes/usuarios.routes'));
-
-app.use('/api/tipos-ausencia', createCrudRoutes('asistencia', 'tipos_ausencia', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
-
-app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asistencia', { searchFields: ['nombre', 'codigo'], orderBy: 'nombre ASC' }));
-
-app.use('/api/feriados', require('./src/routes/feriados.routes'));
-
-// Configuración de Horarios
-app.use('/api/config-horarios', require('./src/routes/config-horarios.routes'));
-app.use('/api/logs', require('./src/routes/logs.routes'));
+// Specialized routes (each wrapped independently)
+safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
+safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
+safeRoute('/api/fiscalizacion', './src/routes/fiscalizacion.routes', 'Fiscalización');
+safeRoute('/api/usuarios/me/email-config', './src/routes/email-config.routes', 'Email Config');
+safeRoute('/api/usuarios', './src/routes/usuarios.routes', 'Usuarios');
+safeRoute('/api/feriados', './src/routes/feriados.routes', 'Feriados');
+safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config Horarios');
+safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 
 // ============================================
 // Health Check & Dashboard
@@ -93,11 +103,8 @@ app.use('/api/logs', require('./src/routes/logs.routes'));
 app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, res, next) => {
   try {
     const db = require('./src/config/db');
-    // Fetch permisos & nombre for the authenticated user (JWT only has id/rol_id)
-    const [permisos] = await db.query(
-      'SELECT modulo, puede_ver, puede_crear, puede_editar, puede_eliminar FROM permisos_rol WHERE rol_id = ?',
-      [req.user.rol_id]
-    );
+    // Permisos atómicos ya vienen en el JWT payload
+    const permisos = req.user.p || [];
     const [users] = await db.query('SELECT nombre FROM usuarios WHERE id = ?', [req.user.id]);
     const nombre = users.length > 0 ? users[0].nombre.split(' ')[0] : '';
 
@@ -109,6 +116,14 @@ app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// Debug Toolkit (protected by Super Admin)
+try {
+  const { mountDebugRoutes } = require('./src/utils/debug-toolkit');
+  mountDebugRoutes(app, require('./src/middleware/auth'));
+} catch (err) {
+  logger.warn('Debug toolkit no disponible:', { error: err.message });
+}
 
 // ============================================
 // PRODUCTION: Serve Frontend Static Files
