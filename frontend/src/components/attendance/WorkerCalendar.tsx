@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Loader2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado } from '../../types/entities';
 import { CalendarRange } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface WorkerCalendarProps {
     worker: Trabajador;
@@ -14,6 +15,7 @@ interface WorkerCalendarProps {
     readOnly?: boolean;
     showLegend?: boolean;
     showActivePeriods?: boolean;
+    onPeriodDeleted?: () => void;
 }
 
 const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
@@ -23,7 +25,8 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     onSelectRange,
     readOnly = false,
     showLegend = true,
-    showActivePeriods = true
+    showActivePeriods = true,
+    onPeriodDeleted
 }) => {
     const [currentDate, setCurrentDate] = useState(new Date());
     const [loading, setLoading] = useState(false);
@@ -122,6 +125,36 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             onSelectRange(selectionStart, selectionEnd);
             setSelectionStart(null);
             setSelectionEnd(null);
+        }
+    };
+
+    const handleDeletePeriod = async (id: number) => {
+        if (!window.confirm('¿Estás seguro de que deseas eliminar este período de ausencia?')) return;
+        
+        try {
+            await api.delete(`/asistencias/periodos/${id}`);
+            toast.success('Período eliminado');
+            
+            // Refrescar datos locales
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+            const startDate = `${year}-${month.toString().padStart(2, '0')}-01`;
+            const lastDay = new Date(year, month, 0).getDate();
+            const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
+            
+            const [resAsist, resPer] = await Promise.all([
+                api.get(`/asistencias/reporte?trabajador_id=${worker.id}&fecha_inicio=${startDate}&fecha_fin=${endDate}${obraId ? `&obra_id=${obraId}` : ''}`),
+                api.get(`/asistencias/periodos?trabajador_id=${worker.id}&activo=true&fecha_inicio=${startDate}&fecha_fin=${endDate}`)
+            ]);
+            
+            const asistData = resAsist.data;
+            setRecords(asistData.registros || []);
+            setHolidays(asistData.feriados || []);
+            setPeriodos(resPer.data?.data || []);
+
+            if (onPeriodDeleted) onPeriodDeleted();
+        } catch (error) {
+            toast.error('Error al eliminar el período');
         }
     };
 
@@ -328,8 +361,19 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <span className="w-2 h-2 rounded-full shadow-inner" style={{ backgroundColor: p.estado_color || '#6E6E73' }} />
                                         <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
                                     </div>
-                                    <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
-                                        ACTIVO
+                                    <div className="flex items-center gap-2">
+                                        <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
+                                            ACTIVO
+                                        </div>
+                                        {!readOnly && (
+                                            <button 
+                                                onClick={() => handleDeletePeriod(p.id)}
+                                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-[#86868B] hover:text-destructive transition-colors"
+                                                title="Eliminar período"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
                                     </div>
                                 </div>
 

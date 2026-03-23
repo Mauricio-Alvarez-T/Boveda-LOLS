@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, CalendarRange, AlertTriangle, Check, Loader2, ChevronLeft } from 'lucide-react';
+import { X, CalendarRange, AlertTriangle, Check, Loader2, ChevronLeft, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import api from '../../services/api';
@@ -25,6 +25,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
     const [loading, setLoading] = useState(false);
     const [existingPeriods, setExistingPeriods] = useState<PeriodoAusencia[]>([]);
     const [loadingPeriods, setLoadingPeriods] = useState(false);
+    const [deletingPeriodId, setDeletingPeriodId] = useState<number | null>(null);
 
     // Filtrar solo estados de ausencia (no presente)
     const estadosAusencia = useMemo(() => estados.filter(e => !e.es_presente), [estados]);
@@ -97,6 +98,23 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             onClose();
         } catch (err: any) {
             toast.error(err?.response?.data?.error || 'Error al crear el período');
+        } finally {
+            setLoading(false);
+        }
+    };
+    
+    const handleDeletePeriod = async (id: number) => {
+        setLoading(true);
+        try {
+            await api.delete(`/asistencias/periodos/${id}`);
+            toast.success('Período eliminado correctamente');
+            setDeletingPeriodId(null);
+            
+            // Refrescar lista local
+            setExistingPeriods(prev => prev.filter(p => p.id !== id));
+            onSuccess();
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Error al eliminar el período');
         } finally {
             setLoading(false);
         }
@@ -229,14 +247,54 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                     <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
                         Períodos activos
                     </label>
-                    <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                         {existingPeriods.map(p => (
-                            <div key={p.id} className="flex items-center gap-2 p-2 rounded-lg bg-background text-xs">
-                                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.estado_color }} />
-                                <span className="font-medium text-brand-dark">{p.estado_nombre}</span>
-                                <span className="text-[#86868B]">
-                                    {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
-                                </span>
+                            <div key={p.id} className="flex flex-col gap-1 p-2 rounded-xl bg-white border border-[#E8E8ED] shadow-sm">
+                                <div className="flex items-center justify-between gap-2">
+                                    <div className="flex items-center gap-2 overflow-hidden">
+                                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.estado_color }} />
+                                        <span className="font-bold text-brand-dark truncate">{p.estado_nombre}</span>
+                                    </div>
+                                    
+                                    {deletingPeriodId === p.id ? (
+                                        <div className="flex items-center gap-1 shrink-0 animate-in fade-in slide-in-from-right-1 duration-200">
+                                            <Button 
+                                                size="sm" 
+                                                variant="ghost" 
+                                                className="h-7 px-2 text-[10px] font-bold text-muted-foreground hover:bg-muted"
+                                                onClick={() => setDeletingPeriodId(null)}
+                                            >
+                                                No
+                                            </Button>
+                                            <Button 
+                                                size="sm" 
+                                                variant="primary" 
+                                                className="h-7 px-2 text-[10px] font-bold bg-destructive hover:bg-destructive/90 border-none"
+                                                onClick={() => handleDeletePeriod(p.id)}
+                                            >
+                                                Sí, borrar
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <button 
+                                            onClick={() => setDeletingPeriodId(p.id)}
+                                            className="p-1.5 rounded-lg hover:bg-destructive/5 text-[#86868B] hover:text-destructive transition-colors shrink-0"
+                                            title="Eliminar período"
+                                        >
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="flex items-center justify-between text-[10px] font-medium text-[#86868B] pl-4">
+                                    <span>
+                                        {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
+                                    </span>
+                                    {p.observacion && (
+                                        <span className="text-[9px] italic truncate max-w-[120px]" title={p.observacion}>
+                                            • {p.observacion}
+                                        </span>
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </div>

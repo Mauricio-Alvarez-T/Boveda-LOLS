@@ -13,6 +13,7 @@ interface Props {
     obraId?: number;
     onAssignPeriod?: () => void;
     onSelectRange?: (start: string, end: string) => void;
+    onPeriodDeleted?: () => void;
 }
 
 export const WorkerCalendarModal: React.FC<Props> = ({ 
@@ -22,7 +23,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     estados, 
     obraId, 
     onAssignPeriod, 
-    onSelectRange 
+    onSelectRange,
+    onPeriodDeleted
 }) => {
     if (!worker) return null;
 
@@ -66,6 +68,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                     estados={estados}
                     obraId={obraId}
                     onSelectRange={onSelectRange}
+                    onPeriodDeleted={onPeriodDeleted}
                 />
             </div>
         </Modal>

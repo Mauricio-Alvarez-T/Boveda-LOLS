@@ -20,7 +20,8 @@ import {
     Building2,
     Filter,
     Plus,
-    X
+    X,
+    Trash2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -1315,6 +1316,7 @@ const AttendancePage: React.FC = () => {
                     setPeriodModalWorker(calendarWorker);
                 }}
                 onSelectRange={handleCalendarSelectRange}
+                onPeriodDeleted={fetchAttendanceInfo}
             />
 
             <PeriodAssignModal
