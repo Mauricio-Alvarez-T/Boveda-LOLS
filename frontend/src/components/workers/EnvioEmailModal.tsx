@@ -22,14 +22,24 @@ interface TrabajadorAvanzado {
     [key: string]: any;
 }
 
+interface ExportFilters {
+    obra_id?: string;
+    empresa_id?: string;
+    cargo_id?: string;
+    categoria_reporte?: string;
+    activo?: string;
+    q?: string;
+}
+
 interface EnvioEmailModalProps {
     isOpen: boolean;
     onClose: () => void;
     destinatarioEmail: string;
-    trabajadores: TrabajadorAvanzado[];
+    filters: ExportFilters;
+    trabajador_ids?: number[];
 }
 
-const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, destinatarioEmail, trabajadores }) => {
+const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, destinatarioEmail, filters, trabajador_ids }) => {
     const [plantillas, setPlantillas] = useState<PlantillaCorreo[]>([]);
     const [selectedId, setSelectedId] = useState<number | null>(null);
     const [emailDestino, setEmailDestino] = useState(destinatarioEmail);
@@ -86,12 +96,13 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
         setSending(true);
         try {
             await api.post('/fiscalizacion/enviar-excel', {
-                trabajadores,
+                filters,
+                trabajador_ids,
                 destinatario_email: emailDestino,
                 asunto,
                 cuerpo
             });
-            toast.success(`Reporte enviado correctamente a ${destinatarioEmail}`);
+            toast.success(`Reporte enviado correctamente a ${emailDestino}`);
             onClose();
         } catch (err: any) {
             if (err.response?.data?.code === 'NO_EMAIL_CREDENTIALS') {
@@ -193,7 +204,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
             <Button
                 onClick={handleSend}
                 isLoading={sending}
-                disabled={!hasCredentials || !emailDestino || !asunto || !cuerpo || trabajadores.length === 0}
+                disabled={!hasCredentials || !emailDestino || !asunto || !cuerpo}
                 leftIcon={<Send className="h-4 w-4" />}
             >
                 Enviar
@@ -227,8 +238,8 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     </div>
 
                     <div className="px-4 py-2 bg-background border-b border-[#E8E8ED] shrink-0">
-                        <p className="text-xs text-muted-foreground">
-                            <span className="font-medium">{trabajadores.length} trabajador{trabajadores.length !== 1 ? 'es' : ''} seleccionado{trabajadores.length !== 1 ? 's' : ''}</span>
+                        <p className="text-xs text-muted-foreground italic">
+                            El reporte se generará con los filtros aplicados en la tabla.
                         </p>
                     </div>
 
@@ -272,8 +283,8 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                             </div>
                             <div>
                                 <h2 className="text-base font-semibold text-brand-dark">Enviar Reporte</h2>
-                                <p className="text-xs text-muted-foreground">
-                                    <span className="font-medium">{trabajadores.length} trabajador{trabajadores.length !== 1 ? 'es' : ''} seleccionado{trabajadores.length !== 1 ? 's' : ''}</span>
+                                <p className="text-xs text-muted-foreground italic">
+                                    Se enviará la asistencia según los filtros actuales.
                                 </p>
                             </div>
                         </div>

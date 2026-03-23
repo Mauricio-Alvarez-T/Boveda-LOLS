@@ -89,7 +89,14 @@ const ConsultasPage: React.FC = () => {
     const {
         exporting,
         handleExportExcel
-    } = useConsultasExport(workers, selectedWorkers);
+    } = useConsultasExport({
+        obra_id: filterObra,
+        empresa_id: filterEmpresa,
+        cargo_id: filterCargo,
+        categoria_reporte: filterCategoria,
+        activo: filterActivo,
+        q: search
+    });
 
     // 5. Acciones CRUD (Eliminar/Reactivar)
     const {
@@ -178,7 +185,7 @@ const ConsultasPage: React.FC = () => {
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleExportExcel(true)}
+                    onClick={() => handleExportExcel()}
                     isLoading={exporting}
                     disabled={workers.length === 0}
                     leftIcon={<FileDown className="h-3.5 w-3.5 text-brand-primary" />}
@@ -488,7 +495,7 @@ const ConsultasPage: React.FC = () => {
                                     <Button
                                         variant="outline"
                                         size="sm"
-                                        onClick={() => handleExportExcel(false)}
+                                        onClick={() => handleExportExcel(Array.from(selectedWorkers))}
                                         leftIcon={<FileDown className="h-4 w-4" />}
                                         className="h-9 px-3 text-xs md:text-sm bg-white"
                                     >
@@ -684,7 +691,15 @@ const ConsultasPage: React.FC = () => {
                 isOpen={emailModalOpen}
                 onClose={() => setEmailModalOpen(false)}
                 destinatarioEmail=""
-                trabajadores={workers.filter(w => selectedWorkers.has(w.id))}
+                filters={{
+                    obra_id: filterObra,
+                    empresa_id: filterEmpresa,
+                    cargo_id: filterCargo,
+                    categoria_reporte: filterCategoria,
+                    activo: filterActivo,
+                    q: search
+                }}
+                trabajador_ids={selectedWorkers.size > 0 ? Array.from(selectedWorkers) : undefined}
             />
 
             {/* Worker Form Modal (Create/Edit) */}
