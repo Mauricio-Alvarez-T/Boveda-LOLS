@@ -90,6 +90,7 @@ safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
 safeRoute('/api/fiscalizacion', './src/routes/fiscalizacion.routes', 'Fiscalización');
 safeRoute('/api/usuarios/me/email-config', './src/routes/email-config.routes', 'Email Config');
+safeRoute('/api/usuarios/me/plantillas', './src/routes/plantillas.routes', 'Plantillas Email');
 safeRoute('/api/usuarios', './src/routes/usuarios.routes', 'Usuarios');
 safeRoute('/api/feriados', './src/routes/feriados.routes', 'Feriados');
 safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config Horarios');
