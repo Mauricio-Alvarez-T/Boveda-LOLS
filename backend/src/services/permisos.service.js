@@ -7,6 +7,12 @@ const permisosService = {
      * Devuelve un Array<string> con las claves de los permisos.
      */
     async getPermisosEfectivos(usuario_id, rol_id) {
+        // 0. Super Administrator (God Mode): Return ALL permissions
+        if (rol_id === 1) {
+            const [catalogo] = await db.query('SELECT clave FROM permisos_catalogo');
+            return catalogo.map(c => c.clave);
+        }
+
         // 1. Obtener permisos base del rol
         const [rolPermisos] = await db.query(
             'SELECT permiso_clave FROM permisos_rol_v2 WHERE rol_id = ?',
