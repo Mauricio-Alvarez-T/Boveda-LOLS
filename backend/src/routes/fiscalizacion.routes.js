@@ -4,7 +4,7 @@ const { checkPermission } = require('../middleware/rbac');
 const zipService = require('../services/zip.service');
 const fiscalizacionService = require('../services/fiscalizacion.service');
 const asistenciaService = require('../services/asistencia.service');
-const emailService = require('./email.service');
+const emailService = require('../services/email.service');
 const fs = require('fs');
 const path = require('path');
 
