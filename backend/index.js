@@ -158,6 +158,7 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
+/*
 // Ensure database schema is up to date
 (async () => {
     try {
@@ -172,5 +173,6 @@ if (process.env.NODE_ENV !== 'test') {
         console.error("Error al actualizar esquema BD:", err.message);
     }
 })();
+*/
 
 module.exports = app;
