@@ -721,7 +721,7 @@ const AttendancePage: React.FC = () => {
                 </>
             )}
         </div>
-    ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission, feriadoActual, toggleFeriado, showSearchBox]);
+    ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
     useSetPageHeader(headerTitle, headerActions);
 
     if (!selectedObra) {
@@ -861,14 +861,43 @@ const AttendancePage: React.FC = () => {
                                     </Button>
                                 </div>
 
-                                <div className="hidden sm:flex items-center gap-1.5 ml-2 border-l border-[#E8E8ED] pl-4">
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-brand-primary/5 rounded-lg border border-brand-primary/10">
-                                        <span className="text-[10px] font-black text-brand-primary uppercase tabular-nums">{summary.total}</span>
-                                        <Users className="h-3 w-3 text-brand-primary/60" />
+                                <div className="hidden sm:flex items-center gap-2 ml-2 border-l border-[#E8E8ED] pl-4 overflow-x-auto scrollbar-none max-w-[300px] lg:max-w-none">
+                                    {/* Total Workers Badge */}
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
+                                        <Users className="h-3.5 w-3.5 text-brand-dark/60" />
+                                        <span className="text-[13px] font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
+                                        <span className="text-[9px] font-bold text-brand-dark/40 uppercase tracking-tighter ml-0.5">Total</span>
                                     </div>
-                                    <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg border border-brand-accent/10">
-                                        <span className="text-[10px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
-                                        <BarChart3 className="h-3 w-3 text-brand-accent/60" />
+
+                                    {/* Dynamic Breakdown Badges */}
+                                    {summary.desglose.map(({ count, estado }) => (
+                                        <motion.div
+                                            key={estado.id}
+                                            initial={{ opacity: 0, scale: 0.9 }}
+                                            animate={{ opacity: 1, scale: 1 }}
+                                            className={cn(
+                                                "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0",
+                                                estado.codigo === 'A' ? "bg-brand-primary/[0.08] border-brand-primary/20 text-brand-primary shadow-sm shadow-brand-primary/5" :
+                                                estado.codigo === 'F' ? "bg-destructive/[0.08] border-destructive/20 text-destructive shadow-sm shadow-destructive/5" :
+                                                estado.codigo === 'JI' ? "bg-purple-500/[0.08] border-purple-500/20 text-purple-600 shadow-sm shadow-purple-500/5" :
+                                                "bg-amber-500/[0.08] border-amber-500/20 text-amber-600 shadow-sm shadow-amber-500/5"
+                                            )}
+                                        >
+                                            <span className="text-[10px] font-black opacity-80 uppercase tracking-widest">{estado.codigo}</span>
+                                            <div className={cn(
+                                                "h-4 w-px opacity-20",
+                                                estado.codigo === 'A' ? "bg-brand-primary" :
+                                                estado.codigo === 'F' ? "bg-destructive" :
+                                                estado.codigo === 'JI' ? "bg-purple-500" : "bg-amber-500"
+                                            )} />
+                                            <span className="text-[13px] font-black tabular-nums">{count}</span>
+                                        </motion.div>
+                                    ))}
+
+                                    {/* Attendance Percentage Badge */}
+                                    <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-accent/5 rounded-xl border border-brand-accent/10 shrink-0 ml-1">
+                                        <BarChart3 className="h-3.5 w-3.5 text-brand-accent/60" />
+                                        <span className="text-[13px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
                                     </div>
                                 </div>
                             </div>
