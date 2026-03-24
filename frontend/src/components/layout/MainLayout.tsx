@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { NotificationBell } from './NotificationBell';
-import { Menu } from 'lucide-react';
+import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 
 export const MainLayout: React.FC = () => {
@@ -15,6 +15,28 @@ export const MainLayout: React.FC = () => {
 
     return (
         <div className="flex min-h-screen bg-background">
+            {/* Mobile Orientation Lock Overlay */}
+            <div className="fixed inset-0 z-[9999] bg-brand-dark flex flex-col items-center justify-center p-8 text-center md:hidden landscape:flex portrait:hidden overflow-hidden">
+                <motion.div 
+                    initial={{ rotate: 0 }}
+                    animate={{ rotate: 90 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                    className="h-24 w-24 rounded-[2rem] bg-brand-primary/10 flex items-center justify-center mb-8 border border-brand-primary/20 backdrop-blur-sm"
+                >
+                    <Smartphone className="h-12 w-12 text-brand-primary" />
+                </motion.div>
+                <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-3">
+                    Gira tu dispositivo
+                </h2>
+                <p className="text-brand-light/60 text-sm font-medium leading-relaxed max-w-[260px]">
+                    Bóveda LOLS está diseñada para una experiencia vertical óptima. Por favor, vuelve a la orientación vertical.
+                </p>
+                <div className="mt-12 flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
+                    <div className="h-1.5 w-1.5 rounded-full bg-brand-primary animate-pulse" />
+                    <span className="text-[10px] font-bold text-brand-light/40 uppercase tracking-widest">Esperando rotación...</span>
+                </div>
+            </div>
+
             {/* Sidebar */}
             <Sidebar
                 isCollapsed={isCollapsed}
