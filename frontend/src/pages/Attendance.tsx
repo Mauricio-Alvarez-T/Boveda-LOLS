@@ -422,7 +422,7 @@ const AttendancePage: React.FC = () => {
         });
 
         if (excepciones.length > 0) {
-            text += `A&M: ${excepciones.length.toString().padStart(2, '0')}\n`;
+            text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n`;
             excepciones.forEach(w => {
                 const state = currentAttendance[w.id];
                 const est = currentEstados.find(e => e.id === state?.estado_id);
