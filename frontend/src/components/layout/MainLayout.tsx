@@ -42,10 +42,10 @@ export const MainLayout: React.FC = () => {
                     {/* Spacer on mobile to push actions right */}
                     <div className="flex-1 md:hidden" />
 
-                    <div className="flex items-center gap-1.5 md:gap-3 shrink-0">
+                    <div className="flex items-center justify-end gap-1.5 md:gap-3 min-w-0">
                         {/* Page Actions Injected */}
                         {actions && (
-                            <div className="flex items-center gap-1 md:gap-2 mr-1 md:mr-2">
+                            <div className="flex items-center gap-1 md:gap-2 mr-1 md:mr-2 shrink-0">
                                 {actions}
                             </div>
                         )}

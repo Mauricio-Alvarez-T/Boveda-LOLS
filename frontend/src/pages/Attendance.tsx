@@ -651,13 +651,13 @@ const AttendancePage: React.FC = () => {
             {selectedObra && (
                 <>
                     {/* Botones Móvil (3 principales) */}
-                    <div className="flex md:hidden items-center gap-1.5 h-full">
+                    <div className="flex md:hidden items-center gap-1 h-full">
                         <Button
                             onClick={handleShareWhatsApp}
-                            className="h-9 px-3 rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center gap-1.5"
+                            className="h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0"
+                            title="Enviar"
                         >
-                            <span className="text-[10px] font-black uppercase">Enviar</span>
-                            <Send className="h-3.5 w-3.5" fill="currentColor" />
+                            <Send className="h-4 w-4" fill="currentColor" />
                         </Button>
 
                         <Button
