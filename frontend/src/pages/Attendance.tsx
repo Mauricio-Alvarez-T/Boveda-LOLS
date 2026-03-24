@@ -119,7 +119,7 @@ const AttendancePage: React.FC = () => {
         setLoading(true);
         try {
             const [workersRes, attendanceRes, schedulesRes] = await Promise.all([
-                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true`),
+                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true&limit=1000`),
                 api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`),
                 api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${selectedObra.id}`)
             ]);
