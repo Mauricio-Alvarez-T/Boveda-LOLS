@@ -651,10 +651,10 @@ const AttendancePage: React.FC = () => {
                         <Button
                             onClick={handleSave}
                             isLoading={saving}
-                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday}
+                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
                             className={cn(
                                 "h-9 px-3 rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center gap-1.5",
-                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
+                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday) && "opacity-40 grayscale pointer-events-none"
                             )}
                         >
                             <span className="text-[10px] font-black uppercase">Guardar</span>
@@ -802,10 +802,10 @@ const AttendancePage: React.FC = () => {
                         <Button
                             onClick={handleSave}
                             isLoading={saving}
-                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday}
+                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
                             className={cn(
                                 "h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-brand-primary/20",
-                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
+                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday) && "opacity-40 grayscale pointer-events-none"
                             )}
                         >
                             <span className="hidden lg:inline mr-2 underline decoration-white/30 active:translate-y-px transition-all">Guardar</span>
@@ -1035,7 +1035,29 @@ const AttendancePage: React.FC = () => {
                 </div>
                 
                 {/* Grilla / Resultados */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2">
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2 relative">
+                    <AnimatePresence>
+                        {(isSaturday || isSunday || !!feriadoActual) && (
+                            <motion.div
+                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                                animate={{ opacity: 1, scale: 1, y: 0 }}
+                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                                className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 mb-2 shadow-sm shrink-0"
+                            >
+                                <div className="h-10 w-10 flex-shrink-0 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 border border-amber-200/50">
+                                    <CalendarRange className="h-5 w-5" />
+                                </div>
+                                <div className="min-w-0">
+                                    <h3 className="text-[11px] font-black text-amber-900 uppercase tracking-wider mb-0.5">Día No Laboral</h3>
+                                    <p className="text-xs text-amber-800 font-bold opacity-80 decoration-amber-300">
+                                        {feriadoActual 
+                                            ? `Hoy es Feriado (${feriadoActual.nombre}). No se registra asistencia.`
+                                            : `Hoy es ${isSunday ? 'Domingo' : 'Sábado'}. No se registra asistencia los fines de semana.`}
+                                    </p>
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
 
                     <AnimatePresence>
                         {filteredWorkers.map((worker, idx) => {
