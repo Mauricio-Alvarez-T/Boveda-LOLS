@@ -16,7 +16,7 @@ export const MainLayout: React.FC = () => {
     return (
         <div className="flex min-h-screen bg-background">
             {/* Mobile Orientation Lock Overlay */}
-            <div className="fixed inset-0 z-[9999] bg-brand-dark flex flex-col items-center justify-center p-8 text-center md:hidden landscape:flex portrait:hidden overflow-hidden">
+            <div className="fixed inset-0 z-[9999] bg-brand-dark flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
                 <motion.div 
                     initial={{ rotate: 0 }}
                     animate={{ rotate: 90 }}
