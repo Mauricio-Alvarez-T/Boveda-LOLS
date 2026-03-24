@@ -44,14 +44,18 @@ export const NotificationBell: React.FC = () => {
 
     // Close on outside click
     useEffect(() => {
-        const handle = (e: MouseEvent) => {
+        const handle = (e: MouseEvent | TouchEvent) => {
             if (ref.current && !ref.current.contains(e.target as Node)) {
                 setOpen(false);
                 setExpanded10m(false);
             }
         };
         document.addEventListener('mousedown', handle);
-        return () => document.removeEventListener('mousedown', handle);
+        document.addEventListener('touchstart', handle);
+        return () => {
+            document.removeEventListener('mousedown', handle);
+            document.removeEventListener('touchstart', handle);
+        };
     }, []);
 
     const totalCount = alerts.reduce((sum, a) => sum + a.count, 0);

@@ -80,6 +80,22 @@ const AttendancePage: React.FC = () => {
     const [periodModalWorker, setPeriodModalWorker] = useState<Trabajador | null>(null);
 
     const [showMobileMenu, setShowMobileMenu] = useState(false);
+    const mobileMenuRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
+                setShowMobileMenu(false);
+            }
+        };
+        // Add listeners for both mouse and touch events
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('touchstart', handler);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('touchstart', handler);
+        };
+    }, []);
 
     const handleCalendarSelectRange = (start: string, end: string) => {
         setPeriodSelection({ start, end });
@@ -673,7 +689,7 @@ const AttendancePage: React.FC = () => {
                             <Save className="h-3.5 w-3.5" />
                         </Button>
 
-                        <div className="relative">
+                        <div className="relative" ref={mobileMenuRef}>
                             <button
                                 onClick={() => setShowMobileMenu(!showMobileMenu)}
                                 className={cn(
@@ -687,13 +703,6 @@ const AttendancePage: React.FC = () => {
                             <AnimatePresence>
                                 {showMobileMenu && (
                                     <>
-                                        <motion.div 
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            className="fixed inset-0 z-[60] bg-black/20 backdrop-blur-[2px]"
-                                            onClick={() => setShowMobileMenu(false)}
-                                        />
                                         <motion.div
                                             initial={{ opacity: 0, scale: 0.9, y: 10, x: 20 }}
                                             animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
