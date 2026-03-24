@@ -59,74 +59,101 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                     {label}
                 </label>
                 
-                <button
-                    type="button"
-                    onClick={() => setIsOpen(!isOpen)}
-                    className={cn(
-                        "w-full border rounded-xl p-2.5 text-sm transition-all text-left flex items-center justify-between",
-                        // Base desaturada
-                        "bg-white border-border hover:border-brand-primary/40",
-                        // Estado Activo (Filtro aplicado)
-                        isFilterActive && "bg-brand-primary/[0.03] border-brand-primary shadow-[0_0_0_1px_rgba(var(--brand-primary-rgb),0.1)] ring-1 ring-brand-primary/20 text-brand-primary font-semibold",
-                        // Estado Abierto/Foco
-                        isOpen && "ring-4 ring-brand-primary/10 border-brand-primary",
-                        className
-                    )}
-                >
-                    <span className="truncate pr-2">{selectedOption ? selectedOption.label : placeholder}</span>
-                    <ChevronDown className={cn(
-                        "h-4 w-4 transition-transform shrink-0", 
-                        isOpen ? "rotate-180 text-brand-primary" : "text-muted-foreground/40",
-                        isFilterActive && "text-brand-primary"
-                    )} />
-                </button>
-
-                {isOpen && (
-                    <div className="absolute z-40 w-full min-w-[200px] mt-1 bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
-                        <div className="p-2 border-b border-border relative bg-background/50">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                            <input 
-                                type="text"
-                                className="w-full bg-white border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
-                                placeholder="Buscar..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                onClick={(e) => e.stopPropagation()}
-                                autoFocus
-                            />
-                        </div>
-                        <ul className="max-h-64 overflow-y-auto custom-scrollbar py-1">
-                        {/* Solo mostrar el placeholder manual si no hay una opción con valor vacío en el array original para evitar duplicados */}
-                        {!options.some(opt => opt.value === '' || opt.value === undefined) && (
-                            <li 
-                                className={cn(
-                                    "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-colors",
-                                    (value === '' || value === undefined) && "bg-brand-primary/10 font-bold text-brand-primary"
-                                )}
-                                onClick={() => handleSelect('')}
-                            >
-                                {placeholder}
-                            </li>
+                {/* ── MOBILE: NATIVE SELECT ── */}
+                <div className="md:hidden relative">
+                    <select
+                        value={value ?? ''}
+                        onChange={(e) => {
+                            if (onChange) onChange(e);
+                        }}
+                        className={cn(
+                            "w-full border rounded-xl p-2.5 text-sm transition-all appearance-none outline-none cursor-pointer",
+                            "bg-white border-border hover:border-brand-primary/40 text-brand-dark",
+                            isFilterActive && "bg-brand-primary/[0.03] border-brand-primary shadow-[0_0_0_1px_rgba(var(--brand-primary-rgb),0.1)] ring-1 ring-brand-primary/20 text-brand-primary font-semibold",
+                            className
                         )}
-                            {filteredOptions.length === 0 ? (
-                                <li className="px-4 py-6 text-sm text-muted-foreground text-center italic">No hay resultados</li>
-                            ) : (
-                                filteredOptions.map(opt => (
-                                    <li
-                                        key={opt.value}
-                                        className={cn(
-                                            "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-all",
-                                            value === String(opt.value) && "bg-brand-primary/10 font-bold text-brand-primary border-r-4 border-brand-primary"
-                                        )}
-                                        onClick={() => handleSelect(opt.value)}
-                                    >
-                                        {opt.label}
-                                    </li>
-                                ))
+                    >
+                        {/* Only show placeholder if options don't already contain it */}
+                        {!options.some(opt => opt.value === '' || opt.value === undefined) && (
+                            <option value="">{placeholder}</option>
+                        )}
+                        {options.map(opt => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className={cn(
+                        "absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 pointer-events-none transition-transform shrink-0", 
+                        isFilterActive ? "text-brand-primary" : "text-muted-foreground/40"
+                    )} />
+                </div>
+
+                {/* ── DESKTOP: CUSTOM DROPDOWN WITH SEARCH ── */}
+                <div className="hidden md:block relative">
+                    <button
+                        type="button"
+                        onClick={() => setIsOpen(!isOpen)}
+                        className={cn(
+                            "w-full border rounded-xl p-2.5 text-sm transition-all text-left flex items-center justify-between",
+                            "bg-white border-border hover:border-brand-primary/40",
+                            isFilterActive && "bg-brand-primary/[0.03] border-brand-primary shadow-[0_0_0_1px_rgba(var(--brand-primary-rgb),0.1)] ring-1 ring-brand-primary/20 text-brand-primary font-semibold",
+                            isOpen && "ring-4 ring-brand-primary/10 border-brand-primary",
+                            className
+                        )}
+                    >
+                        <span className="truncate pr-2">{selectedOption ? selectedOption.label : placeholder}</span>
+                        <ChevronDown className={cn(
+                            "h-4 w-4 transition-transform shrink-0", 
+                            isOpen ? "rotate-180 text-brand-primary" : "text-muted-foreground/40",
+                            isFilterActive && "text-brand-primary"
+                        )} />
+                    </button>
+
+                    {isOpen && (
+                        <div className="absolute z-40 w-full min-w-[200px] mt-1 bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
+                            <div className="p-2 border-b border-border relative bg-background/50">
+                                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                                <input 
+                                    type="text"
+                                    className="w-full bg-white border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
+                                    placeholder="Buscar..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    autoFocus
+                                />
+                            </div>
+                            <ul className="max-h-64 overflow-y-auto custom-scrollbar py-1">
+                            {!options.some(opt => opt.value === '' || opt.value === undefined) && (
+                                <li 
+                                    className={cn(
+                                        "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-colors",
+                                        (value === '' || value === undefined) && "bg-brand-primary/10 font-bold text-brand-primary"
+                                    )}
+                                    onClick={() => handleSelect('')}
+                                >
+                                    {placeholder}
+                                </li>
                             )}
-                        </ul>
-                    </div>
-                )}
+                                {filteredOptions.length === 0 ? (
+                                    <li className="px-4 py-6 text-sm text-muted-foreground text-center italic">No hay resultados</li>
+                                ) : (
+                                    filteredOptions.map(opt => (
+                                        <li
+                                            key={opt.value}
+                                            className={cn(
+                                                "px-4 py-2.5 text-sm cursor-pointer hover:bg-brand-primary/5 transition-all",
+                                                value === String(opt.value) && "bg-brand-primary/10 font-bold text-brand-primary border-r-4 border-brand-primary"
+                                            )}
+                                            onClick={() => handleSelect(opt.value)}
+                                        >
+                                            {opt.label}
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }
