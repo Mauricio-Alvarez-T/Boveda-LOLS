@@ -561,7 +561,17 @@ const AttendancePage: React.FC = () => {
 
     // Filtered and sorted workers
     const filteredWorkers = useMemo(() => {
-        let result = workers;
+        let result = workers.filter(w => {
+            if (!w.activo) return false;
+
+            const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
+            const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
+
+            const isDesvinculado = fDesvinc ? date > fDesvinc : false;
+            const isPreContrato = fIngreso ? date < fIngreso : false;
+
+            return !isDesvinculado && !isPreContrato;
+        });
 
         if (selectedEmpresaId !== null) {
             result = result.filter(w => w.empresa_id === selectedEmpresaId);
@@ -590,20 +600,22 @@ const AttendancePage: React.FC = () => {
             };
             return getFullNameSort(a).localeCompare(getFullNameSort(b), 'es', { sensitivity: 'base' });
         });
-    }, [workers, searchQuery, selectedEmpresaId]);
+    }, [workers, searchQuery, selectedEmpresaId, date]);
 
     // Summary stats
     const summary = useMemo(() => {
         const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};
         estados.forEach(e => { counts[e.id] = { count: 0, estado: e }; });
 
-        Object.values(attendance).forEach(a => {
-            if (a.estado_id && counts[a.estado_id]) {
+        let total = 0;
+        filteredWorkers.forEach(w => {
+            const a = attendance[w.id];
+            if (a && a.estado_id && counts[a.estado_id]) {
                 counts[a.estado_id].count++;
+                total++;
             }
         });
 
-        const total = Object.keys(attendance).length;
         const presentes = Object.values(counts)
             .filter(c => c.estado.es_presente)
             .reduce((sum, c) => sum + c.count, 0);
@@ -614,7 +626,7 @@ const AttendancePage: React.FC = () => {
             porcentaje: total > 0 ? Math.round((presentes / total) * 100) : 0,
             desglose: Object.values(counts).filter(c => c.count > 0)
         };
-    }, [attendance, estados]);
+    }, [attendance, estados, filteredWorkers]);
 
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
