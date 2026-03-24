@@ -30,7 +30,7 @@ const WorkerLink: React.FC<WorkerLinkProps> = ({ workerId, children, onClick, cl
                 onClick(workerId);
             }}
             className={cn(
-                "text-left font-semibold text-brand-dark hover:text-brand-primary transition-colors cursor-pointer underline decoration-transparent hover:decoration-brand-primary/40 underline-offset-2",
+                "w-full text-left font-semibold text-brand-dark hover:text-brand-primary transition-colors cursor-pointer underline decoration-transparent hover:decoration-brand-primary/40 underline-offset-2",
                 className
             )}
         >

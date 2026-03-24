@@ -950,8 +950,8 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                 {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
-                <div className="md:hidden flex flex-col gap-2 px-4 pb-3 bg-white border-b border-[#E8E8ED] shrink-0">
-                    <div className="flex items-center justify-between bg-slate-50 rounded-2xl p-1 border border-slate-200/60 shadow-inner">
+                <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-white border-b border-[#E8E8ED] shrink-0">
+                    <div className="flex items-center justify-between bg-white rounded-2xl p-1 border border-[#E8E8ED] shadow-sm">
                         <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
                             <ChevronLeft className="h-5 w-5" />
                         </Button>
@@ -1121,8 +1121,13 @@ const AttendancePage: React.FC = () => {
                                                 #{(idx + 1).toString().padStart(2, '0')}
                                             </button>
                                             <div className="flex-1 min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[13px] truncate block font-bold text-brand-dark leading-tight">
-                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
+                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="w-full text-left truncate block leading-tight">
+                                                    <span className="text-[12px] font-black text-brand-dark uppercase tracking-tight">
+                                                        {worker.apellido_paterno} {worker.apellido_materno || ''}
+                                                    </span>
+                                                    <span className="text-[11px] font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">
+                                                        {worker.nombres}
+                                                    </span>
                                                 </WorkerLink>
                                                 <p className="text-[10px] text-muted-foreground font-medium mt-0.5">
                                                     {worker.rut}
