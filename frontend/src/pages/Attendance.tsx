@@ -50,7 +50,7 @@ import RequirePermission from '../components/auth/RequirePermission';
 
 const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
-    const { checkPermission } = useAuth();
+    const { checkPermission, hasPermission } = useAuth();
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -184,7 +184,7 @@ const AttendancePage: React.FC = () => {
     }, [fetchAttendanceInfo, defaultEstado, selectedObra]);
 
     const toggleFeriado = async () => {
-        if (!selectedObra || !checkPermission('asistencia', 'puede_editar')) return;
+        if (!selectedObra || !hasPermission('asistencia.feriado.gestionar')) return;
 
         if (feriadoActual) {
             if (window.confirm(`¿Seguro que deseas quitar el feriado "${feriadoActual.nombre}"?`)) {
@@ -651,10 +651,10 @@ const AttendancePage: React.FC = () => {
                         <Button
                             onClick={handleSave}
                             isLoading={saving}
-                            disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday}
                             className={cn(
                                 "h-9 px-3 rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center gap-1.5",
-                                (!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
+                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
                             )}
                         >
                             <span className="text-[10px] font-black uppercase">Guardar</span>
@@ -712,7 +712,7 @@ const AttendancePage: React.FC = () => {
                                                 <span className="text-xs font-bold uppercase tracking-tight">Exportar Excel</span>
                                             </button>
 
-                                            <RequirePermission modulo="asistencia" accion="puede_editar">
+                                            <RequirePermission permiso="asistencia.feriado.gestionar">
                                                 <button
                                                     onClick={() => { toggleFeriado(); setShowMobileMenu(false); }}
                                                     className={cn(
@@ -784,7 +784,7 @@ const AttendancePage: React.FC = () => {
                         >
                             <FileDown className="h-4 w-4" />
                         </Button>
-                        <RequirePermission modulo="asistencia" accion="puede_editar">
+                        <RequirePermission permiso="asistencia.feriado.gestionar">
                             <Button
                                 onClick={toggleFeriado}
                                 variant={feriadoActual ? "outline" : "glass"}
@@ -802,10 +802,10 @@ const AttendancePage: React.FC = () => {
                         <Button
                             onClick={handleSave}
                             isLoading={saving}
-                            disabled={loading || workers.length === 0 || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday}
+                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday}
                             className={cn(
                                 "h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-brand-primary/20",
-                                (!checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
+                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday) && "opacity-40 grayscale pointer-events-none"
                             )}
                         >
                             <span className="hidden lg:inline mr-2 underline decoration-white/30 active:translate-y-px transition-all">Guardar</span>
@@ -816,7 +816,7 @@ const AttendancePage: React.FC = () => {
 
             )}
         </div>
-    ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, checkPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
+    ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
     useSetPageHeader(headerTitle, headerActions);
 
     if (!selectedObra) {
@@ -1126,7 +1126,7 @@ const AttendancePage: React.FC = () => {
                                                                 setExpandedWorkerId(worker.id);
                                                             }
                                                         }}
-                                                        disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                        disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
                                                         className={cn(
                                                             "flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95",
                                                             isActive ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60"
@@ -1149,7 +1149,7 @@ const AttendancePage: React.FC = () => {
                                                             )}
                                                             style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined}
                                                             value={activeSecondary?.id || ""}
-                                                            disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                            disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
                                                             onChange={(e) => {
                                                                 const estId = parseInt(e.target.value);
                                                                 updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
@@ -1237,7 +1237,7 @@ const AttendancePage: React.FC = () => {
                                                                 }
                                                                 updateAttendance(worker.id, updates);
                                                             }}
-                                                            disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                            disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
                                                             className={cn(
                                                                 "h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]",
                                                                 isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95"
@@ -1263,7 +1263,7 @@ const AttendancePage: React.FC = () => {
                                                                     )}
                                                                     style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
                                                                     value={activeSecondary?.id || ""}
-                                                                    disabled={isOutOfRange || !checkPermission('asistencia', 'puede_editar') || !!feriadoActual || isSunday || isSaturday}
+                                                                    disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
                                                                     onChange={(e) => {
                                                                         const estId = parseInt(e.target.value);
                                                                         updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
@@ -1529,14 +1529,14 @@ const AttendancePage: React.FC = () => {
                                     <Button
                                         size="sm"
                                         variant={isUploading ? 'glass' : 'primary'}
-                                        disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
+                                        disabled={!hasPermission('documentos.subir') && !isUploading}
                                         onClick={() => setIsUploading(!isUploading)}
                                         leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
                                         className={cn(
                                             "flex-1 sm:flex-initial font-bold shadow-sm",
-                                            (!checkPermission('documentos', 'puede_crear') && !isUploading) && "opacity-50 grayscale cursor-not-allowed"
+                                            (!hasPermission('documentos.subir') && !isUploading) && "opacity-50 grayscale cursor-not-allowed"
                                         )}
-                                        title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
+                                        title={(!hasPermission('documentos.subir') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
                                     >
                                         <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
                                         <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>
