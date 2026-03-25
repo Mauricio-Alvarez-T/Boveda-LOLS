@@ -1,0 +1,150 @@
+=== BOVEDA LOLS DIAGNOSTIC SECURE PROBE V2 ===
+
+--- LEYENDO: /home/lolscl/public_html/boveda.lols.cl/../../boveda/stderr.log ---
+[ERROR] Archivo no encontrado.
+
+
+--- LEYENDO: /home/lolscl/boveda/startup_app.log ---
+... (archivo muy largo, mostrando 50 líneas finales) ...
+[OK] dotenv cargado correctamente
+[FATAL ERROR] Fallo al cargar index.js: Error: Cannot find module '../services/usuarios.service'
+Require stack:
+- /home/lolscl/boveda/src/routes/usuarios.routes.js
+- /home/lolscl/boveda/index.js
+- /home/lolscl/boveda/app.js
+- /opt/cpanel/ea-ruby27/root/usr/share/passenger/helper-scripts/node-loader.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+    at Module._load (node:internal/modules/cjs/loader:1043:27)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at Module.require (/opt/cpanel/ea-ruby27/root/usr/share/passenger/helper-scripts/node-loader.js:80:25)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/home/lolscl/boveda/src/routes/usuarios.routes.js:6:25)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at Module.require (/opt/cpanel/ea-ruby27/root/usr/share/passenger/helper-scripts/node-loader.js:80:25)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/home/lolscl/boveda/index.js:76:26)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+
+
+[START] 2026-03-23T19:05:42.808Z Iniciando app.js
+[OK] dotenv cargado correctamente
+[FATAL ERROR] Fallo al cargar index.js: Error: Cannot find module '../services/usuarios.service'
+Require stack:
+- /home/lolscl/boveda/src/routes/usuarios.routes.js
+- /home/lolscl/boveda/index.js
+- /home/lolscl/boveda/app.js
+- /opt/cpanel/ea-ruby27/root/usr/share/passenger/helper-scripts/node-loader.js
+    at Module._resolveFilename (node:internal/modules/cjs/loader:1212:15)
+    at Module._load (node:internal/modules/cjs/loader:1043:27)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at Module.require (/opt/cpanel/ea-ruby27/root/usr/share/passenger/helper-scripts/node-loader.js:80:25)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/home/lolscl/boveda/src/routes/usuarios.routes.js:6:25)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+    at Module.load (node:internal/modules/cjs/loader:1275:32)
+    at Module._load (node:internal/modules/cjs/loader:1096:12)
+    at Module.require (node:internal/modules/cjs/loader:1298:19)
+    at Module.require (/opt/cpanel/ea-ruby27/root/usr/share/passenger/helper-scripts/node-loader.js:80:25)
+    at require (node:internal/modules/helpers:182:18)
+    at Object.<anonymous> (/home/lolscl/boveda/index.js:76:26)
+    at Module._compile (node:internal/modules/cjs/loader:1529:14)
+    at Module._extensions..js (node:internal/modules/cjs/loader:1613:10)
+
+
+--- LEYENDO: /home/lolscl/boveda/error_debug.log ---
+... (archivo muy largo, mostrando 50 líneas finales) ...
+    at PromisePool.query (/home/lolscl/nodevenv/boveda/20/lib/node_modules/mysql2/lib/promise/pool.js:36:22)
+    at Object.create (/home/lolscl/boveda/src/services/crud.service.js:133:49)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async create (/home/lolscl/boveda/src/controllers/crud.controller.js:22:26)
+
+[2026-03-23T05:53:33.427Z] POST /api/trabajadores
+ERROR: Unknown column 'activa' in 'WHERE'
+STACK: Error: Unknown column 'activa' in 'WHERE'
+    at PromisePool.query (/home/lolscl/nodevenv/boveda/20/lib/node_modules/mysql2/lib/promise/pool.js:36:22)
+    at Object.create (/home/lolscl/boveda/src/services/crud.service.js:133:49)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async create (/home/lolscl/boveda/src/controllers/crud.controller.js:22:26)
+
+[2026-03-23T05:54:35.638Z] POST /api/trabajadores
+ERROR: Unknown column 'activa' in 'WHERE'
+STACK: Error: Unknown column 'activa' in 'WHERE'
+    at PromisePool.query (/home/lolscl/nodevenv/boveda/20/lib/node_modules/mysql2/lib/promise/pool.js:36:22)
+    at Object.create (/home/lolscl/boveda/src/services/crud.service.js:133:49)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async create (/home/lolscl/boveda/src/controllers/crud.controller.js:22:26)
+
+[2026-03-23T05:54:44.886Z] POST /api/trabajadores
+ERROR: Unknown column 'activa' in 'WHERE'
+STACK: Error: Unknown column 'activa' in 'WHERE'
+    at PromisePool.query (/home/lolscl/nodevenv/boveda/20/lib/node_modules/mysql2/lib/promise/pool.js:36:22)
+    at Object.create (/home/lolscl/boveda/src/services/crud.service.js:133:49)
+    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)
+    at async create (/home/lolscl/boveda/src/controllers/crud.controller.js:22:26)
+
+[2026-03-23T12:31:50.919Z] DELETE /api/obras/30
+ERROR: Cannot delete or update a parent row: a foreign key constraint fails (`lolscl_boveda`.`asistencias`, CONSTRAINT `fk_asistencias_obra` FOREIGN KEY (`obra_id`) REFERENCES `obras` (`id`) ON UPDATE CASCADE)
+STACK: Error: Cannot delete or update a parent row: a foreign key constraint fails (`lolscl_boveda`.`asistencias`, CONSTRAINT `fk_asistencias_obra` FOREIGN KEY (`obra_id`) REFERENCES `obras` (`id`) ON UPDATE CASCADE)
+    at PromisePool.query (/home/lolscl/nodevenv/boveda/20/lib/node_modules/mysql2/lib/promise/pool.js:36:22)
+    at Object.hardDelete (/home/lolscl/boveda/src/services/crud.service.js:182:39)
+    at hardRemove (/home/lolscl/boveda/src/controllers/crud.controller.js:43:42)
+    at Layer.handle [as handle_request] (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/route.js:149:13)
+    at /home/lolscl/boveda/src/middleware/rbac.js:46:13
+    at Layer.handle [as handle_request] (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/route.js:149:13)
+    at auth (/home/lolscl/boveda/src/middleware/auth.js:26:9)
+    at Layer.handle [as handle_request] (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/layer.js:95:5)
+    at next (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/route.js:149:13)
+    at Route.dispatch (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/route.js:119:3)
+    at Layer.handle [as handle_request] (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/layer.js:95:5)
+    at /home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/index.js:284:15
+    at param (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/index.js:365:14)
+    at param (/home/lolscl/nodevenv/boveda/20/lib/node_modules/express/lib/router/index.js:376:14)
+
+
+
+--- LEYENDO: /home/lolscl/boveda/package.json ---
+{
+  "name": "backend",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "test": "jest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "archiver": "^7.0.1",
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "exceljs": "^4.4.0",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.0.2",
+    "mysql2": "^3.17.2",
+    "nodemailer": "^8.0.1",
+    "pdf-lib": "^1.17.1",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "cross-env": "^10.1.0",
+    "jest": "^30.3.0",
+    "nodemon": "^3.1.11",
+    "supertest": "^7.2.2"
+  }
+}
+
+

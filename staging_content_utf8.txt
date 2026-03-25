@@ -1,0 +1,144 @@
+﻿# Gu├¡a de Configuraci├│n: Entorno Staging (Pruebas) B├│veda LOLS
+
+## ­ƒôî Estado Actual (Lo que ya est├í listo)
+Hasta este momento, hemos avanzado exitosamente con la infraestructura base en el servidor y en el control de versiones:
+
+1. **GitHub GitFlow**: Se cre├│ y subi├│ la rama `develop`. A partir de ahora, todo c├│digo nuevo va a `develop` y `main` se protege como entorno de producci├│n sagrado.
+2. **Subdominio Creado**: `test.boveda.lols.cl` ya existe en cPanel y apunta a la carpeta `/public_html/test.boveda.lols.cl`.
+3. **Base de Datos Clonada**: 
+   - Se cre├│ la base de datos `lolscl_boveda_test`.
+   - Se clonaron las 22 tablas con los trabajadores y asistencia de producci├│n.
+   - Se cre├│ el usuario `lolscl_dev` vinculado con TODOS los privilegios.
+   - **Contrase├▒a del usuario DB**: `BfB?gW{YS)nh7W_`
+
+---
+
+## ­ƒÜÇ Lo que falta por hacer (Pasos Finales)
+Para que el entorno de pruebas funcione por completo, necesitas ejecutar los siguientes pasos en tu cPanel. (He dise├▒ado esto para que puedas copiar y pegar).
+
+### Paso 1: Crear la App de Node.js (El Backend de Pruebas)
+En cPanel, busca la herramienta **"Setup Node.js App"** y haz clic en **"Create Application"**. Llena los campos exactamente as├¡:
+
+*   **Node.js version**: `20.x.x` (la versi├│n 20 que est├® disponible).
+*   **Application mode**: `Production`
+*   **Application root**: `test-boveda`
+*   **Application URL**: Selecciona `test.boveda.lols.cl` en el desplegable, y en el recuadro de la derecha escribe: `api`
+*   **Application startup file**: `server.js`
+
+Presiona el bot├│n **CREATE**. (Esto crear├í una carpeta llamada `/home/lolscl/test-boveda` en el servidor).
+
+---
+
+### Paso 2: Inyectar las variables de entorno (.env)
+En lugar de a├▒adir las variables una por una en la interfaz engorrosa de Node.js, usaremos un archivo oculto.
+
+1. En cPanel, abre el **"Administrador de Archivos"** (File Manager).
+2. Ve a la carpeta `/home/lolscl/test-boveda`.
+3. Haz clic en **"+ Archivo"** en la barra superior y crea un archivo llamado exactamente `.env` (aseg├║rate de que cPanel est├® configurado para "Mostrar archivos ocultos" en Configuraci├│n arriba a la derecha).
+4. Haz clic derecho sobre `.env`, elige **Edit** (Editar), y Pega exactamente el siguiente bloque de texto:
+
+```properties
+# Base de datos clonada de staging
+DB_HOST=127.0.0.1
+DB_NAME=lolscl_boveda_test
+DB_USER=lolscl_dev
+DB_PASSWORD=BfB?gW{YS)nh7W_
+DB_PORT=3306
+
+# Secretos de prueba
+JWT_SECRET=boveda_staging_super_secret_jwt_321
+JWT_EXPIRES_IN=8h
+PORT=3000
+
+# Correo y encriptaci├│n
+SMTP_HOST=smtp.gmail.com
+SMTP_PORT=587
+SMTP_SECURE=false
+EMAIL_ENC_KEY=llave_de_encriptacion_pruebas_boveda_123
+```
+5. Guarda los cambios. Vuelve a "Setup Node.js App" y presiona el bot├│n **RESTART** en tu nueva aplicaci├│n de staging.
+
+---
+
+### Paso 3: Configurar GitHub Actions
+Una vez la infraestructura en cPanel est├® lista, debemos instruirle a GitHub que env├¡e el c├│digo autom├íticamente cuando programemos en la rama `develop`.
+
+1. En tu editor de c├│digo local, navega a la carpeta `.github/workflows/`
+2. Si existe un archivo llamado `deploy-cpanel-staging.yml`, ├íbrelo. Si no existe, cr├®alo y pega el siguiente c├│digo:
+
+```yaml
+name: Deploy Staging to cPanel ­ƒº¬
+
+on:
+  push:
+    branches:
+      - develop
+  workflow_dispatch:
+
+jobs:
+  web-deploy:
+    name: ­ƒÄë Build & Deploy Staging
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: ­ƒÜÜ Obtener el c├│digo m├ís reciente
+        uses: actions/checkout@v4
+
+      - name: ÔÜÖ´©Å Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: ­ƒôª Instalar Dependencias Frontend
+        working-directory: ./frontend
+        run: npm ci
+
+      - name: ­ƒö¿ Compilar Frontend (React)
+        working-directory: ./frontend
+        # Usa el flag para apuntar al backend de pruebas si es necesario en vite
+        run: npm run build
+
+      - name: ­ƒîÉ Sincronizar Frontend v├¡a FTP a cPanel (Staging)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.lols.cl
+          username: lolscl
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          local-dir: ./frontend/dist/
+          server-dir: /public_html/test.boveda.lols.cl/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+
+      - name: ÔÜÖ´©Å Sincronizar Backend v├¡a FTP a cPanel (Staging)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.lols.cl
+          username: lolscl
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          local-dir: ./backend/
+          server-dir: /test-boveda/
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            .env*
+
+      - name: ­ƒöä Crear carpeta temporal para reinicio de la app Node
+        run: |
+          mkdir -p ./backend/tmp
+          touch ./backend/tmp/restart.txt
+
+      - name: ­ƒÜÇ Reiniciar Servidor Phusion Passenger (Staging)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ftp.lols.cl
+          username: lolscl
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          local-dir: ./backend/tmp/
+          server-dir: /test-boveda/tmp/
+```
+
+### Resumen Final
+Al terminar estos 3 pasos, cada vez que hagamos un `git push origin develop`, tu entorno de pruebas en `test.boveda.lols.cl` se actualizar├í autom├íticamente, dejando a los Jefes de obra trabajando tranquilos en `boveda.lols.cl`.
