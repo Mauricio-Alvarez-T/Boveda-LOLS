@@ -83,7 +83,7 @@ router.delete('/:id/purge', auth, checkPermission('trabajadores.purgar'), async 
         await connection.query('DELETE FROM documentos WHERE trabajador_id = ?', [id]);
 
         // 4. Borrar registros de asistencia
-        await connection.query('DELETE FROM asistencia WHERE trabajador_id = ?', [id]);
+        await connection.query('DELETE FROM asistencias WHERE trabajador_id = ?', [id]);
 
         // 5. Borrar el trabajador
         await connection.query('DELETE FROM trabajadores WHERE id = ?', [id]);
