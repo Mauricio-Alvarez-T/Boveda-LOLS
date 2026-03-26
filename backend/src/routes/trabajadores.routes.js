@@ -37,7 +37,7 @@ router.get('/:id/quick-view', auth, async (req, res, next) => {
             `SELECT a.fecha, a.hora_entrada, a.hora_salida, a.horas_extra, a.observacion,
                     ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color, ea.es_presente,
                     ta.nombre as tipo_ausencia_nombre
-             FROM asistencia a
+             FROM asistencias a
              LEFT JOIN estados_asistencia ea ON a.estado_id = ea.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              WHERE a.trabajador_id = ?
