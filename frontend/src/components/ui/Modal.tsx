@@ -60,6 +60,14 @@ export const Modal: React.FC<ModalProps> = ({
                         
                         {/* Sheet Container */}
                         <motion.div
+                            drag="y"
+                            dragConstraints={{ top: 0 }}
+                            dragElastic={0.1}
+                            onDragEnd={(_, info) => {
+                                if (info.offset.y > 150 || info.velocity.y > 500) {
+                                    handleClose();
+                                }
+                            }}
                             initial={{ y: '100%' }}
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}

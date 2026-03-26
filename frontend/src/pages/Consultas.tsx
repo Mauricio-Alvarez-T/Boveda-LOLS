@@ -425,28 +425,6 @@ const ConsultasPage: React.FC = () => {
 
             <div className="flex flex-col gap-4 shrink-0">
                 <AnimatePresence>
-                    {showMobileFilters && (
-                        <motion.div
-                            initial={{ height: 0, opacity: 0, y: -10 }}
-                            animate={{ height: 'auto', opacity: 1, y: 0 }}
-                            exit={{ height: 0, opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="relative"
-                        >
-                            <FilterPanel />
-                            {/* Clear filters mobile */}
-                            {activeFilterCount > 0 && (
-                                <div className="mt-2 text-right sm:hidden">
-                                     <button
-                                        onClick={handleClearFilters}
-                                        className="text-[12px] font-semibold text-destructive hover:underline"
-                                    >
-                                        Limpiar Filtros
-                                    </button>
-                                </div>
-                            )}
-                        </motion.div>
-                    )}
                     {showCreatePanel && (
                         <motion.div
                             initial={{ height: 0, opacity: 0, y: -10 }}
@@ -524,9 +502,17 @@ const ConsultasPage: React.FC = () => {
                 {/* Grilla / Resultados */}
                 <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4">
                     {loading ? (
-                        <div className="h-full flex flex-col items-center justify-center text-brand-primary">
-                            <Loader2 className="h-10 w-10 animate-spin mb-4" />
-                            <p className="text-sm font-medium">Buscando trabajadores...</p>
+                        <div className="flex flex-col gap-3">
+                            {[1, 2, 3, 4, 5, 6].map((i) => (
+                                <div key={i} className="h-24 w-full bg-white rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse">
+                                    <div className="h-10 w-10 rounded-xl bg-[#F0F0F5] shrink-0" />
+                                    <div className="flex-1 space-y-2">
+                                        <div className="h-4 w-1/3 bg-[#F0F0F5] rounded" />
+                                        <div className="h-3 w-1/4 bg-[#E2E2E7] rounded" />
+                                    </div>
+                                    <div className="hidden sm:flex h-10 w-1/4 bg-[#F0F0F5] rounded ml-auto" />
+                                </div>
+                            ))}
                         </div>
                     ) : workers.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
@@ -542,13 +528,22 @@ const ConsultasPage: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <div className="flex flex-col gap-2">
+                        <motion.div 
+                            className="flex flex-col gap-2.5 pb-10 sm:pb-5"
+                            variants={{
+                                show: { transition: { staggerChildren: 0.04 } }
+                            }}
+                            initial="hidden"
+                            animate="show"
+                        >
                             {workers.map((worker, idx) => (
                                 <motion.div
                                     key={worker.id}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ duration: 0.2, delay: Math.min(idx * 0.02, 0.2) }}
+                                    variants={{
+                                        hidden: { opacity: 0, y: 15, scale: 0.98 },
+                                        show: { opacity: 1, y: 0, scale: 1 }
+                                    }}
+                                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                                     className={cn(
                                         "bg-white rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
                                         selectedWorkers.has(worker.id) 
@@ -696,7 +691,7 @@ const ConsultasPage: React.FC = () => {
                                     </div>
                                 </motion.div>
                             ))}
-                        </div>
+                        </motion.div>
                     )}
                 </div>
 
@@ -853,6 +848,69 @@ const ConsultasPage: React.FC = () => {
                     }}
                 />
             </Modal>
+
+            {/* Mobile Filter Sheet */}
+            <AnimatePresence>
+                {showMobileFilters && (
+                    <>
+                        {/* Backdrop */}
+                        <motion.div
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={() => setShowMobileFilters(false)}
+                            className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000]"
+                        />
+                        
+                        {/* Sheet */}
+                        <motion.div
+                            drag="y"
+                            dragConstraints={{ top: 0 }}
+                            dragElastic={0.1}
+                            onDragEnd={(_, info) => {
+                                if (info.offset.y > 150 || info.velocity.y > 500) {
+                                    setShowMobileFilters(false);
+                                }
+                            }}
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-h-[85vh] bg-white rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
+                        >
+                            {/* Drag Handle */}
+                            <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowMobileFilters(false)}>
+                                <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED]" />
+                            </div>
+
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-5 pb-4 pt-1 shrink-0">
+                                <h3 className="text-lg font-bold text-brand-dark">Filtros de Búsqueda</h3>
+                                <button 
+                                    onClick={() => setShowMobileFilters(false)}
+                                    className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
+                                >
+                                    <X className="h-5 w-5" />
+                                </button>
+                            </div>
+
+                            {/* Body */}
+                            <div className="flex-1 overflow-y-auto px-5 pb-8 custom-scrollbar">
+                                <FilterPanel />
+                                {activeFilterCount > 0 && (
+                                    <Button 
+                                        variant="glass" 
+                                        onClick={handleClearFilters}
+                                        className="w-full mt-6 text-destructive font-bold uppercase tracking-widest text-[11px] h-11 rounded-xl"
+                                    >
+                                        Limpiar Selecciones
+                                    </Button>
+                                )}
+                            </div>
+                        </motion.div>
+                    </>
+                )}
+            </AnimatePresence>
 
             <Modal
                 isOpen={modalType === 'cargo'}

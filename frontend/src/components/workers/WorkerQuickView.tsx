@@ -139,6 +139,14 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                         {/* Panel */}
                         <motion.div
+                            drag={isMobile ? "y" : false}
+                            dragConstraints={{ top: 0 }}
+                            dragElastic={0.1}
+                            onDragEnd={(_, info) => {
+                                if (isMobile && (info.offset.y > 150 || info.velocity.y > 500)) {
+                                    onClose();
+                                }
+                            }}
                             initial={isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 }}
                             animate={{ x: 0, y: 0 }}
                             exit={isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 }}
