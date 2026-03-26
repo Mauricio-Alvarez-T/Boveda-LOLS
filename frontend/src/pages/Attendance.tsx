@@ -1411,6 +1411,7 @@ const AttendancePage: React.FC = () => {
                                                     step="0.5"
                                                     placeholder="0"
                                                     disabled={!!feriadoActual || isSunday || isSaturday}
+                                                    inputMode="decimal"
                                                     className={cn(
                                                         "w-full bg-background border border-border rounded-lg px-2 py-1.5 text-[10px] text-center text-brand-dark focus:outline-none focus:border-brand-primary",
                                                         (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
@@ -1447,6 +1448,7 @@ const AttendancePage: React.FC = () => {
                                                                     step="0.5"
                                                                     placeholder="0"
                                                                     disabled={!!feriadoActual || isSunday || isSaturday}
+                                                                    inputMode="decimal"
                                                                     className={cn(
                                                                         "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary",
                                                                         (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background"

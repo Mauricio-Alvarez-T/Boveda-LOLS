@@ -68,6 +68,9 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                         placeholder="12.345.678-9"
                         error={errors.rut?.message}
                         value={value || ''}
+                        autoCapitalize="characters"
+                        autoCorrect="off"
+                        spellCheck={false}
                         onChange={(e) => {
                             const formatted = formatRut(e.target.value);
                             onChange(formatted);
@@ -77,7 +80,7 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             />
             <Input label="Razón Social" {...register('razon_social')} error={errors.razon_social?.message} placeholder="Constructora SpA" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Principal 123" />
-            <Input label="Teléfono" {...register('telefono')} error={errors.telefono?.message} placeholder="+56 9 1234 5678" />
+            <Input label="Teléfono" type="tel" inputMode="tel" {...register('telefono')} error={errors.telefono?.message} placeholder="+56 9 1234 5678" />
             <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
                     Guardar

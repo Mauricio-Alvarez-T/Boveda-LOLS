@@ -132,6 +132,9 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                             placeholder="12.345.678-9"
                             error={errors.rut?.message}
                             value={value || ''}
+                            autoCapitalize="characters"
+                            autoCorrect="off"
+                            spellCheck={false}
                             onChange={(e) => {
                                 const formatted = formatRut(e.target.value);
                                 onChange(formatted);
@@ -163,12 +166,15 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                 <Input
                     label="Correo Electrónico"
                     type="email"
+                    autoCapitalize="none"
                     placeholder="juan.perez@empresa.cl"
                     error={errors.email?.message}
                     {...register('email')}
                 />
                 <Input
                     label="Teléfono"
+                    type="tel"
+                    inputMode="tel"
                     placeholder="+56 9 1234 5678"
                     error={errors.telefono?.message}
                     {...register('telefono')}

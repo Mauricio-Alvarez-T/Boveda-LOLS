@@ -47,35 +47,49 @@ export const Modal: React.FC<ModalProps> = ({
         <AnimatePresence>
             {isOpen && (
                 <>
-                    {/* ─── MOBILE: Fullscreen page overlay ─── */}
-                    <div className="md:hidden fixed inset-0 z-[1000] flex flex-col bg-white">
+                    {/* ─── MOBILE: Bottom Sheet ─── */}
+                    <div className="md:hidden fixed inset-0 z-[1000] flex items-end">
+                        {/* Backdrop */}
                         <motion.div
-                            initial={{ opacity: 0, x: 60 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            exit={{ opacity: 0, x: 60 }}
-                            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-                            className="flex flex-col h-full"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            onClick={handleClose}
+                            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                        />
+                        
+                        {/* Sheet Container */}
+                        <motion.div
+                            initial={{ y: '100%' }}
+                            animate={{ y: 0 }}
+                            exit={{ y: '100%' }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                            className="relative w-full max-h-[92vh] bg-white rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
                         >
-                            {/* Mobile header — iOS-style navigation bar */}
-                            <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0 safe-area-top">
-                                <button
-                                    onClick={handleClose}
-                                    className="flex items-center gap-1 text-brand-primary text-sm font-medium active:opacity-60 transition-opacity"
-                                >
-                                    <ChevronLeft className="h-5 w-5" />
-                                    <span>Volver</span>
-                                </button>
-                                <h3 className="flex-1 text-center text-base font-semibold text-brand-dark truncate pr-12">{title}</h3>
+                            {/* Handle & Header */}
+                            <div className="shrink-0">
+                                <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
+                                    <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED]" />
+                                </div>
+                                <div className="flex items-center justify-between px-5 pb-4 pt-1">
+                                    <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
+                                    <button 
+                                        onClick={handleClose}
+                                        className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
+                                    >
+                                        <X className="h-5 w-5" />
+                                    </button>
+                                </div>
                             </div>
 
-                            {/* Mobile body */}
-                            <div className="flex-1 overflow-y-auto px-4 py-4 custom-scrollbar relative">
+                            {/* Body */}
+                            <div className="flex-1 overflow-y-auto px-5 py-2 custom-scrollbar relative min-h-0">
                                 {children}
                             </div>
 
-                            {/* Mobile footer */}
+                            {/* Footer */}
                             {footer && (
-                                <div className="px-4 py-3 border-t border-[#E8E8ED] bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
+                                <div className="px-5 py-4 border-t border-[#E8E8ED] bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
                                     {footer}
                                 </div>
                             )}

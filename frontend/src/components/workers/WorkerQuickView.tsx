@@ -61,10 +61,19 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [isMobile, setIsMobile] = useState(false);
     const { hasPermission } = useAuth();
 
     useEffect(() => {
+        const check = () => setIsMobile(window.innerWidth < 768);
+        check();
+        window.addEventListener('resize', check);
+        return () => window.removeEventListener('resize', check);
+    }, []);
+
+    useEffect(() => {
         if (!workerId) return;
+        // ... (rest of search/data logic remains identical)
 
         setLoading(true);
         setWorker(null);
@@ -130,22 +139,36 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                         {/* Panel */}
                         <motion.div
-                            initial={{ x: '100%' }}
-                            animate={{ x: 0 }}
-                            exit={{ x: '100%' }}
-                            transition={{ type: 'spring', damping: 28, stiffness: 300 }}
+                            initial={isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 }}
+                            animate={{ x: 0, y: 0 }}
+                            exit={isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 }}
+                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             className={cn(
-                                "fixed z-[61] bg-white shadow-2xl overflow-y-auto",
-                                "inset-0 md:inset-y-0 md:right-0 md:left-auto md:w-[420px] md:rounded-l-3xl"
+                                "fixed z-[61] bg-white shadow-2xl flex flex-col",
+                                isMobile 
+                                    ? "bottom-0 left-0 right-0 w-full max-h-[92vh] rounded-t-[32px]" 
+                                    : "inset-y-0 right-0 w-[420px] rounded-l-3xl"
                             )}
                         >
+                            {/* Mobile Drag Handle */}
+                            {isMobile && (
+                                <div className="pt-3 pb-1 flex justify-center shrink-0" onClick={onClose}>
+                                    <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED] mb-1" />
+                                </div>
+                            )}
+
                             {/* Header */}
-                            <div className="sticky top-0 bg-white/80 backdrop-blur-xl z-10 px-5 py-4 border-b border-[#E8E8ED] flex items-center justify-between">
+                            <div className={cn(
+                                "sticky top-0 bg-white/80 backdrop-blur-xl z-10 px-5 py-4 border-b border-[#E8E8ED] flex items-center justify-between shrink-0",
+                                isMobile && "rounded-t-[32px] border-none pt-2"
+                            )}>
                                 <h2 className="text-lg font-bold text-brand-dark">Ficha Rápida</h2>
                                 <button onClick={onClose} className="p-2 rounded-full hover:bg-background transition-colors">
                                     <X className="h-5 w-5 text-muted-foreground" />
                                 </button>
                             </div>
+
+                            <div className="flex-1 overflow-y-auto custom-scrollbar">
 
                             {loading ? (
                                 <div className="flex flex-col items-center justify-center py-20">
@@ -303,8 +326,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             <span className="text-[11px] font-semibold text-brand-accent">Asistencia</span>
                                         </button>
                                     </div>
-                                </div>
-                            ) : null}
+                                    </div>
+                                ) : null}
+                            </div>
                         </motion.div>
                     </>
                 )}
