@@ -86,6 +86,7 @@ try {
 }
 
 // Specialized routes (each wrapped independently)
+safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores (especializadas)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
 safeRoute('/api/fiscalizacion', './src/routes/fiscalizacion.routes', 'Fiscalización');
