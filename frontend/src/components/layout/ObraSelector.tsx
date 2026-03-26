@@ -31,14 +31,31 @@ export const ObraSelector: React.FC = () => {
 
     return (
         <div ref={containerRef} className="relative">
-            {/* Mobile: pill format with Map icon */}
-            <button
-                onClick={() => setIsOpen(!isOpen)}
-                className="md:hidden flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-border rounded-full text-[13px] font-medium text-brand-dark hover:bg-background shadow-sm shrink min-w-[70px] max-w-[130px]"
-            >
-                <Map className="h-4 w-4 shrink-0 text-brand-primary" />
-                <span className="truncate flex-1 text-left">{selectedObra?.nombre || 'Obra'}</span>
-            </button>
+            {/* Mobile: Native Select with Map icon overlay */}
+            <div className="md:hidden relative">
+                <select
+                    className="absolute inset-0 opacity-0 z-10 w-full h-full cursor-pointer"
+                    value={selectedObra?.id || ''}
+                    onChange={(e) => {
+                        const id = e.target.value;
+                        if (id === '') {
+                            setSelectedObra(null);
+                        } else {
+                            const obra = obras.find(o => o.id === Number(id));
+                            if (obra) setSelectedObra(obra);
+                        }
+                    }}
+                >
+                    <option value="">Todas las Obras</option>
+                    {obras.map(o => (
+                        <option key={o.id} value={o.id}>{o.nombre}</option>
+                    ))}
+                </select>
+                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-border rounded-full text-[13px] font-medium text-brand-dark shadow-sm shrink min-w-[70px] max-w-[130px]">
+                    <Map className="h-4 w-4 shrink-0 text-brand-primary" />
+                    <span className="truncate flex-1 text-left">{selectedObra?.nombre || 'Obra'}</span>
+                </div>
+            </div>
 
             {/* Desktop: full styled button */}
             <button
