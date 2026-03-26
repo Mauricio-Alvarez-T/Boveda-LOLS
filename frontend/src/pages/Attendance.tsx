@@ -50,7 +50,7 @@ import RequirePermission from '../components/auth/RequirePermission';
 
 const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
-    const { checkPermission, hasPermission } = useAuth();
+    const { hasPermission } = useAuth();
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -288,6 +288,11 @@ const AttendancePage: React.FC = () => {
 
     // Handle Excel Export
     const handleExportExcel = useCallback(async (returnFile = false) => {
+        if (!hasPermission('asistencia.exportar_excel')) {
+            toast.error('No tienes permiso para exportar a Excel');
+            return null;
+        }
+        
         const {
             selectedObra: currentObra,
             date: currentDate,
@@ -369,6 +374,11 @@ const AttendancePage: React.FC = () => {
 
     // Handle WhatsApp Share
     const handleShareWhatsApp = useCallback(async () => {
+        if (!hasPermission('asistencia.enviar_whatsapp')) {
+            toast.error('No tienes permiso para enviar por WhatsApp');
+            return;
+        }
+
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance, estados: currentEstados } = latestData.current;
         if (!currentObra) return;
 
@@ -670,7 +680,11 @@ const AttendancePage: React.FC = () => {
                     <div className="flex md:hidden items-center gap-1 h-full">
                         <Button
                             onClick={handleShareWhatsApp}
-                            className="h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0"
+                            disabled={!hasPermission('asistencia.enviar_whatsapp')}
+                            className={cn(
+                                "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
+                                !hasPermission('asistencia.enviar_whatsapp') && "opacity-40 grayscale pointer-events-none"
+                            )}
                             title="Enviar"
                         >
                             <Send className="h-4 w-4" fill="currentColor" />
@@ -725,7 +739,11 @@ const AttendancePage: React.FC = () => {
 
                                             <button
                                                 onClick={() => { handleExportExcel(); setShowMobileMenu(false); }}
-                                                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-slate-50 text-slate-700 transition-colors"
+                                                disabled={!hasPermission('asistencia.exportar_excel')}
+                                                className={cn(
+                                                    "w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-colors",
+                                                    hasPermission('asistencia.exportar_excel') ? "hover:bg-slate-50 text-slate-700" : "opacity-40 grayscale pointer-events-none"
+                                                )}
                                             >
                                                 <div className="h-8 w-8 rounded-lg bg-orange-50 flex items-center justify-center text-orange-600">
                                                     <FileDown className="h-4 w-4" />
@@ -792,7 +810,11 @@ const AttendancePage: React.FC = () => {
                         <Button
                             onClick={handleShareWhatsApp}
                             variant="glass"
-                            className="h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary hover:bg-brand-primary/5 shadow-sm"
+                            disabled={!hasPermission('asistencia.enviar_whatsapp')}
+                            className={cn(
+                                "h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm",
+                                hasPermission('asistencia.enviar_whatsapp') ? "hover:bg-brand-primary/5" : "opacity-40 grayscale pointer-events-none"
+                            )}
                             title="Compartir por WhatsApp"
                         >
                             <Send className="h-4 w-4" fill="currentColor" />
@@ -800,7 +822,11 @@ const AttendancePage: React.FC = () => {
                         <Button
                             onClick={() => handleExportExcel()}
                             variant="glass"
-                            className="h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-muted-foreground hover:bg-background shadow-sm"
+                            disabled={!hasPermission('asistencia.exportar_excel')}
+                            className={cn(
+                                "h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-muted-foreground shadow-sm",
+                                hasPermission('asistencia.exportar_excel') ? "hover:bg-background" : "opacity-40 grayscale pointer-events-none"
+                            )}
                             title="Reporte Mensual"
                         >
                             <FileDown className="h-4 w-4" />
@@ -886,8 +912,12 @@ const AttendancePage: React.FC = () => {
 
                     <Button
                         onClick={() => handleExportExcel()}
+                        disabled={!hasPermission('asistencia.exportar_excel')}
                         variant="primary"
-                        className="w-full h-12 shadow-lg shadow-brand-primary/20"
+                        className={cn(
+                            "w-full h-12 shadow-lg shadow-brand-primary/20",
+                            !hasPermission('asistencia.exportar_excel') && "opacity-40 grayscale pointer-events-none"
+                        )}
                         leftIcon={<FileDown className="h-5 w-5" />}
                     >
                         Exportar Reporte Global

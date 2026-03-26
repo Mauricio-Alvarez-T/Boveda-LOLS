@@ -114,7 +114,7 @@ const ConsultasPage: React.FC = () => {
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showCreatePanel, setShowCreatePanel] = useState(false);
     
-    const { checkPermission, hasPermission } = useAuth();
+    const { hasPermission } = useAuth();
 
 
     // Modificando Header Global
@@ -190,9 +190,12 @@ const ConsultasPage: React.FC = () => {
                     variant="outline"
                     onClick={() => handleExportExcel()}
                     isLoading={exporting}
-                    disabled={workers.length === 0}
+                    disabled={workers.length === 0 || !hasPermission('reportes.exportar')}
                     leftIcon={<FileDown className="h-3.5 w-3.5 text-brand-primary" />}
-                    className="h-9 px-4 rounded-xl shadow-sm bg-white border-border hover:bg-background"
+                    className={cn(
+                        "h-9 px-4 rounded-xl shadow-sm border-border",
+                        hasPermission('reportes.exportar') ? "bg-white hover:bg-background" : "opacity-40 grayscale pointer-events-none"
+                    )}
                 >
                     <span>Exportar</span>
                 </Button>
@@ -334,7 +337,7 @@ const ConsultasPage: React.FC = () => {
 
     const CreatePanel = () => (
         <div className="p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-            {checkPermission('trabajadores', 'puede_crear') && (
+            {hasPermission('trabajadores.crear') && (
                 <button
                     onClick={() => {
                         setSelectedWorkerForAction(null);
@@ -349,7 +352,7 @@ const ConsultasPage: React.FC = () => {
                 </button>
             )}
 
-            {checkPermission('empresas', 'puede_crear') && (
+            {hasPermission('empresas.crear') && (
                 <button
                     onClick={() => setModalType('empresa')}
                     className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
@@ -361,7 +364,7 @@ const ConsultasPage: React.FC = () => {
                 </button>
             )}
 
-            {checkPermission('obras', 'puede_crear') && (
+            {hasPermission('obras.crear') && (
                 <button
                     onClick={() => setModalType('obra')}
                     className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
@@ -373,7 +376,7 @@ const ConsultasPage: React.FC = () => {
                 </button>
             )}
 
-            {checkPermission('cargos', 'puede_crear') && (
+            {hasPermission('cargos.crear') && (
                 <button
                     onClick={() => setModalType('cargo')}
                     className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
@@ -385,7 +388,7 @@ const ConsultasPage: React.FC = () => {
                 </button>
             )}
 
-            {checkPermission('documentos', 'puede_crear') && (
+            {hasPermission('sistema.tipos_doc.gestionar') && (
                 <button
                     onClick={() => setModalType('tipodoc')}
                     className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
@@ -632,9 +635,9 @@ const ConsultasPage: React.FC = () => {
                                                     size="icon"
                                                     className={cn(
                                                         "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                        !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                        !hasPermission('trabajadores.editar') && "opacity-40 grayscale cursor-not-allowed"
                                                     )}
-                                                    disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                    disabled={!hasPermission('trabajadores.editar')}
                                                     onClick={() => {
                                                         setSelectedWorkerForAction(worker);
                                                         setModalType('form');
@@ -649,9 +652,9 @@ const ConsultasPage: React.FC = () => {
                                                         size="icon"
                                                         className={cn(
                                                             "h-8 w-8 text-destructive hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                            !checkPermission('trabajadores', 'puede_eliminar') && "opacity-40 grayscale cursor-not-allowed"
+                                                            !hasPermission('trabajadores.eliminar') && "opacity-40 grayscale cursor-not-allowed"
                                                         )}
-                                                        disabled={!checkPermission('trabajadores', 'puede_eliminar')}
+                                                        disabled={!hasPermission('trabajadores.eliminar')}
                                                         onClick={() => handleDelete(worker)}
                                                     >
                                                         <Trash2 className="h-4 w-4" />
@@ -663,9 +666,9 @@ const ConsultasPage: React.FC = () => {
                                                             size="icon"
                                                             className={cn(
                                                                 "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                                !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                                !hasPermission('trabajadores.reactivar') && "opacity-40 grayscale cursor-not-allowed"
                                                             )}
-                                                            disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                            disabled={!hasPermission('trabajadores.reactivar')}
                                                             title="Reactivar Trabajador"
                                                             onClick={(e) => { e.stopPropagation(); handleReactivate(worker.id); }}
                                                         >

@@ -61,7 +61,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
-    const { checkPermission } = useAuth();
+    const { hasPermission } = useAuth();
 
     useEffect(() => {
         if (!workerId) return;
@@ -420,11 +420,11 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                 <Button
                                     size="sm"
                                     variant={isUploading ? 'glass' : 'primary'}
-                                    disabled={!checkPermission('documentos', 'puede_crear') && !isUploading}
+                                    disabled={!hasPermission('documentos.subir') && !isUploading}
                                     onClick={() => setIsUploading(!isUploading)}
                                     leftIcon={isUploading ? <ArrowLeft className="h-4 w-4" /> : <FilePlus className="h-4 w-4" />}
-                                    className={`flex-1 sm:flex-initial ${(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
-                                    title={(!checkPermission('documentos', 'puede_crear') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
+                                    className={`flex-1 sm:flex-initial ${(!hasPermission('documentos.subir') && !isUploading) ? "opacity-50 grayscale cursor-not-allowed" : ""}`}
+                                    title={(!hasPermission('documentos.subir') && !isUploading) ? "No tienes permisos" : (isUploading ? "Volver" : "Subir Documento")}
                                 >
                                     <span className="hidden sm:inline">{isUploading ? 'Volver a la lista' : 'Subir Documento'}</span>
                                     <span className="sm:hidden">{isUploading ? 'Volver' : 'Subir'}</span>

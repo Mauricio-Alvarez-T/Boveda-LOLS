@@ -6,6 +6,7 @@ import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado } from '../../types/entities';
 import { CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
+import { useAuth } from '../../context/AuthContext';
 
 interface WorkerCalendarProps {
     worker: Trabajador;
@@ -35,6 +36,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [holidays, setHolidays] = useState<Feriado[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+    const { hasPermission } = useAuth();
 
     useEffect(() => {
         if (!worker) return;
@@ -129,6 +131,10 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     };
 
     const handleDeletePeriod = async (id: number) => {
+        if (!hasPermission('asistencia.periodo.eliminar')) {
+            toast.error('No tienes permiso para eliminar períodos de ausencia');
+            return;
+        }
         if (!window.confirm('¿Estás seguro de que deseas eliminar este período de ausencia?')) return;
         
         try {
@@ -365,7 +371,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
                                             ACTIVO
                                         </div>
-                                        {!readOnly && (
+                                        {!readOnly && hasPermission('asistencia.periodo.eliminar') && (
                                             <button 
                                                 onClick={() => handleDeletePeriod(p.id)}
                                                 className="p-1.5 rounded-lg hover:bg-destructive/10 text-[#86868B] hover:text-destructive transition-colors"

@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import api from '../../services/api';
 import { toast } from 'sonner';
+import { useAuth } from '../../context/AuthContext';
 
 interface ExportFilters {
     obra_id?: string;
@@ -12,9 +13,15 @@ interface ExportFilters {
 }
 
 export const useConsultasExport = (filters: ExportFilters) => {
+    const { hasPermission } = useAuth();
     const [exporting, setExporting] = useState(false);
 
     const handleExportExcel = useCallback(async (trabajador_ids?: number[]) => {
+        if (!hasPermission('reportes.exportar')) {
+            toast.error('No tienes permiso para exportar reportes');
+            return;
+        }
+
         setExporting(true);
         toast.info('Generando reporte mensual de asistencia...', { id: 'excel-export' });
 

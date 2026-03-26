@@ -189,14 +189,21 @@ const createCrudService = (tableName, options = {}) => {
         },
 
         async hardDelete(id) {
-            const [result] = await db.query(
-                `DELETE FROM ${tableName} WHERE id = ?`,
-                [id]
-            );
-            if (result.affectedRows === 0) {
-                throw Object.assign(new Error('Registro no encontrado'), { statusCode: 404 });
+            try {
+                const [result] = await db.query(
+                    `DELETE FROM ${tableName} WHERE id = ?`,
+                    [id]
+                );
+                if (result.affectedRows === 0) {
+                    throw Object.assign(new Error('Registro no encontrado'), { statusCode: 404 });
+                }
+                return { id, deleted: true };
+            } catch (err) {
+                if (err.code === 'ER_ROW_IS_REFERENCED_2' || err.errno === 1451) {
+                    throw Object.assign(new Error(`No se puede eliminar de ${tableName} debido a que está referenciado por otros registros en el sistema.`), { statusCode: 400 });
+                }
+                throw err;
             }
-            return { id, deleted: true };
         },
 
         async exportToExcel(query = {}, entityName = 'Reporte') {

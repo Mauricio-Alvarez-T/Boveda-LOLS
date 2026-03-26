@@ -232,7 +232,7 @@ const tipoAusenciaCols: ColumnDef<any>[] = [
 ];
 
 const SettingsPage: React.FC = () => {
-    const { checkPermission } = useAuth();
+    const { hasPermission } = useAuth();
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
     
     // Estados para gestión de permisos
@@ -323,9 +323,9 @@ const SettingsPage: React.FC = () => {
                             FormComponent={EmpresaForm}
                             searchPlaceholder="Buscar por RUT o razón social..."
                             queryParams={{ activo: true }}
-                            canCreate={checkPermission('empresas', 'puede_crear')}
-                            canEdit={checkPermission('empresas', 'puede_editar')}
-                            canDelete={checkPermission('empresas', 'puede_eliminar')}
+                            canCreate={hasPermission('empresas.crear')}
+                            canEdit={hasPermission('empresas.editar')}
+                            canDelete={hasPermission('empresas.eliminar')}
                             canExport={false}
                         />
                     )}
@@ -337,9 +337,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Obras"
                             FormComponent={ObraForm}
                             queryParams={{ activo: true }}
-                            canCreate={checkPermission('obras', 'puede_crear')}
-                            canEdit={checkPermission('obras', 'puede_editar')}
-                            canDelete={checkPermission('obras', 'puede_eliminar')}
+                            canCreate={hasPermission('obras.crear')}
+                            canEdit={hasPermission('obras.editar')}
+                            canDelete={hasPermission('obras.eliminar')}
                             canExport={false}
                         />
                     )}
@@ -351,9 +351,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Cargos"
                             FormComponent={CargoForm}
                             queryParams={{ activo: true }}
-                            canCreate={checkPermission('cargos', 'puede_crear')}
-                            canEdit={checkPermission('cargos', 'puede_editar')}
-                            canDelete={checkPermission('cargos', 'puede_eliminar')}
+                            canCreate={hasPermission('cargos.crear')}
+                            canEdit={hasPermission('cargos.editar')}
+                            canDelete={hasPermission('cargos.eliminar')}
                             canExport={false}
                         />
                     )}
@@ -365,9 +365,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Tipos de Documento"
                             FormComponent={TipoDocumentoForm}
                             queryParams={{ activo: true }}
-                            canCreate={checkPermission('documentos', 'puede_crear')}
-                            canEdit={checkPermission('documentos', 'puede_editar')}
-                            canDelete={checkPermission('documentos', 'puede_eliminar')}
+                            canCreate={hasPermission('sistema.tipos_doc.gestionar')}
+                            canEdit={hasPermission('sistema.tipos_doc.gestionar')}
+                            canDelete={hasPermission('sistema.tipos_doc.gestionar')}
                             canExport={false}
                         />
                     )}
@@ -378,9 +378,9 @@ const SettingsPage: React.FC = () => {
                             entityName="Usuario"
                             entityNamePlural="Usuarios"
                             FormComponent={UsuarioForm}
-                            canCreate={checkPermission('usuarios', 'puede_crear')}
-                            canEdit={checkPermission('usuarios', 'puede_editar')}
-                            canDelete={checkPermission('usuarios', 'puede_eliminar')}
+                            canCreate={hasPermission('usuarios.crear')}
+                            canEdit={hasPermission('usuarios.editar')}
+                            canDelete={hasPermission('usuarios.eliminar')}
                             canExport={false}
                             renderActions={(row) => (
                                 <button 
@@ -400,9 +400,9 @@ const SettingsPage: React.FC = () => {
                             entityName="Rol"
                             entityNamePlural="Roles"
                             FormComponent={RolForm}
-                            canCreate={checkPermission('usuarios', 'puede_crear')}
-                            canEdit={checkPermission('usuarios', 'puede_editar')}
-                            canDelete={checkPermission('usuarios', 'puede_eliminar')}
+                            canCreate={hasPermission('usuarios.roles.crear')}
+                            canEdit={hasPermission('usuarios.roles.editar')}
+                            canDelete={hasPermission('usuarios.roles.eliminar')}
                             canExport={false}
                             renderActions={(row) => (
                                 <button 
@@ -423,9 +423,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Estados de Asistencia"
                             FormComponent={EstadoAsistenciaForm}
                             queryParams={{ activo: true }}
-                            canCreate={checkPermission('asistencia', 'puede_crear')}
-                            canEdit={checkPermission('asistencia', 'puede_editar')}
-                            canDelete={checkPermission('asistencia', 'puede_eliminar')}
+                            canCreate={hasPermission('sistema.estados.gestionar')}
+                            canEdit={hasPermission('sistema.estados.gestionar')}
+                            canDelete={hasPermission('sistema.estados.gestionar')}
                             canExport={false}
                         />
                     )}
@@ -437,9 +437,9 @@ const SettingsPage: React.FC = () => {
                             entityNamePlural="Tipos de Ausencia"
                             FormComponent={TipoAusenciaForm}
                             queryParams={{ activo: true }}
-                            canCreate={checkPermission('asistencia', 'puede_crear')}
-                            canEdit={checkPermission('asistencia', 'puede_editar')}
-                            canDelete={checkPermission('asistencia', 'puede_eliminar')}
+                            canCreate={hasPermission('sistema.tipos_ausencia.gestionar')}
+                            canEdit={hasPermission('sistema.tipos_ausencia.gestionar')}
+                            canDelete={hasPermission('sistema.tipos_ausencia.gestionar')}
                             canExport={false}
                         />
                     )}

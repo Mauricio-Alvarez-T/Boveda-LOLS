@@ -5,6 +5,7 @@ import { Button } from '../ui/Button';
 import { Modal } from '../ui/Modal';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/entities';
+import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
 
 interface Props {
@@ -20,6 +21,7 @@ interface Props {
 export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, obraId, estados, onSuccess, initialDates }) => {
     const [estadoId, setEstadoId] = useState<number | null>(null);
     const [fechaInicio, setFechaInicio] = useState('');
+    const { hasPermission } = useAuth();
     const [fechaFin, setFechaFin] = useState('');
     const [observacion, setObservacion] = useState('');
     const [loading, setLoading] = useState(false);
@@ -69,6 +71,11 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
     const selectedEstado = estados.find(e => e.id === estadoId);
 
     const handleSubmit = async () => {
+        if (!hasPermission('asistencia.periodo.crear')) {
+            toast.error('No tienes permisos para crear períodos de ausencia');
+            return;
+        }
+
         if (!worker || !obraId || !estadoId || !fechaInicio || !fechaFin) {
             toast.error('Completa todos los campos requeridos');
             return;
@@ -104,6 +111,11 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
     };
     
     const handleDeletePeriod = async (id: number) => {
+        if (!hasPermission('asistencia.periodo.eliminar')) {
+            toast.error('No tienes permisos para eliminar períodos');
+            return;
+        }
+
         setLoading(true);
         try {
             await api.delete(`/asistencias/periodos/${id}`);
@@ -276,13 +288,15 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                             </Button>
                                         </div>
                                     ) : (
-                                        <button 
-                                            onClick={() => setDeletingPeriodId(p.id)}
-                                            className="p-1.5 rounded-lg hover:bg-destructive/5 text-[#86868B] hover:text-destructive transition-colors shrink-0"
-                                            title="Eliminar período"
-                                        >
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
+                                        hasPermission('asistencia.periodo.eliminar') && (
+                                            <button 
+                                                onClick={() => setDeletingPeriodId(p.id)}
+                                                className="p-1.5 rounded-lg hover:bg-destructive/5 text-[#86868B] hover:text-destructive transition-colors shrink-0"
+                                                title="Eliminar período"
+                                            >
+                                                <Trash2 className="h-3.5 w-3.5" />
+                                            </button>
+                                        )
                                     )}
                                 </div>
                                 <div className="flex items-center justify-between text-[10px] font-medium text-[#86868B] pl-4">
@@ -304,7 +318,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             {/* Submit */}
             <Button
                 onClick={handleSubmit}
-                disabled={!isValid || loading}
+                disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
                 className="w-full"
             >
                 {loading ? (

@@ -34,7 +34,7 @@ const feriadosCols: ColumnDef<any>[] = [
 ];
 
 export const FeriadosPanel: React.FC = () => {
-    const { checkPermission } = useAuth();
+    const { hasPermission } = useAuth();
     const [isSyncing, setIsSyncing] = useState(false);
     // Key que cambia para forzar el re-render de la tabla tras sincronizar
     const [tableKey, setTableKey] = useState(0);
@@ -61,7 +61,7 @@ export const FeriadosPanel: React.FC = () => {
                     <h3 className="text-base font-semibold text-brand-dark">Gestión de Feriados</h3>
                     <p className="text-sm text-muted-foreground mt-1">Configura los días feriados o festivos de la obra y sincroniza los nacionales.</p>
                 </div>
-                <RequirePermission modulo="asistencia" accion="puede_editar">
+                <RequirePermission permiso="asistencia.feriado.gestionar">
                     <Button
                         onClick={handleSync}
                         disabled={isSyncing}
@@ -85,9 +85,9 @@ export const FeriadosPanel: React.FC = () => {
                 FormComponent={FeriadosForm}
                 searchPlaceholder="Buscar por nombre..."
                 queryParams={{ activo: true }}
-                canCreate={checkPermission('asistencia', 'puede_crear')}
-                canEdit={checkPermission('asistencia', 'puede_editar')}
-                canDelete={checkPermission('asistencia', 'puede_eliminar')}
+                canCreate={hasPermission('asistencia.feriado.gestionar')}
+                canEdit={hasPermission('asistencia.feriado.gestionar')}
+                canDelete={hasPermission('asistencia.feriado.gestionar')}
                 canExport={false}
             />
         </div>
