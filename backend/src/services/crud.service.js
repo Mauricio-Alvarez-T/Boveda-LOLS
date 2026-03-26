@@ -105,6 +105,10 @@ const createCrudService = (tableName, options = {}) => {
         },
 
         async create(data) {
+            if (data.rut) {
+                const { formatRut } = require('../utils/rut');
+                data.rut = formatRut(data.rut);
+            }
             const fields = Object.keys(data);
             const placeholders = fields.map(() => '?').join(', ');
             const values = Object.values(data);
@@ -153,6 +157,10 @@ const createCrudService = (tableName, options = {}) => {
         },
 
         async update(id, data) {
+            if (data.rut) {
+                const { formatRut } = require('../utils/rut');
+                data.rut = formatRut(data.rut);
+            }
             const fields = Object.keys(data).map(f => `${f} = ?`).join(', ');
             const values = [...Object.values(data), id];
 

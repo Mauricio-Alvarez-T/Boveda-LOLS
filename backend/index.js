@@ -174,7 +174,6 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-/*
 // Ensure database schema is up to date
 (async () => {
     try {
@@ -184,11 +183,15 @@ if (process.env.NODE_ENV !== 'test') {
         // 2. Versioning for roles to invalidate sessions
         await db.query(`ALTER TABLE roles ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1`);
         
+        // 3. Permiso de purga
+        await db.query(`
+            INSERT IGNORE INTO permisos_catalogo (clave, modulo, nombre, descripcion, orden) 
+            VALUES ('trabajadores.purgar', 'Trabajadores', 'Purgar Trabajador', 'Eliminar permanentemente trabajadores finiquitados', 6)
+        `);
+
         console.log("✅ Esquema de base de datos verificado y actualizado");
     } catch (err) {
         console.error("Error al actualizar esquema BD:", err.message);
     }
 })();
-*/
-
 module.exports = app;

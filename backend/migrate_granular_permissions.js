@@ -67,6 +67,7 @@ async function migrate() {
             ['trabajadores.editar',         'Trabajadores', 'Editar Trabajador',         'Modificar datos de trabajadores', 3],
             ['trabajadores.eliminar',       'Trabajadores', 'Finiquitar Trabajador',     'Finiquitar o eliminar trabajadores', 4],
             ['trabajadores.reactivar',      'Trabajadores', 'Reactivar Trabajador',      'Reactivar trabajadores finiquitados', 5],
+            ['trabajadores.purgar',         'Trabajadores', 'Purgar Trabajador',         'Eliminar permanentemente trabajadores finiquitados', 6],
 
             // DOCUMENTOS
             ['documentos.ver',              'Documentos', 'Ver Documentos',              'Ver la documentación de los trabajadores', 1],

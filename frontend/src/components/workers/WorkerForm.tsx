@@ -5,6 +5,8 @@ import * as z from 'zod';
 import { toast } from 'sonner';
 import { Loader2, Save } from 'lucide-react';
 
+import { formatRut, validateRut } from '../../utils/rut';
+
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
@@ -16,7 +18,7 @@ import type { Trabajador, Empresa, Obra, Cargo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 
 const workerSchema = z.object({
-    rut: z.string().min(1, 'El RUT es requerido'),
+    rut: z.string().min(1, 'El RUT es requerido').refine(validateRut, 'RUT inválido'),
     nombres: z.string().min(2, 'Suelen ser al menos 2 caracteres'),
     apellido_paterno: z.string().min(2, 'Requerido'),
     apellido_materno: z.string().optional(),
@@ -120,11 +122,22 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Input
-                    label="RUT"
-                    placeholder="12.345.678-9"
-                    error={errors.rut?.message}
-                    {...register('rut')}
+                <Controller
+                    name="rut"
+                    control={control}
+                    render={({ field: { onChange, value, ref } }) => (
+                        <Input
+                            ref={ref}
+                            label="RUT"
+                            placeholder="12.345.678-9"
+                            error={errors.rut?.message}
+                            value={value || ''}
+                            onChange={(e) => {
+                                const formatted = formatRut(e.target.value);
+                                onChange(formatted);
+                            }}
+                        />
+                    )}
                 />
                 <Input
                     label="Nombres"

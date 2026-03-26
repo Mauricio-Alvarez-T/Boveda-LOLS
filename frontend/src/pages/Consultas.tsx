@@ -18,6 +18,7 @@ import {
     Trash2,
     UserPen,
     Plus,
+    Skull,
     PlusCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -102,7 +103,9 @@ const ConsultasPage: React.FC = () => {
     const {
         modalType, setModalType,
         selectedWorkerForAction, setSelectedWorkerForAction,
-        handleDelete, confirmFiniquito, handleReactivate
+        handleDelete, confirmFiniquito, handleReactivate,
+        handlePurge, confirmPurge,
+        purgeConfirmationRut, setPurgeConfirmationRut
     } = useConsultasActions(() => performSearch(true));
 
     // Estados Locales UI Varios
@@ -111,7 +114,7 @@ const ConsultasPage: React.FC = () => {
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showCreatePanel, setShowCreatePanel] = useState(false);
     
-    const { checkPermission } = useAuth();
+    const { checkPermission, hasPermission } = useAuth();
 
 
     // Modificando Header Global
@@ -654,18 +657,32 @@ const ConsultasPage: React.FC = () => {
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 ) : (
-                                                    <Button
-                                                        variant="glass"
-                                                        size="icon"
-                                                        className={cn(
-                                                            "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                            !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                    <div className="flex gap-2 items-center">
+                                                        <Button
+                                                            variant="glass"
+                                                            size="icon"
+                                                            className={cn(
+                                                                "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
+                                                                !checkPermission('trabajadores', 'puede_editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                            )}
+                                                            disabled={!checkPermission('trabajadores', 'puede_editar')}
+                                                            title="Reactivar Trabajador"
+                                                            onClick={(e) => { e.stopPropagation(); handleReactivate(worker.id); }}
+                                                        >
+                                                            <UserCheck className="h-4 w-4" />
+                                                        </Button>
+                                                        {hasPermission('trabajadores.purgar') && (
+                                                            <Button
+                                                                variant="glass"
+                                                                size="icon"
+                                                                className="h-8 w-8 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-900 hover:scale-110 active:scale-95 transition-all shadow-sm border border-red-200"
+                                                                title="Eliminación Permanente"
+                                                                onClick={(e) => { e.stopPropagation(); handlePurge(worker); }}
+                                                            >
+                                                                <Skull className="h-4 w-4" />
+                                                            </Button>
                                                         )}
-                                                        disabled={!checkPermission('trabajadores', 'puede_editar')}
-                                                        onClick={() => handleReactivate(worker.id)}
-                                                    >
-                                                        <UserCheck className="h-4 w-4" />
-                                                    </Button>
+                                                    </div>
                                                 )}
                                             </div>
                                         </div>
@@ -750,6 +767,49 @@ const ConsultasPage: React.FC = () => {
                                 confirmFiniquito(dateInput.value);
                             }}>
                                 Confirmar Finiquito
+                            </Button>
+                        </div>
+                    </div>
+                </Modal>
+            )}
+
+            {/* Purgar Modal */}
+            {modalType === 'purgar' && selectedWorkerForAction && (
+                <Modal isOpen={true} onClose={() => setModalType(null)} title="Eliminar Trabajador Permanentemente">
+                    <div className="p-6">
+                        <div className="bg-destructive/10 text-destructive p-4 rounded-xl border border-destructive/20 mb-6 flex items-start gap-4">
+                            <Skull className="h-6 w-6 shrink-0 mt-0.5" />
+                            <div>
+                                <h4 className="font-bold mb-1">Peligro: Acción Irreversible</h4>
+                                <p className="text-sm opacity-90 leading-relaxed">
+                                    Estás a punto de eliminar permanentemente a <strong>{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong>.
+                                    Esta acción borrará también todos sus <strong>documentos y registros de asistencia</strong>. No se puede deshacer.
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="space-y-4">
+                            <p className="text-sm text-foreground/80">
+                                Para confirmar esta acción, escribe el RUT del trabajador: <strong className="select-none">{selectedWorkerForAction.rut}</strong>
+                            </p>
+                            <Input
+                                placeholder="Escribe el RUT aquí"
+                                value={purgeConfirmationRut}
+                                onChange={(e) => setPurgeConfirmationRut(e.target.value)}
+                                className="font-mono text-center tracking-widest text-destructive font-bold placeholder:font-sans placeholder:font-normal placeholder:tracking-normal focus:-ring-offset-2 focus:ring-destructive"
+                            />
+                        </div>
+
+                        <div className="flex gap-3 pt-6 mt-6 border-t border-border">
+                            <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
+                            <Button 
+                                variant="destructive" 
+                                className="flex-1 font-bold"
+                                disabled={purgeConfirmationRut !== selectedWorkerForAction.rut}
+                                onClick={confirmPurge}
+                                leftIcon={<Trash2 className="h-4 w-4" />}
+                            >
+                                Purgar Definitivamente
                             </Button>
                         </div>
                     </div>
