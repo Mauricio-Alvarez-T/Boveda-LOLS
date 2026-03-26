@@ -550,144 +550,140 @@ const ConsultasPage: React.FC = () => {
                                     )}
                                     onClick={() => handleSelectWorker(worker.id)}
                                 >
-                                    <div className="flex flex-col md:flex-row md:items-center gap-4">
-                                        <div className="flex items-center gap-3 md:w-[60px] shrink-0">
-                                            <div className="relative flex items-center justify-center h-full w-full">
-                                                {/* Hidden checkbox for accessibility/form compliance if needed, but UI is driven by div click */}
+                                    <div className="flex gap-2.5 sm:gap-4 items-start sm:items-center">
+                                        {/* 1. Número / Avatar */}
+                                        <div className="flex flex-col items-center justify-center shrink-0">
+                                            <div
+                                                className={cn(
+                                                    "w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs transition-all border shrink-0",
+                                                    selectedWorkers.has(worker.id)
+                                                        ? "bg-brand-dark text-white border-brand-dark shadow-md"
+                                                        : "bg-background text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
+                                                )}
+                                            >
+                                                {(idx + 1).toString().padStart(2, '0')}
+                                            </div>
+                                            <div className="mt-2.5 sm:hidden">
                                                 <input
                                                     type="checkbox"
                                                     checked={selectedWorkers.has(worker.id)}
-                                                    onChange={() => {}} // Handled by parent div
-                                                    className="sr-only"
+                                                    onChange={(e) => { e.stopPropagation(); handleSelectWorker(worker.id); }}
+                                                    className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
                                                 />
-                                                <div
-                                                    className={cn(
-                                                        "w-10 h-10 rounded-xl flex items-center justify-center font-black text-xs transition-all border shrink-0",
-                                                        selectedWorkers.has(worker.id)
-                                                            ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
-                                                            : "bg-background text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
-                                                    )}
-                                                >
-                                                    {(idx + 1).toString().padStart(2, '0')}
-                                                </div>
                                             </div>
                                         </div>
 
-                                        <div className="flex-1 min-w-0 flex flex-col items-start pr-4" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
-                                            <span className="text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors text-left truncate flex items-center gap-2">
-                                                {worker.apellido_paterno} {worker.apellido_materno} {worker.nombres}
-                                            </span>
-                                            <div className="flex items-center gap-2 mt-1">
-                                                <span className="text-[11px] font-medium text-muted-foreground">{worker.rut}</span>
-                                                {!worker.activo && (
-                                                    <span className="px-1.5 py-0.5 rounded-[4px] bg-destructive/10 text-destructive text-[9px] font-bold uppercase tracking-wider">
-                                                        Finiquitado
-                                                    </span>
-                                                )}
-                                            </div>
-                                        </div>
-
-                                        <div className="flex-[2] min-w-0 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 items-center" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
-                                            {/* Empresa & Obra */}
-                                            <div className="flex flex-col gap-1 min-w-0">
-                                                <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                                                    <Building2 className="h-3 w-3 shrink-0" />
-                                                    <span className="truncate">{worker.empresa_nombre || '—'}</span>
-                                                </div>
-                                                <div className="flex items-center gap-1.5 text-xs font-semibold text-brand-dark">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0" />
-                                                    <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
-                                                </div>
-                                            </div>
-
-                                            {/* Cargo */}
-                                            <div className="hidden md:flex flex-col gap-1 min-w-0 justify-center h-full">
-                                                <span className="inline-flex max-w-fit items-center rounded-full bg-brand-primary/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-brand-primary truncate border border-brand-primary/20">
-                                                    {worker.cargo_nombre || '—'}
+                                        {/* 2. Información Central */}
+                                        <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
+                                            {/* Nombres y RUT */}
+                                            <div className="flex-1 min-w-0 flex flex-col" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
+                                                <span className="text-[13px] sm:text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors truncate">
+                                                    {worker.apellido_paterno} {worker.apellido_materno} {worker.nombres}
                                                 </span>
-                                            </div>
-
-                                            {/* Documentación */}
-                                            <div className="flex flex-col gap-1.5 pt-1">
-                                                <div className="flex items-center justify-between text-[10px] font-bold">
-                                                    <span className="text-muted-foreground uppercase tracking-widest">Docs</span>
-                                                    <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
-                                                        {worker.docs_porcentaje}%
-                                                    </span>
-                                                </div>
-                                                <div className="h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
-                                                    <div 
-                                                        className={cn(
-                                                            "h-full rounded-full transition-all duration-500",
-                                                            worker.docs_porcentaje === 100 
-                                                                ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
-                                                                : "bg-gradient-to-r from-destructive to-[#F87171]"
-                                                        )}
-                                                        style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
-                                                    />
+                                                <div className="flex items-center gap-2 mt-0.5">
+                                                    <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">{worker.rut}</span>
+                                                    {!worker.activo && (
+                                                        <span className="px-1 py-0.5 rounded-[4px] bg-destructive/10 text-destructive text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">
+                                                            Finiquitado
+                                                        </span>
+                                                    )}
                                                 </div>
                                             </div>
 
-                                            {/* Acciones Rápidas */}
-                                            <div className="flex items-center gap-1 md:justify-end shrink-0" onClick={(e) => e.stopPropagation()}>
+                                            {/* Detalles (Empresa, Obra, Docs) */}
+                                            <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 items-center" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
+                                                {/* Empresa & Obra */}
+                                                <div className="flex flex-col gap-0.5 min-w-0">
+                                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                                                        <Building2 className="h-3 w-3 shrink-0" />
+                                                        <span className="truncate">{worker.empresa_nombre || '—'}</span>
+                                                    </div>
+                                                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-brand-dark">
+                                                        <div className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0" />
+                                                        <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Documentación */}
+                                                <div className="flex flex-col gap-1 min-w-[80px]">
+                                                    <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-bold">
+                                                        <span className="text-muted-foreground uppercase tracking-widest hidden sm:inline">Docs</span>
+                                                        <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
+                                                            {worker.docs_porcentaje}%
+                                                        </span>
+                                                    </div>
+                                                    <div className="h-1.5 sm:h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
+                                                        <div 
+                                                            className={cn(
+                                                                "h-full rounded-full transition-all duration-500",
+                                                                worker.docs_porcentaje === 100 
+                                                                    ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
+                                                                    : "bg-gradient-to-r from-destructive to-[#F87171]"
+                                                            )}
+                                                            style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
+                                                        />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* 3. Acciones (Derecha) */}
+                                        <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                            <Button
+                                                variant="glass"
+                                                size="icon"
+                                                className={cn(
+                                                    "h-7 w-7 sm:h-8 sm:w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all",
+                                                    !hasPermission('trabajadores.editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                )}
+                                                disabled={!hasPermission('trabajadores.editar')}
+                                                onClick={() => {
+                                                    setSelectedWorkerForAction(worker);
+                                                    setModalType('form');
+                                                }}
+                                            >
+                                                <UserPen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                            </Button>
+                                            
+                                            {worker.activo ? (
                                                 <Button
                                                     variant="glass"
                                                     size="icon"
                                                     className={cn(
-                                                        "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                        !hasPermission('trabajadores.editar') && "opacity-40 grayscale cursor-not-allowed"
+                                                        "h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:scale-110 active:scale-95 transition-all",
+                                                        !hasPermission('trabajadores.eliminar') && "opacity-40 grayscale cursor-not-allowed"
                                                     )}
-                                                    disabled={!hasPermission('trabajadores.editar')}
-                                                    onClick={() => {
-                                                        setSelectedWorkerForAction(worker);
-                                                        setModalType('form');
-                                                    }}
+                                                    disabled={!hasPermission('trabajadores.eliminar')}
+                                                    onClick={() => handleDelete(worker)}
                                                 >
-                                                    <UserPen className="h-4 w-4" />
+                                                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                 </Button>
-                                                
-                                                {worker.activo ? (
+                                            ) : (
+                                                <div className="flex flex-col sm:flex-row gap-1">
                                                     <Button
                                                         variant="glass"
                                                         size="icon"
                                                         className={cn(
-                                                            "h-8 w-8 text-destructive hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                            !hasPermission('trabajadores.eliminar') && "opacity-40 grayscale cursor-not-allowed"
+                                                            "h-7 w-7 sm:h-8 sm:w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all",
+                                                            !hasPermission('trabajadores.reactivar') && "opacity-40 grayscale cursor-not-allowed"
                                                         )}
-                                                        disabled={!hasPermission('trabajadores.eliminar')}
-                                                        onClick={() => handleDelete(worker)}
+                                                        disabled={!hasPermission('trabajadores.reactivar')}
+                                                        onClick={(e) => { e.stopPropagation(); handleReactivate(worker.id); }}
                                                     >
-                                                        <Trash2 className="h-4 w-4" />
+                                                        <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                     </Button>
-                                                ) : (
-                                                    <div className="flex gap-2 items-center">
+                                                    {hasPermission('trabajadores.purgar') && (
                                                         <Button
                                                             variant="glass"
                                                             size="icon"
-                                                            className={cn(
-                                                                "h-8 w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all shadow-sm",
-                                                                !hasPermission('trabajadores.reactivar') && "opacity-40 grayscale cursor-not-allowed"
-                                                            )}
-                                                            disabled={!hasPermission('trabajadores.reactivar')}
-                                                            title="Reactivar Trabajador"
-                                                            onClick={(e) => { e.stopPropagation(); handleReactivate(worker.id); }}
+                                                            className="h-7 w-7 sm:h-8 sm:w-8 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-900 border border-red-200"
+                                                            onClick={(e) => { e.stopPropagation(); handlePurge(worker); }}
                                                         >
-                                                            <UserCheck className="h-4 w-4" />
+                                                            <Skull className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
-                                                        {hasPermission('trabajadores.purgar') && (
-                                                            <Button
-                                                                variant="glass"
-                                                                size="icon"
-                                                                className="h-8 w-8 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-900 hover:scale-110 active:scale-95 transition-all shadow-sm border border-red-200"
-                                                                title="Eliminación Permanente"
-                                                                onClick={(e) => { e.stopPropagation(); handlePurge(worker); }}
-                                                            >
-                                                                <Skull className="h-4 w-4" />
-                                                            </Button>
-                                                        )}
-                                                    </div>
-                                                )}
-                                            </div>
+                                                    )}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </motion.div>
