@@ -149,15 +149,15 @@ const ConsultasPage: React.FC = () => {
                         setShowCreatePanel(prev => !prev);
                         setShowMobileFilters(false);
                     }}
-                    leftIcon={<Plus className="h-4 w-4" />}
+                    leftIcon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
                     className={cn(
-                        "h-9 px-4 rounded-xl font-bold transition-all shadow-sm border-border",
+                        "h-9 px-4 rounded-xl font-bold transition-all duration-300 shadow-sm border-border",
                         showCreatePanel 
                             ? "bg-brand-primary text-white border-transparent" 
                             : "bg-white text-brand-dark hover:bg-background"
                     )}
                 >
-                    CREAR
+                    {showCreatePanel ? 'CERRAR' : 'CREAR'}
                 </Button>
                 <Button
                     size="sm"
@@ -167,17 +167,21 @@ const ConsultasPage: React.FC = () => {
                     }}
                     variant={showMobileFilters ? 'primary' : 'outline'}
                     className={cn(
-                        "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm",
+                        "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
                         showMobileFilters 
                             ? "bg-brand-primary text-white border-transparent" 
                             : "bg-white text-brand-dark hover:bg-background"
                     )}
                 >
-                    <Filter className="h-3.5 w-3.5" />
+                    {showMobileFilters ? (
+                        <X className="h-3.5 w-3.5 animate-in zoom-in spin-in-12 duration-300" />
+                    ) : (
+                        <Filter className="h-3.5 w-3.5 animate-in fade-in zoom-in duration-300" />
+                    )}
                     <span>Filtros</span>
                     {activeFilterCount > 0 && (
                         <span className={cn(
-                            "flex h-4 w-4 items-center justify-center rounded-full text-[9px]",
+                            "flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-colors duration-300",
                             showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
                         )}>
                             {activeFilterCount}
@@ -221,12 +225,12 @@ const ConsultasPage: React.FC = () => {
                         setShowMobileFilters(false);
                     }}
                     className={cn(
-                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all",
-                        showCreatePanel ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark"
+                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
+                        showCreatePanel ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark active:bg-background"
                     )}
                     title="Crear"
                 >
-                    <Plus className="h-4 w-4" />
+                    <Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />
                 </button>
                 <button
                     onClick={() => {
@@ -234,16 +238,20 @@ const ConsultasPage: React.FC = () => {
                         setShowCreatePanel(false);
                     }}
                     className={cn(
-                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm relative transition-all",
-                        showMobileFilters ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark"
+                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm relative transition-all duration-300 ease-in-out",
+                        showMobileFilters ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark active:bg-background"
                     )}
                     title="Filtros"
                 >
-                    <Filter className="h-4 w-4" />
+                    {showMobileFilters ? (
+                        <X className="h-4 w-4 animate-in zoom-in spin-in-12 duration-300" />
+                    ) : (
+                        <Filter className="h-4 w-4 animate-in fade-in zoom-in duration-300" />
+                    )}
                     {activeFilterCount > 0 && (
                         <span className={cn(
-                            "absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold",
-                            showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
+                            "absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold transition-colors duration-300",
+                            showMobileFilters ? "bg-white text-brand-primary shadow-sm" : "bg-brand-primary text-white shadow-sm"
                         )}>
                             {activeFilterCount}
                         </span>
