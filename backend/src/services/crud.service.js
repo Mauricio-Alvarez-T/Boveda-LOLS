@@ -122,34 +122,36 @@ const createCrudService = (tableName, options = {}) => {
             } catch (err) {
                 // If it's a duplicate entry error (ER_DUP_ENTRY)
                 if (err.errno === 1062 || err.code === 'ER_DUP_ENTRY') {
-                    // Check if there's an inactive record that matches the name/unique field
-                    // For catalogs, we usually have a 'nombre' field. If not, we check any inactive.
-                    const searchField = data.nombre ? 'nombre' : (data.razon_social ? 'razon_social' : null);
-                    let inactiveQuery = `SELECT id FROM ${tableName} WHERE (activo = 0 OR activa = 0)`;
-                    let queryParams = [];
+                    // Determine which inactive column exists in this table
+                    const [cols] = await db.query(`SHOW COLUMNS FROM ${tableName} WHERE Field IN ('activo', 'activa')`);
+                    const inactiveCol = cols.length > 0 ? cols[0].Field : null;
 
-                    if (searchField) {
-                        inactiveQuery += ` AND ${searchField} = ?`;
-                        queryParams.push(data[searchField]);
-                    }
-                    inactiveQuery += ` LIMIT 1`;
+                    if (inactiveCol) {
+                        const searchField = data.nombre ? 'nombre' : (data.razon_social ? 'razon_social' : null);
+                        let inactiveQuery = `SELECT id FROM ${tableName} WHERE ${inactiveCol} = 0`;
+                        let queryParams = [];
 
-                    const [inactive] = await db.query(inactiveQuery, queryParams);
-
-                    if (inactive.length > 0) {
-                        // Purge the specific inactive record (or all inactive if no specific field)
                         if (searchField) {
-                            await db.query(`DELETE FROM ${tableName} WHERE (activo = 0 OR activa = 0) AND ${searchField} = ?`, queryParams);
-                        } else {
-                            await db.query(`DELETE FROM ${tableName} WHERE activo = 0 OR activa = 0`);
+                            inactiveQuery += ` AND ${searchField} = ?`;
+                            queryParams.push(data[searchField]);
                         }
+                        inactiveQuery += ` LIMIT 1`;
 
-                        // Try insert again
-                        const [retryResult] = await db.query(
-                            `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders})`,
-                            values
-                        );
-                        return { id: retryResult.insertId, ...data };
+                        const [inactive] = await db.query(inactiveQuery, queryParams);
+
+                        if (inactive.length > 0) {
+                            if (searchField) {
+                                await db.query(`DELETE FROM ${tableName} WHERE ${inactiveCol} = 0 AND ${searchField} = ?`, queryParams);
+                            } else {
+                                await db.query(`DELETE FROM ${tableName} WHERE ${inactiveCol} = 0`);
+                            }
+
+                            const [retryResult] = await db.query(
+                                `INSERT INTO ${tableName} (${fields.join(', ')}) VALUES (${placeholders})`,
+                                values
+                            );
+                            return { id: retryResult.insertId, ...data };
+                        }
                     }
                 }
                 throw err;
