@@ -921,6 +921,26 @@ const asistenciaService = {
                     cell.alignment = { vertical: 'middle', horizontal: c === 1 ? 'center' : 'left' };
                     cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 }
+
+                // ── Columna OBSERVACIONES: recopilar observaciones del mes ──
+                const obsTexts = [];
+                days.forEach((day) => {
+                    const fStr = formatDate(day);
+                    const reg = attendanceMap[worker.id]?.[fStr];
+                    if (reg && reg.observacion && reg.observacion.trim()) {
+                        obsTexts.push(reg.observacion.trim());
+                    }
+                });
+                
+                // Deduplicar y escribir en la columna final
+                const uniqueObs = [...new Set(obsTexts)];
+                if (uniqueObs.length > 0) {
+                    const obsCell = ws.getCell(rowIdx, obsCol);
+                    obsCell.value = uniqueObs.join('\n');
+                    obsCell.font = { size: 7 };
+                    obsCell.alignment = { vertical: 'top', wrapText: true };
+                    obsCell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                }
             });
 
             // ── 5. Ajustes Finales por Hoja ──
