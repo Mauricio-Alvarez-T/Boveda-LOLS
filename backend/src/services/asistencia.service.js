@@ -1171,8 +1171,9 @@ const asistenciaService = {
     /**
      * Realiza el traslado de un trabajador a una nueva obra.
      * 1. Crea/Actualiza el registro de asistencia en la obra origen como TO (Traslado de Obra).
-     * 2. Actualiza la obra_id del trabajador a la obra destino.
-     * 3. Registra la actividad en el log.
+     * 2. Crea/Actualiza el registro de asistencia en la obra destino como A (Asiste).
+     * 3. Actualiza la obra_id del trabajador a la obra destino.
+     * 4. Registra la actividad en el log.
      */
     trasladoObra: async (data, usuario_id, req) => {
         const { trabajador_id, obra_actual_id, obra_destino_id, fecha, comentario } = data;
@@ -1186,40 +1187,84 @@ const asistenciaService = {
             const [[obraOrigen]] = await connection.query('SELECT nombre FROM obras WHERE id = ?', [obra_actual_id]);
             const [[obraDestino]] = await connection.query('SELECT nombre FROM obras WHERE id = ?', [obra_destino_id]);
             const [[estadoTO]] = await connection.query("SELECT id FROM estados_asistencia WHERE codigo = 'TO'");
+            const [[estadoA]] = await connection.query("SELECT id FROM estados_asistencia WHERE codigo = 'A'");
 
-            if (!trabajador || !obraOrigen || !obraDestino || !estadoTO) {
-                throw new Error('Información incompleta para el traslado (trabajador, obra o estado TO no encontrado)');
+            if (!trabajador || !obraOrigen || !obraDestino || !estadoTO || !estadoA) {
+                throw new Error('Información incompleta para el traslado (trabajador, obra o estado no encontrado)');
             }
 
             const nombreCompleto = `${trabajador.nombres} ${trabajador.apellido_paterno}`;
-            const observacion = `Traslado a: ${obraDestino.nombre}${comentario ? ' | Nota: ' + comentario : ''}`;
+            const observacionOrigen = `Traslado a: ${obraDestino.nombre}${comentario ? ' | Nota: ' + comentario : ''}`;
+            const observacionDestino = `Traslado desde: ${obraOrigen.nombre}${comentario ? ' | Nota: ' + comentario : ''}`;
 
-            // 2. UPSERT Asistencia en obra origen
-            // Verificar si ya existe
-            const [existing] = await connection.query(
+            // ── 2. UPSERT Asistencia TO en obra ORIGEN ──
+            const [existingOrigen] = await connection.query(
                 'SELECT id FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
                 [trabajador_id, obra_actual_id, fecha]
             );
 
-            if (existing.length > 0) {
+            if (existingOrigen.length > 0) {
                 await connection.query(
                     'UPDATE asistencias SET estado_id = ?, observacion = ?, registrado_por = ? WHERE id = ?',
-                    [estadoTO.id, observacion, usuario_id, existing[0].id]
+                    [estadoTO.id, observacionOrigen, usuario_id, existingOrigen[0].id]
                 );
             } else {
                 await connection.query(
                     'INSERT INTO asistencias (trabajador_id, obra_id, fecha, estado_id, observacion, registrado_por) VALUES (?, ?, ?, ?, ?, ?)',
-                    [trabajador_id, obra_actual_id, fecha, estadoTO.id, observacion, usuario_id]
+                    [trabajador_id, obra_actual_id, fecha, estadoTO.id, observacionOrigen, usuario_id]
                 );
             }
 
-            // 3. Actualizar obra actual del trabajador
+            // ── 3. UPSERT Asistencia A en obra DESTINO ──
+            // Obtener horario de la obra destino para auto-llenar horas
+            const dias = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+            const dayIndex = new Date(fecha + 'T12:00:00').getDay();
+            const diaSemana = dias[dayIndex];
+
+            const [horarios] = await connection.query(
+                'SELECT hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin FROM configuracion_horarios WHERE obra_id = ? AND dia_semana = ?',
+                [obra_destino_id, diaSemana]
+            );
+            const horario = horarios.length > 0 ? horarios[0] : null;
+
+            const [existingDestino] = await connection.query(
+                'SELECT id FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
+                [trabajador_id, obra_destino_id, fecha]
+            );
+
+            if (existingDestino.length > 0) {
+                await connection.query(
+                    `UPDATE asistencias SET estado_id = ?, observacion = ?, registrado_por = ?,
+                     hora_entrada = COALESCE(hora_entrada, ?), hora_salida = COALESCE(hora_salida, ?),
+                     hora_colacion_inicio = COALESCE(hora_colacion_inicio, ?), hora_colacion_fin = COALESCE(hora_colacion_fin, ?)
+                     WHERE id = ?`,
+                    [
+                        estadoA.id, observacionDestino, usuario_id,
+                        horario?.hora_entrada || null, horario?.hora_salida || null,
+                        horario?.hora_colacion_inicio || null, horario?.hora_colacion_fin || null,
+                        existingDestino[0].id
+                    ]
+                );
+            } else {
+                await connection.query(
+                    `INSERT INTO asistencias (trabajador_id, obra_id, fecha, estado_id, observacion, registrado_por,
+                     hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [
+                        trabajador_id, obra_destino_id, fecha, estadoA.id, observacionDestino, usuario_id,
+                        horario?.hora_entrada || null, horario?.hora_salida || null,
+                        horario?.hora_colacion_inicio || null, horario?.hora_colacion_fin || null
+                    ]
+                );
+            }
+
+            // ── 4. Actualizar obra actual del trabajador ──
             await connection.query(
                 'UPDATE trabajadores SET obra_id = ? WHERE id = ?',
                 [obra_destino_id, trabajador_id]
             );
 
-            // 4. Registrar en log de actividad
+            // ── 5. Registrar en log de actividad ──
             const resumen = `Traslado: ${nombreCompleto} de ${obraOrigen.nombre} a ${obraDestino.nombre}`;
             const detalle = JSON.stringify({
                 trabajador: nombreCompleto,
