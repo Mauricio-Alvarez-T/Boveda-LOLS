@@ -18,7 +18,7 @@ import {
     Trash2,
     UserPen,
     Plus,
-    Skull,
+    Eraser,
     PlusCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -104,8 +104,8 @@ const ConsultasPage: React.FC = () => {
         modalType, setModalType,
         selectedWorkerForAction, setSelectedWorkerForAction,
         handleDelete, confirmFiniquito, handleReactivate,
-        handlePurge, confirmPurge,
-        purgeConfirmationRut, setPurgeConfirmationRut
+        handleDepurar, confirmDepurar,
+        depurarConfirmationRut, setDepurarConfirmationRut
     } = useConsultasActions(() => performSearch(true));
 
     // Estados Locales UI Varios
@@ -675,14 +675,14 @@ const ConsultasPage: React.FC = () => {
                                                     >
                                                         <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                     </Button>
-                                                    {hasPermission('trabajadores.purgar') && (
+                                                    {hasPermission('trabajadores.depurar') && (
                                                         <Button
                                                             variant="glass"
                                                             size="icon"
                                                             className="h-7 w-7 sm:h-8 sm:w-8 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-900 border border-red-200"
-                                                            onClick={(e) => { e.stopPropagation(); handlePurge(worker); }}
+                                                            onClick={(e) => { e.stopPropagation(); handleDepurar(worker); }}
                                                         >
-                                                            <Skull className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                                                            <Eraser className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                                         </Button>
                                                     )}
                                                 </div>
@@ -775,17 +775,17 @@ const ConsultasPage: React.FC = () => {
                 </Modal>
             )}
 
-            {/* Purgar Modal */}
-            {modalType === 'purgar' && selectedWorkerForAction && (
-                <Modal isOpen={true} onClose={() => setModalType(null)} title="Eliminar Trabajador Permanentemente">
+            {/* Depurar Modal */}
+            {modalType === 'depurar' && selectedWorkerForAction && (
+                <Modal isOpen={true} onClose={() => setModalType(null)} title="Depurar Registro de Trabajador">
                     <div className="p-6">
-                        <div className="bg-destructive/10 text-destructive p-4 rounded-xl border border-destructive/20 mb-6 flex items-start gap-4">
-                            <Skull className="h-6 w-6 shrink-0 mt-0.5" />
+                        <div className="bg-amber-50 text-amber-700 p-4 rounded-xl border border-amber-200 mb-6 flex items-start gap-4">
+                            <Eraser className="h-6 w-6 shrink-0 mt-0.5" />
                             <div>
-                                <h4 className="font-bold mb-1">Peligro: Acción Irreversible</h4>
+                                <h4 className="font-bold mb-1">Confirmar Limpieza de Registro</h4>
                                 <p className="text-sm opacity-90 leading-relaxed">
-                                    Estás a punto de eliminar permanentemente a <strong>{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong>.
-                                    Esta acción borrará también todos sus <strong>documentos y registros de asistencia</strong>. No se puede deshacer.
+                                    Estás a punto de eliminar definitivamente a <strong>{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong> de la base de datos.
+                                    Esta acción es irreversible y borrará todos sus <strong>documentos y registros de asistencia</strong>.
                                 </p>
                             </div>
                         </div>
@@ -796,9 +796,9 @@ const ConsultasPage: React.FC = () => {
                             </p>
                             <Input
                                 placeholder="Escribe el RUT aquí"
-                                value={purgeConfirmationRut}
-                                onChange={(e) => setPurgeConfirmationRut(e.target.value)}
-                                className="font-mono text-center tracking-widest text-destructive font-bold placeholder:font-sans placeholder:font-normal placeholder:tracking-normal focus:-ring-offset-2 focus:ring-destructive"
+                                value={depurarConfirmationRut}
+                                onChange={(e) => setDepurarConfirmationRut(e.target.value)}
+                                className="font-mono text-center tracking-widest text-amber-700 font-bold placeholder:font-sans placeholder:font-normal placeholder:tracking-normal focus:-ring-offset-2 focus:ring-amber-500"
                             />
                         </div>
 
@@ -806,12 +806,12 @@ const ConsultasPage: React.FC = () => {
                             <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
                             <Button 
                                 variant="destructive" 
-                                className="flex-1 font-bold"
-                                disabled={purgeConfirmationRut !== selectedWorkerForAction.rut}
-                                onClick={confirmPurge}
+                                className="flex-1 font-bold bg-amber-600 hover:bg-amber-700 border-none"
+                                disabled={depurarConfirmationRut !== selectedWorkerForAction.rut}
+                                onClick={confirmDepurar}
                                 leftIcon={<Trash2 className="h-4 w-4" />}
                             >
-                                Purgar Definitivamente
+                                Depurar Definitivamente
                             </Button>
                         </div>
                     </div>

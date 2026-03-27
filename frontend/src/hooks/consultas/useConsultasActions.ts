@@ -3,12 +3,12 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import type { Trabajador } from '../../types/entities';
 
-export type ModalType = 'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'purgar' | null;
+export type ModalType = 'form' | 'finiquito' | 'empresa' | 'obra' | 'cargo' | 'tipodoc' | 'depurar' | null;
 
 export const useConsultasActions = (onRefreshList: () => void) => {
     const [modalType, setModalType] = useState<ModalType>(null);
     const [selectedWorkerForAction, setSelectedWorkerForAction] = useState<Trabajador | null>(null);
-    const [purgeConfirmationRut, setPurgeConfirmationRut] = useState('');
+    const [depurarConfirmationRut, setDepurarConfirmationRut] = useState('');
 
     const handleDelete = useCallback((worker: Trabajador) => {
         setSelectedWorkerForAction(worker);
@@ -43,32 +43,32 @@ export const useConsultasActions = (onRefreshList: () => void) => {
         }
     }, [onRefreshList]);
 
-    const handlePurge = useCallback((worker: Trabajador) => {
+    const handleDepurar = useCallback((worker: Trabajador) => {
         setSelectedWorkerForAction(worker);
-        setPurgeConfirmationRut('');
-        setModalType('purgar');
+        setDepurarConfirmationRut('');
+        setModalType('depurar');
     }, []);
 
-    const confirmPurge = useCallback(() => {
-        if (!selectedWorkerForAction || purgeConfirmationRut !== selectedWorkerForAction.rut) return;
+    const confirmDepurar = useCallback(() => {
+        if (!selectedWorkerForAction || depurarConfirmationRut !== selectedWorkerForAction.rut) return;
 
-        api.delete(`/trabajadores/${selectedWorkerForAction.id}/purge`)
+        api.delete(`/trabajadores/${selectedWorkerForAction.id}/depurar`)
             .then(() => {
-                toast.success('Trabajador eliminado permanentemente de la base de datos');
+                toast.success('Registro del trabajador depurado exitosamente');
                 setModalType(null);
                 onRefreshList();
             })
             .catch(err => {
                 console.error(err);
-                toast.error(err.response?.data?.error || 'Error al eliminar trabajador permanentemente');
+                toast.error(err.response?.data?.error || 'Error al depurar registro del trabajador');
             });
-    }, [selectedWorkerForAction, purgeConfirmationRut, onRefreshList]);
+    }, [selectedWorkerForAction, depurarConfirmationRut, onRefreshList]);
 
     return {
         modalType, setModalType,
         selectedWorkerForAction, setSelectedWorkerForAction,
         handleDelete, confirmFiniquito, handleReactivate,
-        handlePurge, confirmPurge,
-        purgeConfirmationRut, setPurgeConfirmationRut
+        handleDepurar, confirmDepurar,
+        depurarConfirmationRut, setDepurarConfirmationRut
     };
 };

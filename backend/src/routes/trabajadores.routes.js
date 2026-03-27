@@ -56,8 +56,8 @@ router.get('/:id/quick-view', auth, async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
-// Purga permanente (Hard delete en cascada)
-router.delete('/:id/purge', auth, checkPermission('trabajadores.purgar'), async (req, res, next) => {
+// Depuración permanente (Hard delete en cascada)
+router.delete('/:id/depurar', auth, checkPermission('trabajadores.depurar'), async (req, res, next) => {
     let connection;
     try {
         const { id } = req.params;
@@ -101,10 +101,10 @@ router.delete('/:id/purge', auth, checkPermission('trabajadores.purgar'), async 
                 }
             });
         } catch (fileErr) {
-            console.error('Error al borrar archivos físicos del trabajador purgado:', fileErr);
+            console.error('Error al borrar archivos físicos del trabajador depurado:', fileErr);
         }
 
-        res.json({ success: true, message: 'Trabajador eliminado permanentemente de la base de datos' });
+        res.json({ success: true, message: 'Registro del trabajador depurado exitosamente' });
     } catch (err) {
         if (connection) await connection.rollback();
         next(err);
