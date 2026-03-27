@@ -144,8 +144,7 @@ const AttendancePage: React.FC = () => {
             ]);
 
             // Filtrar explícitamente a los trabajadores finiquitados por precaución adicional
-            const workerList = workersRes.data.data.filter(w => Boolean(w.activo) !== false);
-            setWorkers(workerList);
+            let workerList = workersRes.data.data.filter(w => Boolean(w.activo) !== false);
 
             const attendanceData = attendanceRes.data.data;
             const existing = attendanceData.registros;
@@ -188,6 +187,33 @@ const AttendancePage: React.FC = () => {
                     newAttendance[w.id] = newRecord;
                 }
             });
+
+            // ── Incluir trabajadores trasladados (tienen registro en esta obra pero ya no pertenecen) ──
+            const workerIds = new Set(workerList.map(w => w.id));
+            const transferredRecords = existing.filter(a => !workerIds.has(a.trabajador_id));
+            const transferredWorkers: Trabajador[] = transferredRecords.map(a => ({
+                id: a.trabajador_id,
+                rut: (a as any).rut || '',
+                nombres: (a as any).nombres || '',
+                apellido_paterno: (a as any).apellido_paterno || '',
+                apellido_materno: '',
+                cargo_id: (a as any).cargo_id || null,
+                cargo_nombre: (a as any).cargo_nombre || '',
+                obra_id: selectedObra.id,
+                empresa_id: 0,
+                activo: true,
+                categoria_reporte: 'obra',
+            } as Trabajador));
+
+            transferredWorkers.forEach(tw => {
+                const record = existing.find(a => a.trabajador_id === tw.id);
+                if (record) {
+                    newAttendance[tw.id] = record;
+                }
+            });
+            workerList = [...workerList, ...transferredWorkers];
+
+            setWorkers(workerList);
             setAttendance(newAttendance);
         } catch (err) {
             toast.error('Error al cargar datos de asistencia');
