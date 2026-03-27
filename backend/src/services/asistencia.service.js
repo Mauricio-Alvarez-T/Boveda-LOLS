@@ -1166,6 +1166,85 @@ const asistenciaService = {
         }
 
         return { id: periodoId, cancelado: true };
+    },
+
+    /**
+     * Realiza el traslado de un trabajador a una nueva obra.
+     * 1. Crea/Actualiza el registro de asistencia en la obra origen como TO (Traslado de Obra).
+     * 2. Actualiza la obra_id del trabajador a la obra destino.
+     * 3. Registra la actividad en el log.
+     */
+    trasladoObra: async (data, usuario_id, req) => {
+        const { trabajador_id, obra_actual_id, obra_destino_id, fecha, comentario } = data;
+        const connection = await db.getConnection();
+
+        try {
+            await connection.beginTransaction();
+
+            // 1. Obtener nombres para el log y la observación
+            const [[trabajador]] = await connection.query('SELECT nombres, apellido_paterno FROM trabajadores WHERE id = ?', [trabajador_id]);
+            const [[obraOrigen]] = await connection.query('SELECT nombre FROM obras WHERE id = ?', [obra_actual_id]);
+            const [[obraDestino]] = await connection.query('SELECT nombre FROM obras WHERE id = ?', [obra_destino_id]);
+            const [[estadoTO]] = await connection.query("SELECT id FROM estados_asistencia WHERE codigo = 'TO'");
+
+            if (!trabajador || !obraOrigen || !obraDestino || !estadoTO) {
+                throw new Error('Información incompleta para el traslado (trabajador, obra o estado TO no encontrado)');
+            }
+
+            const nombreCompleto = `${trabajador.nombres} ${trabajador.apellido_paterno}`;
+            const observacion = `Traslado a: ${obraDestino.nombre}${comentario ? ' | Nota: ' + comentario : ''}`;
+
+            // 2. UPSERT Asistencia en obra origen
+            // Verificar si ya existe
+            const [existing] = await connection.query(
+                'SELECT id FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
+                [trabajador_id, obra_actual_id, fecha]
+            );
+
+            if (existing.length > 0) {
+                await connection.query(
+                    'UPDATE asistencias SET estado_id = ?, observacion = ?, usuario_id = ? WHERE id = ?',
+                    [estadoTO.id, observacion, usuario_id, existing[0].id]
+                );
+            } else {
+                await connection.query(
+                    'INSERT INTO asistencias (trabajador_id, obra_id, fecha, estado_id, observacion, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    [trabajador_id, obra_actual_id, fecha, estadoTO.id, observacion, usuario_id]
+                );
+            }
+
+            // 3. Actualizar obra actual del trabajador
+            await connection.query(
+                'UPDATE trabajadores SET obra_id = ? WHERE id = ?',
+                [obra_destino_id, trabajador_id]
+            );
+
+            // 4. Registrar en log de actividad
+            const resumen = `Traslado: ${nombreCompleto} de ${obraOrigen.nombre} a ${obraDestino.nombre}`;
+            const detalle = JSON.stringify({
+                trabajador: nombreCompleto,
+                obra_origen: obraOrigen.nombre,
+                obra_destino: obraDestino.nombre,
+                fecha,
+                comentario: comentario || 'Sin comentarios',
+                resumen
+            });
+
+            const { logManualActivity } = require('../middleware/logger');
+            await logManualActivity(usuario_id, 'traslado_obra', 'CREATE', trabajador_id, detalle, req);
+
+            await connection.commit();
+            return {
+                success: true,
+                mensaje: resumen,
+                obra_destino_nombre: obraDestino.nombre
+            };
+        } catch (err) {
+            await connection.rollback();
+            throw err;
+        } finally {
+            connection.release();
+        }
     }
 };
 

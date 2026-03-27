@@ -142,10 +142,18 @@ router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel')
 
 // ═══ PERÍODOS DE AUSENCIA ═══
 
-// Create period
-router.post('/periodos', auth, checkPermission('asistencia.periodo.crear'), async (req, res, next) => {
+// Períodos de ausencia
+router.post('/periodos', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
     try {
-        const result = await asistenciaService.crearPeriodo(req.body, req.user.id, req);
+        const result = await asistenciaService.crearPeriodoAusencia(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// Traslado de Obra (TO)
+router.post('/traslado-obra', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+    try {
+        const result = await asistenciaService.trasladoObra(req.body, req.user.id, req);
         res.status(201).json({ data: result });
     } catch (err) { next(err); }
 });

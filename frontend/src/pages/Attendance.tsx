@@ -22,7 +22,8 @@ import {
     Plus,
     X,
     Trash2,
-    MoreHorizontal
+    MoreHorizontal,
+    ArrowRightLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -31,6 +32,7 @@ import { Button } from '../components/ui/Button';
 import { TimeStepperInput } from '../components/ui/TimeStepperInput';
 import { WorkerCalendarModal } from '../components/attendance/WorkerCalendarModal';
 import { PeriodAssignModal } from '../components/attendance/PeriodAssignModal';
+import { TrasladoObraModal } from '../components/attendance/TrasladoObraModal';
 import { Modal } from '../components/ui/Modal';
 import { Select } from '../components/ui/Select';
 import { WorkerForm } from '../components/workers/WorkerForm';
@@ -47,10 +49,10 @@ import { useSetPageHeader } from '../context/PageHeaderContext';
 import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
 import RequirePermission from '../components/auth/RequirePermission';
-
 const AttendancePage: React.FC = () => {
-    const { selectedObra } = useObra();
+    const { selectedObra, obras } = useObra();
     const { hasPermission } = useAuth();
+
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -78,6 +80,7 @@ const AttendancePage: React.FC = () => {
 
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [periodModalWorker, setPeriodModalWorker] = useState<Trabajador | null>(null);
+    const [trasladoWorker, setTrasladoWorker] = useState<Trabajador | null>(null);
 
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const mobileMenuRef = React.useRef<HTMLDivElement>(null);
@@ -452,7 +455,11 @@ const AttendancePage: React.FC = () => {
             excepciones.forEach(w => {
                 const state = currentAttendance[w.id];
                 const est = currentEstados.find(e => e.id === state?.estado_id);
-                text += `- ${w.apellido_paterno} (${est ? est.codigo : '?'})\n`;
+                let line = `- ${w.apellido_paterno} ${w.nombres} (${est ? est.codigo : '?'})`;
+                if (est?.codigo === 'TO' && state?.observacion) {
+                    line += ` ${state.observacion}`;
+                }
+                text += line + '\n';
             });
             text += `\n`;
         }
@@ -1226,6 +1233,10 @@ const AttendancePage: React.FC = () => {
                                                     <button
                                                         key={est.id}
                                                         onClick={() => {
+                                                            if (code === 'TO') {
+                                                                setTrasladoWorker(worker);
+                                                                return;
+                                                            }
                                                             const updates: Partial<Asistencia> = {
                                                                 estado_id: est.id,
                                                                 tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
@@ -1341,6 +1352,10 @@ const AttendancePage: React.FC = () => {
                                                         <button
                                                             key={est.id}
                                                             onClick={() => {
+                                                                if (code === 'TO') {
+                                                                    setTrasladoWorker(worker);
+                                                                    return;
+                                                                }
                                                                 const updates: Partial<Asistencia> = {
                                                                     estado_id: est.id,
                                                                     es_sabado: isSaturday
@@ -1564,6 +1579,28 @@ const AttendancePage: React.FC = () => {
                 estados={estados}
                 initialDates={periodSelection}
                 onSuccess={() => {
+                    fetchAttendanceInfo();
+                }}
+            />
+
+            <TrasladoObraModal
+                isOpen={!!trasladoWorker}
+                onClose={() => setTrasladoWorker(null)}
+                worker={trasladoWorker}
+                obraActualId={selectedObra?.id || null}
+                obraActualNombre={selectedObra?.nombre || ''}
+                obras={obras}
+                fecha={date}
+                onSuccess={(obraDestinoNombre) => {
+                    const toEstado = estados.find(e => e.codigo === 'TO');
+                    if (toEstado && trasladoWorker) {
+                        // Optimistic update locally? The Success logic already calls fetchAttendanceInfo
+                        // but updating locally ensures UI consistency if fetch is slow
+                        updateAttendance(trasladoWorker.id, { 
+                            estado_id: toEstado.id,
+                            observacion: `Traslado a: ${obraDestinoNombre}`
+                        });
+                    }
                     fetchAttendanceInfo();
                 }}
             />
