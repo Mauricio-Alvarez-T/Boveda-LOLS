@@ -29,8 +29,13 @@ export const showDeleteToast = ({
                         try {
                             await onConfirm();
                             if (successMessage) toast.success(successMessage);
-                        } catch (err) {
-                            if (errorMessage) toast.error(errorMessage);
+                        } catch (err: any) {
+                            const serverError = err.response?.data?.error || err.response?.data?.message;
+                            if (serverError) {
+                                toast.error(serverError);
+                            } else if (errorMessage) {
+                                toast.error(errorMessage);
+                            }
                         }
                     }}
                     className="py-1.5 px-4 rounded-full text-[12px] font-bold text-white bg-brand-primary hover:bg-[#027A3B] shadow-sm transition-all active:scale-95"

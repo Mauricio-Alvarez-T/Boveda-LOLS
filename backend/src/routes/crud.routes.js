@@ -46,7 +46,7 @@ const createCrudRoutes = (controllerOrModulo, permisosOrTable = {}, optionsOrEmp
     }
     
     if (getP('eliminar')) {
-        router.delete('/:id', auth, checkPermission(getP('eliminar')), controller.hardRemove);
+        router.delete('/:id', auth, checkPermission(getP('eliminar')), controller.remove);
     }
 
     return router;

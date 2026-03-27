@@ -61,11 +61,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [isMobile, setIsMobile] = useState(false);
+    const [isMobile, setIsMobile] = useState(() => 
+        typeof window !== 'undefined' ? window.innerWidth < 1024 : false
+    );
     const { hasPermission } = useAuth();
 
     useEffect(() => {
-        const check = () => setIsMobile(window.innerWidth < 768);
+        const check = () => setIsMobile(window.innerWidth < 1024);
         check();
         window.addEventListener('resize', check);
         return () => window.removeEventListener('resize', check);
