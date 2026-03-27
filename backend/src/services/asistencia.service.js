@@ -1203,12 +1203,12 @@ const asistenciaService = {
 
             if (existing.length > 0) {
                 await connection.query(
-                    'UPDATE asistencias SET estado_id = ?, observacion = ?, usuario_id = ? WHERE id = ?',
+                    'UPDATE asistencias SET estado_id = ?, observacion = ?, registrado_por = ? WHERE id = ?',
                     [estadoTO.id, observacion, usuario_id, existing[0].id]
                 );
             } else {
                 await connection.query(
-                    'INSERT INTO asistencias (trabajador_id, obra_id, fecha, estado_id, observacion, usuario_id) VALUES (?, ?, ?, ?, ?, ?)',
+                    'INSERT INTO asistencias (trabajador_id, obra_id, fecha, estado_id, observacion, registrado_por) VALUES (?, ?, ?, ?, ?, ?)',
                     [trabajador_id, obra_actual_id, fecha, estadoTO.id, observacion, usuario_id]
                 );
             }
