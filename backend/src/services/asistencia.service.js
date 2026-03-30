@@ -617,6 +617,25 @@ const asistenciaService = {
             return [fStr, f];
         }));
 
+        // ── Obtener Configuración de Horas Base (Deficit Engine) ──
+        const [horariosDb] = await db.query('SELECT * FROM configuracion_horarios WHERE activo = TRUE');
+        const horariosMap = {};
+        horariosDb.forEach(h => {
+            if (!horariosMap[h.obra_id]) horariosMap[h.obra_id] = {};
+            // Calcular cuantas horas exige la empresa ese día
+            const val = getDiffHours(h.hora_entrada, h.hora_salida) - (h.colacion_minutos / 60);
+            horariosMap[h.obra_id][h.dia_semana] = Math.max(0, val);
+        });
+        const defaultHorario = { lun:9, mar:9, mie:9, jue:9, vie:9, sab:0, dom:0 };
+        const jsDaysMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+
+        let maxStrDateInRecords = '';
+        registros.forEach(r => {
+            const dStr = formatDate(r.fecha);
+            if (dStr > maxStrDateInRecords) maxStrDateInRecords = dStr;
+        });
+        if (!maxStrDateInRecords) maxStrDateInRecords = formatDate(new Date());
+
         // 2. Generar Rango de Días (FIJO A 31 DÍAS como pidió RRHH)
         const days = [];
         const startYear = start.getFullYear();
@@ -851,7 +870,7 @@ const asistenciaService = {
             const horasOrdCol = totalCol + 1;
             ws.mergeCells(7, horasOrdCol, 8, horasOrdCol);
             const horasOrdHeader = ws.getCell(7, horasOrdCol);
-            horasOrdHeader.value = 'TOTAL HRS ORDINARIAS';
+            horasOrdHeader.value = 'BALANCE HRS ORDINARIO';
             horasOrdHeader.font = { bold: true, size: 8 };
             horasOrdHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             horasOrdHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
@@ -888,6 +907,8 @@ const asistenciaService = {
 
                 let sumHorasExtra = 0;
                 let sumHorasOrd = 0;
+                let sumMetaOrd = 0; // Para el cálculo de deficit
+                const obrHorario = horariosMap[worker.obra_id] || defaultHorario;
 
                 days.forEach((day, dIdx) => {
                     const fStr = formatDate(day);
@@ -904,6 +925,13 @@ const asistenciaService = {
                     const isBeforeContract = workerIngreso && fStr < workerIngreso;
                     const isAfterTermination = workerFin && fStr > workerFin;
                     const isOutOfRange = isBeforeContract || isAfterTermination;
+
+                    // Si es día hábil laborable y exigible, sumar a Meta de horas "Deber"
+                    if (!isOutOfRange && fStr <= maxStrDateInRecords && !isFeriado) {
+                        const dayKey = jsDaysMap[day.getDay()];
+                        const expected = obrHorario[dayKey] || 0;
+                        sumMetaOrd += expected;
+                    }
 
                     if (isOutOfRange) {
                         // Fuera de rango laboral → celda vacía, no suma nada
@@ -1018,20 +1046,26 @@ const asistenciaService = {
                 // Total: Q1 + Q2
                 ws.getCell(rowIdx, totalCol).value = { formula: `${ws.getCell(rowIdx, q1Col).address}+${ws.getCell(rowIdx, q2Col).address}` };
                 
-                // Horas Acumuladas Resultantes
+                // Balance de Déficit Resultante
+                const deficitBalance = sumHorasOrd - sumMetaOrd;
                 const cOrd = ws.getCell(rowIdx, horasOrdCol);
-                cOrd.value = sumHorasOrd;
+                cOrd.value = deficitBalance;
                 cOrd.numFmt = '0.00';
                 
                 const cExt = ws.getCell(rowIdx, horasExtCol);
                 cExt.value = sumHorasExtra;
                 cExt.numFmt = '0.00';
                 
-                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cOrd, cExt].forEach(c => {
+                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cExt].forEach(c => {
                     c.font = { bold: true, size: 9 };
                     c.alignment = { horizontal: 'center', vertical: 'middle' };
                     c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
+                
+                // Colorización dinámica de BALANCE (Rojo si hay déficit)
+                cOrd.font = { bold: true, size: 9, color: deficitBalance < 0 ? { argb: 'FFDD0000' } : undefined };
+                cOrd.alignment = { horizontal: 'center', vertical: 'middle' };
+                cOrd.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
                 // Estilos de fila comunes
                 for (let c = 1; c <= 8; c++) {
