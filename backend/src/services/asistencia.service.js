@@ -564,6 +564,29 @@ const asistenciaService = {
         const [estados] = await db.query('SELECT * FROM estados_asistencia WHERE activo = TRUE ORDER BY id');
         const estadoMap = Object.fromEntries(estados.map(e => [e.id, e]));
 
+        // ── Incluir trabajadores trasladados que ya no pertenecen a esta obra ──
+        // Después de un TO, el worker.obra_id cambia al destino, pero sus registros
+        // de asistencia en la obra origen siguen existiendo. Los detectamos aquí.
+        const workerIdsInList = new Set(workers.map(w => w.id));
+        const missingWorkerIds = [...new Set(registros.map(r => r.trabajador_id))]
+            .filter(id => !workerIdsInList.has(id));
+
+        if (missingWorkerIds.length > 0) {
+            const [extraWorkers] = await db.query(`
+                SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
+                       t.fecha_ingreso, t.fecha_desvinculacion,
+                       c.nombre as cargo_nombre, t.activo, o.nombre as obra_actual_nombre,
+                       e.id as empresa_id, e.razon_social as empresa_nombre, t.categoria_reporte
+                FROM trabajadores t
+                LEFT JOIN cargos c ON t.cargo_id = c.id
+                LEFT JOIN obras o ON t.obra_id = o.id
+                LEFT JOIN empresas e ON t.empresa_id = e.id
+                WHERE t.id IN (${missingWorkerIds.map(() => '?').join(',')})
+                ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
+            `, missingWorkerIds);
+            workers.push(...extraWorkers);
+        }
+
         // Filtrar trabajadores: incluir activos, y los inactivos solo si tienen asistencia este mes
         // Lo verificamos directamente de 'registros'
         const activeWorkersThisMonth = new Set(registros.map(r => r.trabajador_id));
@@ -1214,8 +1237,11 @@ const asistenciaService = {
             }
 
             const nombreCompleto = `${trabajador.nombres} ${trabajador.apellido_paterno}`;
-            const observacionOrigen = `Traslado a: ${obraDestino.nombre}${comentario ? ' | Nota: ' + comentario : ''}`;
-            const observacionDestino = `Traslado desde: ${obraOrigen.nombre}${comentario ? ' | Nota: ' + comentario : ''}`;
+            // Formatear fecha para trazabilidad (dd/mm/yyyy)
+            const fechaParts = fecha.split('-');
+            const fechaFormateada = `${fechaParts[2]}/${fechaParts[1]}/${fechaParts[0]}`;
+            const observacionOrigen = `Traslado a: ${obraDestino.nombre} (${fechaFormateada})${comentario ? ' | Nota: ' + comentario : ''}`;
+            const observacionDestino = `Traslado desde: ${obraOrigen.nombre} (${fechaFormateada})${comentario ? ' | Nota: ' + comentario : ''}`;
 
             // ── 2. UPSERT Asistencia TO en obra ORIGEN ──
             const [existingOrigen] = await connection.query(
