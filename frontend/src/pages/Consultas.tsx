@@ -424,9 +424,22 @@ const ConsultasPage: React.FC = () => {
             </div>
 
             <div className="flex flex-col gap-4 shrink-0">
-                <AnimatePresence>
+                <AnimatePresence mode="wait">
+                    {showMobileFilters && (
+                        <motion.div
+                            key="filters"
+                            initial={{ height: 0, opacity: 0, y: -10 }}
+                            animate={{ height: 'auto', opacity: 1, y: 0 }}
+                            exit={{ height: 0, opacity: 0, y: -10 }}
+                            transition={{ duration: 0.2 }}
+                            className="relative"
+                        >
+                            <FilterPanel />
+                        </motion.div>
+                    )}
                     {showCreatePanel && (
                         <motion.div
+                            key="create"
                             initial={{ height: 0, opacity: 0, y: -10 }}
                             animate={{ height: 'auto', opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -10 }}
