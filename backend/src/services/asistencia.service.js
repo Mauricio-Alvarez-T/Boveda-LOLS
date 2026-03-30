@@ -930,9 +930,13 @@ const asistenciaService = {
                         }
 
                         // Cálculo Exacto de Horas (Sumatoria)
-                        sumHorasExtra += parseFloat(reg.horas_extra) || 0;
+                        const hsExtra = parseFloat(reg.horas_extra) || 0;
+                        sumHorasExtra += hsExtra;
+                        
+                        let calc = 0;
+                        let customSchedule = false;
+
                         if (est && est.es_presente && !isWeekend && !isFeriado) {
-                            let calc = 0;
                             if (reg.hora_entrada && reg.hora_salida) {
                                 calc = getDiffHours(reg.hora_entrada, reg.hora_salida);
                                 if (reg.hora_colacion_inicio && reg.hora_colacion_fin) {
@@ -942,6 +946,7 @@ const asistenciaService = {
                                     // Restar 1 hora por defecto de colación
                                     calc = Math.max(0, calc - 1);
                                 }
+                                customSchedule = true;
                             } else if (codigo === 'JI') {
                                 calc = 4.5; // Jornada Incompleta
                             } else {
@@ -951,9 +956,28 @@ const asistenciaService = {
                         }
 
                         // ── Observación como comentario en la celda ──
+                        const noteTexts = [];
                         if (reg.observacion && reg.observacion.trim()) {
+                            noteTexts.push(reg.observacion.trim());
+                        }
+
+                        // Agregar "auto nota" de desglose si se modificó o hay extras
+                        if (customSchedule || hsExtra > 0) {
+                            let dText = `Detalle Horas:\n• Ordinarias: ${calc.toFixed(2)}`;
+                            if (hsExtra > 0) dText += `\n• Extras: ${hsExtra.toFixed(2)}`;
+                            
+                            if (customSchedule) {
+                                dText += `\n\nMarcas de Reloj:\n📥 Ent: ${reg.hora_entrada} | 📤 Sal: ${reg.hora_salida}`;
+                                if (reg.hora_colacion_inicio && reg.hora_colacion_fin) {
+                                    dText += `\n🍱 Colación: ${reg.hora_colacion_inicio} - ${reg.hora_colacion_fin}`;
+                                }
+                            }
+                            noteTexts.push(dText);
+                        }
+
+                        if (noteTexts.length > 0) {
                             cell.note = {
-                                texts: [{ text: reg.observacion.trim() }],
+                                texts: [{ text: noteTexts.join('\n\n---\n\n') }],
                                 margins: { insetmode: 'auto' }
                             };
                         }
