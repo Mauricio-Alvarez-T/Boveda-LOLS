@@ -617,6 +617,19 @@ const asistenciaService = {
             return [fStr, f];
         }));
 
+        // Helper para calcular la resta de horas en un formato "HH:MM"
+        const getDiffHours = (start, end) => {
+            if (!start || !end) return 0;
+            try {
+                const [sH, sM] = start.split(':').map(Number);
+                const [eH, eM] = end.split(':').map(Number);
+                const s = sH + sM / 60;
+                const e = eH + eM / 60;
+                if (e < s) return (24 - s) + e; // por si hay cruce nocturno
+                return e - s;
+            } catch(err) { return 0; }
+        };
+
         // ── Obtener Configuración de Horas Base (Deficit Engine) ──
         const [horariosDb] = await db.query('SELECT * FROM configuracion_horarios WHERE activo = TRUE');
         const horariosMap = {};
@@ -708,18 +721,7 @@ const asistenciaService = {
             ...Object.keys(empresaGroups).filter(k => !tabOrder.includes(k))
         ];
 
-        // Helper para calcular la resta de horas en un formato "HH:MM"
-        const getDiffHours = (start, end) => {
-            if (!start || !end) return 0;
-            try {
-                const [sH, sM] = start.split(':').map(Number);
-                const [eH, eM] = end.split(':').map(Number);
-                const s = sH + sM / 60;
-                const e = eH + eM / 60;
-                if (e < s) return (24 - s) + e; // por si hay cruce nocturno
-                return e - s;
-            } catch(err) { return 0; }
-        };
+
 
         // ══════════════════════════════════════════════════
         // ═══  GENERAR UNA HOJA POR EMPRESA  ═══════════════
