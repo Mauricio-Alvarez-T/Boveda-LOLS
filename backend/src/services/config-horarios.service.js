@@ -16,6 +16,21 @@ class ConfigHorariosService {
                END`,
             [obraId]
         );
+
+        if (rows.length === 0) {
+            const defaultDays = ['lun', 'mar', 'mie', 'jue', 'vie'];
+            const defaults = defaultDays.map(dia => ({
+                dia_semana: dia,
+                hora_entrada: '08:00:00',
+                hora_salida: '18:00:00',
+                hora_colacion_inicio: '13:00:00',
+                hora_colacion_fin: '14:00:00',
+                obra_id: parseInt(obraId),
+                activo: 1
+            }));
+            return defaults;
+        }
+
         return rows;
     }
 

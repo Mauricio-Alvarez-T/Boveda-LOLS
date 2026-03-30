@@ -3,6 +3,7 @@ const router = express.Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const db = require('../config/db');
+const configHorariosService = require('../services/config-horarios.service');
 
 // Obtener configuración global de horarios
 router.get('/', auth, checkPermission('asistencia.horarios.ver'), async (req, res, next) => {
@@ -36,29 +37,8 @@ router.post('/', auth, checkPermission('asistencia.horarios.editar'), async (req
 router.get('/obra/:obraId', auth, checkPermission('asistencia.horarios.ver'), async (req, res, next) => {
     try {
         const { obraId } = req.params;
-        
-        // Try to get obra-specific schedules
-        const [rows] = await db.query(
-            `SELECT * FROM horarios_obra WHERE obra_id = ? ORDER BY dia_semana ASC`,
-            [obraId]
-        );
-
-        // If no obra-specific schedules, return defaults
-        if (rows.length === 0) {
-            const defaultDays = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-            const defaults = defaultDays.map((dia, i) => ({
-                dia_semana: i,
-                dia_nombre: dia,
-                entrada: '08:00',
-                salida: '18:00',
-                inicio_colacion: '13:00',
-                fin_colacion: '14:00',
-                obra_id: parseInt(obraId)
-            }));
-            return res.json({ data: defaults, isDefault: true });
-        }
-
-        res.json({ data: rows, isDefault: false });
+        const rows = await configHorariosService.getByObraId(obraId);
+        res.json({ data: rows });
     } catch (err) { next(err); }
 });
 
@@ -72,31 +52,8 @@ router.put('/obra/:obraId/bulk', auth, checkPermission('asistencia.horarios.edit
             return res.status(400).json({ error: 'schedules[] es requerido' });
         }
 
-        const conn = await db.getConnection();
-        try {
-            await conn.beginTransaction();
-            
-            // Delete existing schedules for this obra
-            await conn.query('DELETE FROM horarios_obra WHERE obra_id = ?', [obraId]);
-            
-            // Insert new schedules
-            for (const s of schedules) {
-                await conn.query(
-                    `INSERT INTO horarios_obra (obra_id, dia_semana, entrada, salida, inicio_colacion, fin_colacion)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [obraId, s.dia_semana, s.entrada, s.salida, s.inicio_colacion || null, s.fin_colacion || null]
-                );
-            }
-            
-            await conn.commit();
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
-        }
-
-        res.json({ message: 'Horarios guardados exitosamente' });
+        const result = await configHorariosService.updateWeeklyConfig(obraId, schedules);
+        res.json(result);
     } catch (err) { next(err); }
 });
 
