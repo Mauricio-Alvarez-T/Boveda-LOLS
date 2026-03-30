@@ -653,12 +653,20 @@ const asistenciaService = {
             return upper.substring(0, 10);
         };
 
-        // ── Códigos que suman como día trabajado según RRHH ──
-        // A=Asistencia, V=Vacaciones, JI=Jornada Incompleta, PL=Permisos Legales
-        // NOTA: LM (Licencia Médica) NO suma — requerimiento RRHH 2026-03-18
-        // NOTA: AL (Accidente Laboral) ELIMINADO del sistema
-        // FDS=Fin De Semana/Feriado (marcador interno, no es un estado de la BD)
-        const codigosSumanDia = ['A', 'V', 'JI', 'PL'];
+        // ── Códigos que suman como día trabajado (DINÁMICO desde BD) ──
+        // Se lee el campo es_presente de estados_asistencia para que cualquier
+        // cambio en la configuración se refleje automáticamente en el Excel.
+        // Se aplican las mismas consolidaciones de código (NAC/DEF/MAT→PL, AT→JI).
+        const codigosSumanDia = [...new Set(
+            estados
+                .filter(e => e.es_presente)
+                .map(e => {
+                    let cod = e.codigo;
+                    if (['NAC', 'DEF', 'MAT'].includes(cod)) cod = 'PL';
+                    if (cod === 'AT') cod = 'JI';
+                    return cod;
+                })
+        )];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
 
         // ── Agrupar trabajadores por empresa ──
