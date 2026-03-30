@@ -432,7 +432,7 @@ const ConsultasPage: React.FC = () => {
                             animate={{ height: 'auto', opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
-                            className="relative z-50"
+                            className="relative z-40"
                         >
                             <FilterPanel />
                         </motion.div>

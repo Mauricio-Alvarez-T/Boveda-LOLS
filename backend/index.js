@@ -185,14 +185,16 @@ if (process.env.NODE_ENV !== 'test') {
         await db.query(`ALTER TABLE roles ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1`);
         
         // 3. Permiso de depurar (antiguamente purgar)
+        // a. Insertar nuevo
         await db.query(`
             INSERT IGNORE INTO permisos_catalogo (clave, modulo, nombre, descripcion, orden) 
             VALUES ('trabajadores.depurar', 'Trabajadores', 'Depurar Trabajador', 'Eliminar permanentemente trabajadores finiquitados', 6)
         `);
-        // Migrar registros existentes con nombre antiguo
-        await db.query(`UPDATE permisos_catalogo SET clave = 'trabajadores.depurar', nombre = 'Depurar Trabajador' WHERE clave = 'trabajadores.purgar'`);
+        // b. Actualizar dependencias (evita error de FK ON DELETE CASCADE)
         await db.query(`UPDATE permisos_rol_v2 SET permiso_clave = 'trabajadores.depurar' WHERE permiso_clave = 'trabajadores.purgar'`);
         await db.query(`UPDATE permisos_usuario_override SET permiso_clave = 'trabajadores.depurar' WHERE permiso_clave = 'trabajadores.purgar'`);
+        // c. Eliminar la clave antigua
+        await db.query(`DELETE FROM permisos_catalogo WHERE clave = 'trabajadores.purgar'`);
 
         console.log("✅ Esquema de base de datos verificado y actualizado");
     } catch (err) {
