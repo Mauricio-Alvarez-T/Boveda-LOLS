@@ -78,8 +78,11 @@ try {
     useSoftDelete: true,
     orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC'
   }));
-  app.use('/api/tipos-ausencia', createCrudRoutes('asistencia', 'tipos_ausencia', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
-  app.use('/api/estados-asistencia', createCrudRoutes('asistencia', 'estados_asistencia', { searchFields: ['nombre', 'codigo'], orderBy: 'nombre ASC' }));
+  const asAusenciaPerms = { ver: 'sistema.tipos_ausencia.gestionar', crear: 'sistema.tipos_ausencia.gestionar', editar: 'sistema.tipos_ausencia.gestionar', eliminar: 'sistema.tipos_ausencia.gestionar' };
+  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
+
+  const asEstadosPerms = { ver: 'sistema.estados.gestionar', crear: 'sistema.estados.gestionar', editar: 'sistema.estados.gestionar', eliminar: 'sistema.estados.gestionar' };
+  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', { searchFields: ['nombre', 'codigo'], orderBy: 'nombre ASC' }));
   logger.info('✅ Rutas CRUD genéricas cargadas');
 } catch (err) {
   logger.error('❌ Error cargando rutas CRUD genéricas', { error: err.message, stack: err.stack });

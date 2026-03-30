@@ -16,11 +16,11 @@ const createCrudRoutes = (controllerOrModulo, permisosOrTable = {}, optionsOrEmp
 
     let controller, permisos;
 
-    if (typeof controllerOrModulo === 'string') {
-        // Legacy/String format: (modulo, tableName, options)
+    if (typeof controllerOrModulo === 'string' || (typeof controllerOrModulo === 'object' && !controllerOrModulo.getAll)) {
+        // Auto-generate service & controller
         const service = createCrudService(permisosOrTable, optionsOrEmpty);
         controller = createCrudController(service);
-        permisos = controllerOrModulo;
+        permisos = controllerOrModulo; // string or object like { ver: 'perm.ver', crear: 'perm.crear' }
     } else {
         // Object format: (controller, permisosMap)
         controller = controllerOrModulo;
