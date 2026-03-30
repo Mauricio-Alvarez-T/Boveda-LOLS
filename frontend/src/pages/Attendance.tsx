@@ -1492,7 +1492,7 @@ const AttendancePage: React.FC = () => {
                                                     type="number"
                                                     min="0"
                                                     max="24"
-                                                    step="0.5"
+                                                    step="any"
                                                     placeholder="0"
                                                     disabled={!!feriadoActual || isSunday || isSaturday}
                                                     inputMode="decimal"
@@ -1529,7 +1529,7 @@ const AttendancePage: React.FC = () => {
                                                                     type="number"
                                                                     min="0"
                                                                     max="24"
-                                                                    step="0.5"
+                                                                    step="any"
                                                                     placeholder="0"
                                                                     disabled={!!feriadoActual || isSunday || isSaturday}
                                                                     inputMode="decimal"

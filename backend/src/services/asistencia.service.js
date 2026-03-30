@@ -689,6 +689,19 @@ const asistenciaService = {
             ...Object.keys(empresaGroups).filter(k => !tabOrder.includes(k))
         ];
 
+        // Helper para calcular la resta de horas en un formato "HH:MM"
+        const getDiffHours = (start, end) => {
+            if (!start || !end) return 0;
+            try {
+                const [sH, sM] = start.split(':').map(Number);
+                const [eH, eM] = end.split(':').map(Number);
+                const s = sH + sM / 60;
+                const e = eH + eM / 60;
+                if (e < s) return (24 - s) + e; // por si hay cruce nocturno
+                return e - s;
+            } catch(err) { return 0; }
+        };
+
         // ══════════════════════════════════════════════════
         // ═══  GENERAR UNA HOJA POR EMPRESA  ═══════════════
         // ══════════════════════════════════════════════════
@@ -835,7 +848,25 @@ const asistenciaService = {
             totalHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
             totalHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const obsCol = totalCol + 1;
+            const horasOrdCol = totalCol + 1;
+            ws.mergeCells(7, horasOrdCol, 8, horasOrdCol);
+            const horasOrdHeader = ws.getCell(7, horasOrdCol);
+            horasOrdHeader.value = 'TOTAL HRS ORDINARIAS';
+            horasOrdHeader.font = { bold: true, size: 8 };
+            horasOrdHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            horasOrdHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
+            horasOrdHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const horasExtCol = horasOrdCol + 1;
+            ws.mergeCells(7, horasExtCol, 8, horasExtCol);
+            const horasExtHeader = ws.getCell(7, horasExtCol);
+            horasExtHeader.value = 'TOTAL HRS EXTRA';
+            horasExtHeader.font = { bold: true, size: 8 };
+            horasExtHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            horasExtHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
+            horasExtHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const obsCol = horasExtCol + 1;
             const obsHeader = ws.getCell(7, obsCol);
             obsHeader.value = 'OBSERVACIONES';
             ws.mergeCells(7, obsCol, 8, obsCol);
@@ -854,6 +885,9 @@ const asistenciaService = {
                 ws.getCell(rowIdx, 6).value = worker.cargo_nombre;
                 ws.getCell(rowIdx, 7).value = worker.obra_actual_nombre || 'Sin Obra';
                 ws.getCell(rowIdx, 8).value = worker.activo ? 'ACTIVO' : 'FINIQUITADO';
+
+                let sumHorasExtra = 0;
+                let sumHorasOrd = 0;
 
                 days.forEach((day, dIdx) => {
                     const fStr = formatDate(day);
@@ -893,6 +927,27 @@ const asistenciaService = {
                                 cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: safeColor } };
                                 cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
                             }
+                        }
+
+                        // Cálculo Exacto de Horas (Sumatoria)
+                        sumHorasExtra += parseFloat(reg.horas_extra) || 0;
+                        if (est && est.es_presente && !isWeekend && !isFeriado) {
+                            let calc = 0;
+                            if (reg.hora_entrada && reg.hora_salida) {
+                                calc = getDiffHours(reg.hora_entrada, reg.hora_salida);
+                                if (reg.hora_colacion_inicio && reg.hora_colacion_fin) {
+                                    const col = getDiffHours(reg.hora_colacion_inicio, reg.hora_colacion_fin);
+                                    calc = Math.max(0, calc - col);
+                                } else {
+                                    // Restar 1 hora por defecto de colación
+                                    calc = Math.max(0, calc - 1);
+                                }
+                            } else if (codigo === 'JI') {
+                                calc = 4.5; // Jornada Incompleta
+                            } else {
+                                calc = 9; // Jornada Completa por defecto
+                            }
+                            sumHorasOrd += calc;
                         }
 
                         // ── Observación como comentario en la celda ──
@@ -939,9 +994,18 @@ const asistenciaService = {
                 // Total: Q1 + Q2
                 ws.getCell(rowIdx, totalCol).value = { formula: `${ws.getCell(rowIdx, q1Col).address}+${ws.getCell(rowIdx, q2Col).address}` };
                 
-                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol)].forEach(c => {
+                // Horas Acumuladas Resultantes
+                const cOrd = ws.getCell(rowIdx, horasOrdCol);
+                cOrd.value = sumHorasOrd;
+                cOrd.numFmt = '0.00';
+                
+                const cExt = ws.getCell(rowIdx, horasExtCol);
+                cExt.value = sumHorasExtra;
+                cExt.numFmt = '0.00';
+                
+                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cOrd, cExt].forEach(c => {
                     c.font = { bold: true, size: 9 };
-                    c.alignment = { horizontal: 'center' };
+                    c.alignment = { horizontal: 'center', vertical: 'middle' };
                     c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
 
@@ -991,6 +1055,8 @@ const asistenciaService = {
             ws.getColumn(q1Col).width = 10;
             ws.getColumn(q2Col).width = 10;
             ws.getColumn(totalCol).width = 10;
+            ws.getColumn(horasOrdCol).width = 13;
+            ws.getColumn(horasExtCol).width = 13;
             ws.getColumn(obsCol).width = 20;
         }
 
