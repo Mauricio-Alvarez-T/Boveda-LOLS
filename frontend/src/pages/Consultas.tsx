@@ -264,7 +264,7 @@ const ConsultasPage: React.FC = () => {
     useSetPageHeader(headerTitle, headerActions);
 
     const FilterPanel = () => (
-        <div className="p-4 md:p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end max-h-[65vh] overflow-y-auto md:max-h-none custom-scrollbar">
+        <div className="p-4 md:p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end max-h-[65vh] overflow-y-auto md:overflow-visible md:max-h-none custom-scrollbar">
             <FilterSelect
                 label={<><Building2 className="h-4 w-4" /> Obra / Proyecto</>}
                 options={obras.map(o => ({ value: o.value, label: o.label }))}
@@ -432,7 +432,7 @@ const ConsultasPage: React.FC = () => {
                             animate={{ height: 'auto', opacity: 1, y: 0 }}
                             exit={{ height: 0, opacity: 0, y: -10 }}
                             transition={{ duration: 0.2 }}
-                            className="relative"
+                            className="relative z-50"
                         >
                             <FilterPanel />
                         </motion.div>

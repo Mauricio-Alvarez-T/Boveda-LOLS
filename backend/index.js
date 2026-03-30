@@ -184,11 +184,15 @@ if (process.env.NODE_ENV !== 'test') {
         // 2. Versioning for roles to invalidate sessions
         await db.query(`ALTER TABLE roles ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1`);
         
-        // 3. Permiso de purga
+        // 3. Permiso de depurar (antiguamente purgar)
         await db.query(`
             INSERT IGNORE INTO permisos_catalogo (clave, modulo, nombre, descripcion, orden) 
-            VALUES ('trabajadores.purgar', 'Trabajadores', 'Purgar Trabajador', 'Eliminar permanentemente trabajadores finiquitados', 6)
+            VALUES ('trabajadores.depurar', 'Trabajadores', 'Depurar Trabajador', 'Eliminar permanentemente trabajadores finiquitados', 6)
         `);
+        // Migrar registros existentes con nombre antiguo
+        await db.query(`UPDATE permisos_catalogo SET clave = 'trabajadores.depurar', nombre = 'Depurar Trabajador' WHERE clave = 'trabajadores.purgar'`);
+        await db.query(`UPDATE permisos_rol_v2 SET permiso_clave = 'trabajadores.depurar' WHERE permiso_clave = 'trabajadores.purgar'`);
+        await db.query(`UPDATE permisos_usuario_override SET permiso_clave = 'trabajadores.depurar' WHERE permiso_clave = 'trabajadores.purgar'`);
 
         console.log("✅ Esquema de base de datos verificado y actualizado");
     } catch (err) {
