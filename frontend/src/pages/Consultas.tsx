@@ -792,34 +792,35 @@ const ConsultasPage: React.FC = () => {
             {modalType === 'depurar' && selectedWorkerForAction && (
                 <Modal isOpen={true} onClose={() => setModalType(null)} title="Depurar Registro de Trabajador">
                     <div className="p-6">
-                        <div className="bg-amber-50 text-amber-700 p-4 rounded-xl border border-amber-200 mb-6 flex items-start gap-4">
-                            <Eraser className="h-6 w-6 shrink-0 mt-0.5" />
+                        <div className="bg-amber-50 text-amber-950 p-5 rounded-2xl border border-amber-200 mb-6 flex items-start gap-4">
+                            <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 text-amber-700">
+                                <Eraser className="h-6 w-6" />
+                            </div>
                             <div>
-                                <h4 className="font-bold mb-1">Confirmar Limpieza de Registro</h4>
-                                <p className="text-sm opacity-90 leading-relaxed">
-                                    Estás a punto de eliminar definitivamente a <strong>{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong> de la base de datos.
-                                    Esta acción es irreversible y borrará todos sus <strong>documentos y registros de asistencia</strong>.
+                                <h4 className="font-bold text-amber-900 mb-1">Confirmar Limpieza de Registro</h4>
+                                <p className="text-sm text-amber-800 leading-relaxed">
+                                    Estás a punto de eliminar definitivamente a <strong className="text-amber-950 font-black">{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong> de la base de datos.
+                                    Esta acción es **irreversible** y borrará todos sus documentos y registros de asistencia.
                                 </p>
                             </div>
                         </div>
 
                         <div className="space-y-4">
-                            <p className="text-sm text-foreground/80">
-                                Para confirmar esta acción, escribe el RUT del trabajador: <strong className="select-none">{selectedWorkerForAction.rut}</strong>
+                            <p className="text-sm text-brand-dark font-medium">
+                                Para confirmar esta acción, escribe el RUT del trabajador: <strong className="select-none text-brand-primary">{selectedWorkerForAction.rut}</strong>
                             </p>
                             <Input
-                                placeholder="Escribe el RUT aquí"
+                                placeholder="Escribe el RUT para confirmar"
                                 value={depurarConfirmationRut}
                                 onChange={(e) => setDepurarConfirmationRut(e.target.value)}
-                                className="font-mono text-center tracking-widest text-amber-700 font-bold placeholder:font-sans placeholder:font-normal placeholder:tracking-normal focus:-ring-offset-2 focus:ring-amber-500"
+                                className="h-12 text-lg font-mono text-center tracking-widest text-brand-dark font-black bg-background border-2 border-border focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:font-sans placeholder:font-normal placeholder:tracking-normal"
                             />
                         </div>
 
                         <div className="flex gap-3 pt-6 mt-6 border-t border-border">
                             <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
                             <Button 
-                                variant="destructive" 
-                                className="flex-1 font-bold bg-amber-600 hover:bg-amber-700 border-none"
+                                className="flex-1 font-bold bg-destructive text-white hover:bg-red-700 border-none shadow-lg shadow-destructive/20"
                                 disabled={depurarConfirmationRut !== selectedWorkerForAction.rut}
                                 onClick={confirmDepurar}
                                 leftIcon={<Trash2 className="h-4 w-4" />}
