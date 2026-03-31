@@ -134,13 +134,18 @@ const AttendancePage: React.FC = () => {
     }, []);
 
     const fetchAttendanceInfo = useCallback(async () => {
-        if (!selectedObra || !defaultEstado) return;
+        if (!defaultEstado) return;
+        const isGlobal = !selectedObra;
+        if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
+
         setLoading(true);
         try {
+            const globalObraId = isGlobal ? 'ALL' : selectedObra.id;
+
             const [workersRes, attendanceRes, schedulesRes] = await Promise.all([
-                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?obra_id=${selectedObra.id}&activo=true&limit=1000`),
-                api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${selectedObra.id}?fecha=${date}`),
-                api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${selectedObra.id}`)
+                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?activo=true&limit=5000${isGlobal ? '' : `&obra_id=${selectedObra.id}`}`),
+                api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${globalObraId}?fecha=${date}`),
+                api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${globalObraId}`)
             ]);
 
             // Filtrar explícitamente a los trabajadores finiquitados por precaución adicional
@@ -155,16 +160,19 @@ const AttendancePage: React.FC = () => {
             const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
             const dayIndex = new Date(date + 'T12:00:00').getDay();
             const dayStr = dowMap[dayIndex];
-            const currentSchedule = schedulesRes.data.data.find(h => h.dia_semana === dayStr);
 
             workerList.forEach(w => {
+                const currentSchedule = isGlobal 
+                    ? schedulesRes.data.data.find(h => h.obra_id === w.obra_id && h.dia_semana === dayStr)
+                    : schedulesRes.data.data.find(h => h.dia_semana === dayStr);
+
                 const record = existing.find(a => a.trabajador_id === w.id);
                 if (record) {
                     newAttendance[w.id] = record;
                 } else {
                     const newRecord: Partial<Asistencia> = {
                         trabajador_id: w.id,
-                        obra_id: selectedObra.id,
+                        obra_id: isGlobal ? w.obra_id : selectedObra.id,
                         fecha: date,
                         estado_id: defaultEstado.id,
                         tipo_ausencia_id: null,
@@ -199,7 +207,7 @@ const AttendancePage: React.FC = () => {
                 apellido_materno: '',
                 cargo_id: (a as any).cargo_id || null,
                 cargo_nombre: (a as any).cargo_nombre || '',
-                obra_id: selectedObra.id,
+                obra_id: isGlobal ? (a as any).obra_id || null : selectedObra.id,
                 empresa_id: 0,
                 activo: true,
                 categoria_reporte: 'obra',
@@ -274,7 +282,9 @@ const AttendancePage: React.FC = () => {
 
     const handleSave = useCallback(async () => {
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance } = latestData.current;
-        if (!currentObra) return;
+        const isGlobal = !currentObra;
+        if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
+
         setSaving(true);
         try {
             // Filtrar trabajadores que están fuera de rango laboral en esta fecha
@@ -287,11 +297,13 @@ const AttendancePage: React.FC = () => {
                 return !isDesvinculado && !isPreContrato;
             });
 
+            const globalObraId = isGlobal ? 'ALL' : currentObra.id;
+
             const payload = {
-                obra_id: currentObra.id,
+                obra_id: globalObraId,
                 registros: validWorkers.map(w => ({
                     trabajador_id: w.id,
-                    obra_id: currentObra.id,
+                    obra_id: isGlobal ? w.obra_id : currentObra.id,
                     fecha: currentDate,
                     estado_id: currentAttendance[w.id]?.estado_id || null,
                     observacion: currentAttendance[w.id]?.observacion || '',
@@ -304,7 +316,7 @@ const AttendancePage: React.FC = () => {
                 }))
             };
 
-            await api.post(`/asistencias/bulk/${currentObra.id}`, payload);
+            await api.post(`/asistencias/bulk/${globalObraId}`, payload);
             toast.success('Asistencia guardada correctamente');
             fetchAttendanceInfo();
         } catch (error) {
@@ -705,9 +717,11 @@ const AttendancePage: React.FC = () => {
 
     const [showSearchBox, setShowSearchBox] = useState(false);
 
-    const headerActions = useMemo(() => (
+    const headerActions = useMemo(() => {
+        const isGlobalActive = !selectedObra && hasPermission('asistencia.tomar.global');
+        return (
         <div className="flex items-center gap-2">
-            {selectedObra && (
+            {(selectedObra || isGlobalActive) && (
                 <>
                     {/* Botones Móvil (3 principales) */}
                     <div className="flex md:hidden items-center gap-1 h-full">
@@ -935,7 +949,7 @@ const AttendancePage: React.FC = () => {
     ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
     useSetPageHeader(headerTitle, headerActions);
 
-    if (!selectedObra) {
+    if (!selectedObra && !hasPermission('asistencia.tomar.global')) {
         return (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
                 <div className="h-14 w-14 bg-background rounded-full flex items-center justify-center mb-4">

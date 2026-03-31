@@ -2,6 +2,11 @@ const db = require('../config/db');
 
 class ConfigHorariosService {
     async getByObraId(obraId) {
+        if (obraId === 'ALL') {
+             const [rows] = await db.execute(`SELECT * FROM configuracion_horarios WHERE activo = TRUE`);
+             return rows;
+        }
+
         const [rows] = await db.execute(
             `SELECT * FROM configuracion_horarios 
              WHERE obra_id = ? AND activo = TRUE

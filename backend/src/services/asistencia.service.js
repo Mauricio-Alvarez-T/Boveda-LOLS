@@ -65,9 +65,11 @@ const asistenciaService = {
                     }
                 }
 
+                const globalObraId = obraId === 'ALL' ? reg.obra_id : obraId;
+                
                 const [existing] = await conn.query(
                     'SELECT * FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
-                    [reg.trabajador_id, obraId, fechaNormalizada]
+                    [reg.trabajador_id, globalObraId, fechaNormalizada]
                 );
 
                 if (existing.length > 0) {
@@ -141,7 +143,7 @@ const asistenciaService = {
                           horas_extra, es_sabado, registrado_por)
                          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [
-                            reg.trabajador_id, obraId, fechaNormalizada,
+                            reg.trabajador_id, globalObraId, fechaNormalizada,
                             reg.estado_id,
                             reg.tipo_ausencia_id || null,
                             reg.observacion || null,
@@ -269,8 +271,8 @@ const asistenciaService = {
         const [feriados] = await db.query('SELECT * FROM feriados WHERE fecha = ? AND activo = 1', [fecha]);
         const feriado = feriados.length > 0 ? feriados[0] : null;
 
-        const [rows] = await db.query(
-            `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
+        let queryParams = [fecha];
+        let queryStr = `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
                     ea.es_presente,
                     t.rut, t.nombres, t.apellido_paterno, t.cargo_id,
                     c.nombre as cargo_nombre,
@@ -282,10 +284,16 @@ const asistenciaService = {
              LEFT JOIN cargos c ON t.cargo_id = c.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              LEFT JOIN usuarios u ON a.registrado_por = u.id
-             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1
-             ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`,
-            [obraId, fecha]
-        );
+             WHERE a.fecha = ? AND t.activo = 1`;
+             
+        if (obraId !== 'ALL') {
+            queryStr += ` AND a.obra_id = ?`;
+            queryParams.push(obraId);
+        }
+        
+        queryStr += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
+
+        const [rows] = await db.query(queryStr, queryParams);
         return {
             registros: rows,
             feriado
