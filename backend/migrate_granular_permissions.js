@@ -59,7 +59,8 @@ async function migrate() {
             ['asistencia.periodo.eliminar', 'Asistencia', 'Eliminar Período',            'Borrar períodos de ausencia', 7],
             ['asistencia.feriado.gestionar','Asistencia', 'Gestionar Feriados',          'Marcar/desmarcar días como feriado', 8],
             ['asistencia.horarios.ver',     'Asistencia', 'Ver Horarios',                'Ver la configuración de horarios laborales', 9],
-            ['asistencia.horarios.editar',  'Asistencia', 'Editar Horarios',             'Modificar horarios laborales', 10],
+            ['asistencia.horarios.editar',  'Editar Horarios',             'Modificar horarios laborales', 10],
+            ['asistencia.tomar.global',     'Asistencia', 'Asistencia Global',           'Tomar asistencia de todas las obras simultáneamente', 11],
 
             // TRABAJADORES
             ['trabajadores.ver',            'Trabajadores', 'Ver Trabajadores',          'Ver la lista y fichas de trabajadores', 1],

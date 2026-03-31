@@ -200,6 +200,11 @@ if (process.env.NODE_ENV !== 'test') {
         await db.query(`DELETE FROM permisos_catalogo WHERE clave = 'trabajadores.purgar'`);
 
         console.log("✅ Esquema de base de datos verificado y actualizado");
+        
+        // 4. Sincronizar Catálogo de Permisos Maestro
+        const permisosService = require('./src/services/permisos.service');
+        await permisosService.syncCatalogoEnArranque();
+        
     } catch (err) {
         console.error("Error al actualizar esquema BD:", err.message);
     }

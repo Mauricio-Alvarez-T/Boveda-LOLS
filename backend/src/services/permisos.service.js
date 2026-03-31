@@ -120,6 +120,34 @@ const permisosService = {
         } finally {
             conn.release();
         }
+    },
+
+    /** 
+     * Sincroniza el catálogo de permisos en la DB con el archivo de configuración maestro.
+     * Inserta los faltantes y actualiza los existentes según su clave.
+     * Llamado en el arranque de la aplicación.
+     */
+    async syncCatalogoEnArranque() {
+        try {
+            const MAESTRO_PERMISOS = require('../config/permisos.config');
+            if (!MAESTRO_PERMISOS || MAESTRO_PERMISOS.length === 0) return;
+
+            // ON DUPLICATE KEY UPDATE ensures descriptions and names stay updated
+            // This guarantees that any new permission added to the config becomes available.
+            await db.query(
+                `INSERT INTO permisos_catalogo (clave, modulo, nombre, descripcion, orden) 
+                 VALUES ? 
+                 ON DUPLICATE KEY UPDATE 
+                 nombre = VALUES(nombre), 
+                 descripcion = VALUES(descripcion), 
+                 orden = VALUES(orden),
+                 modulo = VALUES(modulo)`,
+                [MAESTRO_PERMISOS]
+            );
+            console.log(`✅ Catálogo de Permisos Sincronizado (${MAESTRO_PERMISOS.length} permisos).`);
+        } catch (error) {
+            console.error('❌ Error sincronizando catálogo de permisos:', error.message);
+        }
     }
 };
 
