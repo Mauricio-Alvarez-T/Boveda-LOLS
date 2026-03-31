@@ -231,7 +231,7 @@ const AttendancePage: React.FC = () => {
     }, [selectedObra, date, defaultEstado]);
 
     useEffect(() => {
-        if (defaultEstado && selectedObra) {
+        if (defaultEstado && (selectedObra || hasPermission('asistencia.tomar.global'))) {
             fetchAttendanceInfo();
         }
     }, [fetchAttendanceInfo, defaultEstado, selectedObra]);
@@ -945,8 +945,9 @@ const AttendancePage: React.FC = () => {
                 </>
 
             )}
-        </div>
-    ), [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
+            </div>
+        );
+    }, [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
     useSetPageHeader(headerTitle, headerActions);
 
     if (!selectedObra && !hasPermission('asistencia.tomar.global')) {
