@@ -172,7 +172,7 @@ const AttendancePage: React.FC = () => {
                 } else {
                     const newRecord: Partial<Asistencia> = {
                         trabajador_id: w.id,
-                        obra_id: isGlobal ? w.obra_id : selectedObra.id,
+                        obra_id: (isGlobal ? w.obra_id : selectedObra.id) ?? undefined,
                         fecha: date,
                         estado_id: defaultEstado.id,
                         tipo_ausencia_id: null,
@@ -207,7 +207,7 @@ const AttendancePage: React.FC = () => {
                 apellido_materno: '',
                 cargo_id: (a as any).cargo_id || null,
                 cargo_nombre: (a as any).cargo_nombre || '',
-                obra_id: isGlobal ? (a as any).obra_id || null : selectedObra.id,
+                obra_id: isGlobal ? ((a as any).obra_id ?? undefined) : selectedObra.id,
                 empresa_id: 0,
                 activo: true,
                 categoria_reporte: 'obra',
