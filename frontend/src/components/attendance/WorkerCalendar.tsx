@@ -51,7 +51,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                 const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
 
                 const [resAsist, resPer] = await Promise.all([
-                    api.get(`/asistencias/reporte?trabajador_id=${worker.id}&fecha_inicio=${startDate}&fecha_fin=${endDate}${obraId ? `&obra_id=${obraId}` : ''}`),
+                    api.get(`/asistencias/reporte?trabajador_id=${worker.id}&fecha_inicio=${startDate}&fecha_fin=${endDate}`),
                     api.get(`/asistencias/periodos?trabajador_id=${worker.id}&activo=true&fecha_inicio=${startDate}&fecha_fin=${endDate}`)
                 ]);
                 const asistData = resAsist.data;
@@ -149,7 +149,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             const endDate = `${year}-${month.toString().padStart(2, '0')}-${lastDay}`;
             
             const [resAsist, resPer] = await Promise.all([
-                api.get(`/asistencias/reporte?trabajador_id=${worker.id}&fecha_inicio=${startDate}&fecha_fin=${endDate}${obraId ? `&obra_id=${obraId}` : ''}`),
+                api.get(`/asistencias/reporte?trabajador_id=${worker.id}&fecha_inicio=${startDate}&fecha_fin=${endDate}`),
                 api.get(`/asistencias/periodos?trabajador_id=${worker.id}&activo=true&fecha_inicio=${startDate}&fecha_fin=${endDate}`)
             ]);
             

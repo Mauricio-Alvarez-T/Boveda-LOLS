@@ -1478,6 +1478,116 @@ const asistenciaService = {
         } finally {
             connection.release();
         }
+    },
+
+    /**
+     * Calcula alertas de faltas para trabajadores de una obra (o todas) en un mes calendario.
+     * Reglas:
+     *   - 2 días seguidos de falta (F) dentro del mismo mes
+     *   - 2 lunes con falta (F) en el mes
+     *   - 3 o más días de falta (F) totales en el mes
+     * Solo se considera el estado con código 'F'.
+     */
+    async getAlertasFaltas(obraId, mes, anio) {
+        // 1. Obtener el ID del estado 'F'
+        const [estadoF] = await db.query("SELECT id FROM estados_asistencia WHERE codigo = 'F' AND activo = 1");
+        if (!estadoF || estadoF.length === 0) return [];
+        const faltaId = estadoF[0].id;
+
+        // 2. Rango del mes calendario
+        const startDate = `${anio}-${String(mes).padStart(2, '0')}-01`;
+        const lastDay = new Date(anio, mes, 0).getDate();
+        const endDate = `${anio}-${String(mes).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+        // 3. Obtener todas las faltas del mes
+        let faltasQuery = `
+            SELECT a.trabajador_id, a.fecha, a.obra_id,
+                   t.nombres, t.apellido_paterno, t.rut
+            FROM asistencias a
+            JOIN trabajadores t ON a.trabajador_id = t.id
+            WHERE a.estado_id = ? AND a.fecha BETWEEN ? AND ? AND t.activo = 1
+        `;
+        const params = [faltaId, startDate, endDate];
+
+        if (obraId !== 'ALL') {
+            faltasQuery += ' AND a.obra_id = ?';
+            params.push(obraId);
+        }
+
+        faltasQuery += ' ORDER BY a.trabajador_id, a.fecha ASC';
+        const [faltas] = await db.query(faltasQuery, params);
+
+        // 4. Agrupar por trabajador
+        const porTrabajador = {};
+        faltas.forEach(f => {
+            if (!porTrabajador[f.trabajador_id]) {
+                porTrabajador[f.trabajador_id] = {
+                    trabajador_id: f.trabajador_id,
+                    nombres: f.nombres,
+                    apellido_paterno: f.apellido_paterno,
+                    rut: f.rut,
+                    fechas: []
+                };
+            }
+            const fechaStr = typeof f.fecha === 'string' ? f.fecha.split('T')[0] : f.fecha.toISOString().split('T')[0];
+            porTrabajador[f.trabajador_id].fechas.push(fechaStr);
+        });
+
+        // 5. Evaluar reglas por trabajador
+        const alertas = [];
+
+        for (const [tid, data] of Object.entries(porTrabajador)) {
+            const fechas = data.fechas;
+            const trabajadorAlerts = [];
+
+            // Regla 1: 2 días seguidos de falta
+            for (let i = 0; i < fechas.length - 1; i++) {
+                const d1 = new Date(fechas[i] + 'T12:00:00');
+                const d2 = new Date(fechas[i + 1] + 'T12:00:00');
+                const diffMs = d2.getTime() - d1.getTime();
+                const diffDays = diffMs / (1000 * 60 * 60 * 24);
+                if (diffDays === 1) {
+                    trabajadorAlerts.push({
+                        tipo: 'consecutivas',
+                        mensaje: `Falta 2 días seguidos (${fechas[i].split('-').reverse().join('/')} y ${fechas[i + 1].split('-').reverse().join('/')})`
+                    });
+                    break; // Solo una alerta de este tipo por trabajador
+                }
+            }
+
+            // Regla 2: 2 lunes con falta
+            const lunesFalta = fechas.filter(f => {
+                const d = new Date(f + 'T12:00:00');
+                return d.getDay() === 1; // 1 = lunes
+            });
+            if (lunesFalta.length >= 2) {
+                trabajadorAlerts.push({
+                    tipo: 'lunes',
+                    mensaje: `Falta ${lunesFalta.length} lunes en el mes (${lunesFalta.map(l => l.split('-')[2]).join(', ')})`
+                });
+            }
+
+            // Regla 3: 3 o más días de falta total
+            if (fechas.length >= 3) {
+                trabajadorAlerts.push({
+                    tipo: 'acumuladas',
+                    mensaje: `${fechas.length} faltas acumuladas en el mes`
+                });
+            }
+
+            if (trabajadorAlerts.length > 0) {
+                alertas.push({
+                    trabajador_id: parseInt(tid),
+                    nombres: data.nombres,
+                    apellido_paterno: data.apellido_paterno,
+                    rut: data.rut,
+                    total_faltas: fechas.length,
+                    alertas: trabajadorAlerts
+                });
+            }
+        }
+
+        return alertas;
     }
 };
 

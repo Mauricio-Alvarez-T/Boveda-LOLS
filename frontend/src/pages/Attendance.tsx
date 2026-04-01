@@ -23,7 +23,8 @@ import {
     X,
     Trash2,
     MoreHorizontal,
-    ArrowRightLeft
+    ArrowRightLeft,
+    AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -81,6 +82,10 @@ const AttendancePage: React.FC = () => {
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [periodModalWorker, setPeriodModalWorker] = useState<Trabajador | null>(null);
     const [trasladoWorker, setTrasladoWorker] = useState<Trabajador | null>(null);
+
+    // Alertas de faltas
+    type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas: { tipo: string; mensaje: string }[] };
+    const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
 
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const mobileMenuRef = React.useRef<HTMLDivElement>(null);
@@ -223,6 +228,18 @@ const AttendancePage: React.FC = () => {
 
             setWorkers(workerList);
             setAttendance(newAttendance);
+
+            // Cargar alertas de faltas para el mes actual
+            try {
+                const dateObj = new Date(date + 'T12:00:00');
+                const mes = dateObj.getMonth() + 1;
+                const anio = dateObj.getFullYear();
+                const alertasRes = await api.get(`/asistencias/alertas/${globalObraId}?mes=${mes}&anio=${anio}`);
+                setAlertasFaltas(alertasRes.data?.data || []);
+            } catch {
+                // Las alertas son secundarias, no bloquear la carga principal
+                setAlertasFaltas([]);
+            }
         } catch (err) {
             toast.error('Error al cargar datos de asistencia');
         } finally {
@@ -1212,6 +1229,7 @@ const AttendancePage: React.FC = () => {
                             const isDesvinculado = fDesvinc ? date > fDesvinc : false;
                             const isPreContrato = fIngreso ? date < fIngreso : false;
                             const isOutOfRange = isDesvinculado || isPreContrato;
+                            const workerAlerta = alertasFaltas.find(a => a.trabajador_id === worker.id);
 
                             return (
                                 <motion.div
@@ -1219,11 +1237,13 @@ const AttendancePage: React.FC = () => {
                                     initial={{ opacity: 0, y: 10 }}
                                     whileInView={{ opacity: 1, y: 0 }}
                                     viewport={{ once: true }}
+                                    title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
                                     className={cn(
                                         "transition-all duration-200 bg-white rounded-2xl border border-[#E8E8ED] shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
                                         markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
                                         (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-white/90",
-                                        feriadoActual && "bg-destructive/[0.02]"
+                                        feriadoActual && "bg-destructive/[0.02]",
+                                        workerAlerta && "bg-red-50/80 border-red-300/60 ring-1 ring-red-200/50 shadow-[0_4px_16px_rgb(239,68,68,0.10)]"
                                     )}
                                 >
                                     {/* ── MOBILE CARD ── */}
@@ -1254,6 +1274,14 @@ const AttendancePage: React.FC = () => {
                                                     {worker.rut}
                                                     {worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}
                                                 </p>
+                                                {workerAlerta && (
+                                                    <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 border border-red-200/60 rounded-lg w-fit">
+                                                        <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                                                        <span className="text-[9px] font-bold text-red-600 leading-tight truncate max-w-[180px]">
+                                                            {workerAlerta.alertas[0].mensaje}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                             <button
                                                 onClick={() => setCalendarWorker(worker)}
@@ -1379,6 +1407,14 @@ const AttendancePage: React.FC = () => {
                                                     <span className="bg-slate-100 px-1 rounded uppercase tracking-tighter">{worker.rut}</span>
                                                     {worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 pl-1.5">{worker.cargo_nombre}</span>}
                                                 </p>
+                                                {workerAlerta && (
+                                                    <div className="flex items-center gap-1.5 mt-1">
+                                                        <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
+                                                        <span className="text-[10px] font-bold text-red-600 leading-tight">
+                                                            {workerAlerta.alertas.map(a => a.mensaje).join(' · ')}
+                                                        </span>
+                                                    </div>
+                                                )}
                                             </div>
                                         </div>
 

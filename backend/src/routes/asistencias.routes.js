@@ -53,6 +53,19 @@ router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), async
     } catch (err) { next(err); }
 });
 
+// Alertas de faltas por obra y mes
+router.get('/alertas/:obraId', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
+    try {
+        const { obraId } = req.params;
+        const { mes, anio } = req.query;
+        if (!mes || !anio) {
+            return res.status(400).json({ error: 'Parámetros mes y anio son requeridos (?mes=MM&anio=YYYY)' });
+        }
+        const result = await asistenciaService.getAlertasFaltas(obraId, parseInt(mes), parseInt(anio));
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // Get by obra and date
 router.get('/obra/:obraId', auth, checkPermission('asistencia.ver'), async (req, res, next) => {
     try {
@@ -145,7 +158,7 @@ router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel')
 // Períodos de ausencia
 router.post('/periodos', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
     try {
-        const result = await asistenciaService.crearPeriodoAusencia(req.body, req.user.id);
+        const result = await asistenciaService.crearPeriodo(req.body, req.user.id, req);
         res.status(201).json({ data: result });
     } catch (err) { next(err); }
 });
