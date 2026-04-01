@@ -1510,7 +1510,7 @@ const asistenciaService = {
         const params = [faltaId, startDate, endDate];
 
         if (obraId !== 'ALL') {
-            faltasQuery += ' AND a.obra_id = ?';
+            faltasQuery += ' AND t.obra_id = ?';
             params.push(obraId);
         }
 
