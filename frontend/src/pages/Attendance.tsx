@@ -780,14 +780,14 @@ const AttendancePage: React.FC = () => {
 
                             <AnimatePresence>
                                 {showMobileMenu && (
-                                    <>
+                                    <div className="md:hidden fixed inset-0 z-[1001] flex items-end">
                                         {/* Backdrop */}
                                         <motion.div
                                             initial={{ opacity: 0 }}
                                             animate={{ opacity: 1 }}
                                             exit={{ opacity: 0 }}
                                             onClick={() => setShowMobileMenu(false)}
-                                            className="fixed inset-0 bg-black/40 backdrop-blur-[2px] z-[1000]"
+                                            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
                                         />
 
                                         {/* Sheet */}
@@ -804,7 +804,7 @@ const AttendancePage: React.FC = () => {
                                             animate={{ y: 0 }}
                                             exit={{ y: '100%' }}
                                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                            className="fixed bottom-0 left-0 right-0 w-full max-h-[85vh] bg-white rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
+                                            className="relative w-full max-h-[92vh] bg-white rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
                                         >
                                             {/* Drag Handle */}
                                             <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowMobileMenu(false)}>
@@ -823,7 +823,7 @@ const AttendancePage: React.FC = () => {
                                             </div>
 
                                             {/* Body */}
-                                            <div className="flex-1 overflow-y-auto px-4 pb-8 custom-scrollbar">
+                                            <div className="flex-1 overflow-y-auto px-4 pb-12 custom-scrollbar min-h-0">
                                                 <div className="flex flex-col gap-1">
                                                     <button
                                                         onClick={() => { setShowSearchBox(!showSearchBox); setShowMobileMenu(false); }}
@@ -865,14 +865,14 @@ const AttendancePage: React.FC = () => {
                                                     </RequirePermission>
                                                 </div>
 
-                                                <div className="mt-6 pt-4 border-t border-[#F0F0F5] text-center">
+                                                <div className="mt-8 pt-4 border-t border-[#F0F0F5] text-center pb-8">
                                                     <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
                                                         Bóveda LOLS v2.5 • Premium UX
                                                     </p>
                                                 </div>
                                             </div>
                                         </motion.div>
-                                    </>
+                                    </div>
                                 )}
                             </AnimatePresence>
                         </div>
