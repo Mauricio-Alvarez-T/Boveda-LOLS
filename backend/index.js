@@ -149,6 +149,7 @@ safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 // ============================================
 
 // Dashboard KPIs
+const dashboardService = require('./src/services/dashboard.service');
 app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, res, next) => {
   try {
     const db = require('./src/config/db');
