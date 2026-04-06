@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import {
     CheckSquare,
     Users,
@@ -778,103 +779,96 @@ const AttendancePage: React.FC = () => {
                                 <MoreHorizontal className="h-5 w-5" />
                             </button>
 
-                            <AnimatePresence>
-                                {showMobileMenu && (
-                                    <div className="md:hidden fixed inset-0 z-[1001] flex items-end">
-                                        {/* Backdrop */}
-                                        <motion.div
-                                            initial={{ opacity: 0 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0 }}
-                                            onClick={() => setShowMobileMenu(false)}
-                                            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-                                        />
+                            {createPortal(
+                                <AnimatePresence>
+                                    {showMobileMenu && (
+                                        <div className="md:hidden fixed inset-0 z-[9999] flex items-end" style={{ height: '100dvh' }}>
+                                            {/* Backdrop */}
+                                            <motion.div
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                onClick={() => setShowMobileMenu(false)}
+                                                className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                                            />
 
-                                        {/* Sheet */}
-                                        <motion.div
-                                            drag="y"
-                                            dragConstraints={{ top: 0 }}
-                                            dragElastic={0.1}
-                                            onDragEnd={(_, info) => {
-                                                if (info.offset.y > 150 || info.velocity.y > 500) {
-                                                    setShowMobileMenu(false);
-                                                }
-                                            }}
-                                            initial={{ y: '100%' }}
-                                            animate={{ y: 0 }}
-                                            exit={{ y: '100%' }}
-                                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                                            className="relative w-full max-h-[92vh] bg-white rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
-                                        >
-                                            {/* Drag Handle */}
-                                            <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowMobileMenu(false)}>
-                                                <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED]" />
-                                            </div>
+                                            {/* Sheet */}
+                                            <motion.div
+                                                drag="y"
+                                                dragConstraints={{ top: 0 }}
+                                                dragElastic={0.05}
+                                                onDragEnd={(_, info) => {
+                                                    if (info.offset.y > 200 || info.velocity.y > 600) {
+                                                        setShowMobileMenu(false);
+                                                    }
+                                                }}
+                                                initial={{ y: '100%' }}
+                                                animate={{ y: 0 }}
+                                                exit={{ y: '100%' }}
+                                                transition={{ type: 'spring', damping: 28, stiffness: 220 }}
+                                                className="relative w-full bg-white rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden"
+                                            >
+                                                {/* Drag Handle */}
+                                                <div className="pt-3 pb-2 flex justify-center shrink-0 cursor-grab active:cursor-grabbing">
+                                                    <div className="w-10 h-1 rounded-full bg-[#D1D1D6]" />
+                                                </div>
 
-                                            {/* Header */}
-                                            <div className="flex items-center justify-between px-5 pb-4 pt-1 shrink-0">
-                                                <h3 className="text-lg font-bold text-brand-dark">Opciones de Asistencia</h3>
-                                                <button 
-                                                    onClick={() => setShowMobileMenu(false)}
-                                                    className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
-                                                >
-                                                    <X className="h-5 w-5" />
-                                                </button>
-                                            </div>
-
-                                            {/* Body */}
-                                            <div className="flex-1 overflow-y-auto px-4 pb-12 custom-scrollbar min-h-0">
-                                                <div className="flex flex-col gap-1">
-                                                    <button
-                                                        onClick={() => { setShowSearchBox(!showSearchBox); setShowMobileMenu(false); }}
-                                                        className="w-full flex items-center gap-4 px-4 py-3 rounded-2xl hover:bg-slate-50 text-slate-700 transition-all active:scale-95 text-left"
+                                                {/* Header */}
+                                                <div className="flex items-center justify-between px-5 pb-4 pt-1 shrink-0">
+                                                    <h3 className="text-lg font-bold text-brand-dark">Opciones de Asistencia</h3>
+                                                    <button 
+                                                        onClick={() => setShowMobileMenu(false)}
+                                                        className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
                                                     >
-                                                        <div className="h-10 w-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600 shrink-0">
-                                                            <Search className="h-5 w-5" />
-                                                        </div>
-                                                        <span className="text-sm font-bold uppercase tracking-tight">{showSearchBox ? 'Ocultar Buscador' : 'Buscar Trabajador'}</span>
+                                                        <X className="h-5 w-5" />
                                                     </button>
+                                                </div>
 
-                                                    <button
-                                                        onClick={() => { handleExportExcel(); setShowMobileMenu(false); }}
-                                                        disabled={!hasPermission('asistencia.exportar_excel')}
-                                                        className={cn(
-                                                            "w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all active:scale-95 text-left",
-                                                            hasPermission('asistencia.exportar_excel') ? "hover:bg-slate-50 text-slate-700" : "opacity-40 grayscale pointer-events-none"
-                                                        )}
-                                                    >
-                                                        <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
-                                                            <FileDown className="h-5 w-5" />
-                                                        </div>
-                                                        <span className="text-sm font-bold uppercase tracking-tight">Exportar Excel</span>
-                                                    </button>
-
-                                                    <RequirePermission permiso="asistencia.feriado.gestionar">
+                                                {/* Body */}
+                                                <div className="px-4 pb-10 custom-scrollbar">
+                                                    <div className="flex flex-col gap-1">
                                                         <button
-                                                            onClick={() => { toggleFeriado(); setShowMobileMenu(false); }}
+                                                            onClick={() => { handleExportExcel(); setShowMobileMenu(false); }}
+                                                            disabled={!hasPermission('asistencia.exportar_excel')}
                                                             className={cn(
-                                                                "w-full flex items-center gap-4 px-4 py-3 rounded-2xl transition-all active:scale-95 text-left",
-                                                                feriadoActual ? "bg-destructive/5 text-destructive" : "hover:bg-slate-50 text-slate-700"
+                                                                "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all active:scale-95 text-left",
+                                                                hasPermission('asistencia.exportar_excel') ? "hover:bg-slate-50 text-slate-700" : "opacity-40 grayscale pointer-events-none"
                                                             )}
                                                         >
-                                                            <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", feriadoActual ? "bg-destructive/10" : "bg-purple-50 text-purple-600")}>
-                                                                <CalendarRange className="h-5 w-5" />
+                                                            <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
+                                                                <FileDown className="h-5 w-5" />
                                                             </div>
-                                                            <span className="text-sm font-bold uppercase tracking-tight">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
+                                                            <span className="text-sm font-bold uppercase tracking-tight">Exportar Excel</span>
                                                         </button>
-                                                    </RequirePermission>
-                                                </div>
 
-                                                <div className="mt-8 pt-4 border-t border-[#F0F0F5] text-center pb-8">
-                                                    <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
-                                                        Bóveda LOLS v2.5 • Premium UX
-                                                    </p>
+                                                        <RequirePermission permiso="asistencia.feriado.gestionar">
+                                                            <button
+                                                                onClick={() => { toggleFeriado(); setShowMobileMenu(false); }}
+                                                                className={cn(
+                                                                    "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all active:scale-95 text-left",
+                                                                    feriadoActual ? "bg-destructive/5 text-destructive" : "hover:bg-slate-50 text-slate-700"
+                                                                )}
+                                                            >
+                                                                <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", feriadoActual ? "bg-destructive/10" : "bg-purple-50 text-purple-600")}>
+                                                                    <CalendarRange className="h-5 w-5" />
+                                                                </div>
+                                                                <span className="text-sm font-bold uppercase tracking-tight">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
+                                                            </button>
+                                                        </RequirePermission>
+                                                    </div>
+
+                                                    <div className="mt-6 pt-4 border-t border-[#F0F0F5] text-center pb-4">
+                                                        <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
+                                                            Bóveda LOLS v2.5 • Premium UX
+                                                        </p>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </motion.div>
-                                    </div>
-                                )}
-                            </AnimatePresence>
+                                            </motion.div>
+                                        </div>
+                                    )}
+                                </AnimatePresence>,
+                                document.body
+                            )}
                         </div>
                     </div>
 
@@ -1043,11 +1037,20 @@ const AttendancePage: React.FC = () => {
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
                             <input
                                 type="text"
+                                autoFocus
                                 placeholder="Buscar trabajador..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-11 pl-11 pr-4 bg-white border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
+                                className="w-full h-11 pl-11 pr-10 bg-white border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
                             />
+                            {searchQuery && (
+                                <button
+                                    onClick={() => setSearchQuery('')}
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
                         </div>
                         <div className="relative">
                             <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
@@ -1797,6 +1800,40 @@ const AttendancePage: React.FC = () => {
                     );
                 })()}
             </Modal>
+            {/* ── FAB: Botón flotante de búsqueda (solo móvil) ── */}
+            <div className="md:hidden fixed bottom-6 right-5 z-[900]">
+                <motion.button
+                    whileTap={{ scale: 0.9 }}
+                    onClick={() => {
+                        setShowSearchBox(prev => !prev);
+                        if (showSearchBox && searchQuery) {
+                            setSearchQuery('');
+                        }
+                    }}
+                    className={cn(
+                        "h-12 w-12 rounded-full flex items-center justify-center shadow-lg transition-colors duration-200",
+                        showSearchBox
+                            ? "bg-brand-dark text-white shadow-brand-dark/30"
+                            : "bg-brand-primary text-white shadow-brand-primary/30"
+                    )}
+                >
+                    <AnimatePresence mode="wait">
+                        {showSearchBox ? (
+                            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                                <X className="h-5 w-5" />
+                            </motion.div>
+                        ) : (
+                            <motion.div key="search" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
+                                <Search className="h-5 w-5" />
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+                    {/* Badge indicador de búsqueda activa */}
+                    {!showSearchBox && searchQuery && (
+                        <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-red-500 rounded-full border-2 border-white" />
+                    )}
+                </motion.button>
+            </div>
         </div>
     );
 };
