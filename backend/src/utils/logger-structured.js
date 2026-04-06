@@ -33,7 +33,8 @@ const logger = {
         // Console output with color
         const colors = { DEBUG: '\x1b[36m', INFO: '\x1b[32m', WARN: '\x1b[33m', ERROR: '\x1b[31m', FATAL: '\x1b[35m' };
         const reset = '\x1b[0m';
-        console.log(`${colors[level] || ''}[${level}]${reset} ${message}`, (meta && Object.keys(meta).length > 0) ? meta : '');
+        const hasMeta = meta && typeof meta === 'object' && !Array.isArray(meta) && Object.keys(meta).length > 0;
+        console.log(`${colors[level] || ''}[${level}]${reset} ${message}`, hasMeta ? meta : '');
 
         // File output
         try {
