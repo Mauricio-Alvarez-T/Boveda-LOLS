@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'; // Mobile UX Unified Commit 01
 import {
     Search,
-    Loader2,
     Filter,
     FileDown,
     Mail,
@@ -73,8 +72,7 @@ const ConsultasPage: React.FC = () => {
     // 2. Data & Paginación
     const {
         empresas, obras, cargos, fetchCatalogs,
-        workers, loading, hasMore, isLoadingMore,
-        loadMore, performSearch
+        workers, loading, performSearch
     } = useConsultasData({
         search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes
     });

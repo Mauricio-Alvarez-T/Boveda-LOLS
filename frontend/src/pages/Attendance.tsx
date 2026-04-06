@@ -4,11 +4,9 @@ import {
     CheckSquare,
     Users,
     Save,
-    Loader2,
     ChevronLeft,
     ChevronRight,
     Calendar,
-    Clock,
     BarChart3,
     Send,
     CalendarDays,
@@ -22,9 +20,7 @@ import {
     Filter,
     Plus,
     X,
-    Trash2,
     MoreHorizontal,
-    ArrowRightLeft,
     AlertTriangle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';

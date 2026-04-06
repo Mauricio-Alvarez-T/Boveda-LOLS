@@ -1,4 +1,3 @@
-import type { Permission } from './index';
 
 export interface Empresa {
     id: number;

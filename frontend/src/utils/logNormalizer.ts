@@ -57,7 +57,7 @@ const labelMap: Record<string, string> = {
  */
 const repairTruncatedJson = (str: string): string => {
     if (!str) return "";
-    try { JSON.parse(str); return str; } catch (e) { /* proceed */ }
+    try { JSON.parse(str); return str; } catch { /* proceed */ }
 
     let result = str.trim();
 
@@ -86,9 +86,9 @@ const repairTruncatedJson = (str: string): string => {
     }
     while (stack.length > 0) result += stack.pop();
 
-    try { JSON.parse(result); return result; } catch (e2) {
+    try { JSON.parse(result); return result; } catch {
         const finalAttempt = result.replace(/,(\s*[}\]])/g, '$1');
-        try { JSON.parse(finalAttempt); return finalAttempt; } catch (e3) { return str; }
+        try { JSON.parse(finalAttempt); return finalAttempt; } catch { return str; }
     }
 };
 
@@ -108,11 +108,11 @@ export const normalizeLogDetail = (detail: string): any => {
         // Parsear recursivamente si está doble-escapado
         let depth = 0;
         while (typeof parsed === 'string' && (parsed.trim().startsWith('{') || parsed.trim().startsWith('[')) && depth < 3) {
-            try { parsed = JSON.parse(parsed); depth++; } catch (e) { break; }
+            try { parsed = JSON.parse(parsed); depth++; } catch { break; }
         }
-    } catch (e) {
+    } catch {
         if (detail.includes('{') || detail.includes('[')) {
-            try { parsed = JSON.parse(repairTruncatedJson(detail)); } catch (e2) { return detail; }
+            try { parsed = JSON.parse(repairTruncatedJson(detail)); } catch { return detail; }
         } else {
             return detail;
         }
