@@ -89,22 +89,6 @@ const AttendancePage: React.FC = () => {
     const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
 
     const [showMobileMenu, setShowMobileMenu] = useState(false);
-    const mobileMenuRef = React.useRef<HTMLDivElement>(null);
-
-    useEffect(() => {
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (mobileMenuRef.current && !mobileMenuRef.current.contains(e.target as Node)) {
-                setShowMobileMenu(false);
-            }
-        };
-        // Add listeners for both mouse and touch events
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, []);
 
     const handleCalendarSelectRange = (start: string, end: string) => {
         setPeriodSelection({ start, end });
@@ -768,7 +752,7 @@ const AttendancePage: React.FC = () => {
                             <Save className="h-3.5 w-3.5" />
                         </Button>
 
-                        <div className="relative" ref={mobileMenuRef}>
+                        <div className="relative">
                             <button
                                 onClick={() => setShowMobileMenu(!showMobileMenu)}
                                 className={cn(
@@ -782,7 +766,15 @@ const AttendancePage: React.FC = () => {
                             {createPortal(
                                 <AnimatePresence>
                                     {showMobileMenu && (
-                                        <div className="md:hidden fixed inset-0 z-[9999] flex items-end" style={{ height: '100dvh' }}>
+                                        <motion.div
+                                            key="mobile-menu-overlay"
+                                            className="md:hidden fixed inset-0 z-[9999] flex items-end"
+                                            style={{ height: '100dvh' }}
+                                            initial={{ opacity: 1 }}
+                                            animate={{ opacity: 1 }}
+                                            exit={{ opacity: 0, pointerEvents: 'none' as const }}
+                                            transition={{ duration: 0.2 }}
+                                        >
                                             {/* Backdrop */}
                                             <motion.div
                                                 initial={{ opacity: 0 }}
@@ -864,7 +856,7 @@ const AttendancePage: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </motion.div>
-                                        </div>
+                                        </motion.div>
                                     )}
                                 </AnimatePresence>,
                                 document.body
