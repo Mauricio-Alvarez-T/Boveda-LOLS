@@ -18,7 +18,7 @@ export interface AuthResponse {
 
 export interface LoginError {
     error: string;
-    details?: any;
+    details?: unknown;
 }
 
 export interface ApiResponse<T> {

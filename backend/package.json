@@ -7,8 +7,8 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "test": "jest",
-    "migrate": "node migrate_granular_permissions.js",
-    "migrate:tables": "node migrate_missing_tables.js"
+    "migrate": "node scripts/maintenance.js",
+    "migrate:tables": "node scripts/migrations/migrate_missing_tables.js"
   },
   "keywords": [],
   "author": "",

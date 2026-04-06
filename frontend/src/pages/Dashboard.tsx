@@ -45,6 +45,16 @@ import SystemStatus from '../components/dashboard/widgets/SystemStatus';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
 
 // ─── Types ───
+interface RecentDoc {
+    id: number;
+    tipo_nombre: string;
+    nombres: string;
+    apellido_paterno: string;
+    apellido_materno?: string | null;
+    fecha_subida: string;
+    rut: string;
+}
+
 interface DashboardData {
     counters: {
         trabajadores?: number;
@@ -55,7 +65,7 @@ interface DashboardData {
         asistencia_hoy?: number;
         ausentes_hoy?: number;
     };
-    recentActivity: any[];
+    recentActivity: RecentDoc[];
     obraDistribution: { id: number; nombre: string; count: number }[];
     attendanceTrend: { fecha: string; tasa: number }[];
     ausentesDetalle?: { nombres: string; apellido_paterno: string; apellido_materno?: string | null; estado: string; obra: string }[];

@@ -99,10 +99,10 @@ const repairTruncatedJson = (str: string): string => {
  * - 'object': Datos planos (CREATE legacy)
  * - 'string': Texto plano
  */
-export const normalizeLogDetail = (detail: string): any => {
+export const normalizeLogDetail = (detail: string): unknown => {
     if (!detail) return null;
 
-    let parsed: any;
+    let parsed: unknown;
     try {
         parsed = JSON.parse(detail);
         // Parsear recursivamente si está doble-escapado

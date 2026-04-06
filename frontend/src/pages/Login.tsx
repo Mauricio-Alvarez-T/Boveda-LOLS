@@ -41,8 +41,9 @@ const LoginPage: React.FC = () => {
             login(response.data);
             toast.success('¡Bienvenido a Bóveda LOLS!');
             navigate('/');
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Credenciales incorrectas');
+        } catch (err) {
+            const axiosError = err as { response?: { data?: { error?: string } } };
+            toast.error(axiosError.response?.data?.error || 'Credenciales incorrectas');
         } finally {
             setIsLoading(false);
         }
