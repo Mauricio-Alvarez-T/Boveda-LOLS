@@ -3,7 +3,11 @@ const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'super_secret_key_12345';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+    console.error('⛔ FATAL: JWT_SECRET no está configurado en las variables de entorno.');
+    process.exit(1);
+}
 
 const asistenciaService = {
     /**
@@ -304,6 +308,20 @@ const asistenciaService = {
      * Modificar asistencia con log de auditoría
      */
     async update(asistenciaId, data, modificadoPor) {
+        // ── SEGURIDAD: Solo permitir campos válidos de la tabla ──
+        const ALLOWED_FIELDS = new Set([
+            'estado_id', 'tipo_ausencia_id', 'observacion',
+            'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin',
+            'horas_extra', 'es_sabado'
+        ]);
+        const safeData = {};
+        for (const key of Object.keys(data)) {
+            if (ALLOWED_FIELDS.has(key)) safeData[key] = data[key];
+        }
+        if (Object.keys(safeData).length === 0) {
+            throw Object.assign(new Error('No se proporcionaron campos válidos para actualizar'), { statusCode: 400 });
+        }
+
         const conn = await db.getConnection();
 
         try {
@@ -317,7 +335,7 @@ const asistenciaService = {
             const old = current[0];
 
             // Log each changed field
-            for (const [campo, valorNuevo] of Object.entries(data)) {
+            for (const [campo, valorNuevo] of Object.entries(safeData)) {
                 if (old[campo] !== undefined && String(old[campo]) !== String(valorNuevo)) {
                     await conn.query(
                         `INSERT INTO log_asistencia (asistencia_id, campo_modificado, valor_anterior, valor_nuevo, modificado_por)
@@ -327,11 +345,11 @@ const asistenciaService = {
                 }
             }
 
-            const fields = Object.keys(data).map(f => `${f} = ?`).join(', ');
-            await conn.query(`UPDATE asistencias SET ${fields} WHERE id = ?`, [...Object.values(data), asistenciaId]);
+            const fields = Object.keys(safeData).map(f => `${f} = ?`).join(', ');
+            await conn.query(`UPDATE asistencias SET ${fields} WHERE id = ?`, [...Object.values(safeData), asistenciaId]);
 
             await conn.commit();
-            return { id: asistenciaId, ...data };
+            return { id: asistenciaId, ...safeData };
         } catch (err) {
             await conn.rollback();
             throw err;
