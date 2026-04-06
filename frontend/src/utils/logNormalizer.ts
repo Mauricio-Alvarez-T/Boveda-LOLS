@@ -108,8 +108,21 @@ export type LogDetail =
  * - 'object': Datos planos (CREATE legacy)
  * - 'string': Texto plano
  */
-export const normalizeLogDetail = (detail: string): LogDetail => {
+export const normalizeLogDetail = (detail: string | object | null): LogDetail => {
     if (!detail) return null;
+
+    if (typeof detail === 'object') {
+        const parsed = detail as any;
+        if ('cambios' in parsed && parsed.cambios) return { type: 'compact', ...parsed } as LogDetail;
+        if ('resumen' in parsed && !('cambios' in parsed) && Object.keys(parsed).length <= 3) {
+            return { type: 'summary', resumen: parsed.resumen, datos: parsed.datos } as LogDetail;
+        }
+        if ('antes' in parsed && 'nuevo' in parsed) return { type: 'diff', antes: parsed.antes, nuevo: parsed.nuevo } as LogDetail;
+        return parsed as LogDetail;
+    }
+
+    if (typeof detail !== 'string') return detail as LogDetail;
+    if (detail.length > 50000) return "Detalle demasiado largo para parsear." as LogDetail;
 
     let parsed: any;
     try {
