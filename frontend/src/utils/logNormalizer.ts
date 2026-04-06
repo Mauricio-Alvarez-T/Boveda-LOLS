@@ -92,17 +92,26 @@ const repairTruncatedJson = (str: string): string => {
     }
 };
 
+export type LogDetail = 
+    | { type: 'compact'; cambios: Record<string, { de: any; a: any }>; resumen?: string; trabajador?: string; fecha?: string }
+    | { type: 'summary'; resumen: string; datos?: Record<string, unknown> }
+    | { type: 'diff'; antes: Record<string, any>; nuevo: Record<string, any> }
+    | Record<string, unknown>
+    | string 
+    | null;
+
 /**
  * Tipo de resultado normalizado:
  * - 'compact': Nuevo formato { cambios, resumen }
+ * - 'summary': Solo resumen (CREATE, DELETE)
  * - 'diff': Legacy formato { antes, nuevo } (logs viejos con diff)
  * - 'object': Datos planos (CREATE legacy)
  * - 'string': Texto plano
  */
-export const normalizeLogDetail = (detail: string): unknown => {
+export const normalizeLogDetail = (detail: string): LogDetail => {
     if (!detail) return null;
 
-    let parsed: unknown;
+    let parsed: any;
     try {
         parsed = JSON.parse(detail);
         // Parsear recursivamente si está doble-escapado
@@ -112,7 +121,10 @@ export const normalizeLogDetail = (detail: string): unknown => {
         }
     } catch {
         if (detail.includes('{') || detail.includes('[')) {
-            try { parsed = JSON.parse(repairTruncatedJson(detail)); } catch { return detail; }
+            try { 
+                const repaired = repairTruncatedJson(detail);
+                parsed = JSON.parse(repaired); 
+            } catch { return detail; }
         } else {
             return detail;
         }
@@ -123,19 +135,19 @@ export const normalizeLogDetail = (detail: string): unknown => {
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
         // NUEVO FORMATO: { cambios: {...}, resumen: "..." }
         if ('cambios' in parsed && parsed.cambios) {
-            return { type: 'compact', ...parsed };
+            return { type: 'compact', ...parsed } as LogDetail;
         }
         // NUEVO FORMATO: solo resumen (CREATE, DELETE)
         if ('resumen' in parsed && !('cambios' in parsed) && Object.keys(parsed).length <= 3) {
-            return { type: 'summary', ...parsed };
+            return { type: 'summary', resumen: parsed.resumen, datos: parsed.datos } as LogDetail;
         }
         // LEGACY: { antes, nuevo }
         if ('antes' in parsed && 'nuevo' in parsed) {
-            return { type: 'diff', antes: parsed.antes, nuevo: parsed.nuevo };
+            return { type: 'diff', antes: parsed.antes, nuevo: parsed.nuevo } as LogDetail;
         }
     }
 
-    return parsed;
+    return parsed as LogDetail;
 };
 
 export const getLabel = (key: string): string => labelMap[key] || key;
