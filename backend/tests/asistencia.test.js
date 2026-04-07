@@ -1,7 +1,16 @@
+jest.mock('../src/config/db', () => ({
+    query: jest.fn().mockResolvedValue([[]]),
+    getConnection: jest.fn().mockResolvedValue({
+        beginTransaction: jest.fn(),
+        query: jest.fn().mockResolvedValue([[]]),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+    })
+}));
+
 const asistenciaService = require('../src/services/asistencia.service');
 const db = require('../src/config/db');
-
-jest.mock('../src/config/db');
 
 describe('Asistencia Service - Superposition Logic', () => {
     let mockConn;
@@ -27,11 +36,15 @@ describe('Asistencia Service - Superposition Logic', () => {
             fecha_fin: '2026-03-05'
         };
 
-        // Mock state check: return LM code
-        mockConn.query.mockResolvedValueOnce([[{ codigo: 'LM' }]]); // SELECT codigo FROM estados_asistencia
-        mockConn.query.mockResolvedValueOnce([{}]); // UPDATE periodos_ausencia
-        mockConn.query.mockResolvedValueOnce([{ insertId: 10 }]); // INSERT INTO periodos_ausencia
-        mockConn.query.mockResolvedValue([{}]); // Multiple INSERT/UPDATE asistencias
+        // Mock implementacion para consultas dinamicas
+        mockConn.query.mockImplementation((sql, params) => {
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('fecha_ingreso')) return Promise.resolve([[{ fecha_ingreso: '2020-01-01', fecha_desvinculacion: null }]]);
+            if (sql.includes('SELECT codigo FROM estados_asistencia')) return Promise.resolve([[{ codigo: 'LM' }]]);
+            if (sql.includes('UPDATE periodos_ausencia')) return Promise.resolve([{}]);
+            if (sql.includes('INSERT INTO periodos_ausencia')) return Promise.resolve([{ insertId: 10 }]);
+            return Promise.resolve([[]]);
+        });
 
         await asistenciaService.crearPeriodo(data, 1, {});
 
@@ -52,11 +65,15 @@ describe('Asistencia Service - Superposition Logic', () => {
             fecha_fin: '2026-03-05'
         };
 
-        // Mock state check: return VAC code
-        mockConn.query.mockResolvedValueOnce([[{ codigo: 'VAC' }]]); 
-        mockConn.query.mockResolvedValueOnce([{}]); // UPDATE periodos_ausencia
-        mockConn.query.mockResolvedValueOnce([{ insertId: 11 }]); 
-        mockConn.query.mockResolvedValue([{}]);
+        // Mock implementacion para consultas dinamicas
+        mockConn.query.mockImplementation((sql, params) => {
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('fecha_ingreso')) return Promise.resolve([[{ fecha_ingreso: '2020-01-01', fecha_desvinculacion: null }]]);
+            if (sql.includes('SELECT codigo FROM estados_asistencia')) return Promise.resolve([[{ codigo: 'VAC' }]]);
+            if (sql.includes('UPDATE periodos_ausencia')) return Promise.resolve([{}]);
+            if (sql.includes('INSERT INTO periodos_ausencia')) return Promise.resolve([{ insertId: 11 }]);
+            return Promise.resolve([[]]);
+        });
 
         await asistenciaService.crearPeriodo(data, 1, {});
 
