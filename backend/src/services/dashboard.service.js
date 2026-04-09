@@ -19,14 +19,20 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
 
     const result = {
         counters: {},
+        deltas: {},
         recentActivity: [],
         obraDistribution: [],
         attendanceTrend: [],
         alerts: [],
+        pendingTasks: [],
+        docExpiryTimeline: [],
+        obraRanking: [],
+        attendanceStatus: {},
         saludo: { nombre: userName, resumen: '', totalAlertas: 0 }
     };
 
     const alertas = [];
+    const pendingTasks = [];
 
     // ── 1. TRABAJADORES (si tiene permiso) ──
     if (canSee(permisos, 'trabajadores')) {
@@ -36,17 +42,13 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         );
         result.counters.trabajadores = workers[0].count;
 
-        // Distribución por Obra
-        const distParams = obraId ? [obraId] : [];
-        const distFilter = obraId ? 'AND o.id = ?' : '';
-        const [obraDistribution] = await pool.query(`
-            SELECT o.id, o.nombre, COUNT(t.id) as count
-            FROM obras o
-            LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1
-            WHERE o.activa = 1 ${distFilter}
-            GROUP BY o.id, o.nombre
-        `, distParams);
-        result.obraDistribution = obraDistribution;
+        // Delta: trabajadores nuevos esta semana
+        const [workersLastWeek] = await pool.query(
+            `SELECT COUNT(*) as count FROM trabajadores t 
+             WHERE t.activo = 1 AND t.fecha_ingreso >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ${obraFilter}`,
+            params
+        );
+        result.deltas.trabajadores_nuevos_semana = workersLastWeek[0].count;
     }
 
     // ── 2. DOCUMENTOS (si tiene permiso) ──
@@ -92,17 +94,15 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         result.counters.porVencer7d = expiringSoon[0].count;
         result.counters.trabajadoresSinDocs = noDocWorkers[0].count;
 
-        // Actividad reciente (últimos 5 docs subidos)
-        const [recentDocs] = await pool.query(`
-            SELECT d.*, t.nombre as tipo_nombre, tr.nombres, tr.apellido_paterno, tr.rut
-            FROM documentos d
-            JOIN tipos_documento t ON d.tipo_documento_id = t.id
-            JOIN trabajadores tr ON d.trabajador_id = tr.id
-            WHERE 1=1 ${docObraFilter}
-            ORDER BY d.fecha_subida DESC
-            LIMIT 5
-        `, params);
-        result.recentActivity = recentDocs;
+        // Docs vencidos hoy (delta)
+        const [expiredToday] = await pool.query(
+            `SELECT COUNT(d.id) as count 
+             FROM documentos d 
+             JOIN trabajadores tr ON d.trabajador_id = tr.id 
+             WHERE d.activo = 1 AND d.fecha_vencimiento = CURDATE() ${docObraFilter}`,
+            params
+        );
+        result.deltas.docs_vencidos_hoy = expiredToday[0].count;
 
         // Alertas de documentos
         if (expired[0].count > 0) {
@@ -132,6 +132,61 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 ruta: '/consultas?completitud=faltantes'
             });
         }
+
+        // ── DOC EXPIRY TIMELINE (próximos 14 días) ──
+        const [expiryTimeline] = await pool.query(`
+            SELECT 
+                d.fecha_vencimiento as fecha,
+                td.nombre as tipo_documento,
+                tr.nombres, tr.apellido_paterno, tr.rut,
+                tr.id as trabajador_id,
+                o.nombre as obra_nombre
+            FROM documentos d
+            JOIN tipos_documento td ON d.tipo_documento_id = td.id
+            JOIN trabajadores tr ON d.trabajador_id = tr.id
+            LEFT JOIN obras o ON tr.obra_id = o.id
+            WHERE d.activo = 1 
+              AND tr.activo = 1
+              AND d.fecha_vencimiento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 14 DAY)
+              ${docObraFilter}
+            ORDER BY d.fecha_vencimiento ASC
+            LIMIT 30
+        `, params);
+
+        result.docExpiryTimeline = expiryTimeline.map(d => ({
+            fecha: d.fecha.toISOString().split('T')[0],
+            tipo_documento: d.tipo_documento,
+            trabajador: `${d.nombres} ${d.apellido_paterno}`,
+            trabajador_id: d.trabajador_id,
+            rut: d.rut,
+            obra: d.obra_nombre || 'Sin obra'
+        }));
+
+        // Pending tasks from docs
+        expiryTimeline.forEach(d => {
+            const fechaVenc = d.fecha.toISOString().split('T')[0];
+            const today = new Date().toISOString().split('T')[0];
+            const tomorrow = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+            
+            let severity = 'info';
+            let label = '';
+            if (fechaVenc === today) { severity = 'critical'; label = 'vence HOY'; }
+            else if (fechaVenc === tomorrow) { severity = 'critical'; label = 'vence MAÑANA'; }
+            else {
+                const daysLeft = Math.ceil((new Date(fechaVenc) - new Date(today)) / 86400000);
+                if (daysLeft <= 3) { severity = 'warning'; label = `vence en ${daysLeft} días`; }
+                else { severity = 'info'; label = `vence en ${daysLeft} días`; }
+            }
+
+            pendingTasks.push({
+                severity,
+                category: 'documentos',
+                title: `${d.tipo_documento} de ${d.nombres} ${d.apellido_paterno}`,
+                description: label,
+                action: { label: 'Ver trabajador', ruta: `/consultas?q=${d.rut}` },
+                meta: { fecha: fechaVenc, rut: d.rut }
+            });
+        });
     }
 
     // ── 3. ASISTENCIA (si tiene permiso) ──
@@ -162,6 +217,24 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
 
         result.counters.asistencia_hoy = attendanceRate;
         result.counters.ausentes_hoy = stats.total - presentCount;
+
+        // Delta: comparar con ayer
+        const yesterday = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+        const [attendanceYesterday] = await pool.query(
+            `SELECT ea.es_presente, COUNT(*) as count
+             FROM asistencias a
+             JOIN estados_asistencia ea ON a.estado_id = ea.id
+             WHERE a.fecha = ? ${asistFilter}
+             GROUP BY ea.es_presente`,
+            [yesterday, ...params]
+        );
+        const yesterdayTotal = attendanceYesterday.reduce((sum, r) => sum + r.count, 0);
+        const yesterdayPresent = attendanceYesterday.filter(r => r.es_presente).reduce((sum, r) => sum + r.count, 0);
+        const yesterdayRate = yesterdayTotal > 0 ? Math.round((yesterdayPresent / yesterdayTotal) * 100) : 0;
+        const yesterdayAbsent = yesterdayTotal - yesterdayPresent;
+
+        result.deltas.asistencia_delta = yesterdayRate > 0 ? attendanceRate - yesterdayRate : 0;
+        result.deltas.ausentes_delta = stats.total > 0 ? (stats.total - presentCount) - yesterdayAbsent : 0;
 
         // Detalle de ausentes del día
         const [ausentesDetalle] = await pool.query(`
@@ -204,6 +277,98 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 ruta: '/consultas?ausentes=true'
             });
         }
+
+        // Attendance status per obra
+        const [attendanceStatusRows] = await pool.query(`
+            SELECT o.id as obra_id, o.nombre as obra_nombre,
+                   COUNT(a.id) as registros
+            FROM obras o
+            LEFT JOIN asistencias a ON a.obra_id = o.id AND a.fecha = ?
+            WHERE o.activa = 1
+            GROUP BY o.id, o.nombre
+        `, [today]);
+
+        const attendanceStatusMap = {};
+        attendanceStatusRows.forEach(r => {
+            attendanceStatusMap[r.obra_id] = {
+                nombre: r.obra_nombre,
+                guardada: r.registros > 0
+            };
+        });
+        result.attendanceStatus = attendanceStatusMap;
+
+        // Pending task: attendance not saved
+        const obrasSinAsistencia = attendanceStatusRows.filter(r => r.registros === 0);
+        if (obrasSinAsistencia.length > 0) {
+            obrasSinAsistencia.forEach(o => {
+                pendingTasks.push({
+                    severity: 'warning',
+                    category: 'asistencia',
+                    title: `Asistencia de hoy sin guardar`,
+                    description: `Obra: ${o.obra_nombre}`,
+                    action: { label: 'Ir a Asistencia', ruta: '/asistencia' },
+                    meta: { obra_id: o.obra_id }
+                });
+            });
+        }
+    }
+
+    // ── 4. OBRA RANKING ──
+    if (canSee(permisos, 'trabajadores')) {
+        const today = new Date().toISOString().split('T')[0];
+        const [obraRankingRows] = await pool.query(`
+            SELECT 
+                o.id, o.nombre,
+                COUNT(DISTINCT t.id) as total_trabajadores,
+                (
+                    SELECT COUNT(DISTINCT d2.trabajador_id)
+                    FROM documentos d2
+                    JOIN trabajadores t2 ON d2.trabajador_id = t2.id
+                    WHERE t2.obra_id = o.id AND t2.activo = 1 AND d2.activo = 1
+                      AND (d2.fecha_vencimiento IS NULL OR d2.fecha_vencimiento >= CURDATE())
+                ) as trabajadores_docs_ok
+            FROM obras o
+            LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1
+            WHERE o.activa = 1
+            GROUP BY o.id, o.nombre
+            HAVING total_trabajadores > 0
+            ORDER BY total_trabajadores DESC
+        `);
+
+        // Get attendance for each obra today
+        const [obraAttendanceRows] = await pool.query(`
+            SELECT a.obra_id,
+                   SUM(CASE WHEN ea.es_presente = 1 THEN 1 ELSE 0 END) as presentes,
+                   COUNT(a.id) as total
+            FROM asistencias a
+            JOIN estados_asistencia ea ON a.estado_id = ea.id
+            WHERE a.fecha = ?
+            GROUP BY a.obra_id
+        `, [today]);
+
+        const attendanceMap = {};
+        obraAttendanceRows.forEach(r => {
+            attendanceMap[r.obra_id] = {
+                presentes: r.presentes,
+                total: r.total,
+                tasa: r.total > 0 ? Math.round((r.presentes / r.total) * 100) : 0
+            };
+        });
+
+        result.obraRanking = obraRankingRows.map(o => {
+            const att = attendanceMap[o.id] || { presentes: 0, total: 0, tasa: 0 };
+            const docsRate = o.total_trabajadores > 0
+                ? Math.round((o.trabajadores_docs_ok / o.total_trabajadores) * 100)
+                : 100;
+            return {
+                id: o.id,
+                nombre: o.nombre,
+                trabajadores: o.total_trabajadores,
+                asistencia_tasa: att.tasa,
+                docs_completos_pct: docsRate,
+                asistencia_guardada: att.total > 0
+            };
+        }).sort((a, b) => b.asistencia_tasa - a.asistencia_tasa);
     }
 
     // ── 5. ALERTA 10 MESES DE CONTRATO ──
@@ -248,8 +413,25 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                     fecha_10m: w.fecha_cumple_10m
                 }))
             });
+
+            // Add to pending tasks
+            workers10m.forEach(w => {
+                pendingTasks.push({
+                    severity: 'info',
+                    category: 'contratos',
+                    title: `${w.nombres} ${w.apellido_paterno} cumple 10 meses`,
+                    description: `En ${nextMonthStr}/${nextYear} — revisar renovación`,
+                    action: { label: 'Ver trabajador', ruta: `/consultas?q=${w.rut}` },
+                    meta: { rut: w.rut }
+                });
+            });
         }
     }
+
+    // ── SORT PENDING TASKS BY SEVERITY ──
+    const severityOrder = { critical: 0, warning: 1, info: 2 };
+    pendingTasks.sort((a, b) => (severityOrder[a.severity] ?? 3) - (severityOrder[b.severity] ?? 3));
+    result.pendingTasks = pendingTasks.slice(0, 15); // Max 15 tasks
 
     // ── SALUDO CONTEXTUAL ──
     result.alerts = alertas;

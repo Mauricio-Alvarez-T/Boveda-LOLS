@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
-import { normalizeLogDetail, getLabel } from '../../utils/logNormalizer';
+import { normalizeLogDetail, getLabel, type LogDetail } from '../../utils/logNormalizer';
 
 interface Log {
     id: number;
@@ -186,11 +186,12 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
 
     const parsed = normalizeLogDetail(detail);
     if (typeof parsed === 'string') return <p className="text-[11px] text-brand-dark leading-snug break-all">{parsed}</p>;
-    if (!parsed || Object.keys(parsed).length === 0) return <span className="text-xs text-muted-foreground italic">—</span>;
+    if (!parsed || (typeof parsed === 'object' && Object.keys(parsed).length === 0)) return <span className="text-xs text-muted-foreground italic">—</span>;
 
     // ── NUEVO FORMATO COMPACTO: { type: 'compact', cambios, resumen } ──
-    if (parsed.type === 'compact') {
-        const changedKeys = Object.keys(parsed.cambios || {}).slice(0, 3);
+    if (typeof parsed === 'object' && 'type' in parsed && parsed.type === 'compact') {
+        const compact = parsed as { type: 'compact'; cambios: Record<string, { de: any; a: any }>; resumen?: string; trabajador?: string; fecha?: string };
+        const changedKeys = Object.keys(compact.cambios || {}).slice(0, 3);
         return (
             <>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -198,25 +199,26 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                     {changedKeys.map(key => (
                         <span key={key} className="text-[10px] font-semibold text-brand-dark">{getLabel(key)}</span>
                     ))}
-                    {parsed.trabajador && <span className="text-[10px] text-muted-foreground">• {parsed.trabajador}</span>}
+                    {compact.trabajador && <span className="text-[10px] text-muted-foreground">• {compact.trabajador}</span>}
                     <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-brand-primary hover:bg-brand-primary/10 px-2 py-0.5 rounded-full bg-brand-primary/5 ml-1 transition-all active:scale-95">
                         Ver cambios
                     </button>
                 </div>
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Cambios - ${modulo.toUpperCase()}`} size="lg">
-                    <CompactDiffViewer cambios={parsed.cambios} trabajador={parsed.trabajador} fecha={parsed.fecha} responsable={responsable} />
+                    <CompactDiffViewer cambios={compact.cambios} trabajador={compact.trabajador} fecha={compact.fecha} responsable={responsable} />
                 </Modal>
             </>
         );
     }
 
     // ── NUEVO FORMATO RESUMEN: { type: 'summary', resumen } ──
-    if (parsed.type === 'summary') {
-        const hasData = !!parsed.datos;
+    if (typeof parsed === 'object' && 'type' in parsed && parsed.type === 'summary') {
+        const summary = parsed as { type: 'summary'; resumen: string; datos?: Record<string, unknown> };
+        const hasData = !!summary.datos;
         return (
             <>
                 <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <p className="text-[11px] text-brand-dark leading-snug">{parsed.resumen || 'Sin resumen'}</p>
+                    <p className="text-[11px] text-brand-dark leading-snug">{summary.resumen || 'Sin resumen'}</p>
                     {hasData && (
                         <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-brand-primary hover:bg-brand-primary/10 px-2 py-0.5 rounded-full bg-brand-primary/5 ml-1 transition-all active:scale-95">
                             Ver detalles
@@ -225,7 +227,7 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                 </div>
                 {hasData && (
                     <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Detalle - ${modulo.toUpperCase()}`} size="lg">
-                        <GenericDetailView parsed={parsed.datos} responsable={responsable} />
+                        <GenericDetailView parsed={summary.datos} responsable={responsable} />
                     </Modal>
                 )}
             </>
@@ -233,13 +235,14 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
     }
 
     // ── LEGACY DIFF: { type: 'diff', antes, nuevo } ──
-    if (parsed.type === 'diff') {
+    if (typeof parsed === 'object' && 'type' in parsed && parsed.type === 'diff') {
+        const diff = parsed as { type: 'diff'; antes: Record<string, any>; nuevo: Record<string, any> };
         const ignoredKeys = new Set(['id', 'created_at', 'updated_at', 'usuario_id', 'password', 'password_hash']);
         const normalize = (v: any) => (v === null || v === undefined || v === '') ? null : v;
-        const allKeys = Array.from(new Set([...Object.keys(parsed.antes || {}), ...Object.keys(parsed.nuevo || {})]));
+        const allKeys = Array.from(new Set([...Object.keys(diff.antes || {}), ...Object.keys(diff.nuevo || {})]));
         const changedKeys = allKeys.filter(k => {
             if (ignoredKeys.has(k)) return false;
-            return JSON.stringify(normalize(parsed.antes?.[k])) !== JSON.stringify(normalize(parsed.nuevo?.[k]));
+            return JSON.stringify(normalize(diff.antes?.[k])) !== JSON.stringify(normalize(diff.nuevo?.[k]));
         });
         const displayKeys = changedKeys.slice(0, 3);
 
@@ -257,14 +260,14 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
                     </button>
                 </div>
                 <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Cambios - ${modulo.toUpperCase()}`} size="lg">
-                    <LegacyDiffViewer antes={parsed.antes} nuevo={parsed.nuevo} responsable={responsable} />
+                    <LegacyDiffViewer antes={diff.antes} nuevo={diff.nuevo} responsable={responsable} />
                 </Modal>
             </>
         );
     }
 
     // ── LEGACY PLAIN OBJECT (CREATE antiguo) ──
-    const entries = Object.entries(parsed);
+    const entries = Object.entries(parsed as Record<string, unknown>);
     const summaryEntries = entries.slice(0, 3);
 
     return (

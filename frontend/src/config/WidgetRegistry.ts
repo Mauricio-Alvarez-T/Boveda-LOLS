@@ -50,41 +50,43 @@ export const WIDGET_REGISTRY: WidgetConfig[] = [
         defaultOrder: 3,
     },
 
-    // ── Charts ──
+    // ── Actionable Widgets ──
     {
-        id: 'chart_obra_distribution',
-        title: 'Distribución por Obra',
+        id: 'pending_tasks',
+        title: 'Tareas Pendientes',
+        requiredPermission: null, // always visible, content is dynamic
+        size: 'md',
+        category: 'list',
+        defaultOrder: 4,
+    },
+    {
+        id: 'doc_expiry_timeline',
+        title: 'Vencimientos Próximos',
+        requiredPermission: { modulo: 'documentos', accion: 'puede_ver' },
+        size: 'md',
+        category: 'list',
+        defaultOrder: 5,
+    },
+    {
+        id: 'obra_ranking',
+        title: 'Ranking de Obras',
         requiredPermission: { modulo: 'trabajadores', accion: 'puede_ver' },
         size: 'md',
         category: 'chart',
-        defaultOrder: 4,
+        defaultOrder: 6,
     },
+
+    // ── Charts ──
     {
         id: 'chart_attendance_trend',
         title: 'Tendencia de Asistencia',
         requiredPermission: { modulo: 'asistencia', accion: 'puede_ver' },
         size: 'md',
         category: 'chart',
-        defaultOrder: 5,
-    },
-    {
-        id: 'chart_compliance',
-        title: 'Nivel de Cumplimiento',
-        requiredPermission: { modulo: 'documentos', accion: 'puede_ver' },
-        size: 'md',
-        category: 'chart',
-        defaultOrder: 6,
+        defaultOrder: 7,
     },
 
     // ── Lists ──
-    {
-        id: 'list_recent_activity',
-        title: 'Actividad Reciente',
-        requiredPermission: { modulo: 'documentos', accion: 'puede_ver' },
-        size: 'md',
-        category: 'list',
-        defaultOrder: 7,
-    },
     {
         id: 'list_absences_today',
         title: 'Ausentes del Día',
@@ -104,20 +106,12 @@ export const WIDGET_REGISTRY: WidgetConfig[] = [
 
     // ── Actions ──
     {
-        id: 'system_status',
-        title: 'Estado del Sistema',
-        requiredPermission: { modulo: 'configuracion', accion: 'puede_ver' },
-        size: 'md',
-        category: 'action',
-        defaultOrder: 10,
-    },
-    {
         id: 'quick_actions',
         title: 'Acciones Rápidas',
         requiredPermission: null, // always visible, content is dynamic
         size: 'md',
         category: 'action',
-        defaultOrder: 11,
+        defaultOrder: 10,
     },
 ];
 

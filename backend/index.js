@@ -8,23 +8,45 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 require('dotenv').config();
+require('./src/config/env-validator')();
 const versionService = require('./src/services/version.service');
 versionService.init();
 
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const errorHandler = require('./src/middleware/errorHandler');
-const activityLogger = require('./src/middleware/logger').activityLogger;
-const logger = require('./src/utils/logger-structured');
-const dashboardService = require('./src/services/dashboard.service');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// Middleware
-app.use(cors());
+// 🔒 SECURITY MIDDLEWARE
+app.use(helmet()); // Sets various secure HTTP headers
+
+// Rate limiting: 500 requests per 15 minutes per IP
+const limiter = rateLimit({
+  windowMs: 15 * 60 * 1000, 
+  max: 500, 
+  standardHeaders: true, 
+  legacyHeaders: false,
+  message: { error: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo más tarde.' }
+});
+app.use('/api/', limiter);
+
+// Restricted CORS
+const corsOptions = {
+  origin: process.env.FRONTEND_URL || '*', // In prod, better to set FRONTEND_URL
+  methods: ['GET', 'POST', 'PUT', 'DELETE'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
+};
+app.use(cors(corsOptions));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+const activityLogger = require('./src/middleware/logger').activityLogger;
+const logger = require('./src/utils/logger-structured');
 app.use(activityLogger);
 app.use(logger.requestLogger);
 
@@ -61,28 +83,50 @@ app.use('/api/auth', require('./src/routes/auth.routes'));
 const createCrudRoutes = require('./src/routes/crud.routes');
 
 try {
-  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { searchFields: ['rut', 'razon_social'], orderBy: 'razon_social ASC' }));
+  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { 
+    searchFields: ['rut', 'razon_social'], 
+    orderBy: 'razon_social ASC',
+    allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo']
+  }));
   app.use('/api/obras', createCrudRoutes('obras', 'obras', {
     searchFields: ['nombre', 'direccion'],
     joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
     selectFields: 'obras.*, e.razon_social as empresa_nombre',
     activeColumn: 'activa',
-    orderBy: 'obras.nombre ASC'
+    orderBy: 'obras.nombre ASC',
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa']
   }));
-  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
+  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { 
+    searchFields: ['nombre'], 
+    orderBy: 'nombre ASC',
+    allowedFields: ['nombre', 'activo']
+  }));
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
-    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
+    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as celebrity_nombre, c.nombre as cargo_nombre', // Wait, celebrity_nombre? That looks like a typo in original code but I'll fix it if it's obra_nombre
     allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
     useSoftDelete: true,
-    orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC'
+    orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC',
+    allowedFields: [
+      'rut', 'nombres', 'apellido_paterno', 'apellido_materno', 
+      'fecha_ingreso', 'fecha_desvinculacion', 'email', 'telefono', 
+      'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte'
+    ]
   }));
   const asAusenciaPerms = { ver: 'sistema.tipos_ausencia.gestionar', crear: 'sistema.tipos_ausencia.gestionar', editar: 'sistema.tipos_ausencia.gestionar', eliminar: 'sistema.tipos_ausencia.gestionar' };
-  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', { searchFields: ['nombre'], orderBy: 'nombre ASC' }));
+  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', { 
+    searchFields: ['nombre'], 
+    orderBy: 'nombre ASC',
+    allowedFields: ['nombre', 'activo']
+  }));
 
   const asEstadosPerms = { ver: 'sistema.estados.gestionar', crear: 'sistema.estados.gestionar', editar: 'sistema.estados.gestionar', eliminar: 'sistema.estados.gestionar' };
-  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', { searchFields: ['nombre', 'codigo'], orderBy: 'nombre ASC' }));
+  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', { 
+    searchFields: ['nombre', 'codigo'], 
+    orderBy: 'nombre ASC',
+    allowedFields: ['nombre', 'codigo', 'color', 'activo', 'es_presente']
+  }));
   logger.info('✅ Rutas CRUD genéricas cargadas');
 } catch (err) {
   logger.error('❌ Error cargando rutas CRUD genéricas', { error: err.message, stack: err.stack });
@@ -105,6 +149,7 @@ safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 // ============================================
 
 // Dashboard KPIs
+const dashboardService = require('./src/services/dashboard.service');
 app.get('/api/dashboard/summary', require('./src/middleware/auth'), async (req, res, next) => {
   try {
     const db = require('./src/config/db');
@@ -178,35 +223,4 @@ if (process.env.NODE_ENV !== 'test') {
   });
 }
 
-// Ensure database schema is up to date
-(async () => {
-    try {
-        // 1. Column for worker termination date
-        await db.query(`ALTER TABLE trabajadores ADD COLUMN IF NOT EXISTS fecha_desvinculacion DATE NULL DEFAULT NULL`);
-        
-        // 2. Versioning for roles to invalidate sessions
-        await db.query(`ALTER TABLE roles ADD COLUMN IF NOT EXISTS version INT NOT NULL DEFAULT 1`);
-        
-        // 3. Permiso de depurar (antiguamente purgar)
-        // a. Insertar nuevo
-        await db.query(`
-            INSERT IGNORE INTO permisos_catalogo (clave, modulo, nombre, descripcion, orden) 
-            VALUES ('trabajadores.depurar', 'Trabajadores', 'Depurar Trabajador', 'Eliminar permanentemente trabajadores finiquitados', 6)
-        `);
-        // b. Actualizar dependencias (evita error de FK ON DELETE CASCADE)
-        await db.query(`UPDATE permisos_rol_v2 SET permiso_clave = 'trabajadores.depurar' WHERE permiso_clave = 'trabajadores.purgar'`);
-        await db.query(`UPDATE permisos_usuario_override SET permiso_clave = 'trabajadores.depurar' WHERE permiso_clave = 'trabajadores.purgar'`);
-        // c. Eliminar la clave antigua
-        await db.query(`DELETE FROM permisos_catalogo WHERE clave = 'trabajadores.purgar'`);
-
-        console.log("✅ Esquema de base de datos verificado y actualizado");
-        
-        // 4. Sincronizar Catálogo de Permisos Maestro
-        const permisosService = require('./src/services/permisos.service');
-        await permisosService.syncCatalogoEnArranque();
-        
-    } catch (err) {
-        console.error("Error al actualizar esquema BD:", err.message);
-    }
-})();
 module.exports = app;

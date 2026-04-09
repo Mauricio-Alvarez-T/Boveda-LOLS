@@ -1,7 +1,16 @@
+jest.mock('../src/config/db', () => ({
+    query: jest.fn().mockResolvedValue([[]]),
+    getConnection: jest.fn().mockResolvedValue({
+        beginTransaction: jest.fn(),
+        query: jest.fn().mockResolvedValue([[]]),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+    })
+}));
+
 const asistenciaService = require('../src/services/asistencia.service');
 const db = require('../src/config/db');
-
-jest.mock('../src/config/db');
 jest.mock('../src/middleware/logger', () => ({
     logManualActivity: jest.fn()
 }));
@@ -27,27 +36,31 @@ describe('Asistencia Service - Avanzado', () => {
             const registradoPor = 1;
             const registros = [{
                 trabajador_id: 10,
-                fecha: '2026-03-01',
+                fecha: '2026-03-02',
                 estado_id: 2, // Nuevo estado
                 hora_entrada: '08:00',
                 hora_salida: '18:00'
             }];
 
-            // Mocks para simular existencia previa
-            mockConn.query.mockResolvedValueOnce([[{
-                id: 100,
-                trabajador_id: 10,
-                estado_id: 1, // Estado anterior diferente
-                hora_entrada: '09:00',
-                hora_salida: '17:00'
-            }]]); // SELECT existing
-            
-            mockConn.query.mockResolvedValueOnce([{}]); // UPDATE asistencias
+            // Implementación robusta de mocks para evitar desajustes por nuevas validaciones (feriados, rango laboral)
+            mockConn.query.mockImplementation((sql, params) => {
+                if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+                if (sql.includes('fecha_ingreso')) return Promise.resolve([[{ fecha_ingreso: '2020-01-01', fecha_desvinculacion: null }]]);
+                if (sql.includes('SELECT') && sql.includes('FROM asistencias')) return Promise.resolve([[{
+                    id: 100, trabajador_id: 10, estado_id: 1, hora_entrada: '09:00', hora_salida: '17:00'
+                }]]);
+                if (sql.includes('UPDATE')) return Promise.resolve([{}]);
+                if (sql.includes('INSERT')) return Promise.resolve([{ insertId: 500 }]);
+                return Promise.resolve([[]]);
+            });
 
-            // Mocks para _logBulkChanges (que se llama internamente)
-            db.query.mockResolvedValueOnce([[{ id: 10, nombres: 'Juan', apellido_paterno: 'Perez' }]]); // SELECT workers
-            db.query.mockResolvedValueOnce([[{ id: 1, nombre: 'Asiste' }, { id: 2, nombre: 'Falta' }]]); // SELECT estados
-            db.query.mockResolvedValueOnce([[{ id: 1, nombre: 'Licencia' }]]); // SELECT tipos_ausencia
+            // Mocks para _logBulkChanges (que usa db.query directo, no conn)
+            db.query.mockImplementation((sql) => {
+                if (sql.includes('FROM trabajadores')) return Promise.resolve([[{ id: 10, nombres: 'Juan', apellido_paterno: 'Perez' }]]);
+                if (sql.includes('FROM estados_asistencia')) return Promise.resolve([[{ id: 1, nombre: 'Asiste' }, { id: 2, nombre: 'Falta' }]]);
+                if (sql.includes('FROM tipos_ausencia')) return Promise.resolve([[{ id: 1, nombre: 'Licencia' }]]);
+                return Promise.resolve([[]]);
+            });
 
             await asistenciaService.bulkCreate(obraId, registros, registradoPor, {});
 
@@ -73,16 +86,21 @@ describe('Asistencia Service - Avanzado', () => {
                 fecha_fin: '2026-04-02'
             };
 
-            mockConn.query.mockResolvedValueOnce([[{ codigo: 'VAC' }]]); // SELECT codigo
-            mockConn.query.mockResolvedValueOnce([{}]); // UPDATE periodos superpuestos
-            mockConn.query.mockResolvedValueOnce([{ insertId: 500 }]); // INSERT periodo
+            mockConn.query.mockImplementation((sql, params) => {
+                if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+                if (sql.includes('fecha_ingreso')) return Promise.resolve([[{ fecha_ingreso: '2020-01-01', fecha_desvinculacion: null }]]);
+                if (sql.includes('FROM estados_asistencia')) return Promise.resolve([[{ codigo: 'VAC' }]]);
+                if (sql.includes('FROM periodos_ausencia')) return Promise.resolve([[]]);
+                if (sql.includes('UPDATE')) return Promise.resolve([{}]);
+                if (sql.includes('INSERT')) return Promise.resolve([{ insertId: 500 }]);
+                return Promise.resolve([[]]);
+            });
             
-            // Mocks para los INSERTs de asistencia (4 días: 30, 31, 1, 2)
-            mockConn.query.mockResolvedValue([{}]); 
-            
-            // Mocks adicionales para logs finales
-            db.query.mockResolvedValueOnce([[{ nombres: 'Juan', apellido_paterno: 'Perez' }]]);
-            db.query.mockResolvedValueOnce([[{ nombre: 'Vacaciones' }]]);
+            db.query.mockImplementation((sql) => {
+                if (sql.includes('FROM trabajadores')) return Promise.resolve([[{ nombres: 'Juan', apellido_paterno: 'Perez' }]]);
+                if (sql.includes('FROM estados_asistencia')) return Promise.resolve([[{ nombre: 'Vacaciones' }]]);
+                return Promise.resolve([[]]);
+            });
 
             const result = await asistenciaService.crearPeriodo(data, 1, {});
 

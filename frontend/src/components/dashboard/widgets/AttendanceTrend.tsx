@@ -1,6 +1,6 @@
 import React from 'react';
 import {
-    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+    AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
 } from 'recharts';
 import { Activity, CheckSquare } from 'lucide-react';
 import { Button } from '../../ui/Button';
@@ -59,6 +59,20 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
                             tickFormatter={(v: string) => v.slice(8, 10) + '/' + v.slice(5, 7)}
                         />
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#86868B', fontSize: 10 }} domain={[0, 100]} />
+                        <ReferenceLine
+                            y={80}
+                            stroke="#FF9F0A"
+                            strokeDasharray="6 4"
+                            strokeWidth={1.5}
+                            strokeOpacity={0.6}
+                            label={{
+                                value: 'Meta 80%',
+                                position: 'right',
+                                fill: '#FF9F0A',
+                                fontSize: 9,
+                                fontWeight: 600,
+                            }}
+                        />
                         <Tooltip
                             contentStyle={{
                                 backgroundColor: 'rgba(255, 255, 255, 0.8)',

@@ -19,10 +19,10 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1 },
-            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 1 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 1 }
         ];
 
         // Juan solo tiene 1 asistencia el viernes 13 de marzo 2026
@@ -69,8 +69,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 }
         ];
 
         // Solo asistió el viernes 13 de marzo 2026
@@ -141,12 +141,12 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         // 6 estados + 1 FDS = 7 items → 4 izquierda, 3 derecha
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1 },
-            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1 },
-            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1 },
-            { id: 6, codigo: 'AT', nombre: 'Atraso', color: '#FF6B6B', activo: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 1 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 1 },
+            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1 },
+            { id: 6, codigo: 'AT', nombre: 'Atraso', color: '#FF6B6B', activo: 1, es_presente: 1 }
         ];
 
         db.query.mockImplementation((sql) => {
@@ -164,19 +164,19 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
 
-        // 7 items total → halfLegend = 4 → filas 1-4 izquierda, filas 1-3 derecha
-        // Columna izquierda: A (code col 1), B (name col 2)
+        // AT becomes JI, leaving 5 real items + 1 FDS = 6 items
+        // 6 items total → halfLegend = 3 → filas 1-3 izquierda, filas 1-3 derecha
+        // Columna izquierda: A (col 1), F (col 1), V (col 1)
         expect(wsLols.getCell(1, 1).value).toBe('A');
         expect(wsLols.getCell(2, 1).value).toBe('F');
         expect(wsLols.getCell(3, 1).value).toBe('V');
-        expect(wsLols.getCell(4, 1).value).toBe('LM');
 
-        // Columna derecha: C (code col 3), D (name col 4)
-        expect(wsLols.getCell(1, 3).value).toBe('JI');
-        expect(wsLols.getCell(2, 3).value).toBe('AT');
+        // Columna derecha: LM (col 3), JI (col 3), FDS (col 3)
+        expect(wsLols.getCell(1, 3).value).toBe('LM');
+        expect(wsLols.getCell(2, 3).value).toBe('JI');
         expect(wsLols.getCell(3, 3).value).toBe('FDS');
 
-        // Row 5 debe estar vacía (sin leyenda) → sin solapamiento con headers en fila 7
-        expect(wsLols.getCell(5, 1).value).toBeNull();
+        // Row 4 debe estar vacía
+        expect(wsLols.getCell(4, 1).value).toBeNull();
     });
 });

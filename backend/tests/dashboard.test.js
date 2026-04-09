@@ -1,7 +1,16 @@
+jest.mock('../src/config/db', () => ({
+    query: jest.fn().mockResolvedValue([[]]),
+    getConnection: jest.fn().mockResolvedValue({
+        beginTransaction: jest.fn(),
+        query: jest.fn().mockResolvedValue([[]]),
+        commit: jest.fn(),
+        rollback: jest.fn(),
+        release: jest.fn()
+    })
+}));
+
 const dashboardService = require('../src/services/dashboard.service');
 const pool = require('../src/config/db');
-
-jest.mock('../src/config/db');
 
 describe('Dashboard Service - 10 Months Rule', () => {
     beforeEach(() => {

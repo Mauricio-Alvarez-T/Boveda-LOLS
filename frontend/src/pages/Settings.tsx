@@ -18,6 +18,25 @@ import { useAuth } from '../context/AuthContext';
 
 import { CrudTable } from '../components/ui/CrudTable';
 import type { ColumnDef } from '../components/ui/CrudTable';
+import type { Empresa, Obra, Cargo, TipoDocumento, EstadoAsistencia, TipoAusencia } from '../types/entities';
+
+interface UserData {
+    id: number;
+    nombre: string;
+    email: string;
+    rol_id: number;
+    rol_nombre?: string;
+    obra_id?: number | null;
+    obra_nombre?: string;
+    activo: boolean;
+}
+
+interface RoleData {
+    id: number;
+    nombre: string;
+    descripcion?: string;
+    activo: boolean;
+}
 import { EmpresaForm } from '../components/settings/EmpresaForm';
 import { ObraForm } from '../components/settings/ObraForm';
 import { CargoForm } from '../components/settings/CargoForm';
@@ -89,7 +108,7 @@ const tabGroups: TabGroup[] = [
 ];
 
 // Column definitions for each entity
-const empresaCols: ColumnDef<any>[] = [
+const empresaCols: ColumnDef<Empresa>[] = [
     { key: 'rut', label: 'RUT' },
     { key: 'razon_social', label: 'Razón Social' },
     { key: 'direccion', label: 'Dirección', render: (v) => v || '—' },
@@ -108,7 +127,7 @@ const empresaCols: ColumnDef<any>[] = [
     },
 ];
 
-const obraCols: ColumnDef<any>[] = [
+const obraCols: ColumnDef<Obra>[] = [
     { key: 'nombre', label: 'Nombre' },
     { key: 'direccion', label: 'Dirección', render: (v) => v || '—' },
     {
@@ -125,7 +144,7 @@ const obraCols: ColumnDef<any>[] = [
     },
 ];
 
-const cargoCols: ColumnDef<any>[] = [
+const cargoCols: ColumnDef<Cargo>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'activo', label: 'Estado',
@@ -141,7 +160,7 @@ const cargoCols: ColumnDef<any>[] = [
     },
 ];
 
-const tipoDocCols: ColumnDef<any>[] = [
+const tipoDocCols: ColumnDef<TipoDocumento>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'dias_vigencia', label: 'Vigencia',
@@ -161,7 +180,7 @@ const tipoDocCols: ColumnDef<any>[] = [
     },
 ];
 
-const usuarioCols: ColumnDef<any>[] = [
+const usuarioCols: ColumnDef<UserData>[] = [
     { key: 'nombre', label: 'Nombre' },
     { key: 'email', label: 'Email' },
     { key: 'rol_nombre', label: 'Rol', render: (v) => v || '—' },
@@ -180,12 +199,12 @@ const usuarioCols: ColumnDef<any>[] = [
     },
 ];
 
-const rolCols: ColumnDef<any>[] = [
+const rolCols: ColumnDef<RoleData>[] = [
     { key: 'nombre', label: 'Nombre' },
     { key: 'descripcion', label: 'Descripción', render: (v) => v || '—' },
 ];
 
-const estadoAsistenciaCols: ColumnDef<any>[] = [
+const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'codigo', label: 'Código', render: (v) => (
@@ -210,7 +229,7 @@ const estadoAsistenciaCols: ColumnDef<any>[] = [
     },
 ];
 
-const tipoAusenciaCols: ColumnDef<any>[] = [
+const tipoAusenciaCols: ColumnDef<TipoAusencia>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'es_justificada', label: 'Justificada', render: (v) => (
@@ -236,8 +255,8 @@ const SettingsPage: React.FC = () => {
     const [activeTab, setActiveTab] = useState<TabKey>('empresas');
     
     // Estados para gestión de permisos
-    const [rolPermsModal, setRolPermsModal] = useState<{ open: boolean; rol: any | null }>({ open: false, rol: null });
-    const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: any | null }>({ open: false, user: null });
+    const [rolPermsModal, setRolPermsModal] = useState<{ open: boolean; rol: RoleData | null }>({ open: false, rol: null });
+    const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: UserData | null }>({ open: false, user: null });
 
     // Find current active group for navigation
     const activeGroup = tabGroups.find(g => g.items.some(t => t.key === activeTab)) || tabGroups[0];
@@ -510,7 +529,7 @@ const SettingsPage: React.FC = () => {
                         usuarioId={userPermsModal.user.id}
                         usuarioNombre={userPermsModal.user.nombre}
                         rolId={userPermsModal.user.rol_id}
-                        rolNombre={userPermsModal.user.rol_nombre}
+                        rolNombre={userPermsModal.user.rol_nombre || ''}
                         onClose={() => setUserPermsModal({ open: false, user: null })}
                     />
                 )}

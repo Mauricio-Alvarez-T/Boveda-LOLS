@@ -10,7 +10,14 @@ const ExcelJS = require('exceljs');
  * @param {string} options.selectFields - Campos a seleccionar (default: tableName.*)
  */
 const createCrudService = (tableName, options = {}) => {
-    const { searchFields = [], joins = '', selectFields = `${tableName}.*`, activeColumn = 'activo', allowedFilters = [] } = options;
+    const { 
+        searchFields = [], 
+        joins = '', 
+        selectFields = `${tableName}.*`, 
+        activeColumn = 'activo', 
+        allowedFilters = [],
+        allowedFields = [] // Whitelist for create/update
+    } = options;
 
     return {
         // ... (getAll, getById, create, update, softDelete methods remain the same)
@@ -105,13 +112,28 @@ const createCrudService = (tableName, options = {}) => {
         },
 
         async create(data) {
-            if (data.rut) {
-                const { formatRut } = require('../utils/rut');
-                data.rut = formatRut(data.rut);
+            // ── SEGURIDAD: Whitelist de campos ──
+            const safeData = {};
+            if (allowedFields.length > 0) {
+                allowedFields.forEach(f => {
+                    if (data[f] !== undefined) safeData[f] = data[f];
+                });
+            } else {
+                // Si no hay whitelist, por ahora permitimos todo pero logueamos peligro
+                // TODO: Hacer esto estricto una vez configurado en index.js
+                Object.assign(safeData, data);
+                console.warn(`⚠️ ALERTA DE SEGURIDAD: Tabla [${tableName}] no tiene whitelist de campos definida.`);
             }
-            const fields = Object.keys(data);
+
+            if (safeData.rut) {
+                const { formatRut } = require('../utils/rut');
+                safeData.rut = formatRut(safeData.rut);
+            }
+            const fields = Object.keys(safeData);
+            if (fields.length === 0) throw Object.assign(new Error('No hay campos válidos para crear'), { statusCode: 400 });
+
             const placeholders = fields.map(() => '?').join(', ');
-            const values = Object.values(data);
+            const values = Object.values(safeData);
 
             try {
                 const [result] = await db.query(
@@ -159,12 +181,25 @@ const createCrudService = (tableName, options = {}) => {
         },
 
         async update(id, data) {
-            if (data.rut) {
-                const { formatRut } = require('../utils/rut');
-                data.rut = formatRut(data.rut);
+            // ── SEGURIDAD: Whitelist de campos ──
+            const safeData = {};
+            if (allowedFields.length > 0) {
+                allowedFields.forEach(f => {
+                    if (data[f] !== undefined) safeData[f] = data[f];
+                });
+            } else {
+                Object.assign(safeData, data);
+                console.warn(`⚠️ ALERTA DE SEGURIDAD: Tabla [${tableName}] no tiene whitelist de campos definida (update).`);
             }
-            const fields = Object.keys(data).map(f => `${f} = ?`).join(', ');
-            const values = [...Object.values(data), id];
+
+            if (safeData.rut) {
+                const { formatRut } = require('../utils/rut');
+                safeData.rut = formatRut(safeData.rut);
+            }
+            const fields = Object.keys(safeData).map(f => `${f} = ?`).join(', ');
+            const values = [...Object.values(safeData), id];
+
+            if (Object.keys(safeData).length === 0) throw Object.assign(new Error('No hay campos válidos para actualizar'), { statusCode: 400 });
 
             const [result] = await db.query(
                 `UPDATE ${tableName} SET ${fields} WHERE id = ?`,
@@ -174,7 +209,7 @@ const createCrudService = (tableName, options = {}) => {
             if (result.affectedRows === 0) {
                 throw Object.assign(new Error('Registro no encontrado'), { statusCode: 404 });
             }
-            return { id, ...data };
+            return { id, ...safeData };
         },
 
         async softDelete(id) {

@@ -29,8 +29,9 @@ export const showDeleteToast = ({
                         try {
                             await onConfirm();
                             if (successMessage) toast.success(successMessage);
-                        } catch (err: any) {
-                            const serverError = err.response?.data?.error || err.response?.data?.message;
+                        } catch (err) {
+                            const axiosError = err as { response?: { data?: { error?: string; message?: string } } };
+                            const serverError = axiosError.response?.data?.error || axiosError.response?.data?.message;
                             if (serverError) {
                                 toast.error(serverError);
                             } else if (errorMessage) {

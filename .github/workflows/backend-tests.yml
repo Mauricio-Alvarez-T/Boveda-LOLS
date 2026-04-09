@@ -1,0 +1,44 @@
+name: Backend Tests CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x]
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Use Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: './backend/package-lock.json'
+
+    - name: Install dependencies
+      run: |
+        cd backend
+        npm install
+
+    - name: Run Tests
+      # Pasamos las variables mínimas necesarias para que el arranque no explote
+      # aunque la mayoría de los tests usan mocks de DB.
+      env:
+        NODE_ENV: test
+        JWT_SECRET: ci_test_secret_32chars_long_minimum_123
+        DB_HOST: localhost
+        DB_USER: root
+        DB_PASS: ""
+        DB_NAME: test_db
+      run: |
+        cd backend
+        npm test
