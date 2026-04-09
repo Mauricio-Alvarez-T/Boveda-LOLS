@@ -8,7 +8,7 @@ const createCrudController = require('../controllers/crud.controller');
 const path = require('path');
 
 // Basic CRUD for tipos_documento
-const tipoDocService = createCrudService('tipos_documento', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
+const tipoDocService = createCrudService('tipos_documento', { searchFields: ['nombre'], orderBy: 'nombre ASC', allowedFields: ['nombre', 'dias_vigencia', 'obligatorio', 'activo'] });
 const tipoDocController = createCrudController(tipoDocService);
 
 // KPIs
