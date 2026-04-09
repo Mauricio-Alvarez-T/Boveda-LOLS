@@ -1,5 +1,5 @@
 import React from 'react';
-import { Trophy, ArrowRight } from 'lucide-react';
+import { Trophy, ArrowRight, Medal } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 interface ObraRankingItem {
@@ -29,11 +29,11 @@ const getStatusColor = (value: number): string => {
     return 'bg-destructive';
 };
 
-const getStatusEmoji = (asistencia: number, docs: number): string => {
+const getStatusDotColor = (asistencia: number, docs: number): string => {
     const avg = (asistencia + docs) / 2;
-    if (avg >= 90) return '🟢';
-    if (avg >= 70) return '🟡';
-    return '🔴';
+    if (avg >= 90) return 'bg-brand-accent';
+    if (avg >= 70) return 'bg-warning';
+    return 'bg-destructive';
 };
 
 const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
@@ -72,16 +72,18 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                         )}
                     >
                         {/* Position */}
-                        <div className="w-6 text-center shrink-0">
-                            <span className={cn("text-sm font-black", getMedalColor(idx))}>
-                                {idx < 3 ? ['🥇', '🥈', '🥉'][idx] : `#${idx + 1}`}
-                            </span>
+                        <div className="w-6 flex items-center justify-center shrink-0">
+                            {idx < 3 ? (
+                                <Medal className={cn("h-4 w-4", getMedalColor(idx))} />
+                            ) : (
+                                <span className="text-xs font-bold text-muted-foreground">#{idx + 1}</span>
+                            )}
                         </div>
 
                         {/* Obra info */}
                         <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-1.5">
-                                <span className="text-[10px]">{getStatusEmoji(obra.asistencia_tasa, obra.docs_completos_pct)}</span>
+                                <span className={cn("h-2 w-2 rounded-full shrink-0", getStatusDotColor(obra.asistencia_tasa, obra.docs_completos_pct))} />
                                 <p className="text-xs font-bold text-brand-dark truncate">{obra.nombre}</p>
                             </div>
                             <p className="text-[10px] text-muted-foreground mt-0.5">
