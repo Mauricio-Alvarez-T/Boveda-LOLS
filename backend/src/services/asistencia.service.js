@@ -382,9 +382,9 @@ const asistenciaService = {
         }
         
         // Filtros adicionales desde Consultas
-        if (empresa_id) { where.push('t.empresa_id = ?'); params.push(empresa_id); }
-        if (cargo_id) { where.push('t.cargo_id = ?'); params.push(cargo_id); }
-        if (categoria_reporte) { where.push('t.categoria_reporte = ?'); params.push(categoria_reporte); }
+        if (empresa_id && empresa_id !== 'null' && empresa_id !== 'undefined' && empresa_id !== '') { where.push('t.empresa_id = ?'); params.push(empresa_id); }
+        if (cargo_id && cargo_id !== 'null' && cargo_id !== 'undefined' && cargo_id !== '') { where.push('t.cargo_id = ?'); params.push(cargo_id); }
+        if (categoria_reporte && categoria_reporte !== 'null' && categoria_reporte !== 'undefined' && categoria_reporte !== '') { where.push('t.categoria_reporte = ?'); params.push(categoria_reporte); }
         if (activo !== undefined && activo !== '' && activo !== 'todos') { 
             where.push('t.activo = ?'); 
             params.push(activo === 'true' || activo === '1' ? 1 : 0); 
