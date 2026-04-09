@@ -1,30 +1,9 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { createPortal } from 'react-dom';
+import React, { useState, useMemo } from 'react';
 import {
-    CheckSquare,
-    Users,
-    Save,
-    ChevronLeft,
-    ChevronRight,
-    Calendar,
-    BarChart3,
-    Send,
-    CalendarDays,
-    CalendarRange,
-    FileDown,
-    ChevronDown,
-    FilePlus,
-    ArrowLeft,
-    Search,
-    Building2,
-    Filter,
-    Plus,
-    X,
-    MoreHorizontal,
-    AlertTriangle
+    CheckSquare, Users, CalendarDays, CalendarRange, ChevronDown, 
+    AlertTriangle, FileDown, Search, X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
 import { TimeStepperInput } from '../components/ui/TimeStepperInput';
@@ -34,65 +13,57 @@ import { TrasladoObraModal } from '../components/attendance/TrasladoObraModal';
 import { Modal } from '../components/ui/Modal';
 import { Select } from '../components/ui/Select';
 import { WorkerForm } from '../components/workers/WorkerForm';
-import { DocumentUploader } from '../components/documents/DocumentUploader';
-import { DocumentList } from '../components/documents/DocumentList';
 import WorkerLink from '../components/workers/WorkerLink';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
-import api from '../services/api';
-import type { Trabajador, Asistencia, EstadoAsistencia, ConfiguracionHorario, Feriado } from '../types/entities';
-import type { ApiResponse } from '../types';
+
 import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
-import { WorkerDocsContent } from '../components/attendance/modals/WorkerDocsContent';
 import { useSetPageHeader } from '../context/PageHeaderContext';
-import { SearchBar } from '../components/ui/SearchBar';
 import { useAuth } from '../context/AuthContext';
-import RequirePermission from '../components/auth/RequirePermission';
+import { WorkerDocsContent } from '../components/attendance/modals/WorkerDocsContent';
+
+// Nuevos hooks y componentes modulares
+import { useAttendanceData, useAttendanceActions, useAttendanceExport } from '../hooks/attendance';
+import { AttendanceHeaderActions, AttendanceSummaryRow } from '../components/attendance/ui';
+
+import type { Trabajador, Asistencia } from '../types/entities';
+
 const AttendancePage: React.FC = () => {
     const { selectedObra, obras } = useObra();
     const { hasPermission } = useAuth();
     const canTakeGlobal = hasPermission('asistencia.tomar.global');
 
-    const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
-    const [loading, setLoading] = useState(false);
-    const [saving, setSaving] = useState(false);
-    const [workers, setWorkers] = useState<Trabajador[]>([]);
-    const [attendance, setAttendance] = useState<Record<number, Partial<Asistencia>>>({});
-    const [horariosObra, setHorariosObra] = useState<ConfiguracionHorario[]>([]);
-    const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
-    const [feriadoActual, setFeriadoActual] = useState<Feriado | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
-    const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
+    // Hooks Segregados
+    const attendanceData = useAttendanceData();
+    const {
+        date, setDate, navigateDate, loading, workers, filteredWorkers, availableEmpresas,
+        attendance, updateAttendance, horariosObra, estados, feriadoActual,
+        searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId, alertasFaltas,
+        reportMonth, setReportMonth, reportYear, setReportYear, fetchAttendanceInfo,
+        summary, isSaturday, isSunday
+    } = attendanceData;
+
+    const { handleSave, saving, toggleFeriado } = useAttendanceActions({
+        date, workers, attendance, feriadoActual, fetchAttendanceInfo
+    });
+
+    const { handleExportExcel, handleShareWhatsApp } = useAttendanceExport({
+        date, workers, attendance, estados, reportMonth, reportYear
+    });
+
+    // Estados Locales de UI
     const [expandedWorkerId, setExpandedWorkerId] = useState<number | null>(null);
     const [calendarWorker, setCalendarWorker] = useState<Trabajador | null>(null);
-
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
-
-    // States for Global Report Month/Year selection
-    const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
-    const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
-
-    // Modal states for QuickView actions
     const [modalType, setModalType] = useState<'form' | 'docs' | null>(null);
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
-
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [periodModalWorker, setPeriodModalWorker] = useState<Trabajador | null>(null);
     const [trasladoWorker, setTrasladoWorker] = useState<Trabajador | null>(null);
+    const [showSearchBox, setShowSearchBox] = useState(false);
 
-    // Alertas de faltas
-    type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas: { tipo: string; mensaje: string }[] };
-    const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
-
-    const [showMobileMenu, setShowMobileMenu] = useState(false);
-
-    const handleCalendarSelectRange = (start: string, end: string) => {
-        setPeriodSelection({ start, end });
-        setCalendarWorker(null); // Close calendar
-        setPeriodModalWorker(calendarWorker); // Open period modal
-    };
     const toggleMarkedRow = (index: number) => {
         setMarkedRows(prev => {
             const next = new Set(prev);
@@ -102,603 +73,7 @@ const AttendancePage: React.FC = () => {
         });
     };
 
-    // Get the default "Asiste" state (es_presente flag)
-    const defaultEstado = useMemo(() =>
-        estados.find(e => e.codigo === 'A') || estados.find(e => e.es_presente) || estados[0],
-        [estados]
-    );
-
-    // Load absence types and attendance states on mount
-    useEffect(() => {
-        const fetchMeta = async () => {
-            try {
-                const estRes = await api.get<ApiResponse<EstadoAsistencia[]>>('/asistencias/estados');
-                setEstados(estRes.data.data);
-            } catch (err) {
-                console.error('Error loading metadata');
-            }
-        };
-        fetchMeta();
-    }, []);
-
-    const fetchAttendanceInfo = useCallback(async () => {
-        if (!defaultEstado) return;
-        const isGlobal = !selectedObra;
-        if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
-
-        setLoading(true);
-        try {
-            const globalObraId = isGlobal ? 'ALL' : selectedObra.id;
-
-            const [workersRes, attendanceRes, schedulesRes] = await Promise.all([
-                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?activo=true&limit=5000${isGlobal ? '' : `&obra_id=${selectedObra.id}`}`),
-                api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${globalObraId}?fecha=${date}`),
-                api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${globalObraId}`)
-            ]);
-
-            // Filtrar explícitamente a los trabajadores finiquitados por precaución adicional
-            let workerList = workersRes.data.data.filter(w => Boolean(w.activo) !== false);
-
-            const attendanceData = attendanceRes.data.data;
-            const existing = attendanceData.registros;
-            setFeriadoActual(attendanceData.feriado || null);
-            setHorariosObra(schedulesRes.data.data || []);
-
-            const newAttendance: Record<number, Partial<Asistencia>> = {};
-            const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const;
-            const dayIndex = new Date(date + 'T12:00:00').getDay();
-            const dayStr = dowMap[dayIndex];
-
-            workerList.forEach(w => {
-                const currentSchedule = isGlobal 
-                    ? schedulesRes.data.data.find(h => h.obra_id === w.obra_id && h.dia_semana === dayStr)
-                    : schedulesRes.data.data.find(h => h.dia_semana === dayStr);
-
-                const record = existing.find(a => a.trabajador_id === w.id);
-                if (record) {
-                    newAttendance[w.id] = record;
-                } else {
-                    const newRecord: Partial<Asistencia> = {
-                        trabajador_id: w.id,
-                        obra_id: (isGlobal ? w.obra_id : selectedObra.id) ?? undefined,
-                        fecha: date,
-                        estado_id: defaultEstado.id,
-                        tipo_ausencia_id: null,
-                        observacion: '',
-                        hora_entrada: null,
-                        hora_salida: null,
-                        hora_colacion_inicio: null,
-                        hora_colacion_fin: null,
-                        horas_extra: 0,
-                        es_sabado: dayIndex === 6
-                    };
-
-                    // Auto-fill default times if default state is present
-                    if (defaultEstado.es_presente && currentSchedule) {
-                        newRecord.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
-                        newRecord.hora_salida = currentSchedule.hora_salida.substring(0, 5);
-                        newRecord.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
-                        newRecord.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
-                    }
-                    newAttendance[w.id] = newRecord;
-                }
-            });
-
-            // ── Incluir trabajadores trasladados (tienen registro en esta obra pero ya no pertenecen) ──
-            const workerIds = new Set(workerList.map(w => w.id));
-            const transferredRecords = existing.filter(a => !workerIds.has(a.trabajador_id));
-            const transferredWorkers: Trabajador[] = transferredRecords.map(a => ({
-                id: a.trabajador_id,
-                rut: (a as any).rut || '',
-                nombres: (a as any).nombres || '',
-                apellido_paterno: (a as any).apellido_paterno || '',
-                apellido_materno: '',
-                cargo_id: (a as any).cargo_id || null,
-                cargo_nombre: (a as any).cargo_nombre || '',
-                obra_id: isGlobal ? ((a as any).obra_id ?? undefined) : selectedObra.id,
-                empresa_id: 0,
-                activo: true,
-                categoria_reporte: 'obra',
-            } as Trabajador));
-
-            transferredWorkers.forEach(tw => {
-                const record = existing.find(a => a.trabajador_id === tw.id);
-                if (record) {
-                    newAttendance[tw.id] = record;
-                }
-            });
-            workerList = [...workerList, ...transferredWorkers];
-
-            setWorkers(workerList);
-            setAttendance(newAttendance);
-
-            // Cargar alertas de faltas para el mes actual
-            try {
-                const dateObj = new Date(date + 'T12:00:00');
-                const mes = dateObj.getMonth() + 1;
-                const anio = dateObj.getFullYear();
-                const alertasRes = await api.get(`/asistencias/alertas/${globalObraId}?mes=${mes}&anio=${anio}`);
-                setAlertasFaltas(alertasRes.data?.data || []);
-            } catch {
-                // Las alertas son secundarias, no bloquear la carga principal
-                setAlertasFaltas([]);
-            }
-        } catch (err) {
-            toast.error('Error al cargar datos de asistencia');
-        } finally {
-            setLoading(false);
-        }
-    }, [selectedObra, date, defaultEstado]);
-
-    useEffect(() => {
-        if (defaultEstado && (selectedObra || hasPermission('asistencia.tomar.global'))) {
-            fetchAttendanceInfo();
-        }
-    }, [fetchAttendanceInfo, defaultEstado, selectedObra]);
-
-    const toggleFeriado = async () => {
-        if (!selectedObra || !hasPermission('asistencia.feriado.gestionar')) return;
-
-        if (feriadoActual) {
-            if (window.confirm(`¿Seguro que deseas quitar el feriado "${feriadoActual.nombre}"?`)) {
-                try {
-                    await api.delete(`/feriados/${feriadoActual.id}`);
-                    toast.success('Día habilitado (Feriado eliminado)');
-                    fetchAttendanceInfo();
-                } catch (err) {
-                    toast.error('Error al quitar feriado');
-                }
-            }
-        } else {
-            const nombre = window.prompt('Ingrese el nombre del feriado:', 'Feriado Local');
-            if (nombre) {
-                try {
-                    await api.post('/feriados', {
-                        fecha: date,
-                        nombre: nombre,
-                        tipo: 'nacional',
-                        irrenunciable: false
-                    });
-                    toast.success(`Día marcado como feriado: ${nombre}`);
-                    fetchAttendanceInfo();
-                } catch (err) {
-                    toast.error('Error al marcar feriado');
-                }
-            }
-        }
-    };
-
-    const updateAttendance = (workerId: number, data: Partial<Asistencia>) => {
-        setAttendance(prev => ({
-            ...prev,
-            [workerId]: { ...prev[workerId], ...data }
-        }));
-    };
-
-    const latestData = React.useRef({ selectedObra, date, workers, attendance, estados, reportMonth, reportYear });
-    React.useEffect(() => {
-        latestData.current = { selectedObra, date, workers, attendance, estados, reportMonth, reportYear };
-    }, [selectedObra, date, workers, attendance, estados, reportMonth, reportYear]);
-
-    const handleSave = useCallback(async () => {
-        const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance } = latestData.current;
-        const isGlobal = !currentObra;
-        if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
-
-        setSaving(true);
-        try {
-            // Filtrar trabajadores que están fuera de rango laboral en esta fecha
-            // para no enviarlos al servidor y evitar que aborte la transacción general.
-            const validWorkers = currentWorkers.filter(w => {
-                const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
-                const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
-                const isDesvinculado = fDesvinc ? currentDate > fDesvinc : false;
-                const isPreContrato = fIngreso ? currentDate < fIngreso : false;
-                return !isDesvinculado && !isPreContrato;
-            });
-
-            const globalObraId = isGlobal ? 'ALL' : currentObra.id;
-
-            const payload = {
-                obra_id: globalObraId,
-                registros: validWorkers.map(w => ({
-                    trabajador_id: w.id,
-                    obra_id: isGlobal ? w.obra_id : currentObra.id,
-                    fecha: currentDate,
-                    estado_id: currentAttendance[w.id]?.estado_id || null,
-                    observacion: currentAttendance[w.id]?.observacion || '',
-                    hora_entrada: currentAttendance[w.id]?.hora_entrada || null,
-                    hora_salida: currentAttendance[w.id]?.hora_salida || null,
-                    hora_colacion_inicio: currentAttendance[w.id]?.hora_colacion_inicio || null,
-                    hora_colacion_fin: currentAttendance[w.id]?.hora_colacion_fin || null,
-                    horas_extra: currentAttendance[w.id]?.horas_extra || 0,
-                    es_sabado: currentAttendance[w.id]?.es_sabado || false
-                }))
-            };
-
-            await api.post(`/asistencias/bulk/${globalObraId}`, payload);
-            toast.success('Asistencia guardada correctamente');
-            fetchAttendanceInfo();
-        } catch (error) {
-            console.error('Error saving attendance', error);
-            toast.error('Error al guardar la asistencia');
-        } finally {
-            setSaving(false);
-        }
-    }, [fetchAttendanceInfo]);
-
-    // Handle Excel Export
-    const handleExportExcel = useCallback(async (returnFile = false) => {
-        if (!hasPermission('asistencia.exportar_excel')) {
-            toast.error('No tienes permiso para exportar a Excel');
-            return null;
-        }
-        
-        const {
-            selectedObra: currentObra,
-            date: currentDate,
-            reportMonth: currentMonth,
-            reportYear: currentYear
-        } = latestData.current;
-
-        try {
-            // Use specific report month/year if no obra is selected, otherwise use current date's month
-            let year, month;
-            if (!currentObra) {
-                year = currentYear;
-                month = currentMonth;
-            } else {
-                [year, month] = currentDate.split('-');
-            }
-
-            const firstDay = `${year}-${month}-01`;
-            const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
-
-            if (!returnFile) toast.info('Generando reporte Excel...', { id: 'excel-export' });
-
-            const obraIdParam = currentObra ? `obra_id=${currentObra.id}` : 'obra_id=';
-            const response = await api.get(`/asistencias/exportar/excel?${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`, {
-                responseType: 'blob'
-            });
-
-            const fileName = currentObra ? `Asistencia_${currentObra.nombre.replace(/\s+/g, '_')}` : 'Asistencia_Todas_las_Obras';
-            const finalFileName = `${fileName}_${year}_${month}.xlsx`;
-
-            if (returnFile) {
-                return new File([response.data as Blob], finalFileName, { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-            }
-
-            const url = window.URL.createObjectURL(new Blob([response.data as any]));
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', finalFileName);
-            document.body.appendChild(link);
-            link.click();
-            link.remove();
-            window.URL.revokeObjectURL(url);
-
-            toast.success('Reporte Excel descargado', { id: 'excel-export' });
-            return null;
-        } catch (error) {
-            console.error('Error exportando Excel', error);
-            if (!returnFile) toast.error('Error al generar el reporte', { id: 'excel-export' });
-            return null;
-        }
-    }, []);
-
-    // Robust copy to clipboard utility for mobile browsers
-    const copyToClipboard = useCallback(async (text: string) => {
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
-                return true;
-            }
-        } catch (e) { }
-
-        // Fallback for older mobile browsers or security restrictions
-        try {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            textArea.style.top = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            return successful;
-        } catch (err) {
-            return false;
-        }
-    }, []);
-
-    // Handle WhatsApp Share
-    const handleShareWhatsApp = useCallback(async () => {
-        if (!hasPermission('asistencia.enviar_whatsapp')) {
-            toast.error('No tienes permiso para enviar por WhatsApp');
-            return;
-        }
-
-        const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance, estados: currentEstados } = latestData.current;
-        if (!currentObra) return;
-
-        toast.info('Preparando reporte...', { id: 'whatsapp-share', duration: 2000 });
-
-        const dateStr = currentDate.split('-').reverse().join('-');
-        let text = `Buenas tardes\n`;
-        text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
-
-        const total = currentWorkers.length;
-        const counts: Record<string, number> = { A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0, PL: 0 };
-
-        currentWorkers.forEach(w => {
-            const state = currentAttendance[w.id];
-            if (!state || !state.estado_id) return;
-            const est = currentEstados.find(e => e.id === state.estado_id);
-            if (!est) return;
-
-            let code = est.codigo;
-            // Consolidación dinâmica para el reporte
-            if (['NAC', 'DEF', 'MAT'].includes(code)) code = 'PL';
-            if (code === 'AT') code = 'JI';
-
-            if (counts[code] !== undefined) counts[code]++;
-            else if (!est.es_presente) counts.PL++; // Default a PL si no es presente y no mapeado
-        });
-
-        text += `Total: ${total}\n`;
-        ['A', 'F', 'JI', 'TO', 'V', 'LM', 'PL'].forEach(c => {
-            text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
-        });
-        text += `\n`;
-
-        const categorias = [
-            { key: 'obra', label: `Obra ${currentObra.nombre}:` },
-            { key: 'operaciones', label: 'Operaciones:' },
-            { key: 'rotativo', label: 'Personal rotativo:' }
-        ];
-
-        categorias.forEach(cat => {
-            const presentWorkersInCat = currentWorkers.filter(w => {
-                const isCat = (w.categoria_reporte || 'obra') === cat.key;
-                if (!isCat) return false;
-                const state = currentAttendance[w.id];
-                if (!state || !state.estado_id) return false;
-                const est = currentEstados.find(e => e.id === state.estado_id);
-                return est && est.es_presente;
-            });
-            if (presentWorkersInCat.length === 0) return;
-            text += `${cat.label}\n`;
-            const cargoCounts: Record<string, number> = {};
-            presentWorkersInCat.forEach(w => {
-                const cargo = w.cargo_nombre || 'Sin Cargo';
-                cargoCounts[cargo] = (cargoCounts[cargo] || 0) + 1;
-            });
-            Object.keys(cargoCounts).sort().forEach(cargo => {
-                text += `${cargoCounts[cargo].toString().padStart(2, '0')} ${cargo}\n`;
-            });
-            text += `\n`;
-        });
-
-        const excepciones = currentWorkers.filter(w => {
-            const state = currentAttendance[w.id];
-            if (!state || !state.estado_id) return false;
-            const est = currentEstados.find(e => e.id === state.estado_id);
-            return est && !est.es_presente;
-        });
-
-        if (excepciones.length > 0) {
-            text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n`;
-            excepciones.forEach(w => {
-                const state = currentAttendance[w.id];
-                const est = currentEstados.find(e => e.id === state?.estado_id);
-                let line = `- ${w.apellido_paterno} ${w.nombres} (${est ? est.codigo : '?'})`;
-                if (est?.codigo === 'TO' && state?.observacion) {
-                    line += ` ${state.observacion}`;
-                }
-                text += line + '\n';
-            });
-            text += `\n`;
-        }
-
-        text += `Saludos cordiales\n\n`;
-        text += `_Este mensaje se genero usando Bóveda lols_`;
-
-        try {
-            // STEP 0: Immediate copy to clipboard
-            await copyToClipboard(text);
-
-            // 1. Get Public Download Token
-            toast.loading('Preparando link de reporte...', { id: 'whatsapp-share' });
-
-            const { selectedObra: currentObra, date: currentDate, reportMonth, reportYear } = latestData.current;
-            let year, month;
-            if (!currentObra) {
-                year = reportYear;
-                month = reportMonth;
-            } else {
-                [year, month] = currentDate.split('-');
-            }
-
-            const obraIdParam = currentObra ? currentObra.id : '';
-            const firstDay = `${year}-${month}-01`;
-            const lastDay = new Date(Number(year), Number(month), 0).toISOString().split('T')[0];
-
-            // Use the NEW unique endpoint to avoid cache
-            const tokenRes = await api.get<{ data: { token: string } }>(
-                `asistencias/public-report-token?obra_id=${obraIdParam}&fecha_inicio=${firstDay}&fecha_fin=${lastDay}`
-            );
-            const token = tokenRes.data.data.token;
-
-            // 2. Construct Public URL
-            let baseUrl = api.defaults.baseURL || '';
-            if (!baseUrl.startsWith('http')) {
-                baseUrl = window.location.origin + (baseUrl.startsWith('/') ? baseUrl : '/' + baseUrl);
-            }
-            const publicUrl = `${baseUrl}/asistencias/d/${token}`;
-
-            // 3. Construct Final Message (Link at the TOP + Summary)
-            const finalMessage = `📊 *REPORTE DETALLADO (Excel):*\n${publicUrl}\n\n${text}`;
-
-            // 4. SECOND STEP: User Confirmation (Fresh Gesture)
-            toast.success('¡Reporte y link listos!', {
-                id: 'whatsapp-share',
-                description: 'Pulsa el botón para enviar por WhatsApp.',
-                duration: 15000,
-                action: {
-                    label: 'ENVIAR AHORA',
-                    onClick: async () => {
-                        // DETECT PLATFORM for custom handling
-                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-                        if (isMobile && navigator.share) {
-                            // Use Native Share (Best for Mobile)
-                            try {
-                                await navigator.share({
-                                    text: finalMessage,
-                                    title: `Asistencia ${currentObra?.nombre || 'Bóveda'}`
-                                });
-                            } catch (e: any) {
-                                if (e.name !== 'AbortError') {
-                                    window.open(`https://wa.me/?text=${encodeURIComponent(finalMessage)}`, '_blank');
-                                }
-                            }
-                        } else {
-                            // Use wa.me (Best for Desktop)
-                            const encodedText = encodeURIComponent(finalMessage);
-                            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-                        }
-                    }
-                }
-            });
-
-        } catch (error: any) {
-            console.error('Error preparing WhatsApp link', error);
-            const serverMsg = error.response?.data?.error || error.response?.data?.message;
-            const errorDetail = serverMsg ? `: ${serverMsg}` : ` (${error.message})`;
-
-            toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', duration: 8000 });
-
-            // Final Fallback: Text only
-            setTimeout(() => {
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-            }, 2000);
-        }
-    }, [copyToClipboard]);
-
-    // Navigate date
-    const navigateDate = (offset: number) => {
-        const d = new Date(date + 'T12:00:00');
-        d.setDate(d.getDate() + offset);
-        setDate(d.toISOString().split('T')[0]);
-    };
-
-    // Format date for display
-    const formattedDate = useMemo(() => {
-        const d = new Date(date + 'T12:00:00');
-        const options: Intl.DateTimeFormatOptions = { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' };
-        const formatted = d.toLocaleDateString('es-CL', options);
-        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    }, [date]);
-
-    // Short date for mobile
-    const shortDate = useMemo(() => {
-        const d = new Date(date + 'T12:00:00');
-        const options: Intl.DateTimeFormatOptions = { weekday: 'short', day: 'numeric', month: 'short' };
-        const formatted = d.toLocaleDateString('es-CL', options);
-        return formatted.charAt(0).toUpperCase() + formatted.slice(1);
-    }, [date]);
-
-    const dayOfWeek = useMemo(() => {
-        return new Date(date + 'T12:00:00').getDay();
-    }, [date]);
-
-    const isSaturday = dayOfWeek === 6;
-    const isSunday = dayOfWeek === 0;
-
-    // Available Empresas in current worker list
-    const availableEmpresas = useMemo(() => {
-        const unique = new Map<number, string>();
-        workers.forEach(w => {
-            if (w.empresa_id && w.empresa_nombre) {
-                unique.set(w.empresa_id, w.empresa_nombre);
-            }
-        });
-        return Array.from(unique.entries())
-            .map(([id, nombre]) => ({ id, nombre }))
-            .sort((a, b) => a.nombre.localeCompare(b.nombre));
-    }, [workers]);
-
-    // Filtered and sorted workers
-    const filteredWorkers = useMemo(() => {
-        let result = workers.filter(w => {
-            if (!w.activo) return false;
-
-            const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
-            const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
-
-            const isDesvinculado = fDesvinc ? date > fDesvinc : false;
-            const isPreContrato = fIngreso ? date < fIngreso : false;
-
-            return !isDesvinculado && !isPreContrato;
-        });
-
-        if (selectedEmpresaId !== null) {
-            result = result.filter(w => w.empresa_id === selectedEmpresaId);
-        }
-
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase().trim();
-            const qCollapsed = q.replace(/[\s.-]/g, '');
-            result = result.filter(w => {
-                const fullName = `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.toLowerCase();
-                const rutExact = w.rut.toLowerCase();
-                const rutCollapsed = w.rut.toLowerCase().replace(/[\s.-]/g, '');
-
-                return fullName.includes(q) ||
-                    rutExact.includes(q) ||
-                    (qCollapsed.length > 0 && rutCollapsed.includes(qCollapsed));
-            });
-        }
-        return [...result].sort((a, b) => {
-            const getFullNameSort = (w: any) => {
-                return `${w.apellido_paterno || ''} ${w.apellido_materno || ''} ${w.nombres || ''}`
-                    .toLowerCase()
-                    .trim()
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, ""); // Remove accents for cleaner sorting
-            };
-            return getFullNameSort(a).localeCompare(getFullNameSort(b), 'es', { sensitivity: 'base' });
-        });
-    }, [workers, searchQuery, selectedEmpresaId, date]);
-
-    // Summary stats
-    const summary = useMemo(() => {
-        const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};
-        estados.forEach(e => { counts[e.id] = { count: 0, estado: e }; });
-
-        let total = 0;
-        filteredWorkers.forEach(w => {
-            const a = attendance[w.id];
-            if (a && a.estado_id && counts[a.estado_id]) {
-                counts[a.estado_id].count++;
-                total++;
-            }
-        });
-
-        const presentes = Object.values(counts)
-            .filter(c => c.estado.es_presente)
-            .reduce((sum, c) => sum + c.count, 0);
-
-        return {
-            total,
-            presentes,
-            porcentaje: total > 0 ? Math.round((presentes / total) * 100) : 0,
-            desglose: Object.values(counts).filter(c => c.count > 0)
-        };
-    }, [attendance, estados, filteredWorkers]);
-
+    // Global Header (Contexto)
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
             <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20 shrink-0">
@@ -715,243 +90,33 @@ const AttendancePage: React.FC = () => {
         </div>
     ), [selectedObra]);
 
-    const [showSearchBox, setShowSearchBox] = useState(false);
-
-    const headerActions = useMemo(() => {
-        const isGlobalActive = !selectedObra && hasPermission('asistencia.tomar.global');
+    const headerActionsRef = useMemo(() => {
+        const isGlobalActive = !selectedObra && canTakeGlobal;
+        if (!(selectedObra || isGlobalActive)) return null;
         return (
-        <div className="flex items-center gap-2">
-            {(selectedObra || isGlobalActive) && (
-                <>
-                    {/* Botones Móvil (3 principales) */}
-                    <div className="flex md:hidden items-center gap-1 h-full">
-                        <Button
-                            onClick={handleShareWhatsApp}
-                            disabled={!hasPermission('asistencia.enviar_whatsapp')}
-                            className={cn(
-                                "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
-                                !hasPermission('asistencia.enviar_whatsapp') && "opacity-40 grayscale pointer-events-none"
-                            )}
-                            title="Enviar"
-                        >
-                            <Send className="h-4 w-4" fill="currentColor" />
-                        </Button>
-
-                        <Button
-                            onClick={handleSave}
-                            isLoading={saving}
-                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
-                            className={cn(
-                                "h-9 px-3 rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center gap-1.5",
-                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday) && "opacity-40 grayscale pointer-events-none"
-                            )}
-                        >
-                            <span className="text-[10px] font-black uppercase">Guardar</span>
-                            <Save className="h-3.5 w-3.5" />
-                        </Button>
-
-                        <div className="relative">
-                            <button
-                                onClick={() => setShowMobileMenu(!showMobileMenu)}
-                                className={cn(
-                                    "flex h-9 w-9 items-center justify-center rounded-xl border transition-all active:scale-90",
-                                    showMobileMenu ? "bg-brand-primary text-white border-transparent shadow-lg" : "bg-white text-muted-foreground border-[#E8E8ED] shadow-sm"
-                                )}
-                            >
-                                <MoreHorizontal className="h-5 w-5" />
-                            </button>
-
-                            {createPortal(
-                                <AnimatePresence>
-                                    {showMobileMenu && (
-                                        <motion.div
-                                            key="mobile-menu-overlay"
-                                            className="md:hidden fixed inset-0 z-[9999] flex items-end"
-                                            style={{ height: '100dvh' }}
-                                            initial={{ opacity: 1 }}
-                                            animate={{ opacity: 1 }}
-                                            exit={{ opacity: 0, pointerEvents: 'none' as const }}
-                                            transition={{ duration: 0.2 }}
-                                        >
-                                            {/* Backdrop */}
-                                            <motion.div
-                                                initial={{ opacity: 0 }}
-                                                animate={{ opacity: 1 }}
-                                                exit={{ opacity: 0 }}
-                                                onClick={() => setShowMobileMenu(false)}
-                                                className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-                                            />
-
-                                            {/* Sheet */}
-                                            <motion.div
-                                                drag="y"
-                                                dragConstraints={{ top: 0 }}
-                                                dragElastic={0.05}
-                                                onDragEnd={(_, info) => {
-                                                    if (info.offset.y > 200 || info.velocity.y > 600) {
-                                                        setShowMobileMenu(false);
-                                                    }
-                                                }}
-                                                initial={{ y: '100%' }}
-                                                animate={{ y: 0 }}
-                                                exit={{ y: '100%' }}
-                                                transition={{ type: 'spring', damping: 28, stiffness: 220 }}
-                                                className="relative w-full bg-white rounded-t-[28px] shadow-2xl flex flex-col overflow-hidden"
-                                            >
-                                                {/* Drag Handle */}
-                                                <div className="pt-3 pb-2 flex justify-center shrink-0 cursor-grab active:cursor-grabbing">
-                                                    <div className="w-10 h-1 rounded-full bg-[#D1D1D6]" />
-                                                </div>
-
-                                                {/* Header */}
-                                                <div className="flex items-center justify-between px-5 pb-4 pt-1 shrink-0">
-                                                    <h3 className="text-lg font-bold text-brand-dark">Opciones de Asistencia</h3>
-                                                    <button 
-                                                        onClick={() => setShowMobileMenu(false)}
-                                                        className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
-                                                    >
-                                                        <X className="h-5 w-5" />
-                                                    </button>
-                                                </div>
-
-                                                {/* Body */}
-                                                <div className="px-4 pb-10 custom-scrollbar">
-                                                    <div className="flex flex-col gap-1">
-                                                        <button
-                                                            onClick={() => { handleExportExcel(); setShowMobileMenu(false); }}
-                                                            disabled={!hasPermission('asistencia.exportar_excel')}
-                                                            className={cn(
-                                                                "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all active:scale-95 text-left",
-                                                                hasPermission('asistencia.exportar_excel') ? "hover:bg-slate-50 text-slate-700" : "opacity-40 grayscale pointer-events-none"
-                                                            )}
-                                                        >
-                                                            <div className="h-10 w-10 rounded-xl bg-orange-50 flex items-center justify-center text-orange-600 shrink-0">
-                                                                <FileDown className="h-5 w-5" />
-                                                            </div>
-                                                            <span className="text-sm font-bold uppercase tracking-tight">Exportar Excel</span>
-                                                        </button>
-
-                                                        <RequirePermission permiso="asistencia.feriado.gestionar">
-                                                            <button
-                                                                onClick={() => { toggleFeriado(); setShowMobileMenu(false); }}
-                                                                className={cn(
-                                                                    "w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl transition-all active:scale-95 text-left",
-                                                                    feriadoActual ? "bg-destructive/5 text-destructive" : "hover:bg-slate-50 text-slate-700"
-                                                                )}
-                                                            >
-                                                                <div className={cn("h-10 w-10 rounded-xl flex items-center justify-center shrink-0", feriadoActual ? "bg-destructive/10" : "bg-purple-50 text-purple-600")}>
-                                                                    <CalendarRange className="h-5 w-5" />
-                                                                </div>
-                                                                <span className="text-sm font-bold uppercase tracking-tight">{feriadoActual ? 'Quitar Feriado' : 'Marcar Feriado'}</span>
-                                                            </button>
-                                                        </RequirePermission>
-                                                    </div>
-
-                                                    <div className="mt-6 pt-4 border-t border-[#F0F0F5] text-center pb-4">
-                                                        <p className="text-[10px] font-bold text-muted-foreground/40 uppercase tracking-widest">
-                                                            Bóveda LOLS v2.5 • Premium UX
-                                                        </p>
-                                                    </div>
-                                                </div>
-                                            </motion.div>
-                                        </motion.div>
-                                    )}
-                                </AnimatePresence>,
-                                document.body
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Search & Company Filter Group (Desktop) */}
-                    <div className="hidden md:flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm overflow-hidden min-w-[300px] lg:min-w-[450px]">
-                        <div className="relative flex-1 group">
-                            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" />
-                            <input
-                                type="text"
-                                placeholder="Buscar trabajador..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-8 pl-8 pr-3 bg-transparent text-xs font-medium focus:outline-none"
-                            />
-                        </div>
-                        <div className="h-4 w-px bg-[#E8E8ED]" />
-                        <select
-                            value={selectedEmpresaId || ""}
-                            onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
-                            className="h-8 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[140px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
-                            style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat' }}
-                        >
-                            <option value="">Todas las Empresas</option>
-                            {availableEmpresas.map(emp => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div className="h-8 w-px bg-border/40 mx-1 hidden md:block" />
-
-                    <div className="hidden md:flex items-center gap-1">
-                        <Button
-                            onClick={handleShareWhatsApp}
-                            variant="glass"
-                            disabled={!hasPermission('asistencia.enviar_whatsapp')}
-                            className={cn(
-                                "h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm",
-                                hasPermission('asistencia.enviar_whatsapp') ? "hover:bg-brand-primary/5" : "opacity-40 grayscale pointer-events-none"
-                            )}
-                            title="Compartir por WhatsApp"
-                        >
-                            <Send className="h-4 w-4" fill="currentColor" />
-                        </Button>
-                        <Button
-                            onClick={() => handleExportExcel()}
-                            variant="glass"
-                            disabled={!hasPermission('asistencia.exportar_excel')}
-                            className={cn(
-                                "h-9 w-9 p-0 flex items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-muted-foreground shadow-sm",
-                                hasPermission('asistencia.exportar_excel') ? "hover:bg-background" : "opacity-40 grayscale pointer-events-none"
-                            )}
-                            title="Reporte Mensual"
-                        >
-                            <FileDown className="h-4 w-4" />
-                        </Button>
-                        <RequirePermission permiso="asistencia.feriado.gestionar">
-                            <Button
-                                onClick={toggleFeriado}
-                                variant={feriadoActual ? "outline" : "glass"}
-                                className={cn(
-                                    "h-9 w-9 p-0 flex items-center justify-center rounded-xl transition-all shadow-sm border",
-                                    feriadoActual 
-                                        ? "bg-destructive text-white border-transparent" 
-                                        : "bg-white border-[#E8E8ED] text-muted-foreground hover:text-brand-primary"
-                                )}
-                                title={feriadoActual ? "Quitar Feriado" : "Marcar Feriado"}
-                            >
-                                <CalendarRange className="h-4 w-4" />
-                            </Button>
-                        </RequirePermission>
-                        <Button
-                            onClick={handleSave}
-                            isLoading={saving}
-                            disabled={loading || workers.length === 0 || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
-                            className={cn(
-                                "h-9 px-4 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-brand-primary/20",
-                                (!hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday) && "opacity-40 grayscale pointer-events-none"
-                            )}
-                        >
-                            <span className="hidden lg:inline mr-2 underline decoration-white/30 active:translate-y-px transition-all">Guardar</span>
-                            <Save className="h-4 w-4" />
-                        </Button>
-                    </div>
-                </>
-
-            )}
-            </div>
+            <AttendanceHeaderActions
+                handleShareWhatsApp={handleShareWhatsApp}
+                handleExportExcel={() => handleExportExcel(false)}
+                toggleFeriado={toggleFeriado}
+                handleSave={handleSave}
+                saving={saving}
+                loading={loading}
+                hasWorkers={workers.length > 0}
+                hasPermission={hasPermission}
+                isFeriado={!!feriadoActual}
+                isWeekend={isSunday || isSaturday}
+                searchQuery={searchQuery}
+                setSearchQuery={setSearchQuery}
+                selectedEmpresaId={selectedEmpresaId}
+                setSelectedEmpresaId={setSelectedEmpresaId}
+                availableEmpresas={availableEmpresas}
+            />
         );
-    }, [selectedObra, searchQuery, selectedEmpresaId, availableEmpresas, handleShareWhatsApp, handleExportExcel, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, toggleFeriado, showSearchBox, summary]);
-    useSetPageHeader(headerTitle, headerActions);
+    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas]);
 
-    if (!selectedObra && !hasPermission('asistencia.tomar.global')) {
+    useSetPageHeader(headerTitle, headerActionsRef);
+
+    if (!selectedObra && !canTakeGlobal) {
         return (
             <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
                 <div className="h-14 w-14 bg-background rounded-full flex items-center justify-center mb-4">
@@ -969,18 +134,10 @@ const AttendancePage: React.FC = () => {
                             value={reportMonth}
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReportMonth(e.target.value)}
                             options={[
-                                { value: '01', label: 'Enero' },
-                                { value: '02', label: 'Febrero' },
-                                { value: '03', label: 'Marzo' },
-                                { value: '04', label: 'Abril' },
-                                { value: '05', label: 'Mayo' },
-                                { value: '06', label: 'Junio' },
-                                { value: '07', label: 'Julio' },
-                                { value: '08', label: 'Agosto' },
-                                { value: '09', label: 'Septiembre' },
-                                { value: '10', label: 'Octubre' },
-                                { value: '11', label: 'Noviembre' },
-                                { value: '12', label: 'Diciembre' },
+                                { value: '01', label: 'Enero' }, { value: '02', label: 'Febrero' }, { value: '03', label: 'Marzo' },
+                                { value: '04', label: 'Abril' }, { value: '05', label: 'Mayo' }, { value: '06', label: 'Junio' },
+                                { value: '07', label: 'Julio' }, { value: '08', label: 'Agosto' }, { value: '09', label: 'Septiembre' },
+                                { value: '10', label: 'Octubre' }, { value: '11', label: 'Noviembre' }, { value: '12', label: 'Diciembre' }
                             ]}
                         />
                         <Select
@@ -988,21 +145,15 @@ const AttendancePage: React.FC = () => {
                             value={reportYear}
                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setReportYear(e.target.value)}
                             options={[
-                                { value: '2024', label: '2024' },
-                                { value: '2025', label: '2025' },
-                                { value: '2026', label: '2026' },
+                                { value: '2024', label: '2024' }, { value: '2025', label: '2025' }, { value: '2026', label: '2026' }
                             ]}
                         />
                     </div>
-
                     <Button
-                        onClick={() => handleExportExcel()}
+                        onClick={() => handleExportExcel(false)}
                         disabled={!hasPermission('asistencia.exportar_excel')}
                         variant="primary"
-                        className={cn(
-                            "w-full h-12 shadow-lg shadow-brand-primary/20",
-                            !hasPermission('asistencia.exportar_excel') && "opacity-40 grayscale pointer-events-none"
-                        )}
+                        className={cn("w-full h-12 shadow-lg shadow-brand-primary/20", !hasPermission('asistencia.exportar_excel') && "opacity-40 grayscale pointer-events-none")}
                         leftIcon={<FileDown className="h-5 w-5" />}
                     >
                         Exportar Reporte Global
@@ -1014,15 +165,9 @@ const AttendancePage: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
-            {/* ── Search Bar & Filter (Mobile Expandable) ── */}
             <AnimatePresence>
                 {showSearchBox && (
-                    <motion.div
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="md:hidden space-y-2 overflow-hidden pb-2"
-                    >
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden space-y-2 overflow-hidden pb-2">
                         <div className="relative group">
                             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
                             <input
@@ -1034,42 +179,21 @@ const AttendancePage: React.FC = () => {
                                 className="w-full h-11 pl-11 pr-10 bg-white border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
                             />
                             {searchQuery && (
-                                <button
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all"
-                                >
+                                <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all">
                                     <X className="h-3.5 w-3.5" />
                                 </button>
                             )}
-                        </div>
-                        <div className="relative">
-                            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground opacity-50" />
-                            <select
-                                value={selectedEmpresaId || ""}
-                                onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
-                                className="w-full h-11 pl-11 pr-10 bg-white border border-border rounded-xl text-sm font-semibold text-brand-dark appearance-none outline-none focus:border-brand-primary/40 shadow-sm"
-                            >
-                                <option value="">Todas las Empresas</option>
-                                {availableEmpresas.map(emp => (
-                                    <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                                ))}
-                            </select>
-                            <ChevronDown className="absolute right-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                         </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* ── Worker List ── */}
             {loading ? (
                 <div className="flex flex-col gap-3 p-4">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
                         <div key={i} className="h-20 w-full bg-white rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse shadow-sm">
                             <div className="h-10 w-10 rounded-xl bg-slate-100 shrink-0" />
-                            <div className="flex-1 space-y-2">
-                                <div className="h-4 w-1/3 bg-slate-100 rounded" />
-                                <div className="h-3 w-1/4 bg-slate-50 rounded" />
-                            </div>
+                            <div className="flex-1 space-y-2"><div className="h-4 w-1/3 bg-slate-100 rounded" /><div className="h-3 w-1/4 bg-slate-50 rounded" /></div>
                         </div>
                     ))}
                 </div>
@@ -1080,487 +204,177 @@ const AttendancePage: React.FC = () => {
                 </div>
             ) : (
                 <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
-                {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
-                <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-white border-b border-[#E8E8ED] shrink-0">
-                    <div className="flex items-center justify-between bg-white rounded-2xl p-1 border border-[#E8E8ED] shadow-sm">
-                        <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
-                            <ChevronLeft className="h-5 w-5" />
-                        </Button>
-                        <div className="flex-1 flex items-center justify-center gap-2">
-                            <Calendar className="h-3.5 w-3.5 text-brand-primary/60" />
-                            <input
-                                type="date"
-                                value={date}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="bg-transparent text-sm text-brand-dark font-black focus:outline-none text-center cursor-pointer uppercase tracking-tight"
-                            />
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(1)}>
-                            <ChevronRight className="h-5 w-5" />
-                        </Button>
-                    </div>
+                    
+                    <AttendanceSummaryRow 
+                        date={date}
+                        setDate={setDate}
+                        navigateDate={navigateDate}
+                        summary={summary}
+                        hasActiveContext={!!selectedObra || canTakeGlobal}
+                    />
 
-                    <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
-                        <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
-                            <span className="text-[12px] font-black text-brand-dark tabular-nums">{summary.total}</span>
-                            <span className="text-[8px] font-bold text-brand-dark/40 uppercase tracking-tighter">Total</span>
-                        </div>
-                        {summary.desglose.map(({ count, estado }) => (
-                            <div
-                                key={estado.id}
-                                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0"
-                                style={{ 
-                                    backgroundColor: `color-mix(in srgb, ${estado.color}, transparent 92%)`, 
-                                    borderColor: `color-mix(in srgb, ${estado.color}, transparent 70%)`,
-                                    color: `color-mix(in srgb, ${estado.color}, black 40%)` 
-                                }}
-                            >
-                                <span className="text-[9px] font-black opacity-60 uppercase">{estado.codigo}</span>
-                                <span className="text-[12px] font-black tabular-nums">{count}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0 hidden md:flex">
-                    <div className="flex items-center gap-4">
-                         <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
-                            <CheckSquare className="h-4 w-4 text-brand-primary" />
-                        </div>
-                        <h2 className="text-sm font-bold text-brand-dark">Registro Diario</h2>
-                    </div>
-
-                    {(selectedObra || canTakeGlobal) && (
-                        <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                            <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm">
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
-                                    <ChevronLeft className="h-4 w-4" />
-                                </Button>
-                                <div className="relative group flex items-center px-1">
-                                    <input
-                                        type="date"
-                                        value={date}
-                                        onChange={(e) => setDate(e.target.value)}
-                                        className="w-[115px] bg-transparent text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
-                                    />
-                                </div>
-                                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
-                                    <ChevronRight className="h-4 w-4" />
-                                </Button>
-                            </div>
-
-                            <div className="flex items-center gap-2 ml-2 border-l border-[#E8E8ED] pl-4 overflow-x-auto scrollbar-none max-w-[300px] lg:max-w-none">
-                                {/* Total Workers Badge */}
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
-                                    <Users className="h-3.5 w-3.5 text-brand-dark/60" />
-                                    <span className="text-[13px] font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
-                                    <span className="text-[9px] font-bold text-brand-dark/40 uppercase tracking-tighter ml-0.5">Total</span>
-                                </div>
-
-                                {/* Dynamic Breakdown Badges */}
-                                {summary.desglose.map(({ count, estado }) => (
-                                    <motion.div
-                                        key={estado.id}
-                                        initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm"
-                                        style={{ 
-                                            backgroundColor: `color-mix(in srgb, ${estado.color}, transparent 90%)`, 
-                                            borderColor: `color-mix(in srgb, ${estado.color}, transparent 60%)`,
-                                            color: `color-mix(in srgb, ${estado.color}, black 45%)` 
-                                        }}
-                                    >
-                                        <span className="text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
-                                        <div className="h-4 w-px opacity-20" style={{ backgroundColor: `color-mix(in srgb, ${estado.color}, black 45%)` }} />
-                                        <span className="text-[13px] font-black tabular-nums">{count}</span>
-                                    </motion.div>
-                                ))}
-
-                                {/* Attendance Percentage Badge */}
-                                <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-accent/5 rounded-xl border border-brand-accent/10 shrink-0 ml-1">
-                                    <BarChart3 className="h-3.5 w-3.5 text-brand-accent/60" />
-                                    <span className="text-[13px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </div>
-                
-                {/* Grilla / Resultados */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2 relative">
-                    <AnimatePresence>
-                        {(isSaturday || isSunday || !!feriadoActual) && (
-                            <motion.div
-                                initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                                animate={{ opacity: 1, scale: 1, y: 0 }}
-                                exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                                className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 mb-2 shadow-sm shrink-0"
-                            >
-                                <div className="h-10 w-10 flex-shrink-0 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 border border-amber-200/50">
-                                    <CalendarRange className="h-5 w-5" />
-                                </div>
-                                <div className="min-w-0">
-                                    <h3 className="text-[11px] font-black text-amber-900 uppercase tracking-wider mb-0.5">Día No Laboral</h3>
-                                    <p className="text-xs text-amber-800 font-bold opacity-80 decoration-amber-300">
-                                        {feriadoActual 
-                                            ? `Hoy es Feriado (${feriadoActual.nombre}). No se registra asistencia.`
-                                            : `Hoy es ${isSunday ? 'Domingo' : 'Sábado'}. No se registra asistencia los fines de semana.`}
-                                    </p>
-                                </div>
-                            </motion.div>
-                        )}
-                    </AnimatePresence>
-
-                    <AnimatePresence>
-                        {filteredWorkers.map((worker, idx) => {
-                            const state = attendance[worker.id] || {};
-                            const currentEstado = estados.find(e => e.id === state.estado_id);
-                            const isExpanded = expandedWorkerId === worker.id;
-                            const isNotPresent = currentEstado && !currentEstado.es_presente;
-                            const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
-                            const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
-                            const isDesvinculado = fDesvinc ? date > fDesvinc : false;
-                            const isPreContrato = fIngreso ? date < fIngreso : false;
-                            const isOutOfRange = isDesvinculado || isPreContrato;
-                            const workerAlerta = alertasFaltas.find(a => a.trabajador_id === worker.id);
-
-                            return (
-                                <motion.div
-                                    key={`${worker.id}-${date}`}
-                                    initial={{ opacity: 0, y: 10 }}
-                                    whileInView={{ opacity: 1, y: 0 }}
-                                    viewport={{ once: true }}
-                                    title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
-                                    className={cn(
-                                        "transition-all duration-200 bg-white rounded-2xl border border-[#E8E8ED] shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
-                                        markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
-                                        (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-white/90",
-                                        feriadoActual && "bg-destructive/[0.02]",
-                                        workerAlerta && "bg-red-50/80 border-red-300/60 ring-1 ring-red-200/50 shadow-[0_4px_16px_rgb(239,68,68,0.10)]"
-                                    )}
-                                >
-                                    {/* ── MOBILE CARD ── */}
-                                    <div className="md:hidden p-3 pb-4">
-                                        {/* Row 1: Index + Name + Calendar btn */}
-                                        <div className="flex items-center gap-3 mb-3">
-                                            <button
-                                                onClick={() => toggleMarkedRow(idx)}
-                                                className={cn(
-                                                    "h-10 w-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border shrink-0",
-                                                    markedRows.has(idx)
-                                                        ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110"
-                                                        : "bg-slate-50 text-slate-500 border-slate-200"
-                                                )}
-                                            >
-                                                #{(idx + 1).toString().padStart(2, '0')}
-                                            </button>
-                                            <div className="flex-1 min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="w-full text-left truncate block leading-tight">
-                                                    <span className="text-[12px] font-black text-brand-dark uppercase tracking-tight">
-                                                        {worker.apellido_paterno} {worker.apellido_materno || ''}
-                                                    </span>
-                                                    <span className="text-[11px] font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">
-                                                        {worker.nombres}
-                                                    </span>
-                                                </WorkerLink>
-                                                <p className="text-[10px] text-muted-foreground font-medium mt-0.5">
-                                                    {worker.rut}
-                                                    {worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}
-                                                </p>
-                                                {workerAlerta && (
-                                                    <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 border border-red-200/60 rounded-lg w-fit">
-                                                        <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
-                                                        <span className="text-[9px] font-bold text-red-600 leading-tight truncate max-w-[180px]">
-                                                            {workerAlerta.alertas[0].mensaje}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            <button
-                                                onClick={() => setCalendarWorker(worker)}
-                                                className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-brand-primary border border-brand-primary/20 shadow-sm active:scale-90 transition-all shrink-0"
-                                                title="Ver Calendario y Períodos"
-                                            >
-                                                <CalendarDays className="h-5 w-5" />
-                                            </button>
-                                        </div>
-
-                                        {/* Row 2: State Buttons — Favoritos y Dropdown */}
-                                        <div className="flex gap-1.5 items-stretch h-12">
-                                            {['A', 'F', 'JI', 'TO'].map(code => {
-                                                const est = estados.find(e => e.codigo === code);
-                                                if (!est) return null;
-                                                const isActive = state.estado_id === est.id;
-                                                return (
-                                                    <button
-                                                        key={est.id}
-                                                        onClick={() => {
-                                                            if (code === 'TO') {
-                                                                setTrasladoWorker(worker);
-                                                                return;
-                                                            }
-                                                            const updates: Partial<Asistencia> = {
-                                                                estado_id: est.id,
-                                                                tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
-                                                                es_sabado: isSaturday
-                                                            };
-                                                            if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                const dayIndex = new Date(date + 'T12:00:00').getDay();
-                                                                const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[dayIndex];
-                                                                const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
-                                                                if (currentSchedule) {
-                                                                    updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
-                                                                    updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
-                                                                    updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
-                                                                    updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
-                                                                }
-                                                            }
-                                                            updateAttendance(worker.id, updates);
-                                                            if (!est.es_presente && expandedWorkerId !== worker.id) {
-                                                                setExpandedWorkerId(worker.id);
-                                                            }
-                                                        }}
-                                                        disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
-                                                        className={cn(
-                                                            "flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95",
-                                                            isActive ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60"
-                                                        )}
-                                                        style={isActive ? { backgroundColor: est.color } : undefined}
-                                                    >
-                                                        {est.codigo}
-                                                    </button>
-                                                );
-                                            })}
-                                            <div className="relative flex-1">
-                                                {(() => {
-                                                    const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
-                                                    const activeSecondary = secondary.find(e => e.id === state.estado_id);
-                                                    return (
-                                                        <select
-                                                            className={cn(
-                                                                "w-full h-full rounded-xl text-[10px] font-black uppercase appearance-none text-center px-1 border transition-all truncate bg-white outline-none active:scale-95",
-                                                                activeSecondary ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60"
-                                                            )}
-                                                            style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined}
-                                                            value={activeSecondary?.id || ""}
-                                                            disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
-                                                            onChange={(e) => {
-                                                                const estId = parseInt(e.target.value);
-                                                                updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
-                                                                if (expandedWorkerId !== worker.id) setExpandedWorkerId(worker.id);
-                                                            }}
-                                                        >
-                                                            <option value="" disabled>{activeSecondary ? activeSecondary.nombre : 'MÁS'}</option>
-                                                            {secondary.map(est => (
-                                                                <option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>
-                                                            ))}
-                                                        </select>
-                                                    );
-                                                })()}
-                                            </div>
-                                        </div>
-                                        {/* Row 4: Expandable detail toggle */}
-                                        <button
-                                            onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                            disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday}
-                                            className={cn(
-                                                "mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-[10px] text-brand-primary font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 border border-slate-100 transition-all active:scale-98",
-                                                (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale"
-                                            )}
-                                        >
-                                            <span>{isExpanded ? 'Cerrar' : 'Detalle'}</span>
-                                            <ChevronDown className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-180")} />
-                                        </button>
+                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2 relative">
+                        <AnimatePresence>
+                            {(isSaturday || isSunday || !!feriadoActual) && (
+                                <motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 mb-2 shadow-sm shrink-0">
+                                    <div className="h-10 w-10 flex-shrink-0 bg-amber-100 rounded-xl flex items-center justify-center text-amber-600 border border-amber-200/50"><CalendarRange className="h-5 w-5" /></div>
+                                    <div className="min-w-0">
+                                        <h3 className="text-[11px] font-black text-amber-900 uppercase tracking-wider mb-0.5">Día No Laboral</h3>
+                                        <p className="text-xs text-amber-800 font-bold opacity-80 decoration-amber-300">
+                                            {feriadoActual ? `Hoy es Feriado (${feriadoActual.nombre}). No se registra asistencia.` : `Hoy es ${isSunday ? 'Domingo' : 'Sábado'}. No se registra asistencia los fines de semana.`}
+                                        </p>
                                     </div>
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
 
-                                    {/* ── DESKTOP ROW ── */}
-                                    <div className={cn(
-                                        "hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 items-center group",
-                                        markedRows.has(idx) && "bg-brand-primary/5 rounded-2xl"
-                                    )}>
-                                        <div className="flex justify-center">
-                                            <button
-                                                onClick={() => toggleMarkedRow(idx)}
-                                                className={cn(
-                                                    "w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border",
-                                                    markedRows.has(idx)
-                                                        ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110"
-                                                        : "bg-slate-50 text-slate-500 border-slate-200 hover:border-brand-primary/30 hover:bg-white hover:text-brand-primary active:scale-95"
-                                                )}
-                                            >
-                                                {(idx + 1).toString().padStart(2, '0')}
-                                            </button>
-                                        </div>
-                                        <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/40 pl-4 group-hover:border-brand-primary/30 transition-colors">
-                                            <div className="min-w-0">
-                                                <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[13px] truncate block font-bold text-slate-700 hover:text-brand-primary transition-colors">
-                                                    {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
-                                                </WorkerLink>
-                                                <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5">
-                                                    <span className="bg-slate-100 px-1 rounded uppercase tracking-tighter">{worker.rut}</span>
-                                                    {worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 pl-1.5">{worker.cargo_nombre}</span>}
-                                                </p>
-                                                {workerAlerta && (
-                                                    <div className="flex items-center gap-1.5 mt-1">
-                                                        <AlertTriangle className="h-3 w-3 text-red-500 shrink-0" />
-                                                        <span className="text-[10px] font-bold text-red-600 leading-tight">
-                                                            {workerAlerta.alertas.map(a => a.mensaje).join(' · ')}
-                                                        </span>
-                                                    </div>
-                                                )}
+                        <AnimatePresence>
+                            {filteredWorkers.map((worker, idx) => {
+                                const state = attendance[worker.id] || {};
+                                const currentEstado = estados.find(e => e.id === state.estado_id);
+                                const isExpanded = expandedWorkerId === worker.id;
+                                const isNotPresent = currentEstado && !currentEstado.es_presente;
+                                const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
+                                const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
+                                const isDesvinculado = fDesvinc ? date > fDesvinc : false;
+                                const isPreContrato = fIngreso ? date < fIngreso : false;
+                                const isOutOfRange = isDesvinculado || isPreContrato;
+                                const workerAlerta = alertasFaltas.find(a => a.trabajador_id === worker.id);
+
+                                return (
+                                    <motion.div
+                                        key={`${worker.id}-${date}`}
+                                        initial={{ opacity: 0, y: 10 }}
+                                        whileInView={{ opacity: 1, y: 0 }}
+                                        viewport={{ once: true }}
+                                        title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
+                                        className={cn(
+                                            "transition-all duration-200 bg-white rounded-2xl border border-[#E8E8ED] shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
+                                            markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
+                                            (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-white/90",
+                                            feriadoActual && "bg-destructive/[0.02]",
+                                            workerAlerta && "bg-red-50/80 border-red-300/60 ring-1 ring-red-200/50 shadow-[0_4px_16px_rgb(239,68,68,0.10)]"
+                                        )}
+                                    >
+                                        <div className="md:hidden p-3 pb-4">
+                                            <div className="flex items-center gap-3 mb-3">
+                                                <button onClick={() => toggleMarkedRow(idx)} className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110" : "bg-slate-50 text-slate-500 border-slate-200")}>{(idx + 1).toString().padStart(2, '0')}</button>
+                                                <div className="flex-1 min-w-0">
+                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="w-full text-left truncate block leading-tight">
+                                                        <span className="text-[12px] font-black text-brand-dark uppercase tracking-tight">{worker.apellido_paterno} {worker.apellido_materno || ''}</span>
+                                                        <span className="text-[11px] font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">{worker.nombres}</span>
+                                                    </WorkerLink>
+                                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
+                                                    {workerAlerta && (
+                                                        <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 border border-red-200/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 shrink-0" /><span className="text-[9px] font-bold text-red-600 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
+                                                    )}
+                                                </div>
+                                                <button onClick={() => setCalendarWorker(worker)} className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-brand-primary border border-brand-primary/20 shadow-sm active:scale-90 transition-all shrink-0" title="Ver Calendario"><CalendarDays className="h-5 w-5" /></button>
                                             </div>
-                                        </div>
 
-                                        <div className="flex justify-center">
-                                            <div className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/50 shadow-inner max-w-fit transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
-                                                {/* 1. Favoritos Escritorio */}
+                                            <div className="flex gap-1.5 items-stretch h-12">
                                                 {['A', 'F', 'JI', 'TO'].map(code => {
                                                     const est = estados.find(e => e.codigo === code);
                                                     if (!est) return null;
                                                     const isActive = state.estado_id === est.id;
                                                     return (
-                                                        <button
-                                                            key={est.id}
-                                                            onClick={() => {
-                                                                if (code === 'TO') {
-                                                                    setTrasladoWorker(worker);
-                                                                    return;
-                                                                }
-                                                                const updates: Partial<Asistencia> = {
-                                                                    estado_id: est.id,
-                                                                    es_sabado: isSaturday
-                                                                };
+                                                        <button key={est.id} onClick={() => {
+                                                                if (code === 'TO') { setTrasladoWorker(worker); return; }
+                                                                const updates: Partial<Asistencia> = { estado_id: est.id, tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id, es_sabado: isSaturday };
                                                                 if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                    const dayIndex = new Date(date + 'T12:00:00').getDay();
-                                                                    const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[dayIndex];
+                                                                    const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[new Date(date + 'T12:00:00').getDay()];
                                                                     const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
                                                                     if (currentSchedule) {
-                                                                        updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
-                                                                        updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
-                                                                        updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
-                                                                        updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+                                                                        updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5); updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                                                                        updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5); updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
                                                                     }
                                                                 }
                                                                 updateAttendance(worker.id, updates);
-                                                            }}
-                                                            disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
-                                                            className={cn(
-                                                                "h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]",
-                                                                isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95"
-                                                            )}
-                                                            style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}
-                                                        >
-                                                            {est.codigo}
-                                                        </button>
+                                                                if (!est.es_presente && expandedWorkerId !== worker.id) setExpandedWorkerId(worker.id);
+                                                            }} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
                                                     );
                                                 })}
-
-                                                {/* 2. Dropdown Escritorio */}
-                                                <div className="relative min-w-[90px] flex-shrink-0">
+                                                <div className="relative flex-1">
                                                     {(() => {
                                                         const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
                                                         const activeSecondary = secondary.find(e => e.id === state.estado_id);
                                                         return (
-                                                            <div className="relative h-8 group/select">
-                                                                <select
-                                                                    className={cn(
-                                                                        "h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer",
-                                                                        activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600"
-                                                                    )}
-                                                                    style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined}
-                                                                    value={activeSecondary?.id || ""}
-                                                                    disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday}
-                                                                    onChange={(e) => {
-                                                                        const estId = parseInt(e.target.value);
-                                                                        updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
-                                                                    }}
-                                                                >
-                                                                    <option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
-                                                                    {secondary.map(est => (
-                                                                        <option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>
-                                                                    ))}
-                                                                </select>
-                                                                <div className={cn(
-                                                                    "absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-colors",
-                                                                    activeSecondary ? "text-white/70" : "text-slate-300 group-hover/select:text-slate-400"
-                                                                )}>
-                                                                    <ChevronDown className="h-3 w-3" />
-                                                                </div>
-                                                            </div>
+                                                            <select className={cn("w-full h-full rounded-xl text-[10px] font-black uppercase appearance-none text-center px-1 border transition-all truncate bg-white outline-none active:scale-95", activeSecondary ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
+                                                                    const estId = parseInt(e.target.value); updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                                    if (expandedWorkerId !== worker.id) setExpandedWorkerId(worker.id);
+                                                                }}><option value="" disabled>{activeSecondary ? activeSecondary.nombre : 'MÁS'}</option>
+                                                                {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
+                                                            </select>
                                                         );
                                                     })()}
                                                 </div>
                                             </div>
+                                            <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-[10px] text-brand-primary font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 border border-slate-100 transition-all active:scale-98", (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale")}>
+                                                <span>{isExpanded ? 'Cerrar' : 'Detalle'}</span><ChevronDown className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-180")} />
+                                            </button>
                                         </div>
 
-                                        <div className="flex items-center justify-end gap-2">
-                                                <div className="flex-1">
-                                                    <button
-                                                        onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)}
-                                                        disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday}
-                                                        title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"}
-                                                        className={cn(
-                                                            "text-[10px] text-brand-primary font-medium hover:underline w-full text-center",
-                                                            (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale"
-                                                        )}
-                                                    >
-                                                        {isExpanded ? 'Cerrar' : 'Detalle'}
-                                                    </button>
+                                        <div className={cn("hidden md:grid grid-cols-[60px_minmax(200px,280px)_1fr_160px_60px] gap-4 px-6 py-4 items-center group", markedRows.has(idx) && "bg-brand-primary/5 rounded-2xl")}>
+                                            <div className="flex justify-center"><button onClick={() => toggleMarkedRow(idx)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110" : "bg-slate-50 text-slate-500 border-slate-200 hover:border-brand-primary/30 hover:bg-white hover:text-brand-primary active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button></div>
+                                            <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/40 pl-4 group-hover:border-brand-primary/30 transition-colors">
+                                                <div className="min-w-0">
+                                                    <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[13px] truncate block font-bold text-slate-700 hover:text-brand-primary transition-colors">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
+                                                    <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><span className="bg-slate-100 px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 pl-1.5">{worker.cargo_nombre}</span>}</p>
+                                                    {workerAlerta && (<div className="flex items-center gap-1.5 mt-1"><AlertTriangle className="h-3 w-3 text-red-500 shrink-0" /><span className="text-[10px] font-bold text-red-600 leading-tight">{workerAlerta.alertas.map(a => a.mensaje).join(' · ')}</span></div>)}
                                                 </div>
-                                                <button
-                                                    onClick={() => setCalendarWorker(worker)}
-                                                    disabled={!!feriadoActual || isSunday || isSaturday}
-                                                    className={cn(
-                                                        "p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0",
-                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
-                                                    )}
-                                                    title="Ver Calendario"
-                                                >
-                                                    <CalendarDays className="h-4 w-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => setPeriodModalWorker(worker)}
-                                                    disabled={!!feriadoActual || isSunday || isSaturday}
-                                                    className={cn(
-                                                        "p-1.5 rounded-full text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 hover:text-[#027A3B] transition-colors flex-shrink-0",
-                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
-                                                    )}
-                                                    title="Asignar Período de Ausencia"
-                                                >
-                                                    <CalendarRange className="h-4 w-4" />
-                                                </button>
                                             </div>
 
-                                            <div className="w-[60px]">
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="24"
-                                                    step="any"
-                                                    placeholder="0"
-                                                    disabled={!!feriadoActual || isSunday || isSaturday}
-                                                    inputMode="decimal"
-                                                    className={cn(
-                                                        "w-full bg-background border border-border rounded-lg px-2 py-1.5 text-[10px] text-center text-brand-dark focus:outline-none focus:border-brand-primary",
-                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed"
-                                                    )}
-                                                    value={state.horas_extra || ''}
-                                                    onChange={(e) => updateAttendance(worker.id, {
-                                                        horas_extra: parseFloat(e.target.value) || 0
+                                            <div className="flex justify-center">
+                                                <div className="flex gap-1 p-1 bg-slate-100/50 rounded-2xl border border-slate-200/50 shadow-inner max-w-fit transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
+                                                    {['A', 'F', 'JI', 'TO'].map(code => {
+                                                        const est = estados.find(e => e.codigo === code);
+                                                        if (!est) return null;
+                                                        const isActive = state.estado_id === est.id;
+                                                        return (<button key={est.id} onClick={() => {
+                                                                if (code === 'TO') { setTrasladoWorker(worker); return; }
+                                                                const updates: Partial<Asistencia> = { estado_id: est.id, es_sabado: isSaturday };
+                                                                if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
+                                                                    const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[new Date(date + 'T12:00:00').getDay()];
+                                                                    const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
+                                                                    if (currentSchedule) {
+                                                                        updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5); updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                                                                        updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5); updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+                                                                    }
+                                                                }
+                                                                updateAttendance(worker.id, updates);
+                                                            }} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                     })}
-                                                />
+                                                    <div className="relative min-w-[90px] flex-shrink-0">
+                                                        {(() => {
+                                                            const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                            const activeSecondary = secondary.find(e => e.id === state.estado_id);
+                                                            return (
+                                                                <div className="relative h-8 group/select">
+                                                                    <select className={cn("h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
+                                                                            const estId = parseInt(e.target.value); updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                                        }}><option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
+                                                                        {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
+                                                                    </select>
+                                                                    <div className={cn("absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-colors", activeSecondary ? "text-white/70" : "text-slate-300 group-hover/select:text-slate-400")}><ChevronDown className="h-3 w-3" /></div>
+                                                                </div>
+                                                            );
+                                                        })()}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex items-center justify-end gap-2">
+                                                <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"} className={cn("text-[10px] text-brand-primary font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
+                                                <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario"><CalendarDays className="h-4 w-4" /></button>
+                                                <button onClick={() => setPeriodModalWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 hover:text-[#027A3B] transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Asignar Período de Ausencia"><CalendarRange className="h-4 w-4" /></button>
+                                            </div>
+                                            <div className="w-[60px]">
+                                                <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full bg-background border border-border rounded-lg px-2 py-1.5 text-[10px] text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                             </div>
                                         </div>
 
-                                        {/* ── Expanded Detail (shared) ── */}
                                         <AnimatePresence>
                                             {isExpanded && (
-                                                <motion.div
-                                                    initial={{ height: 0, opacity: 0 }}
-                                                    animate={{ height: 'auto', opacity: 1 }}
-                                                    exit={{ height: 0, opacity: 0 }}
-                                                    className="overflow-hidden bg-[#FAFAFA]"
-                                                >
+                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-[#FAFAFA]">
                                                     <div className="px-3 md:px-5 pb-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-3">
                                                         <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
                                                         <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
@@ -1569,60 +383,31 @@ const AttendancePage: React.FC = () => {
                                                         <div className="col-span-2 md:col-span-1 grid grid-cols-2 gap-3">
                                                             <div>
                                                                 <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
-                                                                <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    max="24"
-                                                                    step="any"
-                                                                    placeholder="0"
-                                                                    disabled={!!feriadoActual || isSunday || isSaturday}
-                                                                    inputMode="decimal"
-                                                                    className={cn(
-                                                                        "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary",
-                                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background"
-                                                                    )}
-                                                                    value={state.horas_extra || ''}
-                                                                    onChange={(e) => updateAttendance(worker.id, {
-                                                                        horas_extra: parseFloat(e.target.value) || 0
-                                                                    })}
-                                                                />
+                                                                <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                             </div>
                                                             <div>
                                                                 <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
-                                                                <input
-                                                                    type="text"
-                                                                    placeholder="..."
-                                                                    disabled={!!feriadoActual || isSunday || isSaturday}
-                                                                    className={cn(
-                                                                        "w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary",
-                                                                        (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background"
-                                                                    )}
-                                                                    value={state.observacion || ''}
-                                                                    onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })}
-                                                                />
+                                                                <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
                                                             </div>
                                                         </div>
                                                     </div>
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
-                                </motion.div>
-                            )
-                        })}
-                    </AnimatePresence>
-                </div>
+                                    </motion.div>
+                                )
+                            })}
+                        </AnimatePresence>
+                    </div>
 
-                {/* Status Bar */}
-                <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
-                    <div className="flex items-center gap-2">
-                        <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
-                        <span>{filteredWorkers.length} {filteredWorkers.length === 1 ? 'trabajador' : 'trabajadores'}</span>
+                    <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
+                        <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
+                            <span>{filteredWorkers.length} {filteredWorkers.length === 1 ? 'trabajador' : 'trabajadores'}</span>
+                        </div>
                     </div>
                 </div>
-            </div>
             )}
-
-            {/* ── Worker Calendar Modal ── */}
 
             <WorkerCalendarModal
                 isOpen={!!calendarWorker}
@@ -1634,23 +419,22 @@ const AttendancePage: React.FC = () => {
                     setCalendarWorker(null);
                     setPeriodModalWorker(calendarWorker);
                 }}
-                onSelectRange={handleCalendarSelectRange}
+                onSelectRange={(start, end) => {
+                    setPeriodSelection({ start, end });
+                    setCalendarWorker(null);
+                    setPeriodModalWorker(calendarWorker);
+                }}
                 onPeriodDeleted={fetchAttendanceInfo}
             />
 
             <PeriodAssignModal
                 isOpen={!!periodModalWorker}
-                onClose={() => {
-                    setPeriodModalWorker(null);
-                    setPeriodSelection(null);
-                }}
+                onClose={() => { setPeriodModalWorker(null); setPeriodSelection(null); }}
                 worker={periodModalWorker}
                 obraId={selectedObra?.id || null}
                 estados={estados}
                 initialDates={periodSelection}
-                onSuccess={() => {
-                    fetchAttendanceInfo();
-                }}
+                onSuccess={() => fetchAttendanceInfo()}
             />
 
             <TrasladoObraModal
@@ -1664,12 +448,7 @@ const AttendancePage: React.FC = () => {
                 onSuccess={(obraDestinoNombre) => {
                     const toEstado = estados.find(e => e.codigo === 'TO');
                     if (toEstado && trasladoWorker) {
-                        // Optimistic update locally? The Success logic already calls fetchAttendanceInfo
-                        // but updating locally ensures UI consistency if fetch is slow
-                        updateAttendance(trasladoWorker.id, { 
-                            estado_id: toEstado.id,
-                            observacion: `Traslado a: ${obraDestinoNombre}`
-                        });
+                        updateAttendance(trasladoWorker.id, { estado_id: toEstado.id, observacion: `Traslado a: ${obraDestinoNombre}` });
                     }
                     fetchAttendanceInfo();
                 }}
@@ -1690,72 +469,34 @@ const AttendancePage: React.FC = () => {
                 }}
             />
 
-            {/* Unified Modal para edición y documentos de la ficha rápida */}
             <Modal
                 isOpen={modalType !== null}
-                onClose={() => {
-                    setModalType(null);
-                    setIsUploading(false);
-                }}
-                title={
-                    modalType === 'form'
-                        ? "Editar Trabajador"
-                        : `Documentos: ${selectedWorker?.apellido_paterno} ${selectedWorker?.apellido_materno || ''} ${selectedWorker?.nombres}`
-                }
+                onClose={() => { setModalType(null); setIsUploading(false); }}
+                title={modalType === 'form' ? "Editar Trabajador" : `Documentos: ${selectedWorker?.apellido_paterno} ${selectedWorker?.apellido_materno || ''} ${selectedWorker?.nombres}`}
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
             >
                 {modalType === 'form' && selectedWorker && (
-                    <WorkerForm
-                        initialData={selectedWorker}
-                        onSuccess={() => {
-                            setModalType(null);
-                            fetchAttendanceInfo(); // refetch workers
-                        }}
-                        onCancel={() => setModalType(null)}
-                    />
+                    <WorkerForm initialData={selectedWorker} onSuccess={() => { setModalType(null); fetchAttendanceInfo(); }} onCancel={() => setModalType(null)} />
                 )}
                 {modalType === 'docs' && selectedWorker && (
-                    <WorkerDocsContent
-                        worker={selectedWorker}
-                        isUploading={isUploading}
-                        setIsUploading={setIsUploading}
-                        hasPermission={hasPermission}
-                        onSuccess={() => fetchAttendanceInfo()}
-                    />
+                    <WorkerDocsContent worker={selectedWorker} isUploading={isUploading} setIsUploading={setIsUploading} hasPermission={hasPermission} onSuccess={() => fetchAttendanceInfo()} />
                 )}
             </Modal>
-            {/* ── FAB: Botón flotante de búsqueda (solo móvil) ── */}
+
             <div className="md:hidden fixed bottom-6 right-5 z-[900]">
                 <motion.button
                     whileTap={{ scale: 0.9 }}
-                    onClick={() => {
-                        setShowSearchBox(prev => !prev);
-                        if (showSearchBox && searchQuery) {
-                            setSearchQuery('');
-                        }
-                    }}
-                    className={cn(
-                        "h-12 w-12 rounded-full flex items-center justify-center shadow-lg transition-colors duration-200",
-                        showSearchBox
-                            ? "bg-brand-dark text-white shadow-brand-dark/30"
-                            : "bg-brand-primary text-white shadow-brand-primary/30"
-                    )}
+                    onClick={() => { setShowSearchBox(prev => !prev); if (showSearchBox && searchQuery) setSearchQuery(''); }}
+                    className={cn("h-12 w-12 rounded-full flex items-center justify-center shadow-lg transition-colors duration-200", showSearchBox ? "bg-brand-dark text-white shadow-brand-dark/30" : "bg-brand-primary text-white shadow-brand-primary/30")}
                 >
                     <AnimatePresence mode="wait">
                         {showSearchBox ? (
-                            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}>
-                                <X className="h-5 w-5" />
-                            </motion.div>
+                            <motion.div key="close" initial={{ rotate: -90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: 90, opacity: 0 }} transition={{ duration: 0.15 }}><X className="h-5 w-5" /></motion.div>
                         ) : (
-                            <motion.div key="search" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}>
-                                <Search className="h-5 w-5" />
-                            </motion.div>
+                            <motion.div key="search" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}><Search className="h-5 w-5" /></motion.div>
                         )}
                     </AnimatePresence>
-                    {/* Badge indicador de búsqueda activa */}
-                    {!showSearchBox && searchQuery && (
-                        <span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-red-500 rounded-full border-2 border-white" />
-                    )}
+                    {!showSearchBox && searchQuery && (<span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-red-500 rounded-full border-2 border-white" />)}
                 </motion.button>
             </div>
         </div>
