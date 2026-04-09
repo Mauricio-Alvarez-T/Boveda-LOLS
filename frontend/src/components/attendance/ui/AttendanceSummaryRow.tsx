@@ -15,6 +15,8 @@ interface AttendanceSummaryRowProps {
         desglose: { count: number; estado: EstadoAsistencia }[];
     };
     hasActiveContext: boolean;
+    statusFilter: number | null;
+    onStatusFilter: (estadoId: number | null) => void;
 }
 
 export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
@@ -22,7 +24,9 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     setDate,
     navigateDate,
     summary,
-    hasActiveContext
+    hasActiveContext,
+    statusFilter,
+    onStatusFilter
 }) => {
     return (
         <>
@@ -51,20 +55,25 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                         <span className="text-[12px] font-black text-brand-dark tabular-nums">{summary.total}</span>
                         <span className="text-[8px] font-bold text-brand-dark/40 uppercase tracking-tighter">Total</span>
                     </div>
-                    {summary.desglose.map(({ count, estado }) => (
-                        <div
-                            key={estado.id}
-                            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0"
-                            style={{ 
-                                backgroundColor: `color-mix(in srgb, ${estado.color}, transparent 92%)`, 
-                                borderColor: `color-mix(in srgb, ${estado.color}, transparent 70%)`,
-                                color: `color-mix(in srgb, ${estado.color}, black 40%)` 
-                            }}
-                        >
-                            <span className="text-[9px] font-black opacity-60 uppercase">{estado.codigo}</span>
-                            <span className="text-[12px] font-black tabular-nums">{count}</span>
-                        </div>
-                    ))}
+                    {summary.desglose.map(({ count, estado }) => {
+                        const isActive = statusFilter === estado.id;
+                        return (
+                            <div
+                                key={estado.id}
+                                onClick={() => onStatusFilter(isActive ? null : estado.id)}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 shadow-md scale-105' : ''}`}
+                                style={{
+                                    backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '92%'})`,
+                                    borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '70%'})`,
+                                    color: `color-mix(in srgb, ${estado.color}, black 40%)`,
+                                    '--tw-ring-color': estado.color
+                                } as React.CSSProperties}
+                            >
+                                <span className="text-[9px] font-black opacity-60 uppercase">{estado.codigo}</span>
+                                <span className="text-[12px] font-black tabular-nums">{count}</span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -105,23 +114,28 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             </div>
 
                             {/* Dynamic Breakdown Badges */}
-                            {summary.desglose.map(({ count, estado }) => (
-                                <motion.div
-                                    key={estado.id}
-                                    initial={{ opacity: 0, scale: 0.9 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm"
-                                    style={{ 
-                                        backgroundColor: `color-mix(in srgb, ${estado.color}, transparent 90%)`, 
-                                        borderColor: `color-mix(in srgb, ${estado.color}, transparent 60%)`,
-                                        color: `color-mix(in srgb, ${estado.color}, black 45%)` 
-                                    }}
-                                >
-                                    <span className="text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
-                                    <div className="h-4 w-px opacity-20" style={{ backgroundColor: `color-mix(in srgb, ${estado.color}, black 45%)` }} />
-                                    <span className="text-[13px] font-black tabular-nums">{count}</span>
-                                </motion.div>
-                            ))}
+                            {summary.desglose.map(({ count, estado }) => {
+                                const isActive = statusFilter === estado.id;
+                                return (
+                                    <motion.div
+                                        key={estado.id}
+                                        initial={{ opacity: 0, scale: 0.9 }}
+                                        animate={{ opacity: 1, scale: isActive ? 1.05 : 1 }}
+                                        onClick={() => onStatusFilter(isActive ? null : estado.id)}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:scale-105 ${isActive ? 'ring-2 ring-offset-1' : ''}`}
+                                        style={{
+                                            backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '90%'})`,
+                                            borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '60%'})`,
+                                            color: `color-mix(in srgb, ${estado.color}, black 45%)`,
+                                            '--tw-ring-color': estado.color
+                                        } as React.CSSProperties}
+                                    >
+                                        <span className="text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
+                                        <div className="h-4 w-px opacity-20" style={{ backgroundColor: `color-mix(in srgb, ${estado.color}, black 45%)` }} />
+                                        <span className="text-[13px] font-black tabular-nums">{count}</span>
+                                    </motion.div>
+                                );
+                            })}
 
                             {/* Attendance Percentage Badge */}
                             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-accent/5 rounded-xl border border-brand-accent/10 shrink-0 ml-1">

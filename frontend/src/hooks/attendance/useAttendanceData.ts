@@ -21,6 +21,7 @@ export function useAttendanceData() {
     const [feriadoActual, setFeriadoActual] = useState<Feriado | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
+    const [statusFilter, setStatusFilter] = useState<number | null>(null);
     const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
     const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
     const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
@@ -193,6 +194,13 @@ export function useAttendanceData() {
             result = result.filter(w => w.empresa_id === selectedEmpresaId);
         }
 
+        if (statusFilter !== null) {
+            result = result.filter(w => {
+                const a = attendance[w.id];
+                return a && a.estado_id === statusFilter;
+            });
+        }
+
         if (searchQuery) {
             const q = searchQuery.toLowerCase().trim();
             const qCollapsed = q.replace(/[\s.-]/g, '');
@@ -216,7 +224,7 @@ export function useAttendanceData() {
             };
             return getFullNameSort(a).localeCompare(getFullNameSort(b), 'es', { sensitivity: 'base' });
         });
-    }, [workers, searchQuery, selectedEmpresaId, date]);
+    }, [workers, searchQuery, selectedEmpresaId, statusFilter, attendance, date]);
 
     const summary = useMemo(() => {
         const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};
@@ -255,6 +263,7 @@ export function useAttendanceData() {
         horariosObra, estados, feriadoActual, setFeriadoActual,
         searchQuery, setSearchQuery,
         selectedEmpresaId, setSelectedEmpresaId,
+        statusFilter, setStatusFilter,
         alertasFaltas,
         reportMonth, setReportMonth,
         reportYear, setReportYear,

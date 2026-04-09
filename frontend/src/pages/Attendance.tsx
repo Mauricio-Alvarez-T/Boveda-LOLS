@@ -38,7 +38,8 @@ const AttendancePage: React.FC = () => {
     const {
         date, setDate, navigateDate, loading, workers, filteredWorkers, availableEmpresas,
         attendance, updateAttendance, horariosObra, estados, feriadoActual,
-        searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId, alertasFaltas,
+        searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId,
+        statusFilter, setStatusFilter, alertasFaltas,
         reportMonth, setReportMonth, reportYear, setReportYear, fetchAttendanceInfo,
         summary, isSaturday, isSunday
     } = attendanceData;
@@ -205,12 +206,14 @@ const AttendancePage: React.FC = () => {
             ) : (
                 <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                     
-                    <AttendanceSummaryRow 
+                    <AttendanceSummaryRow
                         date={date}
                         setDate={setDate}
                         navigateDate={navigateDate}
                         summary={summary}
                         hasActiveContext={!!selectedObra || canTakeGlobal}
+                        statusFilter={statusFilter}
+                        onStatusFilter={setStatusFilter}
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2 relative">
