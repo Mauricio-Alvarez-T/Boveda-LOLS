@@ -167,7 +167,7 @@ const Dashboard: React.FC = () => {
     ), [resetLayout]);
 
     const notifications = useMemo(() => {
-        if (!data || data.alerts.length === 0) return undefined;
+        if (!data || !data.alerts || data.alerts.length === 0) return undefined;
         return {
             count: data.saludo.totalAlertas,
             content: (
@@ -200,7 +200,21 @@ const Dashboard: React.FC = () => {
             try {
                 const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
                 const res = await api.get<ApiResponse<DashboardData>>(`/dashboard/summary${query}`);
-                setData(res.data.data);
+                const raw = res.data.data;
+                // Defensive defaults for new fields (backward compat with old backend)
+                setData({
+                    ...raw,
+                    counters: raw.counters ?? {},
+                    deltas: raw.deltas ?? {},
+                    alerts: raw.alerts ?? [],
+                    pendingTasks: raw.pendingTasks ?? [],
+                    docExpiryTimeline: raw.docExpiryTimeline ?? [],
+                    obraRanking: raw.obraRanking ?? [],
+                    attendanceStatus: raw.attendanceStatus ?? {},
+                    attendanceTrend: raw.attendanceTrend ?? [],
+                    ausentesDetalle: raw.ausentesDetalle ?? [],
+                    saludo: raw.saludo ?? { nombre: '', resumen: '', totalAlertas: 0 },
+                });
             } catch {
                 toast.error('Error al cargar resumen del dashboard');
             } finally {
@@ -230,7 +244,7 @@ const Dashboard: React.FC = () => {
             bg: 'bg-brand-primary/8',
             route: '/consultas?activo=true',
             description: 'Gestión de personal',
-            delta: data.deltas.trabajadores_nuevos_semana ?? 0,
+            delta: data.deltas?.trabajadores_nuevos_semana ?? 0,
             deltaLabel: 'nuevos esta semana',
         },
         kpi_docs: {
@@ -241,8 +255,8 @@ const Dashboard: React.FC = () => {
             bg: 'bg-[#5856D6]/8',
             route: '/consultas?completitud=faltantes',
             description: 'Bóveda documental',
-            delta: data.deltas.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
-            deltaLabel: data.deltas.docs_vencidos_hoy ? `${data.deltas.docs_vencidos_hoy} vencido${data.deltas.docs_vencidos_hoy !== 1 ? 's' : ''} hoy` : undefined,
+            delta: data.deltas?.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
+            deltaLabel: data.deltas?.docs_vencidos_hoy ? `${data.deltas.docs_vencidos_hoy} vencido${data.deltas.docs_vencidos_hoy !== 1 ? 's' : ''} hoy` : undefined,
             deltaInverted: true,
         },
         kpi_attendance: {
@@ -253,7 +267,7 @@ const Dashboard: React.FC = () => {
             bg: 'bg-brand-accent/8',
             route: '/asistencia',
             description: 'Tasa de presencia hoy',
-            delta: data.deltas.asistencia_delta ?? 0,
+            delta: data.deltas?.asistencia_delta ?? 0,
             deltaLabel: 'vs ayer',
         },
         kpi_absences: {
@@ -264,7 +278,7 @@ const Dashboard: React.FC = () => {
             bg: (data.counters.ausentes_hoy ?? 0) > 0 ? 'bg-warning/8' : 'bg-muted/8',
             route: '/consultas?ausentes=true',
             description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta',
-            delta: data.deltas.ausentes_delta ?? 0,
+            delta: data.deltas?.ausentes_delta ?? 0,
             deltaLabel: 'vs ayer',
             deltaInverted: true,
         },
@@ -274,17 +288,17 @@ const Dashboard: React.FC = () => {
     const renderWidget = (widgetId: string) => {
         switch (widgetId) {
             case 'pending_tasks':
-                return <PendingTasks tasks={data.pendingTasks} onNavigate={(route) => navigate(route)} />;
+                return <PendingTasks tasks={data.pendingTasks ?? []} onNavigate={(route) => navigate(route)} />;
             case 'doc_expiry_timeline':
-                return <DocExpiryTimeline data={data.docExpiryTimeline} onNavigate={(rut) => navigate(`/consultas?q=${rut}`)} />;
+                return <DocExpiryTimeline data={data.docExpiryTimeline ?? []} onNavigate={(rut) => navigate(`/consultas?q=${rut}`)} />;
             case 'obra_ranking':
-                return <ObraRanking data={data.obraRanking} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />;
+                return <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />;
             case 'chart_attendance_trend':
                 return <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />;
             case 'list_absences_today':
                 return <AbsencesToday data={data.ausentesDetalle ?? []} />;
             case 'alerts_critical':
-                return <CriticalAlerts alerts={data.alerts} onNavigate={(route) => navigate(route)} />;
+                return <CriticalAlerts alerts={data.alerts ?? []} onNavigate={(route) => navigate(route)} />;
             case 'quick_actions':
                 return <QuickActions permisos={permisos} onNavigate={(route) => navigate(route)} />;
             default:
@@ -307,7 +321,7 @@ const Dashboard: React.FC = () => {
                 <TodayHero
                     userName={user?.nombre || 'Operador'}
                     counters={data.counters}
-                    pendingTasksCount={data.pendingTasks.length}
+                    pendingTasksCount={(data.pendingTasks ?? []).length}
                     attendanceStatus={data.attendanceStatus}
                     onNavigate={(route) => navigate(route)}
                 />
