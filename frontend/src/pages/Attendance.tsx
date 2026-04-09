@@ -51,6 +51,7 @@ import RequirePermission from '../components/auth/RequirePermission';
 const AttendancePage: React.FC = () => {
     const { selectedObra, obras } = useObra();
     const { hasPermission } = useAuth();
+    const canTakeGlobal = hasPermission('asistencia.tomar.global');
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
@@ -1129,7 +1130,7 @@ const AttendancePage: React.FC = () => {
                         <h2 className="text-sm font-bold text-brand-dark">Registro Diario</h2>
                     </div>
 
-                    {selectedObra && (
+                    {(selectedObra || canTakeGlobal) && (
                         <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
                             <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm">
                                 <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
