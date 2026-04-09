@@ -35,24 +35,46 @@ import { useDashboardLayout } from '../hooks/useDashboardLayout';
 // Widgets
 import WidgetWrapper from '../components/dashboard/WidgetWrapper';
 import KpiCard from '../components/dashboard/widgets/KpiCard';
-import ObraDistribution from '../components/dashboard/widgets/ObraDistribution';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
-import ComplianceDonut from '../components/dashboard/widgets/ComplianceDonut';
-import RecentActivity from '../components/dashboard/widgets/RecentActivity';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import CriticalAlerts from '../components/dashboard/widgets/CriticalAlerts';
-import SystemStatus from '../components/dashboard/widgets/SystemStatus';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
+import TodayHero from '../components/dashboard/widgets/TodayHero';
+import PendingTasks from '../components/dashboard/widgets/PendingTasks';
+import DocExpiryTimeline from '../components/dashboard/widgets/DocExpiryTimeline';
+import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 
 // ─── Types ───
-interface RecentDoc {
-    id: number;
-    tipo_nombre: string;
-    nombres: string;
-    apellido_paterno: string;
-    apellido_materno?: string | null;
-    fecha_subida: string;
+interface PendingTask {
+    severity: 'critical' | 'warning' | 'info';
+    category: 'documentos' | 'asistencia' | 'contratos';
+    title: string;
+    description: string;
+    action: { label: string; ruta: string };
+    meta?: Record<string, any>;
+}
+
+interface DocExpiryItem {
+    fecha: string;
+    tipo_documento: string;
+    trabajador: string;
+    trabajador_id: number;
     rut: string;
+    obra: string;
+}
+
+interface ObraRankingItem {
+    id: number;
+    nombre: string;
+    trabajadores: number;
+    asistencia_tasa: number;
+    docs_completos_pct: number;
+    asistencia_guardada: boolean;
+}
+
+interface AttendanceStatusEntry {
+    nombre: string;
+    guardada: boolean;
 }
 
 interface DashboardData {
@@ -65,11 +87,21 @@ interface DashboardData {
         asistencia_hoy?: number;
         ausentes_hoy?: number;
     };
-    recentActivity: RecentDoc[];
-    obraDistribution: { id: number; nombre: string; count: number }[];
+    deltas: {
+        trabajadores_nuevos_semana?: number;
+        docs_vencidos_hoy?: number;
+        asistencia_delta?: number;
+        ausentes_delta?: number;
+    };
+    recentActivity: any[];
+    obraDistribution: any[];
     attendanceTrend: { fecha: string; tasa: number }[];
     ausentesDetalle?: { nombres: string; apellido_paterno: string; apellido_materno?: string | null; estado: string; obra: string }[];
     alerts: { tipo: 'critical' | 'warning' | 'info'; titulo: string; mensaje: string; count: number; ruta: string }[];
+    pendingTasks: PendingTask[];
+    docExpiryTimeline: DocExpiryItem[];
+    obraRanking: ObraRankingItem[];
+    attendanceStatus: Record<string, AttendanceStatusEntry>;
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
@@ -80,7 +112,6 @@ const Dashboard: React.FC = () => {
     const navigate = useNavigate();
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
-    const [systemStatus, setSystemStatus] = useState({ dbActive: false, lastCheck: '' });
 
     const permisos = user?.permisos ?? [];
     const { kpiWidgets, gridWidgets, reorder, resetLayout } = useDashboardLayout(user?.id ?? 0, permisos);
@@ -170,12 +201,6 @@ const Dashboard: React.FC = () => {
                 const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
                 const res = await api.get<ApiResponse<DashboardData>>(`/dashboard/summary${query}`);
                 setData(res.data.data);
-
-                const healthRes = await api.get('/health');
-                setSystemStatus({
-                    dbActive: healthRes.data.status === 'ok',
-                    lastCheck: new Date().toLocaleTimeString('es-CL', { hour: '2-digit', minute: '2-digit' })
-                });
             } catch {
                 toast.error('Error al cargar resumen del dashboard');
             } finally {
@@ -196,7 +221,7 @@ const Dashboard: React.FC = () => {
     }
 
     // ─── KPI Config ───
-    const kpiConfig: Record<string, { label: string; value: string | number; icon: React.ElementType; color: string; bg: string; route: string; description: string }> = {
+    const kpiConfig: Record<string, { label: string; value: string | number; icon: React.ElementType; color: string; bg: string; route: string; description: string; delta?: number; deltaLabel?: string; deltaInverted?: boolean }> = {
         kpi_workers: {
             label: 'Trabajadores',
             value: data.counters.trabajadores ?? 0,
@@ -204,7 +229,9 @@ const Dashboard: React.FC = () => {
             color: 'text-brand-primary',
             bg: 'bg-brand-primary/8',
             route: '/consultas?activo=true',
-            description: 'Gestión de personal'
+            description: 'Gestión de personal',
+            delta: data.deltas.trabajadores_nuevos_semana ?? 0,
+            deltaLabel: 'nuevos esta semana',
         },
         kpi_docs: {
             label: 'Documentos',
@@ -213,7 +240,10 @@ const Dashboard: React.FC = () => {
             color: 'text-[#5856D6]',
             bg: 'bg-[#5856D6]/8',
             route: '/consultas?completitud=faltantes',
-            description: 'Bóveda documental'
+            description: 'Bóveda documental',
+            delta: data.deltas.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
+            deltaLabel: data.deltas.docs_vencidos_hoy ? `${data.deltas.docs_vencidos_hoy} vencido${data.deltas.docs_vencidos_hoy !== 1 ? 's' : ''} hoy` : undefined,
+            deltaInverted: true,
         },
         kpi_attendance: {
             label: 'Asistencia Hoy',
@@ -222,7 +252,9 @@ const Dashboard: React.FC = () => {
             color: 'text-brand-accent',
             bg: 'bg-brand-accent/8',
             route: '/asistencia',
-            description: 'Tasa de presencia hoy'
+            description: 'Tasa de presencia hoy',
+            delta: data.deltas.asistencia_delta ?? 0,
+            deltaLabel: 'vs ayer',
         },
         kpi_absences: {
             label: 'Ausencias Hoy',
@@ -231,32 +263,28 @@ const Dashboard: React.FC = () => {
             color: (data.counters.ausentes_hoy ?? 0) > 0 ? 'text-warning' : 'text-muted',
             bg: (data.counters.ausentes_hoy ?? 0) > 0 ? 'bg-warning/8' : 'bg-muted/8',
             route: '/consultas?ausentes=true',
-            description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta'
+            description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta',
+            delta: data.deltas.ausentes_delta ?? 0,
+            deltaLabel: 'vs ayer',
+            deltaInverted: true,
         },
     };
 
     // ─── Render Widget by ID ───
     const renderWidget = (widgetId: string) => {
         switch (widgetId) {
-            case 'chart_obra_distribution':
-                return <ObraDistribution data={data.obraDistribution} onNavigate={(id) => navigate(id ? `/consultas?obra_id=${id}` : '/consultas')} />;
+            case 'pending_tasks':
+                return <PendingTasks tasks={data.pendingTasks} onNavigate={(route) => navigate(route)} />;
+            case 'doc_expiry_timeline':
+                return <DocExpiryTimeline data={data.docExpiryTimeline} onNavigate={(rut) => navigate(`/consultas?q=${rut}`)} />;
+            case 'obra_ranking':
+                return <ObraRanking data={data.obraRanking} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />;
             case 'chart_attendance_trend':
                 return <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />;
-            case 'chart_compliance':
-                return <ComplianceDonut
-                    totalDocs={data.counters.documentos ?? 0}
-                    expiredDocs={data.counters.vencidos ?? 0}
-                    missingDocs={data.counters.trabajadoresSinDocs ?? 0}
-                    onClick={() => navigate('/consultas?completitud=faltantes')}
-                />;
-            case 'list_recent_activity':
-                return <RecentActivity data={data.recentActivity} onNavigate={(q) => navigate(q ? `/consultas?q=${q}` : '/consultas')} />;
             case 'list_absences_today':
                 return <AbsencesToday data={data.ausentesDetalle ?? []} />;
             case 'alerts_critical':
                 return <CriticalAlerts alerts={data.alerts} onNavigate={(route) => navigate(route)} />;
-            case 'system_status':
-                return <SystemStatus dbActive={systemStatus.dbActive} lastCheck={systemStatus.lastCheck} onNavigate={() => navigate('/configuracion')} />;
             case 'quick_actions':
                 return <QuickActions permisos={permisos} onNavigate={(route) => navigate(route)} />;
             default:
@@ -274,27 +302,15 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            {/* ── Dashboard Insights (Narrative summary) ── */}
+            {/* ── Today Hero (always on top, not draggable) ── */}
             {!loading && data && (
-                <motion.div
-                    initial={{ opacity: 0, x: -20 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    className="bg-brand-primary/5 border-l-4 border-brand-primary p-4 rounded-r-2xl"
-                >
-                    <p className="text-sm text-brand-dark leading-relaxed">
-                        <span className="font-bold text-brand-primary">Resumen de hoy:</span> Tienes <span className="font-semibold">{data.counters.trabajadores}</span> trabajadores activos en terreno.
-                        La tasa de asistencia es del <span className="font-semibold text-brand-accent">{data.counters.asistencia_hoy}%</span>
-                        {((data.counters.vencidos ?? 0) > 0 || (data.counters.trabajadoresSinDocs ?? 0) > 0) ? (
-                            <> y tienes <span className="font-semibold text-destructive">pendientes</span>:
-                                {(data.counters.vencidos ?? 0) > 0 && <span> {data.counters.vencidos} vencidos</span>}
-                                {(data.counters.vencidos ?? 0) > 0 && (data.counters.trabajadoresSinDocs ?? 0) > 0 && ' y'}
-                                {(data.counters.trabajadoresSinDocs ?? 0) > 0 && <span> {data.counters.trabajadoresSinDocs} trabajadores sin documentos</span>}.
-                            </>
-                        ) : (
-                            <> y toda tu documentación está al día.</>
-                        )}
-                    </p>
-                </motion.div>
+                <TodayHero
+                    userName={user?.nombre || 'Operador'}
+                    counters={data.counters}
+                    pendingTasksCount={data.pendingTasks.length}
+                    attendanceStatus={data.attendanceStatus}
+                    onNavigate={(route) => navigate(route)}
+                />
             )}
 
             {/* ── KPI Cards (static top row, not draggable) ── */}
@@ -314,6 +330,9 @@ const Dashboard: React.FC = () => {
                                 description={config.description}
                                 onClick={() => navigate(config.route)}
                                 index={i}
+                                delta={config.delta}
+                                deltaLabel={config.deltaLabel}
+                                deltaInverted={config.deltaInverted}
                             />
                         );
                     })}
@@ -335,17 +354,6 @@ const Dashboard: React.FC = () => {
                             {gridWidgets.map(widget => {
                                 const content = renderWidget(widget.id);
                                 if (!content) return null;
-
-                                // SystemStatus has its own styling (blue bg), skip wrapper border
-                                if (widget.id === 'system_status') {
-                                    return (
-                                        <WidgetWrapper key={widget.id} widget={widget}>
-                                            <div className="-m-5">
-                                                {content}
-                                            </div>
-                                        </WidgetWrapper>
-                                    );
-                                }
 
                                 return (
                                     <WidgetWrapper key={widget.id} widget={widget}>
