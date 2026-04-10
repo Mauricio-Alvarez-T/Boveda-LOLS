@@ -61,7 +61,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             <div
                                 key={estado.id}
                                 onClick={() => onStatusFilter(isActive ? null : estado.id)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 shadow-md scale-105' : ''}`}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 shadow-md' : ''}`}
                                 style={{
                                     backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '92%'})`,
                                     borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '70%'})`,
@@ -120,9 +120,9 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     <motion.div
                                         key={estado.id}
                                         initial={{ opacity: 0, scale: 0.9 }}
-                                        animate={{ opacity: 1, scale: isActive ? 1.05 : 1 }}
+                                        animate={{ opacity: 1, scale: 1 }}
                                         onClick={() => onStatusFilter(isActive ? null : estado.id)}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:scale-105 ${isActive ? 'ring-2 ring-offset-1' : ''}`}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 shadow-md' : ''}`}
                                         style={{
                                             backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '90%'})`,
                                             borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '60%'})`,
