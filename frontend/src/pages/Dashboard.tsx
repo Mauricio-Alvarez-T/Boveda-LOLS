@@ -41,7 +41,7 @@ import CriticalAlerts from '../components/dashboard/widgets/CriticalAlerts';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
 import TodayHero from '../components/dashboard/widgets/TodayHero';
 import PendingTasks from '../components/dashboard/widgets/PendingTasks';
-import DocExpiryTimeline from '../components/dashboard/widgets/DocExpiryTimeline';
+import AbsenceAlerts from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 
 // ─── Types ───
@@ -289,8 +289,8 @@ const Dashboard: React.FC = () => {
         switch (widgetId) {
             case 'pending_tasks':
                 return <PendingTasks tasks={data.pendingTasks ?? []} onNavigate={(route) => navigate(route)} />;
-            case 'doc_expiry_timeline':
-                return <DocExpiryTimeline data={data.docExpiryTimeline ?? []} onNavigate={(rut) => navigate(`/consultas?q=${rut}`)} />;
+            case 'absence_alerts':
+                return <AbsenceAlerts data={(data as any).trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />;
             case 'obra_ranking':
                 return <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />;
             case 'chart_attendance_trend':
