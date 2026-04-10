@@ -60,9 +60,9 @@ export const WIDGET_REGISTRY: WidgetConfig[] = [
         defaultOrder: 4,
     },
     {
-        id: 'doc_expiry_timeline',
-        title: 'Vencimientos Próximos',
-        requiredPermission: { modulo: 'documentos', accion: 'puede_ver' },
+        id: 'absence_alerts',
+        title: 'Alertas de Inasistencia',
+        requiredPermission: { modulo: 'asistencia', accion: 'puede_ver' },
         size: 'md',
         category: 'list',
         defaultOrder: 5,
