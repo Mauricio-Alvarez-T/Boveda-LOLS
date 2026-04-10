@@ -430,13 +430,16 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
     }
 
     // ── ALERTAS DE INASISTENCIA DEL MES ──
-    try {
-        const now = new Date();
-        const obraIdParam = obra_id ? obra_id : 'ALL';
-        const alertasFaltas = await asistenciaService.getAlertasFaltas(obraIdParam, now.getMonth() + 1, now.getFullYear());
-        result.trabajadoresConAlertas = alertasFaltas.slice(0, 20);
-    } catch (e) {
-        result.trabajadoresConAlertas = [];
+    if (canSee(permisos, 'asistencia')) {
+        try {
+            const now = new Date();
+            const obraIdParam = obraId ? obraId : 'ALL';
+            const alertasFaltas = await asistenciaService.getAlertasFaltas(obraIdParam, now.getMonth() + 1, now.getFullYear());
+            result.trabajadoresConAlertas = alertasFaltas.slice(0, 20);
+        } catch (e) {
+            console.error('[Dashboard] Error fetching alertas de faltas:', e.message);
+            result.trabajadoresConAlertas = [];
+        }
     }
 
     // ── SORT PENDING TASKS BY SEVERITY ──
