@@ -253,8 +253,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             </th>
                             <th className={cn("sticky bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
                             <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
-                            {visibleObras.map(o => (
-                                <th key={`obra_${o.id}`} colSpan={2} className="px-1 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-blue-50/50 group/col">
+                            {visibleObras.map((o, oIdx) => (
+                                <th key={`obra_${o.id}`} colSpan={2} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", oIdx % 2 === 0 ? "bg-blue-50/40" : "bg-blue-100/40")}>
                                     <div className="flex items-center justify-center gap-1">
                                         <span className="truncate">{o.nombre}</span>
                                         <button
@@ -267,8 +267,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </div>
                                 </th>
                             ))}
-                            {visibleBodegas.map(b => (
-                                <th key={`bodega_${b.id}`} className="px-1 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-amber-50/50 group/col">
+                            {visibleBodegas.map((b, bIdx) => (
+                                <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-amber-50/50" : "bg-amber-100/40")}>
                                     <div className="flex items-center justify-center gap-1">
                                         <span className="truncate">{b.nombre}</span>
                                         <button
@@ -290,14 +290,14 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <th className="bg-[#F9F9FB] border-b border-r border-[#E8E8ED]" />
                             <th className={cn("sticky bg-[#F9F9FB] z-20 border-b border-r border-[#E8E8ED]", showImages ? "left-[68px]" : "left-8")} />
                             <th className="border-b border-r border-[#E8E8ED]" />
-                            {visibleObras.map(o => (
+                            {visibleObras.map((o, oIdx) => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
-                                    <th className="px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#E8E8ED] uppercase tracking-wider">Cant</th>
-                                    <th className="px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#E8E8ED] uppercase tracking-wider">Total</th>
+                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#D8D8DD] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50/20" : "bg-blue-100/20")}>Cant</th>
+                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50/20" : "bg-blue-100/20")}>Total</th>
                                 </React.Fragment>
                             ))}
-                            {visibleBodegas.map(b => (
-                                <th key={`sub_bod_${b.id}`} className="px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#E8E8ED] uppercase tracking-wider">Cant</th>
+                            {visibleBodegas.map((b, bIdx) => (
+                                <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", bIdx % 2 === 0 ? "bg-amber-50/20" : "bg-amber-100/20")}>Cant</th>
                             ))}
                             <th className="border-b border-r border-[#E8E8ED]" />
                             <th className="border-b border-[#E8E8ED]" />
@@ -309,13 +309,13 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             const totals = catTotals[cat.id];
                             return (
                                 <React.Fragment key={cat.id}>
-                                    {/* Category header — clickable */}
+                                    {/* Category header — clickable, sticky text */}
                                     <tr
                                         className="bg-brand-primary/10 cursor-pointer select-none hover:bg-brand-primary/15 transition-colors"
                                         onClick={() => toggleCat(cat.id)}
                                     >
-                                        <td colSpan={totalColSpan} className="px-3 py-2">
-                                            <div className="flex items-center gap-2">
+                                        <td colSpan={totalColSpan} className="px-0 py-0">
+                                            <div className="sticky left-0 w-fit px-3 py-2 flex items-center gap-2">
                                                 <ChevronRight className={cn("h-3.5 w-3.5 text-brand-primary transition-transform duration-200", !collapsed && "rotate-90")} />
                                                 <span className="font-black text-[10px] uppercase tracking-widest text-brand-primary">
                                                     {cat.nombre}
@@ -329,49 +329,54 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                         </td>
                                     </tr>
                                     {/* Item rows — hidden when collapsed */}
-                                    {!collapsed && cat.items.map((item, idx) => (
-                                        <tr key={item.id} className={cn("hover:bg-blue-50/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
-                                            <td className="sticky left-0 bg-inherit z-10 px-2 py-1 text-right text-muted-foreground border-r border-[#F0F0F5]">{item.nro_item}</td>
-                                            <td className="bg-inherit px-1 py-1 text-center border-r border-[#F0F0F5]">
+                                    {!collapsed && cat.items.map((item, idx) => {
+                                        const rowBg = idx % 2 === 0 ? 'bg-white' : 'bg-[#F5F5F8]';
+                                        return (
+                                        <tr key={item.id} className={cn("hover:bg-blue-50/40 transition-colors", rowBg)}>
+                                            <td className={cn("sticky left-0 z-10 px-2 py-1.5 text-right text-muted-foreground border-r border-b border-[#D8D8DD]", rowBg)}>{item.nro_item}</td>
+                                            <td className={cn("px-1 py-1.5 text-center border-r border-b border-[#D8D8DD]", rowBg)}>
                                                 {showImages && (
                                                     item.imagen_url
                                                         ? <img src={`${API_BASE}${item.imagen_url}`} alt="" className="w-8 h-8 object-cover rounded mx-auto" />
                                                         : <div className="w-8 h-8 rounded bg-muted/30 flex items-center justify-center mx-auto"><ImageIcon className="h-3 w-3 text-muted-foreground/30" /></div>
                                                 )}
                                             </td>
-                                            <td className={cn("sticky bg-inherit z-10 px-2 py-1 font-medium text-brand-dark border-r border-[#F0F0F5] truncate max-w-[200px]", showImages ? "left-[68px]" : "left-8")}>{item.descripcion}</td>
-                                            <td className="px-2 py-1 text-right text-muted-foreground border-r border-[#F0F0F5]">{fmtMoney(item.valor_arriendo)}</td>
-                                            {visibleObras.map(o => {
+                                            <td className={cn("sticky z-10 px-2 py-1.5 font-medium text-brand-dark border-r border-b border-[#D8D8DD] truncate max-w-[200px]", rowBg, showImages ? "left-[68px]" : "left-8")}>{item.descripcion}</td>
+                                            <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]")}>{fmtMoney(item.valor_arriendo)}</td>
+                                            {visibleObras.map((o, oIdx) => {
                                                 const ub = item.ubicaciones[`obra_${o.id}`];
                                                 const cellKey = `obra_${o.id}_item_${item.id}`;
+                                                const colBg = oIdx % 2 === 1 ? 'bg-blue-50/30' : '';
                                                 return (
                                                     <React.Fragment key={cellKey}>
-                                                        <td className="px-2 py-1 text-center border-r border-[#F0F0F5]">
+                                                        <td className={cn("px-2 py-1.5 text-center border-r border-b border-[#D8D8DD]", colBg)}>
                                                             {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, o.id, null, !!(ub && ub.cantidad > 0))}
                                                         </td>
-                                                        <td className={cn("px-2 py-1 text-right border-r border-[#F0F0F5]", ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
+                                                        <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
                                                             {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
                                                         </td>
                                                     </React.Fragment>
                                                 );
                                             })}
-                                            {visibleBodegas.map(b => {
+                                            {visibleBodegas.map((b, bIdx) => {
                                                 const ub = item.ubicaciones[`bodega_${b.id}`];
                                                 const cellKey = `bodega_${b.id}_item_${item.id}`;
+                                                const colBg = bIdx % 2 === 1 ? 'bg-amber-50/30' : '';
                                                 return (
-                                                    <td key={cellKey} className="px-2 py-1 text-center border-r border-[#F0F0F5]">
+                                                    <td key={cellKey} className={cn("px-2 py-1.5 text-center border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]", colBg)}>
                                                         {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, null, b.id, !!(ub && ub.cantidad > 0))}
                                                     </td>
                                                 );
                                             })}
-                                            <td className="px-2 py-1 text-right font-semibold text-brand-accent border-r border-[#F0F0F5]">
+                                            <td className="px-2 py-1.5 text-right font-semibold text-brand-accent border-r border-b border-[#D8D8DD]">
                                                 {item.total_arriendo > 0 ? fmtMoney(item.total_arriendo) : ''}
                                             </td>
-                                            <td className="px-2 py-1 text-right font-semibold text-brand-dark">
+                                            <td className="px-2 py-1.5 text-right font-semibold text-brand-dark border-b border-[#D8D8DD]">
                                                 {item.total_cantidad > 0 ? fmt(item.total_cantidad) : ''}
                                             </td>
                                         </tr>
-                                    ))}
+                                        );
+                                    })}
                                 </React.Fragment>
                             );
                         })}
