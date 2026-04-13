@@ -93,6 +93,7 @@ const inventarioService = {
                 valor_compra: parseFloat(item.valor_compra),
                 valor_arriendo: parseFloat(item.valor_arriendo),
                 unidad: item.unidad,
+                imagen_url: item.imagen_url || null,
                 ubicaciones,
                 total_arriendo: totalArriendo,
                 total_cantidad: totalCantidad

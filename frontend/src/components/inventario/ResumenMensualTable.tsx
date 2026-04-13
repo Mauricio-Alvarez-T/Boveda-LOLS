@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { Check, X, ChevronRight, Search, EyeOff, Eye, RotateCcw } from 'lucide-react';
+import { Check, X, ChevronRight, Search, EyeOff, Eye, RotateCcw, ImageIcon } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 
 interface Props {
@@ -12,6 +12,7 @@ interface Props {
 
 const fmt = (n: number) => n.toLocaleString('es-CL');
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
 const STORAGE_KEY = 'inventario_resumen_hidden_cols';
 
@@ -36,6 +37,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     const [hiddenCols, setHiddenCols] = useState<Set<string>>(loadHiddenCols);
     const [hideEmpty, setHideEmpty] = useState(false);
     const [search, setSearch] = useState('');
+    const [showImages, setShowImages] = useState(false);
 
     // Persist hidden cols
     useEffect(() => { saveHiddenCols(hiddenCols); }, [hiddenCols]);
@@ -184,7 +186,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
         );
     };
 
-    const totalColSpan = 3 + visibleObras.length * 2 + visibleBodegas.length + 2;
+    const totalColSpan = 3 + (showImages ? 1 : 0) + visibleObras.length * 2 + visibleBodegas.length + 2;
 
     const hiddenCount = hiddenCols.size;
 
@@ -242,7 +244,14 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         {/* Header row 1 */}
                         <tr className="bg-brand-primary/5">
                             <th className="sticky left-0 bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8">#</th>
-                            <th className="sticky left-8 bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]">Descripción</th>
+                            <th
+                                onClick={() => setShowImages(v => !v)}
+                                className="px-1.5 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8 cursor-pointer hover:bg-brand-primary/10 transition-colors"
+                                title={showImages ? 'Ocultar imágenes' : 'Mostrar imágenes'}
+                            >
+                                <ImageIcon className={cn("h-3.5 w-3.5 mx-auto transition-colors", showImages ? "text-brand-primary" : "text-muted-foreground/40")} />
+                            </th>
+                            <th className={cn("sticky bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
                             <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
                             {visibleObras.map(o => (
                                 <th key={`obra_${o.id}`} colSpan={2} className="px-1 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-blue-50/50 group/col">
@@ -278,7 +287,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         {/* Header row 2 */}
                         <tr className="bg-[#F9F9FB]">
                             <th className="sticky left-0 bg-[#F9F9FB] z-20 border-b border-r border-[#E8E8ED]" />
-                            <th className="sticky left-8 bg-[#F9F9FB] z-20 border-b border-r border-[#E8E8ED]" />
+                            <th className="bg-[#F9F9FB] border-b border-r border-[#E8E8ED]" />
+                            <th className={cn("sticky bg-[#F9F9FB] z-20 border-b border-r border-[#E8E8ED]", showImages ? "left-[68px]" : "left-8")} />
                             <th className="border-b border-r border-[#E8E8ED]" />
                             {visibleObras.map(o => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
@@ -322,7 +332,14 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     {!collapsed && cat.items.map((item, idx) => (
                                         <tr key={item.id} className={cn("hover:bg-blue-50/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
                                             <td className="sticky left-0 bg-inherit z-10 px-2 py-1 text-right text-muted-foreground border-r border-[#F0F0F5]">{item.nro_item}</td>
-                                            <td className="sticky left-8 bg-inherit z-10 px-2 py-1 font-medium text-brand-dark border-r border-[#F0F0F5] truncate max-w-[200px]">{item.descripcion}</td>
+                                            <td className="bg-inherit px-1 py-1 text-center border-r border-[#F0F0F5]">
+                                                {showImages && (
+                                                    item.imagen_url
+                                                        ? <img src={`${API_BASE}${item.imagen_url}`} alt="" className="w-8 h-8 object-cover rounded mx-auto" />
+                                                        : <div className="w-8 h-8 rounded bg-muted/30 flex items-center justify-center mx-auto"><ImageIcon className="h-3 w-3 text-muted-foreground/30" /></div>
+                                                )}
+                                            </td>
+                                            <td className={cn("sticky bg-inherit z-10 px-2 py-1 font-medium text-brand-dark border-r border-[#F0F0F5] truncate max-w-[200px]", showImages ? "left-[68px]" : "left-8")}>{item.descripcion}</td>
                                             <td className="px-2 py-1 text-right text-muted-foreground border-r border-[#F0F0F5]">{fmtMoney(item.valor_arriendo)}</td>
                                             {visibleObras.map(o => {
                                                 const ub = item.ubicaciones[`obra_${o.id}`];
@@ -362,8 +379,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     {/* ── Sticky totals footer ── */}
                     <tfoot className="sticky bottom-0 z-10">
                         <tr className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
-                            <td className="sticky left-0 bg-brand-primary/5 z-20 px-2 py-2" />
-                            <td className="sticky left-8 bg-brand-primary/5 z-20 px-2 py-2 text-right font-black text-xs text-brand-dark" colSpan={2}>
+                            <td colSpan={showImages ? 4 : 3} className="px-2 py-2 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
                             {visibleObras.map(o => {

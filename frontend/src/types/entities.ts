@@ -180,6 +180,7 @@ export interface ItemInventario {
     valor_compra: number;
     valor_arriendo: number;
     unidad: string;
+    imagen_url: string | null;
     activo: boolean;
 }
 

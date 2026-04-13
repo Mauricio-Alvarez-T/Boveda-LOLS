@@ -15,6 +15,7 @@ interface ResumenItem {
     valor_compra: number;
     valor_arriendo: number;
     unidad: string;
+    imagen_url: string | null;
     ubicaciones: Record<string, UbicacionData>;
     total_arriendo: number;
     total_cantidad: number;
