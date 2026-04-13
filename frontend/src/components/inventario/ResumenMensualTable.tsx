@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { Check, X, ChevronRight, Search, EyeOff, Eye } from 'lucide-react';
+import { Check, X, ChevronRight, Search, EyeOff, Eye, RotateCcw } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 
 interface Props {
@@ -186,6 +186,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
     const totalColSpan = 3 + visibleObras.length * 2 + visibleBodegas.length + 2;
 
+    const hiddenCount = hiddenCols.size;
+
     return (
         <div className="space-y-3">
             {/* ── Toolbar ── */}
@@ -220,53 +222,17 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     {hideEmpty ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
                     Ocultar vacías
                 </button>
-            </div>
 
-            {/* ── Column visibility chips ── */}
-            <div className="flex flex-wrap gap-1.5">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider self-center mr-1">Columnas:</span>
-                {obras.map(o => {
-                    const key = `obra_${o.id}`;
-                    const hidden = hiddenCols.has(key);
-                    const empty = !colsWithStock.has(key);
-                    return (
-                        <button
-                            key={key}
-                            onClick={() => toggleCol(key)}
-                            className={cn(
-                                "px-2.5 py-1 text-[10px] font-semibold rounded-lg border transition-all",
-                                hidden
-                                    ? "bg-muted/50 border-transparent text-muted-foreground/50 line-through"
-                                    : empty
-                                        ? "bg-amber-50 border-amber-200 text-amber-700"
-                                        : "bg-blue-50 border-blue-200 text-blue-700"
-                            )}
-                        >
-                            {o.nombre}
-                        </button>
-                    );
-                })}
-                {bodegas.map(b => {
-                    const key = `bodega_${b.id}`;
-                    const hidden = hiddenCols.has(key);
-                    const empty = !colsWithStock.has(key);
-                    return (
-                        <button
-                            key={key}
-                            onClick={() => toggleCol(key)}
-                            className={cn(
-                                "px-2.5 py-1 text-[10px] font-semibold rounded-lg border transition-all",
-                                hidden
-                                    ? "bg-muted/50 border-transparent text-muted-foreground/50 line-through"
-                                    : empty
-                                        ? "bg-amber-50 border-amber-200 text-amber-700"
-                                        : "bg-orange-50 border-orange-200 text-orange-700"
-                            )}
-                        >
-                            {b.nombre}
-                        </button>
-                    );
-                })}
+                {/* Restore hidden columns */}
+                {hiddenCount > 0 && (
+                    <button
+                        onClick={() => { setHiddenCols(new Set()); saveHiddenCols(new Set()); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
+                    >
+                        <RotateCcw className="h-3 w-3" />
+                        Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}
+                    </button>
+                )}
             </div>
 
             {/* ── Table ── */}
@@ -279,13 +245,31 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <th className="sticky left-8 bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]">Descripción</th>
                             <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
                             {visibleObras.map(o => (
-                                <th key={`obra_${o.id}`} colSpan={2} className="px-2 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-blue-50/50">
-                                    {o.nombre}
+                                <th key={`obra_${o.id}`} colSpan={2} className="px-1 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-blue-50/50 group/col">
+                                    <div className="flex items-center justify-center gap-1">
+                                        <span className="truncate">{o.nombre}</span>
+                                        <button
+                                            onClick={() => toggleCol(`obra_${o.id}`)}
+                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
+                                            title={`Ocultar ${o.nombre}`}
+                                        >
+                                            <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                        </button>
+                                    </div>
                                 </th>
                             ))}
                             {visibleBodegas.map(b => (
-                                <th key={`bodega_${b.id}`} className="px-2 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-amber-50/50">
-                                    {b.nombre}
+                                <th key={`bodega_${b.id}`} className="px-1 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-amber-50/50 group/col">
+                                    <div className="flex items-center justify-center gap-1">
+                                        <span className="truncate">{b.nombre}</span>
+                                        <button
+                                            onClick={() => toggleCol(`bodega_${b.id}`)}
+                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
+                                            title={`Ocultar ${b.nombre}`}
+                                        >
+                                            <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                        </button>
+                                    </div>
                                 </th>
                             ))}
                             <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-green-50/50">Total Arriendo</th>
