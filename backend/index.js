@@ -157,6 +157,9 @@ try {
 // Specialized routes (each wrapped independently)
 safeRoute('/api/inventario', './src/routes/inventario.routes', 'Inventario');
 safeRoute('/api/transferencias', './src/routes/transferencias.routes', 'Transferencias');
+safeRoute('/api/facturas-inventario', './src/routes/facturas-inventario.routes', 'Facturas Inventario');
+safeRoute('/api/discrepancias', './src/routes/discrepancias.routes', 'Discrepancias');
+safeRoute('/api/bombas-hormigon', './src/routes/bombas-hormigon.routes', 'Bombas Hormigón');
 safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores (especializadas)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');

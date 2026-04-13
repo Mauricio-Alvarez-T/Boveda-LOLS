@@ -12,6 +12,8 @@ import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasList from '../components/inventario/TransferenciasList';
 import SolicitudForm from '../components/inventario/SolicitudForm';
+import FacturasTab from '../components/inventario/FacturasTab';
+import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
 import { Modal } from '../components/ui/Modal';
 
 type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'facturas' | 'bombas';
@@ -192,22 +194,16 @@ const InventarioPage: React.FC = () => {
                     </div>
                 )}
                 {activeTab === 'facturas' && (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <h3 className="text-base font-bold text-brand-dark mb-2">Facturas</h3>
-                        <p className="text-sm text-muted-foreground max-w-md">
-                            Ingreso de facturas y actualización de stock. Próximamente.
-                        </p>
-                    </div>
+                    <FacturasTab
+                        canCreate={hasPermission('inventario.crear')}
+                        canDelete={hasPermission('inventario.eliminar')}
+                    />
                 )}
                 {activeTab === 'bombas' && (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <h3 className="text-base font-bold text-brand-dark mb-2">Bombas de Hormigón</h3>
-                        <p className="text-sm text-muted-foreground max-w-md">
-                            Registro de uso de bombas por obra. Próximamente.
-                        </p>
-                    </div>
+                    <BombasHormigonTab
+                        obras={allObras as any}
+                        canCreate={hasPermission('inventario.crear')}
+                    />
                 )}
             </motion.div>
         </div>
