@@ -1,0 +1,86 @@
+const router = require('express').Router();
+const auth = require('../middleware/auth');
+const { checkPermission } = require('../middleware/rbac');
+const transferenciaService = require('../services/transferencia.service');
+
+// GET /api/transferencias
+router.get('/', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getAll(req.query);
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
+// GET /api/transferencias/pendientes
+router.get('/pendientes', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getPendientes();
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
+// GET /api/transferencias/mis-solicitudes
+router.get('/mis-solicitudes', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getMisSolicitudes(req.user.id, req.query);
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
+// GET /api/transferencias/:id
+router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getById(req.params.id);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias
+router.post('/', auth, checkPermission('inventario.crear'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.crear(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/aprobar
+router.put('/:id/aprobar', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.aprobar(req.params.id, req.user.id, req.body);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/despachar
+router.put('/:id/despachar', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.despachar(req.params.id, req.user.id);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/recibir
+router.put('/:id/recibir', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/rechazar
+router.put('/:id/rechazar', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.rechazar(req.params.id, req.user.id, req.body.motivo);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/cancelar
+router.put('/:id/cancelar', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.cancelar(req.params.id, req.user.id);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+module.exports = router;

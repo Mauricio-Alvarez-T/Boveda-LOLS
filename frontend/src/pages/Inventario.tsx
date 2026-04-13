@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, Plus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -7,8 +7,12 @@ import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
+import { useTransferencias } from '../hooks/inventario/useTransferencias';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
+import TransferenciasList from '../components/inventario/TransferenciasList';
+import SolicitudForm from '../components/inventario/SolicitudForm';
+import { Modal } from '../components/ui/Modal';
 
 type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'facturas' | 'bombas';
 
@@ -25,8 +29,10 @@ const InventarioPage: React.FC = () => {
     const { obras, selectedObra } = useObra();
     const { resumen, stockObra, loading, fetchResumen, fetchStockObra } = useInventarioData();
     const { updateStock, updateDescuento } = useInventarioActions();
+    const trfHook = useTransferencias();
     const [activeTab, setActiveTab] = useState<TabKey>('resumen');
     const [selectedUbicacionId, setSelectedUbicacionId] = useState<number | null>(null);
+    const [showSolicitudForm, setShowSolicitudForm] = useState(false);
 
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
@@ -148,14 +154,41 @@ const InventarioPage: React.FC = () => {
                     </div>
                 )}
 
-                {/* ── PLACEHOLDERS (Fases 3-5) ── */}
+                {/* ── TRANSFERENCIAS ── */}
                 {activeTab === 'transferencias' && (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <h3 className="text-base font-bold text-brand-dark mb-2">Transferencias</h3>
-                        <p className="text-sm text-muted-foreground max-w-md">
-                            Solicitudes, aprobaciones y recepciones de materiales. Próximamente.
-                        </p>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-bold text-brand-dark">Transferencias</h3>
+                            {hasPermission('inventario.crear') && (
+                                <button
+                                    onClick={() => setShowSolicitudForm(true)}
+                                    className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all"
+                                >
+                                    <Plus className="h-3.5 w-3.5" /> Nueva Solicitud
+                                </button>
+                            )}
+                        </div>
+                        <TransferenciasList
+                            transferencias={trfHook.transferencias}
+                            loading={trfHook.loading}
+                            onSelect={(t) => trfHook.fetchById(t.id)}
+                            onRefresh={() => trfHook.fetchAll()}
+                        />
+                        <Modal
+                            isOpen={showSolicitudForm}
+                            onClose={() => setShowSolicitudForm(false)}
+                            title="Nueva Solicitud de Transferencia"
+                        >
+                            <SolicitudForm
+                                obras={allObras as any}
+                                onCrear={async (data) => {
+                                    const result = await trfHook.crear(data);
+                                    if (result) trfHook.fetchAll();
+                                    return result;
+                                }}
+                                onClose={() => setShowSolicitudForm(false)}
+                            />
+                        </Modal>
                     </div>
                 )}
                 {activeTab === 'facturas' && (
