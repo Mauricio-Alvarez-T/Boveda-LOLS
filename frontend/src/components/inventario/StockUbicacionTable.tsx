@@ -132,14 +132,42 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         <td colSpan={6} className="px-3 py-2 text-right font-black text-xs text-brand-dark">TOTAL FACTURACIÓN</td>
                         <td className="px-2 py-2 text-right font-black text-xs text-brand-primary">{fmtMoney(data.total_facturacion)}</td>
                     </tr>
-                    {data.descuento_porcentaje > 0 && (
-                        <tr className="bg-amber-50/50">
-                            <td colSpan={6} className="px-3 py-2 text-right font-bold text-xs text-muted-foreground">
-                                Descuento {data.descuento_porcentaje}%
-                            </td>
-                            <td className="px-2 py-2 text-right font-bold text-xs text-destructive">-{fmtMoney(data.descuento_monto)}</td>
-                        </tr>
-                    )}
+                    {/* Discount row — always visible, editable */}
+                    <tr className="bg-amber-50/50">
+                        <td colSpan={6} className="px-3 py-2 text-right font-bold text-xs text-muted-foreground">
+                            {editingCell === 'descuento' ? (
+                                <div className="flex items-center justify-end gap-1">
+                                    <span className="text-muted-foreground">Descuento</span>
+                                    <input
+                                        type="number"
+                                        value={editValue}
+                                        onChange={e => setEditValue(e.target.value)}
+                                        onKeyDown={e => { if (e.key === 'Enter') handleDescuentoSave(); if (e.key === 'Escape') cancelEdit(); }}
+                                        className="w-16 px-1 py-0.5 text-[11px] border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
+                                        autoFocus
+                                        min={0}
+                                        max={100}
+                                    />
+                                    <span className="text-muted-foreground">%</span>
+                                    <button onClick={handleDescuentoSave} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
+                                    <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                                </div>
+                            ) : (
+                                <span
+                                    onClick={() => canEdit ? startEdit('descuento', data.descuento_porcentaje) : undefined}
+                                    className={cn(
+                                        canEdit && "cursor-pointer hover:bg-amber-100 hover:ring-1 hover:ring-amber-300 rounded px-2 py-0.5 transition-all"
+                                    )}
+                                    title={canEdit ? 'Click para editar descuento' : undefined}
+                                >
+                                    Descuento {data.descuento_porcentaje > 0 ? `${data.descuento_porcentaje}%` : '(sin descuento — click para agregar)'}
+                                </span>
+                            )}
+                        </td>
+                        <td className="px-2 py-2 text-right font-bold text-xs text-destructive">
+                            {data.descuento_monto > 0 ? `-${fmtMoney(data.descuento_monto)}` : '$0'}
+                        </td>
+                    </tr>
                     {data.descuento_porcentaje > 0 && (
                         <tr className="bg-brand-accent/5 border-t-2 border-brand-accent/30">
                             <td colSpan={6} className="px-3 py-2 text-right font-black text-xs text-brand-dark">TOTAL CON DESCUENTO</td>
