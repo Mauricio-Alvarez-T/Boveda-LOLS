@@ -66,6 +66,12 @@ const MAESTRO_PERMISOS = [
     ['usuarios.roles.eliminar',     'Usuarios', 'Eliminar Rol',                   'Eliminar roles', 8],
     ['usuarios.permisos.gestionar', 'Usuarios', 'Gestionar Permisos',             'Asignar permisos a roles y usuarios', 9],
 
+    // INVENTARIO
+    ['inventario.ver',              'Inventario', 'Ver Inventario',              'Ver el módulo de inventario completo', 1],
+    ['inventario.crear',            'Inventario', 'Crear en Inventario',         'Crear solicitudes, transferencias y registros de inventario', 2],
+    ['inventario.editar',           'Inventario', 'Editar Inventario',           'Modificar stock, descuentos y registros de inventario', 3],
+    ['inventario.eliminar',         'Inventario', 'Eliminar en Inventario',      'Anular o eliminar registros de inventario', 4],
+
     // SISTEMA
     ['sistema.logs.ver',            'Sistema', 'Ver Historial',                  'Ver el historial de actividad del sistema', 1],
     ['sistema.email.configurar',    'Sistema', 'Configurar Email',               'Configurar credenciales de correo', 2],
