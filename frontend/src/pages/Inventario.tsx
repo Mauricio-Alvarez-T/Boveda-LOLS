@@ -70,9 +70,9 @@ const InventarioPage: React.FC = () => {
     const allObras = resumen?.obras || obras.map(o => ({ id: o.id, nombre: o.nombre }));
 
     return (
-        <div className="space-y-6">
-            {/* Tab Navigation */}
-            <div className="flex items-center gap-1 p-1.5 bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+        <div className="space-y-4">
+            {/* Tab Navigation — sticky */}
+            <div className="sticky top-0 z-30 flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
                 {tabs.map(tab => (
                     <button
                         key={tab.key}

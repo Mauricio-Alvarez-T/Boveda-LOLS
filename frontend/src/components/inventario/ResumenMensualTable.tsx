@@ -192,8 +192,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
     return (
         <div className="space-y-3">
-            {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2">
+            {/* ── Toolbar — sticky ── */}
+            <div className="sticky top-[52px] z-20 flex flex-wrap items-center gap-2 bg-white py-2 -mx-1 px-1">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[180px] max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -240,7 +240,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
             {/* ── Table ── */}
             <div className="overflow-x-auto rounded-xl border border-[#E8E8ED]">
                 <table className="w-full text-[11px] border-collapse">
-                    <thead>
+                    <thead className="sticky top-[94px] z-20">
                         {/* Header row 1 */}
                         <tr className="bg-brand-primary/5">
                             <th className="sticky left-0 bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8">#</th>
@@ -285,10 +285,10 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-[#E8E8ED] bg-green-50/50">Total Unid.</th>
                         </tr>
                         {/* Header row 2 */}
-                        <tr className="bg-[#F9F9FB]">
-                            <th className="sticky left-0 bg-[#F9F9FB] z-20 border-b border-r border-[#E8E8ED]" />
-                            <th className="bg-[#F9F9FB] border-b border-r border-[#E8E8ED]" />
-                            <th className={cn("sticky bg-[#F9F9FB] z-20 border-b border-r border-[#E8E8ED]", showImages ? "left-[68px]" : "left-8")} />
+                        <tr className="bg-[#EDEDF2]">
+                            <th className="sticky left-0 bg-[#EDEDF2] z-20 border-b border-r border-[#D8D8DD]" />
+                            <th className="bg-[#EDEDF2] border-b border-r border-[#D8D8DD]" />
+                            <th className={cn("sticky bg-[#EDEDF2] z-20 border-b border-r border-[#D8D8DD]", showImages ? "left-[68px]" : "left-8")} />
                             <th className="border-b border-r border-[#E8E8ED]" />
                             {visibleObras.map((o, oIdx) => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
