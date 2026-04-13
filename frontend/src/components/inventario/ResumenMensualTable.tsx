@@ -12,7 +12,7 @@ interface Props {
 
 const fmt = (n: number) => n.toLocaleString('es-CL');
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 const STORAGE_KEY = 'inventario_resumen_hidden_cols';
 

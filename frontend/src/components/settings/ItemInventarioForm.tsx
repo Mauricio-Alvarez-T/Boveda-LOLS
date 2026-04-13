@@ -31,7 +31,7 @@ interface Props {
     onCancel: () => void;
 }
 
-const API_BASE = import.meta.env.VITE_API_URL || '';
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
     const [categorias, setCategorias] = useState<CategoriaInventario[]>([]);
