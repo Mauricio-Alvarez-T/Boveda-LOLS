@@ -10,7 +10,8 @@ import {
     LogOut,
     Settings,
     X,
-    SearchCheck
+    SearchCheck,
+    Package
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -46,6 +47,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Consultas',
             path: '/consultas',
             visible: hasPermission('trabajadores.ver')
+        },
+        {
+            icon: Package,
+            label: 'Inventario',
+            path: '/inventario',
+            visible: hasPermission('inventario.ver')
         },
         {
             icon: Settings,
