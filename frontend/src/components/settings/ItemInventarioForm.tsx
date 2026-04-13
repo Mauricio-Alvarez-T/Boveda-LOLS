@@ -75,10 +75,12 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                 <Input label="Nro Ítem" type="number" {...register('nro_item')} error={errors.nro_item?.message} placeholder="1" />
-                <Select label="Categoría" {...register('categoria_id')} error={errors.categoria_id?.message}>
-                    <option value="">Seleccionar...</option>
-                    {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </Select>
+                <Select
+                    label="Categoría"
+                    {...register('categoria_id')}
+                    error={errors.categoria_id?.message}
+                    options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
+                />
             </div>
             <Input label="Descripción" {...register('descripcion')} error={errors.descripcion?.message} placeholder="ANDAMIO VERTICAL PATA REGULABLE" />
             <div className="grid grid-cols-3 gap-4">

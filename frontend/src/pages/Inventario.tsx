@@ -143,7 +143,7 @@ const InventarioPage: React.FC = () => {
                             <StockUbicacionTable
                                 data={stockObra}
                                 canEdit={hasPermission('inventario.editar')}
-                                onUpdateStock={updateStock}
+                                onUpdateStock={(itemId, obraId, data) => updateStock(itemId, obraId, null, data)}
                                 onUpdateDescuento={updateDescuento}
                                 onRefresh={() => selectedUbicacionId && fetchStockObra(selectedUbicacionId)}
                             />
