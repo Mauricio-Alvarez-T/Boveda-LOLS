@@ -1,9 +1,14 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { Package, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
+import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
+import { useInventarioData } from '../hooks/inventario/useInventarioData';
+import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
+import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
+import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 
 type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'facturas' | 'bombas';
 
@@ -17,7 +22,11 @@ const tabs: { key: TabKey; label: string }[] = [
 
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
+    const { obras, selectedObra } = useObra();
+    const { resumen, stockObra, loading, fetchResumen, fetchStockObra } = useInventarioData();
+    const { updateStock, updateDescuento } = useInventarioActions();
     const [activeTab, setActiveTab] = useState<TabKey>('resumen');
+    const [selectedUbicacionId, setSelectedUbicacionId] = useState<number | null>(null);
 
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
@@ -30,6 +39,27 @@ const InventarioPage: React.FC = () => {
     ), []);
 
     useSetPageHeader(headerTitle);
+
+    // Load resumen on mount
+    useEffect(() => {
+        if (activeTab === 'resumen') fetchResumen();
+    }, [activeTab, fetchResumen]);
+
+    // Load stock when obra is selected in the por_ubicacion tab
+    useEffect(() => {
+        if (activeTab === 'por_ubicacion' && selectedUbicacionId) {
+            fetchStockObra(selectedUbicacionId);
+        }
+    }, [activeTab, selectedUbicacionId, fetchStockObra]);
+
+    // Default selectedUbicacionId to first obra
+    useEffect(() => {
+        if (!selectedUbicacionId && obras.length > 0) {
+            setSelectedUbicacionId(selectedObra?.id || obras[0].id);
+        }
+    }, [obras, selectedObra, selectedUbicacionId]);
+
+    const allObras = resumen?.obras || obras.map(o => ({ id: o.id, nombre: o.nombre }));
 
     return (
         <div className="space-y-6">
@@ -57,26 +87,68 @@ const InventarioPage: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-6"
+                className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6"
             >
+                {/* ── RESUMEN ── */}
                 {activeTab === 'resumen' && (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <h3 className="text-base font-bold text-brand-dark mb-2">Resumen Mensual</h3>
-                        <p className="text-sm text-muted-foreground max-w-md">
-                            Vista consolidada del inventario por ubicación. Próximamente.
-                        </p>
-                    </div>
+                    loading ? (
+                        <div className="flex flex-col items-center justify-center py-16">
+                            <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                            <p className="mt-3 text-sm text-muted-foreground">Cargando resumen...</p>
+                        </div>
+                    ) : resumen && resumen.categorias.length > 0 ? (
+                        <ResumenMensualTable data={resumen} />
+                    ) : (
+                        <div className="flex flex-col items-center justify-center py-16 text-center">
+                            <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
+                            <h3 className="text-base font-bold text-brand-dark mb-2">Sin datos de inventario</h3>
+                            <p className="text-sm text-muted-foreground max-w-md">
+                                Agrega categorías e ítems desde Configuración para comenzar.
+                            </p>
+                        </div>
+                    )
                 )}
+
+                {/* ── POR OBRA/BODEGA ── */}
                 {activeTab === 'por_ubicacion' && (
-                    <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <h3 className="text-base font-bold text-brand-dark mb-2">Stock por Obra / Bodega</h3>
-                        <p className="text-sm text-muted-foreground max-w-md">
-                            Detalle de ítems por ubicación con edición inline. Próximamente.
-                        </p>
+                    <div className="space-y-4">
+                        {/* Obra selector */}
+                        <div className="flex items-center gap-3">
+                            <label className="text-xs font-bold text-brand-dark">Obra:</label>
+                            <select
+                                value={selectedUbicacionId || ''}
+                                onChange={e => setSelectedUbicacionId(Number(e.target.value))}
+                                className="px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            >
+                                {allObras.map(o => (
+                                    <option key={o.id} value={o.id}>{o.nombre}</option>
+                                ))}
+                            </select>
+                        </div>
+
+                        {loading ? (
+                            <div className="flex flex-col items-center justify-center py-16">
+                                <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
+                                <p className="mt-3 text-sm text-muted-foreground">Cargando stock...</p>
+                            </div>
+                        ) : stockObra ? (
+                            <StockUbicacionTable
+                                data={stockObra}
+                                canEdit={hasPermission('inventario.editar')}
+                                onUpdateStock={updateStock}
+                                onUpdateDescuento={updateDescuento}
+                                onRefresh={() => selectedUbicacionId && fetchStockObra(selectedUbicacionId)}
+                            />
+                        ) : (
+                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                                <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
+                                <p className="text-sm text-muted-foreground">Selecciona una obra para ver su stock.</p>
+                            </div>
+                        )}
                     </div>
                 )}
+
+                {/* ── PLACEHOLDERS (Fases 3-5) ── */}
                 {activeTab === 'transferencias' && (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
