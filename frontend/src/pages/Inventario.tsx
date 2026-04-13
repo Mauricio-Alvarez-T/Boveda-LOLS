@@ -105,7 +105,12 @@ const InventarioPage: React.FC = () => {
                             <p className="mt-3 text-sm text-muted-foreground">Cargando resumen...</p>
                         </div>
                     ) : resumen && resumen.categorias.length > 0 ? (
-                        <ResumenMensualTable data={resumen} />
+                        <ResumenMensualTable
+                            data={resumen}
+                            canEdit={hasPermission('inventario.editar')}
+                            onUpdateStock={updateStock}
+                            onRefresh={fetchResumen}
+                        />
                     ) : (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
                             <Package className="h-12 w-12 text-brand-primary/20 mb-4" />

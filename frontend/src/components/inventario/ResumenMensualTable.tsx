@@ -1,16 +1,88 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
+import { Check, X } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 
 interface Props {
     data: ResumenData;
+    canEdit: boolean;
+    onUpdateStock: (itemId: number, obraId: number | null, bodegaId: number | null, data: { cantidad: number }) => Promise<boolean>;
+    onRefresh: () => void;
 }
 
 const fmt = (n: number) => n.toLocaleString('es-CL');
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
-const ResumenMensualTable: React.FC<Props> = ({ data }) => {
+const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onRefresh }) => {
     const { obras, bodegas, categorias } = data;
+    const [editingCell, setEditingCell] = useState<string | null>(null);
+    const [editValue, setEditValue] = useState('');
+
+    const startEdit = (key: string, currentValue: number) => {
+        if (!canEdit) return;
+        setEditingCell(key);
+        setEditValue(String(currentValue || ''));
+    };
+
+    const cancelEdit = () => {
+        setEditingCell(null);
+        setEditValue('');
+    };
+
+    const saveEdit = async (itemId: number, obraId: number | null, bodegaId: number | null) => {
+        const num = parseInt(editValue, 10);
+        if (isNaN(num) || num < 0) { cancelEdit(); return; }
+        const ok = await onUpdateStock(itemId, obraId, bodegaId, { cantidad: num });
+        if (ok) onRefresh();
+        cancelEdit();
+    };
+
+    const renderEditableQty = (
+        cellKey: string,
+        cantidad: number,
+        itemId: number,
+        obraId: number | null,
+        bodegaId: number | null,
+        hasValue: boolean
+    ) => {
+        if (editingCell === cellKey) {
+            return (
+                <div className="flex items-center justify-center gap-0.5">
+                    <input
+                        type="number"
+                        value={editValue}
+                        onChange={e => setEditValue(e.target.value)}
+                        onKeyDown={e => {
+                            if (e.key === 'Enter') saveEdit(itemId, obraId, bodegaId);
+                            if (e.key === 'Escape') cancelEdit();
+                        }}
+                        className="w-14 px-1 py-0.5 text-[11px] border rounded text-center focus:ring-1 focus:ring-brand-primary outline-none"
+                        autoFocus
+                        min={0}
+                    />
+                    <button onClick={() => saveEdit(itemId, obraId, bodegaId)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded">
+                        <Check className="h-3 w-3" />
+                    </button>
+                    <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded">
+                        <X className="h-3 w-3" />
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <span
+                onClick={() => startEdit(cellKey, cantidad)}
+                className={cn(
+                    hasValue ? "font-semibold text-brand-dark" : "text-muted-foreground/40",
+                    canEdit && "cursor-pointer hover:bg-brand-primary/10 hover:ring-1 hover:ring-brand-primary/30 rounded px-1 py-0.5 transition-all"
+                )}
+                title={canEdit ? 'Click para editar' : undefined}
+            >
+                {hasValue ? cantidad : ''}
+            </span>
+        );
+    };
 
     return (
         <div className="overflow-x-auto">
@@ -69,10 +141,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data }) => {
                                     <td className="px-2 py-1 text-right text-muted-foreground border-r border-[#F0F0F5]">{fmtMoney(item.valor_arriendo)}</td>
                                     {obras.map(o => {
                                         const ub = item.ubicaciones[`obra_${o.id}`];
+                                        const cellKey = `obra_${o.id}_item_${item.id}`;
                                         return (
-                                            <React.Fragment key={`${item.id}_obra_${o.id}`}>
-                                                <td className={cn("px-2 py-1 text-center border-r border-[#F0F0F5]", ub && ub.cantidad > 0 ? "font-semibold text-brand-dark" : "text-muted-foreground/40")}>
-                                                    {ub?.cantidad || ''}
+                                            <React.Fragment key={cellKey}>
+                                                <td className="px-2 py-1 text-center border-r border-[#F0F0F5]">
+                                                    {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, o.id, null, !!(ub && ub.cantidad > 0))}
                                                 </td>
                                                 <td className={cn("px-2 py-1 text-right border-r border-[#F0F0F5]", ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
                                                     {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
@@ -82,9 +155,10 @@ const ResumenMensualTable: React.FC<Props> = ({ data }) => {
                                     })}
                                     {bodegas.map(b => {
                                         const ub = item.ubicaciones[`bodega_${b.id}`];
+                                        const cellKey = `bodega_${b.id}_item_${item.id}`;
                                         return (
-                                            <td key={`${item.id}_bod_${b.id}`} className={cn("px-2 py-1 text-center border-r border-[#F0F0F5]", ub && ub.cantidad > 0 ? "font-semibold text-brand-dark" : "text-muted-foreground/40")}>
-                                                {ub?.cantidad || ''}
+                                            <td key={cellKey} className="px-2 py-1 text-center border-r border-[#F0F0F5]">
+                                                {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, null, b.id, !!(ub && ub.cantidad > 0))}
                                             </td>
                                         );
                                     })}
