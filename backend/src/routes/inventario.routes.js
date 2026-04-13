@@ -71,7 +71,7 @@ router.post('/items/:itemId/imagen', auth, checkPermission('inventario.editar'),
                 if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
             }
 
-            const imagenUrl = `/uploads/inventario/${req.file.filename}`;
+            const imagenUrl = `/api/uploads/inventario/${req.file.filename}`;
             await db.query('UPDATE items_inventario SET imagen_url = ? WHERE id = ?', [imagenUrl, itemId]);
             res.json({ data: { imagen_url: imagenUrl } });
         } catch (err) { next(err); }

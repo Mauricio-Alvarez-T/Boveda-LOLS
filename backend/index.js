@@ -46,8 +46,8 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Serve inventory item images
-app.use('/uploads/inventario', express.static(path.join(__dirname, 'uploads/inventario')));
+// Serve inventory item images (under /api so cPanel proxy forwards them to Express)
+app.use('/api/uploads/inventario', express.static(path.join(__dirname, 'uploads/inventario')));
 const activityLogger = require('./src/middleware/logger').activityLogger;
 const logger = require('./src/utils/logger-structured');
 app.use(activityLogger);
