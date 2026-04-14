@@ -70,9 +70,9 @@ const InventarioPage: React.FC = () => {
     const allObras = resumen?.obras || obras.map(o => ({ id: o.id, nombre: o.nombre }));
 
     return (
-        <div className="space-y-4">
+        <div className="flex flex-col flex-1 min-h-0 gap-4">
             {/* Tab Navigation — sticky at top of scroll container */}
-            <div className="sticky top-0 z-30 -mt-3 md:-mt-5 -mx-3 md:-mx-5 px-3 md:px-5 pt-3 md:pt-5 pb-1 bg-background">
+            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
                 <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
                 {tabs.map(tab => (
                     <button
@@ -97,7 +97,7 @@ const InventarioPage: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6"
+                className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6 flex-1 min-h-0 flex flex-col"
             >
                 {/* ── RESUMEN ── */}
                 {activeTab === 'resumen' && (

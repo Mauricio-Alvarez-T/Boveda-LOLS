@@ -83,7 +83,7 @@ export const MainLayout: React.FC = () => {
                 </header>
 
                 {/* Page Content — actual scroll container */}
-                <div className="flex-1 min-h-0 p-3 md:p-5 pb-12 overflow-y-auto overflow-x-hidden relative">
+                <div className="flex-1 min-h-0 p-3 md:p-5 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}
@@ -91,7 +91,7 @@ export const MainLayout: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
                             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                            className="bg-transparent"
+                            className="bg-transparent flex-1 flex flex-col min-h-0"
                         >
                             <Outlet />
                         </motion.div>

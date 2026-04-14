@@ -191,9 +191,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     const hiddenCount = hiddenCols.size;
 
     return (
-        <div className="space-y-3">
+        <div className="flex flex-col gap-3 flex-1 min-h-0">
             {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2 py-2">
+            <div className="flex flex-wrap items-center gap-2 py-2 shrink-0">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[180px] max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -237,8 +237,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 )}
             </div>
 
-            {/* ── Table — scrolls both axes, sticky header/footer inside ── */}
-            <div className="overflow-auto max-h-[calc(100vh-14rem)] md:max-h-[calc(100vh-16rem)] rounded-xl border border-[#E8E8ED]">
+            {/* ── Table — fills remaining space, scrolls both axes ── */}
+            <div className="overflow-auto flex-1 min-h-0 rounded-xl border border-[#E8E8ED]">
                 <table className="w-full text-[11px] border-collapse">
                     <thead className="sticky top-0 z-20">
                         {/* Header row 1 — solid backgrounds for sticky */}
@@ -421,7 +421,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
             {/* Search results hint */}
             {searchLower && (
-                <p className="text-[10px] text-muted-foreground">
+                <p className="text-[10px] text-muted-foreground shrink-0">
                     Mostrando {filteredCategorias.reduce((s, c) => s + c.items.length, 0)} ítems en {filteredCategorias.length} categorías
                 </p>
             )}
