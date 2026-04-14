@@ -381,10 +381,28 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             );
                         })}
                     </tbody>
-                    {/* ── Sticky totals footer — solid bg ── */}
+                    {/* ── Sticky totals footer — solid bg, clear labels ── */}
                     <tfoot className="sticky bottom-0 z-10">
+                        {/* Label row */}
                         <tr className="border-t-2 border-brand-primary/30">
-                            <td colSpan={showImages ? 4 : 3} className="bg-[#F0F2F8] px-2 py-2 text-right font-black text-xs text-brand-dark">
+                            <td colSpan={showImages ? 4 : 3} className="bg-[#E8EBF2] px-2 py-1 text-right font-black text-[9px] text-brand-dark/60 uppercase tracking-wider">
+                                Totales por ubicación
+                            </td>
+                            {visibleObras.map(o => (
+                                <React.Fragment key={`lbl_obra_${o.id}`}>
+                                    <td className="bg-[#E8EBF2] px-1 py-1 text-center text-[8px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unid.</td>
+                                    <td className="bg-[#E8EBF2] px-1 py-1 text-center text-[8px] font-semibold text-brand-dark/50 uppercase tracking-wider border-r-2 border-r-[#BBBBCC]">Arriendo</td>
+                                </React.Fragment>
+                            ))}
+                            {visibleBodegas.map(b => (
+                                <td key={`lbl_bod_${b.id}`} className="bg-[#E8EBF2] px-1 py-1 text-center text-[8px] font-semibold text-brand-dark/50 uppercase tracking-wider border-r-2 border-r-[#BBBBCC]">Unid.</td>
+                            ))}
+                            <td className="bg-[#E8EBF2] px-1 py-1 text-center text-[8px] font-semibold text-brand-dark/50 uppercase tracking-wider">$ Total</td>
+                            <td className="bg-[#E8EBF2] px-1 py-1 text-center text-[8px] font-semibold text-brand-dark/50 uppercase tracking-wider">Unid. Total</td>
+                        </tr>
+                        {/* Values row */}
+                        <tr>
+                            <td colSpan={showImages ? 4 : 3} className="bg-[#F0F2F8] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
                             {visibleObras.map(o => {
@@ -394,8 +412,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.cantidad || 0), 0), 0);
                                 return (
                                     <React.Fragment key={`total_obra_${o.id}`}>
-                                        <td className="bg-[#F0F2F8] px-2 py-2 text-center font-bold text-brand-dark text-[10px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
-                                        <td className="bg-[#F0F2F8] px-2 py-2 text-right font-bold text-brand-dark text-[10px]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
+                                        <td className="bg-[#F0F2F8] px-2 py-2.5 text-center font-bold text-brand-dark text-[11px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
+                                        <td className="bg-[#F0F2F8] px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-r-[#BBBBCC]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
                                     </React.Fragment>
                                 );
                             })}
@@ -403,15 +421,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 const bodCant = categorias.reduce((sum, cat) =>
                                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`bodega_${b.id}`]?.cantidad || 0), 0), 0);
                                 return (
-                                    <td key={`total_bod_${b.id}`} className="bg-[#F0F2F8] px-2 py-2 text-center font-bold text-brand-dark text-[10px]">
+                                    <td key={`total_bod_${b.id}`} className="bg-[#F0F2F8] px-2 py-2.5 text-center font-bold text-brand-dark text-[11px] border-r-2 border-r-[#BBBBCC]">
                                         {bodCant > 0 ? fmt(bodCant) : ''}
                                     </td>
                                 );
                             })}
-                            <td className="bg-[#F0F2F8] px-2 py-2 text-right font-black text-xs text-brand-primary">
+                            <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-primary">
                                 {fmtMoney(grandTotals.totalArriendo)}
                             </td>
-                            <td className="bg-[#F0F2F8] px-2 py-2 text-right font-black text-xs text-brand-dark">
+                            <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 {fmt(grandTotals.totalCantidad)}
                             </td>
                         </tr>
