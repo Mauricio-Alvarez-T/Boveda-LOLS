@@ -126,9 +126,9 @@ const InventarioPage: React.FC = () => {
 
                 {/* ── POR OBRA/BODEGA ── */}
                 {activeTab === 'por_ubicacion' && (
-                    <div className="space-y-4">
+                    <div className="flex flex-col gap-4 flex-1 min-h-0">
                         {/* Obra selector */}
-                        <div className="flex items-center gap-3">
+                        <div className="flex items-center gap-3 shrink-0">
                             <label className="text-xs font-bold text-brand-dark">Obra:</label>
                             <select
                                 value={selectedUbicacionId || ''}
