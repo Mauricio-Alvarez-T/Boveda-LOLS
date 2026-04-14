@@ -280,13 +280,24 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </h4>
 
                     {/* Origin selector */}
-                    <SearchableSelect
-                        label="Origen (desde donde se envia)"
-                        options={obras.map(o => ({ value: o.id, label: o.nombre }))}
-                        value={approvalOrigin}
-                        onChange={(val) => setApprovalOrigin(val as number | null)}
-                        placeholder="Seleccionar obra de origen..."
-                    />
+                    <div>
+                        <SearchableSelect
+                            label="Origen (desde donde se envia)"
+                            options={obras.map(o => ({ value: o.id, label: o.nombre }))}
+                            value={approvalOrigin}
+                            onChange={(val) => setApprovalOrigin(val as number | null)}
+                            placeholder="Seleccionar obra de origen..."
+                        />
+                        {approvalOrigin && (
+                            <p className="text-[10px] text-green-700 mt-1 ml-1 font-medium flex items-center gap-1">
+                                <Check className="h-3 w-3" />
+                                Origen seleccionado: <span className="font-bold">{obras.find(o => o.id === approvalOrigin)?.nombre}</span>
+                            </p>
+                        )}
+                        <p className="text-[10px] text-muted-foreground mt-1 ml-1">
+                            Tambien puedes hacer click en las ubicaciones verdes de cada item
+                        </p>
+                    </div>
 
                     {/* Stock per item */}
                     <div className="space-y-3">
@@ -314,25 +325,34 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             </span>
                                         </div>
 
-                                        {/* Stock locations */}
+                                        {/* Stock locations — clickable chips */}
                                         {hasStock ? (
                                             <div className="flex flex-wrap gap-1.5 mb-2">
                                                 {locations.map((loc, lIdx) => {
                                                     const isOrigin = approvalOrigin && loc.type === 'obra' && loc.id === approvalOrigin;
-                                                    const sufficient = loc.cantidad >= item.cantidad_solicitada;
+                                                    const sufficient = loc.cantidad >= (approvalItems[idx]?.cantidad_enviada || item.cantidad_solicitada);
+                                                    const isClickable = loc.type === 'obra' && sufficient;
                                                     return (
-                                                        <div key={lIdx} className={cn(
-                                                            "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1",
-                                                            isOrigin
-                                                                ? "bg-green-100 border-green-300 text-green-800 font-bold"
-                                                                : sufficient
-                                                                    ? "bg-blue-50 border-blue-200 text-blue-700"
-                                                                    : "bg-gray-50 border-gray-200 text-gray-600"
-                                                        )}>
+                                                        <button
+                                                            key={lIdx}
+                                                            type="button"
+                                                            disabled={!isClickable}
+                                                            onClick={() => {
+                                                                if (isClickable) setApprovalOrigin(loc.id);
+                                                            }}
+                                                            className={cn(
+                                                                "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
+                                                                isOrigin
+                                                                    ? "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50 shadow-sm"
+                                                                    : isClickable
+                                                                        ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 cursor-pointer"
+                                                                        : "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60"
+                                                            )}
+                                                        >
                                                             <MapPin className="h-2.5 w-2.5" />
                                                             {loc.nombre}: <span className="font-bold">{loc.cantidad}</span>
                                                             {isOrigin && <Check className="h-2.5 w-2.5" />}
-                                                        </div>
+                                                        </button>
                                                     );
                                                 })}
                                             </div>
