@@ -127,9 +127,18 @@ export function useTransferencias() {
         }
     }, []);
 
+    const fetchStockPorItems = useCallback(async (itemIds: number[]): Promise<Record<number, { type: string; id: number; nombre: string; cantidad: number }[]>> => {
+        try {
+            const res = await api.post<{ data: Record<number, { type: string; id: number; nombre: string; cantidad: number }[]> }>('/inventario/stock-por-items', { item_ids: itemIds });
+            return res.data.data;
+        } catch {
+            return {};
+        }
+    }, []);
+
     return {
         transferencias, selected, loading, total,
         fetchAll, fetchById, crear, aprobar, despachar, recibir, rechazar, cancelar,
-        setSelected
+        fetchStockPorItems, setSelected
     };
 }

@@ -281,6 +281,36 @@ const inventarioService = {
             [obraId, porcentaje]
         );
         return { obra_id: obraId, porcentaje };
+    },
+
+    /**
+     * Stock por ítems: dada una lista de item_ids, retorna en qué ubicaciones hay stock > 0.
+     * Usado por el aprobador de transferencias para ver dónde hay disponibilidad.
+     */
+    async getStockPorItems(itemIds) {
+        if (!itemIds || !itemIds.length) return {};
+
+        const [rows] = await db.query(`
+            SELECT us.item_id, us.obra_id, us.bodega_id, us.cantidad,
+                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre
+            FROM ubicaciones_stock us
+            LEFT JOIN obras o ON us.obra_id = o.id
+            LEFT JOIN bodegas b ON us.bodega_id = b.id
+            WHERE us.item_id IN (?) AND us.cantidad > 0
+            ORDER BY us.item_id, us.cantidad DESC
+        `, [itemIds]);
+
+        const result = {};
+        for (const row of rows) {
+            if (!result[row.item_id]) result[row.item_id] = [];
+            result[row.item_id].push({
+                type: row.obra_id ? 'obra' : 'bodega',
+                id: row.obra_id || row.bodega_id,
+                nombre: row.obra_nombre || row.bodega_nombre,
+                cantidad: row.cantidad,
+            });
+        }
+        return result;
     }
 };
 

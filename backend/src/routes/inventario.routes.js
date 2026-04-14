@@ -55,6 +55,18 @@ router.put('/descuento/obra/:obraId', auth, checkPermission('inventario.editar')
     } catch (err) { next(err); }
 });
 
+// POST /api/inventario/stock-por-items — stock availability per item across all locations
+router.post('/stock-por-items', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const { item_ids } = req.body;
+        if (!item_ids || !Array.isArray(item_ids) || !item_ids.length) {
+            return res.status(400).json({ error: 'item_ids requerido (array de IDs)' });
+        }
+        const result = await inventarioService.getStockPorItems(item_ids);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // POST /api/inventario/items/:itemId/imagen — upload item image
 router.post('/items/:itemId/imagen', auth, checkPermission('inventario.editar'),
     uploadInventario.single('imagen'),

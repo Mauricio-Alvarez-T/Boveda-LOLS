@@ -1,12 +1,20 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 import {
-    ChevronLeft, FileText, CheckCircle2, Truck, PackageCheck,
-    XCircle, Ban, AlertTriangle, MessageSquare, Users
+    ChevronLeft, FileText, CheckCircle2, PackageCheck,
+    XCircle, Ban, AlertTriangle, MessageSquare, Users,
+    MapPin, Package, Check, X as XIcon
 } from 'lucide-react';
 import { estadoConfig } from './TransferenciasList';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Transferencia, TransferenciaItem } from '../../types/entities';
+
+interface StockLocation {
+    type: string;
+    id: number;
+    nombre: string;
+    cantidad: number;
+}
 
 interface Props {
     transferencia: Transferencia;
@@ -15,23 +23,22 @@ interface Props {
     hasPermission: (p: string) => boolean;
     userId: number;
     onBack: () => void;
+    onFetchStock: (itemIds: number[]) => Promise<Record<number, StockLocation[]>>;
     onAprobar: (data: { origen_obra_id?: number | null; origen_bodega_id?: number | null; items: { item_id: number; cantidad_enviada: number }[] }) => Promise<boolean>;
-    onDespachar: () => Promise<boolean>;
     onRecibir: (items: { item_id: number; cantidad_recibida: number }[]) => Promise<boolean>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
 }
 
-// ── Timeline Steps ──
+// ── Timeline: 3 steps (no "Despachada") ──
 const STEPS = [
     { key: 'pendiente', label: 'Solicitada', icon: FileText },
     { key: 'aprobada', label: 'Aprobada', icon: CheckCircle2 },
-    { key: 'en_transito', label: 'Despachada', icon: Truck },
     { key: 'recibida', label: 'Recibida', icon: PackageCheck },
 ];
 
 const STEP_INDEX: Record<string, number> = {
-    pendiente: 0, aprobada: 1, en_transito: 2, recibida: 3,
+    pendiente: 0, aprobada: 1, en_transito: 1, recibida: 2,
     rechazada: -1, cancelada: -1,
 };
 
@@ -43,7 +50,7 @@ const fmtDateTime = (d: string | null) =>
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onAprobar, onDespachar, onRecibir, onRechazar, onCancelar,
+    onBack, onFetchStock, onAprobar, onRecibir, onRechazar, onCancelar,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
@@ -55,34 +62,57 @@ const TransferenciaDetail: React.FC<Props> = ({
     // ── Action permissions ──
     const canAprobar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
     const canRechazar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
-    const canDespachar = t.estado === 'aprobada' && hasPermission('inventario.editar');
     const canRecibir = (t.estado === 'en_transito' || t.estado === 'aprobada') && hasPermission('inventario.editar');
     const canCancelar = t.estado === 'pendiente' && (hasPermission('inventario.editar') || t.solicitante_id === userId);
-    const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canCancelar;
+    const hasActions = canAprobar || canRechazar || canRecibir || canCancelar;
 
     // ── Inline form states ──
     const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'recibir' | null>(null);
+
+    // Approval state
+    const [stockData, setStockData] = useState<Record<number, StockLocation[]>>({});
+    const [stockLoading, setStockLoading] = useState(false);
     const [approvalOrigin, setApprovalOrigin] = useState<number | null>(null);
-    const [approvalItems, setApprovalItems] = useState<{ item_id: number; cantidad_enviada: number }[]>(
-        () => items.map(i => ({ item_id: i.item_id, cantidad_enviada: i.cantidad_solicitada }))
-    );
-    const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number }[]>(
-        () => items.map(i => ({ item_id: i.item_id, cantidad_recibida: i.cantidad_enviada || i.cantidad_solicitada }))
-    );
+    const [approvalItems, setApprovalItems] = useState<{ item_id: number; cantidad_enviada: number }[]>([]);
+
+    // Receive state
+    const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string }[]>([]);
+
+    // Reject state
     const [rejectMotivo, setRejectMotivo] = useState('');
 
     // Reset forms when transferencia changes
     useMemo(() => {
         setActiveForm(null);
-        setApprovalItems(items.map(i => ({ item_id: i.item_id, cantidad_enviada: i.cantidad_solicitada })));
-        setReceiveItems(items.map(i => ({ item_id: i.item_id, cantidad_recibida: i.cantidad_enviada || i.cantidad_solicitada })));
-        setRejectMotivo('');
+        setStockData({});
         setApprovalOrigin(null);
+        setApprovalItems(items.map(i => ({ item_id: i.item_id, cantidad_enviada: i.cantidad_solicitada })));
+        setReceiveItems(items.map(i => ({
+            item_id: i.item_id,
+            cantidad_recibida: i.cantidad_enviada || i.cantidad_solicitada,
+            correcto: true,
+            observacion: '',
+        })));
+        setRejectMotivo('');
     }, [t.id]);
+
+    // Load stock when approval form opens
+    useEffect(() => {
+        if (activeForm === 'aprobar' && items.length > 0) {
+            setStockLoading(true);
+            onFetchStock(items.map(i => i.item_id)).then(data => {
+                setStockData(data);
+                setStockLoading(false);
+            });
+        }
+    }, [activeForm]);
 
     // ── Timeline ──
     const activeStep = STEP_INDEX[t.estado] ?? -1;
     const isTerminated = t.estado === 'rechazada' || t.estado === 'cancelada';
+
+    // Receive summary
+    const correctCount = receiveItems.filter(i => i.correcto).length;
 
     return (
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
@@ -107,7 +137,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 </div>
             </div>
 
-            {/* ── Timeline Stepper ── */}
+            {/* ── Timeline Stepper (3 steps) ── */}
             <div className="shrink-0 mb-5">
                 {isTerminated ? (
                     <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200")}>
@@ -122,7 +152,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="flex items-center justify-between px-2">
+                    <div className="flex items-center justify-between px-4">
                         {STEPS.map((step, idx) => {
                             const completed = idx <= activeStep;
                             const isCurrent = idx === activeStep;
@@ -130,20 +160,20 @@ const TransferenciaDetail: React.FC<Props> = ({
                             return (
                                 <React.Fragment key={step.key}>
                                     {idx > 0 && (
-                                        <div className={cn("flex-1 h-0.5 mx-1", idx <= activeStep ? "bg-brand-primary" : "bg-[#E8E8ED]")} />
+                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-[#E8E8ED]")} />
                                     )}
-                                    <div className="flex flex-col items-center gap-1">
+                                    <div className="flex flex-col items-center gap-1.5">
                                         <div className={cn(
-                                            "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all",
+                                            "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
                                             completed
                                                 ? "bg-brand-primary border-brand-primary text-white"
                                                 : "bg-white border-[#E8E8ED] text-muted-foreground/40",
-                                            isCurrent && "ring-4 ring-brand-primary/20"
+                                            isCurrent && "ring-4 ring-brand-primary/20 scale-110"
                                         )}>
-                                            <StepIcon className="h-4 w-4" />
+                                            <StepIcon className="h-4.5 w-4.5" />
                                         </div>
                                         <span className={cn(
-                                            "text-[9px] font-bold whitespace-nowrap",
+                                            "text-[10px] font-bold whitespace-nowrap",
                                             completed ? "text-brand-primary" : "text-muted-foreground/40"
                                         )}>
                                             {step.label}
@@ -158,12 +188,15 @@ const TransferenciaDetail: React.FC<Props> = ({
 
             {/* ── Items Table ── */}
             <div className="shrink-0 mb-5">
-                <h4 className="text-xs font-bold text-brand-dark mb-2">Ítems ({items.length})</h4>
+                <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
+                    <Package className="h-3.5 w-3.5" />
+                    Items ({items.length})
+                </h4>
                 <div className="border border-[#E8E8ED] rounded-xl overflow-hidden">
                     <table className="w-full text-[11px]">
                         <thead>
                             <tr className="bg-[#F5F7FA]">
-                                <th className="text-left px-3 py-2 font-bold text-brand-dark">Ítem</th>
+                                <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
                                 <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Solicit.</th>
                                 <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Enviada</th>
                                 <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Recibida</th>
@@ -172,7 +205,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <tbody>
                             {items.map((item, idx) => (
                                 <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
-                                    <td className="px-3 py-1.5 font-medium text-brand-dark">{item.item_descripcion || `Ítem #${item.item_id}`}</td>
+                                    <td className="px-3 py-1.5 font-medium text-brand-dark">{item.item_descripcion || `Item #${item.item_id}`}</td>
                                     <td className="px-2 py-1.5 text-center font-semibold">{item.cantidad_solicitada}</td>
                                     <td className="px-2 py-1.5 text-center">{item.cantidad_enviada ?? '—'}</td>
                                     <td className="px-2 py-1.5 text-center">{item.cantidad_recibida ?? '—'}</td>
@@ -202,97 +235,138 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="space-y-0.5">
                         <p>Solicitante: <span className="font-medium text-brand-dark">{(t as any).solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
                         {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{(t as any).aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
-                        {t.fecha_despacho && <p>Despacho: {fmtDate(t.fecha_despacho)}</p>}
-                        {t.fecha_recepcion && <p>Recepción: {fmtDate(t.fecha_recepcion)}</p>}
+                        {t.fecha_recepcion && <p>Recepcion: {fmtDate(t.fecha_recepcion)}</p>}
                     </div>
                 </div>
             </div>
 
-            {/* ── Actions ── */}
+            {/* ── Action Buttons ── */}
             {hasActions && !activeForm && (
                 <div className="shrink-0 flex flex-wrap gap-2 mb-4">
                     {canAprobar && (
-                        <button
-                            onClick={() => setActiveForm('aprobar')}
-                            disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all shadow-sm"
-                        >
+                        <button onClick={() => setActiveForm('aprobar')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all shadow-sm">
                             <CheckCircle2 className="h-3.5 w-3.5" /> Aprobar
                         </button>
                     )}
                     {canRechazar && (
-                        <button
-                            onClick={() => setActiveForm('rechazar')}
-                            disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm"
-                        >
+                        <button onClick={() => setActiveForm('rechazar')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
                             <XCircle className="h-3.5 w-3.5" /> Rechazar
                         </button>
                     )}
-                    {canDespachar && (
-                        <button
-                            onClick={async () => { await onDespachar(); }}
-                            disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-indigo-600 rounded-xl hover:bg-indigo-700 disabled:opacity-50 transition-all shadow-sm"
-                        >
-                            <Truck className="h-3.5 w-3.5" /> Despachar
-                        </button>
-                    )}
                     {canRecibir && (
-                        <button
-                            onClick={() => setActiveForm('recibir')}
-                            disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm"
-                        >
-                            <PackageCheck className="h-3.5 w-3.5" /> Confirmar Recepción
+                        <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
+                            <PackageCheck className="h-3.5 w-3.5" /> Confirmar Recepcion
                         </button>
                     )}
                     {canCancelar && (
-                        <button
-                            onClick={async () => { await onCancelar(); }}
-                            disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-xl hover:bg-[#E5E5EA] disabled:opacity-50 transition-all"
-                        >
+                        <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-xl hover:bg-[#E5E5EA] disabled:opacity-50 transition-all">
                             <Ban className="h-3.5 w-3.5" /> Cancelar
                         </button>
                     )}
                 </div>
             )}
 
-            {/* ── Approval Form ── */}
+            {/* ════════════════════════════════════════════════
+                ── APPROVAL FORM — with stock availability ──
+               ════════════════════════════════════════════════ */}
             {activeForm === 'aprobar' && (
-                <div className="shrink-0 border border-green-200 bg-green-50/50 rounded-xl p-4 mb-4 space-y-3">
-                    <h4 className="text-xs font-bold text-green-800">Aprobar Transferencia</h4>
+                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
+                    <h4 className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                        <CheckCircle2 className="h-4 w-4" /> Aprobar Transferencia
+                    </h4>
+
+                    {/* Origin selector */}
                     <SearchableSelect
-                        label="Origen (desde dónde se envía)"
+                        label="Origen (desde donde se envia)"
                         options={obras.map(o => ({ value: o.id, label: o.nombre }))}
                         value={approvalOrigin}
                         onChange={(val) => setApprovalOrigin(val as number | null)}
                         placeholder="Seleccionar obra de origen..."
                     />
-                    <div>
-                        <label className="text-[10px] font-bold text-green-800 mb-1 block">Cantidades a enviar:</label>
-                        <div className="space-y-1">
-                            {items.map((item, idx) => (
-                                <div key={item.id || idx} className="flex items-center justify-between bg-white rounded-lg px-3 py-1.5 text-xs">
-                                    <span className="font-medium text-brand-dark truncate flex-1 mr-2">{item.item_descripcion}</span>
-                                    <span className="text-muted-foreground mr-2">solic: {item.cantidad_solicitada}</span>
-                                    <input
-                                        type="number"
-                                        min={0}
-                                        max={item.cantidad_solicitada}
-                                        value={approvalItems[idx]?.cantidad_enviada || 0}
-                                        onChange={e => {
-                                            const updated = [...approvalItems];
-                                            updated[idx] = { ...updated[idx], cantidad_enviada: parseInt(e.target.value) || 0 };
-                                            setApprovalItems(updated);
-                                        }}
-                                        className="w-14 px-1 py-0.5 border rounded text-center text-xs"
-                                    />
-                                </div>
-                            ))}
-                        </div>
+
+                    {/* Stock per item */}
+                    <div className="space-y-3">
+                        <label className="text-[10px] font-bold text-green-800 uppercase tracking-wider">
+                            <MapPin className="h-3 w-3 inline mr-1" />
+                            Disponibilidad por item
+                        </label>
+                        {stockLoading ? (
+                            <p className="text-xs text-muted-foreground text-center py-4">Cargando disponibilidad...</p>
+                        ) : (
+                            items.map((item, idx) => {
+                                const locations = stockData[item.item_id] || [];
+                                const hasStock = locations.length > 0;
+                                const originStock = approvalOrigin
+                                    ? locations.find(l => l.type === 'obra' && l.id === approvalOrigin)
+                                    : null;
+
+                                return (
+                                    <div key={item.id || idx} className="bg-white rounded-lg border border-green-100 p-3">
+                                        {/* Item header */}
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-xs font-bold text-brand-dark">{item.item_descripcion}</span>
+                                            <span className="text-[10px] font-semibold text-muted-foreground">
+                                                Solicitada: <span className="text-brand-dark">{item.cantidad_solicitada}</span>
+                                            </span>
+                                        </div>
+
+                                        {/* Stock locations */}
+                                        {hasStock ? (
+                                            <div className="flex flex-wrap gap-1.5 mb-2">
+                                                {locations.map((loc, lIdx) => {
+                                                    const isOrigin = approvalOrigin && loc.type === 'obra' && loc.id === approvalOrigin;
+                                                    const sufficient = loc.cantidad >= item.cantidad_solicitada;
+                                                    return (
+                                                        <div key={lIdx} className={cn(
+                                                            "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1",
+                                                            isOrigin
+                                                                ? "bg-green-100 border-green-300 text-green-800 font-bold"
+                                                                : sufficient
+                                                                    ? "bg-blue-50 border-blue-200 text-blue-700"
+                                                                    : "bg-gray-50 border-gray-200 text-gray-600"
+                                                        )}>
+                                                            <MapPin className="h-2.5 w-2.5" />
+                                                            {loc.nombre}: <span className="font-bold">{loc.cantidad}</span>
+                                                            {isOrigin && <Check className="h-2.5 w-2.5" />}
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        ) : (
+                                            <p className="text-[10px] text-red-600 mb-2 flex items-center gap-1">
+                                                <AlertTriangle className="h-3 w-3" /> Sin stock disponible
+                                            </p>
+                                        )}
+
+                                        {/* Quantity to send */}
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-[10px] text-muted-foreground">Enviar:</span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                value={approvalItems[idx]?.cantidad_enviada || 0}
+                                                onChange={e => {
+                                                    const updated = [...approvalItems];
+                                                    updated[idx] = { ...updated[idx], cantidad_enviada: parseInt(e.target.value) || 0 };
+                                                    setApprovalItems(updated);
+                                                }}
+                                                className="w-16 px-2 py-1 border rounded-lg text-center text-xs font-bold"
+                                            />
+                                            {originStock && approvalItems[idx]?.cantidad_enviada > originStock.cantidad && (
+                                                <span className="text-[9px] text-red-600 font-medium">Excede stock ({originStock.cantidad})</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                );
+                            })
+                        )}
                     </div>
+
+                    {/* Confirm / Cancel */}
                     <div className="flex gap-2 pt-1">
                         <button
                             onClick={async () => {
@@ -301,26 +375,30 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 if (ok) setActiveForm(null);
                             }}
                             disabled={actionLoading || !approvalOrigin}
-                            className="flex-1 py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all"
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all"
                         >
-                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobación'}
+                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobacion'}
                         </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                             Cancelar
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* ── Reject Form ── */}
+            {/* ════════════════════════════════════
+                ── REJECT FORM ──
+               ════════════════════════════════════ */}
             {activeForm === 'rechazar' && (
-                <div className="shrink-0 border border-red-200 bg-red-50/50 rounded-xl p-4 mb-4 space-y-3">
-                    <h4 className="text-xs font-bold text-red-800">Rechazar Transferencia</h4>
+                <div className="shrink-0 border border-red-200 bg-red-50/30 rounded-xl p-4 mb-4 space-y-3">
+                    <h4 className="text-sm font-bold text-red-800 flex items-center gap-1.5">
+                        <XCircle className="h-4 w-4" /> Rechazar Transferencia
+                    </h4>
                     <textarea
                         value={rejectMotivo}
                         onChange={e => setRejectMotivo(e.target.value)}
                         placeholder="Motivo del rechazo..."
-                        className="w-full px-3 py-2 text-xs border border-red-200 rounded-xl resize-none h-16 focus:ring-2 focus:ring-red-300/20 outline-none"
+                        className="w-full px-3 py-2 text-xs border border-red-200 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 outline-none"
                         required
                     />
                     <div className="flex gap-2">
@@ -331,52 +409,118 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 if (ok) setActiveForm(null);
                             }}
                             disabled={actionLoading || !rejectMotivo.trim()}
-                            className="flex-1 py-2 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
                         >
                             {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
                         </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                             Cancelar
                         </button>
                     </div>
                 </div>
             )}
 
-            {/* ── Receive Form ── */}
+            {/* ════════════════════════════════════════════
+                ── RECEIVE FORM — per-item confirmation ──
+               ════════════════════════════════════════════ */}
             {activeForm === 'recibir' && (
-                <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl p-4 mb-4 space-y-3">
-                    <h4 className="text-xs font-bold text-brand-dark">Confirmar Recepción</h4>
-                    <div className="space-y-1">
-                        {items.map((item, idx) => (
-                            <div key={item.id || idx} className="flex items-center justify-between bg-white rounded-lg px-3 py-1.5 text-xs">
-                                <span className="font-medium text-brand-dark truncate flex-1 mr-2">{item.item_descripcion}</span>
-                                <span className="text-muted-foreground mr-2">enviada: {item.cantidad_enviada ?? item.cantidad_solicitada}</span>
-                                <input
-                                    type="number"
-                                    min={0}
-                                    value={receiveItems[idx]?.cantidad_recibida || 0}
-                                    onChange={e => {
-                                        const updated = [...receiveItems];
-                                        updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
-                                        setReceiveItems(updated);
-                                    }}
-                                    className="w-14 px-1 py-0.5 border rounded text-center text-xs"
-                                />
-                            </div>
-                        ))}
+                <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl p-4 mb-4 space-y-4">
+                    <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
+                        <PackageCheck className="h-4 w-4 text-brand-primary" /> Confirmar Recepcion
+                    </h4>
+
+                    <div className="space-y-2">
+                        {items.map((item, idx) => {
+                            const ri = receiveItems[idx];
+                            if (!ri) return null;
+                            return (
+                                <div key={item.id || idx} className={cn(
+                                    "bg-white rounded-xl border p-3 transition-all",
+                                    ri.correcto ? "border-green-200" : "border-red-200"
+                                )}>
+                                    {/* Item name + correct toggle */}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <span className="text-xs font-bold text-brand-dark flex-1 mr-2">{item.item_descripcion}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const updated = [...receiveItems];
+                                                updated[idx] = { ...updated[idx], correcto: !updated[idx].correcto };
+                                                setReceiveItems(updated);
+                                            }}
+                                            className={cn(
+                                                "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
+                                                ri.correcto
+                                                    ? "bg-green-50 border-green-300 text-green-700"
+                                                    : "bg-red-50 border-red-300 text-red-700"
+                                            )}
+                                        >
+                                            {ri.correcto ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
+                                            {ri.correcto ? 'Correcto' : 'Incorrecto'}
+                                        </button>
+                                    </div>
+
+                                    {/* Quantity */}
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className="text-[10px] text-muted-foreground">
+                                            Enviada: <span className="font-semibold text-brand-dark">{item.cantidad_enviada ?? item.cantidad_solicitada}</span>
+                                        </span>
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] text-muted-foreground">Recibida:</span>
+                                            <input
+                                                type="number"
+                                                min={0}
+                                                value={ri.cantidad_recibida}
+                                                onChange={e => {
+                                                    const updated = [...receiveItems];
+                                                    updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
+                                                    setReceiveItems(updated);
+                                                }}
+                                                className="w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Observation (if incorrect) */}
+                                    {!ri.correcto && (
+                                        <input
+                                            type="text"
+                                            placeholder="Observacion (que esta mal?)..."
+                                            value={ri.observacion}
+                                            onChange={e => {
+                                                const updated = [...receiveItems];
+                                                updated[idx] = { ...updated[idx], observacion: e.target.value };
+                                                setReceiveItems(updated);
+                                            }}
+                                            className="w-full mt-1 px-2 py-1 text-[10px] border border-red-200 rounded-lg focus:ring-1 focus:ring-red-300 outline-none"
+                                        />
+                                    )}
+                                </div>
+                            );
+                        })}
                     </div>
-                    <div className="flex gap-2 pt-1">
+
+                    {/* Summary */}
+                    <div className="text-xs text-center text-muted-foreground">
+                        <span className="font-bold text-green-600">{correctCount}</span> de <span className="font-bold">{items.length}</span> items correctos
+                    </div>
+
+                    {/* Confirm / Cancel */}
+                    <div className="flex gap-2">
                         <button
                             onClick={async () => {
-                                const ok = await onRecibir(receiveItems);
+                                const ok = await onRecibir(receiveItems.map(ri => ({
+                                    item_id: ri.item_id,
+                                    cantidad_recibida: ri.cantidad_recibida,
+                                })));
                                 if (ok) setActiveForm(null);
                             }}
                             disabled={actionLoading}
-                            className="flex-1 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all"
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all"
                         >
-                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepción'}
+                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepcion'}
                         </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                             Cancelar
                         </button>
                     </div>

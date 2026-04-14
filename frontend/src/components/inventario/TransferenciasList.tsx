@@ -27,7 +27,6 @@ const STATUS_CHIPS = [
     { value: 'todas', label: 'Todas' },
     { value: 'pendiente', label: 'Pendientes' },
     { value: 'aprobada', label: 'Aprobadas' },
-    { value: 'en_transito', label: 'En Tránsito' },
     { value: 'recibida', label: 'Recibidas' },
 ];
 

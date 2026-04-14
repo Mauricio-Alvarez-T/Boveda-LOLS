@@ -49,14 +49,6 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
         return ok;
     }, [selectedId, trfHook.aprobar, refreshAll]);
 
-    const handleDespachar = useCallback(async () => {
-        setActionLoading(true);
-        const ok = await trfHook.despachar(selectedId!);
-        if (ok) await refreshAll();
-        setActionLoading(false);
-        return ok;
-    }, [selectedId, trfHook.despachar, refreshAll]);
-
     const handleRecibir = useCallback(async (items: { item_id: number; cantidad_recibida: number }[]) => {
         setActionLoading(true);
         const ok = await trfHook.recibir(selectedId!, items);
@@ -137,8 +129,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
                             hasPermission={hasPermission}
                             userId={user?.id || 0}
                             onBack={() => { setSelectedId(null); trfHook.setSelected(null); }}
+                            onFetchStock={trfHook.fetchStockPorItems}
                             onAprobar={handleAprobar}
-                            onDespachar={handleDespachar}
                             onRecibir={handleRecibir}
                             onRechazar={handleRechazar}
                             onCancelar={handleCancelar}
