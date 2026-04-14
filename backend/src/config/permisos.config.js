@@ -70,7 +70,8 @@ const MAESTRO_PERMISOS = [
     ['inventario.ver',              'Inventario', 'Ver Inventario',              'Ver el módulo de inventario completo', 1],
     ['inventario.crear',            'Inventario', 'Crear en Inventario',         'Crear solicitudes, transferencias y registros de inventario', 2],
     ['inventario.editar',           'Inventario', 'Editar Inventario',           'Modificar stock, descuentos y registros de inventario', 3],
-    ['inventario.eliminar',         'Inventario', 'Eliminar en Inventario',      'Anular o eliminar registros de inventario', 4],
+    ['inventario.aprobar',          'Inventario', 'Aprobar Transferencias',      'Aprobar o rechazar solicitudes de transferencia de equipos', 4],
+    ['inventario.eliminar',         'Inventario', 'Eliminar en Inventario',      'Anular o eliminar registros de inventario', 5],
 
     // SISTEMA
     ['sistema.logs.ver',            'Sistema', 'Ver Historial',                  'Ver el historial de actividad del sistema', 1],
