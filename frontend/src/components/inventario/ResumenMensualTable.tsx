@@ -186,7 +186,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
         );
     };
 
-    const totalColSpan = 3 + (showImages ? 1 : 0) + visibleObras.length * 2 + visibleBodegas.length + 2;
+    const totalColSpan = 4 + visibleObras.length * 2 + visibleBodegas.length + 2;
 
     const hiddenCount = hiddenCols.size;
 
@@ -384,7 +384,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     {/* ── Sticky totals footer — solid bg, clear labels ── */}
                     <tfoot className="sticky bottom-0 z-10">
                         <tr className="border-t-2 border-brand-primary/30">
-                            <td colSpan={showImages ? 4 : 3} className="bg-[#F0F2F8] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
+                            <td colSpan={4} className="bg-[#F0F2F8] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
                             {visibleObras.map(o => {
