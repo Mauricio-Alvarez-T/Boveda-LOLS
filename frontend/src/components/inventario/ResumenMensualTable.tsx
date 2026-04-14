@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { Check, X, ChevronRight, Search, EyeOff, Eye, RotateCcw, ImageIcon } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronDown, Search, EyeOff, Eye, RotateCcw, ImageIcon, MapPin, Warehouse, Package } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 
 interface Props {
@@ -190,10 +190,283 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
     const hiddenCount = hiddenCols.size;
 
+    // ── Mobile: expanded item state ──
+    const [mobileExpandedItem, setMobileExpandedItem] = useState<number | null>(null);
+    const [mobileEditCell, setMobileEditCell] = useState<string | null>(null);
+    const [mobileEditValue, setMobileEditValue] = useState('');
+
+    const mobileStartEdit = (key: string, current: number) => {
+        if (!canEdit) return;
+        setMobileEditCell(key);
+        setMobileEditValue(String(current || ''));
+    };
+    const mobileCancelEdit = () => { setMobileEditCell(null); setMobileEditValue(''); };
+    const mobileSaveEdit = async (itemId: number, obraId: number | null, bodegaId: number | null) => {
+        const num = parseInt(mobileEditValue, 10);
+        if (isNaN(num) || num < 0) { mobileCancelEdit(); return; }
+        const ok = await onUpdateStock(itemId, obraId, bodegaId, { cantidad: num });
+        if (ok) onRefresh();
+        mobileCancelEdit();
+    };
+
     return (
         <div className="flex flex-col gap-3 flex-1 min-h-0">
+            {/* ═══════════════════════════════════════════
+                ── MOBILE VIEW ──
+               ═══════════════════════════════════════════ */}
+            <div className="md:hidden flex flex-col gap-3 flex-1 min-h-0">
+                {/* Mobile Search */}
+                <div className="relative shrink-0">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <input
+                        type="text"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                        placeholder="Buscar item..."
+                        className="w-full pl-10 pr-10 py-3 text-sm border border-[#E8E8ED] rounded-2xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                    />
+                    {search && (
+                        <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-muted rounded-full">
+                            <X className="h-3.5 w-3.5 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
+
+                {/* Mobile Grand Totals — summary card at top */}
+                <div className="shrink-0 bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white">
+                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-2">Resumen General</p>
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <p className="text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
+                            <p className="text-[10px] opacity-80">Unidades</p>
+                        </div>
+                        <div>
+                            <p className="text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
+                            <p className="text-[10px] opacity-80">Arriendo</p>
+                        </div>
+                        <div>
+                            <p className="text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
+                            <p className="text-[10px] opacity-80">Items</p>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Mobile Categories & Items */}
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+                    {filteredCategorias.map(cat => {
+                        const collapsed = collapsedCats.has(cat.id);
+                        const totals = catTotals[cat.id];
+                        return (
+                            <div key={cat.id} className="rounded-2xl border border-[#E8E8ED] overflow-hidden bg-white">
+                                {/* Category Header */}
+                                <button
+                                    onClick={() => toggleCat(cat.id)}
+                                    className="w-full flex items-center justify-between px-4 py-3 bg-brand-primary/5 active:bg-brand-primary/10 transition-colors"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <ChevronRight className={cn("h-4 w-4 text-brand-primary transition-transform duration-200", !collapsed && "rotate-90")} />
+                                        <span className="font-black text-xs uppercase tracking-wider text-brand-primary">{cat.nombre}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 text-[10px] text-muted-foreground">
+                                        <span className="font-bold">{totals?.count} items</span>
+                                        <span className="font-bold text-brand-dark">{fmt(totals?.totalCantidad || 0)} u.</span>
+                                    </div>
+                                </button>
+
+                                {/* Items List */}
+                                {!collapsed && (
+                                    <div className="divide-y divide-[#F0F0F5]">
+                                        {cat.items.map(item => {
+                                            const isExpanded = mobileExpandedItem === item.id;
+                                            // Gather all locations with stock for this item
+                                            const obraLocs = obras.filter(o => {
+                                                const ub = item.ubicaciones[`obra_${o.id}`];
+                                                return ub && ub.cantidad > 0;
+                                            });
+                                            const bodegaLocs = bodegas.filter(b => {
+                                                const ub = item.ubicaciones[`bodega_${b.id}`];
+                                                return ub && ub.cantidad > 0;
+                                            });
+                                            const totalLocs = obraLocs.length + bodegaLocs.length;
+
+                                            return (
+                                                <div key={item.id}>
+                                                    {/* Item Row — tap to expand */}
+                                                    <button
+                                                        onClick={() => setMobileExpandedItem(isExpanded ? null : item.id)}
+                                                        className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 transition-colors text-left"
+                                                    >
+                                                        {/* Image or number */}
+                                                        <div className="w-10 h-10 rounded-xl bg-[#F5F7FA] border border-[#E8E8ED] flex items-center justify-center shrink-0 overflow-hidden">
+                                                            {item.imagen_url ? (
+                                                                <img src={`${API_BASE}${item.imagen_url}`} alt="" className="w-full h-full object-cover" />
+                                                            ) : (
+                                                                <span className="text-[10px] font-bold text-muted-foreground">#{item.nro_item}</span>
+                                                            )}
+                                                        </div>
+
+                                                        {/* Info */}
+                                                        <div className="flex-1 min-w-0">
+                                                            <p className="text-xs font-bold text-brand-dark truncate">{item.descripcion}</p>
+                                                            <div className="flex items-center gap-2 mt-0.5">
+                                                                {totalLocs > 0 && (
+                                                                    <span className="text-[10px] text-muted-foreground">
+                                                                        {totalLocs} ubicacion{totalLocs !== 1 ? 'es' : ''}
+                                                                    </span>
+                                                                )}
+                                                                {item.valor_arriendo > 0 && (
+                                                                    <span className="text-[10px] text-muted-foreground">
+                                                                        {fmtMoney(item.valor_arriendo)}/mes
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Right side: totals + chevron */}
+                                                        <div className="flex items-center gap-2 shrink-0">
+                                                            <div className="text-right">
+                                                                <p className="text-sm font-black text-brand-dark">{fmt(item.total_cantidad)}</p>
+                                                                {item.total_arriendo > 0 && (
+                                                                    <p className="text-[10px] font-semibold text-brand-primary">{fmtMoney(item.total_arriendo)}</p>
+                                                                )}
+                                                            </div>
+                                                            <ChevronDown className={cn("h-4 w-4 text-muted-foreground/40 transition-transform duration-200", isExpanded && "rotate-180")} />
+                                                        </div>
+                                                    </button>
+
+                                                    {/* Expanded Detail — stock per location */}
+                                                    {isExpanded && (
+                                                        <div className="px-4 pb-4 pt-1 bg-[#FAFBFC]">
+                                                            {/* Obras */}
+                                                            {obras.map(o => {
+                                                                const ub = item.ubicaciones[`obra_${o.id}`];
+                                                                const qty = ub?.cantidad || 0;
+                                                                const total = ub?.total || 0;
+                                                                const cellKey = `m_obra_${o.id}_item_${item.id}`;
+                                                                if (!ub && qty === 0 && !canEdit) return null;
+                                                                return (
+                                                                    <div key={o.id} className="flex items-center justify-between py-2.5 border-b border-[#F0F0F5] last:border-0">
+                                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                            <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
+                                                                                <MapPin className="h-3 w-3 text-blue-600" />
+                                                                            </div>
+                                                                            <span className="text-xs font-medium text-brand-dark truncate">{o.nombre}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-3 shrink-0">
+                                                                            {/* Editable qty */}
+                                                                            {mobileEditCell === cellKey ? (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <input
+                                                                                        type="number" min={0}
+                                                                                        value={mobileEditValue}
+                                                                                        onChange={e => setMobileEditValue(e.target.value)}
+                                                                                        onKeyDown={e => {
+                                                                                            if (e.key === 'Enter') mobileSaveEdit(item.id, o.id, null);
+                                                                                            if (e.key === 'Escape') mobileCancelEdit();
+                                                                                        }}
+                                                                                        className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                                                                        autoFocus
+                                                                                    />
+                                                                                    <button onClick={() => mobileSaveEdit(item.id, o.id, null)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={() => canEdit && mobileStartEdit(cellKey, qty)}
+                                                                                    className={cn(
+                                                                                        "min-w-[3rem] px-3 py-1.5 rounded-xl text-xs font-bold text-center",
+                                                                                        qty > 0 ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-400 border border-gray-200",
+                                                                                        canEdit && "active:scale-95 transition-transform"
+                                                                                    )}
+                                                                                >
+                                                                                    {qty}
+                                                                                </button>
+                                                                            )}
+                                                                            {total > 0 && mobileEditCell !== cellKey && (
+                                                                                <span className="text-[10px] font-semibold text-brand-primary w-20 text-right">{fmtMoney(total)}</span>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+
+                                                            {/* Bodegas */}
+                                                            {bodegas.map(b => {
+                                                                const ub = item.ubicaciones[`bodega_${b.id}`];
+                                                                const qty = ub?.cantidad || 0;
+                                                                const cellKey = `m_bodega_${b.id}_item_${item.id}`;
+                                                                if (!ub && qty === 0 && !canEdit) return null;
+                                                                return (
+                                                                    <div key={b.id} className="flex items-center justify-between py-2.5 border-b border-[#F0F0F5] last:border-0">
+                                                                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                                                                            <div className="w-6 h-6 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
+                                                                                <Warehouse className="h-3 w-3 text-amber-600" />
+                                                                            </div>
+                                                                            <span className="text-xs font-medium text-brand-dark truncate">{b.nombre}</span>
+                                                                        </div>
+                                                                        <div className="flex items-center gap-3 shrink-0">
+                                                                            {mobileEditCell === cellKey ? (
+                                                                                <div className="flex items-center gap-1">
+                                                                                    <input
+                                                                                        type="number" min={0}
+                                                                                        value={mobileEditValue}
+                                                                                        onChange={e => setMobileEditValue(e.target.value)}
+                                                                                        onKeyDown={e => {
+                                                                                            if (e.key === 'Enter') mobileSaveEdit(item.id, null, b.id);
+                                                                                            if (e.key === 'Escape') mobileCancelEdit();
+                                                                                        }}
+                                                                                        className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                                                                        autoFocus
+                                                                                    />
+                                                                                    <button onClick={() => mobileSaveEdit(item.id, null, b.id)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                </div>
+                                                                            ) : (
+                                                                                <button
+                                                                                    onClick={() => canEdit && mobileStartEdit(cellKey, qty)}
+                                                                                    className={cn(
+                                                                                        "min-w-[3rem] px-3 py-1.5 rounded-xl text-xs font-bold text-center",
+                                                                                        qty > 0 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-gray-50 text-gray-400 border border-gray-200",
+                                                                                        canEdit && "active:scale-95 transition-transform"
+                                                                                    )}
+                                                                                >
+                                                                                    {qty}
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                );
+                                                            })}
+
+                                                            {/* No locations at all */}
+                                                            {obraLocs.length === 0 && bodegaLocs.length === 0 && !canEdit && (
+                                                                <p className="text-xs text-muted-foreground text-center py-3">Sin stock en ninguna ubicacion</p>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+
+                    {filteredCategorias.length === 0 && (
+                        <div className="py-12 text-center">
+                            <Package className="h-10 w-10 mx-auto text-muted-foreground/20 mb-3" />
+                            <p className="text-sm text-muted-foreground font-medium">No se encontraron items</p>
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* ═══════════════════════════════════════════
+                ── DESKTOP VIEW (unchanged) ──
+               ═══════════════════════════════════════════ */}
             {/* ── Toolbar ── */}
-            <div className="flex flex-wrap items-center gap-2 py-2 shrink-0">
+            <div className="hidden md:flex flex-wrap items-center gap-2 py-2 shrink-0">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[180px] max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -238,7 +511,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
             </div>
 
             {/* ── Table — fills remaining space, scrolls both axes ── */}
-            <div className="overflow-auto flex-1 min-h-0 rounded-xl border border-[#E8E8ED]">
+            <div className="hidden md:block overflow-auto flex-1 min-h-0 rounded-xl border border-[#E8E8ED]">
                 <table className="w-full text-[11px] border-collapse">
                     <thead className="sticky top-0 z-20">
                         {/* Header row 1 — solid backgrounds for sticky */}
@@ -419,9 +692,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 </table>
             </div>
 
-            {/* Search results hint */}
+            {/* Search results hint (desktop) */}
             {searchLower && (
-                <p className="text-[10px] text-muted-foreground shrink-0">
+                <p className="hidden md:block text-[10px] text-muted-foreground shrink-0">
                     Mostrando {filteredCategorias.reduce((s, c) => s + c.items.length, 0)} ítems en {filteredCategorias.length} categorías
                 </p>
             )}
