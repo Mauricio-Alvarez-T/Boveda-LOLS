@@ -71,8 +71,9 @@ const InventarioPage: React.FC = () => {
 
     return (
         <div className="space-y-4">
-            {/* Tab Navigation — sticky */}
-            <div className="sticky top-0 z-30 flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+            {/* Tab Navigation — sticky at top of scroll container */}
+            <div className="sticky top-0 z-30 -mt-3 md:-mt-5 -mx-3 md:-mx-5 px-3 md:px-5 pt-3 md:pt-5 pb-1 bg-background">
+                <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
                 {tabs.map(tab => (
                     <button
                         key={tab.key}
@@ -87,6 +88,7 @@ const InventarioPage: React.FC = () => {
                         {tab.label}
                     </button>
                 ))}
+                </div>
             </div>
 
             {/* Tab Content */}

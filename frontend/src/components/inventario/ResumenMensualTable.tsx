@@ -192,8 +192,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
     return (
         <div className="space-y-3">
-            {/* ── Toolbar — sticky ── */}
-            <div className="sticky top-[52px] z-20 flex flex-wrap items-center gap-2 bg-white py-2 -mx-1 px-1">
+            {/* ── Toolbar ── */}
+            <div className="flex flex-wrap items-center gap-2 py-2">
                 {/* Search */}
                 <div className="relative flex-1 min-w-[180px] max-w-xs">
                     <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -237,24 +237,24 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 )}
             </div>
 
-            {/* ── Table ── */}
-            <div className="overflow-x-auto rounded-xl border border-[#E8E8ED]">
+            {/* ── Table — scrolls both axes, sticky header/footer inside ── */}
+            <div className="overflow-auto max-h-[calc(100vh-14rem)] md:max-h-[calc(100vh-16rem)] rounded-xl border border-[#E8E8ED]">
                 <table className="w-full text-[11px] border-collapse">
-                    <thead className="sticky top-[94px] z-20">
-                        {/* Header row 1 */}
-                        <tr className="bg-brand-primary/5">
-                            <th className="sticky left-0 bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8">#</th>
+                    <thead className="sticky top-0 z-20">
+                        {/* Header row 1 — solid backgrounds for sticky */}
+                        <tr>
+                            <th className="sticky left-0 z-30 bg-[#F5F7FA] px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8">#</th>
                             <th
                                 onClick={() => setShowImages(v => !v)}
-                                className="px-1.5 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8 cursor-pointer hover:bg-brand-primary/10 transition-colors"
+                                className="bg-[#F5F7FA] px-1.5 py-2 text-center font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-8 cursor-pointer hover:bg-[#E8ECF2] transition-colors"
                                 title={showImages ? 'Ocultar imágenes' : 'Mostrar imágenes'}
                             >
                                 <ImageIcon className={cn("h-3.5 w-3.5 mx-auto transition-colors", showImages ? "text-brand-primary" : "text-muted-foreground/40")} />
                             </th>
-                            <th className={cn("sticky bg-white z-20 px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
-                            <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
+                            <th className={cn("sticky z-30 bg-[#F5F7FA] px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
+                            <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
                             {visibleObras.map((o, oIdx) => (
-                                <th key={`obra_${o.id}`} colSpan={2} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", oIdx % 2 === 0 ? "bg-blue-50/40" : "bg-blue-100/40")}>
+                                <th key={`obra_${o.id}`} colSpan={2} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", oIdx % 2 === 0 ? "bg-[#EBF0FB]" : "bg-[#DEE6F7]")}>
                                     <div className="flex items-center justify-center gap-1">
                                         <span className="truncate">{o.nombre}</span>
                                         <button
@@ -268,7 +268,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 </th>
                             ))}
                             {visibleBodegas.map((b, bIdx) => (
-                                <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-amber-50/50" : "bg-amber-100/40")}>
+                                <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-[#FDF6E8]" : "bg-[#F9EDD5]")}>
                                     <div className="flex items-center justify-center gap-1">
                                         <span className="truncate">{b.nombre}</span>
                                         <button
@@ -281,26 +281,26 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </div>
                                 </th>
                             ))}
-                            <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] bg-green-50/50">Total Arriendo</th>
-                            <th className="px-2 py-2 text-right font-bold text-brand-dark border-b border-[#E8E8ED] bg-green-50/50">Total Unid.</th>
+                            <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED]">Total Arriendo</th>
+                            <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-[#E8E8ED]">Total Unid.</th>
                         </tr>
-                        {/* Header row 2 */}
-                        <tr className="bg-[#EDEDF2]">
-                            <th className="sticky left-0 bg-[#EDEDF2] z-20 border-b border-r border-[#D8D8DD]" />
+                        {/* Header row 2 — sub-headers with solid bg */}
+                        <tr>
+                            <th className="sticky left-0 z-30 bg-[#EDEDF2] border-b border-r border-[#D8D8DD]" />
                             <th className="bg-[#EDEDF2] border-b border-r border-[#D8D8DD]" />
-                            <th className={cn("sticky bg-[#EDEDF2] z-20 border-b border-r border-[#D8D8DD]", showImages ? "left-[68px]" : "left-8")} />
-                            <th className="border-b border-r border-[#E8E8ED]" />
+                            <th className={cn("sticky z-30 bg-[#EDEDF2] border-b border-r border-[#D8D8DD]", showImages ? "left-[68px]" : "left-8")} />
+                            <th className="bg-[#EDEDF2] border-b border-r border-[#E8E8ED]" />
                             {visibleObras.map((o, oIdx) => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
-                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#D8D8DD] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50/20" : "bg-blue-100/20")}>Cant</th>
-                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50/20" : "bg-blue-100/20")}>Total</th>
+                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#D8D8DD] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-[#E8EDF8]" : "bg-[#DDE4F4]")}>Cant</th>
+                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-[#E8EDF8]" : "bg-[#DDE4F4]")}>Total</th>
                                 </React.Fragment>
                             ))}
                             {visibleBodegas.map((b, bIdx) => (
-                                <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", bIdx % 2 === 0 ? "bg-amber-50/20" : "bg-amber-100/20")}>Cant</th>
+                                <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", bIdx % 2 === 0 ? "bg-[#F9F0DE]" : "bg-[#F4E8CF]")}>Cant</th>
                             ))}
-                            <th className="border-b border-r border-[#E8E8ED]" />
-                            <th className="border-b border-[#E8E8ED]" />
+                            <th className="bg-[#E5F5EB] border-b border-r border-[#E8E8ED]" />
+                            <th className="bg-[#E5F5EB] border-b border-[#E8E8ED]" />
                         </tr>
                     </thead>
                     <tbody>
@@ -381,10 +381,10 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             );
                         })}
                     </tbody>
-                    {/* ── Sticky totals footer ── */}
+                    {/* ── Sticky totals footer — solid bg ── */}
                     <tfoot className="sticky bottom-0 z-10">
-                        <tr className="bg-brand-primary/5 border-t-2 border-brand-primary/30">
-                            <td colSpan={showImages ? 4 : 3} className="px-2 py-2 text-right font-black text-xs text-brand-dark">
+                        <tr className="border-t-2 border-brand-primary/30">
+                            <td colSpan={showImages ? 4 : 3} className="bg-[#F0F2F8] px-2 py-2 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
                             {visibleObras.map(o => {
@@ -394,8 +394,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.cantidad || 0), 0), 0);
                                 return (
                                     <React.Fragment key={`total_obra_${o.id}`}>
-                                        <td className="px-2 py-2 text-center font-bold text-brand-dark text-[10px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
-                                        <td className="px-2 py-2 text-right font-bold text-brand-dark text-[10px]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
+                                        <td className="bg-[#F0F2F8] px-2 py-2 text-center font-bold text-brand-dark text-[10px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
+                                        <td className="bg-[#F0F2F8] px-2 py-2 text-right font-bold text-brand-dark text-[10px]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
                                     </React.Fragment>
                                 );
                             })}
@@ -403,15 +403,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 const bodCant = categorias.reduce((sum, cat) =>
                                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`bodega_${b.id}`]?.cantidad || 0), 0), 0);
                                 return (
-                                    <td key={`total_bod_${b.id}`} className="px-2 py-2 text-center font-bold text-brand-dark text-[10px]">
+                                    <td key={`total_bod_${b.id}`} className="bg-[#F0F2F8] px-2 py-2 text-center font-bold text-brand-dark text-[10px]">
                                         {bodCant > 0 ? fmt(bodCant) : ''}
                                     </td>
                                 );
                             })}
-                            <td className="px-2 py-2 text-right font-black text-xs text-brand-primary">
+                            <td className="bg-[#F0F2F8] px-2 py-2 text-right font-black text-xs text-brand-primary">
                                 {fmtMoney(grandTotals.totalArriendo)}
                             </td>
-                            <td className="px-2 py-2 text-right font-black text-xs text-brand-dark">
+                            <td className="bg-[#F0F2F8] px-2 py-2 text-right font-black text-xs text-brand-dark">
                                 {fmt(grandTotals.totalCantidad)}
                             </td>
                         </tr>
