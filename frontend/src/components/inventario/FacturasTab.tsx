@@ -329,9 +329,9 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                                 <div className="relative">
                                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
                                                     <input
-                                                        type="number" min={0}
+                                                        type="number" min={0} step="any"
                                                         value={item.precio_unitario}
-                                                        onChange={e => updateItem(idx, { precio_unitario: parseInt(e.target.value) || 0 })}
+                                                        onChange={e => updateItem(idx, { precio_unitario: parseFloat(e.target.value) || 0 })}
                                                         className="w-24 pl-5 pr-2 py-1 text-xs border border-[#E8E8ED] rounded-lg text-right font-bold"
                                                     />
                                                 </div>
