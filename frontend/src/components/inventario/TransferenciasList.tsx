@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, AlertTriangle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { Transferencia } from '../../types/entities';
 
@@ -12,6 +12,7 @@ interface Props {
     onStatusFilterChange: (status: string) => void;
     searchQuery: string;
     onSearchChange: (q: string) => void;
+    discrepanciasCount?: number;
 }
 
 export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
@@ -23,16 +24,18 @@ export const estadoConfig: Record<string, { label: string; color: string; bgSoli
     cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200', bgSolid: 'bg-gray-400', icon: Ban },
 };
 
-const STATUS_CHIPS = [
+const STATUS_CHIPS: { value: string; label: string; discrepancia?: boolean }[] = [
     { value: 'todas', label: 'Todas' },
     { value: 'pendiente', label: 'Pendientes' },
     { value: 'aprobada', label: 'Aprobadas' },
     { value: 'recibida', label: 'Recibidas' },
+    { value: 'discrepancias', label: 'Discrepancias', discrepancia: true },
 ];
 
 const TransferenciasList: React.FC<Props> = ({
     transferencias, loading, selectedId, onSelect,
     statusFilter, onStatusFilterChange, searchQuery, onSearchChange,
+    discrepanciasCount = 0,
 }) => {
     const filtered = transferencias.filter(t =>
         !searchQuery || t.codigo.toLowerCase().includes(searchQuery.toLowerCase())
@@ -59,20 +62,37 @@ const TransferenciasList: React.FC<Props> = ({
 
             {/* Status filter chips */}
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
-                {STATUS_CHIPS.map(chip => (
-                    <button
-                        key={chip.value}
-                        onClick={() => onStatusFilterChange(chip.value)}
-                        className={cn(
-                            "px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
-                            statusFilter === chip.value
-                                ? "bg-brand-primary text-white border-brand-primary shadow-sm"
-                                : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
-                        )}
-                    >
-                        {chip.label}
-                    </button>
-                ))}
+                {STATUS_CHIPS.map(chip => {
+                    const isActive = statusFilter === chip.value;
+                    const isDiscrep = !!chip.discrepancia;
+                    return (
+                        <button
+                            key={chip.value}
+                            onClick={() => onStatusFilterChange(chip.value)}
+                            className={cn(
+                                "flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
+                                isActive
+                                    ? isDiscrep
+                                        ? "bg-red-500 text-white border-red-500 shadow-sm"
+                                        : "bg-brand-primary text-white border-brand-primary shadow-sm"
+                                    : isDiscrep && discrepanciasCount > 0
+                                        ? "bg-red-50 text-red-700 border-red-200 hover:border-red-300"
+                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
+                            )}
+                        >
+                            {isDiscrep && <AlertTriangle className="h-2.5 w-2.5" />}
+                            <span>{chip.label}</span>
+                            {isDiscrep && discrepanciasCount > 0 && (
+                                <span className={cn(
+                                    "ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none",
+                                    isActive ? "bg-white/25 text-white" : "bg-red-500 text-white"
+                                )}>
+                                    {discrepanciasCount}
+                                </span>
+                            )}
+                        </button>
+                    );
+                })}
             </div>
 
             {/* Card list */}

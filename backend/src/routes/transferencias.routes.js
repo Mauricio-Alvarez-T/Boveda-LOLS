@@ -27,6 +27,26 @@ router.get('/mis-solicitudes', auth, checkPermission('inventario.ver'), async (r
     } catch (err) { next(err); }
 });
 
+// GET /api/transferencias/discrepancias?estado=pendiente|resuelta|descartada
+// (debe ir ANTES de /:id para que Express no interprete 'discrepancias' como un ID)
+router.get('/discrepancias', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getDiscrepancias(req.query);
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/discrepancias/:id/resolver  body: { estado, resolucion }
+router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const { estado, resolucion } = req.body;
+        const result = await transferenciaService.resolverDiscrepancia(
+            req.params.id, req.user.id, estado, resolucion
+        );
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/transferencias/:id
 router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {

@@ -269,6 +269,49 @@ export interface RegistroBombaHormigon {
     activo: boolean;
 }
 
+export interface TransferenciaDiscrepanciaItem {
+    id: number;
+    transferencia_id: number;
+    item_id: number;
+    item_descripcion: string;
+    nro_item: number;
+    unidad: string;
+    cantidad_enviada: number;
+    cantidad_recibida: number;
+    diferencia: number;
+    observacion: string | null;
+    estado: 'pendiente' | 'resuelta' | 'descartada';
+    resolucion: string | null;
+    resuelto_por: number | null;
+    resuelto_por_nombre: string | null;
+    fecha_resolucion: string | null;
+    created_at: string;
+}
+
+export interface TransferenciaConDiscrepancias {
+    id: number;
+    codigo: string;
+    fecha_solicitud: string;
+    fecha_aprobacion: string | null;
+    fecha_despacho: string | null;
+    fecha_recepcion: string | null;
+    origen_obra_nombre: string | null;
+    origen_bodega_nombre: string | null;
+    destino_obra_nombre: string | null;
+    destino_bodega_nombre: string | null;
+    solicitante_id: number | null;
+    solicitante_nombre: string | null;
+    aprobador_id: number | null;
+    aprobador_nombre: string | null;
+    transportista_id: number | null;
+    transportista_nombre: string | null;
+    receptor_id: number | null;
+    receptor_nombre: string | null;
+    discrepancias: TransferenciaDiscrepanciaItem[];
+    total_unidades_perdidas: number;
+    total_items_afectados: number;
+}
+
 export interface DiscrepanciaInventario {
     id: number;
     item_id: number;

@@ -522,6 +522,29 @@ const transferenciaService = {
         });
 
         return { data, total: countRows[0].total, page, limit };
+    },
+
+    /**
+     * Marca una discrepancia como 'resuelta' o 'descartada' con una nota obligatoria.
+     * Solo permite operar sobre discrepancias que estén en estado 'pendiente'.
+     */
+    async resolverDiscrepancia(id, userId, estado, resolucion) {
+        if (!['resuelta', 'descartada'].includes(estado)) {
+            throw new Error('Estado inválido (debe ser "resuelta" o "descartada")');
+        }
+        if (!resolucion || !resolucion.trim()) {
+            throw new Error('Debe indicar una nota de resolución');
+        }
+        const [result] = await db.query(
+            `UPDATE transferencia_discrepancias
+             SET estado = ?, resolucion = ?, resuelto_por = ?, fecha_resolucion = NOW()
+             WHERE id = ? AND estado = 'pendiente'`,
+            [estado, resolucion.trim(), userId, id]
+        );
+        if (result.affectedRows === 0) {
+            throw new Error('Discrepancia no encontrada o ya no está pendiente');
+        }
+        return { id: Number(id), estado, resolucion: resolucion.trim() };
     }
 };
 

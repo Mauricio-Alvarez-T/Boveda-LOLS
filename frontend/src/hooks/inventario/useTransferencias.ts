@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
-import type { Transferencia } from '../../types/entities';
+import type { Transferencia, TransferenciaConDiscrepancias } from '../../types/entities';
 
 interface TransferenciaListResponse {
     data: Transferencia[];
@@ -31,6 +31,8 @@ export function useTransferencias() {
     const [selected, setSelected] = useState<Transferencia | null>(null);
     const [loading, setLoading] = useState(false);
     const [total, setTotal] = useState(0);
+    const [discrepancias, setDiscrepancias] = useState<TransferenciaConDiscrepancias[]>([]);
+    const [selectedDiscrepancia, setSelectedDiscrepancia] = useState<TransferenciaConDiscrepancias | null>(null);
 
     const fetchAll = useCallback(async (query: Record<string, any> = {}) => {
         setLoading(true);
@@ -127,6 +129,39 @@ export function useTransferencias() {
         }
     }, []);
 
+    const fetchDiscrepancias = useCallback(async (estado: string = 'pendiente') => {
+        setLoading(true);
+        try {
+            const params = new URLSearchParams();
+            if (estado) params.set('estado', estado);
+            const res = await api.get<{ data: TransferenciaConDiscrepancias[]; total: number }>(
+                `/transferencias/discrepancias?${params}`
+            );
+            setDiscrepancias(res.data.data);
+            return res.data.data;
+        } catch {
+            setDiscrepancias([]);
+            return [];
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    const resolverDiscrepancia = useCallback(async (
+        id: number,
+        estado: 'resuelta' | 'descartada',
+        resolucion: string
+    ) => {
+        try {
+            await api.put(`/transferencias/discrepancias/${id}/resolver`, { estado, resolucion });
+            toast.success(estado === 'resuelta' ? 'Discrepancia resuelta' : 'Discrepancia descartada');
+            return true;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al actualizar discrepancia');
+            return false;
+        }
+    }, []);
+
     const fetchStockPorItems = useCallback(async (itemIds: number[]): Promise<Record<number, { type: string; id: number; nombre: string; cantidad: number }[]>> => {
         try {
             const res = await api.post<{ data: Record<number, { type: string; id: number; nombre: string; cantidad: number }[]> }>('/inventario/stock-por-items', { item_ids: itemIds });
@@ -138,7 +173,9 @@ export function useTransferencias() {
 
     return {
         transferencias, selected, loading, total,
+        discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
         fetchAll, fetchById, crear, aprobar, despachar, recibir, rechazar, cancelar,
+        fetchDiscrepancias, resolverDiscrepancia,
         fetchStockPorItems, setSelected
     };
 }
