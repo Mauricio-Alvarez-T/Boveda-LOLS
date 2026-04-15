@@ -40,7 +40,8 @@ const path = require('path');
 const mysql = require('mysql2/promise');
 
 const MIGRATIONS_DIR = path.resolve(__dirname, '../db/migrations');
-const BOOTSTRAP_CUTOFF = '024'; // migraciones ≤ esta se marcan como aplicadas en BD existente
+const BOOTSTRAP_CUTOFF = '023'; // migraciones ≤ esta se marcan como aplicadas en BD existente
+// Nota: la 024 en adelante son nuevas y deben ejecutarse siempre.
 
 /* ──────────────────────── helpers ──────────────────────── */
 
