@@ -4,11 +4,16 @@ const db = require('../config/db');
  * Flujo de stock (Opción A — decremento al aprobar):
  *
  *  pendiente   → no toca stock
- *  aprobada    → ORIGEN -= cantidad_enviada  (reservado)
+ *  aprobada    → ORIGEN -= cantidad_enviada  (reservado). Puede ser MAYOR o MENOR
+ *                que cantidad_solicitada — depende del criterio del aprobador y
+ *                del stock disponible en el origen.
  *  en_transito → no toca stock (el stock ya salió al aprobar)
  *  recibida    → DESTINO += cantidad_recibida
- *                Si cantidad_recibida < cantidad_enviada → se registra discrepancia
- *                (la diferencia se considera mermada/perdida, NO vuelve al origen)
+ *                Si cantidad_recibida ≠ cantidad_enviada → se registra discrepancia.
+ *                  · recibida < enviada → merma/pérdida en tránsito
+ *                  · recibida > enviada → sobrante (miscount u otro error)
+ *                La diferencia NO se revierte al origen — queda registrada para
+ *                auditoría y resolución manual.
  *  rechazada   → si estaba aprobada → ORIGEN += cantidad_enviada (reversión)
  *  cancelada   → si estaba aprobada → ORIGEN += cantidad_enviada (reversión)
  */
@@ -69,8 +74,9 @@ const transferenciaService = {
     /**
      * Aprueba la transferencia:
      * 1. Valida estado pendiente
-     * 2. Valida que cantidad_enviada <= cantidad_solicitada (por ítem ya guardado en BD)
-     * 3. Valida stock disponible en origen
+     * 2. Valida que cantidad_enviada sea no-negativa. Se permite enviar MÁS o MENOS
+     *    que lo solicitado — el aprobador decide según el stock real y necesidades.
+     * 3. Valida stock disponible en origen (único límite físico)
      * 4. DECREMENTA stock del origen (reserva efectiva)
      * 5. Actualiza estado y cantidades enviadas
      */
@@ -100,13 +106,11 @@ const transferenciaService = {
                 if (!(item.item_id in solicitadoMap)) {
                     throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
                 }
-                const solicitado = solicitadoMap[item.item_id];
+                // Nota: el aprobador puede enviar MÁS o MENOS que lo solicitado.
+                // El único límite es el stock disponible (validado abajo).
                 const enviada = parseInt(item.cantidad_enviada, 10) || 0;
                 if (enviada < 0) {
                     throw new Error(`Cantidad enviada inválida para ítem ${item.item_id}`);
-                }
-                if (enviada > solicitado) {
-                    throw new Error(`Cantidad enviada (${enviada}) supera la solicitada (${solicitado}) para ítem ${item.item_id}`);
                 }
 
                 const [stock] = await conn.query(
@@ -180,9 +184,13 @@ const transferenciaService = {
     },
 
     /**
-     * Recepción: stock sube al destino. Si cantidad_recibida < cantidad_enviada,
-     * se registra discrepancia (la diferencia queda como merma/pérdida en tránsito).
+     * Recepción: stock sube al destino. Si cantidad_recibida ≠ cantidad_enviada,
+     * se registra discrepancia:
+     *   · recibida < enviada → merma/pérdida en tránsito
+     *   · recibida > enviada → sobrante (miscount u otro error)
      * El stock del origen NO se modifica aquí (ya se movió al aprobar).
+     * La observación por ítem (si la envía el receptor) queda guardada en la
+     * fila de discrepancia para contexto de resolución.
      */
     async recibir(id, receptorId, items) {
         if (!items || !items.length) throw new Error('Debe incluir ítems');
@@ -215,9 +223,8 @@ const transferenciaService = {
                 if (recibida < 0) {
                     throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
                 }
-                if (recibida > enviada) {
-                    throw new Error(`Cantidad recibida (${recibida}) supera la enviada (${enviada}) para ítem ${item.item_id}`);
-                }
+                // Se permite recibir MÁS o MENOS que lo enviado. Cualquier
+                // diferencia genera un registro de discrepancia para auditoría.
 
                 // Actualizar cantidad recibida
                 await conn.query(
@@ -235,8 +242,10 @@ const transferenciaService = {
                     );
                 }
 
-                // Registrar discrepancia si recibida < enviada
-                if (recibida < enviada) {
+                // Registrar discrepancia ante cualquier diferencia (merma o sobrante).
+                // La columna `diferencia` es GENERATED (enviada - recibida), por lo
+                // que será negativa cuando hay sobrante.
+                if (recibida !== enviada) {
                     await conn.query(
                         `INSERT INTO transferencia_discrepancias
                          (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion)

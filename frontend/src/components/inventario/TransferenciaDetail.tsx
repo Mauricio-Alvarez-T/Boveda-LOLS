@@ -25,7 +25,7 @@ interface Props {
     onBack: () => void;
     onFetchStock: (itemIds: number[]) => Promise<Record<number, StockLocation[]>>;
     onAprobar: (data: { origen_obra_id?: number | null; origen_bodega_id?: number | null; items: { item_id: number; cantidad_enviada: number }[] }) => Promise<boolean>;
-    onRecibir: (items: { item_id: number; cantidad_recibida: number }[]) => Promise<boolean>;
+    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => Promise<boolean>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
 }
@@ -532,6 +532,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 const ok = await onRecibir(receiveItems.map(ri => ({
                                     item_id: ri.item_id,
                                     cantidad_recibida: ri.cantidad_recibida,
+                                    // Solo se envía la observación si el receptor marcó "Incorrecto"
+                                    // y escribió algo — queda guardada en la fila de discrepancia.
+                                    observacion: !ri.correcto && ri.observacion.trim()
+                                        ? ri.observacion.trim()
+                                        : undefined,
                                 })));
                                 if (ok) setActiveForm(null);
                             }}

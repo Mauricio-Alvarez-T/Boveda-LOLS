@@ -96,7 +96,7 @@ export function useTransferencias() {
         }
     }, []);
 
-    const recibir = useCallback(async (id: number, items: { item_id: number; cantidad_recibida: number }[]) => {
+    const recibir = useCallback(async (id: number, items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => {
         try {
             await api.put(`/transferencias/${id}/recibir`, { items });
             toast.success('Transferencia recibida — stock actualizado');
