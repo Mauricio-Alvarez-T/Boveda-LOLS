@@ -123,12 +123,12 @@ const InventarioPage: React.FC = () => {
                 {activeTab === 'por_ubicacion' && (
                     <div className="flex flex-col gap-4 flex-1 min-h-0">
                         {/* Obra selector */}
-                        <div className="flex items-center gap-3 shrink-0">
+                        <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 shrink-0">
                             <label className="text-xs font-bold text-brand-dark">Obra:</label>
                             <select
                                 value={selectedUbicacionId || ''}
                                 onChange={e => setSelectedUbicacionId(Number(e.target.value))}
-                                className="px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full md:w-auto px-3 py-2.5 md:py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             >
                                 {allObras.map(o => (
                                     <option key={o.id} value={o.id}>{o.nombre}</option>
