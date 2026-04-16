@@ -1,9 +1,10 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { cn } from '../../utils/cn';
-import { Check, X, ChevronRight, ChevronDown, Search, EyeOff, Eye, RotateCcw, ImageIcon, MapPin, Warehouse, Package, Download } from 'lucide-react';
+import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
+import { useInlineEdit } from '../../hooks/inventario/useInlineEdit';
+import { useResumenMensualFilters } from '../../hooks/inventario/useResumenMensualFilters';
 import ItemDetailModal from './ItemDetailModal';
+import { ResumenToolbar } from './ResumenToolbar';
 import { exportResumen } from '../../utils/exportExcel';
 
 interface Props {
@@ -17,18 +18,7 @@ const fmt = (n: number) => n.toLocaleString('es-CL');
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
-const STORAGE_KEY = 'inventario_resumen_hidden_cols';
-
-function loadHiddenCols(): Set<string> {
-    try {
-        const raw = localStorage.getItem(STORAGE_KEY);
-        return raw ? new Set(JSON.parse(raw)) : new Set();
-    } catch { return new Set(); }
-}
-
-function saveHiddenCols(set: Set<string>) {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify([...set]));
-}
+const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onRefresh }) => {
     const { obras, bodegas, categorias } = data;
@@ -36,74 +26,26 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     // ── Item detail modal ──
     const itemDetail = useItemDetail();
 
+    // ── Inline Edit Helpers ──
+    const desktopEdit = useInlineEdit({ canEdit, onUpdateStock, onRefresh });
+    const mobileEdit = useInlineEdit({ canEdit, onUpdateStock, onRefresh });
+
     // ── State ──
-    const [editingCell, setEditingCell] = useState<string | null>(null);
-    const [editValue, setEditValue] = useState('');
-    const [collapsedCats, setCollapsedCats] = useState<Set<number>>(new Set());
-    const [hiddenCols, setHiddenCols] = useState<Set<string>>(loadHiddenCols);
-    const [hideEmpty, setHideEmpty] = useState(false);
-    const [search, setSearch] = useState('');
-    const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
-    const [showImages, setShowImages] = useState(false);
-
-    // Persist hidden cols
-    useEffect(() => { saveHiddenCols(hiddenCols); }, [hiddenCols]);
-
-    // ── Derived: which columns have any stock ──
-    const colsWithStock = useMemo(() => {
-        const set = new Set<string>();
-        for (const cat of categorias) {
-            for (const item of cat.items) {
-                for (const [key, ub] of Object.entries(item.ubicaciones)) {
-                    if (ub && ub.cantidad > 0) set.add(key);
-                }
-            }
-        }
-        return set;
-    }, [categorias]);
-
-    // ── Derived: visible obras/bodegas ──
-    const visibleObras = useMemo(() =>
-        obras.filter(o => {
-            const key = `obra_${o.id}`;
-            if (hiddenCols.has(key)) return false;
-            if (hideEmpty && !colsWithStock.has(key)) return false;
-            return true;
-        }),
-    [obras, hiddenCols, hideEmpty, colsWithStock]);
-
-    const visibleBodegas = useMemo(() =>
-        bodegas.filter(b => {
-            const key = `bodega_${b.id}`;
-            if (hiddenCols.has(key)) return false;
-            if (hideEmpty && !colsWithStock.has(key)) return false;
-            return true;
-        }),
-    [bodegas, hiddenCols, hideEmpty, colsWithStock]);
-
-    // ── Derived: filtered categories by search & dropdown ──
-    const searchLower = search.toLowerCase().trim();
-    const filteredCategorias = useMemo(() => {
-        let cats = categorias;
-        
-        // 1. Filtrar por ID de categoría si hay una seleccionada
-        if (selectedCategoryId !== null) {
-            cats = cats.filter(c => c.id === selectedCategoryId);
-        }
-
-        // 2. Filtrar por búsqueda de texto
-        if (searchLower) {
-            cats = cats.map(cat => ({
-                ...cat,
-                items: cat.items.filter(item =>
-                    item.descripcion.toLowerCase().includes(searchLower) ||
-                    String(item.nro_item).includes(searchLower)
-                )
-            }));
-        }
-
-        return cats.filter(cat => cat.items.length > 0);
-    }, [categorias, searchLower, selectedCategoryId]);
+    // ── Filters & View State ──
+    const filters = useResumenMensualFilters(data);
+    const {
+        collapsedCats, toggleCat,
+        hiddenCols, toggleCol, restoreCols,
+        hideEmpty, setHideEmpty,
+        search, setSearch,
+        selectedCategoryId, setSelectedCategoryId,
+        showImages, setShowImages,
+        colsWithStock,
+        visibleObras,
+        visibleBodegas,
+        filteredCategorias,
+        searchLower
+    } = filters;
 
     // ── Category totals (for collapsed summary) ──
     const catTotals = useMemo(() => {
@@ -152,66 +94,34 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
         };
     }, [categorias, obras, data.descuentos]);
 
-    // ── Toggle helpers ──
-    const toggleCat = (catId: number) => {
-        setCollapsedCats(prev => {
-            const next = new Set(prev);
-            next.has(catId) ? next.delete(catId) : next.add(catId);
-            return next;
-        });
-    };
 
-    const toggleCol = (key: string) => {
-        setHiddenCols(prev => {
-            const next = new Set(prev);
-            next.has(key) ? next.delete(key) : next.add(key);
-            return next;
-        });
-    };
-
-    // ── Inline editing ──
-    const startEdit = (key: string, currentValue: number) => {
-        if (!canEdit) return;
-        setEditingCell(key);
-        setEditValue(String(currentValue || ''));
-    };
-
-    const cancelEdit = () => { setEditingCell(null); setEditValue(''); };
-
-    const saveEdit = async (itemId: number, obraId: number | null, bodegaId: number | null) => {
-        const num = parseInt(editValue, 10);
-        if (isNaN(num) || num < 0) { cancelEdit(); return; }
-        const ok = await onUpdateStock(itemId, obraId, bodegaId, { cantidad: num });
-        if (ok) onRefresh();
-        cancelEdit();
-    };
 
     const renderEditableQty = (
         cellKey: string, cantidad: number,
         itemId: number, obraId: number | null, bodegaId: number | null,
         hasValue: boolean
     ) => {
-        if (editingCell === cellKey) {
+        if (desktopEdit.editingCell === cellKey) {
             return (
                 <div className="flex items-center justify-center gap-0.5">
                     <input
-                        type="number" value={editValue}
-                        onChange={e => setEditValue(e.target.value)}
+                        type="number" value={desktopEdit.editValue}
+                        onChange={e => desktopEdit.setEditValue(e.target.value)}
                         onKeyDown={e => {
-                            if (e.key === 'Enter') saveEdit(itemId, obraId, bodegaId);
-                            if (e.key === 'Escape') cancelEdit();
+                            if (e.key === 'Enter') desktopEdit.saveEdit(itemId, obraId, bodegaId);
+                            if (e.key === 'Escape') desktopEdit.cancelEdit();
                         }}
                         className="w-14 px-1 py-0.5 text-[11px] border rounded text-center focus:ring-1 focus:ring-brand-primary outline-none"
                         autoFocus min={0}
                     />
-                    <button onClick={() => saveEdit(itemId, obraId, bodegaId)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                    <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                    <button onClick={() => desktopEdit.saveEdit(itemId, obraId, bodegaId)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
+                    <button onClick={desktopEdit.cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
                 </div>
             );
         }
         return (
             <span
-                onClick={() => startEdit(cellKey, cantidad)}
+                onClick={() => desktopEdit.startEdit(cellKey, cantidad)}
                 className={cn(
                     hasValue ? "font-semibold text-brand-dark" : "text-muted-foreground/40",
                     canEdit && "cursor-pointer hover:bg-brand-primary/10 hover:ring-1 hover:ring-brand-primary/30 rounded px-1 py-0.5 transition-all"
@@ -224,27 +134,10 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     };
 
     const totalColSpan = 4 + visibleObras.length * 2 + visibleBodegas.length + 2;
-
     const hiddenCount = hiddenCols.size;
 
     // ── Mobile: expanded item state ──
     const [mobileExpandedItem, setMobileExpandedItem] = useState<number | null>(null);
-    const [mobileEditCell, setMobileEditCell] = useState<string | null>(null);
-    const [mobileEditValue, setMobileEditValue] = useState('');
-
-    const mobileStartEdit = (key: string, current: number) => {
-        if (!canEdit) return;
-        setMobileEditCell(key);
-        setMobileEditValue(String(current || ''));
-    };
-    const mobileCancelEdit = () => { setMobileEditCell(null); setMobileEditValue(''); };
-    const mobileSaveEdit = async (itemId: number, obraId: number | null, bodegaId: number | null) => {
-        const num = parseInt(mobileEditValue, 10);
-        if (isNaN(num) || num < 0) { mobileCancelEdit(); return; }
-        const ok = await onUpdateStock(itemId, obraId, bodegaId, { cantidad: num });
-        if (ok) onRefresh();
-        mobileCancelEdit();
-    };
 
     return (
         <div className="flex flex-col gap-3 flex-1 min-h-0">
@@ -424,25 +317,25 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                         </div>
                                                                         <div className="flex items-center gap-3 shrink-0">
                                                                             {/* Editable qty */}
-                                                                            {mobileEditCell === cellKey ? (
+                                                                            {mobileEdit.editingCell === cellKey ? (
                                                                                 <div className="flex items-center gap-1">
                                                                                     <input
                                                                                         type="number" min={0}
-                                                                                        value={mobileEditValue}
-                                                                                        onChange={e => setMobileEditValue(e.target.value)}
+                                                                                        value={mobileEdit.editValue}
+                                                                                        onChange={e => mobileEdit.setEditValue(e.target.value)}
                                                                                         onKeyDown={e => {
-                                                                                            if (e.key === 'Enter') mobileSaveEdit(item.id, o.id, null);
-                                                                                            if (e.key === 'Escape') mobileCancelEdit();
+                                                                                            if (e.key === 'Enter') mobileEdit.saveEdit(item.id, o.id, null);
+                                                                                            if (e.key === 'Escape') mobileEdit.cancelEdit();
                                                                                         }}
                                                                                         className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                         autoFocus
                                                                                     />
-                                                                                    <button onClick={() => mobileSaveEdit(item.id, o.id, null)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                                    <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, o.id, null)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                                 </div>
                                                                             ) : (
                                                                                 <button
-                                                                                    onClick={() => canEdit && mobileStartEdit(cellKey, qty)}
+                                                                                    onClick={() => canEdit && mobileEdit.startEdit(cellKey, qty)}
                                                                                     className={cn(
                                                                                         "min-w-[3rem] px-3 py-1.5 rounded-xl text-xs font-bold text-center",
                                                                                         qty > 0 ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-400 border border-gray-200",
@@ -452,7 +345,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                                     {qty}
                                                                                 </button>
                                                                             )}
-                                                                            {total > 0 && mobileEditCell !== cellKey && (
+                                                                            {total > 0 && mobileEdit.editingCell !== cellKey && (
                                                                                 <span className="text-[10px] font-semibold text-brand-primary w-20 text-right">{fmtMoney(total)}</span>
                                                                             )}
                                                                         </div>
@@ -475,25 +368,25 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                             <span className="text-xs font-medium text-brand-dark truncate">{b.nombre}</span>
                                                                         </div>
                                                                         <div className="flex items-center gap-3 shrink-0">
-                                                                            {mobileEditCell === cellKey ? (
+                                                                            {mobileEdit.editingCell === cellKey ? (
                                                                                 <div className="flex items-center gap-1">
                                                                                     <input
                                                                                         type="number" min={0}
-                                                                                        value={mobileEditValue}
-                                                                                        onChange={e => setMobileEditValue(e.target.value)}
+                                                                                        value={mobileEdit.editValue}
+                                                                                        onChange={e => mobileEdit.setEditValue(e.target.value)}
                                                                                         onKeyDown={e => {
-                                                                                            if (e.key === 'Enter') mobileSaveEdit(item.id, null, b.id);
-                                                                                            if (e.key === 'Escape') mobileCancelEdit();
+                                                                                            if (e.key === 'Enter') mobileEdit.saveEdit(item.id, null, b.id);
+                                                                                            if (e.key === 'Escape') mobileEdit.cancelEdit();
                                                                                         }}
                                                                                         className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                         autoFocus
                                                                                     />
-                                                                                    <button onClick={() => mobileSaveEdit(item.id, null, b.id)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                                    <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, null, b.id)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                                 </div>
                                                                             ) : (
                                                                                 <button
-                                                                                    onClick={() => canEdit && mobileStartEdit(cellKey, qty)}
+                                                                                    onClick={() => canEdit && mobileEdit.startEdit(cellKey, qty)}
                                                                                     className={cn(
                                                                                         "min-w-[3rem] px-3 py-1.5 rounded-xl text-xs font-bold text-center",
                                                                                         qty > 0 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-gray-50 text-gray-400 border border-gray-200",
@@ -536,73 +429,17 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 ── DESKTOP VIEW (unchanged) ──
                ═══════════════════════════════════════════ */}
             {/* ── Toolbar ── */}
-            <div className="hidden md:flex flex-wrap items-center gap-2 py-2 shrink-0">
-                {/* Search */}
-                <div className="relative flex-1 min-w-[180px] max-w-xs">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                        type="text"
-                        value={search}
-                        onChange={e => setSearch(e.target.value)}
-                        placeholder="Buscar ítem..."
-                        className="w-full pl-8 pr-3 py-1.5 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
-                    />
-                    {search && (
-                        <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                            <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                    )}
-                </div>
-
-                {/* Category Filter */}
-                <div className="shrink-0 relative flex items-center border border-[#E8E8ED] bg-white rounded-xl focus-within:ring-2 focus-within:ring-brand-primary/20 transition-all">
-                    <select
-                        value={selectedCategoryId ?? ''}
-                        onChange={e => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
-                        className="pl-3 pr-8 py-1.5 text-[11px] font-medium text-brand-dark bg-transparent focus:outline-none appearance-none cursor-pointer w-full min-w-[150px]"
-                    >
-                        <option value="">Todas las categorías</option>
-                        {categorias.map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre}</option>
-                        ))}
-                    </select>
-                    <ChevronDown className="absolute right-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                </div>
-
-                {/* Hide empty toggle */}
-                <button
-                    onClick={() => setHideEmpty(v => !v)}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
-                        hideEmpty
-                            ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
-                            : "bg-white border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30"
-                    )}
-                >
-                    {hideEmpty ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    Ocultar vacías
-                </button>
-
-                {/* Restore hidden columns */}
-                {hiddenCount > 0 && (
-                    <button
-                        onClick={() => { setHiddenCols(new Set()); saveHiddenCols(new Set()); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
-                    >
-                        <RotateCcw className="h-3 w-3" />
-                        Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}
-                    </button>
-                )}
-
-                {/* Exportar Excel */}
-                <button
-                    onClick={() => exportResumen(data)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm ml-auto"
-                >
-                    <Download className="h-3.5 w-3.5" />
-                    Exportar Excel
-                </button>
-            </div>
+            <ResumenToolbar
+                data={data}
+                search={search}
+                setSearch={setSearch}
+                selectedCategoryId={selectedCategoryId}
+                setSelectedCategoryId={setSelectedCategoryId}
+                hideEmpty={hideEmpty}
+                setHideEmpty={setHideEmpty}
+                hiddenCount={hiddenCount}
+                restoreCols={restoreCols}
+            />
 
             {/* ── Table — fills remaining space, scrolls both axes ── */}
             <div className="hidden md:block overflow-auto flex-1 min-h-0 rounded-xl border border-[#E8E8ED]">
