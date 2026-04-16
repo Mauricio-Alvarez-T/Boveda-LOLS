@@ -7,6 +7,8 @@ import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import type { TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem } from '../../types/entities';
+import { useItemDetail } from '../../hooks/inventario/useItemDetail';
+import ItemDetailModal from './ItemDetailModal';
 
 interface Props {
     discrepancia: TransferenciaConDiscrepancias;
@@ -27,6 +29,7 @@ const fmtFecha = (s: string | null) => s
     : '—';
 
 const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, onResolver, onRefresh }) => {
+    const itemDetail = useItemDetail();
     const [modalOpen, setModalOpen] = useState(false);
     const [modalAction, setModalAction] = useState<'resuelta' | 'descartada'>('resuelta');
     const [modalItem, setModalItem] = useState<TransferenciaDiscrepanciaItem | null>(null);
@@ -169,9 +172,13 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                                 {cfg.label}
                                             </span>
                                         </div>
-                                        <p className="text-[11px] font-semibold text-brand-dark leading-tight line-clamp-2">
+                                        <button
+                                            type="button"
+                                            onClick={() => itemDetail.openItem(item.item_id)}
+                                            className="text-[11px] font-semibold text-brand-dark leading-tight line-clamp-2 text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                        >
                                             {item.item_descripcion}
-                                        </p>
+                                        </button>
                                     </div>
                                 </div>
 
@@ -338,6 +345,16 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                     </div>
                 )}
             </Modal>
+
+            {/* Item Detail Modal */}
+            <ItemDetailModal
+                isOpen={!!itemDetail.selectedItemId}
+                onClose={itemDetail.closeItem}
+                itemData={itemDetail.itemData}
+                stockLocations={itemDetail.stockLocations}
+                loading={itemDetail.loading}
+                stockLoading={itemDetail.stockLoading}
+            />
         </div>
     );
 };

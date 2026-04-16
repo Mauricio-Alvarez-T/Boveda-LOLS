@@ -8,6 +8,8 @@ import {
 import { estadoConfig } from './TransferenciasList';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Transferencia, TransferenciaItem } from '../../types/entities';
+import { useItemDetail } from '../../hooks/inventario/useItemDetail';
+import ItemDetailModal from './ItemDetailModal';
 
 interface StockLocation {
     type: string;
@@ -54,6 +56,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
+    const itemDetail = useItemDetail();
     const Icon = cfg.icon;
 
     const origen = (t as any).origen_obra_nombre || (t as any).origen_bodega_nombre || '—';
@@ -205,7 +208,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <tbody>
                             {items.map((item, idx) => (
                                 <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
-                                    <td className="px-3 py-1.5 font-medium text-brand-dark">{item.item_descripcion || `Item #${item.item_id}`}</td>
+                                    <td className="px-3 py-1.5 font-medium text-brand-dark">
+                                        <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
+                                            {item.item_descripcion || `Item #${item.item_id}`}
+                                        </button>
+                                    </td>
                                     <td className="px-2 py-1.5 text-center font-semibold">{item.cantidad_solicitada}</td>
                                     <td className="px-2 py-1.5 text-center">{item.cantidad_enviada ?? '—'}</td>
                                     <td className="px-2 py-1.5 text-center">{item.cantidad_recibida ?? '—'}</td>
@@ -319,7 +326,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     <div key={item.id || idx} className="bg-white rounded-lg border border-green-100 p-3">
                                         {/* Item header */}
                                         <div className="flex items-center justify-between mb-2">
-                                            <span className="text-xs font-bold text-brand-dark">{item.item_descripcion}</span>
+                                            <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">{item.item_descripcion}</button>
                                             <span className="text-[10px] font-semibold text-muted-foreground">
                                                 Solicitada: <span className="text-brand-dark">{item.cantidad_solicitada}</span>
                                             </span>
@@ -460,7 +467,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 )}>
                                     {/* Item name + correct toggle */}
                                     <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-bold text-brand-dark flex-1 mr-2">{item.item_descripcion}</span>
+                                        <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark flex-1 mr-2 text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">{item.item_descripcion}</button>
                                         <button
                                             type="button"
                                             onClick={() => {
@@ -551,6 +558,16 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
                 </div>
             )}
+
+            {/* Item Detail Modal */}
+            <ItemDetailModal
+                isOpen={!!itemDetail.selectedItemId}
+                onClose={itemDetail.closeItem}
+                itemData={itemDetail.itemData}
+                stockLocations={itemDetail.stockLocations}
+                loading={itemDetail.loading}
+                stockLoading={itemDetail.stockLoading}
+            />
         </div>
     );
 };

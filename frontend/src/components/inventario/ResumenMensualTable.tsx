@@ -2,6 +2,8 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 import { Check, X, ChevronRight, ChevronDown, Search, EyeOff, Eye, RotateCcw, ImageIcon, MapPin, Warehouse, Package } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
+import { useItemDetail } from '../../hooks/inventario/useItemDetail';
+import ItemDetailModal from './ItemDetailModal';
 
 interface Props {
     data: ResumenData;
@@ -29,6 +31,9 @@ function saveHiddenCols(set: Set<string>) {
 
 const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onRefresh }) => {
     const { obras, bodegas, categorias } = data;
+
+    // ── Item detail modal ──
+    const itemDetail = useItemDetail();
 
     // ── State ──
     const [editingCell, setEditingCell] = useState<string | null>(null);
@@ -307,7 +312,10 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
                                                         {/* Info */}
                                                         <div className="flex-1 min-w-0">
-                                                            <p className="text-xs font-bold text-brand-dark truncate">{item.descripcion}</p>
+                                                            <p
+                                                                className="text-xs font-bold text-brand-dark truncate hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                                onClick={(e) => { e.stopPropagation(); itemDetail.openItem(item.id, item); }}
+                                                            >{item.descripcion}</p>
                                                             <div className="flex items-center gap-2 mt-0.5">
                                                                 {totalLocs > 0 && (
                                                                     <span className="text-[10px] text-muted-foreground">
@@ -614,7 +622,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                         : <div className="w-8 h-8 rounded bg-muted/30 flex items-center justify-center mx-auto"><ImageIcon className="h-3 w-3 text-muted-foreground/30" /></div>
                                                 )}
                                             </td>
-                                            <td className={cn("sticky z-10 px-2 py-1.5 font-medium text-brand-dark border-r border-b border-[#D8D8DD] truncate max-w-[200px]", rowBg, showImages ? "left-[68px]" : "left-8")}>{item.descripcion}</td>
+                                            <td className={cn("sticky z-10 px-2 py-1.5 font-medium text-brand-dark border-r border-b border-[#D8D8DD] truncate max-w-[200px]", rowBg, showImages ? "left-[68px]" : "left-8")}>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => itemDetail.openItem(item.id, item)}
+                                                    className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                >
+                                                    {item.descripcion}
+                                                </button>
+                                            </td>
                                             <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]")}>{fmtMoney(item.valor_arriendo)}</td>
                                             {visibleObras.map((o, oIdx) => {
                                                 const ub = item.ubicaciones[`obra_${o.id}`];
@@ -698,6 +714,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     Mostrando {filteredCategorias.reduce((s, c) => s + c.items.length, 0)} ítems en {filteredCategorias.length} categorías
                 </p>
             )}
+            {/* Item Detail Modal */}
+            <ItemDetailModal
+                isOpen={!!itemDetail.selectedItemId}
+                onClose={itemDetail.closeItem}
+                itemData={itemDetail.itemData}
+                stockLocations={itemDetail.stockLocations}
+                loading={itemDetail.loading}
+                stockLoading={itemDetail.stockLoading}
+            />
         </div>
     );
 };

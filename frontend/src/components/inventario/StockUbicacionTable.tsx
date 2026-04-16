@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
 import { Pencil, Check, X, ChevronDown, MapPin, Package } from 'lucide-react';
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
+import { useItemDetail } from '../../hooks/inventario/useItemDetail';
+import ItemDetailModal from './ItemDetailModal';
 
 interface Props {
     data: StockObraData;
@@ -14,6 +16,9 @@ interface Props {
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
 const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onUpdateDescuento, onRefresh }) => {
+    // ── Item detail modal ──
+    const itemDetail = useItemDetail();
+
     // ── Desktop edit state (unchanged) ──
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
@@ -244,7 +249,10 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                 <span className="text-[10px] font-bold text-muted-foreground">#{item.nro_item}</span>
                                                             </div>
                                                             <div className="flex-1 min-w-0">
-                                                                <p className="text-xs font-bold text-brand-dark line-clamp-2 leading-tight">{item.descripcion}</p>
+                                                                <p
+                                                                    className="text-xs font-bold text-brand-dark line-clamp-2 leading-tight hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                                    onClick={(e) => { e.stopPropagation(); itemDetail.openItem(item.id, item); }}
+                                                                >{item.descripcion}</p>
                                                                 <div className="flex items-center gap-2 mt-1">
                                                                     <span className="text-[10px] font-semibold text-brand-dark">{item.cantidad} {item.unidad}</span>
                                                                     {item.valor_arriendo > 0 && (
@@ -399,7 +407,15 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 {cat.items.map((item, idx) => (
                                     <tr key={item.id} className={cn("hover:bg-blue-50/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-[#F5F5F8]")}>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-[#D8D8DD]">{item.nro_item}</td>
-                                        <td className="px-2 py-1 font-medium text-brand-dark truncate max-w-[250px] border-r border-b border-[#D8D8DD]">{item.descripcion}</td>
+                                        <td className="px-2 py-1 font-medium text-brand-dark truncate max-w-[250px] border-r border-b border-[#D8D8DD]">
+                                            <button
+                                                type="button"
+                                                onClick={() => itemDetail.openItem(item.id, item)}
+                                                className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                            >
+                                                {item.descripcion}
+                                            </button>
+                                        </td>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-[#D8D8DD]">{item.m2 ? item.m2.toFixed(2) : ''}</td>
                                         <td className="px-2 py-1 text-right border-r border-b border-[#D8D8DD]">
                                             {renderCell(`arr_${item.id}`, item.valor_arriendo, item.id, 'valor_arriendo')}
@@ -476,6 +492,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     </tfoot>
                 </table>
             </div>
+
+            {/* Item Detail Modal */}
+            <ItemDetailModal
+                isOpen={!!itemDetail.selectedItemId}
+                onClose={itemDetail.closeItem}
+                itemData={itemDetail.itemData}
+                stockLocations={itemDetail.stockLocations}
+                loading={itemDetail.loading}
+                stockLoading={itemDetail.stockLoading}
+            />
         </div>
     );
 };
