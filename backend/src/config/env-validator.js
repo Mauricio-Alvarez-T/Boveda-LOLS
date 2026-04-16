@@ -22,6 +22,9 @@ function validateEnv() {
         });
         console.error('\n   Revisa tu archivo .env o las variables del sistema.');
         console.error('══════════════════════════════════════════════════\n');
+        if (process.env.NODE_ENV === 'test') {
+            throw new Error(`Variables de entorno faltantes: ${missing.map(v => v.key).join(', ')}`);
+        }
         process.exit(1);
     }
 }
