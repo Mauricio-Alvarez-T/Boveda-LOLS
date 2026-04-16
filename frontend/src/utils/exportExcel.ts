@@ -278,3 +278,246 @@ export async function exportStockObra(data: StockObraData) {
     const filename = `Stock_${data.obra.nombre.replace(/[^a-zA-Z0-9áéíóúñÁÉÍÓÚÑ ]/g, '').replace(/\s+/g, '_')}_${today}.xlsx`;
     saveAs(blob, filename);
 }
+
+/**
+ * Exporta el Resumen General a un archivo .xlsx con diseño.
+ */
+export async function exportResumen(data: import('../hooks/inventario/useInventarioData').ResumenData) {
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'Bóveda LOLS';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet('Resumen General', {
+        views: [{ showGridLines: false }],
+    });
+
+    // Construir columnas base
+    const cols: Partial<ExcelJS.Column>[] = [
+        { key: 'nro',     width: 7 },
+        { key: 'desc',    width: 45 },
+        { key: 'm2',      width: 10 },
+        { key: 'arriendo', width: 14 },
+        { key: 'unidad',  width: 8 },
+        { key: 'total_qty', width: 12 },
+    ];
+
+    // Columnas por obra y bodega
+    data.obras.forEach(o => cols.push({ key: `obra_${o.id}`, width: 10 }));
+    data.bodegas.forEach(b => cols.push({ key: `bodega_${b.id}`, width: 10 }));
+
+    ws.columns = cols;
+
+    let row: ExcelJS.Row;
+
+    // ══════════════════════════════════════════════
+    //  TÍTULO
+    // ══════════════════════════════════════════════
+    const lastColLetter = ws.getColumn(cols.length).letter;
+    ws.mergeCells(`A1:${lastColLetter}1`);
+    row = ws.getRow(1);
+    row.height = 36;
+    row.getCell(1).value = `📦  RESUMEN GENERAL DE INVENTARIO`;
+    row.getCell(1).font = boldFont(16, WHITE);
+    row.getCell(1).fill = fill(BRAND_PRIMARY);
+    row.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+
+    // Subtítulo con fecha
+    ws.mergeCells(`A2:${lastColLetter}2`);
+    row = ws.getRow(2);
+    row.height = 22;
+    row.getCell(1).value = `Exportado el ${fmtDate()}`;
+    row.getCell(1).font = normalFont(9, '666666');
+    row.getCell(1).fill = fill(BRAND_LIGHT);
+    row.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
+
+    ws.getRow(3).height = 6;
+
+    // ══════════════════════════════════════════════
+    //  ENCABEZADO DE TABLA
+    // ══════════════════════════════════════════════
+    const headerLabels = ['#', 'Descripción', 'M²', 'V. Arriendo', 'UN', 'Total Cant.'];
+    data.obras.forEach(o => headerLabels.push(o.nombre));
+    data.bodegas.forEach(b => headerLabels.push(b.nombre));
+
+    row = ws.getRow(4);
+    row.height = 24;
+    headerLabels.forEach((label, i) => {
+        const cell = row.getCell(i + 1);
+        cell.value = label;
+        cell.font = boldFont(10, '333333');
+        cell.fill = fill(BRAND_BG);
+        cell.border = { ...thinBorder, bottom: { style: 'medium', color: { argb: BRAND_PRIMARY } } };
+        // Base cols have their own alignment, location columns are centered
+        const align = i === 1 ? 'left' : (i < 5 ? 'center' : (i === 5 ? 'right' : 'center'));
+        cell.alignment = { vertical: 'middle', horizontal: align as any };
+    });
+
+    let currentRow = 5;
+
+    // ══════════════════════════════════════════════
+    //  CATEGORÍAS + ÍTEMS
+    // ══════════════════════════════════════════════
+    for (const cat of data.categorias) {
+        ws.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
+        row = ws.getRow(currentRow);
+        row.height = 22;
+        const catCell = row.getCell(1);
+        catCell.value = `  ▸  ${cat.nombre.toUpperCase()}`;
+        catCell.font = boldFont(10, BRAND_PRIMARY);
+        catCell.fill = fill(CAT_BG);
+        catCell.alignment = { vertical: 'middle' };
+        catCell.border = thinBorder;
+        currentRow++;
+
+        cat.items.forEach((item, idx) => {
+            row = ws.getRow(currentRow);
+            row.height = 20;
+            const isZebra = idx % 2 !== 0;
+            const bgColor = isZebra ? ZEBRA : WHITE;
+
+            const values = [
+                item.nro_item,
+                item.descripcion,
+                item.m2 ? item.m2.toFixed(2) : '',
+                fmtMoney(item.valor_arriendo),
+                item.unidad,
+                item.total_cantidad,
+            ];
+
+            // Cantidades por ubicación
+            data.obras.forEach(o => values.push(item.ubicaciones[`obra_${o.id}`]?.cantidad || 0));
+            data.bodegas.forEach(b => values.push(item.ubicaciones[`bodega_${b.id}`]?.cantidad || 0));
+
+            values.forEach((val, i) => {
+                const cell = row.getCell(i + 1);
+                // Blank out 0 values for locations to make it cleaner
+                cell.value = (i > 5 && val === 0) ? '' : val;
+                cell.font = i === 1 ? normalFont(10, '1a1a1a') : normalFont(10, '555555');
+                
+                // Highlight location values if > 0
+                if (i > 5 && val > 0) {
+                    const isBodega = i >= 6 + data.obras.length;
+                    cell.font = boldFont(10, isBodega ? '92400e' : '1e40af'); // Amber or Blue text
+                } else if (i === 5 && val > 0) {
+                    cell.font = boldFont(10, '1a1a1a');
+                }
+
+                cell.fill = fill(bgColor);
+                cell.border = thinBorder;
+                const align = i === 1 ? 'left' : (i < 5 ? 'center' : (i === 5 ? 'right' : 'center'));
+                cell.alignment = { vertical: 'middle', horizontal: align as any };
+            });
+
+            currentRow++;
+        });
+
+        ws.getRow(currentRow).height = 4;
+        currentRow++;
+    }
+
+    // ── Calcular Totales Generales ──
+    let totalArriendo = 0;
+    let totalCantidad = 0;
+    let totalDescuento = 0;
+
+    for (const cat of data.categorias) {
+        for (const item of cat.items) {
+            totalArriendo += item.total_arriendo;
+            totalCantidad += item.total_cantidad;
+        }
+    }
+
+    data.obras.forEach(o => {
+        const descPorcentaje = data.descuentos[o.id] || 0;
+        if (descPorcentaje > 0) {
+            const obraArriendo = data.categorias.reduce((sum, cat) =>
+                sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
+            );
+            totalDescuento += (obraArriendo * descPorcentaje) / 100;
+        }
+    });
+
+    // ── Resumen de Totales ──
+    // Fila Total General
+    currentRow++;
+    row = ws.getRow(currentRow);
+    row.height = 24;
+    ws.mergeCells(`A${currentRow}:E${currentRow}`);
+    let c = row.getCell(1);
+    c.value = 'TOTAL GENERAL';
+    c.font = boldFont(11, '1a1a1a');
+    c.fill = fill(BRAND_BG);
+    c.alignment = { vertical: 'middle', horizontal: 'right' };
+    c.border = thinBorder;
+
+    c = row.getCell(6);
+    c.value = totalCantidad;
+    c.font = boldFont(11, '1a1a1a');
+    c.fill = fill(BRAND_BG);
+    c.alignment = { vertical: 'middle', horizontal: 'right' };
+    c.border = thinBorder;
+    
+    // Blank the rest except Total Arriendo? We don't have a single column for it easily.
+    // Let's add it right after Total Cantidad
+    const totalArriendoCol = 7;
+    c = row.getCell(totalArriendoCol);
+    c.value = fmtMoney(totalArriendo);
+    c.font = boldFont(11, BRAND_PRIMARY);
+    c.fill = fill(TOTAL_BG);
+    c.alignment = { vertical: 'middle', horizontal: 'right' };
+    c.border = thinBorder;
+
+    // Descuentos
+    if (totalDescuento > 0) {
+        currentRow++;
+        row = ws.getRow(currentRow);
+        row.height = 22;
+        ws.mergeCells(`A${currentRow}:E${currentRow}`);
+        c = row.getCell(1);
+        c.value = 'DESCUENTOS APLICADOS';
+        c.font = boldFont(10, '999999');
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+
+        c = row.getCell(totalArriendoCol);
+        c.value = `-${fmtMoney(totalDescuento)}`;
+        c.font = boldFont(11, RED_TEXT);
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+
+        currentRow++;
+        row = ws.getRow(currentRow);
+        row.height = 26;
+        ws.mergeCells(`A${currentRow}:E${currentRow}`);
+        c = row.getCell(1);
+        c.value = 'TOTAL CON DESCUENTOS';
+        c.font = boldFont(12, '1a1a1a');
+        c.fill = fill(TOTAL_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+
+        c = row.getCell(totalArriendoCol);
+        c.value = fmtMoney(totalArriendo - totalDescuento);
+        c.font = boldFont(12, BRAND_PRIMARY);
+        c.fill = fill(TOTAL_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+    }
+
+    // ── Footer ──
+    currentRow++;
+    ws.mergeCells(`A${currentRow}:${lastColLetter}${currentRow}`);
+    row = ws.getRow(currentRow);
+    row.getCell(1).value = 'Generado por Bóveda LOLS — www.boveda.lols.cl';
+    row.getCell(1).font = normalFont(8, 'AAAAAA');
+    row.getCell(1).alignment = { horizontal: 'center' };
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+    const today = new Date().toISOString().slice(0, 10);
+    const filename = `Resumen_Inventario_${today}.xlsx`;
+    saveAs(blob, filename);
+}

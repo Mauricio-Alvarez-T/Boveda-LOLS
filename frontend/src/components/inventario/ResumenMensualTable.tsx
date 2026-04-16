@@ -1,9 +1,10 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { cn } from '../../utils/cn';
-import { Check, X, ChevronRight, ChevronDown, Search, EyeOff, Eye, RotateCcw, ImageIcon, MapPin, Warehouse, Package } from 'lucide-react';
+import { Check, X, ChevronRight, ChevronDown, Search, EyeOff, Eye, RotateCcw, ImageIcon, MapPin, Warehouse, Package, Download } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
+import { exportResumen } from '../../utils/exportExcel';
 
 interface Props {
     data: ResumenData;
@@ -42,6 +43,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     const [hiddenCols, setHiddenCols] = useState<Set<string>>(loadHiddenCols);
     const [hideEmpty, setHideEmpty] = useState(false);
     const [search, setSearch] = useState('');
+    const [selectedCategoryId, setSelectedCategoryId] = useState<number | null>(null);
     const [showImages, setShowImages] = useState(false);
 
     // Persist hidden cols
@@ -79,20 +81,29 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
         }),
     [bodegas, hiddenCols, hideEmpty, colsWithStock]);
 
-    // ── Derived: filtered categories by search ──
+    // ── Derived: filtered categories by search & dropdown ──
     const searchLower = search.toLowerCase().trim();
     const filteredCategorias = useMemo(() => {
-        if (!searchLower) return categorias;
-        return categorias
-            .map(cat => ({
+        let cats = categorias;
+        
+        // 1. Filtrar por ID de categoría si hay una seleccionada
+        if (selectedCategoryId !== null) {
+            cats = cats.filter(c => c.id === selectedCategoryId);
+        }
+
+        // 2. Filtrar por búsqueda de texto
+        if (searchLower) {
+            cats = cats.map(cat => ({
                 ...cat,
                 items: cat.items.filter(item =>
                     item.descripcion.toLowerCase().includes(searchLower) ||
                     String(item.nro_item).includes(searchLower)
                 )
-            }))
-            .filter(cat => cat.items.length > 0);
-    }, [categorias, searchLower]);
+            }));
+        }
+
+        return cats.filter(cat => cat.items.length > 0);
+    }, [categorias, searchLower, selectedCategoryId]);
 
     // ── Category totals (for collapsed summary) ──
     const catTotals = useMemo(() => {
@@ -111,14 +122,35 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     const grandTotals = useMemo(() => {
         let totalArriendo = 0;
         let totalCantidad = 0;
+        let totalDescuento = 0;
+
+        // 1. Calcular totales por ítem
         for (const cat of categorias) {
             for (const item of cat.items) {
                 totalArriendo += item.total_arriendo;
                 totalCantidad += item.total_cantidad;
             }
         }
-        return { totalArriendo, totalCantidad };
-    }, [categorias]);
+
+        // 2. Calcular descuento total (por obra)
+        obras.forEach(o => {
+            const descPorcentaje = data.descuentos[o.id] || 0;
+            if (descPorcentaje > 0) {
+                // Calcular el total de arriendo de esta obra
+                const obraArriendo = categorias.reduce((sum, cat) =>
+                    sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
+                );
+                totalDescuento += (obraArriendo * descPorcentaje) / 100;
+            }
+        });
+
+        return { 
+            totalArriendo, 
+            totalCantidad, 
+            totalDescuento,
+            totalConDescuento: totalArriendo - totalDescuento
+        };
+    }, [categorias, obras, data.descuentos]);
 
     // ── Toggle helpers ──
     const toggleCat = (catId: number) => {
@@ -237,6 +269,21 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     )}
                 </div>
 
+                {/* Mobile Category Filter */}
+                <div className="shrink-0 flex items-center bg-white border border-[#E8E8ED] rounded-2xl overflow-hidden pr-3">
+                    <select
+                        value={selectedCategoryId ?? ''}
+                        onChange={e => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
+                        className="w-full pl-4 py-3 text-sm text-brand-dark bg-transparent focus:outline-none appearance-none cursor-pointer"
+                    >
+                        <option value="">Todas las categorías</option>
+                        {categorias.map(c => (
+                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground pointer-events-none" />
+                </div>
+
                 {/* Mobile Grand Totals — summary card at top */}
                 <div className="shrink-0 bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white">
                     <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-2">Resumen General</p>
@@ -249,11 +296,26 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <p className="text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
                             <p className="text-[10px] opacity-80">Arriendo</p>
                         </div>
-                        <div>
-                            <p className="text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
-                            <p className="text-[10px] opacity-80">Items</p>
-                        </div>
+                        {grandTotals.totalDescuento > 0 ? (
+                            <div>
+                                <p className="text-lg font-black">{fmtMoney(grandTotals.totalConDescuento)}</p>
+                                <p className="text-[10px] opacity-80 text-brand-primary line-through whitespace-nowrap overflow-hidden text-ellipsis">{fmtMoney(grandTotals.totalArriendo)}</p>
+                                <p className="text-[10px] opacity-80">Con Descuento</p>
+                            </div>
+                        ) : (
+                            <div>
+                                <p className="text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
+                                <p className="text-[10px] opacity-80">Items</p>
+                            </div>
+                        )}
                     </div>
+                    <button
+                        onClick={() => exportResumen(data)}
+                        className="mt-4 w-full flex items-center justify-center gap-1.5 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition-all shadow-sm"
+                    >
+                        <Download className="h-3.5 w-3.5" />
+                        Exportar a Excel
+                    </button>
                 </div>
 
                 {/* Mobile Categories & Items */}
@@ -492,6 +554,21 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     )}
                 </div>
 
+                {/* Category Filter */}
+                <div className="shrink-0 relative flex items-center border border-[#E8E8ED] bg-white rounded-xl focus-within:ring-2 focus-within:ring-brand-primary/20 transition-all">
+                    <select
+                        value={selectedCategoryId ?? ''}
+                        onChange={e => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
+                        className="pl-3 pr-8 py-1.5 text-[11px] font-medium text-brand-dark bg-transparent focus:outline-none appearance-none cursor-pointer w-full min-w-[150px]"
+                    >
+                        <option value="">Todas las categorías</option>
+                        {categorias.map(c => (
+                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                    </select>
+                    <ChevronDown className="absolute right-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                </div>
+
                 {/* Hide empty toggle */}
                 <button
                     onClick={() => setHideEmpty(v => !v)}
@@ -516,6 +593,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}
                     </button>
                 )}
+
+                {/* Exportar Excel */}
+                <button
+                    onClick={() => exportResumen(data)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm ml-auto"
+                >
+                    <Download className="h-3.5 w-3.5" />
+                    Exportar Excel
+                </button>
             </div>
 
             {/* ── Table — fills remaining space, scrolls both axes ── */}
@@ -697,13 +783,35 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </td>
                                 );
                             })}
-                            <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-primary">
+                            <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-primary border-r-2 border-[#BBBBCC]">
                                 {fmtMoney(grandTotals.totalArriendo)}
                             </td>
                             <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 {fmt(grandTotals.totalCantidad)}
                             </td>
                         </tr>
+                        {grandTotals.totalDescuento > 0 && (
+                            <>
+                                <tr className="border-t border-[#D8D8DD]">
+                                    <td colSpan={totalColSpan - 2} className="bg-[#FEF9EE] px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground border-r-2 border-[#BBBBCC]">
+                                        DESCUENTOS APLICADOS
+                                    </td>
+                                    <td className="bg-[#FEF9EE] px-2 py-1.5 text-right font-bold text-[11px] text-red-600 border-r-2 border-[#BBBBCC]">
+                                        -{fmtMoney(grandTotals.totalDescuento)}
+                                    </td>
+                                    <td className="bg-[#FEF9EE]" />
+                                </tr>
+                                <tr className="border-t-2 border-brand-primary/20">
+                                    <td colSpan={totalColSpan - 2} className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-dark border-r-2 border-[#BBBBCC]">
+                                        TOTAL CON DESCUENTOS
+                                    </td>
+                                    <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-[13px] text-brand-primary border-r-2 border-[#BBBBCC]">
+                                        {fmtMoney(grandTotals.totalConDescuento)}
+                                    </td>
+                                    <td className="bg-[#E6F0EA]" />
+                                </tr>
+                            </>
+                        )}
                     </tfoot>
                 </table>
             </div>
