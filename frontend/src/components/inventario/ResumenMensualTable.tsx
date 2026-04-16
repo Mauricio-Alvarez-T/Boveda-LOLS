@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { cn } from '../../utils/cn';
-import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon } from 'lucide-react';
+import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon, Check, MapPin, Warehouse } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import { useInlineEdit } from '../../hooks/inventario/useInlineEdit';
