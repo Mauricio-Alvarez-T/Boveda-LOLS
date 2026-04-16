@@ -137,7 +137,7 @@ const InventarioPage: React.FC = () => {
                             </select>
                             {stockObra && (
                                 <button
-                                    onClick={() => exportStockObra(stockObra)}
+                                    onClick={() => { exportStockObra(stockObra); }}
                                     className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
                                 >
                                     <Download className="h-3.5 w-3.5" />
