@@ -94,8 +94,11 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                             <p className="text-lg font-black leading-none">{discrepancia.total_items_afectados}</p>
                         </div>
                         <div className="bg-white/15 rounded-xl p-2.5">
-                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Unidades perdidas</p>
-                            <p className="text-lg font-black leading-none">-{discrepancia.total_unidades_perdidas}</p>
+                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Diferencia neta</p>
+                            <p className="text-lg font-black leading-none">
+                                {discrepancia.total_unidades_perdidas > 0 ? '-' : discrepancia.total_unidades_perdidas < 0 ? '+' : ''}
+                                {Math.abs(discrepancia.total_unidades_perdidas)}
+                            </p>
                         </div>
                     </div>
                     {/* Ruta */}
@@ -186,10 +189,24 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                             {item.cantidad_recibida} <span className="font-normal text-[9px]">{item.unidad}</span>
                                         </p>
                                     </div>
-                                    <div className="rounded-lg bg-red-50 border border-red-100 px-2 py-1.5">
-                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Diferencia</p>
-                                        <p className="text-xs font-black text-red-700 leading-none">
-                                            -{item.diferencia} <span className="font-normal text-[9px]">{item.unidad}</span>
+                                    <div className={cn(
+                                        "rounded-lg px-2 py-1.5 border",
+                                        item.diferencia > 0
+                                            ? "bg-red-50 border-red-100"
+                                            : "bg-amber-50 border-amber-100"
+                                    )}>
+                                        <p className={cn(
+                                            "text-[8px] uppercase font-bold leading-none mb-0.5",
+                                            item.diferencia > 0 ? "text-red-600" : "text-amber-600"
+                                        )}>
+                                            {item.diferencia > 0 ? 'Merma' : 'Sobrante'}
+                                        </p>
+                                        <p className={cn(
+                                            "text-xs font-black leading-none",
+                                            item.diferencia > 0 ? "text-red-700" : "text-amber-700"
+                                        )}>
+                                            {item.diferencia > 0 ? '-' : '+'}{Math.abs(item.diferencia)}{' '}
+                                            <span className="font-normal text-[9px]">{item.unidad}</span>
                                         </p>
                                     </div>
                                 </div>
@@ -295,7 +312,9 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {' · '}
                                 Recibido: <span className="font-semibold text-brand-dark">{modalItem.cantidad_recibida}</span>
                                 {' · '}
-                                Diferencia: <span className="font-semibold text-red-600">-{modalItem.diferencia}</span>
+                                Diferencia: <span className="font-semibold text-red-600">
+                                    {modalItem.diferencia > 0 ? '-' : '+'}{Math.abs(modalItem.diferencia)}
+                                </span>
                             </p>
                         </div>
                         <div>

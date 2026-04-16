@@ -140,9 +140,10 @@ const DiscrepanciasList: React.FC<Props> = ({
                                         </p>
                                     </div>
                                     <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100">
-                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Perdido</p>
+                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Diferencia</p>
                                         <p className="text-[11px] font-black text-red-700 leading-none">
-                                            -{d.total_unidades_perdidas} u.
+                                            {d.total_unidades_perdidas > 0 ? '-' : d.total_unidades_perdidas < 0 ? '+' : ''}
+                                            {Math.abs(d.total_unidades_perdidas)} u.
                                         </p>
                                     </div>
                                 </div>
