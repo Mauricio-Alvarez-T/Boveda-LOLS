@@ -10,17 +10,17 @@ import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
-import FacturasTab from '../components/inventario/FacturasTab';
+
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
 import { exportStockObra } from '../utils/exportExcel';
 
-type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'facturas' | 'bombas';
+type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'bombas';
 
 const tabs: { key: TabKey; label: string }[] = [
     { key: 'resumen', label: 'Resumen' },
     { key: 'por_ubicacion', label: 'Por Obra/Bodega' },
     { key: 'transferencias', label: 'Transferencias' },
-    { key: 'facturas', label: 'Facturas' },
+
     { key: 'bombas', label: 'Bombas Hormigón' },
 ];
 
@@ -175,12 +175,7 @@ const InventarioPage: React.FC = () => {
                         hasPermission={hasPermission}
                     />
                 )}
-                {activeTab === 'facturas' && (
-                    <FacturasTab
-                        canCreate={hasPermission('inventario.crear')}
-                        canDelete={hasPermission('inventario.eliminar')}
-                    />
-                )}
+
                 {activeTab === 'bombas' && (
                     <BombasHormigonTab
                         obras={allObras as any}
