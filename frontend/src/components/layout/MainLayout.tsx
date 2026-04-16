@@ -46,9 +46,9 @@ export const MainLayout: React.FC = () => {
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col min-w-0">
-                {/* Top Navbar */}
-                <header className="h-14 md:h-16 border-b border-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 sticky top-0 z-50 shadow-sm relative gap-2">
+            <main className="flex-1 flex flex-col min-w-0 h-screen">
+                {/* Top Navbar — fixed above scroll area */}
+                <header className="shrink-0 h-14 md:h-16 border-b border-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}
                     <button
                         onClick={() => setMobileOpen(true)}
@@ -82,8 +82,8 @@ export const MainLayout: React.FC = () => {
                     </div>
                 </header>
 
-                {/* Page Content */}
-                <div className="flex-1 p-3 md:p-5 pb-12 overflow-x-hidden relative">
+                {/* Page Content — actual scroll container */}
+                <div className="flex-1 min-h-0 p-3 md:p-5 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}
@@ -91,7 +91,7 @@ export const MainLayout: React.FC = () => {
                             animate={{ opacity: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.98, transition: { duration: 0.2 } }}
                             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
-                            className="bg-transparent"
+                            className="bg-transparent flex-1 flex flex-col min-h-0"
                         >
                             <Outlet />
                         </motion.div>

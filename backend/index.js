@@ -45,6 +45,9 @@ app.use(cors(corsOptions));
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
+
+// Serve inventory item images (under /api so cPanel proxy forwards them to Express)
+app.use('/api/uploads/inventario', express.static(path.join(__dirname, 'uploads/inventario')));
 const activityLogger = require('./src/middleware/logger').activityLogger;
 const logger = require('./src/utils/logger-structured');
 app.use(activityLogger);
@@ -127,12 +130,39 @@ try {
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'codigo', 'color', 'activo', 'es_presente']
   }));
+  // ── Inventario CRUD ──
+  const invPerms = { ver: 'inventario.ver', crear: 'inventario.crear', editar: 'inventario.editar', eliminar: 'inventario.eliminar' };
+  app.use('/api/categorias-inventario', createCrudRoutes(invPerms, 'categorias_inventario', {
+    searchFields: ['nombre'], orderBy: 'orden ASC',
+    allowedFields: ['nombre', 'orden', 'activo']
+  }));
+  app.use('/api/bodegas', createCrudRoutes(invPerms, 'bodegas', {
+    searchFields: ['nombre', 'direccion'], activeColumn: 'activa',
+    joins: 'LEFT JOIN usuarios u ON bodegas.responsable_id = u.id',
+    selectFields: 'bodegas.*, u.nombre as responsable_nombre',
+    orderBy: 'bodegas.nombre ASC',
+    allowedFields: ['nombre', 'direccion', 'responsable_id', 'activa']
+  }));
+  app.use('/api/items-inventario', createCrudRoutes(invPerms, 'items_inventario', {
+    searchFields: ['descripcion'],
+    joins: 'LEFT JOIN categorias_inventario c ON items_inventario.categoria_id = c.id',
+    selectFields: 'items_inventario.*, c.nombre as categoria_nombre',
+    allowedFilters: ['categoria_id'],
+    orderBy: 'items_inventario.nro_item ASC',
+    allowedFields: ['nro_item', 'categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'activo']
+  }));
+
   logger.info('✅ Rutas CRUD genéricas cargadas');
 } catch (err) {
   logger.error('❌ Error cargando rutas CRUD genéricas', { error: err.message, stack: err.stack });
 }
 
 // Specialized routes (each wrapped independently)
+safeRoute('/api/inventario', './src/routes/inventario.routes', 'Inventario');
+safeRoute('/api/transferencias', './src/routes/transferencias.routes', 'Transferencias');
+safeRoute('/api/facturas-inventario', './src/routes/facturas-inventario.routes', 'Facturas Inventario');
+safeRoute('/api/discrepancias', './src/routes/discrepancias.routes', 'Discrepancias');
+safeRoute('/api/bombas-hormigon', './src/routes/bombas-hormigon.routes', 'Bombas Hormigón');
 safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores (especializadas)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');

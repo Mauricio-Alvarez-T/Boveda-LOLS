@@ -18,7 +18,7 @@ import { useAuth } from '../context/AuthContext';
 
 import { CrudTable } from '../components/ui/CrudTable';
 import type { ColumnDef } from '../components/ui/CrudTable';
-import type { Empresa, Obra, Cargo, TipoDocumento, EstadoAsistencia, TipoAusencia } from '../types/entities';
+import type { Empresa, Obra, Cargo, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
 
 interface UserData {
     id: number;
@@ -52,12 +52,15 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench } from 'lucide-react';
+import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
+import { BodegaForm } from '../components/settings/BodegaForm';
+import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
 import PermisosRolPanel from '../components/settings/PermisosRolPanel';
 import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
 import { Modal } from '../components/ui/Modal';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
 interface TabDef {
     key: TabKey;
@@ -94,6 +97,14 @@ const tabGroups: TabGroup[] = [
             { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
             { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
             { key: 'feriados', label: 'Feriados', icon: CheckSquare }, // Reusing an icon for simplicity
+        ]
+    },
+    {
+        title: "Inventario",
+        items: [
+            { key: 'cat_inventario', label: 'Categorías', icon: Package },
+            { key: 'bodegas', label: 'Bodegas', icon: Warehouse },
+            { key: 'items_inventario', label: 'Ítems', icon: Wrench },
         ]
     },
     {
@@ -497,6 +508,81 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'seguridad' && (
                         <ChangePasswordForm />
+                    )}
+                    {activeTab === 'cat_inventario' && (
+                        <CrudTable<CategoriaInventario>
+                            endpoint="/categorias-inventario"
+                            columns={[
+                                { key: 'nombre', label: 'Nombre' },
+                                { key: 'orden', label: 'Orden' },
+                                {
+                                    key: 'activo', label: 'Estado',
+                                    render: (v) => (
+                                        <span className={cn(
+                                            "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                                            v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
+                                        )}>{v ? 'Activo' : 'Inactivo'}</span>
+                                    ),
+                                },
+                            ]}
+                            entityName="Categoría"
+                            entityNamePlural="Categorías de Inventario"
+                            FormComponent={CategoriaInventarioForm}
+                            searchPlaceholder="Buscar categoría..."
+                            canCreate={hasPermission('inventario.crear')}
+                            canEdit={hasPermission('inventario.editar')}
+                            canDelete={hasPermission('inventario.eliminar')}
+                            canExport={false}
+                        />
+                    )}
+                    {activeTab === 'bodegas' && (
+                        <CrudTable<Bodega>
+                            endpoint="/bodegas"
+                            columns={[
+                                { key: 'nombre', label: 'Nombre' },
+                                { key: 'direccion', label: 'Dirección', render: (v) => v || '—' },
+                                { key: 'responsable_nombre', label: 'Responsable', render: (v) => v || '—' },
+                                {
+                                    key: 'activa', label: 'Estado',
+                                    render: (v) => (
+                                        <span className={cn(
+                                            "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                                            v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
+                                        )}>{v ? 'Activa' : 'Inactiva'}</span>
+                                    ),
+                                },
+                            ]}
+                            entityName="Bodega"
+                            entityNamePlural="Bodegas"
+                            FormComponent={BodegaForm}
+                            searchPlaceholder="Buscar bodega..."
+                            canCreate={hasPermission('inventario.crear')}
+                            canEdit={hasPermission('inventario.editar')}
+                            canDelete={hasPermission('inventario.eliminar')}
+                            canExport={false}
+                        />
+                    )}
+                    {activeTab === 'items_inventario' && (
+                        <CrudTable<ItemInventario>
+                            endpoint="/items-inventario"
+                            columns={[
+                                { key: 'nro_item', label: '#' },
+                                { key: 'descripcion', label: 'Descripción' },
+                                { key: 'categoria_nombre', label: 'Categoría' },
+                                { key: 'm2', label: 'M2', render: (v) => v ? Number(v).toFixed(2) : '—' },
+                                { key: 'valor_compra', label: 'V. Compra', render: (v) => v ? `$${Number(v).toLocaleString('es-CL')}` : '—' },
+                                { key: 'valor_arriendo', label: 'V. Arriendo', render: (v) => `$${Number(v).toLocaleString('es-CL')}` },
+                                { key: 'unidad', label: 'Unidad' },
+                            ]}
+                            entityName="Ítem"
+                            entityNamePlural="Ítems de Inventario"
+                            FormComponent={ItemInventarioForm}
+                            searchPlaceholder="Buscar ítem..."
+                            canCreate={hasPermission('inventario.crear')}
+                            canEdit={hasPermission('inventario.editar')}
+                            canDelete={hasPermission('inventario.eliminar')}
+                            canExport={false}
+                        />
                     )}
                 </motion.div>
                 </div>

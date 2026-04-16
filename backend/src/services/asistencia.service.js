@@ -30,80 +30,130 @@ const asistenciaService = {
     /**
      * Registro masivo de asistencia (array de trabajadores)
      * Registra logs individuales solo para registros que realmente cambiaron.
+     *
+     * OPTIMIZADO: Pre-carga feriados, trabajadores y asistencias existentes en batch
+     * antes del loop, reduciendo ~4N queries a ~3 queries + N writes.
      */
     async bulkCreate(obraId, registros, registradoPor, req) {
+        if (!registros || registros.length === 0) return [];
+
         const results = [];
-        const logEntries = []; // Acumular logs para insertar después del commit
+        const logEntries = [];
         const conn = await db.getConnection();
 
         try {
             await conn.beginTransaction();
 
+            // ── PRE-FETCH: Cargar todo en batch (3 queries en vez de ~3N) ──
+
+            // 1) Fechas únicas + validación feriados/fines de semana
+            const fechasSet = new Set();
+            for (const reg of registros) {
+                fechasSet.add(typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha);
+            }
+            const fechasUnicas = [...fechasSet];
+
+            // Validar fines de semana (client-side, 0 queries)
+            for (const fecha of fechasUnicas) {
+                const dateObj = new Date(fecha + 'T12:00:00');
+                if (dateObj.getDay() === 0 || dateObj.getDay() === 6) {
+                    throw new Error(`No se puede registrar asistencia en fines de semana (${fecha})`);
+                }
+            }
+
+            // Batch feriados: 1 query para todas las fechas
+            const [feriadosRows] = await conn.query(
+                'SELECT fecha FROM feriados WHERE fecha IN (?) AND activo = 1',
+                [fechasUnicas]
+            );
+            const feriadoSet = new Set(feriadosRows.map(f => {
+                const d = f.fecha;
+                return typeof d === 'string' ? d.split('T')[0] : d.toISOString().split('T')[0];
+            }));
+            for (const fecha of fechasUnicas) {
+                if (feriadoSet.has(fecha)) {
+                    throw new Error(`No se puede registrar asistencia en feriados (${fecha})`);
+                }
+            }
+
+            // 2) Batch trabajadores: 1 query para todos los IDs
+            const workerIds = [...new Set(registros.map(r => r.trabajador_id))];
+            const [workersRows] = await conn.query(
+                'SELECT id, fecha_ingreso, fecha_desvinculacion FROM trabajadores WHERE id IN (?)',
+                [workerIds]
+            );
+            const workerMap = new Map();
+            for (const w of workersRows) {
+                const ingreso = w.fecha_ingreso
+                    ? (typeof w.fecha_ingreso === 'string' ? w.fecha_ingreso.split('T')[0] : w.fecha_ingreso.toISOString().split('T')[0])
+                    : null;
+                const fin = w.fecha_desvinculacion
+                    ? (typeof w.fecha_desvinculacion === 'string' ? w.fecha_desvinculacion.split('T')[0] : w.fecha_desvinculacion.toISOString().split('T')[0])
+                    : null;
+                workerMap.set(w.id, { ingreso, fin });
+            }
+
+            // 3) Batch asistencias existentes: 1 query con todas las combinaciones
+            //    Construimos WHERE (trabajador_id, obra_id, fecha) IN (...)
+            const lookupTuples = registros.map(reg => {
+                const fecha = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
+                const gObraId = obraId === 'ALL' ? reg.obra_id : obraId;
+                return [reg.trabajador_id, gObraId, fecha];
+            });
+
+            // MySQL WHERE (a,b,c) IN ((1,2,'x'),(3,4,'y')) syntax
+            const placeholders = lookupTuples.map(() => '(?,?,?)').join(',');
+            const flatParams = lookupTuples.flat();
+            const [existingRows] = await conn.query(
+                `SELECT * FROM asistencias WHERE (trabajador_id, obra_id, fecha) IN (${placeholders})`,
+                flatParams
+            );
+            // Map: "workerId_obraId_fecha" -> row
+            const existingMap = new Map();
+            for (const row of existingRows) {
+                const f = typeof row.fecha === 'string' ? row.fecha.split('T')[0] : row.fecha.toISOString().split('T')[0];
+                existingMap.set(`${row.trabajador_id}_${row.obra_id}_${f}`, row);
+            }
+
+            // ── LOOP: Solo writes (INSERT/UPDATE), sin queries de lectura ──
+            const booleanFields = new Set(['es_sabado']);
+            const numericFields = new Set(['estado_id', 'tipo_ausencia_id', 'horas_extra']);
+            const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra', 'es_sabado'];
+
             for (const reg of registros) {
                 const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
-
-                // --- VALIDACIÓN DE SEGURIDAD: Bloqueo de Feriados y Fines de Semana ---
-                const dateObj = new Date(fechaNormalizada + 'T12:00:00');
-                const isWeekend = dateObj.getDay() === 0 || dateObj.getDay() === 6; // 0=Domingo, 6=Sábado
-                const [feriadoCheck] = await conn.query('SELECT id FROM feriados WHERE fecha = ? AND activo = 1', [fechaNormalizada]);
-                
-                if (isWeekend || feriadoCheck.length > 0) {
-                    throw new Error(`No se puede registrar asistencia en feriados o fines de semana (${fechaNormalizada})`);
-                }
-
-                // --- VALIDACIÓN DE RANGO LABORAL: No permitir asistencia fuera del período de contratación ---
-                const [workerCheck] = await conn.query(
-                    'SELECT fecha_ingreso, fecha_desvinculacion FROM trabajadores WHERE id = ?',
-                    [reg.trabajador_id]
-                );
-                if (workerCheck.length > 0) {
-                    const w = workerCheck[0];
-                    const fechaIngresoStr = w.fecha_ingreso ? (typeof w.fecha_ingreso === 'string' ? w.fecha_ingreso.split('T')[0] : w.fecha_ingreso.toISOString().split('T')[0]) : null;
-                    const fechaFinStr = w.fecha_desvinculacion ? (typeof w.fecha_desvinculacion === 'string' ? w.fecha_desvinculacion.split('T')[0] : w.fecha_desvinculacion.toISOString().split('T')[0]) : null;
-
-                    if (fechaIngresoStr && fechaNormalizada < fechaIngresoStr) {
-                        throw new Error(`No se puede registrar asistencia antes de la fecha de contratación (${fechaIngresoStr}) del trabajador ID ${reg.trabajador_id}`);
-                    }
-                    if (fechaFinStr && fechaNormalizada > fechaFinStr) {
-                        throw new Error(`No se puede registrar asistencia después de la fecha de finiquito (${fechaFinStr}) del trabajador ID ${reg.trabajador_id}`);
-                    }
-                }
-
                 const globalObraId = obraId === 'ALL' ? reg.obra_id : obraId;
-                
-                const [existing] = await conn.query(
-                    'SELECT * FROM asistencias WHERE trabajador_id = ? AND obra_id = ? AND fecha = ?',
-                    [reg.trabajador_id, globalObraId, fechaNormalizada]
-                );
 
-                if (existing.length > 0) {
-                    const old = existing[0];
-                    // Detectar si realmente cambió algo (con normalización de tipos)
+                // Validación rango laboral (desde cache, 0 queries)
+                const worker = workerMap.get(reg.trabajador_id);
+                if (worker) {
+                    if (worker.ingreso && fechaNormalizada < worker.ingreso) {
+                        throw new Error(`No se puede registrar asistencia antes de la fecha de contratación (${worker.ingreso}) del trabajador ID ${reg.trabajador_id}`);
+                    }
+                    if (worker.fin && fechaNormalizada > worker.fin) {
+                        throw new Error(`No se puede registrar asistencia después de la fecha de finiquito (${worker.fin}) del trabajador ID ${reg.trabajador_id}`);
+                    }
+                }
+
+                const key = `${reg.trabajador_id}_${globalObraId}_${fechaNormalizada}`;
+                const old = existingMap.get(key);
+
+                if (old) {
+                    // Detectar cambios reales
                     const cambios = {};
-                    const booleanFields = new Set(['es_sabado']);
-                    const numericFields = new Set(['estado_id', 'tipo_ausencia_id', 'horas_extra']);
-                    const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra', 'es_sabado'];
-
                     for (const f of fieldsToCheck) {
                         let oldVal = old[f];
                         let newVal = reg[f];
-
-                        // Normalizar vacíos
                         if (oldVal === undefined || oldVal === '') oldVal = null;
                         if (newVal === undefined || newVal === '') newVal = null;
-
-                        // Normalizar booleanos (DB: 0/1, Frontend: true/false)
                         if (booleanFields.has(f)) {
                             oldVal = oldVal === null ? false : Boolean(Number(oldVal));
                             newVal = newVal === null ? false : Boolean(Number(newVal));
                         }
-
-                        // Normalizar numéricos (DB: "0.00", Frontend: 0)
                         if (numericFields.has(f)) {
                             oldVal = oldVal === null ? null : Number(oldVal);
                             newVal = newVal === null ? null : Number(newVal);
                         }
-
                         if (JSON.stringify(oldVal) !== JSON.stringify(newVal)) {
                             cambios[f] = { de: oldVal, a: newVal };
                         }
@@ -129,7 +179,6 @@ const asistenciaService = {
                     );
                     results.push({ trabajador_id: reg.trabajador_id, action: 'updated', id: old.id });
 
-                    // Solo loguear si hubo cambios reales
                     if (Object.keys(cambios).length > 0) {
                         logEntries.push({
                             trabajador_id: reg.trabajador_id,
@@ -174,7 +223,7 @@ const asistenciaService = {
 
             await conn.commit();
 
-            // Después del commit, registrar logs individuales (no bloquea la respuesta)
+            // Después del commit, registrar logs (no bloquea la respuesta)
             if (logEntries.length > 0) {
                 this._logBulkChanges(logEntries, obraId, registradoPor, req).catch(err => {
                     console.error('Error al registrar logs de asistencia:', err);

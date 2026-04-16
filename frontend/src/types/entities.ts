@@ -152,3 +152,179 @@ export interface Feriado {
     activo: boolean;
 }
 
+// ── Inventario ──
+
+export interface CategoriaInventario {
+    id: number;
+    nombre: string;
+    orden: number;
+    activo: boolean;
+}
+
+export interface Bodega {
+    id: number;
+    nombre: string;
+    direccion: string | null;
+    responsable_id: number | null;
+    responsable_nombre?: string;
+    activa: boolean;
+}
+
+export interface ItemInventario {
+    id: number;
+    nro_item: number;
+    categoria_id: number;
+    categoria_nombre?: string;
+    descripcion: string;
+    m2: number | null;
+    valor_compra: number;
+    valor_arriendo: number;
+    unidad: string;
+    imagen_url: string | null;
+    activo: boolean;
+}
+
+export interface UbicacionStock {
+    id: number;
+    item_id: number;
+    obra_id: number | null;
+    bodega_id: number | null;
+    obra_nombre?: string;
+    bodega_nombre?: string;
+    cantidad: number;
+    valor_arriendo_override: number | null;
+}
+
+export interface Transferencia {
+    id: number;
+    codigo: string;
+    estado: 'pendiente' | 'aprobada' | 'en_transito' | 'recibida' | 'rechazada' | 'cancelada';
+    origen_obra_id: number | null;
+    origen_bodega_id: number | null;
+    destino_obra_id: number | null;
+    destino_bodega_id: number | null;
+    origen_nombre?: string;
+    destino_nombre?: string;
+    solicitante_id: number;
+    solicitante_nombre?: string;
+    aprobador_id: number | null;
+    transportista_id: number | null;
+    receptor_id: number | null;
+    fecha_solicitud: string;
+    fecha_aprobacion: string | null;
+    fecha_despacho: string | null;
+    fecha_recepcion: string | null;
+    requiere_pionetas: boolean;
+    cantidad_pionetas: number | null;
+    observaciones: string | null;
+    items?: TransferenciaItem[];
+    activo: boolean;
+}
+
+export interface TransferenciaItem {
+    id: number;
+    transferencia_id: number;
+    item_id: number;
+    item_descripcion?: string;
+    cantidad_solicitada: number;
+    cantidad_enviada: number | null;
+    cantidad_recibida: number | null;
+    observacion: string | null;
+}
+
+export interface FacturaInventario {
+    id: number;
+    numero_factura: string;
+    proveedor: string;
+    fecha_factura: string;
+    monto_neto: number;
+    observaciones: string | null;
+    registrado_por: number;
+    items?: FacturaItem[];
+    activo: boolean;
+}
+
+export interface FacturaItem {
+    id: number;
+    factura_id: number;
+    item_id: number;
+    item_descripcion?: string;
+    obra_id: number | null;
+    bodega_id: number | null;
+    ubicacion_nombre?: string;
+    cantidad: number;
+    precio_unitario: number;
+}
+
+export interface RegistroBombaHormigon {
+    id: number;
+    obra_id: number;
+    obra_nombre?: string;
+    fecha: string;
+    tipo_bomba: string;
+    es_externa: boolean;
+    proveedor: string | null;
+    costo: number | null;
+    observaciones: string | null;
+    activo: boolean;
+}
+
+export interface TransferenciaDiscrepanciaItem {
+    id: number;
+    transferencia_id: number;
+    item_id: number;
+    item_descripcion: string;
+    nro_item: number;
+    unidad: string;
+    cantidad_enviada: number;
+    cantidad_recibida: number;
+    diferencia: number;
+    observacion: string | null;
+    estado: 'pendiente' | 'resuelta' | 'descartada';
+    resolucion: string | null;
+    resuelto_por: number | null;
+    resuelto_por_nombre: string | null;
+    fecha_resolucion: string | null;
+    created_at: string;
+}
+
+export interface TransferenciaConDiscrepancias {
+    id: number;
+    codigo: string;
+    fecha_solicitud: string;
+    fecha_aprobacion: string | null;
+    fecha_despacho: string | null;
+    fecha_recepcion: string | null;
+    origen_obra_nombre: string | null;
+    origen_bodega_nombre: string | null;
+    destino_obra_nombre: string | null;
+    destino_bodega_nombre: string | null;
+    solicitante_id: number | null;
+    solicitante_nombre: string | null;
+    aprobador_id: number | null;
+    aprobador_nombre: string | null;
+    transportista_id: number | null;
+    transportista_nombre: string | null;
+    receptor_id: number | null;
+    receptor_nombre: string | null;
+    discrepancias: TransferenciaDiscrepanciaItem[];
+    total_unidades_perdidas: number;
+    total_items_afectados: number;
+}
+
+export interface DiscrepanciaInventario {
+    id: number;
+    item_id: number;
+    item_descripcion?: string;
+    obra_id: number | null;
+    bodega_id: number | null;
+    ubicacion_nombre?: string;
+    cantidad_sistema: number;
+    cantidad_reportada: number;
+    diferencia: number;
+    estado: 'pendiente' | 'resuelta' | 'descartada';
+    reportado_por: number;
+    resolucion: string | null;
+    activo: boolean;
+}
+

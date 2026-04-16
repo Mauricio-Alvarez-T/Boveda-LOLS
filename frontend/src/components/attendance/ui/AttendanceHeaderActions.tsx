@@ -42,7 +42,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
 }) => {
     const [showMobileMenu, setShowMobileMenu] = useState(false);
 
-    const isSaveDisabled = loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend;
+    const isSaveDisabled = saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend;
 
     return (
         <div className="flex items-center gap-2">
