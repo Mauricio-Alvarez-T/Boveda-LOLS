@@ -8,6 +8,7 @@ import ItemDetailModal from './ItemDetailModal';
 interface Props {
     data: StockObraData;
     canEdit: boolean;
+    isBodega?: boolean;
     onUpdateStock: (itemId: number, obraId: number, data: { cantidad?: number; valor_arriendo_override?: number | null }) => Promise<boolean>;
     onUpdateDescuento: (obraId: number, porcentaje: number) => Promise<boolean>;
     onRefresh: () => void;
@@ -15,7 +16,7 @@ interface Props {
 
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
-const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onUpdateDescuento, onRefresh }) => {
+const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh }) => {
     // ── Item detail modal ──
     const itemDetail = useItemDetail();
 
@@ -145,11 +146,12 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <MapPin className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] opacity-70 uppercase tracking-wider">Obra</p>
+                            <p className="text-[10px] opacity-70 uppercase tracking-wider">{isBodega ? 'Bodega' : 'Obra'}</p>
                             <p className="text-sm font-bold truncate">{data.obra.nombre}</p>
                         </div>
                     </div>
 
+                    {!isBodega && (
                     <div className="grid grid-cols-3 gap-2">
                         {/* Facturación */}
                         <div className="bg-white/10 rounded-xl p-2.5">
@@ -202,13 +204,14 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             </p>
                         </div>
                     </div>
+                    )}
                 </div>
 
                 {/* Categorías list */}
                 {totalItems === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <p className="text-sm text-muted-foreground">Sin items en esta obra.</p>
+                        <p className="text-sm text-muted-foreground">Sin items en esta {isBodega ? 'bodega' : 'obra'}.</p>
                     </div>
                 ) : (
                     <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-4">
@@ -442,6 +445,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     </tbody>
                     {/* ── Sticky footer — totals, descuento ── */}
                     <tfoot className="sticky bottom-0 z-10">
+                        {!isBodega && (<>
                         {/* Grand total */}
                         <tr className="border-t-2 border-brand-primary/30">
                             <td colSpan={6} className="bg-[#F0F2F8] px-3 py-2.5 text-right font-black text-xs text-brand-dark">TOTAL FACTURACIÓN</td>
@@ -489,6 +493,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-accent">{fmtMoney(data.total_con_descuento)}</td>
                             </tr>
                         )}
+                        </>)}
                     </tfoot>
                 </table>
             </div>
