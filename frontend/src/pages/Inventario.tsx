@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2 } from 'lucide-react';
+import { Package, Loader2, Download } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -12,6 +12,7 @@ import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
 import FacturasTab from '../components/inventario/FacturasTab';
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
+import { exportStockObra } from '../utils/exportExcel';
 
 type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'facturas' | 'bombas';
 
@@ -122,7 +123,7 @@ const InventarioPage: React.FC = () => {
                 {/* ── POR OBRA/BODEGA ── */}
                 {activeTab === 'por_ubicacion' && (
                     <div className="flex flex-col gap-4 flex-1 min-h-0">
-                        {/* Obra selector */}
+                        {/* Obra selector + Export */}
                         <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 shrink-0">
                             <label className="text-xs font-bold text-brand-dark">Obra:</label>
                             <select
@@ -134,6 +135,15 @@ const InventarioPage: React.FC = () => {
                                     <option key={o.id} value={o.id}>{o.nombre}</option>
                                 ))}
                             </select>
+                            {stockObra && (
+                                <button
+                                    onClick={() => exportStockObra(stockObra)}
+                                    className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
+                                >
+                                    <Download className="h-3.5 w-3.5" />
+                                    Exportar Excel
+                                </button>
+                            )}
                         </div>
 
                         {loading ? (
