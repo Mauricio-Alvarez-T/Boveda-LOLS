@@ -395,10 +395,10 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
                 cell.font = i === 1 ? normalFont(10, '1a1a1a') : normalFont(10, '555555');
                 
                 // Highlight location values if > 0
-                if (i > 5 && val > 0) {
+                if (i > 5 && (val as number) > 0) {
                     const isBodega = i >= 6 + data.obras.length;
                     cell.font = boldFont(10, isBodega ? '92400e' : '1e40af'); // Amber or Blue text
-                } else if (i === 5 && val > 0) {
+                } else if (i === 5 && (val as number) > 0) {
                     cell.font = boldFont(10, '1a1a1a');
                 }
 

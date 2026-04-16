@@ -1,3 +1,5 @@
+import React, { useMemo } from 'react';
+import { cn } from '../../utils/cn';
 import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
@@ -16,8 +18,6 @@ interface Props {
 
 const fmt = (n: number) => n.toLocaleString('es-CL');
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
-const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
-
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onRefresh }) => {
