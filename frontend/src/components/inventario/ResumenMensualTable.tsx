@@ -593,7 +593,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                 <span className="font-black text-[10px] uppercase tracking-widest text-brand-primary">
                                                     {cat.nombre}
                                                 </span>
-                                                {collapsed && totals && (
+                                                {totals && (
                                                     <span className="ml-2 text-[10px] font-medium text-muted-foreground">
                                                         {totals.count} ítems · {fmt(totals.totalCantidad)} unid. · {fmtMoney(totals.totalArriendo)}
                                                     </span>
