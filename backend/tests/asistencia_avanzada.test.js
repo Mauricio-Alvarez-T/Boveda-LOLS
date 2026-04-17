@@ -47,7 +47,7 @@ describe('Asistencia Service - Avanzado', () => {
                 if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
                 if (sql.includes('fecha_ingreso')) return Promise.resolve([[{ fecha_ingreso: '2020-01-01', fecha_desvinculacion: null }]]);
                 if (sql.includes('SELECT') && sql.includes('FROM asistencias')) return Promise.resolve([[{
-                    id: 100, trabajador_id: 10, estado_id: 1, hora_entrada: '09:00', hora_salida: '17:00'
+                    id: 100, trabajador_id: 10, obra_id: 1, fecha: '2026-03-02', estado_id: 1, hora_entrada: '09:00', hora_salida: '17:00'
                 }]]);
                 if (sql.includes('UPDATE')) return Promise.resolve([{}]);
                 if (sql.includes('INSERT')) return Promise.resolve([{ insertId: 500 }]);
