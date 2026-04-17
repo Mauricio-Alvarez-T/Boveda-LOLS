@@ -108,8 +108,8 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                 await api.put(`/items-inventario/${initialData.id}`, payload);
                 toast.success('Ítem actualizado');
             } else {
-                const res = await api.post<ApiResponse<{ id: number }>>('/items-inventario', payload);
-                itemId = res.data.data.id;
+                const res = await api.post<{ id: number }>('/items-inventario', payload);
+                itemId = res.data.id;
                 toast.success('Ítem creado');
             }
             if (imageFile && itemId) {
