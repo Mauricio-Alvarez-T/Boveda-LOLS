@@ -45,6 +45,25 @@ const transferenciaService = {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
+
+            // Red de seguridad: validar stock GLOBAL por ítem (suma todas las ubicaciones).
+            // El frontend ya lo valida, pero evitamos que solicitudes imposibles entren
+            // al flujo si el cliente está stale o alguien bypasea la UI.
+            for (const item of items) {
+                const [stockRows] = await conn.query(
+                    `SELECT COALESCE(SUM(cantidad), 0) as total,
+                            (SELECT descripcion FROM items_inventario WHERE id = ?) as descripcion
+                     FROM ubicaciones_stock WHERE item_id = ?`,
+                    [item.item_id, item.item_id]
+                );
+                const disponible = Number(stockRows[0].total) || 0;
+                const solicitado = Number(item.cantidad) || 0;
+                if (solicitado > disponible) {
+                    const desc = stockRows[0].descripcion || `ítem ${item.item_id}`;
+                    throw new Error(`Stock insuficiente para ${desc}. Disponible: ${disponible}, solicitado: ${solicitado}`);
+                }
+            }
+
             const codigo = await this._generarCodigo();
 
             const [result] = await conn.query(
