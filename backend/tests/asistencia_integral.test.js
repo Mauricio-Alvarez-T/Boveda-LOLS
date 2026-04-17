@@ -158,6 +158,8 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
             .mockResolvedValueOnce([[{
                 id: 50,
                 trabajador_id: 1,
+                obra_id: 1,
+                fecha: '2025-03-03',
                 estado_id: 1,
                 tipo_ausencia_id: null,
                 observacion: null,
