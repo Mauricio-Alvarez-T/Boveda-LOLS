@@ -1,5 +1,4 @@
 name: Deploy Bóveda LOLS to cPanel 🚀
-# Forced refresh to trigger pending color migration 🟢
 
 on:
   push:
@@ -11,7 +10,7 @@ jobs:
   web-deploy:
     name: 🎉 Build & Deploy
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: 🚚 Obtener el código más reciente
         uses: actions/checkout@v4
@@ -37,6 +36,7 @@ jobs:
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           local-dir: ./frontend/dist/
           server-dir: /public_html/boveda.lols.cl/
+          timeout: 120000
           exclude: |
             **/.git*
             **/.git*/**
@@ -50,22 +50,22 @@ jobs:
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           local-dir: ./backend/
           server-dir: /boveda/
+          timeout: 120000
           exclude: |
             **/.git*
             **/.git*/**
             **/node_modules/**
+            **/tmp/**
             .env*
 
-      - name: 🔄 Crear carpeta temporal para reinicio de la app Node
+      - name: 🚀 Reiniciar Passenger (upload solo restart.txt vía curl)
         run: |
-          mkdir -p ./backend/tmp
-          touch ./backend/tmp/restart.txt
-
-      - name: 🚀 Reiniciar Servidor Phusion Passenger
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ftp.lols.cl
-          username: lolscl
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          local-dir: ./backend/tmp/
-          server-dir: /boveda/tmp/
+          mkdir -p ./restart-trigger
+          date > ./restart-trigger/restart.txt
+          curl --fail --silent --show-error \
+            --connect-timeout 30 \
+            --max-time 120 \
+            --ftp-create-dirs \
+            -T ./restart-trigger/restart.txt \
+            -u "lolscl:${{ secrets.CPANEL_FTP_PASSWORD }}" \
+            "ftp://ftp.lols.cl/boveda/tmp/restart.txt"
