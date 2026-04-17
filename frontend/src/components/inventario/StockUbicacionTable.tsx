@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
-import { Pencil, Check, X, ChevronDown, MapPin, Package } from 'lucide-react';
+import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package } from 'lucide-react';
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
@@ -23,6 +23,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
     // ── Desktop edit state (unchanged) ──
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
+
+    // ── Desktop collapse state — default all expanded ──
+    const [collapsedCatsDesktop, setCollapsedCatsDesktop] = useState<Set<number>>(new Set());
+    const toggleCatDesktop = (id: number) => {
+        setCollapsedCatsDesktop(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
 
     const startEdit = (key: string, currentValue: number) => {
         setEditingCell(key);
@@ -400,14 +410,22 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         </tr>
                     </thead>
                     <tbody>
-                        {data.categorias.map(cat => (
+                        {data.categorias.map(cat => {
+                            const collapsed = collapsedCatsDesktop.has(cat.id);
+                            return (
                             <React.Fragment key={cat.id}>
-                                <tr className="bg-brand-primary/10">
+                                <tr
+                                    className="bg-brand-primary/10 cursor-pointer select-none hover:bg-brand-primary/15 transition-colors"
+                                    onClick={() => toggleCatDesktop(cat.id)}
+                                >
                                     <td colSpan={7} className="px-3 py-1.5 font-black text-[10px] uppercase tracking-widest text-brand-primary">
-                                        {cat.nombre}
+                                        <div className="flex items-center gap-2">
+                                            <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", !collapsed && "rotate-90")} />
+                                            <span>{cat.nombre}</span>
+                                        </div>
                                     </td>
                                 </tr>
-                                {cat.items.map((item, idx) => (
+                                {!collapsed && cat.items.map((item, idx) => (
                                     <tr key={item.id} className={cn("hover:bg-blue-50/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-[#F5F5F8]")}>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-[#D8D8DD]">{item.nro_item}</td>
                                         <td className="px-2 py-1 font-medium text-brand-dark truncate max-w-[250px] border-r border-b border-[#D8D8DD]">
@@ -432,7 +450,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         </td>
                                     </tr>
                                 ))}
-                                {/* Subtotal row */}
+                                {/* Subtotal row — always visible, so totals stay readable when category is collapsed */}
                                 <tr className="bg-[#EDEDF2] border-t border-[#D8D8DD]">
                                     <td colSpan={5} className="px-3 py-1.5 text-right font-bold text-[10px] uppercase text-muted-foreground">
                                         Total {cat.nombre}
@@ -441,7 +459,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     <td className="px-2 py-1.5 text-right font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</td>
                                 </tr>
                             </React.Fragment>
-                        ))}
+                            );
+                        })}
                     </tbody>
                     {/* ── Sticky footer — totals, descuento ── */}
                     <tfoot className="sticky bottom-0 z-10">
