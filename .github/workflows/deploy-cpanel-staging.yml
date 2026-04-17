@@ -28,37 +28,47 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: 🌐 Sincronizar Frontend vía FTP a cPanel (Staging)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ftp.lols.cl
-          username: lolscl
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          local-dir: ./frontend/dist/
-          server-dir: /public_html/test.boveda.lols.cl/
-          timeout: 120000
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
+      - name: 🔧 Instalar lftp
+        run: sudo apt-get update && sudo apt-get install -y lftp
 
-      - name: ⚙️ Sincronizar Backend vía FTP a cPanel (Staging)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-        with:
-          server: ftp.lols.cl
-          username: lolscl
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          local-dir: ./backend/
-          server-dir: /test-boveda/
-          timeout: 120000
-          exclude: |
-            **/.git*
-            **/.git*/**
-            **/node_modules/**
-            **/tmp/**
-            .env*
+      - name: 🌐 Sincronizar Frontend vía lftp (Staging)
+        env:
+          FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
+        run: |
+          lftp -c "
+            set ftp:ssl-allow no;
+            set net:timeout 30;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+            set mirror:parallel-transfer-count 4;
+            open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
+            mirror -R --only-newer --parallel=4 \
+              --exclude-glob .git* \
+              --exclude node_modules/ \
+              ./frontend/dist/ /public_html/test.boveda.lols.cl/;
+          "
 
-      - name: 🚀 Reiniciar Passenger (upload solo restart.txt vía curl)
+      - name: ⚙️ Sincronizar Backend vía lftp (Staging)
+        env:
+          FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
+        run: |
+          lftp -c "
+            set ftp:ssl-allow no;
+            set net:timeout 30;
+            set net:max-retries 3;
+            set net:reconnect-interval-base 5;
+            set mirror:parallel-transfer-count 4;
+            open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
+            mirror -R --only-newer --parallel=4 \
+              --exclude-glob .git* \
+              --exclude node_modules/ \
+              --exclude tmp/ \
+              --exclude uploads/ \
+              --exclude-glob .env* \
+              ./backend/ /test-boveda/;
+          "
+
+      - name: 🚀 Reiniciar Passenger Staging (restart.txt vía curl)
         run: |
           mkdir -p ./restart-trigger
           date > ./restart-trigger/restart.txt
