@@ -107,17 +107,6 @@ cd backend && npm test             # Tests siempre pasan
 
 ---
 
-## GitHub CLI en Windows (Git Bash)
-
-El `gh` no está en el PATH de Git Bash. Usar:
-
-```bash
-"C:/Program Files/GitHub CLI/gh.exe" pr create ...
-"C:/Program Files/GitHub CLI/gh.exe" repo view ...
-```
-
----
-
 ## Documentar Aprendizajes
 
 **Cuando resuelvas un problema no trivial** (infra, deploy, DB, UI pattern):
