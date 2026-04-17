@@ -97,7 +97,8 @@ try {
     selectFields: 'obras.*, e.razon_social as empresa_nombre',
     activeColumn: 'activa',
     orderBy: 'obras.nombre ASC',
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa']
+    allowedFilters: ['participa_inventario'],
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario']
   }));
   app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { 
     searchFields: ['nombre'], 

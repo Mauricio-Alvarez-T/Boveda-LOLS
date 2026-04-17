@@ -64,7 +64,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
         api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500')
             .then(res => setCatalogoItems(res.data.data))
             .catch(() => {});
-        api.get('/obras').then(res => setObras(res.data.data || [])).catch(() => {});
+        api.get('/obras?participa_inventario=1').then(res => setObras(res.data.data || [])).catch(() => {});
         api.get('/bodegas').then(res => setBodegas(res.data.data || [])).catch(() => {});
     }, [showModal]);
 

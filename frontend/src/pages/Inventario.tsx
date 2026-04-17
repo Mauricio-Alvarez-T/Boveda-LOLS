@@ -48,7 +48,12 @@ const InventarioPage: React.FC = () => {
     useSetPageHeader(headerTitle);
 
     // ── Ubicaciones: bodegas first, then obras ──
-    const allObras = resumen?.obras || obras.map(o => ({ id: o.id, nombre: o.nombre }));
+    // Solo obras que participan del módulo inventario.
+    // Si resumen ya llegó usa esa lista (filtrada server-side); durante la carga inicial
+    // cae al contexto global de obras filtrado client-side.
+    const allObras = resumen?.obras || obras
+        .filter(o => o.participa_inventario !== false)
+        .map(o => ({ id: o.id, nombre: o.nombre }));
     const allBodegas = resumen?.bodegas || [];
 
     const allUbicaciones = useMemo<UbicacionOption[]>(() => {

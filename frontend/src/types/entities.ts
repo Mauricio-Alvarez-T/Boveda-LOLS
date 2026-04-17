@@ -15,6 +15,7 @@ export interface Obra {
     empresa_id: number;
     empresa_nombre?: string;
     activa: boolean;
+    participa_inventario?: boolean;
 }
 
 export interface Cargo {

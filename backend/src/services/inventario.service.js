@@ -7,7 +7,7 @@ const inventarioService = {
      */
     async getResumen(obraId = null) {
         // 1. Obtener todas las ubicaciones activas (obras + bodegas)
-        const [obras] = await db.query('SELECT id, nombre FROM obras WHERE activa = 1 ORDER BY nombre');
+        const [obras] = await db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre');
         const [bodegas] = await db.query('SELECT id, nombre FROM bodegas WHERE activa = 1 ORDER BY nombre');
 
         // 2. Obtener todos los ítems con su categoría
