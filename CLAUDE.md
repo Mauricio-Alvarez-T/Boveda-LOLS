@@ -78,3 +78,50 @@ cd frontend && npm run build
 | `backend/package.json` | Scripts npm (incluye aliases para cPanel) |
 | `.github/workflows/deploy-cpanel.yml` | Deploy a producción |
 | `.github/workflows/deploy-cpanel-staging.yml` | Deploy a staging |
+
+---
+
+## Workflow con Worktrees
+
+Las sesiones de Claude Code usan worktrees en `.claude/worktrees/BRANCH/`. Estos tienen ramas locales que trackean `origin/develop` directamente:
+
+```bash
+# Dentro del worktree, el comando correcto es:
+git push origin claude/BRANCH:develop
+
+# NO usar "git push" simple — causará "rejected: non-fast-forward"
+```
+
+Esto evita la confusión de crear PRs vacíos.
+
+---
+
+## Pre-Deploy Checks
+
+Antes de todo push a `develop` o `main`:
+
+```bash
+cd frontend && npx tsc --noEmit    # Type check (evita runtime errors en staging)
+cd backend && npm test             # Tests siempre pasan
+```
+
+---
+
+## GitHub CLI en Windows (Git Bash)
+
+El `gh` no está en el PATH de Git Bash. Usar:
+
+```bash
+"C:/Program Files/GitHub CLI/gh.exe" pr create ...
+"C:/Program Files/GitHub CLI/gh.exe" repo view ...
+```
+
+---
+
+## Documentar Aprendizajes
+
+**Cuando resuelvas un problema no trivial** (infra, deploy, DB, UI pattern):
+1. Propón una entrada nueva para `docs/RUNBOOK.md § 6 — Errores Comunes` O una sección nueva si corresponde.
+2. Si prefieres capturarlo después, usa `/runbook-add`.
+
+No esperes a que el usuario lo pida. Los patrones que funcionan fortalecen el documento para futuras sesiones.

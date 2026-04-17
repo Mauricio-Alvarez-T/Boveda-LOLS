@@ -224,10 +224,83 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | App da 500 al arrancar | Passenger crasheó al iniciar `index.js`. | Revisar `/boveda/logs/app_YYYY-MM-DD.log` o `/boveda/startup_debug.log`. |
 | `env-validator: variable faltante` al arrancar | Falta alguna variable en el `.env` del servidor. | SSH/FTP al servidor, editar `/boveda/.env`, añadir la variable faltante, reiniciar. |
 | JWT inválido / login loop | Token de versión de rol desactualizado. | El usuario debe cerrar sesión, borrar `localStorage` (`sgdl_token`, `sgdl_user`), y volver a entrar. |
+| Imágenes 404 en producción (pero OK en local) | URLs de imagen sin prefijo `/api/`. cPanel proxy solo routea `/api/*` al Node.js. | Asegurarse de servir imagen URL como `/api/uploads/inventario/...`, no `/uploads/...` |
+| Sticky header no se pega al scroll | Contenedor intermedio con `overflow-x-hidden` crea un scroll context incorrecto. | El scroll container **real** debe tener `flex-1 min-h-0 overflow-y-auto`. Sticky es relativo a su contenedor scroll más cercano. |
 
 ---
 
-## 7. Comandos de Emergencia
+## 7. Patrón de Layout Dinámico (Flex Chain)
+
+Para que las páginas llenen el viewport y permitan sticky headers/footers sin alturas hardcodeadas:
+
+```tsx
+// MainLayout.tsx
+<main className="h-screen flex flex-col">
+  <header className="shrink-0">...</header>
+  <motion.div className="flex-1 min-h-0 overflow-y-auto">
+    {/* Pages go here */}
+  </motion.div>
+</main>
+
+// Inventario.tsx (or any page)
+<div className="flex flex-col flex-1 min-h-0 gap-4">
+  <div className="sticky top-0 z-30 shrink-0">
+    {/* Tab bar or toolbar */}
+  </div>
+  <motion.div className="flex-1 min-h-0 flex flex-col">
+    {/* Content — fill remaining space */}
+  </motion.div>
+</div>
+
+// Tables inside content
+<div className="overflow-auto flex-1 min-h-0">
+  <table>
+    <thead className="sticky top-0 z-20">...</thead>
+    <tbody>...</tbody>
+    <tfoot className="sticky bottom-0 z-10">...</tfoot>
+  </table>
+</div>
+```
+
+**Clave:** Cada contenedor en la cadena tiene `flex flex-col` + `flex-1 min-h-0` (excepto shrink-0). Esto propaga altura dinámica desde viewport → página → tabla. Sin esto, sticky no funciona correctamente.
+
+---
+
+## 8. Worktrees de Claude Code
+
+Las sesiones usan worktrees en `.claude/worktrees/NOMBRE/`. Cada uno tiene una rama local que trackea `origin/develop`:
+
+```bash
+# Ver estado
+git worktree list
+
+# Dentro del worktree, push correcto:
+git push origin claude/BRANCH:develop
+
+# Para limpiar después (desde repo principal):
+git worktree remove .claude/worktrees/NOMBRE
+```
+
+---
+
+## 9. Proxy `/api` en cPanel
+
+cPanel router solo routea rutas con prefijo `/api/` al Node.js. Todo lo demás va a carpetas static en `public_html/`.
+
+**Implicación para uploads/archivos:**
+- Ruta de upload: `/boveda/uploads/inventario/file.jpg`
+- URL servida: `/api/uploads/inventario/file.jpg` (con prefijo `/api`)
+- En el código: `imagen_url: '/api/uploads/inventario/...'`
+
+Si se olvida el prefijo, la imagen retorna 404 en producción (aunque funciona en local con Node.js directo).
+
+---
+
+## 10. Checklist Pre-Deploy (Actualizado)
+
+---
+
+## 11. Comandos de Emergencia
 
 ### Reiniciar la app manualmente
 ```bash
@@ -258,7 +331,7 @@ Si el último commit rompe producción y no se puede arreglar rápido:
 
 ---
 
-## 8. Checklist Pre-Deploy
+## 12. Checklist Pre-Deploy
 
 Antes de hacer merge a `main`:
 
@@ -271,7 +344,7 @@ Antes de hacer merge a `main`:
 
 ---
 
-## 9. Dónde Está Qué
+## 13. Dónde Está Qué
 
 ```
 Boveda-LOLS/
@@ -298,4 +371,4 @@ Boveda-LOLS/
 
 ---
 
-*Última actualización: Abril 2026 — Sesión de corrección de migraciones y deploy en producción.*
+*Última actualización: Abril 2026 — Agregan secciones: patrón de layout dinámico (sticky + flex), proxy /api en cPanel, worktrees, nuevos errores comunes.*
