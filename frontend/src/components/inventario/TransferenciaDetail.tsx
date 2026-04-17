@@ -3,10 +3,9 @@ import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon
+    MapPin, Package, Check, X as XIcon, Zap
 } from 'lucide-react';
 import { estadoConfig } from './TransferenciasList';
-import { SearchableSelect } from '../ui/SearchableSelect';
 import type { Transferencia, TransferenciaItem } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
@@ -26,7 +25,7 @@ interface Props {
     userId: number;
     onBack: () => void;
     onFetchStock: (itemIds: number[]) => Promise<Record<number, StockLocation[]>>;
-    onAprobar: (data: { origen_obra_id?: number | null; origen_bodega_id?: number | null; items: { item_id: number; cantidad_enviada: number }[] }) => Promise<boolean>;
+    onAprobar: (data: { origen_obra_id?: number | null; origen_bodega_id?: number | null; items: { item_id: number; cantidad_enviada: number; origen_obra_id?: number | null; origen_bodega_id?: number | null }[] }) => Promise<boolean>;
     onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => Promise<boolean>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
@@ -72,11 +71,15 @@ const TransferenciaDetail: React.FC<Props> = ({
     // ── Inline form states ──
     const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'recibir' | null>(null);
 
-    // Approval state
+    // Approval state — origen POR ÍTEM (cada item_id puede salir de una ubicación distinta)
     const [stockData, setStockData] = useState<Record<number, StockLocation[]>>({});
     const [stockLoading, setStockLoading] = useState(false);
-    const [approvalOrigin, setApprovalOrigin] = useState<number | null>(null);
-    const [approvalItems, setApprovalItems] = useState<{ item_id: number; cantidad_enviada: number }[]>([]);
+    const [approvalItems, setApprovalItems] = useState<{
+        item_id: number;
+        cantidad_enviada: number;
+        origen_obra_id: number | null;
+        origen_bodega_id: number | null;
+    }[]>([]);
 
     // Receive state
     const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string }[]>([]);
@@ -88,8 +91,12 @@ const TransferenciaDetail: React.FC<Props> = ({
     useMemo(() => {
         setActiveForm(null);
         setStockData({});
-        setApprovalOrigin(null);
-        setApprovalItems(items.map(i => ({ item_id: i.item_id, cantidad_enviada: i.cantidad_solicitada })));
+        setApprovalItems(items.map(i => ({
+            item_id: i.item_id,
+            cantidad_enviada: i.cantidad_solicitada,
+            origen_obra_id: null,
+            origen_bodega_id: null,
+        })));
         setReceiveItems(items.map(i => ({
             item_id: i.item_id,
             cantidad_recibida: i.cantidad_enviada || i.cantidad_solicitada,
@@ -278,33 +285,81 @@ const TransferenciaDetail: React.FC<Props> = ({
             )}
 
             {/* ════════════════════════════════════════════════
-                ── APPROVAL FORM — with stock availability ──
+                ── APPROVAL FORM — origen POR ÍTEM ──
                ════════════════════════════════════════════════ */}
-            {activeForm === 'aprobar' && (
-                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
-                    <h4 className="text-sm font-bold text-green-800 flex items-center gap-1.5">
-                        <CheckCircle2 className="h-4 w-4" /> Aprobar Transferencia
-                    </h4>
+            {activeForm === 'aprobar' && (() => {
+                // Helpers locales al render del form
+                const setOrigenItem = (idx: number, loc: StockLocation | null) => {
+                    const updated = [...approvalItems];
+                    updated[idx] = {
+                        ...updated[idx],
+                        origen_obra_id: loc?.type === 'obra' ? loc.id : null,
+                        origen_bodega_id: loc?.type === 'bodega' ? loc.id : null,
+                    };
+                    setApprovalItems(updated);
+                };
 
-                    {/* Origin selector */}
-                    <div>
-                        <SearchableSelect
-                            label="Origen (desde donde se envia)"
-                            options={obras.map(o => ({ value: o.id, label: o.nombre }))}
-                            value={approvalOrigin}
-                            onChange={(val) => setApprovalOrigin(val as number | null)}
-                            placeholder="Seleccionar obra de origen..."
-                        />
-                        {approvalOrigin && (
-                            <p className="text-[10px] text-green-700 mt-1 ml-1 font-medium flex items-center gap-1">
-                                <Check className="h-3 w-3" />
-                                Origen seleccionado: <span className="font-bold">{obras.find(o => o.id === approvalOrigin)?.nombre}</span>
-                            </p>
-                        )}
-                        <p className="text-[10px] text-muted-foreground mt-1 ml-1">
-                            Tambien puedes hacer click en las ubicaciones verdes de cada item
-                        </p>
+                // Auto-seleccionar: por cada ítem, elegir la ubicación con MAYOR
+                // cantidad que además cubra la cantidad solicitada. Si ninguna
+                // ubicación cubre el total, elige la de mayor cantidad disponible
+                // (el aprobador puede ajustar cantidad_enviada después).
+                const autoSeleccionar = () => {
+                    const updated = approvalItems.map((ai, idx) => {
+                        const it = items[idx];
+                        const locs = stockData[ai.item_id] || [];
+                        if (!locs.length) return ai;
+                        const solicitada = it.cantidad_solicitada;
+                        const suficientes = locs.filter(l => l.cantidad >= solicitada);
+                        const pool = suficientes.length ? suficientes : locs;
+                        const best = pool.reduce((a, b) => (b.cantidad > a.cantidad ? b : a));
+                        return {
+                            ...ai,
+                            origen_obra_id: best.type === 'obra' ? best.id : null,
+                            origen_bodega_id: best.type === 'bodega' ? best.id : null,
+                        };
+                    });
+                    setApprovalItems(updated);
+                };
+
+                // Validación: cada ítem con enviada>0 necesita un origen y stock suficiente.
+                const filasConError = approvalItems.map((ai, idx) => {
+                    if (ai.cantidad_enviada <= 0) return null;
+                    if (!ai.origen_obra_id && !ai.origen_bodega_id) return 'sin_origen';
+                    const locs = stockData[ai.item_id] || [];
+                    const sel = locs.find(l =>
+                        (l.type === 'obra' && l.id === ai.origen_obra_id) ||
+                        (l.type === 'bodega' && l.id === ai.origen_bodega_id)
+                    );
+                    if (!sel || sel.cantidad < ai.cantidad_enviada) return 'stock_insuf';
+                    return null;
+                });
+                const hayError = filasConError.some(e => e !== null);
+                const todasConOrigen = approvalItems.every(ai =>
+                    ai.cantidad_enviada === 0 || ai.origen_obra_id || ai.origen_bodega_id
+                );
+
+                return (
+                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                        <h4 className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4" /> Aprobar Transferencia
+                        </h4>
+                        <button
+                            type="button"
+                            onClick={autoSeleccionar}
+                            disabled={stockLoading}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-all"
+                            title="Selecciona automáticamente la ubicación con mayor stock que cubra cada ítem"
+                        >
+                            <Zap className="h-3 w-3" />
+                            Auto-seleccionar mejor ubicación
+                        </button>
                     </div>
+
+                    <p className="text-[10px] text-muted-foreground ml-1">
+                        Cada ítem puede salir de una ubicación diferente. Haz click en los chips
+                        para elegir el origen de cada uno, o usa "Auto-seleccionar".
+                    </p>
 
                     {/* Stock per item */}
                     <div className="space-y-3">
@@ -316,14 +371,21 @@ const TransferenciaDetail: React.FC<Props> = ({
                             <p className="text-xs text-muted-foreground text-center py-4">Cargando disponibilidad...</p>
                         ) : (
                             items.map((item, idx) => {
+                                const ai = approvalItems[idx];
+                                if (!ai) return null;
                                 const locations = stockData[item.item_id] || [];
                                 const hasStock = locations.length > 0;
-                                const originStock = approvalOrigin
-                                    ? locations.find(l => l.type === 'obra' && l.id === approvalOrigin)
-                                    : null;
+                                const selected = locations.find(l =>
+                                    (l.type === 'obra' && l.id === ai.origen_obra_id) ||
+                                    (l.type === 'bodega' && l.id === ai.origen_bodega_id)
+                                );
+                                const errorTipo = filasConError[idx];
 
                                 return (
-                                    <div key={item.id || idx} className="bg-white rounded-lg border border-green-100 p-3">
+                                    <div key={item.id || idx} className={cn(
+                                        "rounded-lg border p-3 transition-colors",
+                                        errorTipo ? "bg-red-50/30 border-red-200" : "bg-white border-green-100"
+                                    )}>
                                         {/* Item header */}
                                         <div className="flex items-center justify-between mb-2">
                                             <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">{item.item_descripcion}</button>
@@ -332,20 +394,23 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             </span>
                                         </div>
 
-                                        {/* Stock locations — clickable chips */}
+                                        {/* Stock locations — clickable chips (per-item) */}
                                         {hasStock ? (
                                             <div className="flex flex-wrap gap-1.5 mb-2">
                                                 {locations.map((loc, lIdx) => {
-                                                    const isOrigin = approvalOrigin && loc.type === 'obra' && loc.id === approvalOrigin;
-                                                    const sufficient = loc.cantidad >= (approvalItems[idx]?.cantidad_enviada || item.cantidad_solicitada);
-                                                    const isClickable = loc.type === 'obra' && sufficient;
+                                                    const isOrigin = selected
+                                                        && selected.type === loc.type
+                                                        && selected.id === loc.id;
+                                                    const sufficient = loc.cantidad >= ai.cantidad_enviada;
+                                                    const isClickable = sufficient || isOrigin;
                                                     return (
                                                         <button
                                                             key={lIdx}
                                                             type="button"
                                                             disabled={!isClickable}
                                                             onClick={() => {
-                                                                if (isClickable) setApprovalOrigin(loc.id);
+                                                                if (isOrigin) setOrigenItem(idx, null);
+                                                                else if (sufficient) setOrigenItem(idx, loc);
                                                             }}
                                                             className={cn(
                                                                 "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
@@ -355,6 +420,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                         ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 cursor-pointer"
                                                                         : "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60"
                                                             )}
+                                                            title={sufficient ? `${loc.nombre}: ${loc.cantidad} disponibles` : `${loc.nombre}: solo ${loc.cantidad} (insuficiente para ${ai.cantidad_enviada})`}
                                                         >
                                                             <MapPin className="h-2.5 w-2.5" />
                                                             {loc.nombre}: <span className="font-bold">{loc.cantidad}</span>
@@ -369,22 +435,40 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             </p>
                                         )}
 
-                                        {/* Quantity to send */}
-                                        <div className="flex items-center gap-2">
-                                            <span className="text-[10px] text-muted-foreground">Enviar:</span>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={approvalItems[idx]?.cantidad_enviada || 0}
-                                                onChange={e => {
-                                                    const updated = [...approvalItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_enviada: parseInt(e.target.value) || 0 };
-                                                    setApprovalItems(updated);
-                                                }}
-                                                className="w-16 px-2 py-1 border rounded-lg text-center text-xs font-bold"
-                                            />
-                                            {originStock && approvalItems[idx]?.cantidad_enviada > originStock.cantidad && (
-                                                <span className="text-[9px] text-red-600 font-medium">Excede stock ({originStock.cantidad})</span>
+                                        {/* Quantity to send + origen label */}
+                                        <div className="flex items-center justify-between gap-2 flex-wrap">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] text-muted-foreground">Enviar:</span>
+                                                <input
+                                                    type="number"
+                                                    min={0}
+                                                    value={ai.cantidad_enviada}
+                                                    onChange={e => {
+                                                        const updated = [...approvalItems];
+                                                        updated[idx] = { ...updated[idx], cantidad_enviada: parseInt(e.target.value) || 0 };
+                                                        setApprovalItems(updated);
+                                                    }}
+                                                    className={cn(
+                                                        "w-16 px-2 py-1 border rounded-lg text-center text-xs font-bold",
+                                                        errorTipo === 'stock_insuf' && "border-red-400 text-red-700"
+                                                    )}
+                                                />
+                                                {selected && (
+                                                    <span className="text-[9px] text-green-700 font-medium flex items-center gap-0.5">
+                                                        <Check className="h-2.5 w-2.5" />
+                                                        desde {selected.nombre}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            {errorTipo === 'sin_origen' && (
+                                                <span className="text-[9px] text-red-600 font-medium flex items-center gap-0.5">
+                                                    <AlertTriangle className="h-2.5 w-2.5" /> Selecciona un origen
+                                                </span>
+                                            )}
+                                            {errorTipo === 'stock_insuf' && (
+                                                <span className="text-[9px] text-red-600 font-medium flex items-center gap-0.5">
+                                                    <AlertTriangle className="h-2.5 w-2.5" /> Excede stock del origen
+                                                </span>
                                             )}
                                         </div>
                                     </div>
@@ -397,12 +481,24 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="flex gap-2 pt-1">
                         <button
                             onClick={async () => {
-                                if (!approvalOrigin) return;
-                                const ok = await onAprobar({ origen_obra_id: approvalOrigin, items: approvalItems });
+                                const payload = approvalItems.map(ai => ({
+                                    item_id: ai.item_id,
+                                    cantidad_enviada: ai.cantidad_enviada,
+                                    origen_obra_id: ai.origen_obra_id,
+                                    origen_bodega_id: ai.origen_bodega_id,
+                                }));
+                                // Origen de cabecera: tomar el del primer ítem con envío
+                                const primero = payload.find(p => p.cantidad_enviada > 0) || payload[0];
+                                const ok = await onAprobar({
+                                    origen_obra_id: primero?.origen_obra_id || null,
+                                    origen_bodega_id: primero?.origen_bodega_id || null,
+                                    items: payload,
+                                });
                                 if (ok) setActiveForm(null);
                             }}
-                            disabled={actionLoading || !approvalOrigin}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all"
+                            disabled={actionLoading || !todasConOrigen || hayError}
+                            title={!todasConOrigen ? 'Faltan orígenes por seleccionar' : hayError ? 'Hay errores de stock' : undefined}
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
                             {actionLoading ? 'Aprobando...' : 'Confirmar Aprobacion'}
                         </button>
@@ -411,7 +507,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                         </button>
                     </div>
                 </div>
-            )}
+                );
+            })()}
 
             {/* ════════════════════════════════════
                 ── REJECT FORM ──

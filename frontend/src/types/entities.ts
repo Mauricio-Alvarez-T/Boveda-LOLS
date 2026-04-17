@@ -231,6 +231,11 @@ export interface TransferenciaItem {
     cantidad_enviada: number | null;
     cantidad_recibida: number | null;
     observacion: string | null;
+    unidad?: string;
+    origen_obra_id?: number | null;
+    origen_bodega_id?: number | null;
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
 }
 
 export interface FacturaInventario {

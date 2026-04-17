@@ -23,7 +23,12 @@ interface CrearTransferenciaData {
 interface AprobarData {
     origen_obra_id?: number | null;
     origen_bodega_id?: number | null;
-    items: { item_id: number; cantidad_enviada: number }[];
+    items: {
+        item_id: number;
+        cantidad_enviada: number;
+        origen_obra_id?: number | null;
+        origen_bodega_id?: number | null;
+    }[];
 }
 
 export function useTransferencias() {

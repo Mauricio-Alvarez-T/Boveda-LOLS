@@ -100,9 +100,14 @@ const transferenciaService = {
      * 5. Actualiza estado y cantidades enviadas
      */
     async aprobar(id, aprobadorId, data) {
-        const { origen_obra_id, origen_bodega_id, items } = data;
-        if (!origen_obra_id && !origen_bodega_id) throw new Error('Debe especificar un origen');
+        const { items } = data;
         if (!items || !items.length) throw new Error('Debe incluir ítems');
+
+        // Compatibilidad: si el cliente manda origen global, aplicarlo a todos los
+        // ítems que no traigan el suyo. Esto permite que clientes antiguos sigan
+        // funcionando sin cambios.
+        const defaultObraId = data.origen_obra_id || null;
+        const defaultBodegaId = data.origen_bodega_id || null;
 
         const conn = await db.getConnection();
         try {
@@ -112,7 +117,7 @@ const transferenciaService = {
             const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ?', [id]);
             if (!trf.length || trf[0].estado !== 'pendiente') throw new Error('Transferencia no está pendiente');
 
-            // Fetch items desde BD (fuente de verdad, evita manipulación del cliente)
+            // Fetch items desde BD (fuente de verdad)
             const [dbItems] = await conn.query(
                 'SELECT item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
@@ -120,48 +125,59 @@ const transferenciaService = {
             const solicitadoMap = {};
             dbItems.forEach(r => { solicitadoMap[r.item_id] = r.cantidad_solicitada; });
 
-            // Validar cada ítem del body contra BD y contra stock de origen
-            for (const item of items) {
+            // Normalizar y validar cada ítem: debe pertenecer a la transferencia,
+            // tener cantidad no-negativa, especificar origen cuando envía > 0, y
+            // tener stock suficiente en el origen indicado.
+            const normalizados = items.map(item => {
                 if (!(item.item_id in solicitadoMap)) {
                     throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
                 }
-                // Nota: el aprobador puede enviar MÁS o MENOS que lo solicitado.
-                // El único límite es el stock disponible (validado abajo).
                 const enviada = parseInt(item.cantidad_enviada, 10) || 0;
-                if (enviada < 0) {
-                    throw new Error(`Cantidad enviada inválida para ítem ${item.item_id}`);
-                }
+                if (enviada < 0) throw new Error(`Cantidad enviada inválida para ítem ${item.item_id}`);
 
+                const obraId = item.origen_obra_id ?? defaultObraId;
+                const bodegaId = item.origen_bodega_id ?? defaultBodegaId;
+                if (enviada > 0 && !obraId && !bodegaId) {
+                    throw new Error(`Ítem ${item.item_id}: debe especificar origen (obra o bodega)`);
+                }
+                return { item_id: item.item_id, enviada, obraId: obraId || null, bodegaId: bodegaId || null };
+            });
+
+            for (const n of normalizados) {
+                if (n.enviada === 0) continue;
                 const [stock] = await conn.query(
                     'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
-                    [item.item_id, origen_obra_id || null, origen_bodega_id || null]
+                    [n.item_id, n.obraId, n.bodegaId]
                 );
                 const disponible = stock.length ? stock[0].cantidad : 0;
-                if (enviada > disponible) {
-                    throw new Error(`Stock insuficiente para ítem ${item.item_id}. Disponible: ${disponible}, requerido: ${enviada}`);
+                if (n.enviada > disponible) {
+                    throw new Error(`Stock insuficiente para ítem ${n.item_id} en el origen indicado. Disponible: ${disponible}, requerido: ${n.enviada}`);
                 }
             }
 
-            // Actualizar cabecera
+            // Origen "principal" (cabecera): el del primer ítem con envío > 0.
+            // Mantiene la compatibilidad con listados/UI que leen t.origen_*.
+            const primario = normalizados.find(n => n.enviada > 0) || normalizados[0];
+
             await conn.query(
                 `UPDATE transferencias SET estado = 'aprobada', aprobador_id = ?, origen_obra_id = ?, origen_bodega_id = ?, fecha_aprobacion = NOW() WHERE id = ?`,
-                [aprobadorId, origen_obra_id || null, origen_bodega_id || null, id]
+                [aprobadorId, primario.obraId, primario.bodegaId, id]
             );
 
-            // Actualizar cantidades enviadas + DECREMENTAR stock origen
-            for (const item of items) {
-                const enviada = parseInt(item.cantidad_enviada, 10) || 0;
-
+            // Actualizar cantidades enviadas + origen per-ítem + DECREMENTAR stock
+            for (const n of normalizados) {
                 await conn.query(
-                    'UPDATE transferencia_items SET cantidad_enviada = ? WHERE transferencia_id = ? AND item_id = ?',
-                    [enviada, id, item.item_id]
+                    `UPDATE transferencia_items
+                     SET cantidad_enviada = ?, origen_obra_id = ?, origen_bodega_id = ?
+                     WHERE transferencia_id = ? AND item_id = ?`,
+                    [n.enviada, n.obraId, n.bodegaId, id, n.item_id]
                 );
 
-                if (enviada > 0) {
+                if (n.enviada > 0) {
                     await conn.query(
                         `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                          WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                        [enviada, item.item_id, origen_obra_id || null, origen_bodega_id || null]
+                        [n.enviada, n.item_id, n.obraId, n.bodegaId]
                     );
                 }
             }
@@ -308,20 +324,25 @@ const transferenciaService = {
                 throw new Error('Solo se pueden rechazar transferencias pendientes o aprobadas');
             }
 
-            // Si ya estaba aprobada, revertir stock al origen
+            // Si ya estaba aprobada, revertir stock al origen DE CADA ÍTEM.
+            // Fallback al origen de cabecera si el ítem no tiene origen propio
+            // (transferencias aprobadas antes de la migración 029 con backfill parcial).
             if (trf.estado === 'aprobada') {
                 const [items] = await conn.query(
-                    'SELECT item_id, cantidad_enviada FROM transferencia_items WHERE transferencia_id = ?',
+                    `SELECT item_id, cantidad_enviada, origen_obra_id, origen_bodega_id
+                     FROM transferencia_items WHERE transferencia_id = ?`,
                     [id]
                 );
                 for (const item of items) {
                     const cantidad = item.cantidad_enviada || 0;
                     if (cantidad > 0) {
+                        const obraId = item.origen_obra_id ?? trf.origen_obra_id;
+                        const bodegaId = item.origen_bodega_id ?? trf.origen_bodega_id;
                         await conn.query(
                             `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                              VALUES (?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                            [item.item_id, trf.origen_obra_id, trf.origen_bodega_id, cantidad]
+                            [item.item_id, obraId, bodegaId, cantidad]
                         );
                     }
                 }
@@ -361,20 +382,23 @@ const transferenciaService = {
                 throw new Error('Solo se pueden cancelar transferencias pendientes o aprobadas');
             }
 
-            // Si ya estaba aprobada, revertir stock al origen
+            // Si ya estaba aprobada, revertir stock al origen DE CADA ÍTEM.
             if (trf.estado === 'aprobada') {
                 const [items] = await conn.query(
-                    'SELECT item_id, cantidad_enviada FROM transferencia_items WHERE transferencia_id = ?',
+                    `SELECT item_id, cantidad_enviada, origen_obra_id, origen_bodega_id
+                     FROM transferencia_items WHERE transferencia_id = ?`,
                     [id]
                 );
                 for (const item of items) {
                     const cantidad = item.cantidad_enviada || 0;
                     if (cantidad > 0) {
+                        const obraId = item.origen_obra_id ?? trf.origen_obra_id;
+                        const bodegaId = item.origen_bodega_id ?? trf.origen_bodega_id;
                         await conn.query(
                             `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                              VALUES (?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                            [item.item_id, trf.origen_obra_id, trf.origen_bodega_id, cantidad]
+                            [item.item_id, obraId, bodegaId, cantidad]
                         );
                     }
                 }
@@ -443,9 +467,12 @@ const transferenciaService = {
         if (!rows.length) throw new Error('Transferencia no encontrada');
 
         const [items] = await db.query(`
-            SELECT ti.*, i.descripcion as item_descripcion, i.unidad
+            SELECT ti.*, i.descripcion as item_descripcion, i.unidad,
+                   oi.nombre as origen_obra_nombre, bi.nombre as origen_bodega_nombre
             FROM transferencia_items ti
             JOIN items_inventario i ON ti.item_id = i.id
+            LEFT JOIN obras oi ON ti.origen_obra_id = oi.id
+            LEFT JOIN bodegas bi ON ti.origen_bodega_id = bi.id
             WHERE ti.transferencia_id = ?
         `, [id]);
 
