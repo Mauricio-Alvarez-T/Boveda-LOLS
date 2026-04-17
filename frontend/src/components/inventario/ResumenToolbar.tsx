@@ -1,8 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
-import { Search, X, ChevronDown, EyeOff, Eye, RotateCcw, Download } from 'lucide-react';
+import { Search, X, ChevronDown, EyeOff, Eye, RotateCcw, Download, Plus } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { exportResumen } from '../../utils/exportExcel';
+import { Modal } from '../ui/Modal';
+import { ItemInventarioForm } from '../settings/ItemInventarioForm';
 
 interface ToolbarProps {
     data: ResumenData;
@@ -14,6 +16,8 @@ interface ToolbarProps {
     setHideEmpty: React.Dispatch<React.SetStateAction<boolean>>;
     hiddenCount: number;
     restoreCols: () => void;
+    canCreate?: boolean;
+    onRefresh?: () => void;
 }
 
 export const ResumenToolbar: React.FC<ToolbarProps> = ({
@@ -21,8 +25,16 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
     search, setSearch,
     selectedCategoryId, setSelectedCategoryId,
     hideEmpty, setHideEmpty,
-    hiddenCount, restoreCols
+    hiddenCount, restoreCols,
+    canCreate = false, onRefresh,
 }) => {
+    const [showCreateModal, setShowCreateModal] = useState(false);
+
+    const handleCreateSuccess = () => {
+        setShowCreateModal(false);
+        onRefresh?.();
+    };
+
     return (
         <div className="hidden md:flex flex-wrap items-center gap-2 py-2 shrink-0">
             {/* Search */}
@@ -82,14 +94,41 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                 </button>
             )}
 
+            {/* Agregar Ítem */}
+            {canCreate && (
+                <button
+                    onClick={() => setShowCreateModal(true)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-brand-primary border border-brand-primary/30 bg-brand-primary/5 rounded-xl hover:bg-brand-primary/10 transition-all ml-auto"
+                >
+                    <Plus className="h-3.5 w-3.5" />
+                    Agregar Ítem
+                </button>
+            )}
+
             {/* Exportar Excel */}
             <button
                 onClick={() => exportResumen(data)}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm ml-auto"
+                className={cn(
+                    "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm",
+                    !canCreate && "ml-auto"
+                )}
             >
                 <Download className="h-3.5 w-3.5" />
                 Exportar Excel
             </button>
+
+            {/* Create Item Modal */}
+            <Modal
+                isOpen={showCreateModal}
+                onClose={() => setShowCreateModal(false)}
+                title="Agregar Nuevo Ítem"
+                size="lg"
+            >
+                <ItemInventarioForm
+                    onSuccess={handleCreateSuccess}
+                    onCancel={() => setShowCreateModal(false)}
+                />
+            </Modal>
         </div>
     );
 };

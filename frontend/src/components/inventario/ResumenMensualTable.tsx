@@ -439,6 +439,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 setHideEmpty={setHideEmpty}
                 hiddenCount={hiddenCount}
                 restoreCols={restoreCols}
+                canCreate={canEdit}
+                onRefresh={onRefresh}
             />
 
             {/* ── Table — fills remaining space, scrolls both axes ── */}
