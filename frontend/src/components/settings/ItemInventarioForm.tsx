@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
@@ -8,6 +8,7 @@ import { Save, Upload, Trash2, ImageIcon } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Select } from '../ui/Select';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import api from '../../services/api';
 import type { ItemInventario, CategoriaInventario } from '../../types/entities';
 import type { ApiResponse } from '../../types';
@@ -17,8 +18,8 @@ const schema = z.object({
     categoria_id: z.coerce.number().int().min(1, 'Categoría requerida'),
     descripcion: z.string().min(1, 'Descripción requerida'),
     m2: z.coerce.number().optional().nullable(),
-    valor_compra: z.coerce.number().min(0, 'Valor >= 0'),
-    valor_arriendo: z.coerce.number().min(0, 'Valor >= 0'),
+    valor_compra: z.coerce.number().int().min(0, 'Valor >= 0'),
+    valor_arriendo: z.coerce.number().int().min(0, 'Valor >= 0'),
     unidad: z.string().min(1, 'Unidad requerida'),
 });
 
@@ -39,14 +40,14 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
     const [uploadingImage, setUploadingImage] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
+    const { register, handleSubmit, control, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
             categoria_id: initialData?.categoria_id ?? undefined,
             descripcion: initialData?.descripcion || '',
-            m2: initialData?.m2 ?? null,
-            valor_compra: initialData?.valor_compra ?? 0,
-            valor_arriendo: initialData?.valor_arriendo ?? 0,
+            m2: initialData?.m2 != null ? Number(initialData.m2) : null,
+            valor_compra: initialData?.valor_compra != null ? Number(initialData.valor_compra) : 0,
+            valor_arriendo: initialData?.valor_arriendo != null ? Number(initialData.valor_arriendo) : 0,
             unidad: initialData?.unidad || 'U',
         },
     });
@@ -132,8 +133,32 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
             <Input label="Descripción" {...register('descripcion')} error={errors.descripcion?.message} placeholder="ANDAMIO VERTICAL PATA REGULABLE" />
             <div className="grid grid-cols-3 gap-4">
                 <Input label="M2 (moldajes)" type="number" step="0.0001" {...register('m2')} error={errors.m2?.message} placeholder="0.00" />
-                <Input label="Valor Compra ($)" type="number" {...register('valor_compra')} error={errors.valor_compra?.message} placeholder="0" />
-                <Input label="Valor Arriendo ($)" type="number" {...register('valor_arriendo')} error={errors.valor_arriendo?.message} placeholder="0" />
+                <Controller
+                    control={control}
+                    name="valor_compra"
+                    render={({ field }) => (
+                        <CurrencyInput
+                            label="Valor Compra"
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            error={errors.valor_compra?.message}
+                        />
+                    )}
+                />
+                <Controller
+                    control={control}
+                    name="valor_arriendo"
+                    render={({ field }) => (
+                        <CurrencyInput
+                            label="Valor Arriendo"
+                            value={field.value}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            error={errors.valor_arriendo?.message}
+                        />
+                    )}
+                />
             </div>
             <Input label="Unidad" {...register('unidad')} error={errors.unidad?.message} placeholder="U" />
 
