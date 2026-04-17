@@ -150,7 +150,15 @@ try {
     selectFields: 'items_inventario.*, c.nombre as categoria_nombre',
     allowedFilters: ['categoria_id'],
     orderBy: 'items_inventario.nro_item ASC',
-    allowedFields: ['nro_item', 'categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'activo']
+    allowedFields: ['categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'activo'],
+    // nro_item es solo referencia visual — autogenerado secuencial por categoria
+    beforeCreate: async (safeData, db) => {
+      const [rows] = await db.query(
+        'SELECT COALESCE(MAX(nro_item), 0) + 1 AS next_nro FROM items_inventario WHERE categoria_id = ?',
+        [safeData.categoria_id]
+      );
+      safeData.nro_item = rows[0].next_nro;
+    }
   }));
 
   logger.info('✅ Rutas CRUD genéricas cargadas');

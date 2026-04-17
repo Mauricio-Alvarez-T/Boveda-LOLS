@@ -14,7 +14,6 @@ import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
 const schema = z.object({
-    nro_item: z.coerce.number().int().min(1, 'Número de ítem requerido'),
     categoria_id: z.coerce.number().int().min(1, 'Categoría requerida'),
     descripcion: z.string().min(1, 'Descripción requerida'),
     m2: z.coerce.number().optional().nullable(),
@@ -43,7 +42,6 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
     const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
-            nro_item: initialData?.nro_item ?? undefined,
             categoria_id: initialData?.categoria_id ?? undefined,
             descripcion: initialData?.descripcion || '',
             m2: initialData?.m2 ?? null,
@@ -125,15 +123,12 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                <Input label="Nro Ítem" type="number" {...register('nro_item')} error={errors.nro_item?.message} placeholder="1" />
-                <Select
-                    label="Categoría"
-                    {...register('categoria_id')}
-                    error={errors.categoria_id?.message}
-                    options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
-                />
-            </div>
+            <Select
+                label="Categoría"
+                {...register('categoria_id')}
+                error={errors.categoria_id?.message}
+                options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
+            />
             <Input label="Descripción" {...register('descripcion')} error={errors.descripcion?.message} placeholder="ANDAMIO VERTICAL PATA REGULABLE" />
             <div className="grid grid-cols-3 gap-4">
                 <Input label="M2 (moldajes)" type="number" step="0.0001" {...register('m2')} error={errors.m2?.message} placeholder="0.00" />
