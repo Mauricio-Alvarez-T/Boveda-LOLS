@@ -86,8 +86,9 @@ app.use('/api/auth', require('./src/routes/auth.routes'));
 const createCrudRoutes = require('./src/routes/crud.routes');
 
 try {
-  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { 
-    searchFields: ['rut', 'razon_social'], 
+  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', {
+    searchFields: ['rut', 'razon_social'],
+    useSoftDelete: true,
     orderBy: 'razon_social ASC',
     allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo']
   }));
@@ -96,12 +97,14 @@ try {
     joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
     selectFields: 'obras.*, e.razon_social as empresa_nombre',
     activeColumn: 'activa',
+    useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
     allowedFilters: ['participa_inventario'],
     allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario']
   }));
-  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { 
-    searchFields: ['nombre'], 
+  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', {
+    searchFields: ['nombre'],
+    useSoftDelete: true,
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
@@ -119,26 +122,32 @@ try {
     ]
   }));
   const asAusenciaPerms = { ver: 'sistema.tipos_ausencia.gestionar', crear: 'sistema.tipos_ausencia.gestionar', editar: 'sistema.tipos_ausencia.gestionar', eliminar: 'sistema.tipos_ausencia.gestionar' };
-  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', { 
-    searchFields: ['nombre'], 
+  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', {
+    searchFields: ['nombre'],
+    useSoftDelete: true,
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
 
   const asEstadosPerms = { ver: 'sistema.estados.gestionar', crear: 'sistema.estados.gestionar', editar: 'sistema.estados.gestionar', eliminar: 'sistema.estados.gestionar' };
-  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', { 
-    searchFields: ['nombre', 'codigo'], 
+  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', {
+    searchFields: ['nombre', 'codigo'],
+    useSoftDelete: true,
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'codigo', 'color', 'activo', 'es_presente']
   }));
   // ── Inventario CRUD ──
   const invPerms = { ver: 'inventario.ver', crear: 'inventario.crear', editar: 'inventario.editar', eliminar: 'inventario.eliminar' };
   app.use('/api/categorias-inventario', createCrudRoutes(invPerms, 'categorias_inventario', {
-    searchFields: ['nombre'], orderBy: 'orden ASC',
+    searchFields: ['nombre'],
+    useSoftDelete: true,
+    orderBy: 'orden ASC',
     allowedFields: ['nombre', 'orden', 'activo']
   }));
   app.use('/api/bodegas', createCrudRoutes(invPerms, 'bodegas', {
-    searchFields: ['nombre', 'direccion'], activeColumn: 'activa',
+    searchFields: ['nombre', 'direccion'],
+    activeColumn: 'activa',
+    useSoftDelete: true,
     joins: 'LEFT JOIN usuarios u ON bodegas.responsable_id = u.id',
     selectFields: 'bodegas.*, u.nombre as responsable_nombre',
     orderBy: 'bodegas.nombre ASC',
