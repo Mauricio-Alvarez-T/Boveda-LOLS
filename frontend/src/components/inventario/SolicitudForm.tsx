@@ -265,9 +265,14 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                             <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
                                 #{item.nro_item} · {item.unidad}
                             </div>
-                            <div className="text-xs font-bold text-brand-dark leading-tight line-clamp-2">
+                            <button
+                                type="button"
+                                onClick={() => itemDetail.openItem(item.id, item)}
+                                className="text-xs font-bold text-brand-dark leading-tight line-clamp-2 text-left hover:text-brand-primary hover:underline transition-colors"
+                                title="Ver ficha del ítem"
+                            >
                                 {item.descripcion}
-                            </div>
+                            </button>
                         </div>
                         {enCarrito !== undefined && (
                             <div className="shrink-0 flex items-center justify-center w-5 h-5 rounded-full bg-brand-primary text-white">
@@ -461,9 +466,15 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
 
                                 {/* Info */}
                                 <div className="flex-1 min-w-0">
-                                    <div className="text-[11px] font-bold text-brand-dark leading-tight line-clamp-2">
+                                    <button
+                                        type="button"
+                                        onClick={() => d.item && itemDetail.openItem(d.item.id, d.item)}
+                                        disabled={!d.item}
+                                        className="text-[11px] font-bold text-brand-dark leading-tight line-clamp-2 text-left hover:text-brand-primary hover:underline transition-colors disabled:hover:no-underline disabled:hover:text-brand-dark"
+                                        title="Ver ficha del ítem"
+                                    >
                                         {d.item?.descripcion || `Ítem #${d.item_id}`}
-                                    </div>
+                                    </button>
                                     <div className="mt-1 flex items-center gap-1">
                                         <button
                                             type="button"
