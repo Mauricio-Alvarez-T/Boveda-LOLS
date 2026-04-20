@@ -240,6 +240,33 @@ const asistenciaService = {
     },
 
     /**
+     * Batch save — upsert transaccional multi-obra / multi-fecha en un único request.
+     *
+     * Wrapper sobre bulkCreate('ALL', ...) que valida que cada registro traiga
+     * trabajador_id, obra_id y fecha. Devuelve el mismo shape que bulkCreate.
+     *
+     * Pensado para flujos tipo "Repetir día anterior" y futuras cargas bulk de
+     * múltiples días / obras en un único POST.
+     */
+    async batchSave(registros, registradoPor, req) {
+        if (!Array.isArray(registros) || registros.length === 0) return [];
+
+        for (const [i, reg] of registros.entries()) {
+            if (!reg || typeof reg !== 'object') {
+                throw new Error(`Registro #${i} inválido`);
+            }
+            if (!reg.trabajador_id || !reg.obra_id || !reg.fecha) {
+                throw new Error(`Registro #${i}: trabajador_id, obra_id y fecha son requeridos`);
+            }
+            if (!reg.estado_id) {
+                throw new Error(`Registro #${i}: estado_id es requerido`);
+            }
+        }
+
+        return this.bulkCreate('ALL', registros, registradoPor, req);
+    },
+
+    /**
      * Registra logs individuales para cambios de asistencia.
      * Se ejecuta después del commit para no impactar la transacción principal.
      */

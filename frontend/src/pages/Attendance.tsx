@@ -44,8 +44,8 @@ const AttendancePage: React.FC = () => {
         summary, isSaturday, isSunday
     } = attendanceData;
 
-    const { handleSave, saving, toggleFeriado } = useAttendanceActions({
-        date, workers, attendance, feriadoActual, fetchAttendanceInfo
+    const { handleSave, saving, toggleFeriado, repetirDiaAnterior, repeating } = useAttendanceActions({
+        date, workers, attendance, feriadoActual, fetchAttendanceInfo, updateAttendance
     });
 
     const { handleExportExcel, handleShareWhatsApp } = useAttendanceExport({
@@ -111,9 +111,15 @@ const AttendancePage: React.FC = () => {
                 selectedEmpresaId={selectedEmpresaId}
                 setSelectedEmpresaId={setSelectedEmpresaId}
                 availableEmpresas={availableEmpresas}
+                repetirDiaAnterior={() => {
+                    if (window.confirm('¿Copiar el último día laboral en todos los trabajadores visibles? Los cambios se sobrescribirán, pero no se guardarán hasta que aprietes Guardar.')) {
+                        repetirDiaAnterior();
+                    }
+                }}
+                repeating={repeating}
             />
         );
-    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas]);
+    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating]);
 
     useSetPageHeader(headerTitle, headerActionsRef);
 

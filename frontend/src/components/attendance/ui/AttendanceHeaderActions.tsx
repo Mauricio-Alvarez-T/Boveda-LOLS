@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Send, Save, MoreHorizontal, FileDown, CalendarRange, Search, ChevronDown } from 'lucide-react';
+import { Send, Save, MoreHorizontal, FileDown, CalendarRange, Search, ChevronDown, CopyPlus } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import { cn } from '../../../utils/cn';
@@ -21,6 +21,8 @@ interface AttendanceHeaderActionsProps {
     selectedEmpresaId: number | null;
     setSelectedEmpresaId: (val: number | null) => void;
     availableEmpresas: { id: number, nombre: string }[];
+    repetirDiaAnterior?: () => void;
+    repeating?: boolean;
 }
 
 export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = ({
@@ -38,11 +40,14 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     setSearchQuery,
     selectedEmpresaId,
     setSelectedEmpresaId,
-    availableEmpresas
+    availableEmpresas,
+    repetirDiaAnterior,
+    repeating = false
 }) => {
     const [showMobileMenu, setShowMobileMenu] = useState(false);
 
     const isSaveDisabled = saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend;
+    const isRepeatDisabled = repeating || saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend || !repetirDiaAnterior;
 
     return (
         <div className="flex items-center gap-2">
@@ -59,6 +64,21 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 >
                     <Send className="h-4 w-4" fill="currentColor" />
                 </Button>
+
+                {repetirDiaAnterior && (
+                    <Button
+                        onClick={repetirDiaAnterior}
+                        isLoading={repeating}
+                        disabled={isRepeatDisabled}
+                        className={cn(
+                            "h-9 w-9 p-0 justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm active:scale-95 transition-all flex items-center shrink-0",
+                            isRepeatDisabled && "opacity-40 grayscale pointer-events-none"
+                        )}
+                        title="Repetir día anterior"
+                    >
+                        <CopyPlus className="h-4 w-4" />
+                    </Button>
+                )}
 
                 <Button
                     onClick={handleSave}
@@ -148,6 +168,22 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 >
                     <FileDown className="h-4 w-4" />
                 </Button>
+                {repetirDiaAnterior && (
+                    <Button
+                        onClick={repetirDiaAnterior}
+                        isLoading={repeating}
+                        variant="glass"
+                        disabled={isRepeatDisabled}
+                        className={cn(
+                            "h-9 px-3 flex items-center justify-center gap-1.5 rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm transition-all",
+                            isRepeatDisabled ? "opacity-40 grayscale pointer-events-none" : "hover:bg-brand-primary/5"
+                        )}
+                        title="Copiar el último día laboral registrado a este día (sin guardar)"
+                    >
+                        <CopyPlus className="h-4 w-4" />
+                        <span className="hidden xl:inline text-[10px] font-black uppercase tracking-wider">Repetir día ant.</span>
+                    </Button>
+                )}
                 <RequirePermission permiso="asistencia.feriado.gestionar">
                     <Button
                         onClick={toggleFeriado}
