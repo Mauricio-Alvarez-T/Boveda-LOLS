@@ -306,7 +306,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
                 isOpen={showCreateModal}
                 onClose={() => setShowCreateModal(false)}
                 title="Nueva Solicitud de Transferencia"
-                size="lg"
+                size="full"
             >
                 <SolicitudForm
                     obras={obras}
