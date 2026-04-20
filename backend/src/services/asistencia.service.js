@@ -1626,6 +1626,10 @@ const asistenciaService = {
         const [faltas] = await db.query(faltasQuery, params);
 
         // 4. Agrupar por trabajador
+        //    Usamos Set para deduplicar fechas — un trabajador puede tener 2 filas
+        //    de asistencia en el mismo día si hubo traslado de obra u otra
+        //    situación que produzca registros en obras distintas. Para la regla
+        //    de "faltas" nos importa el día, no la cantidad de filas.
         const porTrabajador = {};
         faltas.forEach(f => {
             if (!porTrabajador[f.trabajador_id]) {
@@ -1634,18 +1638,18 @@ const asistenciaService = {
                     nombres: f.nombres,
                     apellido_paterno: f.apellido_paterno,
                     rut: f.rut,
-                    fechas: []
+                    fechasSet: new Set()
                 };
             }
             const fechaStr = typeof f.fecha === 'string' ? f.fecha.split('T')[0] : f.fecha.toISOString().split('T')[0];
-            porTrabajador[f.trabajador_id].fechas.push(fechaStr);
+            porTrabajador[f.trabajador_id].fechasSet.add(fechaStr);
         });
 
         // 5. Evaluar reglas por trabajador
         const alertas = [];
 
         for (const [tid, data] of Object.entries(porTrabajador)) {
-            const fechas = data.fechas;
+            const fechas = [...data.fechasSet].sort(); // orden ascendente para regla de consecutivas
             const trabajadorAlerts = [];
 
             // Regla 1: 2 días seguidos de falta
