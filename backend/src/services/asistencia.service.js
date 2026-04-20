@@ -541,10 +541,21 @@ const asistenciaService = {
             await conn.beginTransaction();
             for (const h of horarios) {
                 await conn.query(
-                    `INSERT INTO configuracion_horarios (obra_id, dia_semana, hora_entrada, hora_salida, colacion_minutos)
-                     VALUES (?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE hora_entrada = VALUES(hora_entrada), hora_salida = VALUES(hora_salida), colacion_minutos = VALUES(colacion_minutos)`,
-                    [obraId, h.dia_semana, h.hora_entrada, h.hora_salida, h.colacion_minutos || 60]
+                    `INSERT INTO configuracion_horarios (obra_id, dia_semana, hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin)
+                     VALUES (?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        hora_entrada = VALUES(hora_entrada),
+                        hora_salida = VALUES(hora_salida),
+                        hora_colacion_inicio = VALUES(hora_colacion_inicio),
+                        hora_colacion_fin = VALUES(hora_colacion_fin)`,
+                    [
+                        obraId,
+                        h.dia_semana,
+                        h.hora_entrada,
+                        h.hora_salida,
+                        h.hora_colacion_inicio || '13:00:00',
+                        h.hora_colacion_fin || '14:00:00'
+                    ]
                 );
             }
             await conn.commit();
@@ -710,8 +721,11 @@ const asistenciaService = {
         const horariosMap = {};
         horariosDb.forEach(h => {
             if (!horariosMap[h.obra_id]) horariosMap[h.obra_id] = {};
-            // Calcular cuantas horas exige la empresa ese día
-            const val = getDiffHours(h.hora_entrada, h.hora_salida) - (h.colacion_minutos / 60);
+            // Calcular cuantas horas exige la empresa ese día (jornada menos colación)
+            const colacionHoras = (h.hora_colacion_inicio && h.hora_colacion_fin)
+                ? getDiffHours(h.hora_colacion_inicio, h.hora_colacion_fin)
+                : 0;
+            const val = getDiffHours(h.hora_entrada, h.hora_salida) - colacionHoras;
             horariosMap[h.obra_id][h.dia_semana] = Math.max(0, val);
         });
         const defaultHorario = { lun:9, mar:9, mie:9, jue:9, vie:9, sab:0, dom:0 };
