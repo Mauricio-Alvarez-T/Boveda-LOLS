@@ -623,6 +623,17 @@ const asistenciaService = {
         const start = new Date(fecha_inicio + 'T00:00:00');
         const end = new Date(fecha_fin + 'T23:59:59');
 
+        // Tope de seguridad: evita exports de años completos que tumban el server.
+        // 366 días permite reporte anual pero bloquea rangos absurdos.
+        const MAX_DAYS = 366;
+        const rangeDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (isNaN(rangeDays) || rangeDays < 0) {
+            throw new Error('Rango de fechas inválido');
+        }
+        if (rangeDays > MAX_DAYS) {
+            throw new Error(`Rango demasiado amplio (${rangeDays} días). Máximo permitido: ${MAX_DAYS} días.`);
+        }
+
         // 1. Obtener Datos
         const workerQueryParams = [];
         let workerQuery = `
@@ -663,6 +674,12 @@ const asistenciaService = {
 
         if (trabajador_ids) {
             const ids = Array.isArray(trabajador_ids) ? trabajador_ids : trabajador_ids.split(',').filter(Boolean);
+            // Tope de seguridad: evita IN (...) con miles de entradas que revienta
+            // el query parser y abre puerta a DoS.
+            const MAX_IDS = 2000;
+            if (ids.length > MAX_IDS) {
+                throw new Error(`Demasiados trabajador_ids (${ids.length}). Máximo: ${MAX_IDS}.`);
+            }
             if (ids.length > 0) {
                 workerQuery += ` AND t.id IN (${ids.map(() => '?').join(',')})`;
                 workerQueryParams.push(...ids);
@@ -1430,35 +1447,61 @@ const asistenciaService = {
      * Cancela un período (soft delete). No revierte los registros de asistencia.
      */
     async cancelarPeriodo(periodoId, userId, req) {
-        const [existing] = await db.query('SELECT * FROM periodos_ausencia WHERE id = ?', [periodoId]);
-        if (existing.length === 0) throw new Error('Período no encontrado');
-
-        await db.query(
-            'UPDATE periodos_ausencia SET activo = FALSE, updated_at = NOW() WHERE id = ?',
-            [periodoId]
-        );
-
-        // Limpiar registros diarios que pertenecen a este periodo y aun tienen el mismo estado
-        const period = existing[0];
-        await db.query(
-            `DELETE FROM asistencias 
-             WHERE trabajador_id = ? 
-             AND obra_id = ? 
-             AND fecha BETWEEN ? AND ? 
-             AND estado_id = ?`,
-            [period.trabajador_id, period.obra_id, period.fecha_inicio, period.fecha_fin, period.estado_id]
-        );
-
+        // Transacción + SELECT ... FOR UPDATE para evitar race condition
+        // cuando dos usuarios cancelan el mismo período simultáneamente
+        // (doble DELETE de asistencias, doble log). El lock de fila serializa.
+        const connection = await db.getConnection();
         try {
-            logManualActivity(userId, 'periodos_ausencia', 'DELETE', periodoId,
-                JSON.stringify({ resumen: `Período #${periodoId} cancelado (${existing[0].fecha_inicio} al ${existing[0].fecha_fin})` }),
-                req
-            );
-        } catch (logErr) {
-            console.error('Error registrando log:', logErr);
-        }
+            await connection.beginTransaction();
 
-        return { id: periodoId, cancelado: true };
+            const [existing] = await connection.query(
+                'SELECT * FROM periodos_ausencia WHERE id = ? FOR UPDATE',
+                [periodoId]
+            );
+            if (existing.length === 0) {
+                await connection.rollback();
+                throw new Error('Período no encontrado');
+            }
+            const period = existing[0];
+
+            // Si ya está cancelado, salir idempotente sin re-borrar asistencias.
+            if (period.activo === 0 || period.activo === false) {
+                await connection.commit();
+                return { id: periodoId, cancelado: true, yaCancelado: true };
+            }
+
+            await connection.query(
+                'UPDATE periodos_ausencia SET activo = FALSE, updated_at = NOW() WHERE id = ?',
+                [periodoId]
+            );
+
+            await connection.query(
+                `DELETE FROM asistencias
+                 WHERE trabajador_id = ?
+                 AND obra_id = ?
+                 AND fecha BETWEEN ? AND ?
+                 AND estado_id = ?`,
+                [period.trabajador_id, period.obra_id, period.fecha_inicio, period.fecha_fin, period.estado_id]
+            );
+
+            await connection.commit();
+
+            try {
+                logManualActivity(userId, 'periodos_ausencia', 'DELETE', periodoId,
+                    JSON.stringify({ resumen: `Período #${periodoId} cancelado (${period.fecha_inicio} al ${period.fecha_fin})` }),
+                    req
+                );
+            } catch (logErr) {
+                console.error('Error registrando log:', logErr);
+            }
+
+            return { id: periodoId, cancelado: true };
+        } catch (err) {
+            try { await connection.rollback(); } catch { /* ya commiteado */ }
+            throw err;
+        } finally {
+            connection.release();
+        }
     },
 
     /**
@@ -1622,8 +1665,16 @@ const asistenciaService = {
             params.push(obraId);
         }
 
-        faltasQuery += ' ORDER BY a.trabajador_id, a.fecha ASC';
+        // Tope de seguridad: ~50k filas = muy por encima del peor mes real
+        // (todos los trabajadores faltando todos los días). Si se alcanza, lo
+        // logueamos para saber que hay que reajustar la regla.
+        const MAX_FALTAS = 50000;
+        faltasQuery += ' ORDER BY a.trabajador_id, a.fecha ASC LIMIT ?';
+        params.push(MAX_FALTAS);
         const [faltas] = await db.query(faltasQuery, params);
+        if (faltas.length >= MAX_FALTAS) {
+            console.warn(`⚠️  getAlertasFaltas alcanzó el tope de ${MAX_FALTAS} filas (obra=${obraId}, ${mes}/${anio}). Resultado posiblemente truncado.`);
+        }
 
         // 4. Agrupar por trabajador
         //    Usamos Set para deduplicar fechas — un trabajador puede tener 2 filas
