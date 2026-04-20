@@ -74,6 +74,49 @@ const AttendancePage: React.FC = () => {
         });
     };
 
+    /**
+     * Aplica el cambio de estado a un trabajador desde el selector de estado
+     * (primario o secundario). Única fuente de verdad — consumida por las
+     * variantes mobile y desktop para evitar divergencias de lógica.
+     *
+     * - Si se marca 'TO' (Traslado de Obra), abre el modal correspondiente.
+     * - Si el nuevo estado es "presente", limpia tipo_ausencia_id y rellena
+     *   horarios desde la config de la obra si aún no hay.
+     * - Si el estado es ausencia, auto-expande el panel de detalle para que
+     *   el usuario complete la info sin clicks extra.
+     */
+    const applyStatusChange = (
+        worker: Trabajador,
+        est: { id: number; codigo: string; es_presente: boolean }
+    ) => {
+        if (est.codigo === 'TO') {
+            setTrasladoWorker(worker);
+            return;
+        }
+        const state = attendance[worker.id] || {};
+        const updates: Partial<Asistencia> = {
+            estado_id: est.id,
+            tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
+            es_sabado: isSaturday,
+        };
+        if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
+            const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[
+                new Date(date + 'T12:00:00').getDay()
+            ];
+            const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
+            if (currentSchedule) {
+                updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5);
+                updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
+                updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5);
+                updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
+            }
+        }
+        updateAttendance(worker.id, updates);
+        if (!est.es_presente && expandedWorkerId !== worker.id) {
+            setExpandedWorkerId(worker.id);
+        }
+    };
+
     // Global Header (Contexto)
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
@@ -287,20 +330,7 @@ const AttendancePage: React.FC = () => {
                                                     if (!est) return null;
                                                     const isActive = state.estado_id === est.id;
                                                     return (
-                                                        <button key={est.id} onClick={() => {
-                                                                if (code === 'TO') { setTrasladoWorker(worker); return; }
-                                                                const updates: Partial<Asistencia> = { estado_id: est.id, tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id, es_sabado: isSaturday };
-                                                                if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                    const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[new Date(date + 'T12:00:00').getDay()];
-                                                                    const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
-                                                                    if (currentSchedule) {
-                                                                        updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5); updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
-                                                                        updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5); updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
-                                                                    }
-                                                                }
-                                                                updateAttendance(worker.id, updates);
-                                                                if (!est.es_presente && expandedWorkerId !== worker.id) setExpandedWorkerId(worker.id);
-                                                            }} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
+                                                        <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
                                                     );
                                                 })}
                                                 <div className="relative flex-1">
@@ -309,8 +339,9 @@ const AttendancePage: React.FC = () => {
                                                         const activeSecondary = secondary.find(e => e.id === state.estado_id);
                                                         return (
                                                             <select className={cn("w-full h-full rounded-xl text-[10px] font-black uppercase appearance-none text-center px-1 border transition-all truncate bg-white outline-none active:scale-95", activeSecondary ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
-                                                                    const estId = parseInt(e.target.value); updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
-                                                                    if (expandedWorkerId !== worker.id) setExpandedWorkerId(worker.id);
+                                                                    const estId = parseInt(e.target.value);
+                                                                    const est = estados.find(x => x.id === estId);
+                                                                    if (est) applyStatusChange(worker, est);
                                                                 }}><option value="" disabled>{activeSecondary ? activeSecondary.nombre : 'MÁS'}</option>
                                                                 {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
                                                             </select>
@@ -339,19 +370,7 @@ const AttendancePage: React.FC = () => {
                                                         const est = estados.find(e => e.codigo === code);
                                                         if (!est) return null;
                                                         const isActive = state.estado_id === est.id;
-                                                        return (<button key={est.id} onClick={() => {
-                                                                if (code === 'TO') { setTrasladoWorker(worker); return; }
-                                                                const updates: Partial<Asistencia> = { estado_id: est.id, es_sabado: isSaturday };
-                                                                if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
-                                                                    const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[new Date(date + 'T12:00:00').getDay()];
-                                                                    const currentSchedule = horariosObra.find(h => h.dia_semana === dayStr);
-                                                                    if (currentSchedule) {
-                                                                        updates.hora_entrada = currentSchedule.hora_entrada.substring(0, 5); updates.hora_salida = currentSchedule.hora_salida.substring(0, 5);
-                                                                        updates.hora_colacion_inicio = currentSchedule.hora_colacion_inicio.substring(0, 5); updates.hora_colacion_fin = currentSchedule.hora_colacion_fin.substring(0, 5);
-                                                                    }
-                                                                }
-                                                                updateAttendance(worker.id, updates);
-                                                            }} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                        return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                     })}
                                                     <div className="relative min-w-[90px] flex-shrink-0">
                                                         {(() => {
@@ -360,7 +379,9 @@ const AttendancePage: React.FC = () => {
                                                             return (
                                                                 <div className="relative h-8 group/select">
                                                                     <select className={cn("h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
-                                                                            const estId = parseInt(e.target.value); updateAttendance(worker.id, { estado_id: estId, es_sabado: isSaturday });
+                                                                            const estId = parseInt(e.target.value);
+                                                                            const est = estados.find(x => x.id === estId);
+                                                                            if (est) applyStatusChange(worker, est);
                                                                         }}><option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
                                                                         {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
                                                                     </select>
