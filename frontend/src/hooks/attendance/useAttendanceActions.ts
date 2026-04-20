@@ -181,7 +181,6 @@ export function useAttendanceActions({
                 return !isDesvinculado && !isPreContrato;
             });
 
-            const isCurrentSaturday = currentDow === 6;
             let applied = 0;
             for (const w of validToday) {
                 const prev = prevMap.get(w.id);
@@ -194,8 +193,7 @@ export function useAttendanceActions({
                     hora_salida: prev.hora_salida || null,
                     hora_colacion_inicio: prev.hora_colacion_inicio || null,
                     hora_colacion_fin: prev.hora_colacion_fin || null,
-                    horas_extra: prev.horas_extra || 0,
-                    es_sabado: isCurrentSaturday
+                    horas_extra: prev.horas_extra || 0
                 });
                 applied++;
             }
