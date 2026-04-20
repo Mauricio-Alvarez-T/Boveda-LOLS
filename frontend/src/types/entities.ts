@@ -107,7 +107,6 @@ export interface Asistencia {
     hora_colacion_inicio: string | null;
     hora_colacion_fin: string | null;
     horas_extra: number;
-    es_sabado: boolean;
     registrado_por: number;
     registrado_por_nombre?: string;
 }

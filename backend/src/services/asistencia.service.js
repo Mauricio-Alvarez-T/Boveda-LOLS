@@ -37,6 +37,16 @@ const asistenciaService = {
     async bulkCreate(obraId, registros, registradoPor, req) {
         if (!registros || registros.length === 0) return [];
 
+        // Cap defensivo contra DoS. Frontend nunca envía más que trabajadores visibles
+        // (<1000 realistas), así que este límite protege sin bloquear uso legítimo.
+        const MAX_REGISTROS = 1000;
+        if (registros.length > MAX_REGISTROS) {
+            throw Object.assign(
+                new Error(`Demasiados registros en un solo batch (${registros.length}). Máximo permitido: ${MAX_REGISTROS}.`),
+                { statusCode: 413 }
+            );
+        }
+
         const results = [];
         const logEntries = [];
         const conn = await db.getConnection();
@@ -116,9 +126,9 @@ const asistenciaService = {
             }
 
             // ── LOOP: Solo writes (INSERT/UPDATE), sin queries de lectura ──
-            const booleanFields = new Set(['es_sabado']);
+            const booleanFields = new Set();
             const numericFields = new Set(['estado_id', 'tipo_ausencia_id', 'horas_extra']);
-            const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra', 'es_sabado'];
+            const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra'];
 
             for (const reg of registros) {
                 const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
@@ -162,7 +172,7 @@ const asistenciaService = {
                     await conn.query(
                         `UPDATE asistencias SET estado_id = ?, tipo_ausencia_id = ?, observacion = ?,
                          hora_entrada = ?, hora_salida = ?, hora_colacion_inicio = ?, hora_colacion_fin = ?,
-                         horas_extra = ?, es_sabado = ?
+                         horas_extra = ?
                          WHERE id = ?`,
                         [
                             reg.estado_id,
@@ -173,7 +183,6 @@ const asistenciaService = {
                             reg.hora_colacion_inicio || null,
                             reg.hora_colacion_fin || null,
                             reg.horas_extra || 0,
-                            reg.es_sabado || false,
                             old.id
                         ]
                     );
@@ -193,8 +202,8 @@ const asistenciaService = {
                         `INSERT INTO asistencias
                          (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion,
                           hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin,
-                          horas_extra, es_sabado, registrado_por)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                          horas_extra, registrado_por)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [
                             reg.trabajador_id, globalObraId, fechaNormalizada,
                             reg.estado_id,
@@ -205,7 +214,6 @@ const asistenciaService = {
                             reg.hora_colacion_inicio || null,
                             reg.hora_colacion_fin || null,
                             reg.horas_extra || 0,
-                            reg.es_sabado || false,
                             registradoPor
                         ]
                     );
@@ -296,8 +304,7 @@ const asistenciaService = {
             hora_salida: 'Hora Salida',
             hora_colacion_inicio: 'Inicio Colación',
             hora_colacion_fin: 'Fin Colación',
-            horas_extra: 'Horas Extra',
-            es_sabado: 'Sábado'
+            horas_extra: 'Horas Extra'
         };
 
         for (const entry of entries) {
@@ -388,7 +395,7 @@ const asistenciaService = {
         const ALLOWED_FIELDS = new Set([
             'estado_id', 'tipo_ausencia_id', 'observacion',
             'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin',
-            'horas_extra', 'es_sabado'
+            'horas_extra'
         ]);
         const safeData = {};
         for (const key of Object.keys(data)) {
@@ -1345,16 +1352,14 @@ const asistenciaService = {
 
             while (current <= fin) {
                 const fechaStr = current.toISOString().split('T')[0];
-                const dayOfWeek = current.getDay(); // 0=dom, 6=sab
-                const esSabado = dayOfWeek === 6;
 
                 await conn.query(
-                    `INSERT INTO asistencias 
-                     (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion, 
+                    `INSERT INTO asistencias
+                     (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion,
                       hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin,
-                      horas_extra, es_sabado, registrado_por)
-                     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, ?, ?)
-                     ON DUPLICATE KEY UPDATE 
+                      horas_extra, registrado_por)
+                     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, ?)
+                     ON DUPLICATE KEY UPDATE
                         estado_id = VALUES(estado_id),
                         tipo_ausencia_id = VALUES(tipo_ausencia_id),
                         observacion = VALUES(observacion),
@@ -1363,7 +1368,7 @@ const asistenciaService = {
                         hora_colacion_inicio = NULL,
                         hora_colacion_fin = NULL,
                         horas_extra = 0`,
-                    [trabajador_id, obra_id, fechaStr, estado_id, tipo_ausencia_id || null, observacion || null, esSabado, userId]
+                    [trabajador_id, obra_id, fechaStr, estado_id, tipo_ausencia_id || null, observacion || null, userId]
                 );
 
                 diasAfectados++;

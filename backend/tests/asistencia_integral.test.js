@@ -167,8 +167,7 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
                 hora_salida: '17:00',
                 hora_colacion_inicio: null,
                 hora_colacion_fin: null,
-                horas_extra: 0,
-                es_sabado: 0
+                horas_extra: 0
             }]])
             .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE
 
@@ -415,7 +414,7 @@ describe('Actualización Individual de Asistencia', () => {
             .mockResolvedValueOnce([[{
                 id: 1, estado_id: 1, tipo_ausencia_id: null,
                 observacion: null, hora_entrada: '08:00', hora_salida: '17:00',
-                horas_extra: 0, es_sabado: 0,
+                horas_extra: 0,
                 hora_colacion_inicio: null, hora_colacion_fin: null
             }]])
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT log

@@ -62,8 +62,7 @@ export function useAttendanceActions({
                     hora_salida: currentAttendance[w.id]?.hora_salida || null,
                     hora_colacion_inicio: currentAttendance[w.id]?.hora_colacion_inicio || null,
                     hora_colacion_fin: currentAttendance[w.id]?.hora_colacion_fin || null,
-                    horas_extra: currentAttendance[w.id]?.horas_extra || 0,
-                    es_sabado: currentAttendance[w.id]?.es_sabado || false
+                    horas_extra: currentAttendance[w.id]?.horas_extra || 0
                 }))
             };
 

@@ -97,7 +97,6 @@ const AttendancePage: React.FC = () => {
         const updates: Partial<Asistencia> = {
             estado_id: est.id,
             tipo_ausencia_id: est.es_presente ? null : state.tipo_ausencia_id,
-            es_sabado: isSaturday,
         };
         if (est.es_presente && (!state.hora_entrada || state.hora_entrada === '')) {
             const dayStr = (['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'] as const)[

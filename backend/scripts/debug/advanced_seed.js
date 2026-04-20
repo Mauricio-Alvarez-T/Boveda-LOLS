@@ -115,10 +115,8 @@ async function seed() {
             const fecha = new Date(hoy);
             fecha.setDate(hoy.getDate() - d);
             const fechaStr = fecha.toISOString().split('T')[0];
-            const esSabado = fecha.getDay() === 6;
-            const esDomingo = fecha.getDay() === 0;
-
-            if (esDomingo) continue; // No se trabaja domingo en el seed
+            const dow = fecha.getDay();
+            if (dow === 0 || dow === 6) continue; // No se trabaja fin de semana en el seed
 
             for (const t of trabs) {
                 // Probabilidades
@@ -133,14 +131,10 @@ async function seed() {
                     hEntrada = '08:25:00';
                 }
 
-                if (esSabado) {
-                    hSalida = '13:00:00';
-                }
-
-                await db.query(`INSERT IGNORE INTO asistencias 
-                    (trabajador_id, obra_id, fecha, estado_id, hora_entrada, hora_salida, es_sabado) 
-                    VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [t.id, t.obra_id, fechaStr, est, hEntrada, hSalida, esSabado ? 1 : 0]);
+                await db.query(`INSERT IGNORE INTO asistencias
+                    (trabajador_id, obra_id, fecha, estado_id, hora_entrada, hora_salida)
+                    VALUES (?, ?, ?, ?, ?, ?)`,
+                    [t.id, t.obra_id, fechaStr, est, hEntrada, hSalida]);
             }
         }
 

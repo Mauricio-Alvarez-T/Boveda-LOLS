@@ -114,8 +114,7 @@ export function useAttendanceData() {
                         hora_salida: null,
                         hora_colacion_inicio: null,
                         hora_colacion_fin: null,
-                        horas_extra: 0,
-                        es_sabado: dayIndex === 6
+                        horas_extra: 0
                     };
 
                     if (defaultEstado.es_presente && currentSchedule) {
