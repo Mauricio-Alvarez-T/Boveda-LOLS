@@ -12,11 +12,13 @@ const auth = (req, res, next) => {
 
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        
-        // Validar versión del rol (RV) para deslogueo por cambio de permisos
+
+        // Validar versión del rol (RV) para deslogueo por cambio de permisos.
+        // Nota: index.js hace `await versionService.init()` antes de app.listen(),
+        // por lo que el Map está poblado cuando llega el primer request.
         const currentVersion = versionService.get(decoded.rol_id);
         if (!decoded.rv || decoded.rv !== currentVersion) {
-            return res.status(401).json({ 
+            return res.status(401).json({
                 error: 'Tu sesión ha expirado debido a una actualización de permisos. Por favor, ingresa de nuevo.',
                 expired_by_version: true
             });

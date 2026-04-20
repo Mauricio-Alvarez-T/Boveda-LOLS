@@ -8,22 +8,32 @@ class VersionService {
     constructor() {
         this.versions = new Map();
         this.initialized = false;
+        this.initPromise = null;
     }
 
     async init() {
         if (this.initialized) return;
-        try {
-            const [rows] = await db.query('SELECT id, version FROM roles');
-            rows.forEach(r => {
-                this.versions.set(Number(r.id), Number(r.version));
-            });
-            this.initialized = true;
-            console.log(`[VersionService] Cargadas versiones para ${this.versions.size} roles.`);
-        } catch (err) {
-            console.error('[VersionService] Error inicializando versiones:', err);
-        }
+        if (this.initPromise) return this.initPromise;
+        this.initPromise = (async () => {
+            try {
+                const [rows] = await db.query('SELECT id, version FROM roles');
+                rows.forEach(r => {
+                    this.versions.set(Number(r.id), Number(r.version));
+                });
+                this.initialized = true;
+                console.log(`[VersionService] Cargadas versiones para ${this.versions.size} roles.`);
+            } catch (err) {
+                console.error('[VersionService] Error inicializando versiones:', err);
+                this.initPromise = null; // allow retry
+                throw err;
+            }
+        })();
+        return this.initPromise;
     }
 
+    // Sync — asume que init() ya completó antes de servir requests (ver index.js).
+    // Si un rol no está en el Map, devuelve 1 como fallback compatible con el
+    // comportamiento previo; increment() lo hidratará en caliente cuando ocurra.
     get(rolId) {
         return this.versions.get(Number(rolId)) || 1;
     }

@@ -10,7 +10,6 @@ process.on('unhandledRejection', (reason, promise) => {
 require('dotenv').config();
 require('./src/config/env-validator')();
 const versionService = require('./src/services/version.service');
-versionService.init();
 
 const express = require('express');
 const cors = require('cors');
@@ -265,11 +264,22 @@ if (process.env.NODE_ENV === 'production') {
 app.use(errorHandler);
 
 // Start server
+// Importante: init() de versionService debe completar antes de aceptar requests.
+// Si llega un request antes, el Map de versiones está vacío, versionService.get()
+// devuelve el fallback de 1 y cualquier token de rol con version>1 en DB es
+// rechazado con 401 expired_by_version — causa raíz de los logouts espurios.
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
-    console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-  });
+  versionService.init()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
+        console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+      });
+    })
+    .catch(err => {
+      console.error('[startup] versionService.init falló — no se levantará el servidor:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = app;
