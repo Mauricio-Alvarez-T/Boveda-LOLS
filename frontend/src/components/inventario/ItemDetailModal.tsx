@@ -7,6 +7,14 @@ import type { StockLocation } from '../../hooks/inventario/useItemDetail';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
+// Resuelve URL pública de imagen de inventario, tolerando paths con o sin prefijo /api/.
+const resolveImageUrl = (imagen_url: string | null | undefined): string | null => {
+    if (!imagen_url) return null;
+    if (/^https?:\/\//i.test(imagen_url)) return imagen_url;
+    const withApi = imagen_url.startsWith('/api/') ? imagen_url : `/api${imagen_url.startsWith('/') ? '' : '/'}${imagen_url}`;
+    return `${API_BASE}${withApi}`;
+};
+
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
 interface Props {
@@ -29,7 +37,7 @@ const ItemDetailModal: React.FC<Props> = ({
     const [copied, setCopied] = useState(false);
 
     const item = itemData;
-    const imageUrl = item?.imagen_url ? `${API_BASE}${item.imagen_url}` : null;
+    const imageUrl = resolveImageUrl(item?.imagen_url);
 
     const obras = stockLocations.filter(l => l.type === 'obra');
     const bodegas = stockLocations.filter(l => l.type === 'bodega');
