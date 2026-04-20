@@ -13,6 +13,32 @@ import { cn } from '../../utils/cn';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
+// Resuelve la URL pública de una imagen de inventario sin importar si imagen_url
+// viene como "/api/uploads/..." o "/uploads/..." (legacy).
+const resolveImageUrl = (imagen_url: string | null | undefined): string | null => {
+    if (!imagen_url) return null;
+    if (/^https?:\/\//i.test(imagen_url)) return imagen_url;
+    const withApi = imagen_url.startsWith('/api/') ? imagen_url : `/api${imagen_url.startsWith('/') ? '' : '/'}${imagen_url}`;
+    return `${API_BASE}${withApi}`;
+};
+
+// Miniatura con fallback a <Package> si la imagen falla al cargar
+const ItemThumb: React.FC<{ src: string | null; alt: string; size: 'sm' | 'md' }> = ({ src, alt, size }) => {
+    const [errored, setErrored] = useState(false);
+    const iconSize = size === 'sm' ? 'h-4 w-4' : 'h-6 w-6';
+    if (!src || errored) {
+        return <Package className={cn(iconSize, 'text-muted-foreground/40')} />;
+    }
+    return (
+        <img
+            src={src}
+            alt={alt}
+            onError={() => setErrored(true)}
+            className="w-full h-full object-cover"
+        />
+    );
+};
+
 interface Props {
     obras: { id: number; nombre: string }[];
     onCrear: (data: any) => Promise<any>;
@@ -225,15 +251,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                     className="shrink-0 w-[60px] h-[60px] rounded-lg overflow-hidden bg-[#F5F5F7] flex items-center justify-center hover:ring-2 hover:ring-brand-primary/30 transition-all"
                     title="Ver detalle"
                 >
-                    {item.imagen_url ? (
-                        <img
-                            src={`${API_BASE}${item.imagen_url}`}
-                            alt={item.descripcion}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        <Package className="h-6 w-6 text-muted-foreground/40" />
-                    )}
+                    <ItemThumb
+                        src={resolveImageUrl(item.imagen_url)}
+                        alt={item.descripcion}
+                        size="md"
+                    />
                 </button>
 
                 {/* Info */}
@@ -430,11 +452,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                             >
                                 {/* Thumbnail */}
                                 <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-[#F5F5F7] flex items-center justify-center">
-                                    {d.item?.imagen_url ? (
-                                        <img src={`${API_BASE}${d.item.imagen_url}`} alt="" className="w-full h-full object-cover" />
-                                    ) : (
-                                        <Package className="h-4 w-4 text-muted-foreground/40" />
-                                    )}
+                                    <ItemThumb
+                                        src={resolveImageUrl(d.item?.imagen_url)}
+                                        alt={d.item?.descripcion || ''}
+                                        size="sm"
+                                    />
                                 </div>
 
                                 {/* Info */}
