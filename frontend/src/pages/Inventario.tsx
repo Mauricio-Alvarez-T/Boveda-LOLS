@@ -10,14 +10,16 @@ import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
+import ResumenEjecutivoPanel from '../components/inventario/ResumenEjecutivoPanel';
 
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 
-type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'bombas';
+type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'bombas';
 
 const tabs: { key: TabKey; label: string }[] = [
+    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo' },
     { key: 'resumen', label: 'Resumen' },
     { key: 'por_ubicacion', label: 'Por Obra/Bodega' },
     { key: 'transferencias', label: 'Transferencias' },
@@ -32,8 +34,11 @@ const InventarioPage: React.FC = () => {
     const { obras, selectedObra } = useObra();
     const { resumen, stockObra, stockBodega, loading, fetchResumen, fetchStockObra, fetchStockBodega } = useInventarioData();
     const { updateStock, updateDescuento } = useInventarioActions();
-    const [activeTab, setActiveTab] = useState<TabKey>('resumen');
+    const [activeTab, setActiveTab] = useState<TabKey>('resumen_ejecutivo');
     const [selectedUbicacionKey, setSelectedUbicacionKey] = useState<string>('');
+    // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
+    // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
+    const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>({ nonce: 0 });
 
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
@@ -135,6 +140,20 @@ const InventarioPage: React.FC = () => {
                 transition={{ duration: 0.2 }}
                 className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6 flex-1 min-h-0 flex flex-col"
             >
+                {/* ── RESUMEN EJECUTIVO ── */}
+                {activeTab === 'resumen_ejecutivo' && (
+                    <ResumenEjecutivoPanel
+                        onNavigateTransferencias={({ estado, transferenciaId }) => {
+                            setTrfNavIntent({ estado, id: transferenciaId ?? null, nonce: Date.now() });
+                            setActiveTab('transferencias');
+                        }}
+                        onNavigateObra={(obraId) => {
+                            setSelectedUbicacionKey(`obra_${obraId}`);
+                            setActiveTab('por_ubicacion');
+                        }}
+                    />
+                )}
+
                 {/* ── RESUMEN ── */}
                 {activeTab === 'resumen' && (
                     loading ? (
@@ -231,8 +250,12 @@ const InventarioPage: React.FC = () => {
                 {/* ── TRANSFERENCIAS ── */}
                 {activeTab === 'transferencias' && (
                     <TransferenciasPanel
+                        // key dependiente del nonce: remonta sólo cuando el dashboard navega con intent nuevo
+                        key={`trf-${trfNavIntent.nonce}`}
                         obras={allObras as any}
                         hasPermission={hasPermission}
+                        initialStatusFilter={trfNavIntent.estado}
+                        initialSelectedId={trfNavIntent.id ?? null}
                     />
                 )}
 

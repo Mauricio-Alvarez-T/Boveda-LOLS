@@ -13,6 +13,16 @@ import DiscrepanciaDetail from './DiscrepanciaDetail';
 interface Props {
     obras: { id: number; nombre: string }[];
     hasPermission: (p: string) => boolean;
+    /**
+     * Filtro inicial (solo se aplica al montar). Usado cuando se navega desde el
+     * Resumen Ejecutivo. Si cambia el valor, el parent debe forzar remount con `key`.
+     */
+    initialStatusFilter?: string;
+    /**
+     * Transferencia que debe abrirse automáticamente al montar. Mismo caveat que
+     * initialStatusFilter: solo se aplica al montar.
+     */
+    initialSelectedId?: number | null;
 }
 
 // Mirror of STATUS_CHIPS inside TransferenciasList — kept here so the panel
@@ -25,12 +35,12 @@ const MAIN_STATUS_CHIPS: { value: string; label: string }[] = [
     { value: 'discrepancias', label: 'Discrepancias' },
 ];
 
-const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
+const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
     const { user } = useAuth();
     const trfHook = useTransferencias();
 
-    const [selectedId, setSelectedId] = useState<number | null>(null);
-    const [statusFilter, setStatusFilter] = useState('todas');
+    const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
+    const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'todas');
     const [searchQuery, setSearchQuery] = useState('');
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
@@ -48,6 +58,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
         })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Auto-open a transferencia if navigated with initialSelectedId (from dashboard)
+    useEffect(() => {
+        if (initialSelectedId && !isDiscrepanciasMode) {
+            trfHook.fetchById(initialSelectedId);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 

@@ -7,6 +7,14 @@ const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
 
+// GET /api/inventario/dashboard-ejecutivo — Resumen ejecutivo para el dueño (1 request, KPIs + top obras + alertas)
+router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await inventarioService.getDashboardEjecutivo();
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/inventario/resumen
 router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {

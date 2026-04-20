@@ -284,6 +284,178 @@ const inventarioService = {
     },
 
     /**
+     * Resumen ejecutivo para el dueño.
+     * Una sola request agrega KPIs y listas cortas para el tablero:
+     *  - transferencias pendientes, en tránsito
+     *  - discrepancias pendientes (count + unidades perdidas)
+     *  - valor total de inventario en obras (arriendo mensual)
+     *  - top 5 obras por valor de arriendo
+     *  - top 5 alertas ordenadas por urgencia (más antiguas primero)
+     *
+     * Todas las queries corren en paralelo para minimizar latencia.
+     */
+    async getDashboardEjecutivo() {
+        const [
+            [pendientesRows],
+            [transitoRows],
+            [discrepanciasRows],
+            [valorObrasRows],
+            [alertasPendientesRows],
+            [alertasDiscrepRows],
+            [alertasTransitoRows],
+        ] = await Promise.all([
+            // 1. Count transferencias pendientes
+            db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
+            // 2. Count transferencias en tránsito
+            db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito'"),
+            // 3. Discrepancias pendientes: count transferencias afectadas + unidades totales
+            db.query(`
+                SELECT COUNT(DISTINCT d.transferencia_id) as transferencias_afectadas,
+                       COALESCE(SUM(ABS(d.diferencia)), 0) as unidades_totales
+                FROM transferencia_discrepancias d
+                JOIN transferencias t ON t.id = d.transferencia_id
+                WHERE t.activo = 1 AND d.estado = 'pendiente'
+            `),
+            // 4. Valor total de arriendo por obra (usando override si existe, caso contrario valor_arriendo)
+            //    Aplica descuento por obra si existe.
+            db.query(`
+                SELECT o.id, o.nombre,
+                       COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as subtotal_bruto,
+                       COALESCE(d.porcentaje, 0) as descuento_porcentaje
+                FROM obras o
+                LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
+                LEFT JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
+                LEFT JOIN descuentos_obra d ON d.obra_id = o.id
+                WHERE o.activa = 1 AND o.participa_inventario = 1
+                GROUP BY o.id, o.nombre, d.porcentaje
+                ORDER BY subtotal_bruto DESC
+            `),
+            // 5a. Alertas: transferencias pendientes más antiguas (top 5)
+            db.query(`
+                SELECT t.id, t.codigo, t.fecha_solicitud,
+                       oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                       do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                       us.nombre as solicitante_nombre,
+                       (SELECT COUNT(*) FROM transferencia_items ti WHERE ti.transferencia_id = t.id) as items_count,
+                       DATEDIFF(NOW(), t.fecha_solicitud) as dias
+                FROM transferencias t
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                LEFT JOIN usuarios us ON t.solicitante_id = us.id
+                WHERE t.activo = 1 AND t.estado = 'pendiente'
+                ORDER BY t.fecha_solicitud ASC
+                LIMIT 5
+            `),
+            // 5b. Alertas: discrepancias pendientes (top 5 transferencias)
+            db.query(`
+                SELECT t.id, t.codigo, t.fecha_recepcion,
+                       oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                       do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                       COUNT(d.id) as items_con_discrepancia,
+                       COALESCE(SUM(ABS(d.diferencia)), 0) as unidades,
+                       DATEDIFF(NOW(), t.fecha_recepcion) as dias
+                FROM transferencias t
+                INNER JOIN transferencia_discrepancias d ON d.transferencia_id = t.id AND d.estado = 'pendiente'
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                WHERE t.activo = 1
+                GROUP BY t.id, t.codigo, t.fecha_recepcion, oo.nombre, ob.nombre, do2.nombre, db2.nombre
+                ORDER BY t.fecha_recepcion ASC
+                LIMIT 5
+            `),
+            // 5c. Alertas: transferencias en tránsito estancadas (>2 días, top 5 más antiguas)
+            db.query(`
+                SELECT t.id, t.codigo, t.fecha_despacho,
+                       oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                       do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                       DATEDIFF(NOW(), t.fecha_despacho) as dias
+                FROM transferencias t
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                WHERE t.activo = 1 AND t.estado = 'en_transito'
+                  AND DATEDIFF(NOW(), t.fecha_despacho) >= 2
+                ORDER BY t.fecha_despacho ASC
+                LIMIT 5
+            `),
+        ]);
+
+        // Normalizar valor por obra aplicando descuento
+        const obrasConValor = valorObrasRows.map(r => {
+            const bruto = Number(r.subtotal_bruto) || 0;
+            const desc = Number(r.descuento_porcentaje) || 0;
+            const neto = bruto * (1 - desc / 100);
+            return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc };
+        });
+        const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);
+        const top_obras = obrasConValor.filter(o => o.valor_mensual > 0).slice(0, 5);
+
+        // Componer alertas, unificadas por tipo
+        const formatUbic = (obra, bodega) => obra || bodega || '—';
+        const alertas = [];
+
+        alertasPendientesRows.forEach(r => {
+            alertas.push({
+                tipo: 'pendiente',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} espera tu aprobación`,
+                detalle: `${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)} · ${r.items_count} ítems`,
+                solicitante: r.solicitante_nombre || null,
+            });
+        });
+
+        alertasDiscrepRows.forEach(r => {
+            alertas.push({
+                tipo: 'discrepancia',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} tiene discrepancia`,
+                detalle: `${Number(r.unidades)} u. afectadas en ${r.items_con_discrepancia} ítem(s) · ${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)}`,
+            });
+        });
+
+        alertasTransitoRows.forEach(r => {
+            alertas.push({
+                tipo: 'transito',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} lleva ${Number(r.dias)} día(s) en tránsito`,
+                detalle: `${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)}`,
+            });
+        });
+
+        // Orden final: prioridad discrepancia > pendiente > tránsito, dentro por días desc. Máx 8.
+        const prio = { discrepancia: 0, pendiente: 1, transito: 2 };
+        alertas.sort((a, b) => {
+            if (prio[a.tipo] !== prio[b.tipo]) return prio[a.tipo] - prio[b.tipo];
+            return (b.dias || 0) - (a.dias || 0);
+        });
+
+        return {
+            kpis: {
+                transferencias_pendientes: Number(pendientesRows[0]?.count) || 0,
+                transferencias_en_transito: Number(transitoRows[0]?.count) || 0,
+                discrepancias_pendientes: {
+                    transferencias_afectadas: Number(discrepanciasRows[0]?.transferencias_afectadas) || 0,
+                    unidades_totales: Number(discrepanciasRows[0]?.unidades_totales) || 0,
+                },
+                valor_total_obras: Number(valor_total_obras) || 0,
+            },
+            top_obras,
+            alertas: alertas.slice(0, 8),
+        };
+    },
+
+    /**
      * Stock por ítems: dada una lista de item_ids, retorna en qué ubicaciones hay stock > 0.
      * Usado por el aprobador de transferencias para ver dónde hay disponibilidad.
      */
