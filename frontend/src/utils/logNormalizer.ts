@@ -92,12 +92,22 @@ const repairTruncatedJson = (str: string): string => {
     }
 };
 
-export type LogDetail = 
+export interface BulkAsistenciaTrabajador {
+    nombre: string;
+    accion: 'CREATE' | 'UPDATE';
+    estado?: string | null;
+    cambios?: Record<string, { de: any; a: any }>;
+}
+
+export type LogDetail =
     | { type: 'compact'; cambios: Record<string, { de: any; a: any }>; resumen?: string; trabajador?: string; fecha?: string }
     | { type: 'summary'; resumen: string; datos?: Record<string, unknown> }
     | { type: 'diff'; antes: Record<string, any>; nuevo: Record<string, any> }
+    | { type: 'bulk_asistencia'; obra_id: number | null; obra_nombre: string; fecha_asistencia: string;
+        total: number; creados: number; actualizados: number;
+        trabajadores: BulkAsistenciaTrabajador[]; resumen?: string }
     | Record<string, unknown>
-    | string 
+    | string
     | null;
 
 /**
@@ -113,6 +123,7 @@ export const normalizeLogDetail = (detail: string | object | null): LogDetail =>
 
     if (typeof detail === 'object') {
         const parsed = detail as any;
+        if (parsed.type === 'bulk_asistencia') return parsed as LogDetail;
         if ('cambios' in parsed && parsed.cambios) return { type: 'compact', ...parsed } as LogDetail;
         if ('resumen' in parsed && !('cambios' in parsed) && Object.keys(parsed).length <= 3) {
             return { type: 'summary', resumen: parsed.resumen, datos: parsed.datos } as LogDetail;
@@ -146,6 +157,10 @@ export const normalizeLogDetail = (detail: string | object | null): LogDetail =>
     if (typeof parsed === 'string') return parsed;
 
     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        // BULK ASISTENCIA: { type: 'bulk_asistencia', ... }
+        if (parsed.type === 'bulk_asistencia') {
+            return parsed as LogDetail;
+        }
         // NUEVO FORMATO: { cambios: {...}, resumen: "..." }
         if ('cambios' in parsed && parsed.cambios) {
             return { type: 'compact', ...parsed } as LogDetail;

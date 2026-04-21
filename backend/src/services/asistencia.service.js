@@ -192,6 +192,8 @@ const asistenciaService = {
                         logEntries.push({
                             trabajador_id: reg.trabajador_id,
                             asistencia_id: old.id,
+                            obra_id: globalObraId,
+                            estado_id: reg.estado_id,
                             accion: 'UPDATE',
                             cambios,
                             fecha: fechaNormalizada
@@ -222,6 +224,8 @@ const asistenciaService = {
                     logEntries.push({
                         trabajador_id: reg.trabajador_id,
                         asistencia_id: result.insertId,
+                        obra_id: globalObraId,
+                        estado_id: reg.estado_id,
                         accion: 'CREATE',
                         cambios: null,
                         fecha: fechaNormalizada
@@ -275,17 +279,29 @@ const asistenciaService = {
     },
 
     /**
-     * Registra logs individuales para cambios de asistencia.
+     * Registra logs de cambios de asistencia.
+     *
+     * Regla de agrupación:
+     *   - Agrupa por obra_id.
+     *   - Si un grupo tiene ≥2 entries → 1 fila en logs_actividad con type=bulk_asistencia
+     *     (lista completa de trabajadores en el JSON detalle).
+     *   - Si un grupo tiene 1 entry → 1 fila formato compact (comportamiento previo).
+     *
      * Se ejecuta después del commit para no impactar la transacción principal.
      */
     async _logBulkChanges(entries, obraId, userId, req) {
-        // Obtener nombres de trabajadores y estados en batch (1 query cada uno)
+        if (!entries || entries.length === 0) return;
+
+        // ── Batch lookups ──
         const workerIds = [...new Set(entries.map(e => e.trabajador_id))];
         const [workers] = await db.query(
             'SELECT id, nombres, apellido_paterno FROM trabajadores WHERE id IN (?)',
             [workerIds]
         );
-        const workerMap = Object.fromEntries(workers.map(w => [w.id, `${w.nombres} ${w.apellido_paterno}`]));
+        const workerMap = new Map(workers.map(w => [w.id, {
+            nombre: `${w.nombres} ${w.apellido_paterno}`,
+            apellido: w.apellido_paterno || ''
+        }]));
 
         const [estados] = await db.query('SELECT id, nombre FROM estados_asistencia');
         const estadoMap = Object.fromEntries(estados.map(e => [e.id, e.nombre]));
@@ -295,6 +311,17 @@ const asistenciaService = {
             const [tiposAusencia] = await db.query('SELECT id, nombre FROM tipos_ausencia');
             tipoAusenciaMap = Object.fromEntries(tiposAusencia.map(t => [t.id, t.nombre]));
         } catch (e) { /* tabla puede no existir */ }
+
+        // Nombres de obras involucradas
+        const obraIds = [...new Set(entries.map(e => e.obra_id).filter(x => x != null))];
+        const obraMap = {};
+        if (obraIds.length > 0) {
+            const [obras] = await db.query(
+                'SELECT id, nombre FROM obras WHERE id IN (?)',
+                [obraIds]
+            );
+            for (const o of obras) obraMap[o.id] = o.nombre;
+        }
 
         const fieldLabels = {
             estado_id: 'Estado',
@@ -307,46 +334,123 @@ const asistenciaService = {
             horas_extra: 'Horas Extra'
         };
 
-        for (const entry of entries) {
-            const nombreTrabajador = workerMap[entry.trabajador_id] || `ID ${entry.trabajador_id}`;
+        const formatV = (v) => v === null || v === undefined ? '—' : (v === true ? 'Sí' : (v === false ? 'No' : String(v)));
 
-            let detalle;
+        // Traduce cambios.estado_id / tipo_ausencia_id → nombres legibles
+        const traducirCambios = (cambios) => {
+            const out = { ...cambios };
+            if (out.estado_id) {
+                out.estado_id = {
+                    de: estadoMap[out.estado_id.de] || out.estado_id.de,
+                    a: estadoMap[out.estado_id.a] || out.estado_id.a
+                };
+            }
+            if (out.tipo_ausencia_id) {
+                out.tipo_ausencia_id = {
+                    de: tipoAusenciaMap[out.tipo_ausencia_id.de] || out.tipo_ausencia_id.de,
+                    a: tipoAusenciaMap[out.tipo_ausencia_id.a] || out.tipo_ausencia_id.a
+                };
+            }
+            return out;
+        };
+
+        // Construir detalle compact para entries individuales (formato legacy)
+        const buildCompactDetail = (entry) => {
+            const nombreTrabajador = (workerMap.get(entry.trabajador_id) || {}).nombre || `ID ${entry.trabajador_id}`;
             if (entry.accion === 'CREATE') {
-                detalle = JSON.stringify({
+                return JSON.stringify({
                     resumen: `Asistencia registrada: ${nombreTrabajador} (${entry.fecha})`
                 });
-            } else {
-                // Traducir IDs a nombres legibles
-                const cambiosLegibles = { ...entry.cambios };
-                if (cambiosLegibles.estado_id) {
-                    cambiosLegibles.estado_id = {
-                        de: estadoMap[cambiosLegibles.estado_id.de] || cambiosLegibles.estado_id.de,
-                        a: estadoMap[cambiosLegibles.estado_id.a] || cambiosLegibles.estado_id.a
-                    };
-                }
-                if (cambiosLegibles.tipo_ausencia_id) {
-                    cambiosLegibles.tipo_ausencia_id = {
-                        de: tipoAusenciaMap[cambiosLegibles.tipo_ausencia_id.de] || cambiosLegibles.tipo_ausencia_id.de,
-                        a: tipoAusenciaMap[cambiosLegibles.tipo_ausencia_id.a] || cambiosLegibles.tipo_ausencia_id.a
-                    };
-                }
+            }
+            const cambiosLegibles = traducirCambios(entry.cambios || {});
+            const resumenParts = [];
+            for (const [key, val] of Object.entries(cambiosLegibles)) {
+                const label = fieldLabels[key] || key;
+                resumenParts.push(`${label}: ${formatV(val.de)} → ${formatV(val.a)}`);
+            }
+            return JSON.stringify({
+                trabajador: nombreTrabajador,
+                fecha: entry.fecha,
+                cambios: cambiosLegibles,
+                resumen: `${nombreTrabajador}: ${resumenParts.join(' | ')}`
+            });
+        };
 
-                const resumenParts = [];
-                for (const [key, val] of Object.entries(cambiosLegibles)) {
-                    const label = fieldLabels[key] || key;
-                    const formatV = (v) => v === null || v === undefined ? '—' : (v === true ? 'Sí' : (v === false ? 'No' : String(v)));
-                    resumenParts.push(`${label}: ${formatV(val.de)} → ${formatV(val.a)}`);
-                }
+        // ── Agrupar por obra_id ──
+        const porObra = new Map();
+        for (const entry of entries) {
+            const key = entry.obra_id ?? 'null';
+            if (!porObra.has(key)) porObra.set(key, []);
+            porObra.get(key).push(entry);
+        }
 
-                detalle = JSON.stringify({
-                    trabajador: nombreTrabajador,
-                    fecha: entry.fecha,
-                    cambios: cambiosLegibles,
-                    resumen: `${nombreTrabajador}: ${resumenParts.join(' | ')}`
-                });
+        for (const [obraKey, grupo] of porObra.entries()) {
+            if (grupo.length === 1) {
+                // 1 solo cambio → log individual compact (comportamiento previo)
+                const entry = grupo[0];
+                const detalle = buildCompactDetail(entry);
+                await logManualActivity(userId, 'asistencias', entry.accion, entry.asistencia_id, detalle, req);
+                continue;
             }
 
-            await logManualActivity(userId, 'asistencias', entry.accion, entry.asistencia_id, detalle, req);
+            // ≥2 cambios en la misma obra → log agrupado bulk_asistencia
+            const obraIdNum = obraKey === 'null' ? null : Number(obraKey);
+            const obraNombre = (obraIdNum != null && obraMap[obraIdNum]) ? obraMap[obraIdNum] : (obraIdNum != null ? `Obra ${obraIdNum}` : 'Sin obra');
+            const fechaAsistencia = grupo[0].fecha;
+
+            // Ordenar alfabético por apellido paterno
+            const ordenados = [...grupo].sort((a, b) => {
+                const apA = (workerMap.get(a.trabajador_id) || {}).apellido || '';
+                const apB = (workerMap.get(b.trabajador_id) || {}).apellido || '';
+                return apA.localeCompare(apB, 'es');
+            });
+
+            const creados = ordenados.filter(e => e.accion === 'CREATE').length;
+            const actualizados = ordenados.filter(e => e.accion === 'UPDATE').length;
+
+            const trabajadoresPayload = ordenados.map(e => {
+                const nombre = (workerMap.get(e.trabajador_id) || {}).nombre || `ID ${e.trabajador_id}`;
+                const estadoNombre = e.estado_id != null ? (estadoMap[e.estado_id] || null) : null;
+                const base = {
+                    nombre,
+                    accion: e.accion,
+                    estado: estadoNombre
+                };
+                if (e.accion === 'UPDATE' && e.cambios && Object.keys(e.cambios).length > 0) {
+                    const cambiosLeg = traducirCambios(e.cambios);
+                    // Renombrar keys a labels humanos (Estado, Tipo Ausencia, etc.)
+                    const cambiosHumanos = {};
+                    for (const [k, v] of Object.entries(cambiosLeg)) {
+                        cambiosHumanos[fieldLabels[k] || k] = v;
+                    }
+                    base.cambios = cambiosHumanos;
+                }
+                return base;
+            });
+
+            // Fecha formato DD/MM/YYYY para resumen
+            const fechaFmt = (() => {
+                const parts = String(fechaAsistencia).split('-');
+                return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fechaAsistencia;
+            })();
+
+            const payload = {
+                type: 'bulk_asistencia',
+                obra_id: obraIdNum,
+                obra_nombre: obraNombre,
+                fecha_asistencia: fechaAsistencia,
+                total: ordenados.length,
+                creados,
+                actualizados,
+                trabajadores: trabajadoresPayload,
+                resumen: `${obraNombre} — ${creados} registrados, ${actualizados} modificados (${fechaFmt})`
+            };
+
+            const itemId = obraIdNum != null ? `obra_${obraIdNum}` : 'obra_null';
+            // Acción siempre UPDATE para bulk (mezcla CREATE+UPDATE → UPDATE; solo CREATE → UPDATE también por consistencia visual)
+            const accionLog = creados > 0 && actualizados === 0 ? 'CREATE' : 'UPDATE';
+
+            await logManualActivity(userId, 'asistencias', accionLog, itemId, JSON.stringify(payload), req);
         }
     },
 
