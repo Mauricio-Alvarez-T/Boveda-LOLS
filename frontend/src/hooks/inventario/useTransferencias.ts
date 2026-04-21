@@ -23,12 +23,24 @@ interface CrearTransferenciaData {
 interface AprobarData {
     origen_obra_id?: number | null;
     origen_bodega_id?: number | null;
-    items: {
-        item_id: number;
-        cantidad_enviada: number;
-        origen_obra_id?: number | null;
-        origen_bodega_id?: number | null;
-    }[];
+    items: Array<
+        // Legacy shape
+        | {
+            item_id: number;
+            cantidad_enviada: number;
+            origen_obra_id?: number | null;
+            origen_bodega_id?: number | null;
+        }
+        // Multi-origen shape
+        | {
+            item_id: number;
+            splits: {
+                origen_obra_id: number | null;
+                origen_bodega_id: number | null;
+                cantidad: number;
+            }[];
+        }
+    >;
 }
 
 export function useTransferencias() {
@@ -87,6 +99,22 @@ export function useTransferencias() {
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al aprobar');
             return false;
+        }
+    }, []);
+
+    const crearFaltante = useCallback(async (transferenciaId: number) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string; items: number } | null>>(
+                `/transferencias/${transferenciaId}/crear-faltante`
+            );
+            const data = res.data.data;
+            if (data) {
+                toast.success(`Solicitud ${data.codigo} creada por el faltante`);
+            }
+            return data;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al crear solicitud por faltante');
+            return null;
         }
     }, []);
 
@@ -179,7 +207,7 @@ export function useTransferencias() {
     return {
         transferencias, selected, loading, total,
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
-        fetchAll, fetchById, crear, aprobar, despachar, recibir, rechazar, cancelar,
+        fetchAll, fetchById, crear, aprobar, crearFaltante, despachar, recibir, rechazar, cancelar,
         fetchDiscrepancias, resolverDiscrepancia,
         fetchStockPorItems, setSelected
     };

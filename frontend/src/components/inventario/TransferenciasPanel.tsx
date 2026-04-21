@@ -305,6 +305,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onBack={() => { setSelectedId(null); trfHook.setSelected(null); }}
                             onFetchStock={trfHook.fetchStockPorItems}
                             onAprobar={handleAprobar}
+                            onCrearFaltante={trfHook.crearFaltante}
                             onRecibir={handleRecibir}
                             onRechazar={handleRechazar}
                             onCancelar={handleCancelar}

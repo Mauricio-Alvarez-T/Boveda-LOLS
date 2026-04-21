@@ -235,6 +235,39 @@ export interface TransferenciaItem {
     origen_bodega_id?: number | null;
     origen_obra_nombre?: string | null;
     origen_bodega_nombre?: string | null;
+    splits?: TransferenciaItemSplit[];
+}
+
+/**
+ * Split de origen de un ítem aprobado multi-origen.
+ * Persistido en transferencia_item_origenes (migración 032).
+ */
+export interface TransferenciaItemSplit {
+    origen_obra_id: number | null;
+    origen_bodega_id: number | null;
+    cantidad_enviada: number;
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
+}
+
+/**
+ * Split de aprobación en UI — representa 1 ubicación de despacho elegida
+ * por el aprobador. Una aprobación puede tener N splits por ítem.
+ */
+export interface ApprovalSplit {
+    origen_obra_id: number | null;
+    origen_bodega_id: number | null;
+    cantidad: number;
+}
+
+/**
+ * Estado de aprobación por ítem: la cantidad solicitada (inmutable) y los
+ * splits que el aprobador fue componiendo.
+ */
+export interface ApprovalItemState {
+    item_id: number;
+    cantidad_solicitada: number;
+    splits: ApprovalSplit[];
 }
 
 export interface FacturaInventario {

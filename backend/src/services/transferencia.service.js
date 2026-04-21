@@ -91,93 +91,201 @@ const transferenciaService = {
     },
 
     /**
-     * Aprueba la transferencia:
-     * 1. Valida estado pendiente
-     * 2. Valida que cantidad_enviada sea no-negativa. Se permite enviar MÁS o MENOS
-     *    que lo solicitado — el aprobador decide según el stock real y necesidades.
-     * 3. Valida stock disponible en origen (único límite físico)
-     * 4. DECREMENTA stock del origen (reserva efectiva)
-     * 5. Actualiza estado y cantidades enviadas
+     * Helper: revierte stock al origen cuando una transferencia 'aprobada' se
+     * rechaza o cancela. Lee splits desde transferencia_item_origenes (fuente de
+     * verdad multi-origen). Si el ítem no tiene splits (transferencias aprobadas
+     * antes de la migración 032), usa el origen de transferencia_items como
+     * fallback — mismo comportamiento legacy.
+     */
+    async _reversarStockAprobada(conn, transferenciaId, trf) {
+        const [items] = await conn.query(
+            `SELECT id, item_id, cantidad_enviada, origen_obra_id, origen_bodega_id
+             FROM transferencia_items WHERE transferencia_id = ?`,
+            [transferenciaId]
+        );
+        for (const item of items) {
+            const [splits] = await conn.query(
+                `SELECT origen_obra_id, origen_bodega_id, cantidad_enviada
+                 FROM transferencia_item_origenes WHERE transferencia_item_id = ?`,
+                [item.id]
+            );
+
+            if (splits.length > 0) {
+                for (const s of splits) {
+                    if (s.cantidad_enviada > 0) {
+                        await conn.query(
+                            `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
+                             VALUES (?, ?, ?, ?)
+                             ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
+                            [item.item_id, s.origen_obra_id, s.origen_bodega_id, s.cantidad_enviada]
+                        );
+                    }
+                }
+            } else {
+                // Fallback legacy: usa origen de transferencia_items (transfers pre-032).
+                const cantidad = item.cantidad_enviada || 0;
+                if (cantidad > 0) {
+                    const obraId = item.origen_obra_id ?? trf.origen_obra_id;
+                    const bodegaId = item.origen_bodega_id ?? trf.origen_bodega_id;
+                    await conn.query(
+                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
+                         VALUES (?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
+                        [item.item_id, obraId, bodegaId, cantidad]
+                    );
+                }
+            }
+        }
+    },
+
+    /**
+     * Aprueba la transferencia.
+     *
+     * Acepta DOS shapes de payload (backward-compatible):
+     *
+     *   A) Legacy (1 origen por ítem):
+     *      { items: [{ item_id, cantidad_enviada, origen_obra_id, origen_bodega_id }] }
+     *
+     *   B) Multi-origen (N splits por ítem):
+     *      { items: [{ item_id, splits: [{ origen_obra_id, origen_bodega_id, cantidad }] }] }
+     *
+     * En ambos casos:
+     *   - Permite enviar MENOS que lo solicitado (aprobación parcial).
+     *   - Valida stock en cada origen indicado.
+     *   - Decrementa stock por cada split en su origen específico.
+     *   - Persiste filas en transferencia_item_origenes (1 por split).
+     *   - transferencia_items.cantidad_enviada queda como SUMA de splits (denormalizado).
+     *   - transferencia_items.origen_obra_id/bodega_id apuntan al split primario (primer
+     *     split con cantidad > 0) — mantiene compat con rechazar() y reportes legacy.
      */
     async aprobar(id, aprobadorId, data) {
         const { items } = data;
         if (!items || !items.length) throw new Error('Debe incluir ítems');
 
-        // Compatibilidad: si el cliente manda origen global, aplicarlo a todos los
-        // ítems que no traigan el suyo. Esto permite que clientes antiguos sigan
-        // funcionando sin cambios.
         const defaultObraId = data.origen_obra_id || null;
         const defaultBodegaId = data.origen_bodega_id || null;
+
+        // Normalizar payload a forma canónica: cada ítem con un array `splits`.
+        // Shape legacy (cantidad_enviada + origen_*) se convierte en un solo split.
+        const canonicales = items.map(item => {
+            if (Array.isArray(item.splits)) {
+                const splits = item.splits
+                    .map(s => ({
+                        obraId: s.origen_obra_id ?? null,
+                        bodegaId: s.origen_bodega_id ?? null,
+                        cantidad: parseInt(s.cantidad, 10) || 0,
+                    }))
+                    .filter(s => s.cantidad > 0);
+                return { item_id: item.item_id, splits };
+            }
+            // Legacy shape
+            const enviada = parseInt(item.cantidad_enviada, 10) || 0;
+            if (enviada <= 0) return { item_id: item.item_id, splits: [] };
+            return {
+                item_id: item.item_id,
+                splits: [{
+                    obraId: item.origen_obra_id ?? defaultObraId ?? null,
+                    bodegaId: item.origen_bodega_id ?? defaultBodegaId ?? null,
+                    cantidad: enviada,
+                }],
+            };
+        });
 
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
-            // Validar estado
             const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ?', [id]);
             if (!trf.length || trf[0].estado !== 'pendiente') throw new Error('Transferencia no está pendiente');
 
-            // Fetch items desde BD (fuente de verdad)
             const [dbItems] = await conn.query(
-                'SELECT item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
+                'SELECT id, item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
             );
-            const solicitadoMap = {};
-            dbItems.forEach(r => { solicitadoMap[r.item_id] = r.cantidad_solicitada; });
+            const itemInfo = {}; // item_id → { id, cantidad_solicitada }
+            dbItems.forEach(r => { itemInfo[r.item_id] = { id: r.id, cantidad_solicitada: r.cantidad_solicitada }; });
 
-            // Normalizar y validar cada ítem: debe pertenecer a la transferencia,
-            // tener cantidad no-negativa, especificar origen cuando envía > 0, y
-            // tener stock suficiente en el origen indicado.
-            const normalizados = items.map(item => {
-                if (!(item.item_id in solicitadoMap)) {
-                    throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
+            // Agregar totales por item_id (consolidar si llegan varias filas para un mismo ítem)
+            const totalByItem = {};
+            for (const c of canonicales) {
+                if (!(c.item_id in itemInfo)) {
+                    throw new Error(`Ítem ${c.item_id} no pertenece a esta transferencia`);
                 }
-                const enviada = parseInt(item.cantidad_enviada, 10) || 0;
-                if (enviada < 0) throw new Error(`Cantidad enviada inválida para ítem ${item.item_id}`);
-
-                const obraId = item.origen_obra_id ?? defaultObraId;
-                const bodegaId = item.origen_bodega_id ?? defaultBodegaId;
-                if (enviada > 0 && !obraId && !bodegaId) {
-                    throw new Error(`Ítem ${item.item_id}: debe especificar origen (obra o bodega)`);
+                for (const s of c.splits) {
+                    if (s.cantidad < 0) throw new Error(`Cantidad inválida para ítem ${c.item_id}`);
+                    if (!s.obraId && !s.bodegaId) {
+                        throw new Error(`Ítem ${c.item_id}: cada split debe especificar origen (obra o bodega)`);
+                    }
                 }
-                return { item_id: item.item_id, enviada, obraId: obraId || null, bodegaId: bodegaId || null };
-            });
+                const total = c.splits.reduce((a, s) => a + s.cantidad, 0);
+                totalByItem[c.item_id] = (totalByItem[c.item_id] || 0) + total;
+            }
 
-            for (const n of normalizados) {
-                if (n.enviada === 0) continue;
-                const [stock] = await conn.query(
-                    'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
-                    [n.item_id, n.obraId, n.bodegaId]
-                );
-                const disponible = stock.length ? stock[0].cantidad : 0;
-                if (n.enviada > disponible) {
-                    throw new Error(`Stock insuficiente para ítem ${n.item_id} en el origen indicado. Disponible: ${disponible}, requerido: ${n.enviada}`);
+            // Validar suma de splits ≤ cantidad_solicitada por ítem
+            for (const [itemId, total] of Object.entries(totalByItem)) {
+                const solicitada = itemInfo[itemId].cantidad_solicitada;
+                if (total > solicitada) {
+                    throw new Error(`Ítem ${itemId}: suma de splits (${total}) excede lo solicitado (${solicitada})`);
                 }
             }
 
-            // Origen "principal" (cabecera): el del primer ítem con envío > 0.
-            // Mantiene la compatibilidad con listados/UI que leen t.origen_*.
-            const primario = normalizados.find(n => n.enviada > 0) || normalizados[0];
+            // Validar stock por origen (atómico: si uno falla, rollback)
+            for (const c of canonicales) {
+                for (const s of c.splits) {
+                    const [stock] = await conn.query(
+                        'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
+                        [c.item_id, s.obraId, s.bodegaId]
+                    );
+                    const disponible = stock.length ? stock[0].cantidad : 0;
+                    if (s.cantidad > disponible) {
+                        throw new Error(`Stock insuficiente para ítem ${c.item_id} en el origen indicado. Disponible: ${disponible}, requerido: ${s.cantidad}`);
+                    }
+                }
+            }
+
+            // Origen "principal" (cabecera): primer split con cantidad > 0 del primer ítem.
+            let primario = null;
+            for (const c of canonicales) {
+                const firstSplit = c.splits.find(s => s.cantidad > 0);
+                if (firstSplit) { primario = firstSplit; break; }
+            }
 
             await conn.query(
                 `UPDATE transferencias SET estado = 'aprobada', aprobador_id = ?, origen_obra_id = ?, origen_bodega_id = ?, fecha_aprobacion = NOW() WHERE id = ?`,
-                [aprobadorId, primario.obraId, primario.bodegaId, id]
+                [aprobadorId, primario?.obraId || null, primario?.bodegaId || null, id]
             );
 
-            // Actualizar cantidades enviadas + origen per-ítem + DECREMENTAR stock
-            for (const n of normalizados) {
+            // Actualizar cada transferencia_item + persistir splits + decrementar stock
+            for (const c of canonicales) {
+                const info = itemInfo[c.item_id];
+                const total = c.splits.reduce((a, s) => a + s.cantidad, 0);
+                const primarioItem = c.splits.find(s => s.cantidad > 0);
+
                 await conn.query(
                     `UPDATE transferencia_items
                      SET cantidad_enviada = ?, origen_obra_id = ?, origen_bodega_id = ?
-                     WHERE transferencia_id = ? AND item_id = ?`,
-                    [n.enviada, n.obraId, n.bodegaId, id, n.item_id]
+                     WHERE id = ?`,
+                    [total, primarioItem?.obraId || null, primarioItem?.bodegaId || null, info.id]
                 );
 
-                if (n.enviada > 0) {
+                // Limpiar splits previos (idempotencia: re-aprobación no duplica filas)
+                await conn.query(
+                    'DELETE FROM transferencia_item_origenes WHERE transferencia_item_id = ?',
+                    [info.id]
+                );
+
+                for (const s of c.splits) {
+                    await conn.query(
+                        `INSERT INTO transferencia_item_origenes
+                         (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
+                         VALUES (?, ?, ?, ?)`,
+                        [info.id, s.obraId, s.bodegaId, s.cantidad]
+                    );
+
                     await conn.query(
                         `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                          WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                        [n.enviada, n.item_id, n.obraId, n.bodegaId]
+                        [s.cantidad, c.item_id, s.obraId, s.bodegaId]
                     );
                 }
             }
@@ -186,6 +294,78 @@ const transferenciaService = {
             return { id, estado: 'aprobada' };
         } catch (err) {
             await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+    },
+
+    /**
+     * Auto-crea una nueva solicitud por el "faltante" tras una aprobación parcial.
+     * - Lee la transferencia original (destino, solicitante, items originales).
+     * - Calcula el faltante por ítem: cantidad_solicitada - cantidad_enviada (de items).
+     * - Crea una nueva transferencia en estado 'pendiente' apuntando con es_faltante_de_id.
+     * - Retorna el id/código de la nueva solicitud.
+     * - Se usa normalmente DESPUÉS de aprobar() con cantidades parciales.
+     */
+    async crearFaltante(transferenciaOriginalId, solicitanteId) {
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+
+            const [[origRow]] = await conn.query(
+                'SELECT destino_obra_id, destino_bodega_id FROM transferencias WHERE id = ?',
+                [transferenciaOriginalId]
+            );
+            if (!origRow) throw new Error('Transferencia original no encontrada');
+
+            const [origItems] = await conn.query(
+                `SELECT item_id, cantidad_solicitada, COALESCE(cantidad_enviada, 0) AS cantidad_enviada
+                 FROM transferencia_items WHERE transferencia_id = ?`,
+                [transferenciaOriginalId]
+            );
+
+            const faltantes = origItems
+                .map(i => ({
+                    item_id: i.item_id,
+                    cantidad: Math.max(0, i.cantidad_solicitada - i.cantidad_enviada),
+                }))
+                .filter(i => i.cantidad > 0);
+
+            if (!faltantes.length) {
+                await conn.rollback();
+                return null; // No hay faltante, no se crea nada
+            }
+
+            const codigo = await this._generarCodigo();
+
+            const [result] = await conn.query(
+                `INSERT INTO transferencias
+                 (codigo, destino_obra_id, destino_bodega_id, solicitante_id, observaciones, es_faltante_de_id)
+                 VALUES (?, ?, ?, ?, ?, ?)`,
+                [
+                    codigo,
+                    origRow.destino_obra_id,
+                    origRow.destino_bodega_id,
+                    solicitanteId,
+                    `Faltante de transferencia #${transferenciaOriginalId} (auto-generada)`,
+                    transferenciaOriginalId,
+                ]
+            );
+            const newId = result.insertId;
+
+            for (const f of faltantes) {
+                await conn.query(
+                    `INSERT INTO transferencia_items (transferencia_id, item_id, cantidad_solicitada)
+                     VALUES (?, ?, ?)`,
+                    [newId, f.item_id, f.cantidad]
+                );
+            }
+
+            await conn.commit();
+            return { id: newId, codigo, items: faltantes.length };
+        } catch (err) {
+            try { await conn.rollback(); } catch { /* ignore */ }
             throw err;
         } finally {
             conn.release();
@@ -324,28 +504,9 @@ const transferenciaService = {
                 throw new Error('Solo se pueden rechazar transferencias pendientes o aprobadas');
             }
 
-            // Si ya estaba aprobada, revertir stock al origen DE CADA ÍTEM.
-            // Fallback al origen de cabecera si el ítem no tiene origen propio
-            // (transferencias aprobadas antes de la migración 029 con backfill parcial).
+            // Si ya estaba aprobada, revertir stock al origen DE CADA SPLIT.
             if (trf.estado === 'aprobada') {
-                const [items] = await conn.query(
-                    `SELECT item_id, cantidad_enviada, origen_obra_id, origen_bodega_id
-                     FROM transferencia_items WHERE transferencia_id = ?`,
-                    [id]
-                );
-                for (const item of items) {
-                    const cantidad = item.cantidad_enviada || 0;
-                    if (cantidad > 0) {
-                        const obraId = item.origen_obra_id ?? trf.origen_obra_id;
-                        const bodegaId = item.origen_bodega_id ?? trf.origen_bodega_id;
-                        await conn.query(
-                            `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                             VALUES (?, ?, ?, ?)
-                             ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                            [item.item_id, obraId, bodegaId, cantidad]
-                        );
-                    }
-                }
+                await this._reversarStockAprobada(conn, id, trf);
             }
 
             await conn.query(
@@ -382,26 +543,9 @@ const transferenciaService = {
                 throw new Error('Solo se pueden cancelar transferencias pendientes o aprobadas');
             }
 
-            // Si ya estaba aprobada, revertir stock al origen DE CADA ÍTEM.
+            // Si ya estaba aprobada, revertir stock al origen DE CADA SPLIT.
             if (trf.estado === 'aprobada') {
-                const [items] = await conn.query(
-                    `SELECT item_id, cantidad_enviada, origen_obra_id, origen_bodega_id
-                     FROM transferencia_items WHERE transferencia_id = ?`,
-                    [id]
-                );
-                for (const item of items) {
-                    const cantidad = item.cantidad_enviada || 0;
-                    if (cantidad > 0) {
-                        const obraId = item.origen_obra_id ?? trf.origen_obra_id;
-                        const bodegaId = item.origen_bodega_id ?? trf.origen_bodega_id;
-                        await conn.query(
-                            `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                             VALUES (?, ?, ?, ?)
-                             ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                            [item.item_id, obraId, bodegaId, cantidad]
-                        );
-                    }
-                }
+                await this._reversarStockAprobada(conn, id, trf);
             }
 
             await conn.query("UPDATE transferencias SET estado = 'cancelada' WHERE id = ?", [id]);
@@ -475,6 +619,30 @@ const transferenciaService = {
             LEFT JOIN bodegas bi ON ti.origen_bodega_id = bi.id
             WHERE ti.transferencia_id = ?
         `, [id]);
+
+        // Adjuntar splits (múltiples orígenes por ítem) si existen.
+        // Un ítem aprobado normalmente tiene 1 split; si fue aprobado con
+        // multi-origen tendrá N. Ítems pendientes (no aprobados aún) no tienen
+        // splits — el frontend debe manejar array vacío.
+        if (items.length > 0) {
+            const itemIds = items.map(i => i.id);
+            const [splits] = await db.query(`
+                SELECT tio.transferencia_item_id, tio.origen_obra_id, tio.origen_bodega_id,
+                       tio.cantidad_enviada,
+                       oi.nombre as origen_obra_nombre, bi.nombre as origen_bodega_nombre
+                FROM transferencia_item_origenes tio
+                LEFT JOIN obras oi ON tio.origen_obra_id = oi.id
+                LEFT JOIN bodegas bi ON tio.origen_bodega_id = bi.id
+                WHERE tio.transferencia_item_id IN (${itemIds.map(() => '?').join(',')})
+            `, itemIds);
+
+            const splitsByItem = {};
+            splits.forEach(s => {
+                if (!splitsByItem[s.transferencia_item_id]) splitsByItem[s.transferencia_item_id] = [];
+                splitsByItem[s.transferencia_item_id].push(s);
+            });
+            items.forEach(i => { i.splits = splitsByItem[i.id] || []; });
+        }
 
         return { ...rows[0], items };
     },

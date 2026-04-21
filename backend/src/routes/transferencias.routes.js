@@ -95,6 +95,16 @@ router.put('/:id/rechazar', auth, checkPermission('inventario.aprobar'), async (
     } catch (err) { next(err); }
 });
 
+// POST /api/transferencias/:id/crear-faltante
+// Crea una nueva solicitud de transferencia por las cantidades faltantes (solicitadas - enviadas)
+// de una transferencia aprobada parcialmente.
+router.post('/:id/crear-faltante', auth, checkPermission('inventario.crear'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.crearFaltante(req.params.id, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // PUT /api/transferencias/:id/cancelar
 router.put('/:id/cancelar', auth, checkPermission('inventario.editar'), async (req, res, next) => {
     try {

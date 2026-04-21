@@ -3,12 +3,13 @@ import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon, Zap
+    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Trash2
 } from 'lucide-react';
 import { estadoConfig } from './TransferenciasList';
-import type { Transferencia, TransferenciaItem } from '../../types/entities';
+import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
+import FaltanteDecisionModal from './FaltanteDecisionModal';
 
 interface StockLocation {
     type: string;
@@ -25,7 +26,15 @@ interface Props {
     userId: number;
     onBack: () => void;
     onFetchStock: (itemIds: number[]) => Promise<Record<number, StockLocation[]>>;
-    onAprobar: (data: { origen_obra_id?: number | null; origen_bodega_id?: number | null; items: { item_id: number; cantidad_enviada: number; origen_obra_id?: number | null; origen_bodega_id?: number | null }[] }) => Promise<boolean>;
+    onAprobar: (data: {
+        origen_obra_id?: number | null;
+        origen_bodega_id?: number | null;
+        items: Array<
+            | { item_id: number; cantidad_enviada: number; origen_obra_id?: number | null; origen_bodega_id?: number | null }
+            | { item_id: number; splits: { origen_obra_id: number | null; origen_bodega_id: number | null; cantidad: number }[] }
+        >;
+    }) => Promise<boolean>;
+    onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
     onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => Promise<boolean>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
@@ -51,7 +60,7 @@ const fmtDateTime = (d: string | null) =>
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onFetchStock, onAprobar, onRecibir, onRechazar, onCancelar,
+    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onRechazar, onCancelar,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
@@ -71,15 +80,15 @@ const TransferenciaDetail: React.FC<Props> = ({
     // ── Inline form states ──
     const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'recibir' | null>(null);
 
-    // Approval state — origen POR ÍTEM (cada item_id puede salir de una ubicación distinta)
+    // Approval state — cada ítem puede tener N splits (multi-origen).
     const [stockData, setStockData] = useState<Record<number, StockLocation[]>>({});
     const [stockLoading, setStockLoading] = useState(false);
-    const [approvalItems, setApprovalItems] = useState<{
-        item_id: number;
-        cantidad_enviada: number;
-        origen_obra_id: number | null;
-        origen_bodega_id: number | null;
-    }[]>([]);
+    const [approvalItems, setApprovalItems] = useState<ApprovalItemState[]>([]);
+    const [faltanteModal, setFaltanteModal] = useState<{
+        isOpen: boolean;
+        loading: boolean;
+        faltantes: { item_descripcion: string; cantidad_faltante: number; unidad?: string }[];
+    }>({ isOpen: false, loading: false, faltantes: [] });
 
     // Receive state
     const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string }[]>([]);
@@ -93,9 +102,8 @@ const TransferenciaDetail: React.FC<Props> = ({
         setStockData({});
         setApprovalItems(items.map(i => ({
             item_id: i.item_id,
-            cantidad_enviada: i.cantidad_solicitada,
-            origen_obra_id: null,
-            origen_bodega_id: null,
+            cantidad_solicitada: i.cantidad_solicitada,
+            splits: [],
         })));
         setReceiveItems(items.map(i => ({
             item_id: i.item_id,
@@ -285,88 +293,180 @@ const TransferenciaDetail: React.FC<Props> = ({
             )}
 
             {/* ════════════════════════════════════════════════
-                ── APPROVAL FORM — origen POR ÍTEM ──
+                ── APPROVAL FORM — splits multi-origen + quick-fix ──
                ════════════════════════════════════════════════ */}
             {activeForm === 'aprobar' && (() => {
-                // Helpers locales al render del form
-                const setOrigenItem = (idx: number, loc: StockLocation | null) => {
+                // Helpers locales ---------------------------------------------------
+                const totalOfItem = (ai: ApprovalItemState) =>
+                    ai.splits.reduce((s, sp) => s + (sp.cantidad || 0), 0);
+
+                // Suma de stock ya asignado a OTROS splits (excluye splitIdx) del mismo ítem.
+                // Útil para calcular cuánto queda disponible en una ubicación cuando ya
+                // hay 1 split sacando de ahí.
+                const otherSplitsFrom = (ai: ApprovalItemState, splitIdx: number, loc: StockLocation) =>
+                    ai.splits.reduce((s, sp, i) => {
+                        if (i === splitIdx) return s;
+                        const sameLoc =
+                            (loc.type === 'obra' && sp.origen_obra_id === loc.id) ||
+                            (loc.type === 'bodega' && sp.origen_bodega_id === loc.id);
+                        return sameLoc ? s + sp.cantidad : s;
+                    }, 0);
+
+                const updateSplits = (idx: number, splits: ApprovalSplit[]) => {
                     const updated = [...approvalItems];
-                    updated[idx] = {
-                        ...updated[idx],
-                        origen_obra_id: loc?.type === 'obra' ? loc.id : null,
-                        origen_bodega_id: loc?.type === 'bodega' ? loc.id : null,
-                    };
+                    updated[idx] = { ...updated[idx], splits };
                     setApprovalItems(updated);
                 };
 
-                // Auto-seleccionar: por cada ítem, elegir la ubicación con MAYOR
-                // cantidad que además cubra la cantidad solicitada. Si ninguna
-                // ubicación cubre el total, elige la de mayor cantidad disponible
-                // (el aprobador puede ajustar cantidad_enviada después).
-                const autoSeleccionar = () => {
-                    const updated = approvalItems.map((ai, idx) => {
-                        const it = items[idx];
-                        const locs = stockData[ai.item_id] || [];
-                        if (!locs.length) return ai;
-                        const solicitada = it.cantidad_solicitada;
-                        const suficientes = locs.filter(l => l.cantidad >= solicitada);
-                        const pool = suficientes.length ? suficientes : locs;
-                        const best = pool.reduce((a, b) => (b.cantidad > a.cantidad ? b : a));
-                        return {
-                            ...ai,
-                            origen_obra_id: best.type === 'obra' ? best.id : null,
-                            origen_bodega_id: best.type === 'bodega' ? best.id : null,
-                        };
+                const setPrimaryOrigin = (idx: number, loc: StockLocation) => {
+                    // Un solo split con cantidad = min(solicitada, disponible) en esa ubicación.
+                    const ai = approvalItems[idx];
+                    const cantidad = Math.min(ai.cantidad_solicitada, loc.cantidad);
+                    updateSplits(idx, [{
+                        origen_obra_id: loc.type === 'obra' ? loc.id : null,
+                        origen_bodega_id: loc.type === 'bodega' ? loc.id : null,
+                        cantidad,
+                    }]);
+                };
+
+                const clearItem = (idx: number) => updateSplits(idx, []);
+
+                // Auto-completar todos: cubre cantidad_solicitada sumando ubicaciones
+                // (mayor stock primero). Si ni sumando alcanza, usa todo el disponible
+                // y deja el faltante visible.
+                const autoCompletar = () => {
+                    const updated = approvalItems.map(ai => {
+                        const locs = [...(stockData[ai.item_id] || [])].sort((a, b) => b.cantidad - a.cantidad);
+                        let restante = ai.cantidad_solicitada;
+                        const splits: ApprovalSplit[] = [];
+                        for (const loc of locs) {
+                            if (restante <= 0) break;
+                            const toma = Math.min(loc.cantidad, restante);
+                            if (toma > 0) {
+                                splits.push({
+                                    origen_obra_id: loc.type === 'obra' ? loc.id : null,
+                                    origen_bodega_id: loc.type === 'bodega' ? loc.id : null,
+                                    cantidad: toma,
+                                });
+                                restante -= toma;
+                            }
+                        }
+                        return { ...ai, splits };
                     });
                     setApprovalItems(updated);
                 };
 
-                // Validación: cada ítem con enviada>0 necesita un origen y stock suficiente.
-                const filasConError = approvalItems.map((ai, idx) => {
-                    if (ai.cantidad_enviada <= 0) return null;
-                    if (!ai.origen_obra_id && !ai.origen_bodega_id) return 'sin_origen';
+                // "Aprobar con lo disponible": ajusta todos los ítems con problema al
+                // máximo sumable entre ubicaciones (sin pasar lo solicitado).
+                const aprobarConLoDisponible = () => autoCompletar();
+
+                // Validación por ítem ---------------------------------------------
+                const itemStatus = approvalItems.map(ai => {
+                    const total = totalOfItem(ai);
                     const locs = stockData[ai.item_id] || [];
-                    const sel = locs.find(l =>
-                        (l.type === 'obra' && l.id === ai.origen_obra_id) ||
-                        (l.type === 'bodega' && l.id === ai.origen_bodega_id)
-                    );
-                    if (!sel || sel.cantidad < ai.cantidad_enviada) return 'stock_insuf';
-                    return null;
+                    const stockTotal = locs.reduce((s, l) => s + l.cantidad, 0);
+
+                    // Validar cada split: ubicación existente con suficiente stock.
+                    let errorPorSplit = false;
+                    for (let i = 0; i < ai.splits.length; i++) {
+                        const sp = ai.splits[i];
+                        if (!sp.cantidad) continue;
+                        if (!sp.origen_obra_id && !sp.origen_bodega_id) { errorPorSplit = true; break; }
+                        const loc = locs.find(l =>
+                            (l.type === 'obra' && l.id === sp.origen_obra_id) ||
+                            (l.type === 'bodega' && l.id === sp.origen_bodega_id)
+                        );
+                        if (!loc) { errorPorSplit = true; break; }
+                        const yaTomado = otherSplitsFrom(ai, i, loc);
+                        if (sp.cantidad + yaTomado > loc.cantidad) { errorPorSplit = true; break; }
+                    }
+
+                    const excedeSolicitada = total > ai.cantidad_solicitada;
+                    const sinStock = stockTotal === 0;
+                    const completo = total === ai.cantidad_solicitada;
+                    const parcial = total > 0 && total < ai.cantidad_solicitada;
+                    const vacio = total === 0;
+
+                    return {
+                        total, stockTotal, sinStock,
+                        error: errorPorSplit || excedeSolicitada,
+                        completo, parcial, vacio,
+                        // ¿Se puede "cubrir con lo disponible"?
+                        puedeCubrirTodo: stockTotal >= ai.cantidad_solicitada,
+                        maxDisponible: Math.min(stockTotal, ai.cantidad_solicitada),
+                    };
                 });
-                const hayError = filasConError.some(e => e !== null);
-                const todasConOrigen = approvalItems.every(ai =>
-                    ai.cantidad_enviada === 0 || ai.origen_obra_id || ai.origen_bodega_id
-                );
+
+                const hayError = itemStatus.some(s => s.error);
+                const totalCompleto = itemStatus.filter(s => s.completo).length;
+                const totalParcial = itemStatus.filter(s => s.parcial).length;
+                const totalVacio = itemStatus.filter(s => s.vacio).length;
+                const hayFaltante = itemStatus.some(s => s.total < approvalItems[itemStatus.indexOf(s)]?.cantidad_solicitada);
+                const hayAlgoParaEnviar = itemStatus.some(s => s.total > 0);
+
+                // Puede haber casos sin splits y sin stock — permitir confirmar como "aprobar 0"
+                // no tiene sentido: exigimos al menos 1 unidad sumada. Pero sí permitimos confirmar
+                // parcial (faltante).
+                const puedeConfirmar = !hayError && hayAlgoParaEnviar;
+
+                // Construir lista de faltantes para pasar al modal
+                const faltantesParaModal = items
+                    .map((it, idx) => {
+                        const s = itemStatus[idx];
+                        const faltante = it.cantidad_solicitada - (s?.total || 0);
+                        return faltante > 0
+                            ? { item_descripcion: it.item_descripcion || `Ítem #${it.item_id}`, cantidad_faltante: faltante, unidad: it.unidad }
+                            : null;
+                    })
+                    .filter((x): x is { item_descripcion: string; cantidad_faltante: number; unidad?: string } => !!x);
+
+                const sendApproval = async () => {
+                    const payload = approvalItems.map(ai => ({
+                        item_id: ai.item_id,
+                        splits: ai.splits.filter(s => s.cantidad > 0),
+                    }));
+                    const primero = payload.find(p => p.splits.length)?.splits[0];
+                    const ok = await onAprobar({
+                        origen_obra_id: primero?.origen_obra_id || null,
+                        origen_bodega_id: primero?.origen_bodega_id || null,
+                        items: payload,
+                    });
+                    return ok;
+                };
+
+                const handleConfirm = async () => {
+                    if (hayFaltante && onCrearFaltante) {
+                        setFaltanteModal({ isOpen: true, loading: false, faltantes: faltantesParaModal });
+                        return;
+                    }
+                    const ok = await sendApproval();
+                    if (ok) setActiveForm(null);
+                };
 
                 return (
                 <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between flex-wrap gap-2">
                         <h4 className="text-sm font-bold text-green-800 flex items-center gap-1.5">
                             <CheckCircle2 className="h-4 w-4" /> Aprobar Transferencia
                         </h4>
                         <button
                             type="button"
-                            onClick={autoSeleccionar}
+                            onClick={autoCompletar}
                             disabled={stockLoading}
                             className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-all"
-                            title="Selecciona automáticamente la ubicación con mayor stock que cubra cada ítem"
+                            title="Completa las cantidades solicitadas distribuyendo entre las ubicaciones con más stock"
                         >
                             <Zap className="h-3 w-3" />
-                            Auto-seleccionar mejor ubicación
+                            Auto-completar
                         </button>
                     </div>
 
                     <p className="text-[10px] text-muted-foreground ml-1">
-                        Cada ítem puede salir de una ubicación diferente. Haz click en los chips
-                        para elegir el origen de cada uno, o usa "Auto-seleccionar".
+                        Elige de dónde sale cada ítem. Si no hay stock suficiente en una sola ubicación, puedes dividir entre varias.
                     </p>
 
                     {/* Stock per item */}
                     <div className="space-y-3">
-                        <label className="text-[10px] font-bold text-green-800 uppercase tracking-wider">
-                            <MapPin className="h-3 w-3 inline mr-1" />
-                            Disponibilidad por item
-                        </label>
                         {stockLoading ? (
                             <p className="text-xs text-muted-foreground text-center py-4">Cargando disponibilidad...</p>
                         ) : (
@@ -374,57 +474,73 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 const ai = approvalItems[idx];
                                 if (!ai) return null;
                                 const locations = stockData[item.item_id] || [];
+                                const status = itemStatus[idx];
                                 const hasStock = locations.length > 0;
-                                const selected = locations.find(l =>
-                                    (l.type === 'obra' && l.id === ai.origen_obra_id) ||
-                                    (l.type === 'bodega' && l.id === ai.origen_bodega_id)
+                                const totalSplits = status.total;
+                                const solicitada = ai.cantidad_solicitada;
+                                const sumAvailable = locations.reduce((s, l) => s + l.cantidad, 0);
+
+                                // ¿Mostrar chip "Enviar solo N (lo que hay)"?
+                                const mostrarSoloLoQueHay =
+                                    totalSplits === 0 && sumAvailable > 0 && sumAvailable < solicitada;
+                                // ¿Mostrar chip "Dividir entre N lugares"?
+                                const mostrarDividir =
+                                    totalSplits === 0 && locations.length > 1 && sumAvailable > 0 &&
+                                    !locations.some(l => l.cantidad >= solicitada);
+
+                                const borderColor = status.error
+                                    ? "bg-red-50/30 border-red-200"
+                                    : status.completo
+                                        ? "bg-white border-green-200"
+                                        : status.parcial
+                                            ? "bg-amber-50/30 border-amber-200"
+                                            : "bg-white border-green-100";
+
+                                const currentOriginIds = new Set(
+                                    ai.splits.map(s => `${s.origen_obra_id || 'n'}:${s.origen_bodega_id || 'n'}`)
                                 );
-                                const errorTipo = filasConError[idx];
 
                                 return (
-                                    <div key={item.id || idx} className={cn(
-                                        "rounded-lg border p-3 transition-colors",
-                                        errorTipo ? "bg-red-50/30 border-red-200" : "bg-white border-green-100"
-                                    )}>
-                                        {/* Item header */}
-                                        <div className="flex items-center justify-between mb-2">
-                                            <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">{item.item_descripcion}</button>
+                                    <div key={item.id || idx} className={cn("rounded-lg border p-3 transition-colors", borderColor)}>
+                                        {/* Header */}
+                                        <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                                            <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
+                                                {item.item_descripcion}
+                                            </button>
                                             <span className="text-[10px] font-semibold text-muted-foreground">
-                                                Solicitada: <span className="text-brand-dark">{item.cantidad_solicitada}</span>
+                                                Solicitada: <span className="text-brand-dark">{solicitada}</span>
+                                                {totalSplits > 0 && (
+                                                    <> · Enviando: <span className={cn("font-bold", status.completo ? "text-green-700" : "text-amber-700")}>{totalSplits}</span></>
+                                                )}
                                             </span>
                                         </div>
 
-                                        {/* Stock locations — clickable chips (per-item) */}
+                                        {/* Chips de ubicaciones disponibles (click → elegir origen único) */}
                                         {hasStock ? (
                                             <div className="flex flex-wrap gap-1.5 mb-2">
                                                 {locations.map((loc, lIdx) => {
-                                                    const isOrigin = selected
-                                                        && selected.type === loc.type
-                                                        && selected.id === loc.id;
-                                                    const sufficient = loc.cantidad >= ai.cantidad_enviada;
-                                                    const isClickable = sufficient || isOrigin;
+                                                    const key = `${loc.type === 'obra' ? loc.id : 'n'}:${loc.type === 'bodega' ? loc.id : 'n'}`;
+                                                    const isActive = currentOriginIds.has(key);
+                                                    const disponible = loc.cantidad;
                                                     return (
                                                         <button
                                                             key={lIdx}
                                                             type="button"
-                                                            disabled={!isClickable}
                                                             onClick={() => {
-                                                                if (isOrigin) setOrigenItem(idx, null);
-                                                                else if (sufficient) setOrigenItem(idx, loc);
+                                                                if (isActive && ai.splits.length === 1) clearItem(idx);
+                                                                else if (!isActive) setPrimaryOrigin(idx, loc);
                                                             }}
                                                             className={cn(
                                                                 "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
-                                                                isOrigin
-                                                                    ? "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50 shadow-sm"
-                                                                    : isClickable
-                                                                        ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 hover:border-green-300 cursor-pointer"
-                                                                        : "bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed opacity-60"
+                                                                isActive
+                                                                    ? "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50"
+                                                                    : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                                                             )}
-                                                            title={sufficient ? `${loc.nombre}: ${loc.cantidad} disponibles` : `${loc.nombre}: solo ${loc.cantidad} (insuficiente para ${ai.cantidad_enviada})`}
+                                                            title={`${loc.nombre}: ${disponible} disponibles`}
                                                         >
                                                             <MapPin className="h-2.5 w-2.5" />
-                                                            {loc.nombre}: <span className="font-bold">{loc.cantidad}</span>
-                                                            {isOrigin && <Check className="h-2.5 w-2.5" />}
+                                                            {loc.nombre}: <span className="font-bold">{disponible}</span>
+                                                            {isActive && <Check className="h-2.5 w-2.5" />}
                                                         </button>
                                                     );
                                                 })}
@@ -435,72 +551,174 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             </p>
                                         )}
 
-                                        {/* Quantity to send + origen label */}
-                                        <div className="flex items-center justify-between gap-2 flex-wrap">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[10px] text-muted-foreground">Enviar:</span>
-                                                <input
-                                                    type="number"
-                                                    min={0}
-                                                    value={ai.cantidad_enviada}
-                                                    onChange={e => {
-                                                        const updated = [...approvalItems];
-                                                        updated[idx] = { ...updated[idx], cantidad_enviada: parseInt(e.target.value) || 0 };
-                                                        setApprovalItems(updated);
-                                                    }}
-                                                    className={cn(
-                                                        "w-16 px-2 py-1 border rounded-lg text-center text-xs font-bold",
-                                                        errorTipo === 'stock_insuf' && "border-red-400 text-red-700"
-                                                    )}
-                                                />
-                                                {selected && (
-                                                    <span className="text-[9px] text-green-700 font-medium flex items-center gap-0.5">
-                                                        <Check className="h-2.5 w-2.5" />
-                                                        desde {selected.nombre}
-                                                    </span>
+                                        {/* Editor de splits (si hay ≥1 split) */}
+                                        {ai.splits.length > 0 && (
+                                            <div className="space-y-1.5 mb-2">
+                                                {ai.splits.map((sp, sIdx) => {
+                                                    const loc = locations.find(l =>
+                                                        (l.type === 'obra' && l.id === sp.origen_obra_id) ||
+                                                        (l.type === 'bodega' && l.id === sp.origen_bodega_id)
+                                                    );
+                                                    const yaTomadoEnOtros = loc ? otherSplitsFrom(ai, sIdx, loc) : 0;
+                                                    const maxAqui = loc ? loc.cantidad - yaTomadoEnOtros : 0;
+                                                    const splitErr = !loc || sp.cantidad > maxAqui;
+
+                                                    return (
+                                                        <div key={sIdx} className="flex items-center gap-2 text-[10px]">
+                                                            <MapPin className="h-3 w-3 text-green-700 shrink-0" />
+                                                            <span className="font-medium text-brand-dark truncate flex-1">
+                                                                {loc?.nombre || 'Ubicación inválida'}
+                                                                <span className="text-muted-foreground"> (máx {maxAqui})</span>
+                                                            </span>
+                                                            <input
+                                                                type="number"
+                                                                min={0}
+                                                                max={maxAqui}
+                                                                value={sp.cantidad}
+                                                                onChange={e => {
+                                                                    const val = parseInt(e.target.value) || 0;
+                                                                    const newSplits = [...ai.splits];
+                                                                    newSplits[sIdx] = { ...sp, cantidad: val };
+                                                                    updateSplits(idx, newSplits);
+                                                                }}
+                                                                className={cn(
+                                                                    "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
+                                                                    splitErr && "border-red-400 text-red-700"
+                                                                )}
+                                                            />
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    const newSplits = ai.splits.filter((_, i) => i !== sIdx);
+                                                                    updateSplits(idx, newSplits);
+                                                                }}
+                                                                className="text-muted-foreground hover:text-red-600 p-1 transition"
+                                                                title="Quitar esta ubicación"
+                                                            >
+                                                                <Trash2 className="h-3 w-3" />
+                                                            </button>
+                                                        </div>
+                                                    );
+                                                })}
+
+                                                {/* Agregar otra ubicación */}
+                                                {ai.splits.length < locations.length && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const usadas = new Set(ai.splits.map(s => `${s.origen_obra_id || 'n'}:${s.origen_bodega_id || 'n'}`));
+                                                            const nueva = locations.find(l => {
+                                                                const k = `${l.type === 'obra' ? l.id : 'n'}:${l.type === 'bodega' ? l.id : 'n'}`;
+                                                                return !usadas.has(k) && l.cantidad > 0;
+                                                            });
+                                                            if (!nueva) return;
+                                                            const restante = Math.max(0, solicitada - totalOfItem(ai));
+                                                            const toma = Math.min(nueva.cantidad, restante);
+                                                            updateSplits(idx, [
+                                                                ...ai.splits,
+                                                                {
+                                                                    origen_obra_id: nueva.type === 'obra' ? nueva.id : null,
+                                                                    origen_bodega_id: nueva.type === 'bodega' ? nueva.id : null,
+                                                                    cantidad: toma,
+                                                                },
+                                                            ]);
+                                                        }}
+                                                        className="flex items-center gap-1 text-[10px] text-green-700 hover:text-green-800 font-medium"
+                                                    >
+                                                        <Plus className="h-3 w-3" /> Agregar otra ubicación
+                                                    </button>
                                                 )}
                                             </div>
-                                            {errorTipo === 'sin_origen' && (
-                                                <span className="text-[9px] text-red-600 font-medium flex items-center gap-0.5">
-                                                    <AlertTriangle className="h-2.5 w-2.5" /> Selecciona un origen
-                                                </span>
-                                            )}
-                                            {errorTipo === 'stock_insuf' && (
-                                                <span className="text-[9px] text-red-600 font-medium flex items-center gap-0.5">
-                                                    <AlertTriangle className="h-2.5 w-2.5" /> Excede stock del origen
-                                                </span>
-                                            )}
-                                        </div>
+                                        )}
+
+                                        {/* Quick-fix chips (sólo si no hay splits aún) */}
+                                        {(mostrarSoloLoQueHay || mostrarDividir) && (
+                                            <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-amber-200">
+                                                <span className="text-[10px] text-muted-foreground w-full mb-0.5">💡 ¿Qué hacer?</span>
+                                                {mostrarSoloLoQueHay && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            // Toma TODO el disponible sumando ubicaciones en orden de mayor a menor
+                                                            const sorted = [...locations].sort((a, b) => b.cantidad - a.cantidad);
+                                                            let restante = sumAvailable;
+                                                            const splits: ApprovalSplit[] = [];
+                                                            for (const loc of sorted) {
+                                                                if (restante <= 0) break;
+                                                                const toma = Math.min(loc.cantidad, restante);
+                                                                if (toma > 0) {
+                                                                    splits.push({
+                                                                        origen_obra_id: loc.type === 'obra' ? loc.id : null,
+                                                                        origen_bodega_id: loc.type === 'bodega' ? loc.id : null,
+                                                                        cantidad: toma,
+                                                                    });
+                                                                    restante -= toma;
+                                                                }
+                                                            }
+                                                            updateSplits(idx, splits);
+                                                        }}
+                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 font-medium hover:bg-amber-200 transition"
+                                                    >
+                                                        <Zap className="h-3 w-3" />
+                                                        Enviar solo {sumAvailable} (lo que hay)
+                                                    </button>
+                                                )}
+                                                {mostrarDividir && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={autoCompletar}
+                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 font-medium hover:bg-blue-200 transition"
+                                                    >
+                                                        <Split className="h-3 w-3" />
+                                                        Dividir entre {Math.min(locations.filter(l => l.cantidad > 0).length, 3)} lugares
+                                                    </button>
+                                                )}
+                                            </div>
+                                        )}
+
+                                        {/* Mensaje de error de split */}
+                                        {status.error && (
+                                            <p className="mt-1 text-[9px] text-red-600 font-medium flex items-center gap-0.5">
+                                                <AlertTriangle className="h-2.5 w-2.5" /> Revisa las cantidades: exceden el stock o lo solicitado.
+                                            </p>
+                                        )}
                                     </div>
                                 );
                             })
                         )}
                     </div>
 
+                    {/* Resumen + mega-botón --------------------------------------- */}
+                    {!stockLoading && (totalParcial > 0 || totalVacio > 0) && (
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-200 flex-wrap">
+                            <div className="text-[11px] font-medium text-amber-900 flex items-center gap-1.5">
+                                🎯 {totalCompleto} {totalCompleto === 1 ? 'ítem listo' : 'ítems listos'}
+                                {totalParcial > 0 && <> · {totalParcial} con stock parcial</>}
+                                {totalVacio > 0 && <> · {totalVacio} sin asignar</>}
+                            </div>
+                            <button
+                                type="button"
+                                onClick={aprobarConLoDisponible}
+                                disabled={stockLoading}
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition"
+                                title="Ajusta todos los ítems al máximo disponible — puedes revisar antes de confirmar"
+                            >
+                                <Zap className="h-3 w-3" /> Aprobar con lo disponible
+                            </button>
+                        </div>
+                    )}
+
                     {/* Confirm / Cancel */}
                     <div className="flex gap-2 pt-1">
                         <button
-                            onClick={async () => {
-                                const payload = approvalItems.map(ai => ({
-                                    item_id: ai.item_id,
-                                    cantidad_enviada: ai.cantidad_enviada,
-                                    origen_obra_id: ai.origen_obra_id,
-                                    origen_bodega_id: ai.origen_bodega_id,
-                                }));
-                                // Origen de cabecera: tomar el del primer ítem con envío
-                                const primero = payload.find(p => p.cantidad_enviada > 0) || payload[0];
-                                const ok = await onAprobar({
-                                    origen_obra_id: primero?.origen_obra_id || null,
-                                    origen_bodega_id: primero?.origen_bodega_id || null,
-                                    items: payload,
-                                });
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading || !todasConOrigen || hayError}
-                            title={!todasConOrigen ? 'Faltan orígenes por seleccionar' : hayError ? 'Hay errores de stock' : undefined}
+                            onClick={handleConfirm}
+                            disabled={actionLoading || !puedeConfirmar}
+                            title={!puedeConfirmar
+                                ? (hayError ? 'Hay errores de stock o cantidades' : 'No hay cantidades para enviar')
+                                : undefined}
                             className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
                         >
-                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobacion'}
+                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobación'}
                         </button>
                         <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                             Cancelar
@@ -509,6 +727,32 @@ const TransferenciaDetail: React.FC<Props> = ({
                 </div>
                 );
             })()}
+
+            <FaltanteDecisionModal
+                isOpen={faltanteModal.isOpen}
+                onClose={() => setFaltanteModal({ isOpen: false, loading: false, faltantes: [] })}
+                onConfirm={async (decision) => {
+                    // handled via inline closure using current approvalItems — we re-run here
+                    setFaltanteModal(m => ({ ...m, loading: true }));
+                    const payload = approvalItems.map(ai => ({
+                        item_id: ai.item_id,
+                        splits: ai.splits.filter(s => s.cantidad > 0),
+                    }));
+                    const primero = payload.find(p => p.splits.length)?.splits[0];
+                    const ok = await onAprobar({
+                        origen_obra_id: primero?.origen_obra_id || null,
+                        origen_bodega_id: primero?.origen_bodega_id || null,
+                        items: payload,
+                    });
+                    if (ok && decision === 'crear_nueva' && onCrearFaltante) {
+                        await onCrearFaltante(t.id);
+                    }
+                    setFaltanteModal({ isOpen: false, loading: false, faltantes: [] });
+                    if (ok) setActiveForm(null);
+                }}
+                loading={faltanteModal.loading}
+                faltantes={faltanteModal.faltantes}
+            />
 
             {/* ════════════════════════════════════
                 ── REJECT FORM ──
