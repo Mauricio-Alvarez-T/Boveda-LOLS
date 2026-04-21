@@ -168,6 +168,8 @@ export interface Bodega {
     responsable_id: number | null;
     responsable_nombre?: string;
     activa: boolean;
+    es_permanente: boolean;
+    empresa_propietaria: 'dedalius' | 'lols';
 }
 
 export interface ItemInventario {
@@ -181,6 +183,8 @@ export interface ItemInventario {
     valor_arriendo: number;
     unidad: string;
     imagen_url: string | null;
+    es_consumible: boolean;
+    propietario: 'dedalius' | 'lols';
     activo: boolean;
 }
 
@@ -217,6 +221,8 @@ export interface Transferencia {
     requiere_pionetas: boolean;
     cantidad_pionetas: number | null;
     observaciones: string | null;
+    tipo_flujo: 'solicitud' | 'push_directo' | 'intra_bodega' | 'intra_obra' | 'orden_gerencia' | 'devolucion';
+    motivo: string | null;
     items?: TransferenciaItem[];
     activo: boolean;
 }
