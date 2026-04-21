@@ -1,245 +1,224 @@
-# Handoff: Módulo de Asistencia — Estado al 2026-04-20
+# Handoff: Estado actual — Bóveda LOLS
 
-> **Documento de continuidad.** Generado al final de una sesión de trabajo para retomar desde otra máquina. Resume el contexto, lo que se implementó, y lo que queda pendiente.
-
----
-
-## Objetivo de la sesión
-
-Auditar y mejorar el módulo de Asistencia de Bóveda LOLS. El detonante fue que usuarios reportaban ser expulsados de la app varias veces por hora (3–4 logouts forzados diarios), y que un flujo concreto —guardar asistencia día por día— era inusablemente lento y propenso a interrupciones.
-
-El trabajo se organizó en olas por severidad:
-
-| Ola | Scope | Estado |
-|-----|-------|--------|
-| Ola 1 — P0 | Bugs críticos (features rotos en producción) | ✅ Implementado y mergeado |
-| Ola 2 — P1 | UX: flujo día-a-día, duplicados, dead code | ✅ **COMPLETADO esta sesión** |
-| Ola 3 — P2 | Performance: índices, paginación, transacciones | ✅ **COMPLETADO esta sesión** |
-| Ola 4 — P3 | Features nuevos (backlog) | 🔲 Pendiente |
+> **Documento de continuidad.** Actualizado al 2026-04-21. Retomar desde cualquier máquina.
 
 ---
 
-## Lo que ya está implementado (en `develop`)
+## Estado general del proyecto
 
-### Fix de expulsiones de sesión — `fix(auth)` commit `0612984`
-
-**Problema:** Race condition entre el arranque de Express y la inicialización de `versionService`. Durante la ventana de arranque (típicamente cada re-spawn de Passenger en cPanel), `versionService.get()` devolvía el fallback `1`, rechazando tokens de usuarios con `rv > 1`. Esto causaba los logouts espurios.
-
-**Archivos modificados:**
-- `backend/src/services/version.service.js` — `init()` ahora es idempotente con `initPromise`
-- `backend/index.js` — `app.listen()` se ejecuta solo después de que `versionService.init()` resuelva
-
----
-
-### Ola 1 — P0 bugs — PR #2, commit `5976b90` (mergeado a develop)
-
-**P0.1 — `saveHorarios` escribía en columna eliminada**
-- Archivo: `backend/src/services/asistencia.service.js:544`
-- La migración `007` eliminó `colacion_minutos` y la reemplazó con `hora_colacion_inicio` / `hora_colacion_fin`
-- El INSERT no se actualizó → `ER_BAD_FIELD_ERROR` en producción al guardar horarios
-- Fix: INSERT y ON DUPLICATE KEY ahora usan las columnas correctas
-
-**P0.2 — `calcularHorasExtras` producía NaN silencioso**
-- Archivo: `backend/src/services/asistencia.service.js:721`
-- `h.colacion_minutos / 60` = `undefined / 60` = `NaN`
-- `Math.max(0, NaN)` = `NaN` → el Excel de asistencia exportaba celdas vacías/NaN en horas extra/déficit
-- Fix: la colación se calcula con `getDiffHours(h.hora_colacion_inicio, h.hora_colacion_fin)`
-
-**P0.3 — `tipos_ausencia.es_justificada` usada pero nunca creada**
-- Archivo nuevo: `backend/db/migrations/030_tipos_ausencia_es_justificada.sql`
-- El frontend (TypeScript, Settings.tsx, TipoAusenciaForm.tsx) y el seed de migración 005 asumían esta columna
-- La migración 004 nunca la creó → el seed fallaba en instalaciones limpias
-- Fix: migración idempotente que añade la columna y hace UPDATE para marcar tipos justificados
-
-> **Acción completada en staging:** correr `030_tipos_ausencia_es_justificada.sql` vía cPanel → Setup Node.js App → Run JS script → `migrate`. ✅ Exitoso (después de reescribir la migración sin DELIMITER).
+| Módulo | Estado |
+|--------|--------|
+| Asistencia (todas las olas) | ✅ Completado y en producción |
+| Inventario — Ola 1: Foundations | ✅ Mergeado a `develop` |
+| Inventario — Ola 2: Matriz 8 flujos | 🔲 Siguiente PR |
+| Inventario — Ola 3: Bulk edit | 🔲 Pendiente |
+| Inventario — Ola 4: Arriendo + facturación | ⏸ EN PAUSA (esperar jefatura) |
+| Inventario — Ola 5: Calidad / backlog | 🔲 Backlog |
 
 ---
 
-## ✅ Ola 2 — P1: UX (COMPLETADO esta sesión)
+## Contexto de negocio (crítico para diseñar inventario)
 
-### P1.1 — Endpoint batch + botón "Repetir día anterior"
-
-**Qué se implementó:**
-- **Backend:** nuevo endpoint `POST /api/asistencias/batch` que recibe `{ registros: [...] }` y hace upsert transaccional de todos en un único request.
-- **Frontend:** botón "Repetir día anterior" en `frontend/src/pages/Attendance.tsx` que precarga el estado del día previo en todos los trabajadores visibles.
-
-**Archivos modificados:**
-- `backend/src/routes/asistencias.routes.js` — ruta `POST /batch` con validación y permisos
-- `backend/src/services/asistencia.service.js` — método `batchSave(registros, registradoPor)` con validación por registro
-- `frontend/src/hooks/attendance/useAttendanceActions.ts` — callback `repetirDiaAnterior` que busca hasta 7 días atrás (skipeando weekends y feriados)
-- `frontend/src/pages/Attendance.tsx` — wired `repetirDiaAnterior` con confirm dialog
-- `frontend/src/components/attendance/ui/AttendanceHeaderActions.tsx` — botón móvil/desktop "Repetir día ant."
-- `backend/tests/asistencia_batch.test.js` — 4 tests para el nuevo endpoint
-
-**Commits:** `4e45fa3`, `14a3cd4`, `0f72047`
-
-### P1.2 — Botones de estado duplicados (FIXED)
-
-- **Problema:** El mismo bloque de botones de estado se renderizaba dos veces (mal merge de ramas anteriores)
-- **Solución:** Extraído un helper `applyStatusChange(worker, estado)` que centraliza la lógica (filtro de TO, clear `tipo_ausencia_id` en presentes, relleno de horarios, auto-expand modal)
-- **Resultado:** Botones unificados, handlers consistentes entre mobile/desktop
-- **Archivos:** `frontend/src/pages/Attendance.tsx`
-- **Commit:** `8e73251`
-
-### P1.3 — Estado muerto `loadingPeriods` (FIXED)
-
-- **Problema:** Variable nunca usada en JSX
-- **Solución:** Eliminada del estado
-- **Archivos:** `frontend/src/components/attendance/PeriodAssignModal.tsx`
-- **Commit:** `8e73251`
-
-### P1.4 — Modal dentro de modal (FIXED)
-
-- **Problema:** Editar una ausencia desde el modal de detalle abría un segundo modal encima (UX confusa)
-- **Solución:** Reemplazado `window.confirm()` con patrón inline (botones No / Sí dentro del modal del período)
-- **Archivos:** `frontend/src/components/attendance/WorkerCalendar.tsx` (patrón delete + deletingPeriodId state)
-- **Commit:** `c82819c`
-
-### Bug fixes reportados por usuarios (FIXED)
-
-**Bug: Alertas duplicadas "Falta 2 lunes (06, 06)"**
-- **Causa:** Trabajador con traslado = 2 filas de asistencia el mismo día, ambas en estado F. El count sumaba filas, no días únicos.
-- **Fix:** Cambiar `fechas: []` array a `fechasSet: new Set()` para deduplicar. Regla evalúa `fechas.length` después de dedupe.
-- **Archivos:** `backend/src/services/asistencia.service.js:getAlertasFaltas()`
-- **Tests:** `backend/tests/asistencia_alertas.test.js` (2 tests de dedupe)
-- **Commit:** `4e45fa3`
-
-**Bug: Click en alertas iba a vista general, no filtraba trabajador**
-- **Causa:** Dashboard linkea a `/attendance?q=NOMBRE`, pero el componente no leía `?q` de URL
-- **Fix:** Agregar `useSearchParams` + state sync en `useAttendanceData.ts`. URL param `?q` se sincroniza con estado local y se preserva en refresh.
-- **Archivos:** `frontend/src/hooks/attendance/useAttendanceData.ts`, `frontend/src/pages/Attendance.tsx`
-- **Commit:** `c6161bf`
+- **LOLS** es la empresa operadora de obras de construcción.
+- **Dedalius** es una subempresa ficticia (misma dueña), creada para abaratar costos vía arriendo interno. Dedalius es dueña del inventario (andamios, moldajes, equipos) y arrienda **exclusivamente a LOLS**.
+- **Bodegas** = cualquier entrada en la tabla `bodegas`. Son conceptualmente "obras con lógica aparte" — permiten distinguir almacenes de obras sin hardcodear nombres. No hay bodegas "permanentes" ni empresa propietaria fija a nivel tabla; el usuario crea/desactiva vía UI.
+- **Obras** = acopio temporal. Todo lo que entra debe volver a bodega al terminar la obra (excepto consumibles).
+- **Consumibles** (cemento, tornillos, pintura, etc.) = se ceden, no vuelven a bodega, no generan arriendo.
+- **Obra → Obra directa** está permitida por el negocio.
+- Ciclo de **arriendo con facturación** en pausa — esperar confirmación jefatura.
 
 ---
 
-## ✅ Ola 3 — P2: Performance (COMPLETADO esta sesión)
+## Módulo de Asistencia — resumen de lo completado
 
-### P2.1 — Topes de seguridad en exports
+### P0 (crítico)
+- Race condition auth logout espurio → fix `version.service.js` + arranque en orden
+- `saveHorarios` escribía en columna eliminada `colacion_minutos` → fix a `hora_colacion_inicio/fin`
+- `calcularHorasExtras` producía NaN silencioso → fix cálculo colación
+- Migración 030: `tipos_ausencia.es_justificada` nunca creada → migración idempotente
 
-**Problema:** `generarExcel` y `getAlertasFaltas` traen todos los registros sin LIMIT → runaway queries que tumban el servidor.
+### P1 (UX)
+- Endpoint batch + botón "Repetir día anterior" (busca hasta 7 días atrás, skips weekends + feriados)
+- Botones estado duplicados → refactor `applyStatusChange` helper
+- Modal anidado en períodos → patrón inline confirm
+- Click en alertas filtra trabajador (sync `?q=` URL param)
 
-**Solución:**
-- `generarExcel`: rechaza rangos >366 días (tope anual razonable) y listas de `trabajador_ids` >2000 (evita IN(...) con miles de valores)
-- `getAlertasFaltas`: `LIMIT 50000` defensivo + warn log si se alcanza (para detectar si la regla se queda corta)
+### P2 (performance)
+- Topes en exports: >366 días rechaza, >2000 trabajadores rechaza
+- Race condition `cancelarPeriodo` → `SELECT ... FOR UPDATE` en transacción
+- Migración 031: índice faltante `log_asistencia(asistencia_id, fecha_modificacion DESC)`
+- `MAX_REGISTROS=1000` en bulkCreate (413 si excede)
 
-**Archivos:** `backend/src/services/asistencia.service.js`
-**Commit:** `382ea57`
+### Limpieza final
+- Dead code `es_sabado` eliminado de backend + frontend + tests + seeds
+- Migración `032_cleanup_es_sabado.sql` (DROP COLUMN)
 
-### P2.2 — Race condition en `cancelarPeriodo`
-
-**Problema:** Lee y escribe sin transacción/lock → dos usuarios cancelando simultáneamente = doble DELETE de asistencias + doble entry en log.
-
-**Solución:**
-- Wrapper con `connection.beginTransaction()` + `SELECT ... FOR UPDATE`
-- Idempotente: si ya está cancelado (`activo = 0`), retorna sin re-borrar
-- `finally` libera la conexión siempre
-
-**Archivos:** `backend/src/services/asistencia.service.js:cancelarPeriodo()`
-**Tests:** `backend/tests/asistencia_integral.test.js` (actualizado mock para connection pattern)
-**Commit:** `382ea57`
-
-### P2.3 — Índices faltantes
-
-**Problema:** Handoff decía que faltaban `asistencias(obra_id, fecha)` y `log_asistencia(asistencia_id, fecha_modificacion DESC)`. Investigación reveló:
-- `asistencias(obra_id, fecha)` ya existe en migración 025
-- Solo faltaba el compuesto en `log_asistencia` para evitar filesort en queries de "último cambio"
-
-**Solución:**
-- Nueva migración `031_asistencia_indexes_v2.sql` con `idx_log_asist_fecha_desc`
-- Idempotente vía `information_schema.STATISTICS` check
-- Nota en comentario explicando que la otra ya estaba en 025
-
-**Archivos:** `backend/db/migrations/031_asistencia_indexes_v2.sql` (nueva)
-**Commit:** `382ea57`
+**Tests: 104/104 ✅**
 
 ---
 
-## 🔧 Bug fix: Migración 030 sin DELIMITER
+## Módulo de Inventario — Ola 1 completada (commits en `develop`)
 
-**Problema:** La versión original de 030 usaba `DELIMITER $$ CREATE PROCEDURE ...`. `DELIMITER` es una directiva del CLI mysql, no SQL real → el driver mysql2 la envía tal cual a MariaDB que rechaza con syntax error.
+### Commits
+| Hash | Contenido |
+|------|-----------|
+| `14aea36` | feat(inventario): ola 1 foundations — migración 033 + 034 + types |
+| `0a56893` | revert(inventario): bodegas sin flags hardcoded — migración 035 + revert 034 |
 
-**Solución:** Reescrito con `PREPARE/EXECUTE` + check en `information_schema.COLUMNS`, mismo patrón idempotente que la 031. Funcionalmente idéntico, sin procedures.
+### Migración 033 — `033_inventario_foundations.sql`
+Agrega columnas idempotentes (PREPARE/EXECUTE + information_schema):
+- `items_inventario.es_consumible BOOLEAN NOT NULL DEFAULT FALSE`
+- `items_inventario.propietario ENUM('dedalius','lols') NOT NULL DEFAULT 'dedalius'`
+- `bodegas.es_permanente` ← **revertido por 035** (ver abajo)
+- `bodegas.empresa_propietaria` ← **revertido por 035**
+- `transferencias.tipo_flujo ENUM('solicitud','push_directo','intra_bodega','intra_obra','orden_gerencia','devolucion') NOT NULL DEFAULT 'solicitud'`
+- `transferencias.motivo VARCHAR(255) DEFAULT NULL`
+- Índices: `idx_items_propietario`, `idx_transf_tipo_flujo`
 
-**Archivos:** `backend/db/migrations/030_tipos_ausencia_es_justificada.sql` (reescrito)
-**Commit:** `d473066`
+### Migración 034 — `034_seed_bodegas_canonicas.sql` (NO-OP)
+Originalmente sembraba Cerrillos/Paraguay/Rivas Vicuña. Revertido: bodegas son entradas libres gestionadas por el usuario vía UI. Archivo conservado como no-op para mantener orden de numeración.
+
+### Migración 035 — `035_revert_bodega_flags.sql`
+DROPs `bodegas.es_permanente` y `bodegas.empresa_propietaria` (flags innecesarios).
+
+### Frontend `entities.ts`
+Nuevos campos en tipos:
+- `ItemInventario`: `es_consumible: boolean`, `propietario: 'dedalius' | 'lols'`
+- `Transferencia`: `tipo_flujo: 'solicitud' | 'push_directo' | ...`, `motivo: string | null`
+- `Bodega`: sin cambios (flags revertidos)
+
+### Verificación staging pendiente
+Tras correr `migrate` en cPanel:
+```sql
+DESCRIBE items_inventario;   -- ver es_consumible, propietario
+DESCRIBE transferencias;     -- ver tipo_flujo, motivo
+DESCRIBE bodegas;            -- NO debe tener es_permanente ni empresa_propietaria
+```
+Tests 104/104, `tsc --noEmit` clean.
 
 ---
 
-## Contexto técnico clave
+## Inventario — Ola 2: Matriz 8 flujos (SIGUIENTE PR)
 
-| Tema | Detalle |
-|------|---------|
-| Schema de horarios | `configuracion_horarios` tiene `hora_colacion_inicio` / `hora_colacion_fin` (TIME). La columna `colacion_minutos` **no existe** (eliminada por migración 007). |
-| JWT expira | Por defecto `8h` (configurable con `JWT_EXPIRES_IN` en `.env` de cPanel). No hay refresh token. No hay sliding session. |
-| Version de rol (`rv`) | Embebida en el JWT; se incrementa al cambiar permisos. Todos los usuarios del rol son deslogueados al siguiente request. |
-| Tests | 97 tests (antes 89), todos en `backend/`. Usan mocks de DB. Correr con `cd backend && npm test`. |
-| Deploy | Push a `develop` → staging automático. Push a `main` → producción. SIEMPRE probar en staging primero. |
-| Migraciones | Idempotentes via `CREATE ... IF NOT EXISTS` o `information_schema` checks. Runner soporta `multipleStatements: true` pero NO entiende `DELIMITER` (es CLI, no SQL). |
+### Los 8 flujos del negocio
+
+| # | Flujo | Origen → Destino | Aprobación | Estados | Creador |
+|---|-------|-----------------|------------|---------|---------|
+| 1 | Solicitud estándar | bodega → obra | sí | pendiente→aprobada→en_tránsito→recibida | jefe obra |
+| 2 | Devolución | obra → bodega | opcional | aprobada→en_tránsito→recibida | jefe obra |
+| 3 | Push directo | bodega → obra/bodega | no | en_tránsito→recibida | bodeguero |
+| 4 | Intra-bodega | bodega → bodega | no | recibida (instantáneo) | bodeguero |
+| 5 | Intra-obra | obra → obra | opcional | aprobada→en_tránsito→recibida | jefe obra (con permiso) |
+| 6 | Orden gerencia | cualquiera → cualquiera | salta pendiente | aprobada→... | PM/dueño |
+| 7 | Rechazo recepción | reversa automática | — | en_tránsito→rechazada | bodeguero destino |
+| 8 | Cancelación post-despacho | — | — | en_tránsito→cancelada | solicitante/aprobador |
+
+### Regla crítica de stock
+**Stock decrece al despacho físico** (estado → `en_tránsito`), **NO al aprobar**.
+Stock destino sube al recibir. Evita "stock fantasma" de aprobaciones que nunca salen.
+
+### Archivos a modificar / crear
+Backend:
+- `backend/src/services/transferencia.service.js` — refactor + 4 métodos nuevos
+- `backend/src/routes/transferencias.routes.js` — 3 rutas nuevas
+- `backend/src/config/permisos.config.js` — 3 permisos nuevos: `inventario.push_directo`, `inventario.intra_obra`, `inventario.orden_gerencia`
+
+Frontend:
+- `frontend/src/components/inventario/TransferenciasPanel.tsx` — botón "Nuevo movimiento" abre selector
+- `frontend/src/components/inventario/TransferenciaDetail.tsx` — acciones condicionales por tipo_flujo
+- `frontend/src/components/inventario/TransferenciasList.tsx` — badge tipo de flujo
+- Nuevo: `frontend/src/components/inventario/NewMovimientoModal.tsx` — selector de flujo (7 opciones)
+- `frontend/src/hooks/useTransferencias.ts`
+
+Tests: 7 nuevos (1 por flujo nuevo). Target: 111 total.
 
 ---
 
-## Archivos clave del módulo
+## Inventario — Ola 3: Bulk edit (pendiente, paralelizable)
 
+### Backend
+- `PUT /api/items-inventario/bulk` — edición masiva de ítems (MAX_ITEMS=500, 413, rollback, log diff)
+- `PUT /api/inventario/stock/bulk` — ajuste masivo de existencias (mismo cap)
+
+### Frontend
+- Nueva página `frontend/src/pages/InventarioMaestro.tsx` (ruta `/inventario/maestro`)
+- Grid editable tipo Excel: columnas nro_item, descripción, categoría, unidad, valor_compra, valor_arriendo, es_consumible, propietario, activo
+- Filtros + selección múltiple + acciones batch
+- Edición inline con debounce; Ctrl+S para commit manual
+
+Tests: 3 (happy bulk, cap 413, rollback).
+
+---
+
+## Inventario — Ola 4: Arriendo + facturación (EN PAUSA)
+
+Esperar confirmación jefatura. El schema de Ola 1 ya dejó los hooks necesarios (`tipo_flujo`, `propietario`, `es_consumible`). No requiere re-migrar.
+
+Cuando se desbloquee:
+- Tabla `arriendos_activos(item_id, origen_bodega_id, destino_obra_id, fecha_apertura, fecha_cierre_esperada, fecha_cierre_real, cantidad, tarifa_snapshot)`
+- Trigger conceptual: transferencia bodega Dedalius → obra LOLS, ítem no consumible → abre arriendo
+- Devolución/rechazo cierra arriendo y calcula costo `(dias × tarifa)`
+- Reporte mensual + export Excel
+
+---
+
+## Inventario — Ola 5: Calidad (backlog)
+
+- Endpoint recepción compras externas (hoy solo script offline `import_inventario.js`)
+- Reporte auditoría física (diferencia sistema vs bodega real) + ajuste con motivo
+- Dashboard Dedalius: KPIs ocupación bodega, ítems más arrendados, nunca movidos
+- Renombres cosméticos si quedan referencias a "Dali" (debe decir "Dedalius")
+
+---
+
+## Decisiones de diseño registradas
+
+| Decisión | Razonamiento |
+|----------|-------------|
+| `propietario` ENUM no FK | Minimalista. Dedalius solo arrienda a LOLS ahora. Si mañana hay terceros, migrar a FK. |
+| Stock decrece al despachar | Evita "stock fantasma" de aprobaciones que nunca salen físicamente |
+| Bodegas = entradas libres | No hay bodegas hardcoded; usuario crea/desactiva vía UI |
+| Consumibles no devuelven | UI deshabilita devolución si `es_consumible=TRUE` |
+| Ola 4 en pausa | Arriendo requiere confirmación jefatura antes de diseñar |
+
+---
+
+## Deuda técnica conocida
+
+- **Colisión `032_`**: existen `032_cleanup_es_sabado.sql` y `032_transferencia_parcial.sql`. El runner de migraciones usa filename; si ambas están marcadas como aplicadas, no hay problema práctico. Pero es confuso. Renombrar uno si se abre una oportunidad limpia.
+- Rows `Cerrillos`, `Paraguay`, `Rivas Vicuña` sembrados en staging por migración 034 original. Quedan en DB (drop rompería FKs si tienen stock). Desactivar vía UI si no se usan.
+
+---
+
+## Archivos clave del proyecto
+
+### Backend inventario
 | Archivo | Propósito |
 |---------|-----------|
-| `backend/src/services/asistencia.service.js` | Toda la lógica: bulkCreate, batchSave, generarExcel, calcularHorasExtras, saveHorarios, getAlertasFaltas, cancelarPeriodo, etc. |
-| `backend/src/routes/asistencias.routes.js` | Endpoints REST del módulo (incluyendo POST /batch nuevos) |
-| `backend/src/services/config-horarios.service.js` | Servicio dedicado a horarios |
-| `frontend/src/pages/Attendance.tsx` | Página principal de asistencia (refactorizada, sin duplicados) |
-| `frontend/src/hooks/attendance/useAttendanceData.ts` | Carga de datos + sync URL params |
-| `frontend/src/hooks/attendance/useAttendanceActions.ts` | Acciones: guardar, actualizar, repetirDiaAnterior |
-| `frontend/src/components/settings/HorariosConfigPanel.tsx` | UI de configuración de horarios |
-| `frontend/src/types/entities.ts` | Tipos TS: `Asistencia`, `ConfiguracionHorario`, `TipoAusencia` |
-| `backend/db/migrations/030_tipos_ausencia_es_justificada.sql` | Migración que agrega columna + seeds (reescrita sin DELIMITER) |
-| `backend/db/migrations/031_asistencia_indexes_v2.sql` | Índices de performance (nuevo) |
+| `backend/src/services/transferencia.service.js` | Lógica transferencias (refactor ola 2) |
+| `backend/src/routes/transferencias.routes.js` | Endpoints REST transferencias |
+| `backend/src/services/itemInventario.service.js` | CRUD ítems + bulk (ola 3) |
+| `backend/db/migrations/033_inventario_foundations.sql` | Schema ola 1 |
+| `backend/db/migrations/035_revert_bodega_flags.sql` | Reversa flags bodegas |
+
+### Frontend inventario
+| Archivo | Propósito |
+|---------|-----------|
+| `frontend/src/types/entities.ts` | Tipos TS: ItemInventario, Bodega, Transferencia, etc. |
+| `frontend/src/components/inventario/TransferenciasPanel.tsx` | Panel principal (ola 2) |
+| `frontend/src/components/inventario/TransferenciaDetail.tsx` | Detalle + acciones condicionales (ola 2) |
+| `frontend/src/pages/InventarioMaestro.tsx` | Bulk edit grid (ola 3, crear) |
+
+### Infra
+| Archivo | Propósito |
+|---------|-----------|
+| `docs/RUNBOOK.md` | Guía completa de operaciones |
+| `backend/scripts/migrate.js` | Runner de migraciones |
+| `.github/workflows/deploy-cpanel-staging.yml` | Deploy automático a staging |
 
 ---
 
-## Commits de esta sesión
-
-| Hash | Mensaje | Contenido |
-|------|---------|-----------|
-| `4e45fa3` | fix+feat(asistencia): alertas dedupe, batch endpoint, repetir día | P1.1 + bug alertas |
-| `c6161bf` | fix(asistencia): respetar ?q=RUT al navegar desde alertas | URL sync |
-| `8e73251` | refactor(asistencia): unificar handler de cambio de estado | P1.2 + P1.3 |
-| `c82819c` | refactor(asistencia): eliminar window.confirm anidado al borrar período | P1.4 |
-| `382ea57` | perf+safety(asistencia): índices faltantes, lock en cancelarPeriodo, topes en exports | P2 completo |
-| `d473066` | fix(migrations): reescribir 030 sin DELIMITER | Migration 030 fix |
-
----
-
-## ✅ Verificación completada
-
-- ✅ `npm test` → 97/97 tests pasan
-- ✅ `npx tsc --noEmit` → sin errores TS
-- ✅ Migración 030 + 031 aplicadas exitosamente en staging
-- ✅ Git push a `develop` completado
-
----
-
-## Qué sigue
-
-### Inmediato (si quieres continuar)
-
-1. **Verificar staging (`test.boveda.lols.cl`):**
-   - Abrir Asistencia → cargar trabajadores sin error
-   - Cambiar estado, crear/cancelar período, click en alertas
-
-2. **Producción (cuando confirmes que staging está ok):**
-   - Push a `main` para deploy automático
-   - Correr `migrate` en cPanel para aplicar 030 + 031 en producción
-
-### Próximos en backlog (P3 — features)
-
-- Bulk import de asistencia por CSV
-- Vista semanal (además de diaria/mensual)
-- Notificación al supervisor en falta injustificada
-- Auditoría visible en modal de detalle ("última modificación: X")
-- Export formato Previred / Libro de Remuneraciones
-
----
-
-## Cómo retomar desde otra máquina
+## Cómo retomar
 
 ```bash
 git clone https://github.com/Mauricio-Alvarez-T/Boveda-LOLS.git
@@ -247,16 +226,18 @@ cd Boveda-LOLS
 git checkout develop
 git pull origin develop
 
-# Instalar dependencias
 cd backend && npm install
 cd ../frontend && npm install
 
-# Verificar tests (debe pasar 97/97)
+# Verificar (debe dar 104/104)
 cd ../backend && npm test
 
-# Arrancar desarrollo
-cd backend && npm run dev
+# Typecheck
+cd ../frontend && npx tsc --noEmit
+
+# Dev
+cd ../backend && npm run dev
 cd ../frontend && npm run dev
 ```
 
-Si necesitas ver el estado completo del plan arquitectónico, ver `.claude/plans/` en la máquina original (si tienes acceso).
+Próxima tarea: **Ola 2 — matriz 8 flujos**. Crear rama `feat/inventario-flujos` desde develop.
