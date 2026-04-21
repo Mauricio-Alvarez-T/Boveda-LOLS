@@ -301,6 +301,30 @@ Si se olvida el prefijo, la imagen retorna 404 en producción (aunque funciona e
 
 ---
 
+## 10.1. Deploy Especial — Ola 2 Fase 1 (Stock diferido al recibir)
+
+**Cuándo aplica:** primer deploy que incluye la migración `036_stock_reconciliado_flag.sql` (cambio semántico: stock ahora se mueve al `recibir()`, no al `aprobar()`).
+
+**Problema:** antes de este deploy, las transferencias en estado `aprobada` o `en_transito` ya descontaron stock del origen. El código nuevo asume lo contrario (régimen nuevo) y al recibirlas descontaría por segunda vez.
+
+**Solución:** script idempotente `scripts/fix_stock_transferencias_aprobadas.js`. Corre UNA VEZ post-migrate en staging y producción.
+
+### Orden de ejecución (staging y prod, por separado)
+
+1. Esperar deploy completo (código nuevo en servidor + Passenger reiniciado).
+2. cPanel → Setup Node.js App → Run JS script → `migrate` → Run. Aplica la migración 036; marca las transferencias `aprobada|en_transito` existentes con `stock_reconciliado=FALSE` (régimen viejo).
+3. cPanel → Run JS script → `fix-stock-reconciliar` → Run. El script:
+   - Busca transferencias con `stock_reconciliado=FALSE` y estado `aprobada|en_transito`.
+   - Re-incrementa el stock del origen usando los splits de `transferencia_item_origenes` (fallback a `transferencia_items` si no hay splits).
+   - Marca `stock_reconciliado=TRUE` al terminar.
+4. A partir de ahora, al recibir esas transferencias el código nuevo descuenta origen correctamente → stock neto = correcto.
+
+**Idempotencia:** correr el script dos veces es seguro. La segunda vez no encuentra filas (`stock_reconciliado` ya es TRUE en todas).
+
+**Si se olvida correr el script antes del primer `recibir` post-deploy:** el stock origen quedará 0/clamped en esas filas. Revisar con `SELECT * FROM transferencias WHERE stock_reconciliado=FALSE` y ajustar manualmente.
+
+---
+
 ## 11. Comandos de Emergencia
 
 ### Reiniciar la app manualmente

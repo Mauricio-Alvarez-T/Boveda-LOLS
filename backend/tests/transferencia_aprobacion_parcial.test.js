@@ -39,7 +39,7 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
             .mockResolvedValueOnce([[{ estado: 'pendiente' }]])
             // 2. SELECT transferencia_items
             .mockResolvedValueOnce([[{ id: 10, item_id: 1, cantidad_solicitada: 2 }]])
-            // 3. SELECT ubicaciones_stock (validación stock)
+            // 3. SELECT ubicaciones_stock (sanity check)
             .mockResolvedValueOnce([[{ cantidad: 1 }]])
             // 4. UPDATE transferencias → aprobada
             .mockResolvedValueOnce([{ affectedRows: 1 }])
@@ -48,9 +48,7 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
             // 6. DELETE transferencia_item_origenes
             .mockResolvedValueOnce([{ affectedRows: 0 }])
             // 7. INSERT transferencia_item_origenes (split)
-            .mockResolvedValueOnce([{ insertId: 1 }])
-            // 8. UPDATE ubicaciones_stock (decremento)
-            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+            .mockResolvedValueOnce([{ insertId: 1 }]);
 
         const res = await transferenciaService.aprobar(5, 99, {
             items: [{
@@ -63,12 +61,17 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
         expect(conn.commit).toHaveBeenCalled();
         expect(conn.rollback).not.toHaveBeenCalled();
 
-        // Decremento de stock: GREATEST(cantidad - 1, 0) en obra_id=1
+        // Ola 2: aprobar NO decrementa stock (eso ocurre al recibir)
         const stockCall = conn.query.mock.calls.find(c =>
             /UPDATE ubicaciones_stock SET cantidad = GREATEST/.test(c[0])
         );
-        expect(stockCall).toBeDefined();
-        expect(stockCall[1]).toEqual([1, 1, 1, null]);
+        expect(stockCall).toBeUndefined();
+
+        // Sí persiste el split
+        const splitInsert = conn.query.mock.calls.find(c =>
+            /INSERT INTO transferencia_item_origenes/.test(c[0])
+        );
+        expect(splitInsert).toBeDefined();
     });
 
     test('2) aprobación con split en 2 ubicaciones: inserta 2 filas de origenes y 2 decrementos', async () => {
@@ -92,12 +95,8 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
             .mockResolvedValueOnce([{ affectedRows: 0 }])
             // INSERT split 1
             .mockResolvedValueOnce([{ insertId: 1 }])
-            // UPDATE stock split 1
-            .mockResolvedValueOnce([{ affectedRows: 1 }])
             // INSERT split 2
-            .mockResolvedValueOnce([{ insertId: 2 }])
-            // UPDATE stock split 2
-            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+            .mockResolvedValueOnce([{ insertId: 2 }]);
 
         const res = await transferenciaService.aprobar(6, 99, {
             items: [{
@@ -116,10 +115,11 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
         );
         expect(insertSplitCalls).toHaveLength(2);
 
+        // Ola 2: aprobar ya no decrementa stock
         const decrementCalls = conn.query.mock.calls.filter(c =>
             /UPDATE ubicaciones_stock SET cantidad = GREATEST/.test(c[0])
         );
-        expect(decrementCalls).toHaveLength(2);
+        expect(decrementCalls).toHaveLength(0);
         expect(conn.commit).toHaveBeenCalled();
     });
 
@@ -177,8 +177,7 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE transferencias
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE items
             .mockResolvedValueOnce([{ affectedRows: 0 }])  // DELETE origenes
-            .mockResolvedValueOnce([{ insertId: 1 }])      // INSERT origen
-            .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE stock
+            .mockResolvedValueOnce([{ insertId: 1 }]);     // INSERT origen
 
         const res = await transferenciaService.aprobar(9, 99, {
             items: [{

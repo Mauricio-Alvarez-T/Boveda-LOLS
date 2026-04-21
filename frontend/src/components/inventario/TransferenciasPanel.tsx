@@ -7,6 +7,8 @@ import { Modal } from '../ui/Modal';
 import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
 import SolicitudForm from './SolicitudForm';
+import MovimientoForm from './MovimientoForm';
+import NewMovimientoModal, { type TipoMovimiento } from './NewMovimientoModal';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
 
@@ -42,7 +44,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
     const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'todas');
     const [searchQuery, setSearchQuery] = useState('');
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showSelectorModal, setShowSelectorModal] = useState(false);
+    const [activeFlow, setActiveFlow] = useState<TipoMovimiento | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
     // Discrepancias mode
@@ -144,6 +147,31 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return result;
     }, [trfHook.crear, trfHook.fetchAll, statusFilter]);
 
+    const handlePushDirecto = useCallback(async (data: any) => {
+        const result = await trfHook.pushDirecto(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.pushDirecto, trfHook.fetchAll, statusFilter]);
+
+    const handleIntraBodega = useCallback(async (data: any) => {
+        const result = await trfHook.intraBodega(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.intraBodega, trfHook.fetchAll, statusFilter]);
+
+    const handleDevolucion = useCallback(async (data: any) => {
+        const result = await trfHook.devolucion(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.devolucion, trfHook.fetchAll, statusFilter]);
+
+    const handleSelectFlow = useCallback((tipo: TipoMovimiento) => {
+        setShowSelectorModal(false);
+        setActiveFlow(tipo);
+    }, []);
+
+    const closeActiveFlow = useCallback(() => setActiveFlow(null), []);
+
     // ── Discrepancias handlers ──
     const handleSelectDiscrepancia = useCallback((trf: any) => {
         trfHook.setSelectedDiscrepancia(trf);
@@ -195,10 +223,10 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 </h3>
                 {!isDiscrepanciasMode && hasPermission('inventario.crear') && (
                     <button
-                        onClick={() => setShowCreateModal(true)}
+                        onClick={() => setShowSelectorModal(true)}
                         className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20"
                     >
-                        <Plus className="h-3.5 w-3.5" /> Nueva Solicitud
+                        <Plus className="h-3.5 w-3.5" /> Nuevo movimiento
                     </button>
                 )}
             </div>
@@ -320,17 +348,69 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 </div>
             </div>
 
-            {/* Creation modal */}
+            {/* Selector de tipo de movimiento */}
+            <NewMovimientoModal
+                isOpen={showSelectorModal}
+                onClose={() => setShowSelectorModal(false)}
+                onSelect={handleSelectFlow}
+            />
+
+            {/* Solicitud estándar (existente) */}
             <Modal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
+                isOpen={activeFlow === 'solicitud'}
+                onClose={closeActiveFlow}
                 title="Nueva Solicitud de Transferencia"
                 size="full"
             >
                 <SolicitudForm
                     obras={obras}
                     onCrear={handleCrear}
-                    onClose={() => setShowCreateModal(false)}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Push directo */}
+            <Modal
+                isOpen={activeFlow === 'push_directo'}
+                onClose={closeActiveFlow}
+                title="Push directo"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="push_directo"
+                    obras={obras}
+                    onSubmit={handlePushDirecto}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Intra-bodega */}
+            <Modal
+                isOpen={activeFlow === 'intra_bodega'}
+                onClose={closeActiveFlow}
+                title="Movimiento intra-bodega"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="intra_bodega"
+                    obras={obras}
+                    onSubmit={handleIntraBodega}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Devolución */}
+            <Modal
+                isOpen={activeFlow === 'devolucion'}
+                onClose={closeActiveFlow}
+                title="Devolución de obra a bodega"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="devolucion"
+                    obras={obras}
+                    onSubmit={handleDevolucion}
+                    onClose={closeActiveFlow}
                 />
             </Modal>
         </div>

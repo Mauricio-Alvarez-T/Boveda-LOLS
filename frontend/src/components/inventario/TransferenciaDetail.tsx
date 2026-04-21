@@ -5,7 +5,7 @@ import {
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
     MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Trash2
 } from 'lucide-react';
-import { estadoConfig } from './TransferenciasList';
+import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
@@ -142,12 +142,24 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Header ── */}
             <div className="flex items-start justify-between mb-4 shrink-0">
                 <div>
-                    <h2 className="text-lg font-black text-brand-dark tracking-tight">{t.codigo}</h2>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <h2 className="text-lg font-black text-brand-dark tracking-tight">{t.codigo}</h2>
+                        {t.tipo_flujo && t.tipo_flujo !== 'solicitud' && (
+                            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
+                                {(tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).label}
+                            </span>
+                        )}
+                    </div>
                     <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
                         <span className="font-medium">{origen}</span>
                         <span>→</span>
                         <span className="font-medium">{destino}</span>
                     </div>
+                    {t.motivo && (
+                        <div className="text-[11px] text-muted-foreground mt-1 italic">
+                            Motivo: {t.motivo}
+                        </div>
+                    )}
                 </div>
                 <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold", cfg.color)}>
                     <Icon className="h-3.5 w-3.5" />

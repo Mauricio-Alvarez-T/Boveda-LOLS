@@ -24,6 +24,15 @@ export const estadoConfig: Record<string, { label: string; color: string; bgSoli
     cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200', bgSolid: 'bg-gray-400', icon: Ban },
 };
 
+export const tipoFlujoConfig: Record<string, { label: string; color: string }> = {
+    solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+    intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+    intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
+    orden_gerencia: { label: 'Orden gerencia', color: 'bg-purple-100 text-purple-700 border-purple-200' },
+    devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+};
+
 const STATUS_CHIPS: { value: string; label: string; discrepancia?: boolean }[] = [
     { value: 'todas', label: 'Todas' },
     { value: 'pendiente', label: 'Pendientes' },
@@ -131,6 +140,11 @@ const TransferenciasList: React.FC<Props> = ({
                                         <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", cfg.color)}>
                                             {cfg.label}
                                         </span>
+                                        {t.tipo_flujo && t.tipo_flujo !== 'solicitud' && (
+                                            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
+                                                {(tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).label}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
                                         <span className="truncate">{origen}</span>

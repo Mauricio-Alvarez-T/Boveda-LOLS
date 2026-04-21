@@ -18,6 +18,34 @@ interface CrearTransferenciaData {
     observaciones?: string;
     requiere_pionetas?: boolean;
     cantidad_pionetas?: number;
+    tipo_flujo?: 'solicitud' | 'devolucion';
+    motivo?: string;
+}
+
+interface PushDirectoData {
+    origen_bodega_id: number;
+    destino_obra_id: number;
+    items: { item_id: number; cantidad: number }[];
+    observaciones?: string;
+    motivo?: string;
+}
+
+interface IntraBodegaData {
+    origen_bodega_id: number;
+    destino_bodega_id: number;
+    items: { item_id: number; cantidad: number }[];
+    observaciones?: string;
+    motivo?: string;
+}
+
+interface DevolucionData {
+    origen_obra_id: number;
+    destino_bodega_id: number;
+    items: { item_id: number; cantidad: number }[];
+    observaciones?: string;
+    motivo?: string;
+    requiere_pionetas?: boolean;
+    cantidad_pionetas?: number;
 }
 
 interface AprobarData {
@@ -87,6 +115,45 @@ export function useTransferencias() {
             return res.data.data;
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al crear solicitud');
+            return null;
+        }
+    }, []);
+
+    const pushDirecto = useCallback(async (data: PushDirectoData) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string; estado: string }>>(
+                '/transferencias/push-directo', data
+            );
+            toast.success(`Push directo ${res.data.data.codigo} creado`);
+            return res.data.data;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al crear push directo');
+            return null;
+        }
+    }, []);
+
+    const intraBodega = useCallback(async (data: IntraBodegaData) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string; estado: string }>>(
+                '/transferencias/intra-bodega', data
+            );
+            toast.success(`Movimiento ${res.data.data.codigo} registrado — stock actualizado`);
+            return res.data.data;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al mover entre bodegas');
+            return null;
+        }
+    }, []);
+
+    const devolucion = useCallback(async (data: DevolucionData) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string }>>(
+                '/transferencias/devolucion', data
+            );
+            toast.success(`Devolución ${res.data.data.codigo} creada`);
+            return res.data.data;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al crear devolución');
             return null;
         }
     }, []);
@@ -207,7 +274,8 @@ export function useTransferencias() {
     return {
         transferencias, selected, loading, total,
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
-        fetchAll, fetchById, crear, aprobar, crearFaltante, despachar, recibir, rechazar, cancelar,
+        fetchAll, fetchById, crear, pushDirecto, intraBodega, devolucion,
+        aprobar, crearFaltante, despachar, recibir, rechazar, cancelar,
         fetchDiscrepancias, resolverDiscrepancia,
         fetchStockPorItems, setSelected
     };

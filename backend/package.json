@@ -10,7 +10,8 @@
     "migrate": "node scripts/migrate.js",
     "migrate:legacy": "node scripts/maintenance.js",
     "migrate:tables": "node scripts/migrations/migrate_missing_tables.js",
-    "migrate:fix-prod": "node scripts/fix_prod_migrations.js"
+    "migrate:fix-prod": "node scripts/fix_prod_migrations.js",
+    "fix-stock-reconciliar": "node scripts/fix_stock_transferencias_aprobadas.js"
   },
   "keywords": [],
   "author": "",

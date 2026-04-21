@@ -63,6 +63,30 @@ router.post('/', auth, checkPermission('inventario.crear'), async (req, res, nex
     } catch (err) { next(err); }
 });
 
+// POST /api/transferencias/push-directo — bodega → obra sin aprobación
+router.post('/push-directo', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.pushDirecto(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias/intra-bodega — bodega → bodega, instantáneo
+router.post('/intra-bodega', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.intraBodega(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias/devolucion — obra → bodega, con aprobación
+router.post('/devolucion', auth, checkPermission('inventario.crear'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.devolucion(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // PUT /api/transferencias/:id/aprobar
 router.put('/:id/aprobar', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
     try {

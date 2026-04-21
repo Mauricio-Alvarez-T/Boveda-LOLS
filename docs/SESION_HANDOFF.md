@@ -10,7 +10,8 @@
 |--------|--------|
 | Asistencia (todas las olas) | ✅ Completado y en producción |
 | Inventario — Ola 1: Foundations | ✅ Mergeado a `develop` |
-| Inventario — Ola 2: Matriz 8 flujos | 🔲 Siguiente PR |
+| Inventario — Ola 2 Fase 1: push_directo + intra_bodega + devolución | ✅ Implementado (stock diferido al recibir) |
+| Inventario — Ola 2 Fase 2: intra_obra + orden_gerencia + rechazo + cancelación | 🔲 Siguiente PR |
 | Inventario — Ola 3: Bulk edit | 🔲 Pendiente |
 | Inventario — Ola 4: Arriendo + facturación | ⏸ EN PAUSA (esperar jefatura) |
 | Inventario — Ola 5: Calidad / backlog | 🔲 Backlog |
@@ -98,7 +99,45 @@ Tests 104/104, `tsc --noEmit` clean.
 
 ---
 
-## Inventario — Ola 2: Matriz 8 flujos (SIGUIENTE PR)
+## Inventario — Ola 2 Fase 1 ✅ IMPLEMENTADO
+
+### Cambio semántico de stock (aplica a todos los flujos)
+**El stock ahora se mueve al `recibir()`, no al `aprobar()`.**
+- `aprobada` → ya **no** decrece stock origen (antes sí).
+- `recibida` → decrece origen (por splits) **y** aumenta destino.
+- `rechazar/cancelar` → solo reversa si la transferencia es legacy (`stock_reconciliado=FALSE`).
+
+Esto elimina el "stock fantasma" de aprobaciones que nunca se reciben. Contracara: dos aprobaciones pueden comprometer el mismo stock; el segundo receptor lo detectará como discrepancia.
+
+### Migración 036 + script de reconciliación
+- `backend/db/migrations/036_stock_reconciliado_flag.sql`: agrega `transferencias.stock_reconciliado BOOLEAN DEFAULT TRUE`. Al aplicar, marca las transferencias `aprobada|en_transito` existentes como `FALSE` (régimen viejo).
+- `backend/scripts/fix_stock_transferencias_aprobadas.js`: script idempotente. Re-incrementa stock origen usando splits y marca `stock_reconciliado=TRUE`. **Debe correrse UNA VEZ** en staging y prod post-migrate. Alias npm: `fix-stock-reconciliar`.
+- Ver `docs/RUNBOOK.md § 10.1` para el orden exacto.
+
+### Flujos implementados en Fase 1
+| # | Flujo | Origen → Destino | Estados | Permiso |
+|---|-------|-----------------|---------|---------|
+| 1 | solicitud (existente) | bodega → obra | pendiente→aprobada→en_tránsito→recibida | inventario.crear |
+| 2 | push_directo (NUEVO) | bodega → obra | en_tránsito→recibida (sin aprobación) | inventario.editar |
+| 3 | intra_bodega (NUEVO) | bodega → bodega | recibida (instantáneo, misma tx) | inventario.editar |
+| 4 | devolucion (NUEVO) | obra → bodega | pendiente→aprobada→en_tránsito→recibida | inventario.crear |
+
+### Backend
+- `transferencia.service.js`: `aprobar()` sin decremento de stock; `recibir()` mueve stock usando splits + flag `stock_reconciliado`. Nuevos: `pushDirecto()`, `intraBodega()`, `devolucion()`. `crear()` acepta `tipo_flujo`, `motivo`, `origen_obra_id`, `origen_bodega_id`.
+- `transferencias.routes.js`: rutas `POST /push-directo`, `POST /intra-bodega`, `POST /devolucion`.
+- Tests: **113/113 ✅** (104 previos + 9 nuevos en `transferencia_flujos.test.js`).
+
+### Frontend
+- `NewMovimientoModal.tsx`: selector de 4 flujos.
+- `MovimientoForm.tsx`: form unificado parametrizado por `flujo` (push_directo | intra_bodega | devolucion) — pragmáticamente en un solo componente.
+- `TransferenciasPanel.tsx`: botón "Nuevo movimiento" → abre selector → abre form correspondiente.
+- `TransferenciasList.tsx`: `tipoFlujoConfig` + badge de tipo_flujo en cada card.
+- `TransferenciaDetail.tsx`: badge en header + motivo italicizado.
+- `useTransferencias.ts`: métodos `pushDirecto`, `intraBodega`, `devolucion`.
+
+---
+
+## Inventario — Ola 2 Fase 2 (SIGUIENTE PR)
 
 ### Los 8 flujos del negocio
 
@@ -113,9 +152,9 @@ Tests 104/104, `tsc --noEmit` clean.
 | 7 | Rechazo recepción | reversa automática | — | en_tránsito→rechazada | bodeguero destino |
 | 8 | Cancelación post-despacho | — | — | en_tránsito→cancelada | solicitante/aprobador |
 
-### Regla crítica de stock
-**Stock decrece al despacho físico** (estado → `en_tránsito`), **NO al aprobar**.
-Stock destino sube al recibir. Evita "stock fantasma" de aprobaciones que nunca salen.
+### Regla crítica de stock (Fase 1)
+**Stock decrece al recibir** (confirmación del receptor), **NO al aprobar** ni al despachar.
+Destino sube al recibir en la misma transacción. Evita stock fantasma.
 
 ### Archivos a modificar / crear
 Backend:
@@ -240,4 +279,4 @@ cd ../backend && npm run dev
 cd ../frontend && npm run dev
 ```
 
-Próxima tarea: **Ola 2 — matriz 8 flujos**. Crear rama `feat/inventario-flujos` desde develop.
+Próxima tarea: **Ola 2 Fase 2** — intra_obra, orden_gerencia, rechazo_recepción, cancelación_post_despacho.
