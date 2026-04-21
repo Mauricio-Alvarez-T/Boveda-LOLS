@@ -343,10 +343,65 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                 const clearItem = (idx: number) => updateSplits(idx, []);
 
-                // Auto-completar todos: cubre cantidad_solicitada sumando ubicaciones
-                // (mayor stock primero). Si ni sumando alcanza, usa todo el disponible
-                // y deja el faltante visible.
+                // Auto-completar:
+                // Regla 1 (preferida): si UNA sola ubicación tiene stock suficiente para
+                //   TODOS los ítems solicitados, usarla como origen único (un solo viaje
+                //   para el transportista). Si varias cumplen, preferir la que maximiza
+                //   el total de unidades disponibles (más "holgada").
+                // Regla 2 (fallback): cubrir cada ítem sumando ubicaciones (mayor stock
+                //   primero). Si ni sumando alcanza, usa todo el disponible y deja el
+                //   faltante visible.
                 const autoCompletar = () => {
+                    // Candidatos: intersección de ubicaciones presentes en TODOS los ítems,
+                    // con stock suficiente para cada uno.
+                    const locKey = (l: StockLocation) => `${l.type}_${l.id}`;
+
+                    // Mapa itemId -> Map<locKey, cantidad disponible>
+                    const perItemLocs = approvalItems.map(ai => {
+                        const m = new Map<string, { loc: StockLocation; cantidad: number }>();
+                        for (const loc of stockData[ai.item_id] || []) {
+                            m.set(locKey(loc), { loc, cantidad: loc.cantidad });
+                        }
+                        return m;
+                    });
+
+                    // Ubicaciones candidatas: aparecen en el primer ítem (o cualquiera)
+                    const primerMap = perItemLocs[0];
+                    const candidatasViables: { loc: StockLocation; totalDisponible: number }[] = [];
+                    if (primerMap) {
+                        for (const [key, { loc }] of primerMap.entries()) {
+                            let cubreTodos = true;
+                            let suma = 0;
+                            for (let i = 0; i < approvalItems.length; i++) {
+                                const ai = approvalItems[i];
+                                const entry = perItemLocs[i].get(key);
+                                if (!entry || entry.cantidad < ai.cantidad_solicitada) {
+                                    cubreTodos = false;
+                                    break;
+                                }
+                                suma += entry.cantidad;
+                            }
+                            if (cubreTodos) candidatasViables.push({ loc, totalDisponible: suma });
+                        }
+                    }
+
+                    // Ubicación única que cubre todo → seleccionar esa
+                    if (candidatasViables.length > 0) {
+                        candidatasViables.sort((a, b) => b.totalDisponible - a.totalDisponible);
+                        const elegida = candidatasViables[0].loc;
+                        const updated = approvalItems.map(ai => ({
+                            ...ai,
+                            splits: [{
+                                origen_obra_id: elegida.type === 'obra' ? elegida.id : null,
+                                origen_bodega_id: elegida.type === 'bodega' ? elegida.id : null,
+                                cantidad: ai.cantidad_solicitada,
+                            }],
+                        }));
+                        setApprovalItems(updated);
+                        return;
+                    }
+
+                    // Fallback: split multi-ubicación, mayor stock primero
                     const updated = approvalItems.map(ai => {
                         const locs = [...(stockData[ai.item_id] || [])].sort((a, b) => b.cantidad - a.cantidad);
                         let restante = ai.cantidad_solicitada;
