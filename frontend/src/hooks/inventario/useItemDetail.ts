@@ -55,9 +55,10 @@ export function useItemDetail(): UseItemDetailReturn {
         if (cached) return cached;
 
         try {
-            const res = await api.get<{ data: ItemInventario }>(`/items-inventario/${itemId}`);
-            const item = res.data?.data;
-            if (!item) return null;
+            // Backend crud.controller.getById returns item directamente (no envuelto en { data })
+            const res = await api.get<ItemInventario>(`/items-inventario/${itemId}`);
+            const item = res.data;
+            if (!item || typeof item !== 'object' || !('id' in item)) return null;
             cache.current.set(itemId, item);
             return item;
         } catch (err) {
