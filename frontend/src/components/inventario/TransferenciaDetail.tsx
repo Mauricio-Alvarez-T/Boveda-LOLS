@@ -418,7 +418,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             ? { item_descripcion: it.item_descripcion || `Ítem #${it.item_id}`, cantidad_faltante: faltante, unidad: it.unidad }
                             : null;
                     })
-                    .filter((x): x is { item_descripcion: string; cantidad_faltante: number; unidad?: string } => !!x);
+                    .filter((x): x is { item_descripcion: string; cantidad_faltante: number; unidad: string | undefined } => !!x);
 
                 const sendApproval = async () => {
                     const payload = approvalItems.map(ai => ({
