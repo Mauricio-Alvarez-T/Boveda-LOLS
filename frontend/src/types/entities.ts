@@ -168,8 +168,6 @@ export interface Bodega {
     responsable_id: number | null;
     responsable_nombre?: string;
     activa: boolean;
-    es_permanente: boolean;
-    empresa_propietaria: 'dedalius' | 'lols';
 }
 
 export interface ItemInventario {
