@@ -78,9 +78,9 @@ const InventarioPage: React.FC = () => {
         }
     }, [allUbicaciones, selectedObra, selectedUbicacionKey]);
 
-    // ── Load resumen on mount ──
+    // ── Load resumen: también necesario para 'por_ubicacion' (bodegas vienen de resumen.bodegas) ──
     useEffect(() => {
-        if (activeTab === 'resumen') fetchResumen();
+        if (activeTab === 'resumen' || activeTab === 'por_ubicacion') fetchResumen();
     }, [activeTab, fetchResumen]);
 
     // ── Load stock when ubicacion selected ──

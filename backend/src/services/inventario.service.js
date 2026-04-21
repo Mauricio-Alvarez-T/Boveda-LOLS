@@ -224,14 +224,20 @@ const inventarioService = {
                 valor_arriendo: parseFloat(item.valor_arriendo),
                 unidad: item.unidad,
                 cantidad: item.cantidad,
+                total: 0, // bodegas no facturan arriendo — campo presente para consistencia con getStockPorObra
                 ubicacion_stock_id: item.ubicacion_stock_id
             });
             categorias[catKey].subtotal_cantidad += item.cantidad;
         });
 
+        // Agregar subtotal_arriendo = 0 a cada categoría para consistencia de shape
+        const categoriasFinal = Object.values(categorias)
+            .map(c => ({ ...c, subtotal_arriendo: 0 }))
+            .sort((a, b) => a.orden - b.orden);
+
         return {
             bodega,
-            categorias: Object.values(categorias).sort((a, b) => a.orden - b.orden)
+            categorias: categoriasFinal
         };
     },
 
