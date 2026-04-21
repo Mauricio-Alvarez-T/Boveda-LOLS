@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Trash2
+    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
@@ -902,6 +902,20 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         </span>
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[10px] text-muted-foreground">Recibida:</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = [...receiveItems];
+                                                    const current = updated[idx].cantidad_recibida;
+                                                    updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, current - 1) };
+                                                    setReceiveItems(updated);
+                                                }}
+                                                disabled={ri.cantidad_recibida <= 0}
+                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                                aria-label="Restar 1"
+                                            >
+                                                <Minus className="h-3 w-3" />
+                                            </button>
                                             <input
                                                 type="number"
                                                 min={0}
@@ -913,6 +927,18 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 }}
                                                 className="w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold"
                                             />
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    const updated = [...receiveItems];
+                                                    updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
+                                                    setReceiveItems(updated);
+                                                }}
+                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                                aria-label="Sumar 1"
+                                            >
+                                                <Plus className="h-3 w-3" />
+                                            </button>
                                         </div>
                                     </div>
 
