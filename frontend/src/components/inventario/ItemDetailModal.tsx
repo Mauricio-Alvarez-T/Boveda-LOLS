@@ -90,16 +90,16 @@ const ItemDetailModal: React.FC<Props> = ({
                             <button
                                 type="button"
                                 onClick={() => setImageZoom(true)}
-                                className="w-full overflow-hidden rounded-xl border border-[#E8E8ED] hover:border-brand-primary/30 transition-all group"
+                                className="w-full h-64 sm:h-72 flex items-center justify-center overflow-hidden rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] hover:border-brand-primary/30 transition-all group"
                             >
                                 <img
                                     src={imageUrl}
                                     alt={item.descripcion}
-                                    className="w-full aspect-video object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                                    className="max-w-full max-h-full w-auto h-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
                                 />
                             </button>
                         ) : (
-                            <div className="w-full aspect-video rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] flex flex-col items-center justify-center gap-2">
+                            <div className="w-full h-64 sm:h-72 rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] flex flex-col items-center justify-center gap-2">
                                 <ImageOff className="h-10 w-10 text-muted-foreground/20" />
                                 <p className="text-[10px] text-muted-foreground/50">Sin imagen</p>
                             </div>
