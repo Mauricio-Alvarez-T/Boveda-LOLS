@@ -24,7 +24,39 @@ const db = require('../config/db');
  * FALSE→TRUE tras re-incrementar el origen, llevando legacy al régimen nuevo.
  */
 
+// Cache módulo: una vez que un SELECT falla por columna `stock_reconciliado`
+// inexistente (migración 036 pendiente en staging/prod), las llamadas siguientes
+// saltan directo al fragmento `TRUE AS stock_reconciliado` en vez de relanzar
+// el error. Se flipa a TRUE cuando algún SELECT con la columna sí funciona,
+// por si la migración se corre mid-proceso.
+let _stockReconcilColMissing = false;
+
 const transferenciaService = {
+    /**
+     * Helper: SELECT de transferencia tolerante a migración 036 pendiente.
+     * Placeholder `{reconcil}` en `sqlTemplate` se sustituye por
+     * `stock_reconciliado` normalmente, o por `TRUE AS stock_reconciliado`
+     * si la columna no existe. Si falla con ER_BAD_FIELD_ERROR, reintenta
+     * sin la columna y memoiza para llamadas siguientes.
+     */
+    async _selectForStatusChange(conn, sqlTemplate, params) {
+        const build = (missing) => sqlTemplate.replace(
+            '{reconcil}',
+            missing ? 'TRUE AS stock_reconciliado' : 'stock_reconciliado'
+        );
+        try {
+            const [rows] = await conn.query(build(_stockReconcilColMissing), params);
+            return rows[0] || null;
+        } catch (err) {
+            if (!_stockReconcilColMissing && err && err.code === 'ER_BAD_FIELD_ERROR') {
+                _stockReconcilColMissing = true;
+                const [rows] = await conn.query(build(true), params);
+                return rows[0] || null;
+            }
+            throw err;
+        }
+    },
+
     /**
      * Genera código único TRF-YYYYMM-XXXX
      */
@@ -606,12 +638,12 @@ const transferenciaService = {
         try {
             await conn.beginTransaction();
 
-            const [trfRows] = await conn.query(
-                'SELECT estado, origen_obra_id, origen_bodega_id, stock_reconciliado FROM transferencias WHERE id = ?',
+            const trf = await this._selectForStatusChange(
+                conn,
+                'SELECT estado, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ?',
                 [id]
             );
-            if (!trfRows.length) throw new Error('Transferencia no encontrada');
-            const trf = trfRows[0];
+            if (!trf) throw new Error('Transferencia no encontrada');
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden rechazar transferencias pendientes, aprobadas o en tránsito');
             }
@@ -651,12 +683,12 @@ const transferenciaService = {
         try {
             await conn.beginTransaction();
 
-            const [trfRows] = await conn.query(
-                'SELECT estado, solicitante_id, origen_obra_id, origen_bodega_id, stock_reconciliado FROM transferencias WHERE id = ?',
+            const trf = await this._selectForStatusChange(
+                conn,
+                'SELECT estado, solicitante_id, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ?',
                 [id]
             );
-            if (!trfRows.length) throw new Error('Transferencia no encontrada');
-            const trf = trfRows[0];
+            if (!trf) throw new Error('Transferencia no encontrada');
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden cancelar transferencias pendientes, aprobadas o en tránsito');
             }
