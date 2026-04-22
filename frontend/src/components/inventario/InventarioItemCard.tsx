@@ -58,18 +58,46 @@ const qtyColor = (n: number) =>
     : n > 0  ? 'text-amber-700 bg-amber-50 border-amber-200'
     :          'text-muted-foreground bg-muted/30 border-[#E8E8ED]';
 
+/** Fila de ubicación reutilizable */
+const LocationRow: React.FC<{ loc: StockLocation }> = ({ loc }) => (
+    <div className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-[#F8F9FC] transition-colors">
+        <div className={cn(
+            "w-5 h-5 rounded-md flex items-center justify-center shrink-0",
+            loc.type === 'bodega' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+        )}>
+            {loc.type === 'bodega'
+                ? <Warehouse className="h-2.5 w-2.5" />
+                : <MapPin className="h-2.5 w-2.5" />
+            }
+        </div>
+        <span className="flex-1 text-[10px] font-medium text-brand-dark truncate">
+            {loc.nombre}
+        </span>
+        <span className={cn(
+            "px-1.5 py-0.5 rounded-full text-[10px] font-black border",
+            qtyColor(loc.cantidad)
+        )}>
+            {loc.cantidad}
+        </span>
+    </div>
+);
+
 const InventarioItemCard: React.FC<Props> = ({
     item, categorias, stockLocations, isDirty, isFieldDirty, getVal, setField, onEditFull, index,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [showAllLocations, setShowAllLocations] = useState(false);
     const catColor = getCatColor(item.categoria_nombre);
     const propBadge = PROPIETARIO_BADGE[String(getVal('propietario'))] || PROPIETARIO_BADGE.lols;
     const activo = !!getVal('activo');
 
     const totalStock = stockLocations.reduce((s, l) => s + l.cantidad, 0);
-    const obras = stockLocations.filter(l => l.type === 'obra' && l.cantidad > 0);
-    const bodegas = stockLocations.filter(l => l.type === 'bodega' && l.cantidad > 0);
-    const ubicacionesConStock = obras.length + bodegas.length;
+    // Bodegas siempre primero, luego obras — solo con stock > 0
+    const allLocations = [
+        ...stockLocations.filter(l => l.type === 'bodega' && l.cantidad > 0),
+        ...stockLocations.filter(l => l.type === 'obra' && l.cantidad > 0),
+    ];
+    const ubicacionesConStock = allLocations.length;
 
     const imageUrl = item.imagen_url
         ? `${API_BASE}${item.imagen_url.startsWith('/api/') ? item.imagen_url : `/api${item.imagen_url.startsWith('/') ? '' : '/'}${item.imagen_url}`}`
@@ -168,36 +196,37 @@ const InventarioItemCard: React.FC<Props> = ({
                         </div>
                     ) : (
                         <div className="space-y-1">
-                            {/* Mostrar hasta 3 ubicaciones, luego "+N más" */}
-                            {[...bodegas, ...obras].slice(0, 3).map(loc => (
-                                <div
-                                    key={`${loc.type}_${loc.id}`}
-                                    className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-[#F8F9FC] transition-colors"
-                                >
-                                    <div className={cn(
-                                        "w-5 h-5 rounded-md flex items-center justify-center shrink-0",
-                                        loc.type === 'bodega' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
-                                    )}>
-                                        {loc.type === 'bodega'
-                                            ? <Warehouse className="h-2.5 w-2.5" />
-                                            : <MapPin className="h-2.5 w-2.5" />
-                                        }
-                                    </div>
-                                    <span className="flex-1 text-[10px] font-medium text-brand-dark truncate">
-                                        {loc.nombre}
-                                    </span>
-                                    <span className={cn(
-                                        "px-1.5 py-0.5 rounded-full text-[10px] font-black border",
-                                        qtyColor(loc.cantidad)
-                                    )}>
-                                        {loc.cantidad}
-                                    </span>
-                                </div>
+                            {/* Siempre bodegas primero, luego obras */}
+                            {allLocations.slice(0, 3).map(loc => (
+                                <LocationRow key={`${loc.type}_${loc.id}`} loc={loc} />
                             ))}
-                            {ubicacionesConStock > 3 && (
-                                <p className="text-[9px] text-muted-foreground/70 text-center py-0.5">
-                                    +{ubicacionesConStock - 3} ubicación{ubicacionesConStock - 3 !== 1 ? 'es' : ''} más
-                                </p>
+                            {/* Ubicaciones extra (expandibles) */}
+                            {allLocations.length > 3 && (
+                                <>
+                                    {showAllLocations && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="space-y-1"
+                                        >
+                                            {allLocations.slice(3).map(loc => (
+                                                <LocationRow key={`${loc.type}_${loc.id}`} loc={loc} />
+                                            ))}
+                                        </motion.div>
+                                    )}
+                                    <button
+                                        onClick={() => setShowAllLocations(!showAllLocations)}
+                                        className="w-full flex items-center justify-center gap-1 py-1 rounded-lg text-[10px] font-bold text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
+                                    >
+                                        <MapPin className="h-2.5 w-2.5" />
+                                        {showAllLocations
+                                            ? 'Ocultar ubicaciones'
+                                            : `+${allLocations.length - 3} ubicación${allLocations.length - 3 !== 1 ? 'es' : ''}`
+                                        }
+                                        <ChevronDown className={cn("h-2.5 w-2.5 transition-transform duration-200", showAllLocations && "rotate-180")} />
+                                    </button>
+                                </>
                             )}
                         </div>
                     )}
