@@ -558,7 +558,12 @@ const TransferenciaDetail: React.FC<Props> = ({
                             items.map((item, idx) => {
                                 const ai = approvalItems[idx];
                                 if (!ai) return null;
-                                const locations = stockData[item.item_id] || [];
+                                const locationsRaw = stockData[item.item_id] || [];
+                                // Bodegas siempre primero
+                                const locations = [
+                                    ...locationsRaw.filter(l => l.type === 'bodega'),
+                                    ...locationsRaw.filter(l => l.type !== 'bodega'),
+                                ];
                                 const status = itemStatus[idx];
                                 const hasStock = locations.length > 0;
                                 const totalSplits = status.total;
@@ -600,13 +605,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             </span>
                                         </div>
 
-                                        {/* Chips de ubicaciones disponibles (click → elegir origen único) */}
                                         {hasStock ? (
                                             <div className="flex flex-wrap gap-1.5 mb-2">
                                                 {locations.map((loc, lIdx) => {
                                                     const key = `${loc.type === 'obra' ? loc.id : 'n'}:${loc.type === 'bodega' ? loc.id : 'n'}`;
                                                     const isActive = currentOriginIds.has(key);
                                                     const disponible = loc.cantidad;
+                                                    const isBodega = loc.type === 'bodega';
                                                     return (
                                                         <button
                                                             key={lIdx}
@@ -618,12 +623,19 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             className={cn(
                                                                 "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
                                                                 isActive
-                                                                    ? "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50"
-                                                                    : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                                                    ? isBodega
+                                                                        ? "bg-amber-100 border-amber-400 text-amber-800 font-bold ring-2 ring-amber-300/50"
+                                                                        : "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50"
+                                                                    : isBodega
+                                                                        ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
+                                                                        : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                                                             )}
-                                                            title={`${loc.nombre}: ${disponible} disponibles`}
+                                                            title={`${isBodega ? '🏭 Bodega' : '🏗 Obra'}: ${loc.nombre} — ${disponible} disponibles`}
                                                         >
-                                                            <MapPin className="h-2.5 w-2.5" />
+                                                            {isBodega
+                                                                ? <span className="text-[8px]">🏭</span>
+                                                                : <MapPin className="h-2.5 w-2.5" />
+                                                            }
                                                             {loc.nombre}: <span className="font-bold">{disponible}</span>
                                                             {isActive && <Check className="h-2.5 w-2.5" />}
                                                         </button>
@@ -650,7 +662,10 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                                                     return (
                                                         <div key={sIdx} className="flex items-center gap-2 text-[10px]">
-                                                            <MapPin className="h-3 w-3 text-green-700 shrink-0" />
+                                                            {loc?.type === 'bodega'
+                                                                ? <span className="text-[10px] shrink-0">🏭</span>
+                                                                : <MapPin className="h-3 w-3 text-green-700 shrink-0" />
+                                                            }
                                                             <span className="font-medium text-brand-dark truncate flex-1">
                                                                 {loc?.nombre || 'Ubicación inválida'}
                                                                 <span className="text-muted-foreground"> (máx {maxAqui})</span>
