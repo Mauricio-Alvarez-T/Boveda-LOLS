@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2
+    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
@@ -630,10 +630,10 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                         ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
                                                                         : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                                                             )}
-                                                            title={`${isBodega ? '🏭 Bodega' : '🏗 Obra'}: ${loc.nombre} — ${disponible} disponibles`}
+                                                            title={`${isBodega ? 'Bodega' : 'Obra'}: ${loc.nombre} — ${disponible} disponibles`}
                                                         >
                                                             {isBodega
-                                                                ? <span className="text-[8px]">🏭</span>
+                                                                ? <Warehouse className="h-2.5 w-2.5" />
                                                                 : <MapPin className="h-2.5 w-2.5" />
                                                             }
                                                             {loc.nombre}: <span className="font-bold">{disponible}</span>
@@ -663,7 +663,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     return (
                                                         <div key={sIdx} className="flex items-center gap-2 text-[10px]">
                                                             {loc?.type === 'bodega'
-                                                                ? <span className="text-[10px] shrink-0">🏭</span>
+                                                                ? <Warehouse className="h-3 w-3 text-amber-600 shrink-0" />
                                                                 : <MapPin className="h-3 w-3 text-green-700 shrink-0" />
                                                             }
                                                             <span className="font-medium text-brand-dark truncate flex-1">
