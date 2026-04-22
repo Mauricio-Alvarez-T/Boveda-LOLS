@@ -1,6 +1,6 @@
 # Handoff: Estado actual — Bóveda LOLS
 
-> **Documento de continuidad.** Actualizado al 2026-04-21. Retomar desde cualquier máquina.
+> **Documento de continuidad.** Actualizado al 2026-04-22. Retomar desde cualquier máquina.
 
 ---
 
@@ -11,7 +11,7 @@
 | Asistencia (todas las olas) | ✅ Completado y en producción |
 | Inventario — Ola 1: Foundations | ✅ Mergeado a `develop` |
 | Inventario — Ola 2 Fase 1: push_directo + intra_bodega + devolución | ✅ Implementado (stock diferido al recibir) |
-| Inventario — Ola 2 Fase 2: intra_obra + orden_gerencia + rechazo + cancelación | 🔲 Siguiente PR |
+| Inventario — Ola 2 Fase 2: intra_obra + orden_gerencia + rechazo_recepción + cancelación post-despacho | ✅ Implementado (cierra Ola 2) |
 | Inventario — Ola 3: Bulk edit | 🔲 Pendiente |
 | Inventario — Ola 4: Arriendo + facturación | ⏸ EN PAUSA (esperar jefatura) |
 | Inventario — Ola 5: Calidad / backlog | 🔲 Backlog |
@@ -137,7 +137,24 @@ Esto elimina el "stock fantasma" de aprobaciones que nunca se reciben. Contracar
 
 ---
 
-## Inventario — Ola 2 Fase 2 (SIGUIENTE PR)
+## Inventario — Ola 2 Fase 2 ✅ IMPLEMENTADO
+
+Cierra la matriz de 8 flujos. Implementado + tests + typecheck + build OK (**120 tests pasando**).
+
+Backend (`backend/src/services/transferencia.service.js` + `routes/transferencias.routes.js`):
+- `intraObra(data, userId)` — obra → obra, flujo con aprobación (reusa `crear()` con `tipo_flujo='intra_obra'`).
+- `ordenGerencia(data, userId)` — nace en `en_transito`, motivo obligatorio, origen/destino flexibles.
+- `rechazar()` — guard extendido a `pendiente|aprobada|en_transito`. Nueva ruta `PUT /:id/rechazar-recepcion` con permiso `inventario.editar`.
+- `cancelar()` — guard extendido a `pendiente|aprobada|en_transito` (sin stock que revertir en régimen nuevo desde en_transito).
+
+Frontend:
+- `NewMovimientoModal` — 2 nuevas opciones (intra_obra, orden_gerencia).
+- `MovimientoForm` — parametrizado por `FLUJO_SHAPES` con `motivoRequerido`.
+- `useTransferencias` — métodos `intraObra`, `ordenGerencia`, `rechazarRecepcion`.
+- `TransferenciasPanel` — handlers + 2 modals.
+- `TransferenciaDetail` — `canCancelar` extendido a `en_transito`; botón "Rechazar Recepción" visible desde `en_transito`.
+
+### Los 8 flujos del negocio
 
 ### Los 8 flujos del negocio
 
@@ -279,4 +296,4 @@ cd ../backend && npm run dev
 cd ../frontend && npm run dev
 ```
 
-Próxima tarea: **Ola 2 Fase 2** — intra_obra, orden_gerencia, rechazo_recepción, cancelación_post_despacho.
+Próxima tarea: **Ola 3** (bulk edit de items) o **Ola 5** (calidad / backlog). Ola 2 completa.

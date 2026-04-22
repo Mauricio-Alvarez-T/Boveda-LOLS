@@ -1,9 +1,9 @@
 import React from 'react';
-import { ClipboardList, Truck, ArrowLeftRight, Undo2 } from 'lucide-react';
+import { ClipboardList, Truck, ArrowLeftRight, Undo2, Building2, Crown } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
 
-export type TipoMovimiento = 'solicitud' | 'push_directo' | 'intra_bodega' | 'devolucion';
+export type TipoMovimiento = 'solicitud' | 'push_directo' | 'intra_bodega' | 'devolucion' | 'intra_obra' | 'orden_gerencia';
 
 interface Props {
     isOpen: boolean;
@@ -52,6 +52,22 @@ const OPTIONS: Option[] = [
         subtitle: 'Obra → Bodega',
         description: 'Obra devuelve material (cierre de obra). Requiere aprobación del dueño de bodega.',
         accent: 'amber-500',
+    },
+    {
+        tipo: 'intra_obra',
+        icon: <Building2 className="h-5 w-5" />,
+        title: 'Intra-obra',
+        subtitle: 'Obra → Obra',
+        description: 'Traslado entre obras. Requiere aprobación del jefe de obra destino.',
+        accent: 'indigo-500',
+    },
+    {
+        tipo: 'orden_gerencia',
+        icon: <Crown className="h-5 w-5" />,
+        title: 'Orden de gerencia',
+        subtitle: 'Bypasa aprobación',
+        description: 'Orden ejecutiva PM/dueño. Nace en tránsito, motivo obligatorio.',
+        accent: 'purple-500',
     },
 ];
 

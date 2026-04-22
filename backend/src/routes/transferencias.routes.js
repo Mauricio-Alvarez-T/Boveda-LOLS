@@ -87,6 +87,22 @@ router.post('/devolucion', auth, checkPermission('inventario.crear'), async (req
     } catch (err) { next(err); }
 });
 
+// POST /api/transferencias/intra-obra — obra → obra, con aprobación
+router.post('/intra-obra', auth, checkPermission('inventario.crear'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.intraObra(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias/orden-gerencia — orden ejecutiva PM/dueño, bypasa aprobación
+router.post('/orden-gerencia', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.ordenGerencia(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // PUT /api/transferencias/:id/aprobar
 router.put('/:id/aprobar', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
     try {
@@ -111,8 +127,17 @@ router.put('/:id/recibir', auth, checkPermission('inventario.editar'), async (re
     } catch (err) { next(err); }
 });
 
-// PUT /api/transferencias/:id/rechazar
+// PUT /api/transferencias/:id/rechazar — rechazo del aprobador (desde pendiente|aprobada)
 router.put('/:id/rechazar', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.rechazar(req.params.id, req.user.id, req.body.motivo);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/rechazar-recepcion — rechazo físico del receptor (desde en_transito)
+// Permiso distinto (inventario.editar) porque el receptor suele ser bodeguero, no aprobador.
+router.put('/:id/rechazar-recepcion', auth, checkPermission('inventario.editar'), async (req, res, next) => {
     try {
         const result = await transferenciaService.rechazar(req.params.id, req.user.id, req.body.motivo);
         res.json({ data: result });

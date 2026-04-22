@@ -9,7 +9,7 @@ import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import type { StockUbicacion } from './StockBadge';
 import { cn } from '../../utils/cn';
 
-type Flujo = 'push_directo' | 'intra_bodega' | 'devolucion';
+type Flujo = 'push_directo' | 'intra_bodega' | 'devolucion' | 'intra_obra' | 'orden_gerencia';
 
 interface Props {
     flujo: Flujo;
@@ -22,6 +22,16 @@ interface CartLine {
     item_id: number;
     cantidad: number;
 }
+
+// Tipo de ubicación por flujo (origen → destino).
+type UbiTipo = 'bodega' | 'obra';
+const FLUJO_SHAPES: Record<Flujo, { origenTipo: UbiTipo; destinoTipo: UbiTipo; motivoRequerido: boolean }> = {
+    push_directo: { origenTipo: 'bodega', destinoTipo: 'obra', motivoRequerido: false },
+    intra_bodega: { origenTipo: 'bodega', destinoTipo: 'bodega', motivoRequerido: false },
+    devolucion: { origenTipo: 'obra', destinoTipo: 'bodega', motivoRequerido: false },
+    intra_obra: { origenTipo: 'obra', destinoTipo: 'obra', motivoRequerido: false },
+    orden_gerencia: { origenTipo: 'bodega', destinoTipo: 'obra', motivoRequerido: true },
+};
 
 const FLUJO_LABELS: Record<Flujo, { title: string; origenLabel: string; destinoLabel: string; cta: string }> = {
     push_directo: {
@@ -42,10 +52,23 @@ const FLUJO_LABELS: Record<Flujo, { title: string; origenLabel: string; destinoL
         destinoLabel: 'Bodega destino',
         cta: 'Crear devolución',
     },
+    intra_obra: {
+        title: 'Traslado intra-obra (Obra → Obra)',
+        origenLabel: 'Obra origen',
+        destinoLabel: 'Obra destino',
+        cta: 'Crear solicitud',
+    },
+    orden_gerencia: {
+        title: 'Orden de gerencia (Bodega → Obra, bypasa aprobación)',
+        origenLabel: 'Bodega origen',
+        destinoLabel: 'Obra destino',
+        cta: 'Emitir orden',
+    },
 };
 
 const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) => {
     const labels = FLUJO_LABELS[flujo];
+    const shape = FLUJO_SHAPES[flujo];
     const { fetchStockPorItems } = useTransferencias();
 
     const [catalogo, setCatalogo] = useState<ItemInventario[]>([]);
@@ -80,33 +103,30 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
 
     // Available origin options depending on flow
     const origenOptions = useMemo(() => {
-        if (flujo === 'devolucion') {
-            return obras.map(o => ({ value: o.id, label: o.nombre }));
-        }
-        return bodegas.map(b => ({ value: b.id, label: b.nombre }));
-    }, [flujo, obras, bodegas]);
+        const src = shape.origenTipo === 'obra' ? obras : bodegas;
+        return src.map((o: any) => ({ value: o.id, label: o.nombre }));
+    }, [shape.origenTipo, obras, bodegas]);
 
     const destinoOptions = useMemo(() => {
-        if (flujo === 'push_directo') {
-            return obras.map(o => ({ value: o.id, label: o.nombre }));
-        }
-        // intra_bodega, devolucion → destino es bodega
-        return bodegas
-            .filter(b => !(flujo === 'intra_bodega' && b.id === origenId))
-            .map(b => ({ value: b.id, label: b.nombre }));
-    }, [flujo, obras, bodegas, origenId]);
+        const src = shape.destinoTipo === 'obra' ? obras : bodegas;
+        // Excluir la misma ubicación como destino cuando origen y destino son del mismo tipo.
+        const mismoTipo = shape.origenTipo === shape.destinoTipo;
+        return src
+            .filter((o: any) => !(mismoTipo && o.id === origenId))
+            .map((o: any) => ({ value: o.id, label: o.nombre }));
+    }, [shape.origenTipo, shape.destinoTipo, obras, bodegas, origenId]);
 
     // Stock disponible por ítem en la ubicación origen
     const stockEnOrigen = useMemo(() => {
         const m: Record<number, number> = {};
         if (origenId == null) return m;
-        const tipoBuscado = flujo === 'devolucion' ? 'obra' : 'bodega';
+        const tipoBuscado = shape.origenTipo;
         Object.entries(stockMap).forEach(([itemId, ubis]) => {
             const found = ubis.find(u => u.type === tipoBuscado && u.id === origenId);
             if (found) m[Number(itemId)] = Number(found.cantidad) || 0;
         });
         return m;
-    }, [stockMap, origenId, flujo]);
+    }, [stockMap, origenId, shape.origenTipo]);
 
     const cartMap = useMemo(() => {
         const m: Record<number, number> = {};
@@ -155,22 +175,24 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
     const handleSubmit = async () => {
         if (!origenId) { toast.error('Selecciona origen'); return; }
         if (!destinoId) { toast.error('Selecciona destino'); return; }
-        if (flujo === 'intra_bodega' && origenId === destinoId) {
-            toast.error('Origen y destino deben ser bodegas distintas'); return;
+        const mismoTipo = shape.origenTipo === shape.destinoTipo;
+        if (mismoTipo && origenId === destinoId) {
+            toast.error(`Origen y destino deben ser ${shape.origenTipo === 'obra' ? 'obras' : 'bodegas'} distintas`); return;
         }
         if (!cart.length) { toast.error('Agrega al menos un ítem'); return; }
         if (hayExceso) { toast.error('Hay ítems con cantidad mayor al stock disponible'); return; }
+        if (shape.motivoRequerido && !motivo.trim()) {
+            toast.error('Motivo es obligatorio para este flujo'); return;
+        }
 
         setSubmitting(true);
-        let payload: any;
-        if (flujo === 'push_directo') {
-            payload = { origen_bodega_id: origenId, destino_obra_id: destinoId };
-        } else if (flujo === 'intra_bodega') {
-            payload = { origen_bodega_id: origenId, destino_bodega_id: destinoId };
-        } else {
-            payload = { origen_obra_id: origenId, destino_bodega_id: destinoId };
-        }
-        payload.items = cart.map(l => ({ item_id: l.item_id, cantidad: l.cantidad }));
+        const origenKey = shape.origenTipo === 'obra' ? 'origen_obra_id' : 'origen_bodega_id';
+        const destinoKey = shape.destinoTipo === 'obra' ? 'destino_obra_id' : 'destino_bodega_id';
+        const payload: any = {
+            [origenKey]: origenId,
+            [destinoKey]: destinoId,
+            items: cart.map(l => ({ item_id: l.item_id, cantidad: l.cantidad })),
+        };
         if (motivo.trim()) payload.motivo = motivo.trim();
         if (observaciones.trim()) payload.observaciones = observaciones.trim();
 
@@ -179,7 +201,8 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
         if (result) onClose();
     };
 
-    const puedeEnviar = !!origenId && !!destinoId && cart.length > 0 && !hayExceso && !submitting;
+    const puedeEnviar = !!origenId && !!destinoId && cart.length > 0 && !hayExceso
+        && (!shape.motivoRequerido || !!motivo.trim()) && !submitting;
 
     return (
         <div className="flex flex-col gap-3 min-h-0" style={{ maxHeight: 'calc(85vh - 120px)' }}>
@@ -326,13 +349,18 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
             {/* Motivo + observaciones */}
             <div className="shrink-0 grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                    <label className="text-[10px] font-bold text-brand-dark block mb-1">Motivo (opcional)</label>
+                    <label className="text-[10px] font-bold text-brand-dark block mb-1">
+                        Motivo {shape.motivoRequerido ? <span className="text-red-500">*</span> : '(opcional)'}
+                    </label>
                     <input
                         type="text"
                         value={motivo}
                         onChange={e => setMotivo(e.target.value)}
-                        placeholder="Ej: cierre de obra, reubicación..."
-                        className="w-full px-2.5 py-1.5 text-xs border border-[#E8E8ED] rounded-lg"
+                        placeholder={shape.motivoRequerido ? 'Justificación de la orden (obligatorio)' : 'Ej: cierre de obra, reubicación...'}
+                        className={cn(
+                            'w-full px-2.5 py-1.5 text-xs border rounded-lg',
+                            shape.motivoRequerido && !motivo.trim() ? 'border-red-300' : 'border-[#E8E8ED]'
+                        )}
                     />
                 </div>
                 <div>

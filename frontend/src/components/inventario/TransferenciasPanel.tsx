@@ -165,6 +165,26 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return result;
     }, [trfHook.devolucion, trfHook.fetchAll, statusFilter]);
 
+    const handleIntraObra = useCallback(async (data: any) => {
+        const result = await trfHook.intraObra(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.intraObra, trfHook.fetchAll, statusFilter]);
+
+    const handleOrdenGerencia = useCallback(async (data: any) => {
+        const result = await trfHook.ordenGerencia(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.ordenGerencia, trfHook.fetchAll, statusFilter]);
+
+    const handleRechazarRecepcion = useCallback(async (motivo: string) => {
+        setActionLoading(true);
+        const ok = await trfHook.rechazarRecepcion(selectedId!, motivo);
+        if (ok) await refreshAll();
+        setActionLoading(false);
+        return ok;
+    }, [selectedId, trfHook.rechazarRecepcion, refreshAll]);
+
     const handleSelectFlow = useCallback((tipo: TipoMovimiento) => {
         setShowSelectorModal(false);
         setActiveFlow(tipo);
@@ -336,6 +356,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onCrearFaltante={trfHook.crearFaltante}
                             onRecibir={handleRecibir}
                             onRechazar={handleRechazar}
+                            onRechazarRecepcion={handleRechazarRecepcion}
                             onCancelar={handleCancelar}
                         />
                     ) : (
@@ -410,6 +431,36 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     flujo="devolucion"
                     obras={obras}
                     onSubmit={handleDevolucion}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Intra-obra */}
+            <Modal
+                isOpen={activeFlow === 'intra_obra'}
+                onClose={closeActiveFlow}
+                title="Traslado intra-obra"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="intra_obra"
+                    obras={obras}
+                    onSubmit={handleIntraObra}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Orden de gerencia */}
+            <Modal
+                isOpen={activeFlow === 'orden_gerencia'}
+                onClose={closeActiveFlow}
+                title="Orden de gerencia"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="orden_gerencia"
+                    obras={obras}
+                    onSubmit={handleOrdenGerencia}
                     onClose={closeActiveFlow}
                 />
             </Modal>

@@ -37,6 +37,7 @@ interface Props {
     onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
     onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => Promise<boolean>;
     onRechazar: (motivo: string) => Promise<boolean>;
+    onRechazarRecepcion?: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
 }
 
@@ -60,7 +61,7 @@ const fmtDateTime = (d: string | null) =>
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onRechazar, onCancelar,
+    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onRechazar, onRechazarRecepcion, onCancelar,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
@@ -74,11 +75,12 @@ const TransferenciaDetail: React.FC<Props> = ({
     const canAprobar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
     const canRechazar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
     const canRecibir = (t.estado === 'en_transito' || t.estado === 'aprobada') && hasPermission('inventario.editar');
-    const canCancelar = t.estado === 'pendiente' && (hasPermission('inventario.editar') || t.solicitante_id === userId);
-    const hasActions = canAprobar || canRechazar || canRecibir || canCancelar;
+    const canRechazarRecepcion = t.estado === 'en_transito' && hasPermission('inventario.editar') && !!onRechazarRecepcion;
+    const canCancelar = (t.estado === 'pendiente' || t.estado === 'en_transito') && (hasPermission('inventario.editar') || t.solicitante_id === userId);
+    const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar;
 
     // ── Inline form states ──
-    const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'recibir' | null>(null);
+    const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'rechazar_recepcion' | 'recibir' | null>(null);
 
     // Approval state — cada ítem puede tener N splits (multi-origen).
     const [stockData, setStockData] = useState<Record<number, StockLocation[]>>({});
@@ -293,6 +295,12 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
                             className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
                             <PackageCheck className="h-3.5 w-3.5" /> Confirmar Recepcion
+                        </button>
+                    )}
+                    {canRechazarRecepcion && (
+                        <button onClick={() => setActiveForm('rechazar_recepcion')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
+                            <XCircle className="h-3.5 w-3.5" /> Rechazar Recepción
                         </button>
                     )}
                     {canCancelar && (
@@ -847,6 +855,43 @@ const TransferenciaDetail: React.FC<Props> = ({
                             className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
                         >
                             {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* ════════════════════════════════════
+                ── REJECT RECEPTION FORM ──
+               ════════════════════════════════════ */}
+            {activeForm === 'rechazar_recepcion' && (
+                <div className="shrink-0 border border-red-200 bg-red-50/30 rounded-xl p-4 mb-4 space-y-3">
+                    <h4 className="text-sm font-bold text-red-800 flex items-center gap-1.5">
+                        <XCircle className="h-4 w-4" /> Rechazar Recepción
+                    </h4>
+                    <p className="text-[11px] text-muted-foreground">
+                        Rechaza físicamente el material recibido. La transferencia pasa a "rechazada" y el stock no se actualiza.
+                    </p>
+                    <textarea
+                        value={rejectMotivo}
+                        onChange={e => setRejectMotivo(e.target.value)}
+                        placeholder="Motivo del rechazo de recepción..."
+                        className="w-full px-3 py-2 text-xs border border-red-200 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 outline-none"
+                        required
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => {
+                                if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
+                                const ok = await onRechazarRecepcion(rejectMotivo);
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading || !rejectMotivo.trim()}
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
+                        >
+                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo de Recepción'}
                         </button>
                         <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                             Cancelar

@@ -48,6 +48,24 @@ interface DevolucionData {
     cantidad_pionetas?: number;
 }
 
+interface IntraObraData {
+    origen_obra_id: number;
+    destino_obra_id: number;
+    items: { item_id: number; cantidad: number }[];
+    observaciones?: string;
+    motivo?: string;
+}
+
+interface OrdenGerenciaData {
+    origen_obra_id?: number | null;
+    origen_bodega_id?: number | null;
+    destino_obra_id?: number | null;
+    destino_bodega_id?: number | null;
+    items: { item_id: number; cantidad: number }[];
+    motivo: string;
+    observaciones?: string;
+}
+
 interface AprobarData {
     origen_obra_id?: number | null;
     origen_bodega_id?: number | null;
@@ -158,6 +176,32 @@ export function useTransferencias() {
         }
     }, []);
 
+    const intraObra = useCallback(async (data: IntraObraData) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string }>>(
+                '/transferencias/intra-obra', data
+            );
+            toast.success(`Traslado intra-obra ${res.data.data.codigo} creado`);
+            return res.data.data;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al crear traslado intra-obra');
+            return null;
+        }
+    }, []);
+
+    const ordenGerencia = useCallback(async (data: OrdenGerenciaData) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string; estado: string }>>(
+                '/transferencias/orden-gerencia', data
+            );
+            toast.success(`Orden de gerencia ${res.data.data.codigo} emitida`);
+            return res.data.data;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al emitir orden de gerencia');
+            return null;
+        }
+    }, []);
+
     const aprobar = useCallback(async (id: number, data: AprobarData) => {
         try {
             await api.put(`/transferencias/${id}/aprobar`, data);
@@ -214,6 +258,17 @@ export function useTransferencias() {
             return true;
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al rechazar');
+            return false;
+        }
+    }, []);
+
+    const rechazarRecepcion = useCallback(async (id: number, motivo: string) => {
+        try {
+            await api.put(`/transferencias/${id}/rechazar-recepcion`, { motivo });
+            toast.success('Recepción rechazada');
+            return true;
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al rechazar recepción');
             return false;
         }
     }, []);
@@ -275,7 +330,8 @@ export function useTransferencias() {
         transferencias, selected, loading, total,
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
         fetchAll, fetchById, crear, pushDirecto, intraBodega, devolucion,
-        aprobar, crearFaltante, despachar, recibir, rechazar, cancelar,
+        intraObra, ordenGerencia,
+        aprobar, crearFaltante, despachar, recibir, rechazar, rechazarRecepcion, cancelar,
         fetchDiscrepancias, resolverDiscrepancia,
         fetchStockPorItems, setSelected
     };
