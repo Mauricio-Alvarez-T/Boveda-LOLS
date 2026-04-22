@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const inventarioService = require('../services/inventario.service');
 const itemInventarioBulkService = require('../services/itemInventarioBulk.service');
+const stockBulkService = require('../services/stockBulk.service');
 const uploadInventario = require('../middleware/upload-inventario');
 const db = require('../config/db');
 const fs = require('fs');
@@ -134,6 +135,31 @@ router.put('/items/bulk', auth, checkPermission('inventario.editar'), async (req
         }
         // Errores de validación sanitize() → 400 (no es bug de servidor)
         if (/inválid|vacía|sin campos|inexistent|más de una vez/i.test(err.message)) {
+            return res.status(400).json({ error: err.message });
+        }
+        next(err);
+    }
+});
+
+// PUT /api/inventario/stock/bulk — ajuste masivo de stock (Ola 3)
+// Body: { adjustments: [{ item_id, obra_id?|bodega_id?, cantidad?, valor_arriendo_override? }] }
+// Respuestas:
+//   200 { data: { updated, created, diff } }
+//   413 si supera MAX_ITEMS
+//   400 si payload inválido
+router.put('/stock/bulk', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const adjustments = req.body?.adjustments;
+        const result = await stockBulkService.bulkAdjust(adjustments, req.user.id);
+        res.json({ data: result });
+    } catch (err) {
+        if (err.status === 413) {
+            return res.status(413).json({
+                error: err.message,
+                maxItems: stockBulkService.MAX_ITEMS,
+            });
+        }
+        if (/inválid|sin campos|duplicado|requiere obra|no puede tener/i.test(err.message)) {
             return res.status(400).json({ error: err.message });
         }
         next(err);

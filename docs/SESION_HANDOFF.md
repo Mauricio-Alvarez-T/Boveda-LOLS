@@ -12,7 +12,7 @@
 | Inventario — Ola 1: Foundations | ✅ Mergeado a `develop` |
 | Inventario — Ola 2 Fase 1: push_directo + intra_bodega + devolución | ✅ Implementado (stock diferido al recibir) |
 | Inventario — Ola 2 Fase 2: intra_obra + orden_gerencia + rechazo_recepción + cancelación post-despacho | ✅ Implementado (cierra Ola 2) |
-| Inventario — Ola 3: Bulk edit | ✅ Parcial (items bulk + grid maestro). Pendiente: stock bulk |
+| Inventario — Ola 3: Bulk edit | ✅ Completa (items bulk + stock bulk + grids maestros) |
 | Inventario — Ola 4: Arriendo + facturación | ⏸ EN PAUSA (esperar jefatura) |
 | Inventario — Ola 5: Calidad / backlog | 🔲 Backlog |
 
@@ -190,17 +190,22 @@ Tests: 7 nuevos (1 por flujo nuevo). Target: 111 total.
 
 ---
 
-## Inventario — Ola 3: Bulk edit ✅ PARCIAL
+## Inventario — Ola 3: Bulk edit ✅ COMPLETA
 
-### Implementado (items)
-- Backend: `PUT /api/inventario/items/bulk` (ruta en `inventario.routes.js`, service nuevo `itemInventarioBulk.service.js`). MAX_ITEMS=500 → 413. Transaccional con rollback total ante cualquier fallo de fila. Devuelve `{ updated, diff }` con el delta por ítem.
-- CRUD genérico extendido: `es_consumible` y `propietario` en `allowedFields`.
-- Frontend: tab **Maestro** en la página Inventario (gated por `inventario.editar`). Grid editable inline con buffer de cambios, resaltado ámbar por fila/celda dirty, botón "Guardar cambios (N)", Ctrl/⌘+S, Revertir, aviso `beforeunload`. Hook `useInventarioMaestro` con `fetchAll` + `bulkUpdate`.
-- Tests: 3 (happy con diff exacto, cap 413 sin abrir transacción, rollback si UPDATE no afecta filas). **127 pasando**.
+### Items bulk
+- Backend: `PUT /api/inventario/items/bulk` — `itemInventarioBulk.service.js`. MAX_ITEMS=500 → 413, transacción con `SELECT ... FOR UPDATE` + `UPDATE` por fila, rollback total. Devuelve `{ updated, diff }`.
+- CRUD genérico `items_inventario.allowedFields` ahora incluye `es_consumible` y `propietario`.
 
-### Pendiente (stock bulk — PR siguiente)
-- `PUT /api/inventario/stock/bulk` — ajuste masivo de existencias en `ubicaciones_stock`, mismo patrón (cap 500, transacción, diff).
-- UI: grid de stock por ubicación con edición inline, o extensión del tab Maestro con una segunda pestaña "Stock".
+### Stock bulk
+- Backend: `PUT /api/inventario/stock/bulk` — `stockBulk.service.js`. MAX_ITEMS=500, XOR `obra_id|bodega_id`, upsert por fila con `<=>` null-safe lookup, rechazo de duplicados pre-transacción. Devuelve `{ updated, created, diff }` con `action: 'create' | 'update'`.
+
+### Frontend
+- Tab **Maestro** (gated por `inventario.editar`) con sub-tabs **Ítems** y **Stock por ubicación**:
+  - **Ítems**: grid editable de catálogo (descripción, categoría, unidad, valores, consumible, propietario, activo). Buffer dirty, Ctrl/⌘+S, Revertir, aviso `beforeunload`.
+  - **Stock por ubicación**: selector de bodega/obra → lista plana de ítems con su cantidad actual, columna "Δ" que refleja el delta, mismo patrón de buffer + atajos. Cambiar de ubicación con cambios pide confirmación.
+- Hooks: `useInventarioMaestro` y `useStockMaestro`.
+
+Tests: 8 nuevos sobre ambos servicios (happy, 413, rollback, validación de duplicados, XOR ubicación). **132 pasando**.
 
 ---
 
@@ -294,4 +299,4 @@ cd ../backend && npm run dev
 cd ../frontend && npm run dev
 ```
 
-Próxima tarea: completar **Ola 3 stock bulk** (endpoint + UI), o **Ola 5** (calidad / backlog). Ola 2 completa. Ola 3 items completa.
+Próxima tarea: **Ola 5** (calidad / backlog) o desbloqueo de **Ola 4** (arriendo, esperando jefatura). Olas 1, 2 y 3 completas.

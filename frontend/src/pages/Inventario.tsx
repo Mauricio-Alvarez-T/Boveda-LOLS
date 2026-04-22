@@ -14,6 +14,7 @@ import ResumenEjecutivoPanel from '../components/inventario/ResumenEjecutivoPane
 
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
 import InventarioMaestroGrid from '../components/inventario/InventarioMaestroGrid';
+import StockMaestroGrid from '../components/inventario/StockMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 
@@ -36,6 +37,7 @@ const InventarioPage: React.FC = () => {
     const { resumen, stockObra, stockBodega, loading, fetchResumen, fetchStockObra, fetchStockBodega } = useInventarioData();
     const { updateStock, updateDescuento } = useInventarioActions();
     const [activeTab, setActiveTab] = useState<TabKey>('resumen_ejecutivo');
+    const [maestroSubTab, setMaestroSubTab] = useState<'items' | 'stock'>('items');
     const [selectedUbicacionKey, setSelectedUbicacionKey] = useState<string>('');
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
@@ -261,9 +263,37 @@ const InventarioPage: React.FC = () => {
                 )}
 
                 {activeTab === 'maestro' && (
-                    <InventarioMaestroGrid
-                        hasEditPermission={hasPermission('inventario.editar')}
-                    />
+                    <div className="flex-1 min-h-0 flex flex-col gap-3">
+                        {/* Sub-tabs Ítems / Stock */}
+                        <div className="flex items-center gap-1 p-1 bg-[#F5F7FA] rounded-xl w-fit shrink-0">
+                            {([
+                                { key: 'items', label: 'Ítems' },
+                                { key: 'stock', label: 'Stock por ubicación' },
+                            ] as const).map(st => (
+                                <button
+                                    key={st.key}
+                                    onClick={() => setMaestroSubTab(st.key)}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        maestroSubTab === st.key
+                                            ? "bg-white text-brand-primary shadow-sm"
+                                            : "text-muted-foreground hover:text-brand-dark"
+                                    )}
+                                >
+                                    {st.label}
+                                </button>
+                            ))}
+                        </div>
+                        {maestroSubTab === 'items' ? (
+                            <InventarioMaestroGrid hasEditPermission={hasPermission('inventario.editar')} />
+                        ) : (
+                            <StockMaestroGrid
+                                obras={allObras as any}
+                                bodegas={allBodegas as any}
+                                hasEditPermission={hasPermission('inventario.editar')}
+                            />
+                        )}
+                    </div>
                 )}
 
                 {activeTab === 'bombas' && (
