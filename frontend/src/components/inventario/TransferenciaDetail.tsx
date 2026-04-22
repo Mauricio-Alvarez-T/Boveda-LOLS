@@ -352,19 +352,16 @@ const TransferenciaDetail: React.FC<Props> = ({
                 const clearItem = (idx: number) => updateSplits(idx, []);
 
                 // Auto-completar:
-                // Regla 1 (preferida): si UNA sola ubicación tiene stock suficiente para
-                //   TODOS los ítems solicitados, usarla como origen único (un solo viaje
-                //   para el transportista). Si varias cumplen, preferir la que maximiza
-                //   el total de unidades disponibles (más "holgada").
-                // Regla 2 (fallback): cubrir cada ítem sumando ubicaciones (mayor stock
-                //   primero). Si ni sumando alcanza, usa todo el disponible y deja el
-                //   faltante visible.
+                // Estrategia: greedy set-cover. Minimiza el número de ubicaciones
+                //   distintas que el transportista debe visitar. En cada ronda elige la
+                //   ubicación que cubre (sola, con stock suficiente) la MAYOR cantidad
+                //   de ítems aún sin asignar; tie-break por mayor stock total disponible.
+                //   Los ítems que ninguna ubicación individual puede cubrir caen al
+                //   fallback por-ítem (split multi-ubicación, mayor stock primero).
                 const autoCompletar = () => {
-                    // Candidatos: intersección de ubicaciones presentes en TODOS los ítems,
-                    // con stock suficiente para cada uno.
                     const locKey = (l: StockLocation) => `${l.type}_${l.id}`;
 
-                    // Mapa itemId -> Map<locKey, cantidad disponible>
+                    // itemIdx -> Map<locKey, {loc, cantidad}>
                     const perItemLocs = approvalItems.map(ai => {
                         const m = new Map<string, { loc: StockLocation; cantidad: number }>();
                         for (const loc of stockData[ai.item_id] || []) {
@@ -373,54 +370,67 @@ const TransferenciaDetail: React.FC<Props> = ({
                         return m;
                     });
 
-                    // Ubicaciones candidatas: aparecen en el primer ítem (o cualquiera)
-                    const primerMap = perItemLocs[0];
-                    const candidatasViables: { loc: StockLocation; totalDisponible: number }[] = [];
-                    if (primerMap) {
-                        for (const [key, { loc }] of primerMap.entries()) {
-                            let cubreTodos = true;
-                            let suma = 0;
-                            for (let i = 0; i < approvalItems.length; i++) {
-                                const ai = approvalItems[i];
-                                const entry = perItemLocs[i].get(key);
-                                if (!entry || entry.cantidad < ai.cantidad_solicitada) {
-                                    cubreTodos = false;
-                                    break;
+                    const assigned = new Map<number, StockLocation>();
+                    let remaining = approvalItems.map((_, i) => i);
+
+                    while (remaining.length > 0) {
+                        // Contar ítems restantes que cada ubicación puede cubrir sola
+                        const coverage = new Map<string, { loc: StockLocation; items: number[]; totalDisp: number }>();
+                        for (const i of remaining) {
+                            const ai = approvalItems[i];
+                            for (const [key, { loc, cantidad }] of perItemLocs[i].entries()) {
+                                if (cantidad >= ai.cantidad_solicitada) {
+                                    const existing = coverage.get(key);
+                                    if (existing) {
+                                        existing.items.push(i);
+                                        existing.totalDisp += cantidad;
+                                    } else {
+                                        coverage.set(key, { loc, items: [i], totalDisp: cantidad });
+                                    }
                                 }
-                                suma += entry.cantidad;
                             }
-                            if (cubreTodos) candidatasViables.push({ loc, totalDisponible: suma });
                         }
+
+                        if (coverage.size === 0) break; // ninguna location cubre algún ítem restante
+
+                        // Mejor: más ítems; tie-break: mayor stock disponible sumado
+                        let best: { loc: StockLocation; items: number[]; totalDisp: number } | null = null;
+                        for (const entry of coverage.values()) {
+                            if (!best ||
+                                entry.items.length > best.items.length ||
+                                (entry.items.length === best.items.length && entry.totalDisp > best.totalDisp)) {
+                                best = entry;
+                            }
+                        }
+                        if (!best) break;
+
+                        for (const i of best.items) assigned.set(i, best.loc);
+                        remaining = remaining.filter(i => !assigned.has(i));
                     }
 
-                    // Ubicación única que cubre todo → seleccionar esa
-                    if (candidatasViables.length > 0) {
-                        candidatasViables.sort((a, b) => b.totalDisponible - a.totalDisponible);
-                        const elegida = candidatasViables[0].loc;
-                        const updated = approvalItems.map(ai => ({
-                            ...ai,
-                            splits: [{
-                                origen_obra_id: elegida.type === 'obra' ? elegida.id : null,
-                                origen_bodega_id: elegida.type === 'bodega' ? elegida.id : null,
-                                cantidad: ai.cantidad_solicitada,
-                            }],
-                        }));
-                        setApprovalItems(updated);
-                        return;
-                    }
-
-                    // Fallback: split multi-ubicación, mayor stock primero
-                    const updated = approvalItems.map(ai => {
+                    const updated = approvalItems.map((ai, i) => {
+                        const loc = assigned.get(i);
+                        if (loc) {
+                            return {
+                                ...ai,
+                                splits: [{
+                                    origen_obra_id: loc.type === 'obra' ? loc.id : null,
+                                    origen_bodega_id: loc.type === 'bodega' ? loc.id : null,
+                                    cantidad: ai.cantidad_solicitada,
+                                }],
+                            };
+                        }
+                        // Fallback: split multi-ubicación, mayor stock primero
                         const locs = [...(stockData[ai.item_id] || [])].sort((a, b) => b.cantidad - a.cantidad);
                         let restante = ai.cantidad_solicitada;
                         const splits: ApprovalSplit[] = [];
-                        for (const loc of locs) {
+                        for (const l of locs) {
                             if (restante <= 0) break;
-                            const toma = Math.min(loc.cantidad, restante);
+                            const toma = Math.min(l.cantidad, restante);
                             if (toma > 0) {
                                 splits.push({
-                                    origen_obra_id: loc.type === 'obra' ? loc.id : null,
-                                    origen_bodega_id: loc.type === 'bodega' ? loc.id : null,
+                                    origen_obra_id: l.type === 'obra' ? l.id : null,
+                                    origen_bodega_id: l.type === 'bodega' ? l.id : null,
                                     cantidad: toma,
                                 });
                                 restante -= toma;
