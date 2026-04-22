@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const inventarioService = require('../services/inventario.service');
+const itemInventarioBulkService = require('../services/itemInventarioBulk.service');
 const uploadInventario = require('../middleware/upload-inventario');
 const db = require('../config/db');
 const fs = require('fs');
@@ -111,6 +112,32 @@ router.delete('/items/:itemId/imagen', auth, checkPermission('inventario.editar'
         await db.query('UPDATE items_inventario SET imagen_url = NULL WHERE id = ?', [itemId]);
         res.json({ data: { success: true } });
     } catch (err) { next(err); }
+});
+
+// PUT /api/inventario/items/bulk — edición masiva de ítems (Ola 3)
+// Body: { items: [{ id, ...campos editables }] }
+// Respuestas:
+//   200 { data: { updated, diff } }
+//   413 si supera MAX_ITEMS
+//   400 si payload inválido (validación pre-transacción)
+router.put('/items/bulk', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const items = req.body?.items;
+        const result = await itemInventarioBulkService.bulkUpdate(items, req.user.id);
+        res.json({ data: result });
+    } catch (err) {
+        if (err.status === 413) {
+            return res.status(413).json({
+                error: err.message,
+                maxItems: itemInventarioBulkService.MAX_ITEMS,
+            });
+        }
+        // Errores de validación sanitize() → 400 (no es bug de servidor)
+        if (/inválid|vacía|sin campos|inexistent|más de una vez/i.test(err.message)) {
+            return res.status(400).json({ error: err.message });
+        }
+        next(err);
+    }
 });
 
 module.exports = router;

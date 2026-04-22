@@ -12,7 +12,7 @@
 | Inventario — Ola 1: Foundations | ✅ Mergeado a `develop` |
 | Inventario — Ola 2 Fase 1: push_directo + intra_bodega + devolución | ✅ Implementado (stock diferido al recibir) |
 | Inventario — Ola 2 Fase 2: intra_obra + orden_gerencia + rechazo_recepción + cancelación post-despacho | ✅ Implementado (cierra Ola 2) |
-| Inventario — Ola 3: Bulk edit | 🔲 Pendiente |
+| Inventario — Ola 3: Bulk edit | ✅ Parcial (items bulk + grid maestro). Pendiente: stock bulk |
 | Inventario — Ola 4: Arriendo + facturación | ⏸ EN PAUSA (esperar jefatura) |
 | Inventario — Ola 5: Calidad / backlog | 🔲 Backlog |
 
@@ -190,19 +190,17 @@ Tests: 7 nuevos (1 por flujo nuevo). Target: 111 total.
 
 ---
 
-## Inventario — Ola 3: Bulk edit (pendiente, paralelizable)
+## Inventario — Ola 3: Bulk edit ✅ PARCIAL
 
-### Backend
-- `PUT /api/items-inventario/bulk` — edición masiva de ítems (MAX_ITEMS=500, 413, rollback, log diff)
-- `PUT /api/inventario/stock/bulk` — ajuste masivo de existencias (mismo cap)
+### Implementado (items)
+- Backend: `PUT /api/inventario/items/bulk` (ruta en `inventario.routes.js`, service nuevo `itemInventarioBulk.service.js`). MAX_ITEMS=500 → 413. Transaccional con rollback total ante cualquier fallo de fila. Devuelve `{ updated, diff }` con el delta por ítem.
+- CRUD genérico extendido: `es_consumible` y `propietario` en `allowedFields`.
+- Frontend: tab **Maestro** en la página Inventario (gated por `inventario.editar`). Grid editable inline con buffer de cambios, resaltado ámbar por fila/celda dirty, botón "Guardar cambios (N)", Ctrl/⌘+S, Revertir, aviso `beforeunload`. Hook `useInventarioMaestro` con `fetchAll` + `bulkUpdate`.
+- Tests: 3 (happy con diff exacto, cap 413 sin abrir transacción, rollback si UPDATE no afecta filas). **127 pasando**.
 
-### Frontend
-- Nueva página `frontend/src/pages/InventarioMaestro.tsx` (ruta `/inventario/maestro`)
-- Grid editable tipo Excel: columnas nro_item, descripción, categoría, unidad, valor_compra, valor_arriendo, es_consumible, propietario, activo
-- Filtros + selección múltiple + acciones batch
-- Edición inline con debounce; Ctrl+S para commit manual
-
-Tests: 3 (happy bulk, cap 413, rollback).
+### Pendiente (stock bulk — PR siguiente)
+- `PUT /api/inventario/stock/bulk` — ajuste masivo de existencias en `ubicaciones_stock`, mismo patrón (cap 500, transacción, diff).
+- UI: grid de stock por ubicación con edición inline, o extensión del tab Maestro con una segunda pestaña "Stock".
 
 ---
 
@@ -296,4 +294,4 @@ cd ../backend && npm run dev
 cd ../frontend && npm run dev
 ```
 
-Próxima tarea: **Ola 3** (bulk edit de items) o **Ola 5** (calidad / backlog). Ola 2 completa.
+Próxima tarea: completar **Ola 3 stock bulk** (endpoint + UI), o **Ola 5** (calidad / backlog). Ola 2 completa. Ola 3 items completa.

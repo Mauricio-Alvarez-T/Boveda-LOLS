@@ -159,7 +159,7 @@ try {
     allowedFilters: ['categoria_id'],
     useSoftDelete: true,
     orderBy: 'items_inventario.nro_item ASC',
-    allowedFields: ['categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'activo'],
+    allowedFields: ['categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'es_consumible', 'propietario', 'activo'],
     // nro_item es solo referencia visual — autogenerado secuencial por categoria
     beforeCreate: async (safeData, db) => {
       const [rows] = await db.query(

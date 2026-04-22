@@ -13,17 +13,18 @@ import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
 import ResumenEjecutivoPanel from '../components/inventario/ResumenEjecutivoPanel';
 
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
+import InventarioMaestroGrid from '../components/inventario/InventarioMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 
-type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'bombas';
+type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas';
 
-const tabs: { key: TabKey; label: string }[] = [
+const tabs: { key: TabKey; label: string; requiresPerm?: string }[] = [
     { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo' },
     { key: 'resumen', label: 'Resumen' },
     { key: 'por_ubicacion', label: 'Por Obra/Bodega' },
     { key: 'transferencias', label: 'Transferencias' },
-
+    { key: 'maestro', label: 'Maestro', requiresPerm: 'inventario.editar' },
     { key: 'bombas', label: 'Bombas Hormigón' },
 ];
 
@@ -115,7 +116,7 @@ const InventarioPage: React.FC = () => {
             {/* Tab Navigation */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
                 <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
-                {tabs.map(tab => (
+                {tabs.filter(t => !t.requiresPerm || hasPermission(t.requiresPerm)).map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
@@ -256,6 +257,12 @@ const InventarioPage: React.FC = () => {
                         hasPermission={hasPermission}
                         initialStatusFilter={trfNavIntent.estado}
                         initialSelectedId={trfNavIntent.id ?? null}
+                    />
+                )}
+
+                {activeTab === 'maestro' && (
+                    <InventarioMaestroGrid
+                        hasEditPermission={hasPermission('inventario.editar')}
                     />
                 )}
 
