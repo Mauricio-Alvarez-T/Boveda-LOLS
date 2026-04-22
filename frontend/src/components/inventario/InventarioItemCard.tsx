@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { Package, Pencil, ImageOff, Check, X, ChevronDown } from 'lucide-react';
+import { Pencil, ImageOff, ChevronDown, MapPin, Warehouse, Package } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 import type { ItemInventario } from '../../types/entities';
+import type { StockLocation } from '../../hooks/inventario/useInventarioMaestro';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
-const fmtCLP = (v: number) =>
-    v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
 
 // Map categoría nombre → color palette
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+    ALZAPRIMAS:     { bg: 'bg-sky-50',    text: 'text-sky-700',    border: 'border-sky-200' },
     ANDAMIOS:       { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200' },
     MOLDAJES:       { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
     MAQUINARIA:     { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
@@ -27,34 +27,49 @@ const getCatColor = (catName?: string) => {
 const PROPIETARIO_BADGE: Record<string, { bg: string; text: string }> = {
     lols:     { bg: 'bg-brand-primary/10', text: 'text-brand-primary' },
     dedalius: { bg: 'bg-blue-100',          text: 'text-blue-700' },
-    cedalius: { bg: 'bg-blue-100',          text: 'text-blue-700' },
 };
 
 interface CategoriaMinimal { id: number; nombre: string; }
 
-interface EditableField {
-    field: 'descripcion' | 'categoria_id' | 'unidad' | 'valor_compra' | 'valor_arriendo' | 'es_consumible' | 'propietario' | 'activo';
-}
+type EditableField =
+    | 'descripcion'
+    | 'categoria_id'
+    | 'unidad'
+    | 'valor_compra'
+    | 'valor_arriendo'
+    | 'es_consumible'
+    | 'propietario'
+    | 'activo';
 
 interface Props {
     item: ItemInventario;
     categorias: CategoriaMinimal[];
+    stockLocations: StockLocation[];
     isDirty: boolean;
-    isFieldDirty: (field: EditableField['field']) => boolean;
-    getVal: <K extends EditableField['field']>(key: K) => ItemInventario[K];
-    setField: <K extends EditableField['field']>(key: K, value: ItemInventario[K]) => void;
+    isFieldDirty: (field: EditableField) => boolean;
+    getVal: <K extends EditableField>(key: K) => ItemInventario[K];
+    setField: <K extends EditableField>(key: K, value: ItemInventario[K]) => void;
     onEditFull: () => void;
     index: number;
 }
 
+const qtyColor = (n: number) =>
+    n > 10 ? 'text-green-700 bg-green-50 border-green-200'
+    : n > 0  ? 'text-amber-700 bg-amber-50 border-amber-200'
+    :          'text-muted-foreground bg-muted/30 border-[#E8E8ED]';
+
 const InventarioItemCard: React.FC<Props> = ({
-    item, categorias, isDirty, isFieldDirty, getVal, setField, onEditFull, index,
+    item, categorias, stockLocations, isDirty, isFieldDirty, getVal, setField, onEditFull, index,
 }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const catColor = getCatColor(item.categoria_nombre);
     const propBadge = PROPIETARIO_BADGE[String(getVal('propietario'))] || PROPIETARIO_BADGE.lols;
     const activo = !!getVal('activo');
-    const esConsumible = !!getVal('es_consumible');
+
+    const totalStock = stockLocations.reduce((s, l) => s + l.cantidad, 0);
+    const obras = stockLocations.filter(l => l.type === 'obra' && l.cantidad > 0);
+    const bodegas = stockLocations.filter(l => l.type === 'bodega' && l.cantidad > 0);
+    const ubicacionesConStock = obras.length + bodegas.length;
 
     const imageUrl = item.imagen_url
         ? `${API_BASE}${item.imagen_url.startsWith('/api/') ? item.imagen_url : `/api${item.imagen_url.startsWith('/') ? '' : '/'}${item.imagen_url}`}`
@@ -74,7 +89,7 @@ const InventarioItemCard: React.FC<Props> = ({
                 !activo && "opacity-60"
             )}
         >
-            {/* ── Dirty indicator dot ── */}
+            {/* Dirty indicator dot */}
             {isDirty && (
                 <div className="absolute top-2.5 right-2.5 z-10 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
             )}
@@ -95,12 +110,12 @@ const InventarioItemCard: React.FC<Props> = ({
                     </div>
                 )}
 
-                {/* Nro item badge — floats over image */}
+                {/* Nro item badge */}
                 <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold">
                     #{item.nro_item}
                 </span>
 
-                {/* Activo toggle — floats over image */}
+                {/* Activo toggle */}
                 <button
                     onClick={() => setField('activo', !activo)}
                     className={cn(
@@ -112,11 +127,18 @@ const InventarioItemCard: React.FC<Props> = ({
                 >
                     {activo ? 'Activo' : 'Inactivo'}
                 </button>
+
+                {/* Total stock overlay — bottom right of image */}
+                <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-sm flex items-center gap-1.5">
+                    <Package className="h-3 w-3 text-white/70" />
+                    <span className="text-white text-xs font-black">{totalStock}</span>
+                    <span className="text-white/60 text-[9px]">{item.unidad}</span>
+                </div>
             </div>
 
             {/* ══════ CONTENT ══════ */}
-            <div className="flex flex-col flex-1 p-3.5 gap-2.5">
-                {/* Categoría badge */}
+            <div className="flex flex-col flex-1 p-3.5 gap-2">
+                {/* Categoría + propietario badges */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={cn(
                         "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border",
@@ -124,11 +146,12 @@ const InventarioItemCard: React.FC<Props> = ({
                     )}>
                         {item.categoria_nombre || 'Sin cat.'}
                     </span>
-                    {esConsumible && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 text-[9px] font-bold">
-                            Consumible
-                        </span>
-                    )}
+                    <span className={cn(
+                        "px-1.5 py-0.5 rounded-full text-[9px] font-bold",
+                        propBadge.bg, propBadge.text,
+                    )}>
+                        {String(getVal('propietario'))}
+                    </span>
                 </div>
 
                 {/* Descripción */}
@@ -136,43 +159,48 @@ const InventarioItemCard: React.FC<Props> = ({
                     {String(getVal('descripcion'))}
                 </h3>
 
-                {/* Valores */}
-                <div className="grid grid-cols-2 gap-2">
-                    <div className={cn(
-                        "rounded-xl px-2.5 py-2 border transition-all",
-                        isFieldDirty('valor_arriendo') ? "border-amber-300 bg-amber-50/50" : "border-[#F0F0F5] bg-[#FAFBFC]"
-                    )}>
-                        <p className="text-[8px] text-muted-foreground font-bold uppercase mb-0.5">Arriendo</p>
-                        <p className="text-sm font-black text-brand-primary">
-                            {fmtCLP(Number(getVal('valor_arriendo')))}
-                        </p>
-                    </div>
-                    <div className={cn(
-                        "rounded-xl px-2.5 py-2 border transition-all",
-                        isFieldDirty('valor_compra') ? "border-amber-300 bg-amber-50/50" : "border-[#F0F0F5] bg-[#FAFBFC]"
-                    )}>
-                        <p className="text-[8px] text-muted-foreground font-bold uppercase mb-0.5">Compra</p>
-                        <p className="text-sm font-black text-brand-dark">
-                            {fmtCLP(Number(getVal('valor_compra')))}
-                        </p>
-                    </div>
-                </div>
-
-                {/* Footer: Propietario + Unidad */}
-                <div className="flex items-center justify-between pt-1">
-                    <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[10px] font-bold",
-                        propBadge.bg, propBadge.text,
-                        isFieldDirty('propietario') && "ring-1 ring-amber-300"
-                    )}>
-                        {String(getVal('propietario'))}
-                    </span>
-                    <span className={cn(
-                        "text-[10px] font-bold text-muted-foreground bg-[#F5F7FA] px-2 py-0.5 rounded-lg",
-                        isFieldDirty('unidad') && "ring-1 ring-amber-300"
-                    )}>
-                        {String(getVal('unidad'))}
-                    </span>
+                {/* ══════ STOCK POR UBICACIÓN ══════ */}
+                <div className="flex-1">
+                    {ubicacionesConStock === 0 ? (
+                        <div className="flex items-center gap-2 py-2 px-2.5 rounded-xl bg-[#FAFBFC] border border-[#F0F0F5]">
+                            <Package className="h-3.5 w-3.5 text-muted-foreground/30" />
+                            <span className="text-[10px] text-muted-foreground">Sin stock registrado</span>
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            {/* Mostrar hasta 3 ubicaciones, luego "+N más" */}
+                            {[...bodegas, ...obras].slice(0, 3).map(loc => (
+                                <div
+                                    key={`${loc.type}_${loc.id}`}
+                                    className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-[#F8F9FC] transition-colors"
+                                >
+                                    <div className={cn(
+                                        "w-5 h-5 rounded-md flex items-center justify-center shrink-0",
+                                        loc.type === 'bodega' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+                                    )}>
+                                        {loc.type === 'bodega'
+                                            ? <Warehouse className="h-2.5 w-2.5" />
+                                            : <MapPin className="h-2.5 w-2.5" />
+                                        }
+                                    </div>
+                                    <span className="flex-1 text-[10px] font-medium text-brand-dark truncate">
+                                        {loc.nombre}
+                                    </span>
+                                    <span className={cn(
+                                        "px-1.5 py-0.5 rounded-full text-[10px] font-black border",
+                                        qtyColor(loc.cantidad)
+                                    )}>
+                                        {loc.cantidad}
+                                    </span>
+                                </div>
+                            ))}
+                            {ubicacionesConStock > 3 && (
+                                <p className="text-[9px] text-muted-foreground/70 text-center py-0.5">
+                                    +{ubicacionesConStock - 3} ubicación{ubicacionesConStock - 3 !== 1 ? 'es' : ''} más
+                                </p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* ── Expandable Quick Edit ── */}
@@ -290,7 +318,7 @@ const InventarioItemCard: React.FC<Props> = ({
                             <label className="flex items-center gap-1.5 cursor-pointer mt-3">
                                 <input
                                     type="checkbox"
-                                    checked={esConsumible}
+                                    checked={!!getVal('es_consumible')}
                                     onChange={e => setField('es_consumible', e.target.checked)}
                                     className="rounded"
                                 />

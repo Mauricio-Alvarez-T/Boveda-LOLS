@@ -38,7 +38,7 @@ const fmtCLP = (v: number | null | undefined) =>
  * Solo visible con `inventario.editar`.
  */
 const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
-    const { items, categorias, loading, saving, fetchAll, bulkUpdate } = useInventarioMaestro();
+    const { items, categorias, stockMap, loading, saving, fetchAll, bulkUpdate } = useInventarioMaestro();
     const [dirty, setDirty] = useState<DirtyMap>({});
     const [search, setSearch] = useState('');
     const [filtroCategoria, setFiltroCategoria] = useState<number | 'todas'>('todas');
@@ -343,6 +343,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                         key={it.id}
                                                         item={it}
                                                         categorias={categorias}
+                                                        stockLocations={stockMap[it.id] || []}
                                                         isDirty={!!dirty[it.id]}
                                                         isFieldDirty={(field) => isFieldDirty(it.id, field)}
                                                         getVal={(key) => getVal(it, key)}
