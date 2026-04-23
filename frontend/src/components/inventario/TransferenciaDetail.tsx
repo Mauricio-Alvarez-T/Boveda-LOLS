@@ -3,7 +3,7 @@ import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse
+    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
@@ -77,7 +77,56 @@ const TransferenciaDetail: React.FC<Props> = ({
     const canRecibir = (t.estado === 'en_transito' || t.estado === 'aprobada') && hasPermission('inventario.editar');
     const canRechazarRecepcion = t.estado === 'en_transito' && hasPermission('inventario.editar') && !!onRechazarRecepcion;
     const canCancelar = (t.estado === 'pendiente' || t.estado === 'en_transito') && (hasPermission('inventario.editar') || t.solicitante_id === userId);
-    const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar;
+    const canCompartirWhatsApp = ['aprobada', 'en_transito', 'recibida'].includes(t.estado);
+    const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
+
+    // ── WhatsApp share: arma mensaje con códigos, origen/destino, items y observaciones ──
+    const handleShareWhatsApp = () => {
+        const lines: string[] = [];
+        lines.push(`🚛 *TRANSFERENCIA ${t.codigo}*`);
+        lines.push(`Estado: ${cfg.label}`);
+        lines.push('');
+        lines.push(`📍 *Retirar en:* ${origen}`);
+        lines.push(`🎯 *Entregar en:* ${destino}`);
+        lines.push('');
+        lines.push(`📦 *Items (${items.length}):*`);
+        items.forEach((it) => {
+            const cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+            const unidad = it.unidad ? ` ${it.unidad}` : '';
+            const desc = it.item_descripcion || `Item #${it.item_id}`;
+            lines.push(`• ${cant}${unidad} — ${desc}`);
+            if (it.observacion) lines.push(`   _${it.observacion}_`);
+        });
+        lines.push('');
+        if (t.motivo) lines.push(`📝 *Motivo:* ${t.motivo}`);
+        if (t.observaciones) lines.push(`💬 *Observaciones:* ${t.observaciones}`);
+        if (t.requiere_pionetas) {
+            lines.push(`⚠️ *Requiere ${t.cantidad_pionetas || ''} pionetas*`);
+        }
+        lines.push('');
+        const solicitante = (t as any).solicitante_nombre || '—';
+        const aprobador = (t as any).aprobador_nombre || '—';
+        lines.push(`👤 Solicitante: ${solicitante}`);
+        lines.push(`✅ Aprobador: ${aprobador}`);
+        lines.push('');
+        lines.push(`_Bóveda LOLS_`);
+
+        const text = lines.join('\n');
+        const encoded = encodeURIComponent(text);
+        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+        if (isMobile && (navigator as any).share) {
+            (navigator as any).share({
+                text,
+                title: `Transferencia ${t.codigo}`,
+            }).catch((e: any) => {
+                if (e?.name !== 'AbortError') {
+                    window.open(`https://wa.me/?text=${encoded}`, '_blank');
+                }
+            });
+        } else {
+            window.open(`https://wa.me/?text=${encoded}`, '_blank');
+        }
+    };
 
     // ── Inline form states ──
     const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'rechazar_recepcion' | 'recibir' | null>(null);
@@ -307,6 +356,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
                             className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-xl hover:bg-[#E5E5EA] disabled:opacity-50 transition-all">
                             <Ban className="h-3.5 w-3.5" /> Cancelar
+                        </button>
+                    )}
+                    {canCompartirWhatsApp && (
+                        <button onClick={handleShareWhatsApp} disabled={actionLoading}
+                            title="Enviar información del movimiento por WhatsApp"
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-[#25D366] rounded-xl hover:bg-[#1EBE5B] disabled:opacity-50 transition-all shadow-sm">
+                            <Send className="h-3.5 w-3.5" /> Enviar por WhatsApp
                         </button>
                     )}
                 </div>
