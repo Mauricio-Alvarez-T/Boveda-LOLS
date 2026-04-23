@@ -237,6 +237,37 @@ const AttendancePage: React.FC = () => {
                 )}
             </AnimatePresence>
 
+            {/* ═══ Tablet search bar (md to lg) ═══ */}
+            {/* Hidden on mobile (FAB handles it) and lg+ (header has inline search) */}
+            <div className="hidden md:flex lg:hidden items-center gap-2 shrink-0">
+                <div className="relative flex-1 min-w-0 group">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50 transition-colors group-focus-within:text-brand-primary" />
+                    <input
+                        type="text"
+                        placeholder="Buscar trabajador..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="w-full h-9 pl-9 pr-3 bg-white border border-[#E8E8ED] rounded-xl text-xs font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 shadow-sm transition-all"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => setSearchQuery('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all">
+                            <X className="h-3 w-3" />
+                        </button>
+                    )}
+                </div>
+                <select
+                    value={selectedEmpresaId || ""}
+                    onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
+                    className="h-9 bg-white border border-[#E8E8ED] rounded-xl text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-7 appearance-none cursor-pointer outline-none focus:border-brand-primary shadow-sm shrink-0 max-w-[160px]"
+                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 8px center', backgroundRepeat: 'no-repeat' }}
+                >
+                    <option value="">Todas las Empresas</option>
+                    {availableEmpresas.map(emp => (
+                        <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                    ))}
+                </select>
+            </div>
+
             {loading ? (
                 <div className="flex flex-col gap-3 p-4">
                     {[1, 2, 3, 4, 5, 6].map((i) => (

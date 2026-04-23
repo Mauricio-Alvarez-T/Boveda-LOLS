@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Save, MoreHorizontal, FileDown, CalendarRange, Search, ChevronDown, CopyPlus } from 'lucide-react';
+import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import { cn } from '../../../utils/cn';
@@ -25,6 +25,16 @@ interface AttendanceHeaderActionsProps {
     repeating?: boolean;
 }
 
+/**
+ * Header actions for the Attendance page.
+ *
+ * Layout strategy by breakpoint:
+ *   - Mobile (<md):    Send + Repeat + Save + overflow "..." menu
+ *   - Tablet (md-lg):  Overflow "..." menu (holds WhatsApp/Excel/Repeat/Feriado/Empresa) + Save
+ *                      Search bar + Empresa filter are rendered OUTSIDE this component,
+ *                      inside the page body via <AttendanceToolbar />.
+ *   - Desktop (lg+):   Inline search + empresa + all action buttons + Save
+ */
 export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = ({
     handleShareWhatsApp,
     handleExportExcel,
@@ -51,7 +61,9 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
 
     return (
         <div className="flex items-center gap-2">
-            {/* Movil */}
+            {/* ═══════════════════════════════════════════ */}
+            {/*  MOBILE (<md): compact row                 */}
+            {/* ═══════════════════════════════════════════ */}
             <div className="flex md:hidden items-center gap-1 h-full">
                 <Button
                     onClick={handleShareWhatsApp}
@@ -115,10 +127,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 </div>
             </div>
 
-            {/* Desktop */}
-            <div className="hidden md:flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm overflow-hidden min-w-0 flex-1 max-w-[450px]">
+            {/* ═══════════════════════════════════════════ */}
+            {/*  DESKTOP (lg+): search + empresa + actions */}
+            {/* ═══════════════════════════════════════════ */}
+            <div className="hidden lg:flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm overflow-hidden min-w-0 flex-1 max-w-[450px]">
                 <div className="relative flex-1 min-w-0 group">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" />
+                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
                     <input
                         type="text"
                         placeholder="Buscar..."
@@ -127,11 +141,11 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                         className="w-full h-8 pl-8 pr-3 bg-transparent text-xs font-medium focus:outline-none"
                     />
                 </div>
-                <div className="h-4 w-px bg-[#E8E8ED] hidden lg:block" />
+                <div className="h-4 w-px bg-[#E8E8ED]" />
                 <select
                     value={selectedEmpresaId || ""}
                     onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="hidden lg:block h-8 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[120px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
+                    className="h-8 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[120px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat' }}
                 >
                     <option value="">Todas las Empresas</option>
@@ -141,10 +155,13 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 </select>
             </div>
 
-            <div className="h-8 w-px bg-border/40 mx-0.5 hidden md:block" />
+            <div className="h-8 w-px bg-border/40 mx-0.5 hidden lg:block" />
 
+            {/* ═══════════════════════════════════════════ */}
+            {/*  DESKTOP (md+): action buttons             */}
+            {/* ═══════════════════════════════════════════ */}
             <div className="hidden md:flex items-center gap-1">
-                {/* --- Inline actions: visible only at lg+ --- */}
+                {/* Inline actions — visible only at lg+ */}
                 <Button
                     onClick={handleShareWhatsApp}
                     variant="glass"
@@ -201,7 +218,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     </Button>
                 </RequirePermission>
 
-                {/* --- Overflow menu: visible only at md (below lg) --- */}
+                {/* Overflow menu — visible at md only (below lg) */}
                 <DesktopOverflowMenu
                     handleShareWhatsApp={handleShareWhatsApp}
                     handleExportExcel={handleExportExcel}
@@ -234,8 +251,8 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
 };
 
 /* ------------------------------------------------------------------ */
-/*  Overflow menu for md-only (below lg) — holds actions that are     */
-/*  inline at lg+ but need to collapse to save horizontal space.      */
+/*  Overflow menu for md-only (below lg) — holds actions + filters    */
+/*  that are inline at lg+ but need to collapse to save space.        */
 /* ------------------------------------------------------------------ */
 interface DesktopOverflowMenuProps {
     handleShareWhatsApp: () => void;
