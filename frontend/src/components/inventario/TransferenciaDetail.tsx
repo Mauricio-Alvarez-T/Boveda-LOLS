@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
@@ -81,15 +82,28 @@ const TransferenciaDetail: React.FC<Props> = ({
     const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
     // ── WhatsApp share: arma mensaje con códigos, origen/destino, items y observaciones ──
-    const handleShareWhatsApp = () => {
+    // Nota: los emojis se construyen con String.fromCodePoint para evitar cualquier
+    // corrupción de encoding en el bundle/URL. Además copiamos al portapapeles como
+    // respaldo — el redirect de wa.me a veces mangling codepoints SMP.
+    const handleShareWhatsApp = async () => {
+        const TRUCK = String.fromCodePoint(0x1F69B);
+        const PIN = String.fromCodePoint(0x1F4CD);
+        const TARGET = String.fromCodePoint(0x1F3AF);
+        const BOX = String.fromCodePoint(0x1F4E6);
+        const MEMO = String.fromCodePoint(0x1F4DD);
+        const SPEECH = String.fromCodePoint(0x1F4AC);
+        const WARN = String.fromCodePoint(0x26A0, 0xFE0F);
+        const PERSON = String.fromCodePoint(0x1F464);
+        const CHECK = String.fromCodePoint(0x2705);
+
         const lines: string[] = [];
-        lines.push(`🚛 *TRANSFERENCIA ${t.codigo}*`);
+        lines.push(`${TRUCK} *TRANSFERENCIA ${t.codigo}*`);
         lines.push(`Estado: ${cfg.label}`);
         lines.push('');
-        lines.push(`📍 *Retirar en:* ${origen}`);
-        lines.push(`🎯 *Entregar en:* ${destino}`);
+        lines.push(`${PIN} *Retirar en:* ${origen}`);
+        lines.push(`${TARGET} *Entregar en:* ${destino}`);
         lines.push('');
-        lines.push(`📦 *Items (${items.length}):*`);
+        lines.push(`${BOX} *Items (${items.length}):*`);
         items.forEach((it) => {
             const cant = it.cantidad_enviada ?? it.cantidad_solicitada;
             const unidad = it.unidad ? ` ${it.unidad}` : '';
@@ -98,33 +112,51 @@ const TransferenciaDetail: React.FC<Props> = ({
             if (it.observacion) lines.push(`   _${it.observacion}_`);
         });
         lines.push('');
-        if (t.motivo) lines.push(`📝 *Motivo:* ${t.motivo}`);
-        if (t.observaciones) lines.push(`💬 *Observaciones:* ${t.observaciones}`);
+        if (t.motivo) lines.push(`${MEMO} *Motivo:* ${t.motivo}`);
+        if (t.observaciones) lines.push(`${SPEECH} *Observaciones:* ${t.observaciones}`);
         if (t.requiere_pionetas) {
-            lines.push(`⚠️ *Requiere ${t.cantidad_pionetas || ''} pionetas*`);
+            lines.push(`${WARN} *Requiere ${t.cantidad_pionetas || ''} pionetas*`);
         }
         lines.push('');
         const solicitante = (t as any).solicitante_nombre || '—';
         const aprobador = (t as any).aprobador_nombre || '—';
-        lines.push(`👤 Solicitante: ${solicitante}`);
-        lines.push(`✅ Aprobador: ${aprobador}`);
+        lines.push(`${PERSON} Solicitante: ${solicitante}`);
+        lines.push(`${CHECK} Aprobador: ${aprobador}`);
         lines.push('');
         lines.push(`_Bóveda LOLS_`);
 
         const text = lines.join('\n');
-        const encoded = encodeURIComponent(text);
+
+        // 1) Copiar al portapapeles primero (respaldo contra mangling de URL)
+        let copied = false;
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                copied = true;
+            }
+        } catch { /* seguimos con el fallback */ }
+
+        // 2) Intentar share nativo en móvil
         const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
         if (isMobile && (navigator as any).share) {
-            (navigator as any).share({
-                text,
-                title: `Transferencia ${t.codigo}`,
-            }).catch((e: any) => {
-                if (e?.name !== 'AbortError') {
-                    window.open(`https://wa.me/?text=${encoded}`, '_blank');
-                }
+            try {
+                await (navigator as any).share({ text, title: `Transferencia ${t.codigo}` });
+                return;
+            } catch (e: any) {
+                if (e?.name === 'AbortError') return;
+            }
+        }
+
+        // 3) Abrir WhatsApp con el texto pre-cargado (api.whatsapp.com preserva emojis
+        //    mejor que wa.me, que pasa por un redirect que corrompe SMP)
+        const encoded = encodeURIComponent(text);
+        window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+
+        if (copied) {
+            toast.success('Mensaje copiado al portapapeles', {
+                description: 'Si los emojis se ven raros en WhatsApp, pega con Ctrl+V.',
+                duration: 6000,
             });
-        } else {
-            window.open(`https://wa.me/?text=${encoded}`, '_blank');
         }
     };
 
