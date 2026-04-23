@@ -33,6 +33,24 @@
 - **Reinicio de app:** escribir cualquier cosa en `tmp/restart.txt` dentro del directorio del backend. El deploy lo hace automáticamente via curl FTP.
 - **Logs del servidor:** `/boveda/logs/app_YYYY-MM-DD.log` (JSON por línea, rotación a 5 MB).
 
+### Configuración Inicial de Staging (si se necesita recrear)
+
+Si alguna vez necesitas recrear el entorno de staging desde cero:
+
+1. **Crear subdominio** en cPanel: `test.boveda.lols.cl` → apunta a `/public_html/test.boveda.lols.cl`
+2. **Crear BD**: `lolscl_boveda_test` con un usuario dedicado (ej: `lolscl_dev`) con todos los privilegios.
+3. **Crear App Node.js** en cPanel → Setup Node.js App → Create Application:
+   - Node.js version: `20.x.x`
+   - Application mode: `Production`
+   - Application root: `test-boveda`
+   - Application URL: `test.boveda.lols.cl` + `api`
+   - Application startup file: `server.js`
+4. **Crear `.env`** en `/home/lolscl/test-boveda/.env` con las variables requeridas (ver sección 5).
+5. **Run NPM Install** desde la interfaz de cPanel y luego **Restart**.
+6. **Importar datos** de producción (usuarios, roles, permisos) si la BD está vacía.
+
+> ⚠️ Las credenciales de BD y JWT_SECRET de staging no se almacenan en el repositorio. Consultar con el administrador del servidor.
+
 ---
 
 ## 2. Flujo de Deploy
@@ -389,9 +407,16 @@ Boveda-LOLS/
 │   │   └── setupEnv.js            ← Setup de vars de entorno para Jest
 │   └── package.json               ← Scripts npm (migrate, migrate:fix-prod, etc.)
 │
-└── docs/
-    ├── RUNBOOK.md                 ← Este documento
-    └── project-brief.md           ← Descripción del proyecto
+├── docs/
+│   ├── RUNBOOK.md                 ← Este documento (operaciones)
+│   ├── TROUBLESHOOTING.md         ← Diagnóstico y resolución de errores
+│   ├── DEUDA_TECNICA.md           ← Estado de deuda técnica y seguridad
+│   ├── TESTING_OLA2_OLA3.md       ← Guía de testing del módulo inventario
+│   ├── SESION_HANDOFF.md          ← Handoff entre sesiones
+│   └── project-brief.md           ← Descripción del proyecto
+│
+├── CLAUDE.md                      ← Instrucciones para IAs
+└── README.md                      ← Presentación del proyecto
 ```
 
 ---
