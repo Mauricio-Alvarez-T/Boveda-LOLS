@@ -78,39 +78,39 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
             </div>
 
             {/* Desktop */}
-            <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 shrink-0 hidden md:flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                     <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
-                        <CheckSquare className="h-4 w-4 text-brand-primary" />
+            <div className="min-h-[48px] border-b border-[#F0F0F5] bg-white/50 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 shrink-0">
+                     <div className="h-7 w-7 lg:h-8 lg:w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
+                        <CheckSquare className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-brand-primary" />
                     </div>
-                    <h2 className="text-sm font-bold text-brand-dark">Registro Diario</h2>
+                    <h2 className="text-xs lg:text-sm font-bold text-brand-dark whitespace-nowrap">Registro Diario</h2>
                 </div>
 
                 {hasActiveContext && (
-                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                        <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm">
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
+                    <div className="flex items-center gap-3 min-w-0 flex-1 justify-end flex-wrap">
+                        <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm shrink-0">
+                            <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
                                 <ChevronLeft className="h-4 w-4" />
                             </Button>
-                            <div className="relative group flex items-center px-1">
+                            <div className="relative group flex items-center px-0.5">
                                 <input
                                     type="date"
                                     value={date}
                                     onChange={(e) => setDate(e.target.value)}
-                                    className="w-[115px] bg-transparent text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
+                                    className="w-[105px] lg:w-[115px] bg-transparent text-[10px] lg:text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
                                 />
                             </div>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
+                            <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
                                 <ChevronRight className="h-4 w-4" />
                             </Button>
                         </div>
 
-                        <div className="flex items-center gap-2 ml-2 border-l border-[#E8E8ED] pl-4 overflow-x-auto scrollbar-none max-w-[300px] lg:max-w-none">
+                        <div className="flex items-center gap-1.5 lg:gap-2 border-l border-[#E8E8ED] pl-3 flex-wrap min-w-0">
                             {/* Total Workers Badge */}
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
-                                <Users className="h-3.5 w-3.5 text-brand-dark/60" />
-                                <span className="text-[13px] font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
-                                <span className="text-[9px] font-bold text-brand-dark/40 uppercase tracking-tighter ml-0.5">Total</span>
+                            <div className="flex items-center gap-1 px-2 lg:px-3 py-1 bg-brand-dark/5 rounded-lg lg:rounded-xl border border-brand-dark/10 shrink-0">
+                                <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-dark/60" />
+                                <span className="text-[11px] lg:text-[13px] font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
+                                <span className="text-[8px] lg:text-[9px] font-bold text-brand-dark/40 uppercase tracking-tighter hidden lg:inline">Total</span>
                             </div>
 
                             {/* Dynamic Breakdown Badges */}
@@ -122,7 +122,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         initial={{ opacity: 0, scale: 0.9 }}
                                         animate={{ opacity: 1, scale: 1 }}
                                         onClick={() => onStatusFilter(isActive ? null : estado.id)}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 shadow-md' : ''}`}
+                                        className={`flex items-center gap-1 px-2 py-1 rounded-lg lg:rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 shadow-md' : ''}`}
                                         style={{
                                             backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '90%'})`,
                                             borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '60%'})`,
@@ -130,17 +130,16 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                             '--tw-ring-color': estado.color
                                         } as React.CSSProperties}
                                     >
-                                        <span className="text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
-                                        <div className="h-4 w-px opacity-20" style={{ backgroundColor: `color-mix(in srgb, ${estado.color}, black 45%)` }} />
-                                        <span className="text-[13px] font-black tabular-nums">{count}</span>
+                                        <span className="text-[9px] lg:text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
+                                        <span className="text-[11px] lg:text-[13px] font-black tabular-nums">{count}</span>
                                     </motion.div>
                                 );
                             })}
 
                             {/* Attendance Percentage Badge */}
-                            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-accent/5 rounded-xl border border-brand-accent/10 shrink-0 ml-1">
-                                <BarChart3 className="h-3.5 w-3.5 text-brand-accent/60" />
-                                <span className="text-[13px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
+                            <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg lg:rounded-xl border border-brand-accent/10 shrink-0">
+                                <BarChart3 className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-accent/60" />
+                                <span className="text-[11px] lg:text-[13px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
                             </div>
                         </div>
                     </div>
