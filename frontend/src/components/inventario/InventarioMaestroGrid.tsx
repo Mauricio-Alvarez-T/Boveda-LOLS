@@ -369,13 +369,34 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                 <tr>
                                     <th className="text-left px-2 py-2 font-bold text-brand-dark w-12">Nº</th>
                                     <th className="text-left px-2 py-2 font-bold text-brand-dark min-w-[220px]">Descripción</th>
-                                    <th className="text-left px-2 py-2 font-bold text-brand-dark w-32">Categoría</th>
-                                    <th className="text-left px-2 py-2 font-bold text-brand-dark w-16">Unidad</th>
-                                    <th className="text-right px-2 py-2 font-bold text-brand-dark w-28">V. Compra</th>
-                                    <th className="text-right px-2 py-2 font-bold text-brand-dark w-28">V. Arriendo</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Consum.</th>
-                                    <th className="text-left px-2 py-2 font-bold text-brand-dark w-24">Propiet.</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Activo</th>
+                                    <th
+                                        title="Clasificación del item (ej: MOLDAJES, MAQUINARIA, HERRAMIENTAS). Se usa para agrupar y filtrar."
+                                        className="text-left px-2 py-2 font-bold text-brand-dark w-32 cursor-help"
+                                    >Categoría</th>
+                                    <th
+                                        title="Unidad de medida del item (ej: U = unidad, M = metro, KG = kilogramo)."
+                                        className="text-left px-2 py-2 font-bold text-brand-dark w-16 cursor-help"
+                                    >Unidad</th>
+                                    <th
+                                        title="Valor de compra del item en pesos. Costo histórico de adquisición utilizado para inventario y reportes contables."
+                                        className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
+                                    >V. Compra</th>
+                                    <th
+                                        title="Valor de arriendo diario del item en pesos. Usado para calcular el costo del item asignado a cada obra."
+                                        className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
+                                    >V. Arriendo</th>
+                                    <th
+                                        title="Indica si el item es consumible: se gasta o desaparece tras su uso y no se devuelve a bodega (ej: pernos, clavos)."
+                                        className="text-center px-2 py-2 font-bold text-brand-dark w-16 cursor-help"
+                                    >Consum.</th>
+                                    <th
+                                        title="Empresa propietaria del item (razón social a la que pertenece). Relevante cuando hay múltiples empresas en el grupo."
+                                        className="text-left px-2 py-2 font-bold text-brand-dark w-24 cursor-help"
+                                    >Propiet.</th>
+                                    <th
+                                        title="Indica si el item está habilitado en el sistema. Los items inactivos quedan archivados y no aparecen en nuevas solicitudes."
+                                        className="text-center px-2 py-2 font-bold text-brand-dark w-16 cursor-help"
+                                    >Activo</th>
                                 </tr>
                             </thead>
                             <tbody>
