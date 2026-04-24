@@ -88,14 +88,21 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 - 2.1: 5to KPI "Estancados +7d" — rojo, Timer icon, xl:grid-cols-5
 - 2.2: Sección "Rechazos recientes" — solo visible si hay datos, motivo entre comillas
 
-### Sprint 3 — ✅ COMPLETADO
+### Sprint 3 — ✅ COMPLETADO (2f5d0b2)
 - 2.3: Comparativa mes anterior — chip ↑/↓ % en KPI cards
 - 2.4: Sparklines — SVG inline últimos 7 días por KPI
 - Infra: tabla `dashboard_kpi_snapshots` (migración 037) + script `snapshot_dashboard.js` + cron diario 00:05
-- **Requiere**: correr migrate en staging/prod + setup cron job en cPanel
+- **Deployado staging**: migrate corrido ✅ + cron cPanel activo ✅
+- **Pendiente prod**: repetir migrate + cron en `/boveda/` al mergear `main`
 
-### Sprint 4+
-- Fase 3 según prioridad del negocio
+### Sprint 4 — En progreso
+Fase 3 — orden por valor/esfuerzo:
+1. **3.2** Card "Próximas recepciones hoy" (3h) — siguiente
+2. **3.1** Donut "Valor por categoría" (4h)
+3. **3.4** Mini-card Bombas Hormigón (4h)
+4. **3.3** Filtro global por obra (6h) — último, refactor mayor
+
+### Fase 4
 - Fase 4 en cualquier momento como cleanup
 
 ---
