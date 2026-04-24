@@ -49,8 +49,8 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 |---|---|---|---|
 | 2.1 | **5to KPI: "Estancados >7 días"** — separar del KPI "En tránsito" los que llevan más de 7 días sin recibirse | `inventario.service.js` (query nuevo) + `ResumenEjecutivoPanel.tsx` (nuevo card rojo crítico) | ✅ DONE (51f58d6) |
 | 2.2 | **Card "Rechazos recientes"** — lista últimos 7 días con `observaciones_rechazo` | Endpoint + nueva sección en panel | ✅ DONE (51f58d6) |
-| 2.3 | **Comparativa vs mes anterior** — "Valor obras: $4.8M (↑ 12%)" | Query backend guarda snapshot mensual o recalcula | 3h |
-| 2.4 | **Sparklines** en KPI cards — tendencia últimos 7 días | `recharts` (si no está) + nueva serie en backend | 4h |
+| 2.3 | **Comparativa vs mes anterior** — "Valor obras: $4.8M (↑ 12%)" | Migración `037_dashboard_kpi_snapshots` + script snapshot diario + service | ✅ DONE (Sprint 3) |
+| 2.4 | **Sparklines** en KPI cards — tendencia últimos 7 días | SVG inline sin recharts + endpoint histórico | ✅ DONE (Sprint 3) |
 
 **Criterios de aceptación Fase 2:**
 - [ ] Backend tests pasan (`npm test`)
@@ -88,8 +88,11 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 - 2.1: 5to KPI "Estancados +7d" — rojo, Timer icon, xl:grid-cols-5
 - 2.2: Sección "Rechazos recientes" — solo visible si hay datos, motivo entre comillas
 
-### Sprint 3
-- Fase 2.3 + Fase 2.4 (tendencias + sparklines)
+### Sprint 3 — ✅ COMPLETADO
+- 2.3: Comparativa mes anterior — chip ↑/↓ % en KPI cards
+- 2.4: Sparklines — SVG inline últimos 7 días por KPI
+- Infra: tabla `dashboard_kpi_snapshots` (migración 037) + script `snapshot_dashboard.js` + cron diario 00:05
+- **Requiere**: correr migrate en staging/prod + setup cron job en cPanel
 
 ### Sprint 4+
 - Fase 3 según prioridad del negocio

@@ -13,7 +13,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo } from '../../hooks/inventario/useDashboardEjecutivo';
+import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
 
 interface Props {
     /** Navega al tab de transferencias filtrando por estado y, opcionalmente, abriendo una. */
@@ -32,6 +32,59 @@ const fmtCLP = (n: number) => {
 const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')}`;
 
 // ────────────────────────────────────────────────────────
+// Sparkline — mini gráfico SVG sin dependencias
+// ────────────────────────────────────────────────────────
+const Sparkline: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' }> = ({ data, tone }) => {
+    if (!data || data.length < 2) return null;
+    const w = 80;
+    const h = 22;
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    const step = w / (data.length - 1);
+    const points = data.map((v, i) => `${i * step},${h - ((v - min) / range) * h}`).join(' ');
+    const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857' };
+    return (
+        <svg width={w} height={h} className="shrink-0" aria-hidden="true">
+            <polyline
+                fill="none"
+                stroke={colorMap[tone]}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                points={points}
+                opacity="0.75"
+            />
+        </svg>
+    );
+};
+
+// ────────────────────────────────────────────────────────
+// Chip comparativa vs mes anterior
+// ────────────────────────────────────────────────────────
+const ComparativaChip: React.FC<{ delta_pct: number | null; invertColor?: boolean }> = ({ delta_pct, invertColor }) => {
+    if (delta_pct === null || delta_pct === undefined) return null;
+    // invertColor: para KPIs donde subir es malo (pendientes, estancados, etc.)
+    const isUp = delta_pct > 0;
+    const isFlat = delta_pct === 0;
+    const good = invertColor ? !isUp : isUp;
+    const toneClass = isFlat
+        ? 'bg-white/60 text-muted-foreground'
+        : good
+            ? 'bg-emerald-200/60 text-emerald-800'
+            : 'bg-red-200/60 text-red-800';
+    const arrow = isFlat ? '→' : isUp ? '↑' : '↓';
+    return (
+        <span
+            className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black', toneClass)}
+            title={`Variación vs hace 30 días: ${delta_pct > 0 ? '+' : ''}${delta_pct}%`}
+        >
+            {arrow} {Math.abs(delta_pct)}%
+        </span>
+    );
+};
+
+// ────────────────────────────────────────────────────────
 // KPI card grande, clickeable, área completa como botón
 // ────────────────────────────────────────────────────────
 interface KpiCardProps {
@@ -43,9 +96,12 @@ interface KpiCardProps {
     onClick?: () => void;
     disabled?: boolean;
     tooltip?: string;
+    historico?: KpiHistorico;
+    /** true cuando subir = malo (pendientes, estancados, discrepancias, en_transito). Default false (valor_obras sube = bueno). */
+    invertDelta?: boolean;
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip }) => {
+const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta }) => {
     const toneClasses: Record<KpiCardProps['tone'], string> = {
         amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900',
         red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900',
@@ -82,14 +138,24 @@ const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, on
                     {label}
                 </span>
             </div>
-            <div className="text-4xl md:text-5xl font-black leading-none">
-                {value}
-            </div>
-            {subline && (
-                <div className="text-xs md:text-sm font-semibold opacity-80">
-                    {subline}
+            <div className="flex items-end justify-between gap-2">
+                <div className="text-4xl md:text-5xl font-black leading-none">
+                    {value}
                 </div>
-            )}
+                {historico?.sparkline && historico.sparkline.length >= 2 && (
+                    <Sparkline data={historico.sparkline} tone={tone} />
+                )}
+            </div>
+            <div className="flex items-center justify-between gap-2 min-h-[18px]">
+                {subline && (
+                    <div className="text-xs md:text-sm font-semibold opacity-80 truncate">
+                        {subline}
+                    </div>
+                )}
+                {historico && historico.delta_pct !== null && (
+                    <ComparativaChip delta_pct={historico.delta_pct} invertColor={invertDelta} />
+                )}
+            </div>
             {onClick && !disabled && (
                 <ChevronRight className="absolute top-4 right-4 h-5 w-5 opacity-40" />
             )}
@@ -375,6 +441,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
                             disabled={(data?.kpis.transferencias_pendientes ?? 0) === 0}
                             tooltip="Solicitudes de transferencia esperando tu aprobación. Click para ir a la lista y aprobarlas."
+                            historico={data?.historico?.pendientes}
+                            invertDelta
                         />
                         <KpiCard
                             tone="red"
@@ -389,6 +457,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             onClick={() => onNavigateTransferencias({ estado: 'discrepancias' })}
                             disabled={(data?.kpis.discrepancias_pendientes.transferencias_afectadas ?? 0) === 0}
                             tooltip="Transferencias recibidas con cantidad distinta a la enviada (merma, sobrante o error). Requieren revisión para ajustar stock."
+                            historico={data?.historico?.discrepancias}
+                            invertDelta
                         />
                         <KpiCard
                             tone="blue"
@@ -399,6 +469,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
                             disabled={(data?.kpis.transferencias_en_transito ?? 0) === 0}
                             tooltip="Transferencias ya aprobadas y despachadas, esperando confirmación de recepción en destino."
+                            historico={data?.historico?.en_transito}
                         />
                         <KpiCard
                             tone="red"
@@ -409,6 +480,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
                             disabled={(data?.kpis.estancados_transito ?? 0) === 0}
                             tooltip="Transferencias en tránsito que llevan más de 7 días sin ser recibidas. Require seguimiento urgente."
+                            historico={data?.historico?.estancados}
+                            invertDelta
                         />
                         <KpiCard
                             tone="green"
@@ -417,6 +490,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             value={fmtCLP(data?.kpis.valor_total_obras ?? 0)}
                             subline="arriendo mensual"
                             tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
+                            historico={data?.historico?.valor_obras}
                         />
                     </>
                 )}

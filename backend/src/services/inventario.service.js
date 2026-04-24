@@ -311,6 +311,7 @@ const inventarioService = {
             [alertasTransitoRows],
             [estancadosRows],
             [rechazosRows],
+            [snapshotsRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
@@ -417,6 +418,13 @@ const inventarioService = {
                 ORDER BY t.fecha_aprobacion DESC
                 LIMIT 8
             `),
+            // 8. Snapshots últimos 31 días (alimenta sparklines 7d + comparativa mes anterior)
+            db.query(`
+                SELECT fecha, kpi, valor
+                FROM dashboard_kpi_snapshots
+                WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 31 DAY)
+                ORDER BY fecha ASC
+            `),
         ]);
 
         // Normalizar valor por obra aplicando descuento
@@ -474,6 +482,38 @@ const inventarioService = {
             return (b.dias || 0) - (a.dias || 0);
         });
 
+        // Histórico: sparklines (últimos 7 días) + comparativa mes anterior (~30 días atrás)
+        // Los KPIs actuales (hoy, no del snapshot) se usan como último punto del sparkline
+        // para evitar depender de que el cron haya corrido hoy.
+        const kpisHoy = {
+            pendientes: Number(pendientesRows[0]?.count) || 0,
+            en_transito: Number(transitoRows[0]?.count) || 0,
+            estancados: Number(estancadosRows[0]?.count) || 0,
+            discrepancias: Number(discrepanciasRows[0]?.transferencias_afectadas) || 0,
+            valor_obras: Number(valor_total_obras) || 0,
+        };
+
+        const snapshotsByKpi = {};
+        (snapshotsRows || []).forEach(r => {
+            if (!snapshotsByKpi[r.kpi]) snapshotsByKpi[r.kpi] = [];
+            snapshotsByKpi[r.kpi].push({ fecha: r.fecha, valor: Number(r.valor) || 0 });
+        });
+
+        const historico = {};
+        for (const kpi of Object.keys(kpisHoy)) {
+            const series = snapshotsByKpi[kpi] || [];
+            // Sparkline: últimos 6 días del snapshot + valor actual = 7 puntos
+            const last6 = series.slice(-6).map(p => p.valor);
+            const sparkline = [...last6, kpisHoy[kpi]];
+            // Comparativa: valor hace ~30 días (la serie está ordenada asc; si tiene ≥30 puntos,
+            // el primero es ~30 días atrás).
+            const mes_anterior = series.length >= 20 ? series[0].valor : null;
+            const delta_pct = (mes_anterior !== null && mes_anterior > 0)
+                ? Math.round(((kpisHoy[kpi] - mes_anterior) / mes_anterior) * 100)
+                : null;
+            historico[kpi] = { sparkline, mes_anterior, delta_pct };
+        }
+
         // Rechazos recientes normalizados
         const rechazos_recientes = rechazosRows.map(r => ({
             transferencia_id: r.id,
@@ -499,6 +539,7 @@ const inventarioService = {
             top_obras,
             alertas: alertas.slice(0, 8),
             rechazos_recientes,
+            historico,
         };
     },
 

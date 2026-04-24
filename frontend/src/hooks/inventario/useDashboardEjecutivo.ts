@@ -41,11 +41,26 @@ export interface DashboardAlerta {
     solicitante?: string | null;
 }
 
+export interface KpiHistorico {
+    sparkline: number[];
+    mes_anterior: number | null;
+    delta_pct: number | null;
+}
+
+export interface DashboardHistorico {
+    pendientes: KpiHistorico;
+    en_transito: KpiHistorico;
+    estancados: KpiHistorico;
+    discrepancias: KpiHistorico;
+    valor_obras: KpiHistorico;
+}
+
 export interface DashboardEjecutivoData {
     kpis: DashboardKpis;
     top_obras: TopObra[];
     alertas: DashboardAlerta[];
     rechazos_recientes: DashboardRechazo[];
+    historico: DashboardHistorico;
 }
 
 export function useDashboardEjecutivo() {
