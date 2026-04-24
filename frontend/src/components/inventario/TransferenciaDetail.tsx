@@ -81,11 +81,41 @@ const TransferenciaDetail: React.FC<Props> = ({
     const canCompartirWhatsApp = ['aprobada', 'en_transito', 'recibida'].includes(t.estado);
     const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
-    // ── WhatsApp share: arma mensaje con códigos, origen/destino, items y observaciones ──
-    // Nota: los emojis se construyen con String.fromCodePoint para evitar cualquier
-    // corrupción de encoding en el bundle/URL. Además copiamos al portapapeles como
-    // respaldo — el redirect de wa.me a veces mangling codepoints SMP.
+    // ── Clipboard helper con fallback para navegadores sin clipboard API ──
+    const copyToClipboard = async (text: string): Promise<boolean> => {
+        try {
+            if (navigator.clipboard?.writeText) {
+                await navigator.clipboard.writeText(text);
+                return true;
+            }
+        } catch { /* fallback */ }
+        try {
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-9999px';
+            textArea.style.top = '0';
+            document.body.appendChild(textArea);
+            textArea.focus();
+            textArea.select();
+            const ok = document.execCommand('copy');
+            document.body.removeChild(textArea);
+            return ok;
+        } catch {
+            return false;
+        }
+    };
+
+    // ── WhatsApp share ──
+    // Patrón replicado del módulo de asistencia (useAttendanceExport):
+    //  1) Copia al portapapeles (respaldo ante mangling de URL)
+    //  2) Muestra toast con botón "ENVIAR AHORA" — así window.open ocurre dentro
+    //     de un user gesture fresco, evitando popup blockers en dispositivos
+    //     lentos donde el gesto original se invalida tras los awaits.
+    //  3) Fallback con setTimeout si todo el flujo peta.
+    // Emojis construidos con String.fromCodePoint para blindar el encoding.
     const handleShareWhatsApp = async () => {
+        const TOAST_ID = `wa-transfer-${t.id}`;
         const TRUCK = String.fromCodePoint(0x1F69B);
         const PIN = String.fromCodePoint(0x1F4CD);
         const TARGET = String.fromCodePoint(0x1F3AF);
@@ -127,36 +157,45 @@ const TransferenciaDetail: React.FC<Props> = ({
 
         const text = lines.join('\n');
 
-        // 1) Copiar al portapapeles primero (respaldo contra mangling de URL)
-        let copied = false;
         try {
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text);
-                copied = true;
-            }
-        } catch { /* seguimos con el fallback */ }
+            toast.loading('Preparando mensaje...', { id: TOAST_ID });
 
-        // 2) Intentar share nativo en móvil
-        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-        if (isMobile && (navigator as any).share) {
-            try {
-                await (navigator as any).share({ text, title: `Transferencia ${t.codigo}` });
-                return;
-            } catch (e: any) {
-                if (e?.name === 'AbortError') return;
-            }
-        }
+            const copied = await copyToClipboard(text);
 
-        // 3) Abrir WhatsApp con el texto pre-cargado (api.whatsapp.com preserva emojis
-        //    mejor que wa.me, que pasa por un redirect que corrompe SMP)
-        const encoded = encodeURIComponent(text);
-        window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
-
-        if (copied) {
-            toast.success('Mensaje copiado al portapapeles', {
-                description: 'Si los emojis se ven raros en WhatsApp, pega con Ctrl+V.',
-                duration: 6000,
+            toast.success(copied ? '¡Mensaje listo!' : 'Mensaje preparado', {
+                id: TOAST_ID,
+                description: copied
+                    ? 'Copiado al portapapeles. Pulsa ENVIAR AHORA para abrir WhatsApp.'
+                    : 'Pulsa ENVIAR AHORA para abrir WhatsApp.',
+                duration: 15000,
+                action: {
+                    label: 'ENVIAR AHORA',
+                    onClick: async () => {
+                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+                        if (isMobile && (navigator as any).share) {
+                            try {
+                                await (navigator as any).share({
+                                    text,
+                                    title: `Transferencia ${t.codigo}`,
+                                });
+                                return;
+                            } catch (e: any) {
+                                if (e?.name === 'AbortError') return;
+                                // si falla share, caemos al open
+                            }
+                        }
+                        // api.whatsapp.com preserva emojis mejor que wa.me
+                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+                    },
+                },
             });
+        } catch (error: any) {
+            console.error('Error preparing WhatsApp share', error);
+            toast.error('Error al preparar el mensaje', { id: TOAST_ID, duration: 6000 });
+            // Último recurso: abre WhatsApp tras un delay
+            setTimeout(() => {
+                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
+            }, 2000);
         }
     };
 
