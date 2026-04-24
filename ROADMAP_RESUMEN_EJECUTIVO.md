@@ -1,8 +1,8 @@
 # Roadmap — Mejoras al Resumen Ejecutivo del Inventario
 
-> Estado inicial: Abril 2026
-> Rama de trabajo: `develop`
-> Archivos clave: `frontend/src/components/inventario/ResumenEjecutivoPanel.tsx` (372 líneas) + `backend/src/services/inventario.service.js` (método `getDashboardEjecutivo()` desde L303)
+> **Estado actual:** Fase 1 COMPLETADA (04/24/2026 ~17:45 UTC-4)
+> **Rama de trabajo:** `develop` — último commit `bf9bcd1`
+> **Archivos clave:** `frontend/src/components/inventario/ResumenEjecutivoPanel.tsx` (430 líneas) + `frontend/src/hooks/inventario/useDashboardEjecutivo.ts` (62 líneas)
 
 ---
 
@@ -30,15 +30,16 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 
 | # | Mejora | Archivo | Estado |
 |---|---|---|---|
-| 1.1 | Tooltips en los 4 KPI cards (consistencia con Maestro) | `ResumenEjecutivoPanel.tsx` L261-298 | ⏳ |
-| 1.2 | "Actualizado hace X min" con color amarillo si >5 min | Header del panel | ⏳ |
-| 1.3 | Mostrar solicitante en `AlertaItem` (dato ya existe) | `AlertaItem` componente | ⏳ |
-| 1.4 | Tooltip en barras del ranking con desglose bruto/descuento/neto | `ObraRankingItem` | ⏳ |
+| 1.1 | Tooltips en los 4 KPI cards (consistencia con Maestro) | `ResumenEjecutivoPanel.tsx` L261-298 | ✅ DONE |
+| 1.2 | "Actualizado hace X min" con color amarillo si >5 min | Header del panel | ✅ DONE |
+| 1.3 | Mostrar solicitante en `AlertaItem` (dato ya existe) | `AlertaItem` componente | ✅ DONE |
+| 1.4 | Tooltip en barras del ranking con desglose bruto/descuento/neto | `ObraRankingItem` | ✅ DONE |
 
 **Criterios de aceptación Fase 1:**
-- [ ] `npx tsc --noEmit` limpio
-- [ ] Visual verificado en `/inventario` tab "Resumen Ejecutivo"
-- [ ] No rompe responsive móvil
+- [x] `npx tsc --noEmit` limpio
+- [x] Visual verificado en `/inventario` tab "Resumen Ejecutivo"
+- [x] No rompe responsive móvil
+- [x] Commit `bf9bcd1` pusheado a `develop`
 
 ---
 
@@ -79,14 +80,17 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 
 ## 🚦 Plan de ejecución sugerido
 
-### Sprint 1 (hoy)
-- Fase 1 completa (4 quick wins) → 1 commit por feature → push `develop` → verificar staging
+### Sprint 1 (hoy) — ✅ COMPLETADO
+- Fase 1 completa (4 quick wins) → commit `bf9bcd1` → desplegado a staging
+- Verificado: type check limpio, tooltips funcionales, solicitante visible, actualización timestamp OK
 
-### Sprint 2
-- Fase 2.1 (5to KPI estancados) + Fase 2.2 (rechazos recientes)
+### Sprint 2 (próximo)
+- Fase 2.1 (5to KPI estancados >7 días) + Fase 2.2 (rechazos recientes)
+- Backend: nuevas queries en `inventario.service.js`
+- Frontend: 2 nuevos cards en `ResumenEjecutivoPanel`
 
 ### Sprint 3
-- Fase 2.3 + Fase 2.4 (tendencias)
+- Fase 2.3 + Fase 2.4 (tendencias + sparklines)
 
 ### Sprint 4+
 - Fase 3 según prioridad del negocio
