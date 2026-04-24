@@ -10,8 +10,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         jest.clearAllMocks();
     });
 
-    test('retorna shape con kpis, top_obras y alertas', async () => {
-        // Las 7 queries del service corren en paralelo con Promise.all, así que
+    test('retorna shape con kpis, top_obras, alertas y rechazos_recientes', async () => {
+        // Las 9 queries del service corren en paralelo con Promise.all, así que
         // mockeamos cada invocación sucesiva en el orden declarado en el service.
         db.query
             // 1. transferencias pendientes count
@@ -49,6 +49,18 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 origen_obra_nombre: 'DOMEYKO', origen_bodega_nombre: null,
                 destino_obra_nombre: 'ABATE 676', destino_bodega_nombre: null,
                 dias: 6,
+            }]])
+            // 6. estancados +7d count
+            .mockResolvedValueOnce([[{ count: 1 }]])
+            // 7. rechazos recientes (últimos 7 días)
+            .mockResolvedValueOnce([[{
+                id: 104, codigo: 'TRF-000140',
+                fecha_aprobacion: '2026-04-19',
+                origen_obra_nombre: 'DOMEYKO', origen_bodega_nombre: null,
+                destino_obra_nombre: null, destino_bodega_nombre: 'BODEGA CENTRAL',
+                observaciones_rechazo: 'Items dañados',
+                rechazado_por_nombre: 'María',
+                dias: 2,
             }]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
@@ -58,6 +70,7 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.kpis.transferencias_en_transito).toBe(2);
         expect(result.kpis.discrepancias_pendientes.transferencias_afectadas).toBe(3);
         expect(result.kpis.discrepancias_pendientes.unidades_totales).toBe(42);
+        expect(result.kpis.estancados_transito).toBe(1);
 
         // Valor total obras = CERRILLOS (18.2M, 0% desc) + DOMEYKO (12.1M * 0.9 = 10.89M)
         expect(result.kpis.valor_total_obras).toBeCloseTo(18200000 + 12100000 * 0.9, 0);
@@ -74,6 +87,14 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.alertas[2].tipo).toBe('transito');
         // Cada alerta trae transferencia_id para click → detalle
         result.alertas.forEach(a => expect(a.transferencia_id).toBeTruthy());
+
+        // Rechazos recientes
+        expect(result.rechazos_recientes).toHaveLength(1);
+        expect(result.rechazos_recientes[0].codigo).toBe('TRF-000140');
+        expect(result.rechazos_recientes[0].observaciones_rechazo).toBe('Items dañados');
+        expect(result.rechazos_recientes[0].rechazado_por).toBe('María');
+        expect(result.rechazos_recientes[0].origen).toBe('DOMEYKO');
+        expect(result.rechazos_recientes[0].destino).toBe('BODEGA CENTRAL');
     });
 
     test('soporta estado vacío sin explotar', async () => {
@@ -84,13 +105,17 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[{ count: 0 }]])
             .mockResolvedValueOnce([[]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
         expect(result.kpis.transferencias_pendientes).toBe(0);
         expect(result.kpis.valor_total_obras).toBe(0);
+        expect(result.kpis.estancados_transito).toBe(0);
         expect(result.top_obras).toEqual([]);
         expect(result.alertas).toEqual([]);
+        expect(result.rechazos_recientes).toEqual([]);
     });
 });
