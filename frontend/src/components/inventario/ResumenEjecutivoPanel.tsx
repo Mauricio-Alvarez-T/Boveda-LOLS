@@ -11,6 +11,7 @@ import {
     User,
     Timer,
     XCircle,
+    Droplets,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico, type CategoriaValor } from '../../hooks/inventario/useDashboardEjecutivo';
@@ -641,6 +642,48 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                             );
                                         });
                                 })()}
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Bombas de hormigón — mes actual */}
+            {(loading || (data?.bombas_hormigon_mes?.eventos ?? 0) > 0) && (
+                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Droplets className="h-4 w-4 text-cyan-600" />
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
+                            Bombas de hormigón
+                        </h3>
+                        <span className="ml-auto text-[11px] text-muted-foreground font-semibold capitalize">
+                            {new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
+                        </span>
+                    </div>
+                    {loading && !data ? (
+                        <Skeleton className="h-[80px]" />
+                    ) : (
+                        <div className="grid grid-cols-3 gap-3">
+                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Bombeos</span>
+                                <span className="text-2xl font-black text-cyan-900 mt-1">
+                                    {data!.bombas_hormigon_mes.eventos}
+                                </span>
+                            </div>
+                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Obras</span>
+                                <span className="text-2xl font-black text-cyan-900 mt-1">
+                                    {data!.bombas_hormigon_mes.obras_distintas}
+                                </span>
+                            </div>
+                            <div
+                                className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100"
+                                title={`Costo externo total del mes: ${fmtCLPFull(data!.bombas_hormigon_mes.costo_externo)}`}
+                            >
+                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Costo ext.</span>
+                                <span className="text-2xl font-black text-cyan-900 mt-1">
+                                    {fmtCLP(data!.bombas_hormigon_mes.costo_externo)}
+                                </span>
                             </div>
                         </div>
                     )}

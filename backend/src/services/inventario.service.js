@@ -313,6 +313,7 @@ const inventarioService = {
             [rechazosRows],
             [snapshotsRows],
             [categoriaRows],
+            [bombasRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
@@ -443,6 +444,17 @@ const inventarioService = {
                 GROUP BY c.id, c.nombre, c.orden
                 ORDER BY c.orden ASC
             `),
+            // 10. Bombas de hormigón: stats del mes actual (eventos + obras únicas + costo externo)
+            db.query(`
+                SELECT
+                    COUNT(*) as eventos,
+                    COUNT(DISTINCT obra_id) as obras_distintas,
+                    COALESCE(SUM(CASE WHEN es_externa = 1 THEN costo ELSE 0 END), 0) as costo_externo
+                FROM registro_bombas_hormigon
+                WHERE activo = 1
+                  AND YEAR(fecha) = YEAR(CURDATE())
+                  AND MONTH(fecha) = MONTH(CURDATE())
+            `),
         ]);
 
         // Normalizar valor por obra aplicando descuento
@@ -564,6 +576,11 @@ const inventarioService = {
                 orden: Number(r.orden) || 0,
                 valor: Number(r.valor_neto) || 0,
             })),
+            bombas_hormigon_mes: {
+                eventos: Number(bombasRows?.[0]?.eventos) || 0,
+                obras_distintas: Number(bombasRows?.[0]?.obras_distintas) || 0,
+                costo_externo: Number(bombasRows?.[0]?.costo_externo) || 0,
+            },
         };
     },
 

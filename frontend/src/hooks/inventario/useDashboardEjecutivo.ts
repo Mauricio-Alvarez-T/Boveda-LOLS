@@ -62,6 +62,12 @@ export interface CategoriaValor {
     valor: number;
 }
 
+export interface BombasHormigonMes {
+    eventos: number;
+    obras_distintas: number;
+    costo_externo: number;
+}
+
 export interface DashboardEjecutivoData {
     kpis: DashboardKpis;
     top_obras: TopObra[];
@@ -69,6 +75,7 @@ export interface DashboardEjecutivoData {
     rechazos_recientes: DashboardRechazo[];
     historico: DashboardHistorico;
     valor_por_categoria: CategoriaValor[];
+    bombas_hormigon_mes: BombasHormigonMes;
 }
 
 export function useDashboardEjecutivo() {

@@ -78,7 +78,9 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 { id: 2, nombre: 'ALZAPRIMAS', orden: 2, valor_neto: 0 },
                 { id: 3, nombre: 'MOLDAJES', orden: 3, valor_neto: 15000000 },
                 { id: 4, nombre: 'MAQUINARIA', orden: 4, valor_neto: 6000000 },
-            ]]);
+            ]])
+            // 10. bombas hormigón mes actual
+            .mockResolvedValueOnce([[{ eventos: 12, obras_distintas: 5, costo_externo: 3200000 }]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -129,6 +131,11 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             categoria_id: 1, nombre: 'ANDAMIOS', orden: 1, valor: 8000000,
         });
         expect(result.valor_por_categoria[2].valor).toBe(15000000);
+
+        // Bombas hormigón mes
+        expect(result.bombas_hormigon_mes).toEqual({
+            eventos: 12, obras_distintas: 5, costo_externo: 3200000,
+        });
     });
 
     test('soporta estado vacío sin explotar', async () => {
@@ -143,7 +150,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ count: 0 }]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
-            .mockResolvedValueOnce([[]]);
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -157,5 +165,6 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.historico.pendientes.sparkline).toEqual([0]);
         expect(result.historico.pendientes.mes_anterior).toBeNull();
         expect(result.valor_por_categoria).toEqual([]);
+        expect(result.bombas_hormigon_mes).toEqual({ eventos: 0, obras_distintas: 0, costo_externo: 0 });
     });
 });
