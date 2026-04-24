@@ -47,8 +47,8 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 
 | # | Mejora | Archivos | Esfuerzo |
 |---|---|---|---|
-| 2.1 | **5to KPI: "Estancados >7 días"** — separar del KPI "En tránsito" los que llevan más de 7 días sin recibirse | `inventario.service.js` (query nuevo) + `ResumenEjecutivoPanel.tsx` (nuevo card rojo crítico) | 2h |
-| 2.2 | **Card "Rechazos recientes"** — lista últimos 7 días con `observaciones_rechazo` | Endpoint + nueva sección en panel | 3h |
+| 2.1 | **5to KPI: "Estancados >7 días"** — separar del KPI "En tránsito" los que llevan más de 7 días sin recibirse | `inventario.service.js` (query nuevo) + `ResumenEjecutivoPanel.tsx` (nuevo card rojo crítico) | ✅ DONE (51f58d6) |
+| 2.2 | **Card "Rechazos recientes"** — lista últimos 7 días con `observaciones_rechazo` | Endpoint + nueva sección en panel | ✅ DONE (51f58d6) |
 | 2.3 | **Comparativa vs mes anterior** — "Valor obras: $4.8M (↑ 12%)" | Query backend guarda snapshot mensual o recalcula | 3h |
 | 2.4 | **Sparklines** en KPI cards — tendencia últimos 7 días | `recharts` (si no está) + nueva serie en backend | 4h |
 
@@ -84,10 +84,9 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 - Fase 1 completa (4 quick wins) → commit `bf9bcd1` → desplegado a staging
 - Verificado: type check limpio, tooltips funcionales, solicitante visible, actualización timestamp OK
 
-### Sprint 2 (próximo)
-- Fase 2.1 (5to KPI estancados >7 días) + Fase 2.2 (rechazos recientes)
-- Backend: nuevas queries en `inventario.service.js`
-- Frontend: 2 nuevos cards en `ResumenEjecutivoPanel`
+### Sprint 2 — ✅ COMPLETADO (51f58d6)
+- 2.1: 5to KPI "Estancados +7d" — rojo, Timer icon, xl:grid-cols-5
+- 2.2: Sección "Rechazos recientes" — solo visible si hay datos, motivo entre comillas
 
 ### Sprint 3
 - Fase 2.3 + Fase 2.4 (tendencias + sparklines)
