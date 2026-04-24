@@ -40,6 +40,7 @@ export function useDashboardEjecutivo() {
     const [data, setData] = useState<DashboardEjecutivoData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [lastUpdated, setLastUpdated] = useState<number | null>(null);
 
     const fetchDashboard = useCallback(async () => {
         setLoading(true);
@@ -47,6 +48,7 @@ export function useDashboardEjecutivo() {
         try {
             const res = await api.get<ApiResponse<DashboardEjecutivoData>>('/inventario/dashboard-ejecutivo');
             setData(res.data.data);
+            setLastUpdated(Date.now());
         } catch (err: any) {
             setError(err?.response?.data?.error || 'Error al cargar el resumen ejecutivo');
             setData(null);
@@ -57,5 +59,5 @@ export function useDashboardEjecutivo() {
 
     useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
-    return { data, loading, error, refetch: fetchDashboard };
+    return { data, loading, error, refetch: fetchDashboard, lastUpdated };
 }

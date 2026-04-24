@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     FileClock,
     AlertTriangle,
@@ -8,6 +8,7 @@ import {
     ChevronRight,
     Package,
     CheckCircle2,
+    User,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra } from '../../hooks/inventario/useDashboardEjecutivo';
@@ -39,9 +40,10 @@ interface KpiCardProps {
     subline?: string | null;
     onClick?: () => void;
     disabled?: boolean;
+    tooltip?: string;
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled }) => {
+const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip }) => {
     const toneClasses: Record<KpiCardProps['tone'], string> = {
         amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900',
         red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900',
@@ -60,11 +62,13 @@ const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, on
         <Wrapper
             type={onClick && !disabled ? 'button' : undefined}
             onClick={onClick && !disabled ? onClick : undefined}
+            title={tooltip}
             aria-label={onClick && !disabled ? `${label}: ${value}. Click para ver detalle.` : undefined}
             className={cn(
                 'relative flex flex-col gap-3 p-5 md:p-6 rounded-2xl border-2 transition-all text-left w-full',
                 toneClasses[tone],
                 onClick && !disabled && 'cursor-pointer hover:shadow-lg active:scale-[0.99]',
+                !onClick && tooltip && 'cursor-help',
                 disabled && 'opacity-60'
             )}
         >
@@ -103,10 +107,21 @@ interface ObraRankingItemProps {
 
 const ObraRankingItem: React.FC<ObraRankingItemProps> = ({ pos, obra, maxValor, onClick }) => {
     const pct = maxValor > 0 ? (obra.valor_mensual / maxValor) * 100 : 0;
+    const tooltipLines = [
+        `${obra.nombre}`,
+        `Arriendo mensual neto: ${fmtCLPFull(obra.valor_mensual)}`,
+    ];
+    if (obra.descuento_porcentaje > 0) {
+        tooltipLines.push(`Bruto sin descuento: ${fmtCLPFull(obra.valor_bruto)}`);
+        tooltipLines.push(`Descuento aplicado: ${obra.descuento_porcentaje}%`);
+        tooltipLines.push(`Ahorro: ${fmtCLPFull(obra.valor_bruto - obra.valor_mensual)}`);
+    }
+    tooltipLines.push('', 'Click para ver detalle de la obra.');
     return (
         <button
             type="button"
             onClick={onClick}
+            title={tooltipLines.join('\n')}
             aria-label={`${obra.nombre}: ${fmtCLPFull(obra.valor_mensual)} mensual. Click para ver detalle.`}
             className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#F5F5F7] transition-all text-left"
         >
@@ -195,6 +210,12 @@ const AlertaItem: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
                     {alerta.detalle}
                 </div>
+                {alerta.solicitante && (
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5 truncate">
+                        <User className="h-3 w-3 shrink-0" />
+                        <span className="font-semibold truncate">{alerta.solicitante}</span>
+                    </div>
+                )}
             </div>
             <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold">
                 {t.cta}
@@ -214,31 +235,67 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 // ────────────────────────────────────────────────────────
 // Panel principal
 // ────────────────────────────────────────────────────────
+// ────────────────────────────────────────────────────────
+// "Hace X min/seg" — label y color según antigüedad
+// ────────────────────────────────────────────────────────
+function formatRelativeTime(lastUpdated: number | null, now: number): { label: string; stale: boolean } {
+    if (!lastUpdated) return { label: '', stale: false };
+    const diffMs = now - lastUpdated;
+    const diffSec = Math.floor(diffMs / 1000);
+    if (diffSec < 10) return { label: 'Actualizado ahora', stale: false };
+    if (diffSec < 60) return { label: `Actualizado hace ${diffSec}s`, stale: false };
+    const diffMin = Math.floor(diffSec / 60);
+    if (diffMin < 60) return { label: `Actualizado hace ${diffMin} min`, stale: diffMin >= 5 };
+    const diffHr = Math.floor(diffMin / 60);
+    return { label: `Actualizado hace ${diffHr}h`, stale: true };
+}
+
 const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNavigateObra }) => {
-    const { data, loading, error, refetch } = useDashboardEjecutivo();
+    const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo();
+    const [now, setNow] = useState(() => Date.now());
+
+    // Tick cada 30s para refrescar el label "hace X min"
+    useEffect(() => {
+        const id = setInterval(() => setNow(Date.now()), 30_000);
+        return () => clearInterval(id);
+    }, []);
 
     const maxValor = data?.top_obras.reduce((m, o) => Math.max(m, o.valor_mensual), 0) || 0;
+    const relTime = formatRelativeTime(lastUpdated, now);
 
     return (
         <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-y-auto -mr-2 pr-2">
             {/* Header */}
-            <div className="flex items-center justify-between shrink-0">
-                <div>
+            <div className="flex items-center justify-between shrink-0 gap-3">
+                <div className="min-w-0">
                     <h2 className="text-lg md:text-xl font-black text-brand-dark">Resumen Ejecutivo</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         Todo lo importante del inventario en un vistazo.
                     </p>
                 </div>
-                <button
-                    type="button"
-                    onClick={refetch}
-                    disabled={loading}
-                    className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-[#F5F5F7] hover:bg-[#EDEDF2] rounded-xl transition-colors disabled:opacity-50"
-                    aria-label="Actualizar datos"
-                >
-                    <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
-                    Actualizar
-                </button>
+                <div className="flex items-center gap-2 shrink-0">
+                    {relTime.label && (
+                        <span
+                            title={lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : undefined}
+                            className={cn(
+                                'hidden md:inline text-[11px] font-semibold cursor-help',
+                                relTime.stale ? 'text-amber-600' : 'text-muted-foreground'
+                            )}
+                        >
+                            {relTime.label}
+                        </span>
+                    )}
+                    <button
+                        type="button"
+                        onClick={refetch}
+                        disabled={loading}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-[#F5F5F7] hover:bg-[#EDEDF2] rounded-xl transition-colors disabled:opacity-50"
+                        aria-label="Actualizar datos"
+                    >
+                        <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+                        Actualizar
+                    </button>
+                </div>
             </div>
 
             {error && (
@@ -266,6 +323,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             subline={(data?.kpis.transferencias_pendientes ?? 0) === 1 ? 'solicitud' : 'solicitudes'}
                             onClick={() => onNavigateTransferencias({ estado: 'pendiente' })}
                             disabled={(data?.kpis.transferencias_pendientes ?? 0) === 0}
+                            tooltip="Solicitudes de transferencia esperando tu aprobación. Click para ir a la lista y aprobarlas."
                         />
                         <KpiCard
                             tone="red"
@@ -279,6 +337,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             }
                             onClick={() => onNavigateTransferencias({ estado: 'discrepancias' })}
                             disabled={(data?.kpis.discrepancias_pendientes.transferencias_afectadas ?? 0) === 0}
+                            tooltip="Transferencias recibidas con cantidad distinta a la enviada (merma, sobrante o error). Requieren revisión para ajustar stock."
                         />
                         <KpiCard
                             tone="blue"
@@ -288,6 +347,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             subline={(data?.kpis.transferencias_en_transito ?? 0) === 1 ? 'envío' : 'envíos'}
                             onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
                             disabled={(data?.kpis.transferencias_en_transito ?? 0) === 0}
+                            tooltip="Transferencias ya aprobadas y despachadas, esperando confirmación de recepción en destino."
                         />
                         <KpiCard
                             tone="green"
@@ -295,6 +355,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             label="Valor obras"
                             value={fmtCLP(data?.kpis.valor_total_obras ?? 0)}
                             subline="arriendo mensual"
+                            tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
                         />
                     </>
                 )}
