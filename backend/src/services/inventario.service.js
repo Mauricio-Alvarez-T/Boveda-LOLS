@@ -312,6 +312,7 @@ const inventarioService = {
             [estancadosRows],
             [rechazosRows],
             [snapshotsRows],
+            [categoriaRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
@@ -424,6 +425,23 @@ const inventarioService = {
                 FROM dashboard_kpi_snapshots
                 WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 31 DAY)
                 ORDER BY fecha ASC
+            `),
+            // 9. Valor arriendo mensual agrupado por categoría de item (para donut)
+            //    Solo stock en obras con participa_inventario, aplicando descuento por obra.
+            db.query(`
+                SELECT c.id, c.nombre, c.orden,
+                       COALESCE(SUM(
+                           us.cantidad
+                           * COALESCE(us.valor_arriendo_override, i.valor_arriendo)
+                           * (1 - COALESCE(d.porcentaje, 0) / 100)
+                       ), 0) as valor_neto
+                FROM categorias_inventario c
+                LEFT JOIN items_inventario i ON i.categoria_id = c.id AND i.activo = 1
+                LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id IS NOT NULL
+                LEFT JOIN obras o ON us.obra_id = o.id AND o.activa = 1 AND o.participa_inventario = 1
+                LEFT JOIN descuentos_obra d ON d.obra_id = o.id
+                GROUP BY c.id, c.nombre, c.orden
+                ORDER BY c.orden ASC
             `),
         ]);
 
@@ -540,6 +558,12 @@ const inventarioService = {
             alertas: alertas.slice(0, 8),
             rechazos_recientes,
             historico,
+            valor_por_categoria: (categoriaRows || []).map(r => ({
+                categoria_id: r.id,
+                nombre: r.nombre,
+                orden: Number(r.orden) || 0,
+                valor: Number(r.valor_neto) || 0,
+            })),
         };
     },
 

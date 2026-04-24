@@ -71,6 +71,13 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 { fecha: '2026-04-22', kpi: 'pendientes', valor: 5 },
                 { fecha: '2026-04-23', kpi: 'pendientes', valor: 4 },
                 { fecha: '2026-04-23', kpi: 'valor_obras', valor: 28000000 },
+            ]])
+            // 9. valor por categoría (donut)
+            .mockResolvedValueOnce([[
+                { id: 1, nombre: 'ANDAMIOS', orden: 1, valor_neto: 8000000 },
+                { id: 2, nombre: 'ALZAPRIMAS', orden: 2, valor_neto: 0 },
+                { id: 3, nombre: 'MOLDAJES', orden: 3, valor_neto: 15000000 },
+                { id: 4, nombre: 'MAQUINARIA', orden: 4, valor_neto: 6000000 },
             ]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
@@ -115,6 +122,13 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.historico.pendientes.mes_anterior).toBeNull();
         expect(result.historico.valor_obras.sparkline[result.historico.valor_obras.sparkline.length - 1])
             .toBeCloseTo(18200000 + 12100000 * 0.9, 0);
+
+        // Valor por categoría (donut)
+        expect(result.valor_por_categoria).toHaveLength(4);
+        expect(result.valor_por_categoria[0]).toEqual({
+            categoria_id: 1, nombre: 'ANDAMIOS', orden: 1, valor: 8000000,
+        });
+        expect(result.valor_por_categoria[2].valor).toBe(15000000);
     });
 
     test('soporta estado vacío sin explotar', async () => {
@@ -127,6 +141,7 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[{ count: 0 }]])
+            .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]]);
 
@@ -141,5 +156,6 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.historico).toBeDefined();
         expect(result.historico.pendientes.sparkline).toEqual([0]);
         expect(result.historico.pendientes.mes_anterior).toBeNull();
+        expect(result.valor_por_categoria).toEqual([]);
     });
 });

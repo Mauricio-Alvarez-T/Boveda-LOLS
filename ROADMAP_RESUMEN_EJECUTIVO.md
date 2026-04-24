@@ -63,7 +63,7 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 
 | # | Mejora | Razón de negocio | Esfuerzo |
 |---|---|---|---|
-| 3.1 | **Donut "Valor por categoría"** (MOLDAJES vs MAQUINARIA vs HERRAMIENTAS) | Gerencia entiende concentración de capital de arriendo | 4h |
+| 3.1 | **Donut "Valor por categoría"** (ANDAMIOS/ALZAPRIMAS/MOLDAJES/MAQUINARIA) ✅ DONE | Gerencia entiende concentración de capital de arriendo | 3h |
 | 3.2 | **Card "Próximas recepciones hoy"** — tránsitos con ETA hoy | Supervisor obra planifica recepción de camiones | 3h |
 | 3.3 | **Filtro global por obra** en todo el Resumen | Jefe de obra ve KPIs de su obra aislada | 6h |
 | 3.4 | **Integración Bombas Hormigón** mini-card (disponibles/asignadas) | Equipos alto valor requieren visibilidad ejecutiva | 4h |
@@ -97,10 +97,10 @@ Bajo esfuerzo, alto impacto visible. Commit por feature.
 
 ### Sprint 4 — En progreso
 Fase 3 — orden por valor/esfuerzo:
-1. **3.2** Card "Próximas recepciones hoy" (3h) — siguiente
-2. **3.1** Donut "Valor por categoría" (4h)
-3. **3.4** Mini-card Bombas Hormigón (4h)
-4. **3.3** Filtro global por obra (6h) — último, refactor mayor
+1. ✅ **3.1** Donut "Valor por categoría" (3h real) — DONE
+2. **3.4** Mini-card Bombas Hormigón (2h) — siguiente
+3. **3.3** Filtro global por obra (6h) — refactor unifica todo
+4. **3.2** Próximas recepciones hoy (5h+) — requiere decisión sobre agregar ETA a transferencias
 
 ### Fase 4
 - Fase 4 en cualquier momento como cleanup

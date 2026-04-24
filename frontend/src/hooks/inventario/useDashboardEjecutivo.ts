@@ -55,12 +55,20 @@ export interface DashboardHistorico {
     valor_obras: KpiHistorico;
 }
 
+export interface CategoriaValor {
+    categoria_id: number;
+    nombre: string;
+    orden: number;
+    valor: number;
+}
+
 export interface DashboardEjecutivoData {
     kpis: DashboardKpis;
     top_obras: TopObra[];
     alertas: DashboardAlerta[];
     rechazos_recientes: DashboardRechazo[];
     historico: DashboardHistorico;
+    valor_por_categoria: CategoriaValor[];
 }
 
 export function useDashboardEjecutivo() {
