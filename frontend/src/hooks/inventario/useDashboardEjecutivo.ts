@@ -10,6 +10,17 @@ export interface DashboardKpis {
         unidades_totales: number;
     };
     valor_total_obras: number;
+    estancados_transito: number;
+}
+
+export interface DashboardRechazo {
+    transferencia_id: number;
+    codigo: string;
+    dias: number;
+    origen: string;
+    destino: string;
+    observaciones_rechazo: string | null;
+    rechazado_por: string | null;
 }
 
 export interface TopObra {
@@ -34,6 +45,7 @@ export interface DashboardEjecutivoData {
     kpis: DashboardKpis;
     top_obras: TopObra[];
     alertas: DashboardAlerta[];
+    rechazos_recientes: DashboardRechazo[];
 }
 
 export function useDashboardEjecutivo() {

@@ -309,6 +309,8 @@ const inventarioService = {
             [alertasPendientesRows],
             [alertasDiscrepRows],
             [alertasTransitoRows],
+            [estancadosRows],
+            [rechazosRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
@@ -389,6 +391,32 @@ const inventarioService = {
                 ORDER BY t.fecha_despacho ASC
                 LIMIT 5
             `),
+            // 6. KPI: en tránsito estancados ≥7 días
+            db.query(`
+                SELECT COUNT(*) as count
+                FROM transferencias
+                WHERE activo = 1 AND estado = 'en_transito'
+                  AND DATEDIFF(NOW(), fecha_despacho) >= 7
+            `),
+            // 7. Rechazos recientes (últimos 7 días, máx 8)
+            db.query(`
+                SELECT t.id, t.codigo, t.fecha_aprobacion,
+                       oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                       do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                       t.observaciones_rechazo,
+                       us.nombre as rechazado_por_nombre,
+                       DATEDIFF(NOW(), t.fecha_aprobacion) as dias
+                FROM transferencias t
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                LEFT JOIN usuarios us ON t.aprobador_id = us.id
+                WHERE t.activo = 1 AND t.estado = 'rechazada'
+                  AND t.fecha_aprobacion >= NOW() - INTERVAL 7 DAY
+                ORDER BY t.fecha_aprobacion DESC
+                LIMIT 8
+            `),
         ]);
 
         // Normalizar valor por obra aplicando descuento
@@ -446,6 +474,17 @@ const inventarioService = {
             return (b.dias || 0) - (a.dias || 0);
         });
 
+        // Rechazos recientes normalizados
+        const rechazos_recientes = rechazosRows.map(r => ({
+            transferencia_id: r.id,
+            codigo: r.codigo,
+            dias: Number(r.dias) || 0,
+            origen: formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre),
+            destino: formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre),
+            observaciones_rechazo: r.observaciones_rechazo || null,
+            rechazado_por: r.rechazado_por_nombre || null,
+        }));
+
         return {
             kpis: {
                 transferencias_pendientes: Number(pendientesRows[0]?.count) || 0,
@@ -455,9 +494,11 @@ const inventarioService = {
                     unidades_totales: Number(discrepanciasRows[0]?.unidades_totales) || 0,
                 },
                 valor_total_obras: Number(valor_total_obras) || 0,
+                estancados_transito: Number(estancadosRows[0]?.count) || 0,
             },
             top_obras,
             alertas: alertas.slice(0, 8),
+            rechazos_recientes,
         };
     },
 

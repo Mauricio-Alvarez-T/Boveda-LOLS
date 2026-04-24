@@ -9,9 +9,11 @@ import {
     Package,
     CheckCircle2,
     User,
+    Timer,
+    XCircle,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
-import { useDashboardEjecutivo, type DashboardAlerta, type TopObra } from '../../hooks/inventario/useDashboardEjecutivo';
+import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo } from '../../hooks/inventario/useDashboardEjecutivo';
 
 interface Props {
     /** Navega al tab de transferencias filtrando por estado y, opcionalmente, abriendo una. */
@@ -226,6 +228,54 @@ const AlertaItem: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
 };
 
 // ────────────────────────────────────────────────────────
+// Item de rechazo reciente
+// ────────────────────────────────────────────────────────
+interface RechazoItemProps {
+    rechazo: DashboardRechazo;
+    onClick: () => void;
+}
+
+const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
+    const diasLabel = rechazo.dias === 0 ? 'hoy' : rechazo.dias === 1 ? 'hace 1 día' : `hace ${rechazo.dias} días`;
+    return (
+        <button
+            type="button"
+            onClick={onClick}
+            aria-label={`${rechazo.codigo} rechazado ${diasLabel}. Click para ver.`}
+            className="flex items-start gap-3 w-full p-3.5 rounded-xl border-2 border-red-100 bg-red-50/40 transition-all text-left hover:border-red-300 hover:shadow-md active:scale-[0.995]"
+        >
+            <div className="shrink-0 p-2 rounded-lg bg-red-200/70 text-red-800 mt-0.5">
+                <XCircle className="h-4 w-4" />
+            </div>
+            <div className="flex-1 min-w-0">
+                <div className="text-sm font-bold text-brand-dark truncate">
+                    {rechazo.codigo}
+                    <span className="ml-2 text-[11px] font-semibold text-muted-foreground">— {diasLabel}</span>
+                </div>
+                <div className="text-xs text-muted-foreground truncate mt-0.5">
+                    {rechazo.origen} → {rechazo.destino}
+                </div>
+                {rechazo.observaciones_rechazo && (
+                    <div className="text-xs text-red-700 font-semibold mt-1 line-clamp-2">
+                        "{rechazo.observaciones_rechazo}"
+                    </div>
+                )}
+                {rechazo.rechazado_por && (
+                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5">
+                        <User className="h-3 w-3 shrink-0" />
+                        <span className="font-semibold truncate">{rechazo.rechazado_por}</span>
+                    </div>
+                )}
+            </div>
+            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold text-red-700">
+                Ver
+                <ChevronRight className="h-3.5 w-3.5" />
+            </span>
+        </button>
+    );
+};
+
+// ────────────────────────────────────────────────────────
 // Skeleton (mantiene layout para no saltar)
 // ────────────────────────────────────────────────────────
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -305,9 +355,10 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 shrink-0">
                 {loading && !data ? (
                     <>
+                        <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
@@ -348,6 +399,16 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
                             disabled={(data?.kpis.transferencias_en_transito ?? 0) === 0}
                             tooltip="Transferencias ya aprobadas y despachadas, esperando confirmación de recepción en destino."
+                        />
+                        <KpiCard
+                            tone="red"
+                            icon={<Timer className="h-5 w-5" />}
+                            label="Estancados +7d"
+                            value={String(data?.kpis.estancados_transito ?? 0)}
+                            subline={(data?.kpis.estancados_transito ?? 0) === 1 ? 'envío sin recibir' : 'envíos sin recibir'}
+                            onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
+                            disabled={(data?.kpis.estancados_transito ?? 0) === 0}
+                            tooltip="Transferencias en tránsito que llevan más de 7 días sin ser recibidas. Require seguimiento urgente."
                         />
                         <KpiCard
                             tone="green"
@@ -426,6 +487,37 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     </div>
                 )}
             </div>
+
+            {/* Rechazos recientes (últimos 7 días) */}
+            {(loading || (data?.rechazos_recientes?.length ?? 0) > 0) && (
+                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5">
+                    <div className="flex items-center gap-2 mb-3">
+                        <XCircle className="h-4 w-4 text-red-500" />
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
+                            Rechazos recientes
+                        </h3>
+                        <span className="ml-auto text-[11px] text-muted-foreground font-semibold">últimos 7 días</span>
+                    </div>
+                    {loading && !data ? (
+                        <div className="space-y-2">
+                            {[0, 1].map(i => <Skeleton key={i} className="h-[80px]" />)}
+                        </div>
+                    ) : (
+                        <div className="flex flex-col gap-2">
+                            {data!.rechazos_recientes.map((rechazo) => (
+                                <RechazoItem
+                                    key={rechazo.transferencia_id}
+                                    rechazo={rechazo}
+                                    onClick={() => onNavigateTransferencias({
+                                        estado: 'rechazada',
+                                        transferenciaId: rechazo.transferencia_id,
+                                    })}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };
