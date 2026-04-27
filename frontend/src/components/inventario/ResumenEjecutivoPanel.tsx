@@ -16,7 +16,7 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
-import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico, type CategoriaValor } from '../../hooks/inventario/useDashboardEjecutivo';
+import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
 
 interface ObraOpcion { id: number; nombre: string; }
 
@@ -37,74 +37,9 @@ const fmtCLP = (n: number) => {
 const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')}`;
 
 // ────────────────────────────────────────────────────────
-// Donut — gráfico de categorías SVG inline
+// Paleta de colores para categorías (barras horizontales)
 // ────────────────────────────────────────────────────────
 const CAT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
-
-interface DonutProps {
-    data: CategoriaValor[];
-    size?: number;
-}
-
-const Donut: React.FC<DonutProps> = ({ data, size = 180 }) => {
-    const total = data.reduce((s, d) => s + d.valor, 0);
-    const cx = size / 2;
-    const cy = size / 2;
-    const r = size / 2 - 8;
-    const stroke = 32;
-
-    if (total === 0) {
-        return (
-            <svg width={size} height={size} aria-hidden="true">
-                <circle cx={cx} cy={cy} r={r} fill="none" stroke="#EDEDF2" strokeWidth={stroke} />
-            </svg>
-        );
-    }
-
-    let acc = 0;
-    const segments = data
-        .filter(d => d.valor > 0)
-        .map((d, i) => {
-            const frac = d.valor / total;
-            const start = acc;
-            const end = acc + frac;
-            acc = end;
-            // Convertir fracciones [0..1] a ángulos (0 = top, clockwise)
-            const a0 = 2 * Math.PI * start - Math.PI / 2;
-            const a1 = 2 * Math.PI * end - Math.PI / 2;
-            const x0 = cx + r * Math.cos(a0);
-            const y0 = cy + r * Math.sin(a0);
-            const x1 = cx + r * Math.cos(a1);
-            const y1 = cy + r * Math.sin(a1);
-            const largeArc = frac > 0.5 ? 1 : 0;
-            const path = `M ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1}`;
-            return {
-                path,
-                color: CAT_COLORS[i % CAT_COLORS.length],
-                nombre: d.nombre,
-                valor: d.valor,
-                pct: Math.round(frac * 100),
-            };
-        });
-
-    return (
-        <svg width={size} height={size} aria-label="Distribución de valor por categoría">
-            <circle cx={cx} cy={cy} r={r} fill="none" stroke="#F5F5F7" strokeWidth={stroke} />
-            {segments.map((s, i) => (
-                <path
-                    key={i}
-                    d={s.path}
-                    fill="none"
-                    stroke={s.color}
-                    strokeWidth={stroke}
-                    strokeLinecap="butt"
-                >
-                    <title>{`${s.nombre}: ${fmtCLPFull(s.valor)} (${s.pct}%)`}</title>
-                </path>
-            ))}
-        </svg>
-    );
-};
 
 // ────────────────────────────────────────────────────────
 // Sparkline — mini gráfico SVG sin dependencias
@@ -654,52 +589,75 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             </div>
             )}
 
-            {/* Valor por categoría (Donut) */}
+            {/* Valor por categoría — barras horizontales */}
             {(loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
                 <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
-                    <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
-                        Valor por categoría
-                    </h3>
+                    <div className="flex items-baseline justify-between mb-4">
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
+                            Valor por categoría
+                        </h3>
+                        {data && (
+                            <span className="text-[11px] font-semibold text-muted-foreground">
+                                Total: {fmtCLP(data.valor_por_categoria.reduce((s, c) => s + c.valor, 0))}
+                            </span>
+                        )}
+                    </div>
                     {loading && !data ? (
-                        <Skeleton className="h-[180px]" />
-                    ) : (
-                        <div className="flex flex-col md:flex-row items-center gap-5">
-                            <div className="shrink-0">
-                                <Donut data={data!.valor_por_categoria} />
-                            </div>
-                            <div className="flex-1 w-full flex flex-col gap-2">
-                                {(() => {
-                                    // Color asignado por posición original en el array (para que
-                                    // donut y leyenda coincidan aunque la leyenda se ordene por valor).
-                                    const colorByCatId: Record<number, string> = {};
-                                    const visibles = data!.valor_por_categoria.filter(c => c.valor > 0);
-                                    visibles.forEach((c, i) => { colorByCatId[c.categoria_id] = CAT_COLORS[i % CAT_COLORS.length]; });
-                                    const total = visibles.reduce((s, c) => s + c.valor, 0);
-                                    return [...visibles]
-                                        .sort((a, b) => b.valor - a.valor)
-                                        .map(c => {
-                                            const pct = total > 0 ? Math.round((c.valor / total) * 100) : 0;
-                                            return (
-                                                <div key={c.categoria_id} className="flex items-center gap-3">
-                                                    <span
-                                                        className="shrink-0 w-3 h-3 rounded-full"
-                                                        style={{ backgroundColor: colorByCatId[c.categoria_id] }}
-                                                    />
-                                                    <span className="flex-1 text-sm font-bold text-brand-dark truncate">
-                                                        {c.nombre}
-                                                    </span>
-                                                    <span className="shrink-0 text-xs font-semibold text-muted-foreground">
-                                                        {pct}%
-                                                    </span>
-                                                    <span className="shrink-0 text-sm font-black text-brand-dark w-20 text-right">
-                                                        {fmtCLP(c.valor)}
-                                                    </span>
-                                                </div>
-                                            );
-                                        });
-                                })()}
-                            </div>
+                        <div className="space-y-3">
+                            {[0, 1, 2, 3].map(i => <Skeleton key={i} className="h-10" />)}
                         </div>
+                    ) : (
+                        (() => {
+                            const visibles = data!.valor_por_categoria.filter(c => c.valor > 0);
+                            const total = visibles.reduce((s, c) => s + c.valor, 0);
+                            const sorted = [...visibles].sort((a, b) => b.valor - a.valor);
+                            const maxValor = sorted[0]?.valor || 0;
+                            const colorByCatId: Record<number, string> = {};
+                            visibles.forEach((c, i) => { colorByCatId[c.categoria_id] = CAT_COLORS[i % CAT_COLORS.length]; });
+
+                            return (
+                                <div className="flex flex-col gap-3">
+                                    {sorted.map(c => {
+                                        const pct = total > 0 ? Math.round((c.valor / total) * 100) : 0;
+                                        const widthPct = maxValor > 0 ? (c.valor / maxValor) * 100 : 0;
+                                        const color = colorByCatId[c.categoria_id];
+                                        return (
+                                            <div
+                                                key={c.categoria_id}
+                                                title={`${c.nombre}: ${fmtCLPFull(c.valor)} — ${pct}% del total`}
+                                                className="group cursor-help"
+                                            >
+                                                <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                                                    <div className="flex items-center gap-2 min-w-0">
+                                                        <span
+                                                            className="shrink-0 w-2.5 h-2.5 rounded-sm"
+                                                            style={{ backgroundColor: color }}
+                                                        />
+                                                        <span className="text-sm font-bold text-brand-dark truncate">
+                                                            {c.nombre}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex items-baseline gap-3 shrink-0">
+                                                        <span className="text-[11px] font-semibold text-muted-foreground tabular-nums w-9 text-right">
+                                                            {pct}%
+                                                        </span>
+                                                        <span className="text-sm font-black text-brand-dark tabular-nums w-16 text-right">
+                                                            {fmtCLP(c.valor)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="h-2.5 rounded-full bg-[#F0F0F5] overflow-hidden">
+                                                    <div
+                                                        className="h-full rounded-full transition-all duration-300 group-hover:opacity-90"
+                                                        style={{ width: `${widthPct}%`, backgroundColor: color }}
+                                                    />
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            );
+                        })()
                     )}
                 </div>
             )}
