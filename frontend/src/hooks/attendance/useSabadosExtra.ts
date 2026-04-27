@@ -56,13 +56,36 @@ export function useSabadosExtra() {
         }
     }, []);
 
-    const crearCitacion = useCallback(async (payload: CrearCitacionPayload): Promise<{ id: number } | null> => {
+    const crearCitacion = useCallback(async (
+        payload: CrearCitacionPayload
+    ): Promise<{ id: number } | { conflictExistingId: number } | null> => {
         try {
             const res = await api.post<{ data: { id: number } }>('/sabados-extra', payload);
             toast.success('Citación creada');
             return res.data.data;
         } catch (err: any) {
+            const status = err?.response?.status;
             const msg = err?.response?.data?.error || 'Error al crear la citación';
+
+            if (status === 409) {
+                // Buscar la existente del mismo (obra, fecha) para ofrecer abrirla
+                try {
+                    const fechaParts = payload.fecha.split('-');
+                    const mes = Number(fechaParts[1]);
+                    const anio = Number(fechaParts[0]);
+                    const listRes = await api.get<{ data: SabadoExtraResumen[] }>('/sabados-extra', {
+                        params: { obra_id: payload.obra_id, mes, anio },
+                    });
+                    const existing = listRes.data.data.find(s => s.fecha === payload.fecha);
+                    if (existing) {
+                        toast.error(msg, {
+                            description: 'Ya hay una citación activa para esta obra y fecha.',
+                        });
+                        return { conflictExistingId: existing.id };
+                    }
+                } catch { /* fallback al error genérico */ }
+            }
+
             toast.error(msg);
             return null;
         }

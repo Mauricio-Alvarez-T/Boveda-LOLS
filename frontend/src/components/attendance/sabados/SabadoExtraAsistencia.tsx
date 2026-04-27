@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronLeft, Save, Send, MessageCircle, Plus, X, Ban, CheckCircle2, Clock } from 'lucide-react';
+import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
 import { cn } from '../../../utils/cn';
@@ -9,7 +9,6 @@ import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
 import { copyAndShare } from '../../../utils/whatsappShare';
 import { buildCitacionMessage, buildAsistenciaMessage } from './sabadosWhatsApp';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
-import type { SabadoExtraDetalle, SabadoExtraTrabajador } from '../../../types/sabadosExtra';
 import type { Trabajador } from '../../../types/entities';
 
 interface Props {
@@ -17,13 +16,23 @@ interface Props {
     onBack: () => void;
 }
 
+/**
+ * Shape unificado: contiene los datos del trabajador directamente en la fila.
+ * Evita union types con tipo guards que causan crashes de render.
+ */
 interface RowState {
+    trabajador_id: number;
+    rut: string;
+    nombres: string;
+    apellido_paterno: string;
+    apellido_materno: string | null;
+    cargo_id: number | null;
+    cargo_nombre: string | null;
     asistio: boolean;
     horas_trabajadas: string;          // string para input controlado, parse a number al guardar
     observacion: string;
     citado: boolean;                   // 1 si vino de la citación, 0 si fue agregado el día
     obra_origen_id: number | null;
-    trabajador: SabadoExtraTrabajador | { trabajador: Trabajador };
 }
 
 /**
@@ -55,27 +64,33 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
     useEffect(() => {
         if (!current) return;
         const initial: Record<number, RowState> = {};
-        current.trabajadores.forEach(w => {
+        (current.trabajadores || []).forEach(w => {
             const isCitada = current.estado === 'citada';
             // Pre-marcar Asistió=true cuando aún está citada (modo "el día").
             // Si ya está realizada, respetar el valor persistido.
             const asistio = isCitada
                 ? true
                 : (w.asistio === 1);
-            const horas = w.horas_trabajadas !== null
+            const horas = w.horas_trabajadas !== null && w.horas_trabajadas !== undefined
                 ? String(w.horas_trabajadas)
-                : (current.horas_default !== null ? String(current.horas_default) : '');
+                : (current.horas_default !== null && current.horas_default !== undefined ? String(current.horas_default) : '');
             initial[w.trabajador_id] = {
+                trabajador_id: w.trabajador_id,
+                rut: w.rut || '',
+                nombres: w.nombres || '',
+                apellido_paterno: w.apellido_paterno || '',
+                apellido_materno: w.apellido_materno || null,
+                cargo_id: w.cargo_id ?? null,
+                cargo_nombre: w.cargo_nombre || null,
                 asistio,
                 horas_trabajadas: horas,
                 observacion: w.observacion || '',
                 citado: w.citado === 1,
-                obra_origen_id: w.obra_origen_id,
-                trabajador: w,
+                obra_origen_id: w.obra_origen_id ?? null,
             };
         });
         setRows(initial);
-        setHorasDefault(current.horas_default !== null ? String(current.horas_default) : '8');
+        setHorasDefault(current.horas_default !== null && current.horas_default !== undefined ? String(current.horas_default) : '8');
         setObservacionesGlobales(current.observaciones_globales || '');
     }, [current]);
 
@@ -91,12 +106,18 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             newWorkers.forEach(w => {
                 if (next[w.id]) return; // ya existe
                 next[w.id] = {
+                    trabajador_id: w.id,
+                    rut: w.rut || '',
+                    nombres: w.nombres || '',
+                    apellido_paterno: w.apellido_paterno || '',
+                    apellido_materno: w.apellido_materno || null,
+                    cargo_id: w.cargo_id ?? null,
+                    cargo_nombre: w.cargo_nombre || null,
                     asistio: true,
                     horas_trabajadas: horasDefault,
                     observacion: '',
                     citado: false,
                     obra_origen_id: w.obra_id,
-                    trabajador: { trabajador: w },
                 };
             });
             return next;
@@ -184,15 +205,12 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
 
     // Agrupar filas por cargo para render
     const grupos = useMemo(() => {
-        const map: Record<string, Array<{ trabajadorId: number; row: RowState; cargoId: number | null }>> = {};
+        const map: Record<string, Array<{ trabajadorId: number; row: RowState }>> = {};
         Object.entries(rows).forEach(([id, row]) => {
-            const t = 'trabajador' in row.trabajador ? row.trabajador.trabajador : row.trabajador;
-            const cargoNombre = (t as any).cargo_nombre || 'Sin Cargo';
-            const cargoId = (t as any).cargo_id ?? null;
+            const cargoNombre = row.cargo_nombre || 'Sin Cargo';
             (map[cargoNombre] = map[cargoNombre] || []).push({
                 trabajadorId: Number(id),
                 row,
-                cargoId,
             });
         });
         return Object.keys(map)
@@ -316,16 +334,12 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                 </div>
                                 <div className="divide-y divide-[#F0F0F5]">
                                     {items.map(({ trabajadorId, row }) => {
-                                        const t = 'trabajador' in row.trabajador ? row.trabajador.trabajador : row.trabajador;
-                                        const apellido = (t as any).apellido_paterno;
-                                        const apellidoM = (t as any).apellido_materno;
-                                        const nombres = (t as any).nombres;
                                         return (
                                             <div key={trabajadorId} className="px-4 py-3 flex flex-wrap items-center gap-3">
                                                 <div className="flex-1 min-w-[160px]">
                                                     <div className="flex items-center gap-2">
                                                         <span className="text-sm font-bold text-brand-dark">
-                                                            {apellido}{apellidoM ? ` ${apellidoM}` : ''} {nombres}
+                                                            {row.apellido_paterno}{row.apellido_materno ? ` ${row.apellido_materno}` : ''} {row.nombres}
                                                         </span>
                                                         {!row.citado && (
                                                             <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
@@ -334,7 +348,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                         )}
                                                     </div>
                                                     <div className="text-[10px] text-muted-foreground font-medium">
-                                                        {(t as any).rut}
+                                                        {row.rut}
                                                     </div>
                                                 </div>
 

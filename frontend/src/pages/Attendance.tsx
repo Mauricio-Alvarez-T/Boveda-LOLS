@@ -6,6 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import AttendanceDailyTab from '../components/attendance/AttendanceDailyTab';
 import SabadosExtraTab from '../components/attendance/sabados/SabadosExtraTab';
+import SabadosErrorBoundary from '../components/attendance/sabados/SabadosErrorBoundary';
 
 type TabKey = 'diaria' | 'sabados';
 
@@ -89,7 +90,11 @@ const AttendancePage: React.FC = () => {
                     className="flex-1 min-h-0 flex flex-col"
                 >
                     {effectiveTab === 'diaria' && <AttendanceDailyTab />}
-                    {effectiveTab === 'sabados' && <SabadosExtraTab />}
+                    {effectiveTab === 'sabados' && (
+                        <SabadosErrorBoundary>
+                            <SabadosExtraTab />
+                        </SabadosErrorBoundary>
+                    )}
                 </motion.div>
             </AnimatePresence>
         </div>

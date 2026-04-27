@@ -149,8 +149,12 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
         });
         setSaving(false);
 
-        if (result) {
+        if (!result) return;
+        if ('id' in result) {
             onCreated(result.id);
+        } else if ('conflictExistingId' in result) {
+            // Hay conflict: abrir la existente
+            onCreated(result.conflictExistingId);
         }
     };
 
