@@ -382,7 +382,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                         className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
                                     >V. Compra</th>
                                     <th
-                                        title="Valor de arriendo diario del item en pesos. Usado para calcular el costo del item asignado a cada obra."
+                                        title="Valor de arriendo mensual del item en pesos. Se cobra siempre por mes completo y se usa para calcular el costo del item asignado a cada obra."
                                         className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
                                     >V. Arriendo</th>
                                     <th
