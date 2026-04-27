@@ -193,17 +193,8 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         }
     };
 
-    if (loading || !current) {
-        return (
-            <div className="py-12 text-center text-sm text-muted-foreground">Cargando...</div>
-        );
-    }
-
-    const fechaStr = current.fecha.split('-').reverse().join('-');
-    const isCancelada = current.estado === 'cancelada';
-    const isRealizada = current.estado === 'realizada';
-
-    // Agrupar filas por cargo para render
+    // Agrupar filas por cargo para render. DEBE ir antes de cualquier early
+    // return para no violar reglas de hooks (React error #310).
     const grupos = useMemo(() => {
         const map: Record<string, Array<{ trabajadorId: number; row: RowState }>> = {};
         Object.entries(rows).forEach(([id, row]) => {
@@ -218,6 +209,15 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             .map(cargo => ({ cargo, items: map[cargo] }));
     }, [rows]);
 
+    if (loading || !current) {
+        return (
+            <div className="py-12 text-center text-sm text-muted-foreground">Cargando...</div>
+        );
+    }
+
+    const fechaStr = current.fecha.split('-').reverse().join('-');
+    const isCancelada = current.estado === 'cancelada';
+    const isRealizada = current.estado === 'realizada';
     const totalAsistio = Object.values(rows).filter(r => r.asistio).length;
 
     return (
