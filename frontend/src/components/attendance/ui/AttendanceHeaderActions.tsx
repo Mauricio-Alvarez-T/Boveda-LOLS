@@ -128,31 +128,37 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
             </div>
 
             {/* ═══════════════════════════════════════════ */}
-            {/*  DESKTOP (lg+): search + empresa + actions */}
+            {/*  DESKTOP (lg+): search (separado) + empresa */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="hidden lg:flex items-center gap-2 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm overflow-hidden min-w-0 flex-1 max-w-[450px]">
-                <div className="relative flex-1 min-w-0 group">
-                    <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                    <input
-                        type="text"
-                        placeholder="Buscar..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full h-8 pl-8 pr-3 bg-transparent text-xs font-medium focus:outline-none"
-                    />
+            <div className="hidden lg:flex items-center gap-2 min-w-0 flex-1 max-w-[480px]">
+                {/* Buscador — caja propia */}
+                <div className="flex-1 min-w-0 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl shadow-sm overflow-hidden">
+                    <div className="relative group">
+                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                        <input
+                            type="text"
+                            placeholder="Buscar..."
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="w-full h-9 pl-8 pr-3 bg-transparent text-xs font-medium focus:outline-none"
+                        />
+                    </div>
                 </div>
-                <div className="h-4 w-px bg-[#E8E8ED]" />
-                <select
-                    value={selectedEmpresaId || ""}
-                    onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
-                    className="h-8 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[120px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
-                    style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat' }}
-                >
-                    <option value="">Todas las Empresas</option>
-                    {availableEmpresas.map(emp => (
-                        <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                    ))}
-                </select>
+
+                {/* Filtro empresa — caja propia */}
+                <div className="bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl shadow-sm overflow-hidden shrink-0">
+                    <select
+                        value={selectedEmpresaId || ""}
+                        onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
+                        className="h-9 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[140px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
+                        style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat' }}
+                    >
+                        <option value="">Todas las Empresas</option>
+                        {availableEmpresas.map(emp => (
+                            <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             <div className="h-8 w-px bg-border/40 mx-0.5 hidden lg:block" />
