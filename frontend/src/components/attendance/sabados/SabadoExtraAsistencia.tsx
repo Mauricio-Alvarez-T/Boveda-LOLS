@@ -6,7 +6,7 @@ import { cn } from '../../../utils/cn';
 import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
 import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
-import { copyAndShare } from '../../../utils/whatsappShare';
+import { prepareAndShareWithToast } from '../../../utils/whatsappShare';
 import { buildCitacionMessage, buildAsistenciaMessage } from './sabadosWhatsApp';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
 import type { Trabajador } from '../../../types/entities';
@@ -172,25 +172,32 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
     const handleShareCitacion = async () => {
         if (!current || !canShare) return;
         const text = buildCitacionMessage(current);
-        const result = await copyAndShare(text, `Citación ${current.obra_nombre}`);
-        if (result.copied) {
-            toast.success('Mensaje copiado al portapapeles. Pega con Ctrl+V si los emojis se ven raros.');
-        }
+        await prepareAndShareWithToast({
+            text,
+            title: `Citación ${current.obra_nombre}`,
+            toastId: 'sabados-share-citacion',
+            preparingMessage: 'Preparando citación...',
+            successMessage: '¡Citación lista!',
+            successDescription: 'Pulsa el botón para enviarla por WhatsApp. El mensaje también está en tu portapapeles.',
+        });
     };
 
     const handleShareAsistencia = async () => {
         if (!current || !canShare) return;
-        // Si tenemos cambios sin guardar, sugerir guardar primero
-        const hasChanges = current.estado === 'citada';
-        if (hasChanges) {
+        // Si está aún en estado citada, sugerir guardar antes
+        if (current.estado === 'citada') {
             toast.info('Guarda la asistencia antes de enviarla por WhatsApp.');
             return;
         }
         const text = buildAsistenciaMessage(current);
-        const result = await copyAndShare(text, `Asistencia ${current.obra_nombre}`);
-        if (result.copied) {
-            toast.success('Mensaje copiado al portapapeles. Pega con Ctrl+V si los emojis se ven raros.');
-        }
+        await prepareAndShareWithToast({
+            text,
+            title: `Asistencia ${current.obra_nombre}`,
+            toastId: 'sabados-share-asistencia',
+            preparingMessage: 'Preparando asistencia...',
+            successMessage: '¡Asistencia lista!',
+            successDescription: 'Pulsa el botón para enviarla por WhatsApp. El mensaje también está en tu portapapeles.',
+        });
     };
 
     // Agrupar filas por cargo para render. DEBE ir antes de cualquier early
