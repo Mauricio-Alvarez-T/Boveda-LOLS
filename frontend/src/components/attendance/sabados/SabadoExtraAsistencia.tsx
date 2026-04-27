@@ -125,36 +125,69 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
     };
 
     /**
-     * Aplica horasDefault a todos los que tienen el campo vacío.
+     * Convierte un input string a number aceptando tanto '5.5' como '5,5'
+     * (locale es-CL usa coma decimal). Devuelve NaN si no es parseable.
+     */
+    const parseHoras = (raw: string): number => {
+        const normalized = (raw || '').replace(',', '.').trim();
+        if (!normalized) return NaN;
+        return Number(normalized);
+    };
+
+    /**
+     * Aplica horasDefault a TODOS los trabajadores (sobreescribe valores
+     * existentes). Caso de uso: "todos hicieron las mismas horas, salvo
+     * casos puntuales". El usuario puede ajustar individualmente después.
      */
     const aplicarHorasDefault = () => {
         if (!horasDefault) return;
+        const horasNum = parseHoras(horasDefault);
+        if (isNaN(horasNum) || horasNum < 0 || horasNum > 24) {
+            toast.error('Horas inválidas. Ingresa un valor entre 0 y 24.');
+            return;
+        }
+        const horasStr = String(horasNum);
         setRows(prev => {
             const next: Record<number, RowState> = {};
             Object.entries(prev).forEach(([id, r]) => {
                 next[Number(id)] = {
                     ...r,
-                    horas_trabajadas: r.horas_trabajadas || horasDefault,
+                    horas_trabajadas: horasStr,
                 };
             });
             return next;
         });
-        toast.info('Horas aplicadas a quienes no tenían valor');
+        toast.success(`Horas (${horasStr}) aplicadas a todos los trabajadores`);
     };
 
     const handleGuardar = async () => {
         if (!canRegistrar) return;
-        setSaving(true);
-        const trabajadores = Object.entries(rows).map(([id, r]) => ({
-            trabajador_id: Number(id),
-            obra_origen_id: r.obra_origen_id,
-            asistio: r.asistio,
-            horas_trabajadas: r.horas_trabajadas ? Number(r.horas_trabajadas) : null,
-            observacion: r.observacion || null,
-        }));
 
+        // Validar horas individuales antes de mandar al backend
+        for (const [id, r] of Object.entries(rows)) {
+            if (!r.horas_trabajadas) continue;
+            const n = parseHoras(r.horas_trabajadas);
+            if (isNaN(n) || n < 0 || n > 24) {
+                toast.error(`Horas inválidas para trabajador ID ${id}: "${r.horas_trabajadas}"`);
+                return;
+            }
+        }
+
+        setSaving(true);
+        const trabajadores = Object.entries(rows).map(([id, r]) => {
+            const n = r.horas_trabajadas ? parseHoras(r.horas_trabajadas) : NaN;
+            return {
+                trabajador_id: Number(id),
+                obra_origen_id: r.obra_origen_id,
+                asistio: r.asistio,
+                horas_trabajadas: !isNaN(n) ? n : null,
+                observacion: r.observacion || null,
+            };
+        });
+
+        const horasDefaultNum = horasDefault ? parseHoras(horasDefault) : NaN;
         const ok = await registrarAsistencia(sabadoId, {
-            horas_default: horasDefault ? Number(horasDefault) : null,
+            horas_default: !isNaN(horasDefaultNum) ? horasDefaultNum : null,
             observaciones_globales: observacionesGlobales || null,
             trabajadores,
         });
