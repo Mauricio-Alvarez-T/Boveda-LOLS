@@ -12,7 +12,8 @@ const path = require('path');
 // GET /api/inventario/dashboard-ejecutivo — Resumen ejecutivo para el dueño (1 request, KPIs + top obras + alertas)
 router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
-        const result = await inventarioService.getDashboardEjecutivo();
+        const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
+        const result = await inventarioService.getDashboardEjecutivo(Number.isFinite(obraId) && obraId > 0 ? obraId : null);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

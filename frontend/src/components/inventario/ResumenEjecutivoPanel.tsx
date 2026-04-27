@@ -12,9 +12,13 @@ import {
     Timer,
     XCircle,
     Droplets,
+    Filter,
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import api from '../../services/api';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico, type CategoriaValor } from '../../hooks/inventario/useDashboardEjecutivo';
+
+interface ObraOpcion { id: number; nombre: string; }
 
 interface Props {
     /** Navega al tab de transferencias filtrando por estado y, opcionalmente, abriendo una. */
@@ -438,8 +442,17 @@ function formatRelativeTime(lastUpdated: number | null, now: number): { label: s
 }
 
 const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNavigateObra }) => {
-    const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo();
+    const [obraFilter, setObraFilter] = useState<number | null>(null);
+    const [obras, setObras] = useState<ObraOpcion[]>([]);
+    const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo(obraFilter);
     const [now, setNow] = useState(() => Date.now());
+
+    // Cargar obras participantes una sola vez para el selector
+    useEffect(() => {
+        api.get('/obras?participa_inventario=1')
+            .then(res => setObras((res.data.data || []).map((o: any) => ({ id: o.id, nombre: o.nombre }))))
+            .catch(() => setObras([]));
+    }, []);
 
     // Tick cada 30s para refrescar el label "hace X min"
     useEffect(() => {
@@ -449,6 +462,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
 
     const maxValor = data?.top_obras.reduce((m, o) => Math.max(m, o.valor_mensual), 0) || 0;
     const relTime = formatRelativeTime(lastUpdated, now);
+    const obraSeleccionada = obras.find(o => o.id === obraFilter);
 
     return (
         <div className="flex flex-col gap-5 flex-1 min-h-0 overflow-y-auto -mr-2 pr-2">
@@ -461,6 +475,27 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     </p>
                 </div>
                 <div className="flex items-center gap-2 shrink-0">
+                    <div className="relative">
+                        <Filter className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        <select
+                            value={obraFilter ?? ''}
+                            onChange={e => setObraFilter(e.target.value ? Number(e.target.value) : null)}
+                            className={cn(
+                                'pl-8 pr-3 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer appearance-none',
+                                'border focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
+                                obraFilter
+                                    ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary'
+                                    : 'bg-[#F5F5F7] border-transparent hover:bg-[#EDEDF2] text-brand-dark'
+                            )}
+                            aria-label="Filtrar por obra"
+                            title={obraFilter ? `Filtrado por: ${obraSeleccionada?.nombre || ''}` : 'Ver todas las obras'}
+                        >
+                            <option value="">Todas las obras</option>
+                            {obras.map(o => (
+                                <option key={o.id} value={o.id}>{o.nombre}</option>
+                            ))}
+                        </select>
+                    </div>
                     {relTime.label && (
                         <span
                             title={lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : undefined}
@@ -488,6 +523,25 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             {error && (
                 <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200 text-sm text-red-800 font-semibold">
                     {error}
+                </div>
+            )}
+
+            {obraFilter && obraSeleccionada && (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-primary/5 border border-brand-primary/20 text-xs">
+                    <Filter className="h-3.5 w-3.5 text-brand-primary shrink-0" />
+                    <span className="font-bold text-brand-primary truncate">
+                        Filtrando por obra: {obraSeleccionada.nombre}
+                    </span>
+                    <span className="text-muted-foreground hidden sm:inline">
+                        · sparklines y comparativa mes desactivadas
+                    </span>
+                    <button
+                        type="button"
+                        onClick={() => setObraFilter(null)}
+                        className="ml-auto px-2 py-1 text-[11px] font-bold text-brand-primary hover:bg-brand-primary/10 rounded-md"
+                    >
+                        Quitar filtro
+                    </button>
                 </div>
             )}
 
@@ -567,7 +621,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 )}
             </div>
 
-            {/* Ranking de obras */}
+            {/* Ranking de obras — oculto cuando hay filtro por obra */}
+            {!obraFilter && (
             <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
@@ -597,6 +652,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     </div>
                 )}
             </div>
+            )}
 
             {/* Valor por categoría (Donut) */}
             {(loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (

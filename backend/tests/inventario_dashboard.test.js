@@ -167,4 +167,47 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.valor_por_categoria).toEqual([]);
         expect(result.bombas_hormigon_mes).toEqual({ eventos: 0, obras_distintas: 0, costo_externo: 0 });
     });
+
+    test('filtra por obra_id: top_obras vacío + sparklines apagados + filtros SQL aplicados', async () => {
+        // Cuando se pasa obraId, query 8 (snapshots) es Promise.resolve([[]]) — solo 9 queries
+        // van al mock. El service usa 12 destructurings, pero query 8 (snapshots) no toca db.query.
+        db.query
+            .mockResolvedValueOnce([[{ count: 2 }]])  // 1 pendientes filtradas
+            .mockResolvedValueOnce([[{ count: 1 }]])  // 2 transito
+            .mockResolvedValueOnce([[{ transferencias_afectadas: 0, unidades_totales: 0 }]])  // 3 discrep
+            .mockResolvedValueOnce([[                                                          // 4 valor obras (1 sola)
+                { id: 5, nombre: 'CERRILLOS', subtotal_bruto: 9000000, descuento_porcentaje: 0 },
+            ]])
+            .mockResolvedValueOnce([[]])  // 5a alertas pendientes
+            .mockResolvedValueOnce([[]])  // 5b alertas discrep
+            .mockResolvedValueOnce([[]])  // 5c alertas transito
+            .mockResolvedValueOnce([[{ count: 0 }]])  // 6 estancados
+            .mockResolvedValueOnce([[]])  // 7 rechazos
+            // 8 snapshots: NO se llama (Promise.resolve([[]]))
+            .mockResolvedValueOnce([[                                                          // 9 categoría (filtrada por obra)
+                { id: 3, nombre: 'MOLDAJES', orden: 3, valor_neto: 9000000 },
+            ]])
+            .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]]); // 10 bombas
+
+        const result = await inventarioService.getDashboardEjecutivo(5);
+
+        expect(result.filtered_obra_id).toBe(5);
+        expect(result.kpis.transferencias_pendientes).toBe(2);
+        expect(result.kpis.valor_total_obras).toBeCloseTo(9000000, 0);
+        // Top obras vacío cuando hay filtro (ranking pierde sentido)
+        expect(result.top_obras).toEqual([]);
+        // Histórico apagado: sparklines tienen solo el valor de hoy + mes_anterior null
+        expect(result.historico.pendientes.mes_anterior).toBeNull();
+        expect(result.historico.pendientes.delta_pct).toBeNull();
+        expect(result.bombas_hormigon_mes.eventos).toBe(1);
+
+        // Verifica que las queries con filtro recibieron los params [obraId, obraId] o [obraId]
+        const calls = db.query.mock.calls;
+        // Query 1 (pendientes count) debe tener params [5, 5]
+        expect(calls[0][1]).toEqual([5, 5]);
+        // Query 4 (valor obras) debe tener params [5]
+        expect(calls[3][1]).toEqual([5]);
+        // Query 10 (bombas, último call) debe tener params [5]
+        expect(calls[calls.length - 1][1]).toEqual([5]);
+    });
 });

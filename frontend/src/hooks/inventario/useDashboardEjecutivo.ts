@@ -69,6 +69,7 @@ export interface BombasHormigonMes {
 }
 
 export interface DashboardEjecutivoData {
+    filtered_obra_id: number | null;
     kpis: DashboardKpis;
     top_obras: TopObra[];
     alertas: DashboardAlerta[];
@@ -78,7 +79,7 @@ export interface DashboardEjecutivoData {
     bombas_hormigon_mes: BombasHormigonMes;
 }
 
-export function useDashboardEjecutivo() {
+export function useDashboardEjecutivo(obraId: number | null = null) {
     const [data, setData] = useState<DashboardEjecutivoData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -88,7 +89,10 @@ export function useDashboardEjecutivo() {
         setLoading(true);
         setError(null);
         try {
-            const res = await api.get<ApiResponse<DashboardEjecutivoData>>('/inventario/dashboard-ejecutivo');
+            const url = obraId
+                ? `/inventario/dashboard-ejecutivo?obra_id=${obraId}`
+                : '/inventario/dashboard-ejecutivo';
+            const res = await api.get<ApiResponse<DashboardEjecutivoData>>(url);
             setData(res.data.data);
             setLastUpdated(Date.now());
         } catch (err: any) {
@@ -97,7 +101,7 @@ export function useDashboardEjecutivo() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [obraId]);
 
     useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 

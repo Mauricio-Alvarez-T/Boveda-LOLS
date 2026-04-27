@@ -300,7 +300,16 @@ const inventarioService = {
      *
      * Todas las queries corren en paralelo para minimizar latencia.
      */
-    async getDashboardEjecutivo() {
+    async getDashboardEjecutivo(obraId = null) {
+        // Filtro condicional para queries que tocan transferencias.
+        // Una transferencia "pertenece" a la obra si la obra es origen O destino.
+        const obraIdNum = obraId ? Number(obraId) : null;
+        const tFilter = obraIdNum ? 'AND (t.origen_obra_id = ? OR t.destino_obra_id = ?)' : '';
+        const tParams = obraIdNum ? [obraIdNum, obraIdNum] : [];
+        // Para query 1/2/6 (sin alias t), usan tabla directa
+        const directFilter = obraIdNum ? 'AND (origen_obra_id = ? OR destino_obra_id = ?)' : '';
+        const directParams = tParams;
+
         const [
             [pendientesRows],
             [transitoRows],
@@ -316,19 +325,19 @@ const inventarioService = {
             [bombasRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
-            db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
+            db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter}`, directParams),
             // 2. Count transferencias en tránsito
-            db.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito'"),
+            db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito' ${directFilter}`, directParams),
             // 3. Discrepancias pendientes: count transferencias afectadas + unidades totales
             db.query(`
                 SELECT COUNT(DISTINCT d.transferencia_id) as transferencias_afectadas,
                        COALESCE(SUM(ABS(d.diferencia)), 0) as unidades_totales
                 FROM transferencia_discrepancias d
                 JOIN transferencias t ON t.id = d.transferencia_id
-                WHERE t.activo = 1 AND d.estado = 'pendiente'
-            `),
+                WHERE t.activo = 1 AND d.estado = 'pendiente' ${tFilter}
+            `, tParams),
             // 4. Valor total de arriendo por obra (usando override si existe, caso contrario valor_arriendo)
-            //    Aplica descuento por obra si existe.
+            //    Aplica descuento por obra si existe. Cuando hay obraId, solo esa obra.
             db.query(`
                 SELECT o.id, o.nombre,
                        COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as subtotal_bruto,
@@ -337,10 +346,10 @@ const inventarioService = {
                 LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
                 LEFT JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
-                WHERE o.activa = 1 AND o.participa_inventario = 1
+                WHERE o.activa = 1 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
                 GROUP BY o.id, o.nombre, d.porcentaje
                 ORDER BY subtotal_bruto DESC
-            `),
+            `, obraIdNum ? [obraIdNum] : []),
             // 5a. Alertas: transferencias pendientes más antiguas (top 5)
             db.query(`
                 SELECT t.id, t.codigo, t.fecha_solicitud,
@@ -355,10 +364,10 @@ const inventarioService = {
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 LEFT JOIN usuarios us ON t.solicitante_id = us.id
-                WHERE t.activo = 1 AND t.estado = 'pendiente'
+                WHERE t.activo = 1 AND t.estado = 'pendiente' ${tFilter}
                 ORDER BY t.fecha_solicitud ASC
                 LIMIT 5
-            `),
+            `, tParams),
             // 5b. Alertas: discrepancias pendientes (top 5 transferencias)
             db.query(`
                 SELECT t.id, t.codigo, t.fecha_recepcion,
@@ -373,11 +382,11 @@ const inventarioService = {
                 LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
-                WHERE t.activo = 1
+                WHERE t.activo = 1 ${tFilter}
                 GROUP BY t.id, t.codigo, t.fecha_recepcion, oo.nombre, ob.nombre, do2.nombre, db2.nombre
                 ORDER BY t.fecha_recepcion ASC
                 LIMIT 5
-            `),
+            `, tParams),
             // 5c. Alertas: transferencias en tránsito estancadas (>2 días, top 5 más antiguas)
             db.query(`
                 SELECT t.id, t.codigo, t.fecha_despacho,
@@ -390,17 +399,17 @@ const inventarioService = {
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 WHERE t.activo = 1 AND t.estado = 'en_transito'
-                  AND DATEDIFF(NOW(), t.fecha_despacho) >= 2
+                  AND DATEDIFF(NOW(), t.fecha_despacho) >= 2 ${tFilter}
                 ORDER BY t.fecha_despacho ASC
                 LIMIT 5
-            `),
+            `, tParams),
             // 6. KPI: en tránsito estancados ≥7 días
             db.query(`
                 SELECT COUNT(*) as count
                 FROM transferencias
                 WHERE activo = 1 AND estado = 'en_transito'
-                  AND DATEDIFF(NOW(), fecha_despacho) >= 7
-            `),
+                  AND DATEDIFF(NOW(), fecha_despacho) >= 7 ${directFilter}
+            `, directParams),
             // 7. Rechazos recientes (últimos 7 días, máx 8)
             db.query(`
                 SELECT t.id, t.codigo, t.fecha_aprobacion,
@@ -416,17 +425,20 @@ const inventarioService = {
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 LEFT JOIN usuarios us ON t.aprobador_id = us.id
                 WHERE t.activo = 1 AND t.estado = 'rechazada'
-                  AND t.fecha_aprobacion >= NOW() - INTERVAL 7 DAY
+                  AND t.fecha_aprobacion >= NOW() - INTERVAL 7 DAY ${tFilter}
                 ORDER BY t.fecha_aprobacion DESC
                 LIMIT 8
-            `),
-            // 8. Snapshots últimos 31 días (alimenta sparklines 7d + comparativa mes anterior)
-            db.query(`
-                SELECT fecha, kpi, valor
-                FROM dashboard_kpi_snapshots
-                WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 31 DAY)
-                ORDER BY fecha ASC
-            `),
+            `, tParams),
+            // 8. Snapshots últimos 31 días — son globales, no se filtran por obra.
+            //    Cuando hay obraId, devolvemos vacío (sparklines + comparativa apagados en UI).
+            obraIdNum
+                ? Promise.resolve([[]])
+                : db.query(`
+                    SELECT fecha, kpi, valor
+                    FROM dashboard_kpi_snapshots
+                    WHERE fecha >= DATE_SUB(CURDATE(), INTERVAL 31 DAY)
+                    ORDER BY fecha ASC
+                `),
             // 9. Valor arriendo mensual agrupado por categoría de item (para donut)
             //    Solo stock en obras con participa_inventario, aplicando descuento por obra.
             db.query(`
@@ -439,11 +451,12 @@ const inventarioService = {
                 FROM categorias_inventario c
                 LEFT JOIN items_inventario i ON i.categoria_id = c.id AND i.activo = 1
                 LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id IS NOT NULL
+                    ${obraIdNum ? 'AND us.obra_id = ?' : ''}
                 LEFT JOIN obras o ON us.obra_id = o.id AND o.activa = 1 AND o.participa_inventario = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
                 GROUP BY c.id, c.nombre, c.orden
                 ORDER BY c.orden ASC
-            `),
+            `, obraIdNum ? [obraIdNum] : []),
             // 10. Bombas de hormigón: stats del mes actual (eventos + obras únicas + costo externo)
             db.query(`
                 SELECT
@@ -454,7 +467,8 @@ const inventarioService = {
                 WHERE activo = 1
                   AND YEAR(fecha) = YEAR(CURDATE())
                   AND MONTH(fecha) = MONTH(CURDATE())
-            `),
+                  ${obraIdNum ? 'AND obra_id = ?' : ''}
+            `, obraIdNum ? [obraIdNum] : []),
         ]);
 
         // Normalizar valor por obra aplicando descuento
@@ -465,7 +479,10 @@ const inventarioService = {
             return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc };
         });
         const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);
-        const top_obras = obrasConValor.filter(o => o.valor_mensual > 0).slice(0, 5);
+        // Cuando hay filtro por obra, el "ranking" pierde sentido (es una sola obra) → vacío.
+        const top_obras = obraIdNum
+            ? []
+            : obrasConValor.filter(o => o.valor_mensual > 0).slice(0, 5);
 
         // Componer alertas, unificadas por tipo
         const formatUbic = (obra, bodega) => obra || bodega || '—';
@@ -556,6 +573,7 @@ const inventarioService = {
         }));
 
         return {
+            filtered_obra_id: obraIdNum,
             kpis: {
                 transferencias_pendientes: Number(pendientesRows[0]?.count) || 0,
                 transferencias_en_transito: Number(transitoRows[0]?.count) || 0,
