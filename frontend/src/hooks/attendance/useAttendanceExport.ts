@@ -3,6 +3,7 @@ import { toast } from 'sonner';
 import { useObra } from '../../context/ObraContext';
 import { useAuth } from '../../context/AuthContext';
 import api from '../../services/api';
+import { copyToClipboard, shareViaWhatsApp } from '../../utils/whatsappShare';
 import type { Trabajador, Asistencia, EstadoAsistencia } from '../../types/entities';
 
 interface UseAttendanceExportProps {
@@ -86,31 +87,6 @@ export function useAttendanceExport({
             return null;
         }
     }, [hasPermission]);
-
-    const copyToClipboard = useCallback(async (text: string) => {
-        try {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                await navigator.clipboard.writeText(text);
-                return true;
-            }
-        } catch (e) { }
-
-        try {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.left = "-9999px";
-            textArea.style.top = "0";
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const successful = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            return successful;
-        } catch (err) {
-            return false;
-        }
-    }, []);
 
     const handleShareWhatsApp = useCallback(async () => {
         if (!hasPermission('asistencia.enviar_whatsapp')) {
@@ -240,23 +216,7 @@ export function useAttendanceExport({
                 action: {
                     label: 'ENVIAR AHORA',
                     onClick: async () => {
-                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-
-                        if (isMobile && navigator.share) {
-                            try {
-                                await navigator.share({
-                                    text: finalMessage,
-                                    title: `Asistencia ${currentObra?.nombre || 'Bóveda'}`
-                                });
-                            } catch (e: any) {
-                                if (e.name !== 'AbortError') {
-                                    window.open(`https://wa.me/?text=${encodeURIComponent(finalMessage)}`, '_blank');
-                                }
-                            }
-                        } else {
-                            const encodedText = encodeURIComponent(finalMessage);
-                            window.open(`https://wa.me/?text=${encodedText}`, '_blank');
-                        }
+                        await shareViaWhatsApp(finalMessage, `Asistencia ${currentObra?.nombre || 'Bóveda'}`);
                     }
                 }
             });
@@ -269,10 +229,10 @@ export function useAttendanceExport({
             toast.error(`Error al generar link${errorDetail}`, { id: 'whatsapp-share', duration: 8000 });
 
             setTimeout(() => {
-                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                shareViaWhatsApp(text, `Asistencia ${currentObra?.nombre || 'Bóveda'}`);
             }, 2000);
         }
-    }, [copyToClipboard, hasPermission]);
+    }, [hasPermission]);
 
     return {
         handleExportExcel,
