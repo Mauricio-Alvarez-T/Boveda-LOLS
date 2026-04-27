@@ -15,6 +15,10 @@
 --   sabados_extra_trabajadores - detalle (N por sábado)
 --
 -- Idempotente vía information_schema + PREPARE/EXECUTE (patrón 037).
+--
+-- Importante: las tablas referenciadas (obras, usuarios, trabajadores)
+-- usan `INT` signed para sus IDs (ver migraciones 001-003). Las FKs
+-- DEBEN coincidir en signedness o MySQL lanza errno 150.
 -- =============================================
 
 -- ─────────────────────────────────────────────
@@ -27,15 +31,15 @@ SET @tbl_exists := (
 );
 SET @sql := IF(@tbl_exists = 0,
     'CREATE TABLE sabados_extra (
-        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-        obra_id INT UNSIGNED NOT NULL,
+        id INT NOT NULL AUTO_INCREMENT,
+        obra_id INT NOT NULL,
         fecha DATE NOT NULL,
         observaciones_globales TEXT NULL,
         observaciones_por_cargo JSON NULL,
         horas_default DECIMAL(4,2) NULL,
         estado ENUM("citada","realizada","cancelada") NOT NULL DEFAULT "citada",
-        creado_por INT UNSIGNED NOT NULL,
-        actualizado_por INT UNSIGNED NULL,
+        creado_por INT NOT NULL,
+        actualizado_por INT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         PRIMARY KEY (id),
@@ -60,10 +64,10 @@ SET @tbl_exists := (
 );
 SET @sql := IF(@tbl_exists = 0,
     'CREATE TABLE sabados_extra_trabajadores (
-        id INT UNSIGNED NOT NULL AUTO_INCREMENT,
-        sabado_id INT UNSIGNED NOT NULL,
-        trabajador_id INT UNSIGNED NOT NULL,
-        obra_origen_id INT UNSIGNED NULL,
+        id INT NOT NULL AUTO_INCREMENT,
+        sabado_id INT NOT NULL,
+        trabajador_id INT NOT NULL,
+        obra_origen_id INT NULL,
         citado TINYINT(1) NOT NULL DEFAULT 1,
         asistio TINYINT(1) NULL,
         horas_trabajadas DECIMAL(4,2) NULL,
