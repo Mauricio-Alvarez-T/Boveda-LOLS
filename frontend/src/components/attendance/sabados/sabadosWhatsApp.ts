@@ -1,6 +1,34 @@
 import type { SabadoExtraDetalle, SabadoExtraTrabajador } from '../../../types/sabadosExtra';
 
 /**
+ * Normaliza una fecha que puede venir como 'YYYY-MM-DD' o como ISO completo
+ * 'YYYY-MM-DDTHH:mm:ss.000Z' (MySQL2 driver devuelve columnas DATE como
+ * objetos Date que JSON.stringify convierte a ISO).
+ *
+ * Devuelve solo la parte YYYY-MM-DD sin tocar zona horaria.
+ */
+export function normalizarFecha(raw: string): string {
+    return (raw || '').split('T')[0];
+}
+
+/**
+ * Formato amigable DD-MM-YYYY desde cualquier representación.
+ */
+export function fmtFechaCorta(raw: string): string {
+    const parts = normalizarFecha(raw).split('-');
+    if (parts.length !== 3) return raw;
+    return `${parts[2]}-${parts[1]}-${parts[0]}`;
+}
+
+/**
+ * Día del mes (DD) desde la fecha.
+ */
+export function diaDelMes(raw: string): string {
+    const parts = normalizarFecha(raw).split('-');
+    return parts.length === 3 ? parts[2] : '';
+}
+
+/**
  * Builders para mensajes WhatsApp de Sábados Extra.
  * Reusa el patrón de useAttendanceExport.handleShareWhatsApp:
  *   - Agrupa por cargo, ordena alfabético.
@@ -51,7 +79,7 @@ function agruparPorCargo<T extends { cargo_nombre: string | null }>(
  *   _Generado con Bóveda LOLS_
  */
 export function buildCitacionMessage(s: SabadoExtraDetalle): string {
-    const fechaStr = s.fecha.split('-').reverse().join('-');
+    const fechaStr = fmtFechaCorta(s.fecha);
     const lines: string[] = [];
     lines.push('Buenos días');
     lines.push(`*Personal citado* trabajo extraordinario sábado ${fechaStr} — Obra ${s.obra_nombre}`);
@@ -122,7 +150,7 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
  *   _Generado con Bóveda LOLS_
  */
 export function buildAsistenciaMessage(s: SabadoExtraDetalle): string {
-    const fechaStr = s.fecha.split('-').reverse().join('-');
+    const fechaStr = fmtFechaCorta(s.fecha);
     const asistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => w.asistio === 1);
     const noAsistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => w.asistio === 0);
 

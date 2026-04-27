@@ -5,6 +5,7 @@ import { cn } from '../../../utils/cn';
 import { useObra } from '../../../context/ObraContext';
 import { useAuth } from '../../../context/AuthContext';
 import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
+import { fmtFechaCorta, diaDelMes } from './sabadosWhatsApp';
 
 interface Props {
     onSelect: (id: number) => void;
@@ -88,7 +89,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
             ) : (
                 <div className="flex flex-col gap-2">
                     {list.map(s => {
-                        const fechaStr = s.fecha.split('-').reverse().join('-');
+                        const fechaStr = fmtFechaCorta(s.fecha);
                         return (
                             <button
                                 key={s.id}
@@ -97,7 +98,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                             >
                                 <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-brand-primary/10 text-brand-primary shrink-0">
                                     <span className="text-[9px] font-bold uppercase">SÁB</span>
-                                    <span className="text-lg font-black leading-none">{s.fecha.split('-')[2]}</span>
+                                    <span className="text-lg font-black leading-none">{diaDelMes(s.fecha)}</span>
                                 </div>
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-0.5">

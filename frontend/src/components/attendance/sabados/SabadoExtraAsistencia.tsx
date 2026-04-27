@@ -7,7 +7,7 @@ import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
 import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
 import { prepareAndShareWithToast } from '../../../utils/whatsappShare';
-import { buildCitacionMessage, buildAsistenciaMessage } from './sabadosWhatsApp';
+import { buildCitacionMessage, buildAsistenciaMessage, fmtFechaCorta } from './sabadosWhatsApp';
 import AddFromOtherObraModal from './AddFromOtherObraModal';
 import type { Trabajador } from '../../../types/entities';
 
@@ -222,7 +222,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         );
     }
 
-    const fechaStr = current.fecha.split('-').reverse().join('-');
+    const fechaStr = fmtFechaCorta(current.fecha);
     const isCancelada = current.estado === 'cancelada';
     const isRealizada = current.estado === 'realizada';
     const totalAsistio = Object.values(rows).filter(r => r.asistio).length;

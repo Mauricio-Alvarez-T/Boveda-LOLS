@@ -76,7 +76,8 @@ export function useSabadosExtra() {
                     const listRes = await api.get<{ data: SabadoExtraResumen[] }>('/sabados-extra', {
                         params: { obra_id: payload.obra_id, mes, anio },
                     });
-                    const existing = listRes.data.data.find(s => s.fecha === payload.fecha);
+                    // Backend devuelve fecha como ISO completo; comparamos solo la parte YYYY-MM-DD
+                    const existing = listRes.data.data.find(s => (s.fecha || '').split('T')[0] === payload.fecha);
                     if (existing) {
                         toast.error(msg, {
                             description: 'Ya hay una citación activa para esta obra y fecha.',
