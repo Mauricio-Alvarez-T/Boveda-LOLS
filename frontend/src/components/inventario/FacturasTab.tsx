@@ -7,6 +7,7 @@ import type { ApiResponse } from '../../types';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { fmtFecha } from '../../utils/fechas';
 
 const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 
@@ -212,7 +213,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     <span className="text-[10px] text-muted-foreground">{f.proveedor}</span>
                                 </div>
                                 <p className="text-[11px] text-muted-foreground">
-                                    {new Date(f.fecha_factura).toLocaleDateString('es-CL')} &middot; {fmtMoney(f.monto_neto)} neto
+                                    {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(f.monto_neto)} neto
                                 </p>
                             </div>
                             <div className="flex items-center gap-2">

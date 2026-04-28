@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { ItemInventario } from '../../types/entities';
+import { showApiError } from '../../utils/toastUtils';
 
 interface CategoriaMinimal {
     id: number;
@@ -93,7 +94,7 @@ export function useInventarioMaestro() {
             if (err.response?.status === 413) {
                 toast.error(`Demasiados cambios: máximo ${err.response.data.maxItems} ítems por envío`);
             } else {
-                toast.error(err.response?.data?.error || 'Error al guardar cambios');
+                showApiError(err, 'Error al guardar cambios');
             }
             return null;
         } finally {

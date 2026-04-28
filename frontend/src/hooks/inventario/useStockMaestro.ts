@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import { showApiError } from '../../utils/toastUtils';
 
 export interface StockRow {
     id: number; // item_id (identificador de ítem, no stock_id — stock_id puede ser null si no existe fila)
@@ -107,7 +108,7 @@ export function useStockMaestro() {
             if (err.response?.status === 413) {
                 toast.error(`Demasiados ajustes: máximo ${err.response.data.maxItems} por envío`);
             } else {
-                toast.error(err.response?.data?.error || 'Error al ajustar stock');
+                showApiError(err, 'Error al ajustar stock');
             }
             return false;
         } finally {

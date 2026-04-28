@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
+const validateBody = require('../middleware/validateBody');
 const inventarioService = require('../services/inventario.service');
 const itemInventarioBulkService = require('../services/itemInventarioBulk.service');
 const stockBulkService = require('../services/stockBulk.service');
@@ -49,10 +50,16 @@ router.get('/stock/bodega/:bodegaId', auth, checkPermission('inventario.ver'), a
 });
 
 // PUT /api/inventario/stock — actualizar stock inline
-router.put('/stock', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+// Auditoría 4.4: validación declarativa antes de entrar al handler.
+router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
+    item_id: { required: true, type: 'integer', min: 1 },
+    obra_id: { type: 'integer', min: 1 },
+    bodega_id: { type: 'integer', min: 1 },
+    cantidad: { type: 'integer', min: 0, max: 999999 },
+    valor_arriendo_override: { type: 'number', min: 0 },
+}), async (req, res, next) => {
     try {
         const { item_id, obra_id, bodega_id, cantidad, valor_arriendo_override } = req.body;
-        if (!item_id) return res.status(400).json({ error: 'item_id requerido' });
         const result = await inventarioService.actualizarStock(
             item_id, obra_id || null, bodega_id || null,
             { cantidad, valorArriendoOverride: valor_arriendo_override }
@@ -131,7 +138,9 @@ router.delete('/items/:itemId/imagen', auth, checkPermission('inventario.editar'
 //   200 { data: { updated, diff } }
 //   413 si supera MAX_ITEMS
 //   400 si payload inválido (validación pre-transacción)
-router.put('/items/bulk', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+router.put('/items/bulk', auth, checkPermission('inventario.editar'), validateBody({
+    items: { required: true, type: 'array', minLength: 1 },
+}), async (req, res, next) => {
     try {
         const items = req.body?.items;
         const result = await itemInventarioBulkService.bulkUpdate(items, req.user.id);

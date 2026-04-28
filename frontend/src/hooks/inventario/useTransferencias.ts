@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import { showApiError } from '../../utils/toastUtils';
 import type { ApiResponse } from '../../types';
 import type { Transferencia, TransferenciaConDiscrepancias } from '../../types/entities';
 
@@ -131,8 +132,8 @@ export function useTransferencias() {
             const res = await api.post<ApiResponse<{ id: number; codigo: string }>>('/transferencias', data);
             toast.success(`Solicitud ${res.data.data.codigo} creada`);
             return res.data.data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear solicitud');
+        } catch (err) {
+            showApiError(err, 'Error al crear solicitud');
             return null;
         }
     }, []);
@@ -144,8 +145,8 @@ export function useTransferencias() {
             );
             toast.success(`Push directo ${res.data.data.codigo} creado`);
             return res.data.data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear push directo');
+        } catch (err) {
+            showApiError(err, 'Error al crear push directo');
             return null;
         }
     }, []);
@@ -157,8 +158,8 @@ export function useTransferencias() {
             );
             toast.success(`Movimiento ${res.data.data.codigo} registrado — stock actualizado`);
             return res.data.data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al mover entre bodegas');
+        } catch (err) {
+            showApiError(err, 'Error al mover entre bodegas');
             return null;
         }
     }, []);
@@ -170,8 +171,8 @@ export function useTransferencias() {
             );
             toast.success(`Devolución ${res.data.data.codigo} creada`);
             return res.data.data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear devolución');
+        } catch (err) {
+            showApiError(err, 'Error al crear devolución');
             return null;
         }
     }, []);
@@ -183,8 +184,8 @@ export function useTransferencias() {
             );
             toast.success(`Traslado intra-obra ${res.data.data.codigo} creado`);
             return res.data.data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear traslado intra-obra');
+        } catch (err) {
+            showApiError(err, 'Error al crear traslado intra-obra');
             return null;
         }
     }, []);
@@ -196,8 +197,8 @@ export function useTransferencias() {
             );
             toast.success(`Orden de gerencia ${res.data.data.codigo} emitida`);
             return res.data.data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al emitir orden de gerencia');
+        } catch (err) {
+            showApiError(err, 'Error al emitir orden de gerencia');
             return null;
         }
     }, []);
@@ -207,8 +208,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/${id}/aprobar`, data);
             toast.success('Transferencia aprobada');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al aprobar');
+        } catch (err) {
+            showApiError(err, 'Error al aprobar');
             return false;
         }
     }, []);
@@ -223,8 +224,8 @@ export function useTransferencias() {
                 toast.success(`Solicitud ${data.codigo} creada por el faltante`);
             }
             return data;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear solicitud por faltante');
+        } catch (err) {
+            showApiError(err, 'Error al crear solicitud por faltante');
             return null;
         }
     }, []);
@@ -234,8 +235,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/${id}/despachar`);
             toast.success('Transferencia despachada');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al despachar');
+        } catch (err) {
+            showApiError(err, 'Error al despachar');
             return false;
         }
     }, []);
@@ -245,8 +246,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/${id}/recibir`, { items });
             toast.success('Transferencia recibida — stock actualizado');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al recibir');
+        } catch (err) {
+            showApiError(err, 'Error al recibir');
             return false;
         }
     }, []);
@@ -256,8 +257,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/${id}/rechazar`, { motivo });
             toast.success('Transferencia rechazada');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al rechazar');
+        } catch (err) {
+            showApiError(err, 'Error al rechazar');
             return false;
         }
     }, []);
@@ -267,8 +268,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/${id}/rechazar-recepcion`, { motivo });
             toast.success('Recepción rechazada');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al rechazar recepción');
+        } catch (err) {
+            showApiError(err, 'Error al rechazar recepción');
             return false;
         }
     }, []);
@@ -278,8 +279,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/${id}/cancelar`);
             toast.success('Transferencia cancelada');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al cancelar');
+        } catch (err) {
+            showApiError(err, 'Error al cancelar');
             return false;
         }
     }, []);
@@ -311,8 +312,8 @@ export function useTransferencias() {
             await api.put(`/transferencias/discrepancias/${id}/resolver`, { estado, resolucion });
             toast.success(estado === 'resuelta' ? 'Discrepancia resuelta' : 'Discrepancia descartada');
             return true;
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al actualizar discrepancia');
+        } catch (err) {
+            showApiError(err, 'Error al actualizar discrepancia');
             return false;
         }
     }, []);

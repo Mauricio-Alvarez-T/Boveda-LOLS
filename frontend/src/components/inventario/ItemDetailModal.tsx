@@ -99,6 +99,8 @@ const ItemDetailModal: React.FC<Props> = ({
                         {imageUrl ? (
                             <button
                                 type="button"
+                                aria-label="Ampliar imagen del ítem"
+                                title="Ampliar imagen"
                                 onClick={() => setImageZoom(true)}
                                 className="w-full h-64 sm:h-72 flex items-center justify-center overflow-hidden rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] hover:border-brand-primary/30 transition-all group"
                             >
@@ -125,6 +127,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                     </span>
                                 )}
                                 <button
+                                    type="button"
+                                    aria-label={`Copiar número de ítem ${item.nro_item}`}
                                     onClick={copyNroItem}
                                     className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F5F7FA] border border-[#E8E8ED] hover:border-brand-primary/30 text-[10px] font-bold text-muted-foreground transition-all"
                                     title="Copiar número de ítem"
@@ -232,6 +236,9 @@ const ItemDetailModal: React.FC<Props> = ({
                     onClick={() => setImageZoom(false)}
                 >
                     <button
+                        type="button"
+                        aria-label="Cerrar imagen ampliada"
+                        title="Cerrar"
                         onClick={() => setImageZoom(false)}
                         className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                     >

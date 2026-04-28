@@ -11,6 +11,7 @@ import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
 import FaltanteDecisionModal from './FaltanteDecisionModal';
+import { fmtFecha } from '../../utils/fechas';
 
 interface StockLocation {
     type: string;
@@ -54,8 +55,9 @@ const STEP_INDEX: Record<string, number> = {
     rechazada: -1, cancelada: -1,
 };
 
-const fmtDate = (d: string | null) =>
-    d ? new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
+// Auditoría 4.2: usar helper centralizado de fechas (utils/fechas.ts) para formato día/mes/año.
+// fmtDateTime queda local porque incluye hora — caso particular no contemplado por el helper común.
+const fmtDate = (d: string | null) => fmtFecha(d);
 
 const fmtDateTime = (d: string | null) =>
     d ? new Date(d).toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';

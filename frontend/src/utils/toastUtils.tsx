@@ -1,5 +1,34 @@
 import { toast } from 'sonner';
 
+/**
+ * Auditoría 4.3: helper centralizado para mostrar errores de API con detalle.
+ *
+ * - console.error siempre (no perdemos stack trace en DevTools).
+ * - Toast con título corto (mensaje fallback) y descripción técnica del backend
+ *   o del error si está disponible.
+ * - Si el status es 403 NO mostramos toast acá: el interceptor en services/api.ts
+ *   ya lo hace de forma global y throttleada.
+ */
+interface ApiErrorLike {
+    response?: { status?: number; data?: { error?: string; message?: string } };
+    message?: string;
+}
+
+export function showApiError(err: unknown, fallback = 'Ocurrió un error'): void {
+    console.error(err);
+    const e = err as ApiErrorLike;
+    if (e?.response?.status === 403) return; // ya lo maneja el interceptor global
+    const detail = e?.response?.data?.error
+        || e?.response?.data?.message
+        || e?.message
+        || '';
+    if (detail && detail !== fallback) {
+        toast.error(fallback, { description: detail });
+    } else {
+        toast.error(detail || fallback);
+    }
+}
+
 interface DeleteToastOptions {
     onConfirm: () => Promise<void> | void;
     message?: string;

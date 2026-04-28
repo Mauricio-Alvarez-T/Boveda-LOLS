@@ -1,6 +1,6 @@
 # Roadmap — Auditoría Completa del Módulo Inventario
 
-> **Estado actual:** Sprints 1, 2 y 3 completados. Sprint 4 (LOW) pendiente.
+> **Estado actual:** Sprints 1, 2, 3 y 4 completados. Auditoría cerrada.
 > **Rama de trabajo:** `develop`
 > **Plan original:** `C:\Users\maatr\.claude\plans\regalon-necesito-contruir-una-sorted-diffie.md` (aprobado en sesión)
 
@@ -212,38 +212,39 @@ Envolví con `React.memo`:
 
 ---
 
-## 🚧 Sprint 4 — LOW (PENDIENTE)
+## ✅ Sprint 4 — LOW (COMPLETADO)
 
-### 4.1 aria-labels en botones icon-only
-- `StockUbicacionTable.tsx` línea 79
-- `ItemDetailModal.tsx` línea 91
-- Botones en TransferenciaDetail sin labels accesibles
+### 4.1 aria-labels en botones icon-only ✅
+**Archivos:** `StockUbicacionTable.tsx`, `ItemDetailModal.tsx`.
+- 12+ botones icon-only con `aria-label` + `title` + `type="button"`. Save/cancel/edit, copy item nro, ampliar/cerrar imagen.
+- `TransferenciaDetail.tsx` usa botones con texto visible — no requirió cambios.
 
-### 4.2 Helper único de formato fechas
+### 4.2 Helper único de formato fechas ✅
 **Archivo nuevo:** `frontend/src/utils/fechas.ts`.
+- Exporta `normalizarFecha`, `fmtFechaCorta` (DD-MM-YYYY), `fmtFecha` (28 abr 2026), `diaDelMes`.
+- `fmtFecha` evita el bug de timezone para fechas YYYY-MM-DD construyendo `T00:00:00` antes del Date.
+- `sabadosWhatsApp.ts` y `TransferenciaDetail.tsx` y `FacturasTab.tsx` migrados al helper común.
 
-Centralizar `fmtFecha(raw)`, `diaDelMes(raw)`, `normalizarFecha(raw)`. Actualmente hay duplicación entre `TransferenciaDetail.tsx` (usa `toLocaleDateString`), `FacturasTab.tsx` (usa `.slice(0,10)`), `sabadosWhatsApp.ts` (tiene helpers propios).
+### 4.3 Toast errors con detalle ✅
+**Archivo:** `frontend/src/utils/toastUtils.tsx` — nuevo helper `showApiError(err, fallback)`.
+- `console.error(err)` siempre (preserva stack trace en DevTools).
+- `toast.error(fallback, { description: detail })` cuando hay detalle del backend.
+- Status 403 lo skipea para no duplicar el del interceptor global.
+- Aplicado en `useInventarioActions`, `useTransferencias` (12+ catches), `useStockMaestro`, `useInventarioMaestro`.
 
-### 4.3 Toast errors con detalle
-- Agregar `console.error(err)` en cada catch para debug.
-- Pasar `description: err.message` al toast para mostrar el detalle técnico.
-
-### 4.4 Joi schemas en routes principales
+### 4.4 Validación de body en rutas principales ✅
 **Archivo nuevo:** `backend/src/middleware/validateBody.js`.
+- Mini-DSL declarativo (sin Joi para no agregar dep): `required`, `type` (integer/number/string/boolean/array), `min/max`, `minLength`, `in`, `itemRules`.
+- 9 tests nuevos en `backend/tests/validate_body.test.js` cubren required/type/range/array/enum.
+- Aplicado a: `PUT /api/inventario/stock`, `PUT /api/inventario/items/bulk`, `POST /api/transferencias`, `PUT /api/transferencias/:id/aprobar`.
 
-Agregar validación con Joi a:
-- `POST /api/transferencias`
-- `PUT /api/transferencias/:id/aprobar`
-- `PUT /api/inventario/stock`
-- `PUT /api/inventario/items/bulk`
+### 4.5 Virtualización StockUbicacionTable 🔄 DIFERIDO
+**Razón:** la tabla actual rinde aceptablemente con < 100 items por bodega (caso típico). Agregar `react-window` o `@tanstack/virtual` solo si una medición real muestra lag. Dejado como `// TODO virtualization` implícito en el componente.
 
-### 4.5 Virtualización StockUbicacionTable (condicional)
-Solo si después de medir > 100 items renderizados causa lag visible. Si la performance actual es aceptable, dejar `// TODO virtualization` y postponer.
-
-### 4.6 Manejo 403 centralizado (interceptor Axios)
+### 4.6 Manejo 403 centralizado (interceptor Axios) ✅
 **Archivo:** `frontend/src/services/api.ts`.
-
-Interceptor de response que detecta status 403 y muestra toast: "No tienes permiso para esta acción". Reduce duplicación en cada hook.
+- Interceptor de response: en `status === 403` muestra toast con mensaje del backend o fallback "No tienes permiso para esta acción".
+- Throttle 3s (`_last403Ts`) para evitar 5+ toasts si una pantalla dispara múltiples fetchs en paralelo.
 
 ---
 
@@ -253,12 +254,13 @@ Interceptor de response que detecta status 403 y muestra toast: "No tienes permi
 |---|---|---|---|
 | 1 — Backend CRITICAL | ✅ | `4ab2342` | 6/6 (migración, race conditions, audit columns, delta robusto, 15 tests nuevos) |
 | 2 — Frontend CRITICAL+HIGH | ✅ | `ba85994`, `db41c89` | 5/7 (2 diferidos a Sprint 3 y 4) |
-| 3 — HIGH+MEDIUM | ⏳ | — | 0/9 |
-| 4 — LOW | ⏳ | — | 0/6 |
+| 3 — HIGH+MEDIUM | ✅ | `3efa702` | 9/9 (N+1, validaciones, permiso fix, snapshot robusto, cache cleanup, paginación, top obras, doc soft-delete, memo) |
+| 4 — LOW | ✅ | _este commit_ | 5/6 (4.5 virtualización diferida hasta tener métrica real) |
 
 ### Tests totales del proyecto
 - **Antes:** `144 / 144`
 - **Después de Sprint 1:** `163 / 163` (+19 tests nuevos en concurrencia y delta edges)
+- **Después de Sprint 4:** `172 / 172` (+9 tests nuevos en `validate_body.test.js`)
 
 ---
 

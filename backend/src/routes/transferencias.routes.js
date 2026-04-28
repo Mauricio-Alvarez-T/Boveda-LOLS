@@ -1,7 +1,17 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
+const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
+
+// Auditoría 4.4: schema mínimo común para crear transferencias.
+// Cada flujo extiende esto si necesita campos extra (motivo obligatorio, etc.).
+const crearTransferenciaSchema = {
+    items: { required: true, type: 'array', minLength: 1 },
+};
+const aprobarTransferenciaSchema = {
+    items: { required: true, type: 'array', minLength: 1 },
+};
 
 // GET /api/transferencias
 router.get('/', auth, checkPermission('inventario.ver'), async (req, res, next) => {
@@ -56,7 +66,7 @@ router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, nex
 });
 
 // POST /api/transferencias
-router.post('/', auth, checkPermission('inventario.crear'), async (req, res, next) => {
+router.post('/', auth, checkPermission('inventario.crear'), validateBody(crearTransferenciaSchema), async (req, res, next) => {
     try {
         const result = await transferenciaService.crear(req.body, req.user.id);
         res.status(201).json({ data: result });
@@ -104,7 +114,7 @@ router.post('/orden-gerencia', auth, checkPermission('inventario.aprobar'), asyn
 });
 
 // PUT /api/transferencias/:id/aprobar
-router.put('/:id/aprobar', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
+router.put('/:id/aprobar', auth, checkPermission('inventario.aprobar'), validateBody(aprobarTransferenciaSchema), async (req, res, next) => {
     try {
         const result = await transferenciaService.aprobar(req.params.id, req.user.id, req.body);
         res.json({ data: result });

@@ -77,8 +77,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         className="w-16 px-1 py-0.5 text-[11px] border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
                         autoFocus
                     />
-                    <button onClick={() => saveEdit(itemId, field)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                    <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                    <button type="button" aria-label="Guardar cambio" title="Guardar" onClick={() => saveEdit(itemId, field)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
+                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
                 </div>
             );
         }
@@ -87,7 +87,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
             <div className="flex items-center justify-end gap-1 group">
                 <span>{field === 'valor_arriendo' ? fmtMoney(value) : value}</span>
                 {canEdit && (
-                    <button onClick={() => startEdit(key, value)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-brand-primary/10 rounded transition-opacity">
+                    <button type="button" aria-label="Editar valor" title="Editar" onClick={() => startEdit(key, value)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-brand-primary/10 rounded transition-opacity">
                         <Pencil className="h-2.5 w-2.5 text-brand-primary" />
                     </button>
                 )}
@@ -189,8 +189,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         autoFocus
                                     />
                                     <span className="text-xs font-bold">%</span>
-                                    <button onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 rounded-md"><Check className="h-3 w-3" /></button>
-                                    <button onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 rounded-md"><X className="h-3 w-3" /></button>
+                                    <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 rounded-md"><Check className="h-3 w-3" /></button>
+                                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 rounded-md"><X className="h-3 w-3" /></button>
                                 </div>
                             ) : (
                                 <button
@@ -316,8 +316,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-24 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-right font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Guardar valor de arriendo" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <button
@@ -351,8 +351,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-20 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Guardar cantidad" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <button
@@ -487,8 +487,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                             max={100}
                                         />
                                         <span className="text-muted-foreground">%</span>
-                                        <button onClick={handleDescuentoSave} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                                        <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                                        <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={handleDescuentoSave} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
+                                        <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
                                     </div>
                                 ) : (
                                     <span
