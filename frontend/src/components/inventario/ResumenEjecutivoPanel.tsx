@@ -43,8 +43,9 @@ const CAT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b
 
 // ────────────────────────────────────────────────────────
 // Sparkline — mini gráfico SVG sin dependencias
+// React.memo: el sparkline solo cambia cuando data o tone cambian.
 // ────────────────────────────────────────────────────────
-const Sparkline: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' }> = ({ data, tone }) => {
+const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' }> = ({ data, tone }) => {
     if (!data || data.length < 2) return null;
     const w = 80;
     const h = 22;
@@ -68,11 +69,13 @@ const Sparkline: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'gr
         </svg>
     );
 };
+const Sparkline = React.memo(SparklineImpl);
 
 // ────────────────────────────────────────────────────────
 // Chip comparativa vs mes anterior
+// React.memo: solo cambia cuando delta_pct o invertColor cambian.
 // ────────────────────────────────────────────────────────
-const ComparativaChip: React.FC<{ delta_pct: number | null; invertColor?: boolean }> = ({ delta_pct, invertColor }) => {
+const ComparativaChipImpl: React.FC<{ delta_pct: number | null; invertColor?: boolean }> = ({ delta_pct, invertColor }) => {
     if (delta_pct === null || delta_pct === undefined) return null;
     // invertColor: para KPIs donde subir es malo (pendientes, estancados, etc.)
     const isUp = delta_pct > 0;
@@ -93,9 +96,11 @@ const ComparativaChip: React.FC<{ delta_pct: number | null; invertColor?: boolea
         </span>
     );
 };
+const ComparativaChip = React.memo(ComparativaChipImpl);
 
 // ────────────────────────────────────────────────────────
 // KPI card grande, clickeable, área completa como botón
+// React.memo aplicado al final (después de la definición).
 // ────────────────────────────────────────────────────────
 interface KpiCardProps {
     tone: 'amber' | 'red' | 'blue' | 'green';
@@ -111,7 +116,7 @@ interface KpiCardProps {
     invertDelta?: boolean;
 }
 
-const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta }) => {
+const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta }) => {
     const toneClasses: Record<KpiCardProps['tone'], string> = {
         amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900',
         red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900',
@@ -172,9 +177,10 @@ const KpiCard: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, on
         </Wrapper>
     );
 };
+const KpiCard = React.memo(KpiCardImpl);
 
 // ────────────────────────────────────────────────────────
-// Fila de ranking de obras
+// Fila de ranking de obras (memoizada)
 // ────────────────────────────────────────────────────────
 interface ObraRankingItemProps {
     pos: number;
@@ -183,7 +189,7 @@ interface ObraRankingItemProps {
     onClick: () => void;
 }
 
-const ObraRankingItem: React.FC<ObraRankingItemProps> = ({ pos, obra, maxValor, onClick }) => {
+const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxValor, onClick }) => {
     const pct = maxValor > 0 ? (obra.valor_mensual / maxValor) * 100 : 0;
     const tooltipLines = [
         `${obra.nombre}`,
@@ -229,16 +235,17 @@ const ObraRankingItem: React.FC<ObraRankingItemProps> = ({ pos, obra, maxValor, 
         </button>
     );
 };
+const ObraRankingItem = React.memo(ObraRankingItemImpl);
 
 // ────────────────────────────────────────────────────────
-// Item de alerta
+// Item de alerta (memoizado)
 // ────────────────────────────────────────────────────────
 interface AlertaItemProps {
     alerta: DashboardAlerta;
     onClick: () => void;
 }
 
-const AlertaItem: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
+const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
     const toneMap: Record<DashboardAlerta['tipo'], { bg: string; border: string; icon: React.ReactNode; iconBg: string; cta: string }> = {
         pendiente: {
             bg: 'bg-amber-50/60',
@@ -302,6 +309,7 @@ const AlertaItem: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
         </button>
     );
 };
+const AlertaItem = React.memo(AlertaItemImpl);
 
 // ────────────────────────────────────────────────────────
 // Item de rechazo reciente
