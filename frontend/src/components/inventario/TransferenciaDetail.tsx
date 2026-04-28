@@ -69,8 +69,8 @@ const TransferenciaDetail: React.FC<Props> = ({
     const itemDetail = useItemDetail();
     const Icon = cfg.icon;
 
-    const origen = (t as any).origen_obra_nombre || (t as any).origen_bodega_nombre || '—';
-    const destino = (t as any).destino_obra_nombre || (t as any).destino_bodega_nombre || '—';
+    const origen = t.origen_obra_nombre || t.origen_bodega_nombre || '—';
+    const destino = t.destino_obra_nombre || t.destino_bodega_nombre || '—';
 
     // ── Action permissions ──
     const canAprobar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
@@ -148,8 +148,8 @@ const TransferenciaDetail: React.FC<Props> = ({
             lines.push(`${WARN} *Requiere ${t.cantidad_pionetas || ''} pionetas*`);
         }
         lines.push('');
-        const solicitante = (t as any).solicitante_nombre || '—';
-        const aprobador = (t as any).aprobador_nombre || '—';
+        const solicitante = t.solicitante_nombre || '—';
+        const aprobador = t.aprobador_nombre || '—';
         lines.push(`${PERSON} Solicitante: ${solicitante}`);
         lines.push(`${CHECK} Aprobador: ${aprobador}`);
         lines.push('');
@@ -218,8 +218,10 @@ const TransferenciaDetail: React.FC<Props> = ({
     // Reject state
     const [rejectMotivo, setRejectMotivo] = useState('');
 
-    // Reset forms when transferencia changes
-    useMemo(() => {
+    // Reset forms when transferencia changes.
+    // useEffect (no useMemo): los useMemo no garantizan ejecutar side effects
+    // de forma confiable y React puede skipearlos en re-renders idénticos.
+    useEffect(() => {
         setActiveForm(null);
         setStockData({});
         setApprovalItems(items.map(i => ({
@@ -234,6 +236,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             observacion: '',
         })));
         setRejectMotivo('');
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t.id]);
 
     // Load stock when approval form opens
@@ -298,8 +301,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                             <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700" : "text-gray-600")}>
                                 {t.estado === 'rechazada' ? 'Transferencia Rechazada' : 'Transferencia Cancelada'}
                             </p>
-                            {(t as any).observaciones_rechazo && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{(t as any).observaciones_rechazo}</p>
+                            {t.observaciones_rechazo && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
                             )}
                         </div>
                     </div>
@@ -389,8 +392,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                 <div className="flex items-start gap-2 text-xs text-muted-foreground bg-[#F9F9FB] rounded-lg px-3 py-2">
                     <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <div className="space-y-0.5">
-                        <p>Solicitante: <span className="font-medium text-brand-dark">{(t as any).solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
-                        {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{(t as any).aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
+                        <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
+                        {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{t.aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
                         {t.fecha_recepcion && <p>Recepcion: {fmtDate(t.fecha_recepcion)}</p>}
                     </div>
                 </div>

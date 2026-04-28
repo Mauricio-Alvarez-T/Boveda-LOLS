@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft } from 'lucide-react';
@@ -42,6 +43,18 @@ export const Modal: React.FC<ModalProps> = ({
         }
         onClose();
     };
+
+    // Cierre con tecla Escape (accesibilidad). Reusa handleClose para respetar
+    // el confirm de cambios sin guardar.
+    useEffect(() => {
+        if (!isOpen) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') handleClose();
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]);
 
     return createPortal(
         <AnimatePresence>

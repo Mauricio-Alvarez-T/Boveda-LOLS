@@ -207,11 +207,29 @@ export interface Transferencia {
     destino_bodega_id: number | null;
     origen_nombre?: string;
     destino_nombre?: string;
+    // Joins enriquecidos del backend (getById/getAll). Opcionales porque
+    // no todos los endpoints los traen.
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
+    destino_obra_nombre?: string | null;
+    destino_bodega_nombre?: string | null;
+    aprobador_nombre?: string | null;
+    receptor_nombre?: string | null;
+    transportista_nombre?: string | null;
+    observaciones_rechazo?: string | null;
     solicitante_id: number;
     solicitante_nombre?: string;
     aprobador_id: number | null;
     transportista_id: number | null;
     receptor_id: number | null;
+    // Audit trail (migración 039). Pueden ser null si la transferencia
+    // es anterior a la migración o si la transición aún no ocurrió.
+    creado_por?: number | null;
+    aprobado_por?: number | null;
+    despachado_por?: number | null;
+    recibido_por?: number | null;
+    rechazado_por?: number | null;
+    cancelado_por?: number | null;
     fecha_solicitud: string;
     fecha_aprobacion: string | null;
     fecha_despacho: string | null;

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, MapPin, Warehouse, Copy, Check, X, ImageOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
+import { copyToClipboard } from '../../utils/whatsappShare';
 import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useItemDetail';
 
@@ -43,12 +44,21 @@ const ItemDetailModal: React.FC<Props> = ({
     const bodegas = stockLocations.filter(l => l.type === 'bodega');
     const totalStock = stockLocations.reduce((s, l) => s + l.cantidad, 0);
 
-    const copyNroItem = () => {
+    const copyNroItem = async () => {
         if (!item) return;
-        navigator.clipboard.writeText(String(item.nro_item));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        // Usa helper con fallback execCommand para navegadores sin Clipboard API
+        // o contextos no-HTTPS donde navigator.clipboard.writeText falla.
+        const ok = await copyToClipboard(String(item.nro_item));
+        if (ok) setCopied(true);
     };
+
+    // Cleanup del timeout para evitar memory leak si el modal cierra mientras
+    // el badge "copied" está visible.
+    useEffect(() => {
+        if (!copied) return;
+        const id = setTimeout(() => setCopied(false), 1500);
+        return () => clearTimeout(id);
+    }, [copied]);
 
     const qtyColor = (n: number) =>
         n > 10 ? 'text-green-700 bg-green-50' :
