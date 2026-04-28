@@ -546,18 +546,46 @@ const inventarioService = {
             snapshotsByKpi[r.kpi].push({ fecha: r.fecha, valor: Number(r.valor) || 0 });
         });
 
+        // Buscar snapshot ~30 días atrás. Estrategia robusta: target = HOY - 30 días.
+        // Si no hay punto exacto, tomar el más cercano dentro de ventana ±3 días para
+        // evitar comparar contra un día arbitrario lejano (ej. cron que faltó 5 días).
+        const findMesAnterior = (series) => {
+            if (!series.length) return null;
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const targetMs = today.getTime() - 30 * 86400000;
+            let best = null;
+            let bestDiff = Infinity;
+            for (const p of series) {
+                const pMs = new Date(p.fecha + (typeof p.fecha === 'string' && p.fecha.length === 10 ? 'T12:00:00' : '')).getTime();
+                const diff = Math.abs(pMs - targetMs);
+                if (diff < bestDiff && diff <= 3 * 86400000) {
+                    bestDiff = diff;
+                    best = p;
+                }
+            }
+            return best ? best.valor : null;
+        };
+
         const historico = {};
         for (const kpi of Object.keys(kpisHoy)) {
             const series = snapshotsByKpi[kpi] || [];
             // Sparkline: últimos 6 días del snapshot + valor actual = 7 puntos
             const last6 = series.slice(-6).map(p => p.valor);
             const sparkline = [...last6, kpisHoy[kpi]];
-            // Comparativa: valor hace ~30 días (la serie está ordenada asc; si tiene ≥30 puntos,
-            // el primero es ~30 días atrás).
-            const mes_anterior = series.length >= 20 ? series[0].valor : null;
-            const delta_pct = (mes_anterior !== null && mes_anterior > 0)
-                ? Math.round(((kpisHoy[kpi] - mes_anterior) / mes_anterior) * 100)
-                : null;
+            // Comparativa: valor hace ~30 días (busca punto exacto o ±3 días).
+            const mes_anterior = findMesAnterior(series);
+            // delta_pct: null cuando no hay base comparable (primera vez o cron faltante).
+            //            0 si mes_anterior=0 y hoy=0 (sin cambio real).
+            //            Math.round del % en otros casos. Guard contra div by zero.
+            let delta_pct = null;
+            if (mes_anterior !== null) {
+                if (mes_anterior === 0) {
+                    delta_pct = kpisHoy[kpi] === 0 ? 0 : null; // null = "sin comparable" (subió desde 0)
+                } else {
+                    delta_pct = Math.round(((kpisHoy[kpi] - mes_anterior) / mes_anterior) * 100);
+                }
+            }
             historico[kpi] = { sparkline, mes_anterior, delta_pct };
         }
 

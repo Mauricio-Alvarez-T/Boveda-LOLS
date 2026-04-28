@@ -148,8 +148,8 @@ const transferenciaService = {
                 `INSERT INTO transferencias
                  (codigo, origen_obra_id, origen_bodega_id, destino_obra_id, destino_bodega_id,
                   solicitante_id, observaciones, requiere_pionetas, cantidad_pionetas,
-                  tipo_flujo, motivo)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                  tipo_flujo, motivo, creado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     codigo,
                     validarStockPorObra ? origen_obra_id : (origen_obra_id || null),
@@ -162,6 +162,7 @@ const transferenciaService = {
                     cantidad_pionetas || null,
                     flujo,
                     motivo || null,
+                    solicitanteId, // audit creado_por
                 ]
             );
             const trfId = result.insertId;
@@ -291,7 +292,8 @@ const transferenciaService = {
         try {
             await conn.beginTransaction();
 
-            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ?', [id]);
+            // FOR UPDATE: lock pesimista contra race condition de doble aprobación
+            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trf.length || trf[0].estado !== 'pendiente') throw new Error('Transferencia no está pendiente');
 
             const [dbItems] = await conn.query(
@@ -349,8 +351,8 @@ const transferenciaService = {
             }
 
             await conn.query(
-                `UPDATE transferencias SET estado = 'aprobada', aprobador_id = ?, origen_obra_id = ?, origen_bodega_id = ?, fecha_aprobacion = NOW() WHERE id = ?`,
-                [aprobadorId, primario?.obraId || null, primario?.bodegaId || null, id]
+                `UPDATE transferencias SET estado = 'aprobada', aprobador_id = ?, aprobado_por = ?, origen_obra_id = ?, origen_bodega_id = ?, fecha_aprobacion = NOW() WHERE id = ?`,
+                [aprobadorId, aprobadorId, primario?.obraId || null, primario?.bodegaId || null, id]
             );
 
             // Actualizar cada transferencia_item + persistir splits + decrementar stock
@@ -434,8 +436,8 @@ const transferenciaService = {
 
             const [result] = await conn.query(
                 `INSERT INTO transferencias
-                 (codigo, destino_obra_id, destino_bodega_id, solicitante_id, observaciones, es_faltante_de_id)
-                 VALUES (?, ?, ?, ?, ?, ?)`,
+                 (codigo, destino_obra_id, destino_bodega_id, solicitante_id, observaciones, es_faltante_de_id, creado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?)`,
                 [
                     codigo,
                     origRow.destino_obra_id,
@@ -443,6 +445,7 @@ const transferenciaService = {
                     solicitanteId,
                     `Faltante de transferencia #${transferenciaOriginalId} (auto-generada)`,
                     transferenciaOriginalId,
+                    solicitanteId, // audit creado_por
                 ]
             );
             const newId = result.insertId;
@@ -473,12 +476,12 @@ const transferenciaService = {
         try {
             await conn.beginTransaction();
 
-            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ?', [id]);
+            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trf.length || trf[0].estado !== 'aprobada') throw new Error('Transferencia no está aprobada');
 
             await conn.query(
-                "UPDATE transferencias SET estado = 'en_transito', transportista_id = ?, fecha_despacho = NOW() WHERE id = ?",
-                [transportistaId, id]
+                "UPDATE transferencias SET estado = 'en_transito', transportista_id = ?, despachado_por = ?, fecha_despacho = NOW() WHERE id = ?",
+                [transportistaId, transportistaId, id]
             );
 
             await conn.commit();
@@ -511,7 +514,7 @@ const transferenciaService = {
         try {
             await conn.beginTransaction();
 
-            const [trfRows] = await conn.query('SELECT * FROM transferencias WHERE id = ?', [id]);
+            const [trfRows] = await conn.query('SELECT * FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trfRows.length) throw new Error('Transferencia no encontrada');
             const trf = trfRows[0];
             if (trf.estado !== 'en_transito' && trf.estado !== 'aprobada') {
@@ -608,8 +611,8 @@ const transferenciaService = {
             }
 
             await conn.query(
-                "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, fecha_recepcion = NOW() WHERE id = ?",
-                [receptorId, id]
+                "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
+                [receptorId, receptorId, id]
             );
 
             await conn.commit();
@@ -640,7 +643,7 @@ const transferenciaService = {
 
             const trf = await this._selectForStatusChange(
                 conn,
-                'SELECT estado, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ?',
+                'SELECT estado, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ? FOR UPDATE',
                 [id]
             );
             if (!trf) throw new Error('Transferencia no encontrada');
@@ -656,8 +659,8 @@ const transferenciaService = {
             }
 
             await conn.query(
-                "UPDATE transferencias SET estado = 'rechazada', aprobador_id = ?, observaciones_rechazo = ?, fecha_aprobacion = NOW() WHERE id = ?",
-                [aprobadorId, motivo || null, id]
+                "UPDATE transferencias SET estado = 'rechazada', aprobador_id = ?, rechazado_por = ?, observaciones_rechazo = ?, fecha_aprobacion = NOW() WHERE id = ?",
+                [aprobadorId, aprobadorId, motivo || null, id]
             );
 
             await conn.commit();
@@ -685,7 +688,7 @@ const transferenciaService = {
 
             const trf = await this._selectForStatusChange(
                 conn,
-                'SELECT estado, solicitante_id, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ?',
+                'SELECT estado, solicitante_id, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ? FOR UPDATE',
                 [id]
             );
             if (!trf) throw new Error('Transferencia no encontrada');
@@ -700,7 +703,7 @@ const transferenciaService = {
                 await this._reversarStockAprobada(conn, id, trf);
             }
 
-            await conn.query("UPDATE transferencias SET estado = 'cancelada' WHERE id = ?", [id]);
+            await conn.query("UPDATE transferencias SET estado = 'cancelada', cancelado_por = ? WHERE id = ?", [userId, id]);
 
             await conn.commit();
             return { id, estado: 'cancelada' };
@@ -752,9 +755,10 @@ const transferenciaService = {
                 `INSERT INTO transferencias
                  (codigo, origen_bodega_id, destino_obra_id, solicitante_id, aprobador_id,
                   observaciones, tipo_flujo, motivo, estado,
-                  fecha_aprobacion, fecha_despacho)
-                 VALUES (?, ?, ?, ?, ?, ?, 'push_directo', ?, 'en_transito', NOW(), NOW())`,
-                [codigo, origen_bodega_id, destino_obra_id, userId, userId, observaciones || null, motivo || null]
+                  fecha_aprobacion, fecha_despacho,
+                  creado_por, aprobado_por, despachado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, 'push_directo', ?, 'en_transito', NOW(), NOW(), ?, ?, ?)`,
+                [codigo, origen_bodega_id, destino_obra_id, userId, userId, observaciones || null, motivo || null, userId, userId, userId]
             );
             const trfId = result.insertId;
 
@@ -825,9 +829,10 @@ const transferenciaService = {
                 `INSERT INTO transferencias
                  (codigo, origen_bodega_id, destino_bodega_id, solicitante_id, aprobador_id, receptor_id,
                   observaciones, tipo_flujo, motivo, estado,
-                  fecha_aprobacion, fecha_despacho, fecha_recepcion)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'intra_bodega', ?, 'recibida', NOW(), NOW(), NOW())`,
-                [codigo, origen_bodega_id, destino_bodega_id, userId, userId, userId, observaciones || null, motivo || null]
+                  fecha_aprobacion, fecha_despacho, fecha_recepcion,
+                  creado_por, aprobado_por, despachado_por, recibido_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, 'intra_bodega', ?, 'recibida', NOW(), NOW(), NOW(), ?, ?, ?, ?)`,
+                [codigo, origen_bodega_id, destino_bodega_id, userId, userId, userId, observaciones || null, motivo || null, userId, userId, userId, userId]
             );
             const trfId = result.insertId;
 
@@ -985,8 +990,9 @@ const transferenciaService = {
                  (codigo, origen_obra_id, origen_bodega_id, destino_obra_id, destino_bodega_id,
                   solicitante_id, aprobador_id,
                   observaciones, tipo_flujo, motivo, estado,
-                  fecha_aprobacion, fecha_despacho)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'orden_gerencia', ?, 'en_transito', NOW(), NOW())`,
+                  fecha_aprobacion, fecha_despacho,
+                  creado_por, aprobado_por, despachado_por)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'orden_gerencia', ?, 'en_transito', NOW(), NOW(), ?, ?, ?)`,
                 [
                     codigo,
                     origen_obra_id || null,
@@ -996,6 +1002,7 @@ const transferenciaService = {
                     userId, userId,
                     observaciones || null,
                     String(motivo).trim(),
+                    userId, userId, userId,
                 ]
             );
             const trfId = result.insertId;
