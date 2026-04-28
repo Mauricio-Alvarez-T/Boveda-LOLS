@@ -387,6 +387,30 @@ Antes de hacer merge a `main`:
 
 ---
 
+## 12.1. Modelo de Borrado del Módulo Inventario (soft vs. hard delete)
+
+Esta tabla resume **cómo se elimina cada entidad del módulo Inventario** y por qué. Documentado tras Auditoría Sprint 3 (Item 3.8) para evitar confusión entre devs nuevos.
+
+| Tabla | Modo | Justificación |
+|---|---|---|
+| `items_inventario` | **Soft-delete** (`activo = 0`) | Un ítem que se desactiva puede tener historial de transferencias y discrepancias. Borrarlo duro rompe FKs y elimina trazabilidad. Las queries de listado filtran `WHERE activo = 1`. |
+| `bodegas` | **Soft-delete** (`activa = 0`) | Igual que items: hay stock histórico y transferencias que las referencian como origen/destino. |
+| `obras` | **Soft-delete** (`activa = 0`) | Las obras concentran descuentos, transferencias y stock activo. Borrado duro rompería pagos, despachos y reportes históricos. |
+| `descuentos_obra` | **Hard-delete** (CASCADE FK) | El descuento es una propiedad relacional 1:1 con la obra. No tiene valor sin la obra → CASCADE en `obras` lo elimina. |
+| `ubicaciones_stock` | **Hard-delete** (CASCADE FK) | El stock es un estado **vivo**, no histórico. Si una obra se borra (cosa que NO debería pasar — usamos soft-delete), el stock asociado tampoco tiene sentido. La trazabilidad de movimientos vive en `transferencias` y `transferencia_items`, no en este snapshot. |
+| `transferencias` | **Soft-delete** (`activo = 1`) + estados `cancelada`/`rechazada` | Audit trail crítico (quién aprobó, quién recibió, qué se movió). Nunca se borran físicamente. |
+| `transferencia_discrepancias` | **Hard-delete** (CASCADE FK) | Vinculadas estrictamente a la transferencia. Si la transferencia se desactivara, la discrepancia es inútil sin contexto. |
+
+**Regla operativa:**
+- Lo que tiene **valor histórico independiente** (ítems, bodegas, obras, transferencias) → soft-delete con flag `activo`/`activa`.
+- Lo que es **estado momentáneo dependiente** (stock, descuentos, discrepancias) → hard-delete con CASCADE FK al padre.
+
+**Implicancia para queries:**
+- Toda lectura de listados de items, bodegas u obras debe filtrar `activo = 1` (o `activa = 1`).
+- `ubicaciones_stock` y `descuentos_obra` no tienen esa columna porque siempre están vivos por construcción.
+
+---
+
 ## 13. Dónde Está Qué
 
 ```

@@ -13,7 +13,12 @@ const path = require('path');
 router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
-        const result = await inventarioService.getDashboardEjecutivo(Number.isFinite(obraId) && obraId > 0 ? obraId : null);
+        const topRaw = req.query.top_obras_limit ? Number(req.query.top_obras_limit) : null;
+        const topObrasLimit = Number.isFinite(topRaw) && topRaw > 0 ? topRaw : undefined;
+        const result = await inventarioService.getDashboardEjecutivo(
+            Number.isFinite(obraId) && obraId > 0 ? obraId : null,
+            { topObrasLimit }
+        );
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -53,7 +58,11 @@ router.put('/stock', auth, checkPermission('inventario.editar'), async (req, res
             { cantidad, valorArriendoOverride: valor_arriendo_override }
         );
         res.json({ data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+        // Auditoría 3.2: errores de validación (statusCode 400) → 400 explícito al cliente.
+        if (err && err.statusCode === 400) return res.status(400).json({ error: err.message });
+        next(err);
+    }
 });
 
 // PUT /api/inventario/descuento/obra/:obraId

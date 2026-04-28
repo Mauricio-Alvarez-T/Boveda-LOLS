@@ -1,6 +1,6 @@
 # Roadmap — Auditoría Completa del Módulo Inventario
 
-> **Estado actual:** Sprints 1 y 2 completados. Sprint 3 en preparación.
+> **Estado actual:** Sprints 1, 2 y 3 completados. Sprint 4 (LOW) pendiente.
 > **Rama de trabajo:** `develop`
 > **Plan original:** `C:\Users\maatr\.claude\plans\regalon-necesito-contruir-una-sorted-diffie.md` (aprobado en sesión)
 
@@ -156,54 +156,59 @@ Envolví con `React.memo`:
 
 ---
 
-## 🚧 Sprint 3 — HIGH + MEDIUM backend (PENDIENTE)
+## ✅ Sprint 3 — HIGH + MEDIUM backend (COMPLETADO)
 
-### 3.1 N+1 fix en `getResumen()`
-**Archivo:** `backend/src/services/inventario.service.js` líneas 8-109.
+### 3.1 N+1 fix en `getResumen()` ✅
+**Archivo:** `backend/src/services/inventario.service.js`.
+- 5 queries (obras, bodegas, items, stock, descuentos) corren en paralelo con `Promise.all` (antes secuenciales).
+- `stockMap` ahora es `Map<item_id, Map<key, value>>` (lookups O(1) vs object key building).
+- `descuentos_obra` JOINea `obras WHERE activa=1 AND participa_inventario=1` para filtrar referencias de obras inactivas.
+- Pre-extracción de IDs de obras/bodegas en arrays planos antes del loop caliente para evitar `obras.forEach(o => o.id)` repetido.
+- `parseFloat(item.valor_arriendo)` movido fuera del loop interno (antes se parseaba por cada celda).
 
-**Problema:** 3 loops anidados (obras × items × ubicaciones) para construir el mapa de stock por obra/categoría. Con 50+ obras y 1000+ items, cargar el resumen tarda segundos.
+### 3.2 Validar cantidades >= 0 en stock updates ✅
+**Archivo:** `backend/src/services/inventario.service.js` `actualizarStock()` + `stockBulk.service.js` + `inventario.routes.js`.
+- Guard `if (!Number.isFinite(num) || num < 0 || num > 999999) throw err{statusCode:400}`.
+- También aplica al `valor_arriendo_override` (rechaza valores negativos).
+- En `stockBulk.service.js` agregado upper bound 999999.
+- Ruta `PUT /api/inventario/stock` ahora retorna 400 explícito si `err.statusCode === 400`.
 
-**Plan:**
-- Agregar `WHERE activo = 1` al SELECT de descuentos (línea 48) para reducir filas cargadas.
-- Reemplazar los 3 loops por un `Map<obra_id, Map<categoria_id, total>>` construido en una sola pasada.
-
-### 3.2 Validar cantidades >= 0 en stock updates
-**Archivo:** `backend/src/services/inventario.service.js` líneas 248-278 + `itemInventarioBulk.service.js`.
-
-Agregar guard `if (cantidad < 0 || cantidad > 999999) throw {statusCode: 400, ...}`. Hoy el UPSERT acepta valores negativos sin error.
-
-### 3.3 Fix permiso resolver discrepancia
+### 3.3 Fix permiso resolver discrepancia ✅
 **Archivo:** `backend/src/routes/transferencias.routes.js` línea 40.
+- `checkPermission('inventario.editar')` → `checkPermission('inventario.aprobar')`.
 
-Cambiar `checkPermission('inventario.editar')` → `checkPermission('inventario.aprobar')`. Resolver una discrepancia es decisión de aprobador, no editor.
-
-### 3.4 `snapshot_dashboard.js` robusto
+### 3.4 `snapshot_dashboard.js` robusto ✅
 **Archivo:** `backend/scripts/snapshot_dashboard.js`.
+- Helper `queryWithTimeout(pool, sql, params)` con `Promise.race` contra timeout configurable (`SNAPSHOT_QUERY_TIMEOUT_MS`, default 30000ms).
+- `connectTimeout: 10000` y `connectionLimit: 5` agregados al pool.
+- `main().catch()` global que loguea y `process.exit(1)`.
+- `process.on('unhandledRejection')` como última línea de defensa.
+- `pool.end().catch()` en `finally` para no enmascarar el exit code original.
 
-Wrap en try/catch global, agregar timeout por query, `process.exit(1)` en errores. Cron de cPanel detecta exit codes y alerta.
+### 3.5 Eliminar cache módulo-wide `_stockReconcilColMissing` ✅
+**Archivo:** `backend/src/services/transferencia.service.js`.
+- Eliminado `let _stockReconcilColMissing` global y el `try/catch` con `ER_BAD_FIELD_ERROR`.
+- `_selectForStatusChange` ahora simplemente reemplaza `{reconcil}` → `stock_reconciliado` y ejecuta. La migración 036 ya está aplicada en todos los entornos.
 
-### 3.5 Eliminar cache módulo-wide `_stockReconcilColMissing`
-**Archivo:** `backend/src/services/transferencia.service.js` líneas 27-57.
+### 3.6 Paginación en discrepancias ✅
+**Archivo:** `backend/src/services/transferencia.service.js` método `getDiscrepancias`.
+- Validar/clamp de `page` (≥1) y `limit` (1-200, default 50) antes de armar el SQL.
+- Evita `offset` negativo o `limit` gigante por param malicioso.
 
-La migración 036 ya está aplicada en staging. El fallback que asume que la columna `stock_reconciliado` puede no existir ya no es necesario. Eliminar el cache + el catch del `ER_BAD_FIELD_ERROR` y simplemente usar `stock_reconciliado` directo.
+### 3.7 Top obras configurable ✅
+**Archivo:** `backend/src/services/inventario.service.js` + `routes/inventario.routes.js`.
+- `getDashboardEjecutivo(obraId, options)` acepta `options.topObrasLimit`. Default 5, clamp [1, 50].
+- Ruta lee `req.query.top_obras_limit` y lo pasa al service.
 
-### 3.6 Paginación en discrepancias
-**Archivo:** `backend/src/services/discrepancias.service.js`.
+### 3.8 Documentar decisión soft-delete ✅
+**Archivo:** `docs/RUNBOOK.md` § 12.1.
+- Tabla con cada entidad del módulo Inventario, modo de borrado (soft/hard) y justificación.
+- Regla operativa: valor histórico independiente → soft-delete; estado momentáneo dependiente → hard-delete con CASCADE.
 
-`getAll()` retorna todas las filas sin `total / page / limit`. Agregar parámetros y query `COUNT(*)` para paginar.
-
-### 3.7 Top obras configurable
-**Archivo:** `backend/src/services/inventario.service.js` método `getDashboardEjecutivo`.
-
-Hardcoded `slice(0, 5)`. Agregar `topObrasLimit = 5` como opcional param.
-
-### 3.8 Documentar decisión soft-delete `ubicaciones_stock`
-**Archivo:** `docs/RUNBOOK.md`.
-
-Agregar sección que explique por qué `ubicaciones_stock` se borra duro (CASCADE) cuando se elimina obra/item, mientras que `items_inventario` y `bodegas` usan soft-delete (`activo`).
-
-### 3.9 ResumenMensualTable memoización (diferido del Sprint 2)
-Ver detalles en Sprint 2.5.
+### 3.9 ResumenMensualTable memoización ✅ (diferido del Sprint 2)
+**Archivo:** `frontend/src/components/inventario/ResumenMensualTable.tsx`.
+- `renderEditableQty` envuelto en `useCallback` con dependencies sobre `desktopEdit.*` + `canEdit`.
+- Componente exportado vía `React.memo(ResumenMensualTable)` para evitar re-renders cuando el padre (`Inventario.tsx`) re-renderea por tabs/modales.
 
 ---
 

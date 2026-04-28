@@ -37,7 +37,7 @@ router.get('/discrepancias', auth, checkPermission('inventario.ver'), async (req
 });
 
 // PUT /api/transferencias/discrepancias/:id/resolver  body: { estado, resolucion }
-router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.aprobar'), async (req, res, next) => {
     try {
         const { estado, resolucion } = req.body;
         const result = await transferenciaService.resolverDiscrepancia(

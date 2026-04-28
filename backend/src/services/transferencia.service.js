@@ -24,37 +24,17 @@ const db = require('../config/db');
  * FALSE→TRUE tras re-incrementar el origen, llevando legacy al régimen nuevo.
  */
 
-// Cache módulo: una vez que un SELECT falla por columna `stock_reconciliado`
-// inexistente (migración 036 pendiente en staging/prod), las llamadas siguientes
-// saltan directo al fragmento `TRUE AS stock_reconciliado` en vez de relanzar
-// el error. Se flipa a TRUE cuando algún SELECT con la columna sí funciona,
-// por si la migración se corre mid-proceso.
-let _stockReconcilColMissing = false;
-
 const transferenciaService = {
     /**
-     * Helper: SELECT de transferencia tolerante a migración 036 pendiente.
-     * Placeholder `{reconcil}` en `sqlTemplate` se sustituye por
-     * `stock_reconciliado` normalmente, o por `TRUE AS stock_reconciliado`
-     * si la columna no existe. Si falla con ER_BAD_FIELD_ERROR, reintenta
-     * sin la columna y memoiza para llamadas siguientes.
+     * Helper: SELECT de transferencia con FOR UPDATE para transición de estado.
+     * La migración 036 (columna `stock_reconciliado`) ya está aplicada en
+     * todos los entornos — desde Sprint 3 de la auditoría se asume su
+     * existencia y se eliminó el fallback ER_BAD_FIELD_ERROR.
      */
     async _selectForStatusChange(conn, sqlTemplate, params) {
-        const build = (missing) => sqlTemplate.replace(
-            '{reconcil}',
-            missing ? 'TRUE AS stock_reconciliado' : 'stock_reconciliado'
-        );
-        try {
-            const [rows] = await conn.query(build(_stockReconcilColMissing), params);
-            return rows[0] || null;
-        } catch (err) {
-            if (!_stockReconcilColMissing && err && err.code === 'ER_BAD_FIELD_ERROR') {
-                _stockReconcilColMissing = true;
-                const [rows] = await conn.query(build(true), params);
-                return rows[0] || null;
-            }
-            throw err;
-        }
+        const sql = sqlTemplate.replace('{reconcil}', 'stock_reconciliado');
+        const [rows] = await conn.query(sql, params);
+        return rows[0] || null;
     },
 
     /**
@@ -1149,7 +1129,14 @@ const transferenciaService = {
      * (solicitante, aprobador, receptor, origen, destino, fechas) y sus items con diferencia.
      */
     async getDiscrepancias(query = {}) {
-        const { page = 1, limit = 50, estado } = query;
+        // Auditoría 3.6: validar/clamp page+limit antes de armar SQL.
+        const rawPage = Number(query.page);
+        const rawLimit = Number(query.limit);
+        const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.trunc(rawPage) : 1;
+        const limit = Number.isFinite(rawLimit) && rawLimit > 0
+            ? Math.min(Math.max(Math.trunc(rawLimit), 1), 200)
+            : 50;
+        const { estado } = query;
         const offset = (page - 1) * limit;
 
         const params = [];

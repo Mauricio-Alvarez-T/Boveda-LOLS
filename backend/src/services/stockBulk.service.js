@@ -49,8 +49,9 @@ function sanitizeAdjustment(raw, idx) {
     const fields = {};
     if (raw.cantidad !== undefined) {
         const n = Number(raw.cantidad);
-        if (!Number.isFinite(n) || n < 0) {
-            throw new Error(`Ajuste #${idx} (item=${item_id}): cantidad inválida`);
+        // Auditoría 3.2: además del lower bound, agregar upper bound 999999 para evitar overflows accidentales.
+        if (!Number.isFinite(n) || n < 0 || n > 999999) {
+            throw new Error(`Ajuste #${idx} (item=${item_id}): cantidad inválida (rango 0-999999)`);
         }
         fields.cantidad = n;
     }

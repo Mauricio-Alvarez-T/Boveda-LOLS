@@ -20,6 +20,23 @@
 require('dotenv').config();
 const mysql = require('mysql2/promise');
 
+// Timeout por query (ms). Si una query tarda más, abortamos para no bloquear el cron.
+const QUERY_TIMEOUT_MS = Number(process.env.SNAPSHOT_QUERY_TIMEOUT_MS) || 30000;
+
+// Wrap pool.query en una carrera contra un timeout. Si el timeout dispara primero
+// rechaza con un Error etiquetado para que el catch global pueda distinguirlo.
+function queryWithTimeout(pool, sql, params = []) {
+    return Promise.race([
+        pool.query(sql, params),
+        new Promise((_, reject) =>
+            setTimeout(
+                () => reject(new Error(`Query timeout (>${QUERY_TIMEOUT_MS}ms): ${sql.slice(0, 80).replace(/\s+/g, ' ').trim()}…`)),
+                QUERY_TIMEOUT_MS
+            )
+        ),
+    ]);
+}
+
 async function main() {
     const fechaArg = process.argv[2];
     const fecha = fechaArg || new Date().toISOString().slice(0, 10);
@@ -38,6 +55,8 @@ async function main() {
         database: process.env.DB_NAME || 'sgdl',
         port: process.env.DB_PORT || 3306,
         charset: 'utf8mb4',
+        connectTimeout: 10000,
+        connectionLimit: 5,
     });
 
     try {
@@ -48,21 +67,21 @@ async function main() {
             [discrepRows],
             [valorRows],
         ] = await Promise.all([
-            pool.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
-            pool.query("SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito'"),
-            pool.query(`
+            queryWithTimeout(pool, "SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente'"),
+            queryWithTimeout(pool, "SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito'"),
+            queryWithTimeout(pool, `
                 SELECT COUNT(*) as count
                 FROM transferencias
                 WHERE activo = 1 AND estado = 'en_transito'
                   AND DATEDIFF(NOW(), fecha_despacho) >= 7
             `),
-            pool.query(`
+            queryWithTimeout(pool, `
                 SELECT COUNT(DISTINCT d.transferencia_id) as count
                 FROM transferencia_discrepancias d
                 JOIN transferencias t ON t.id = d.transferencia_id
                 WHERE t.activo = 1 AND d.estado = 'pendiente'
             `),
-            pool.query(`
+            queryWithTimeout(pool, `
                 SELECT COALESCE(SUM(neto), 0) as valor_total FROM (
                     SELECT o.id,
                            COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0)
@@ -88,7 +107,8 @@ async function main() {
         console.log('  KPIs:', kpis);
 
         for (const [kpi, valor] of Object.entries(kpis)) {
-            await pool.query(
+            await queryWithTimeout(
+                pool,
                 `INSERT INTO dashboard_kpi_snapshots (fecha, kpi, valor)
                  VALUES (?, ?, ?)
                  ON DUPLICATE KEY UPDATE valor = VALUES(valor), updated_at = CURRENT_TIMESTAMP`,
@@ -97,12 +117,21 @@ async function main() {
         }
 
         console.log(`✅ Snapshot ${fecha} guardado (5 KPIs).`);
-    } catch (err) {
-        console.error('❌ Error creando snapshot:', err.message);
-        process.exit(1);
     } finally {
-        await pool.end();
+        await pool.end().catch(() => {}); // No bloquear el exit code si el pool falla cerrando
     }
 }
 
-main();
+// Catch-all global: cualquier error (timeout, conexión, query) propaga exit(1)
+// para que cron de cPanel lo detecte y alerte por mail.
+main().catch((err) => {
+    console.error('❌ Error creando snapshot:', err && err.message ? err.message : err);
+    if (err && err.stack) console.error(err.stack);
+    process.exit(1);
+});
+
+// Última línea de defensa: rejections no atadas a la promesa de main().
+process.on('unhandledRejection', (reason) => {
+    console.error('❌ Unhandled rejection:', reason);
+    process.exit(1);
+});

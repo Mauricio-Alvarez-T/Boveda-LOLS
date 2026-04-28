@@ -6,20 +6,7 @@ const inventarioService = {
      * Devuelve estructura agrupada por categoría, con totales.
      */
     async getResumen(obraId = null) {
-        // 1. Obtener todas las ubicaciones activas (obras + bodegas)
-        const [obras] = await db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre');
-        const [bodegas] = await db.query('SELECT id, nombre FROM bodegas WHERE activa = 1 ORDER BY nombre');
-
-        // 2. Obtener todos los ítems con su categoría
-        const [items] = await db.query(`
-            SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
-            FROM items_inventario i
-            JOIN categorias_inventario c ON i.categoria_id = c.id
-            WHERE i.activo = 1
-            ORDER BY c.orden ASC, i.nro_item ASC
-        `);
-
-        // 3. Obtener todo el stock
+        // 1+2+3+5: traer obras, bodegas, items, stock y descuentos en paralelo
         let stockQuery = `
             SELECT us.item_id, us.obra_id, us.bodega_id, us.cantidad, us.valor_arriendo_override
             FROM ubicaciones_stock us
@@ -31,80 +18,115 @@ const inventarioService = {
             stockQuery += ' AND us.obra_id = ?';
             stockParams.push(obraId);
         }
-        const [stock] = await db.query(stockQuery, stockParams);
 
-        // 4. Indexar stock por item_id -> { obra_X: cantidad, bodega_X: cantidad }
-        const stockMap = {};
-        stock.forEach(s => {
-            if (!stockMap[s.item_id]) stockMap[s.item_id] = {};
+        const [
+            [obras],
+            [bodegas],
+            [items],
+            [stock],
+            [descuentos],
+        ] = await Promise.all([
+            db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
+            db.query('SELECT id, nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
+            db.query(`
+                SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
+                FROM items_inventario i
+                JOIN categorias_inventario c ON i.categoria_id = c.id
+                WHERE i.activo = 1
+                ORDER BY c.orden ASC, i.nro_item ASC
+            `),
+            db.query(stockQuery, stockParams),
+            // Solo descuentos de obras activas que participan en inventario (FK CASCADE protege contra obras eliminadas)
+            db.query(`
+                SELECT d.obra_id, d.porcentaje
+                FROM descuentos_obra d
+                JOIN obras o ON d.obra_id = o.id
+                WHERE o.activa = 1 AND o.participa_inventario = 1
+            `),
+        ]);
+
+        // 4. Indexar stock por item_id en una sola pasada usando Map (lookup O(1) más eficiente que objeto plain)
+        const stockMap = new Map();
+        for (const s of stock) {
+            let inner = stockMap.get(s.item_id);
+            if (!inner) {
+                inner = new Map();
+                stockMap.set(s.item_id, inner);
+            }
             const key = s.obra_id ? `obra_${s.obra_id}` : `bodega_${s.bodega_id}`;
-            stockMap[s.item_id][key] = {
-                cantidad: s.cantidad,
-                valor_arriendo_override: s.valor_arriendo_override
-            };
-        });
+            inner.set(key, { cantidad: s.cantidad, override: s.valor_arriendo_override });
+        }
 
-        // 5. Obtener descuentos por obra
-        const [descuentos] = await db.query('SELECT obra_id, porcentaje FROM descuentos_obra');
+        // Pre-construir descuentoMap
         const descuentoMap = {};
-        descuentos.forEach(d => { descuentoMap[d.obra_id] = parseFloat(d.porcentaje); });
+        for (const d of descuentos) {
+            descuentoMap[d.obra_id] = parseFloat(d.porcentaje);
+        }
+
+        // Pre-extraer arrays planos de IDs para evitar acceso repetido en loops calientes
+        const obraIds = obras.map(o => o.id);
+        const bodegaIds = bodegas.map(b => b.id);
 
         // 6. Construir resultado agrupado por categoría
-        const categorias = {};
-        items.forEach(item => {
-            const catKey = item.categoria_id;
-            if (!categorias[catKey]) {
-                categorias[catKey] = {
+        const categorias = new Map();
+
+        for (const item of items) {
+            let cat = categorias.get(item.categoria_id);
+            if (!cat) {
+                cat = {
                     id: item.categoria_id,
                     nombre: item.categoria_nombre,
                     orden: item.categoria_orden,
-                    items: []
+                    items: [],
                 };
+                categorias.set(item.categoria_id, cat);
             }
 
-            const itemStock = stockMap[item.id] || {};
+            const itemStock = stockMap.get(item.id);
+            const valorArriendoBase = parseFloat(item.valor_arriendo);
             const ubicaciones = {};
             let totalArriendo = 0;
             let totalCantidad = 0;
 
-            // Por cada obra
-            obras.forEach(o => {
-                const s = itemStock[`obra_${o.id}`];
+            // Por cada obra (solo lookup en stockMap, sin parsear el valor_arriendo en cada vuelta)
+            for (const oid of obraIds) {
+                const s = itemStock ? itemStock.get(`obra_${oid}`) : undefined;
                 const cant = s ? s.cantidad : 0;
-                const arriendo = s?.valor_arriendo_override ?? item.valor_arriendo;
-                ubicaciones[`obra_${o.id}`] = { cantidad: cant, total: cant * arriendo };
-                totalArriendo += cant * arriendo;
+                const arriendo = s && s.override != null ? parseFloat(s.override) : valorArriendoBase;
+                const total = cant * arriendo;
+                ubicaciones[`obra_${oid}`] = { cantidad: cant, total };
+                totalArriendo += total;
                 totalCantidad += cant;
-            });
+            }
 
-            // Por cada bodega
-            bodegas.forEach(b => {
-                const s = itemStock[`bodega_${b.id}`];
+            // Por cada bodega (no facturan arriendo)
+            for (const bid of bodegaIds) {
+                const s = itemStock ? itemStock.get(`bodega_${bid}`) : undefined;
                 const cant = s ? s.cantidad : 0;
-                ubicaciones[`bodega_${b.id}`] = { cantidad: cant, total: 0 }; // bodegas no facturan arriendo
+                ubicaciones[`bodega_${bid}`] = { cantidad: cant, total: 0 };
                 totalCantidad += cant;
-            });
+            }
 
-            categorias[catKey].items.push({
+            cat.items.push({
                 id: item.id,
                 nro_item: item.nro_item,
                 descripcion: item.descripcion,
                 m2: item.m2 ? parseFloat(item.m2) : null,
                 valor_compra: parseFloat(item.valor_compra),
-                valor_arriendo: parseFloat(item.valor_arriendo),
+                valor_arriendo: valorArriendoBase,
                 unidad: item.unidad,
                 imagen_url: item.imagen_url ? (item.imagen_url.startsWith('/api/') ? item.imagen_url : `/api${item.imagen_url}`) : null,
                 ubicaciones,
                 total_arriendo: totalArriendo,
-                total_cantidad: totalCantidad
+                total_cantidad: totalCantidad,
             });
-        });
+        }
 
         return {
             obras: obras.map(o => ({ id: o.id, nombre: o.nombre })),
             bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre })),
-            categorias: Object.values(categorias).sort((a, b) => a.orden - b.orden),
-            descuentos: descuentoMap
+            categorias: Array.from(categorias.values()).sort((a, b) => a.orden - b.orden),
+            descuentos: descuentoMap,
         };
     },
 
@@ -246,6 +268,24 @@ const inventarioService = {
      * Upsert: si no existe la fila en ubicaciones_stock, la crea.
      */
     async actualizarStock(itemId, obraId, bodegaId, { cantidad, valorArriendoOverride }) {
+        // Auditoría 3.2: validar rangos antes del UPSERT (antes el UPSERT aceptaba negativos sin error).
+        if (cantidad !== undefined && cantidad !== null) {
+            const num = Number(cantidad);
+            if (!Number.isFinite(num) || num < 0 || num > 999999) {
+                const err = new Error('cantidad debe ser un entero entre 0 y 999999');
+                err.statusCode = 400;
+                throw err;
+            }
+        }
+        if (valorArriendoOverride !== undefined && valorArriendoOverride !== null) {
+            const num = Number(valorArriendoOverride);
+            if (!Number.isFinite(num) || num < 0) {
+                const err = new Error('valor_arriendo_override debe ser >= 0');
+                err.statusCode = 400;
+                throw err;
+            }
+        }
+
         const updates = {};
         if (cantidad !== undefined) updates.cantidad = cantidad;
         if (valorArriendoOverride !== undefined) updates.valor_arriendo_override = valorArriendoOverride;
@@ -300,7 +340,13 @@ const inventarioService = {
      *
      * Todas las queries corren en paralelo para minimizar latencia.
      */
-    async getDashboardEjecutivo(obraId = null) {
+    async getDashboardEjecutivo(obraId = null, options = {}) {
+        // Auditoría 3.7: top obras configurable. Default 5 conserva contrato existente.
+        // Clamp [1, 50] para evitar payloads gigantes accidentales.
+        const rawLimit = Number(options.topObrasLimit);
+        const topObrasLimit = Number.isFinite(rawLimit) && rawLimit > 0
+            ? Math.min(Math.max(Math.trunc(rawLimit), 1), 50)
+            : 5;
         // Filtro condicional para queries que tocan transferencias.
         // Una transferencia "pertenece" a la obra si la obra es origen O destino.
         const obraIdNum = obraId ? Number(obraId) : null;
@@ -482,7 +528,7 @@ const inventarioService = {
         // Cuando hay filtro por obra, el "ranking" pierde sentido (es una sola obra) → vacío.
         const top_obras = obraIdNum
             ? []
-            : obrasConValor.filter(o => o.valor_mensual > 0).slice(0, 5);
+            : obrasConValor.filter(o => o.valor_mensual > 0).slice(0, topObrasLimit);
 
         // Componer alertas, unificadas por tipo
         const formatUbic = (obra, bodega) => obra || bodega || '—';
