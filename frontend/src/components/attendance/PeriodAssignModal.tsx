@@ -26,7 +26,6 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
     const [observacion, setObservacion] = useState('');
     const [loading, setLoading] = useState(false);
     const [existingPeriods, setExistingPeriods] = useState<PeriodoAusencia[]>([]);
-    const [loadingPeriods, setLoadingPeriods] = useState(false);
     const [deletingPeriodId, setDeletingPeriodId] = useState<number | null>(null);
 
     // Filtrar solo estados de ausencia (no presente)
@@ -43,11 +42,9 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
 
     React.useEffect(() => {
         if (!isOpen || !worker || !obraId) return;
-        setLoadingPeriods(true);
         api.get(`/asistencias/periodos?trabajador_id=${worker.id}&obra_id=${obraId}&activo=true`)
             .then(res => setExistingPeriods(res.data.data || []))
-            .catch(() => setExistingPeriods([]))
-            .finally(() => setLoadingPeriods(false));
+            .catch(() => setExistingPeriods([]));
 
         if (initialDates) {
             setFechaInicio(initialDates.start);

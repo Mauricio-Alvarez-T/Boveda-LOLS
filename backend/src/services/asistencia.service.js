@@ -37,6 +37,16 @@ const asistenciaService = {
     async bulkCreate(obraId, registros, registradoPor, req) {
         if (!registros || registros.length === 0) return [];
 
+        // Cap defensivo contra DoS. Frontend nunca envía más que trabajadores visibles
+        // (<1000 realistas), así que este límite protege sin bloquear uso legítimo.
+        const MAX_REGISTROS = 1000;
+        if (registros.length > MAX_REGISTROS) {
+            throw Object.assign(
+                new Error(`Demasiados registros en un solo batch (${registros.length}). Máximo permitido: ${MAX_REGISTROS}.`),
+                { statusCode: 413 }
+            );
+        }
+
         const results = [];
         const logEntries = [];
         const conn = await db.getConnection();
@@ -116,9 +126,9 @@ const asistenciaService = {
             }
 
             // ── LOOP: Solo writes (INSERT/UPDATE), sin queries de lectura ──
-            const booleanFields = new Set(['es_sabado']);
+            const booleanFields = new Set();
             const numericFields = new Set(['estado_id', 'tipo_ausencia_id', 'horas_extra']);
-            const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra', 'es_sabado'];
+            const fieldsToCheck = ['estado_id', 'tipo_ausencia_id', 'observacion', 'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin', 'horas_extra'];
 
             for (const reg of registros) {
                 const fechaNormalizada = typeof reg.fecha === 'string' ? reg.fecha.split('T')[0] : reg.fecha;
@@ -162,7 +172,7 @@ const asistenciaService = {
                     await conn.query(
                         `UPDATE asistencias SET estado_id = ?, tipo_ausencia_id = ?, observacion = ?,
                          hora_entrada = ?, hora_salida = ?, hora_colacion_inicio = ?, hora_colacion_fin = ?,
-                         horas_extra = ?, es_sabado = ?
+                         horas_extra = ?
                          WHERE id = ?`,
                         [
                             reg.estado_id,
@@ -173,7 +183,6 @@ const asistenciaService = {
                             reg.hora_colacion_inicio || null,
                             reg.hora_colacion_fin || null,
                             reg.horas_extra || 0,
-                            reg.es_sabado || false,
                             old.id
                         ]
                     );
@@ -183,6 +192,8 @@ const asistenciaService = {
                         logEntries.push({
                             trabajador_id: reg.trabajador_id,
                             asistencia_id: old.id,
+                            obra_id: globalObraId,
+                            estado_id: reg.estado_id,
                             accion: 'UPDATE',
                             cambios,
                             fecha: fechaNormalizada
@@ -193,8 +204,8 @@ const asistenciaService = {
                         `INSERT INTO asistencias
                          (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion,
                           hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin,
-                          horas_extra, es_sabado, registrado_por)
-                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                          horas_extra, registrado_por)
+                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                         [
                             reg.trabajador_id, globalObraId, fechaNormalizada,
                             reg.estado_id,
@@ -205,7 +216,6 @@ const asistenciaService = {
                             reg.hora_colacion_inicio || null,
                             reg.hora_colacion_fin || null,
                             reg.horas_extra || 0,
-                            reg.es_sabado || false,
                             registradoPor
                         ]
                     );
@@ -214,6 +224,8 @@ const asistenciaService = {
                     logEntries.push({
                         trabajador_id: reg.trabajador_id,
                         asistencia_id: result.insertId,
+                        obra_id: globalObraId,
+                        estado_id: reg.estado_id,
                         accion: 'CREATE',
                         cambios: null,
                         fecha: fechaNormalizada
@@ -240,17 +252,56 @@ const asistenciaService = {
     },
 
     /**
-     * Registra logs individuales para cambios de asistencia.
+     * Batch save — upsert transaccional multi-obra / multi-fecha en un único request.
+     *
+     * Wrapper sobre bulkCreate('ALL', ...) que valida que cada registro traiga
+     * trabajador_id, obra_id y fecha. Devuelve el mismo shape que bulkCreate.
+     *
+     * Pensado para flujos tipo "Repetir día anterior" y futuras cargas bulk de
+     * múltiples días / obras en un único POST.
+     */
+    async batchSave(registros, registradoPor, req) {
+        if (!Array.isArray(registros) || registros.length === 0) return [];
+
+        for (const [i, reg] of registros.entries()) {
+            if (!reg || typeof reg !== 'object') {
+                throw new Error(`Registro #${i} inválido`);
+            }
+            if (!reg.trabajador_id || !reg.obra_id || !reg.fecha) {
+                throw new Error(`Registro #${i}: trabajador_id, obra_id y fecha son requeridos`);
+            }
+            if (!reg.estado_id) {
+                throw new Error(`Registro #${i}: estado_id es requerido`);
+            }
+        }
+
+        return this.bulkCreate('ALL', registros, registradoPor, req);
+    },
+
+    /**
+     * Registra logs de cambios de asistencia.
+     *
+     * Regla de agrupación:
+     *   - Agrupa por obra_id.
+     *   - Si un grupo tiene ≥2 entries → 1 fila en logs_actividad con type=bulk_asistencia
+     *     (lista completa de trabajadores en el JSON detalle).
+     *   - Si un grupo tiene 1 entry → 1 fila formato compact (comportamiento previo).
+     *
      * Se ejecuta después del commit para no impactar la transacción principal.
      */
     async _logBulkChanges(entries, obraId, userId, req) {
-        // Obtener nombres de trabajadores y estados en batch (1 query cada uno)
+        if (!entries || entries.length === 0) return;
+
+        // ── Batch lookups ──
         const workerIds = [...new Set(entries.map(e => e.trabajador_id))];
         const [workers] = await db.query(
             'SELECT id, nombres, apellido_paterno FROM trabajadores WHERE id IN (?)',
             [workerIds]
         );
-        const workerMap = Object.fromEntries(workers.map(w => [w.id, `${w.nombres} ${w.apellido_paterno}`]));
+        const workerMap = new Map(workers.map(w => [w.id, {
+            nombre: `${w.nombres} ${w.apellido_paterno}`,
+            apellido: w.apellido_paterno || ''
+        }]));
 
         const [estados] = await db.query('SELECT id, nombre FROM estados_asistencia');
         const estadoMap = Object.fromEntries(estados.map(e => [e.id, e.nombre]));
@@ -261,6 +312,17 @@ const asistenciaService = {
             tipoAusenciaMap = Object.fromEntries(tiposAusencia.map(t => [t.id, t.nombre]));
         } catch (e) { /* tabla puede no existir */ }
 
+        // Nombres de obras involucradas
+        const obraIds = [...new Set(entries.map(e => e.obra_id).filter(x => x != null))];
+        const obraMap = {};
+        if (obraIds.length > 0) {
+            const [obras] = await db.query(
+                'SELECT id, nombre FROM obras WHERE id IN (?)',
+                [obraIds]
+            );
+            for (const o of obras) obraMap[o.id] = o.nombre;
+        }
+
         const fieldLabels = {
             estado_id: 'Estado',
             tipo_ausencia_id: 'Tipo Ausencia',
@@ -269,50 +331,126 @@ const asistenciaService = {
             hora_salida: 'Hora Salida',
             hora_colacion_inicio: 'Inicio Colación',
             hora_colacion_fin: 'Fin Colación',
-            horas_extra: 'Horas Extra',
-            es_sabado: 'Sábado'
+            horas_extra: 'Horas Extra'
         };
 
-        for (const entry of entries) {
-            const nombreTrabajador = workerMap[entry.trabajador_id] || `ID ${entry.trabajador_id}`;
+        const formatV = (v) => v === null || v === undefined ? '—' : (v === true ? 'Sí' : (v === false ? 'No' : String(v)));
 
-            let detalle;
+        // Traduce cambios.estado_id / tipo_ausencia_id → nombres legibles
+        const traducirCambios = (cambios) => {
+            const out = { ...cambios };
+            if (out.estado_id) {
+                out.estado_id = {
+                    de: estadoMap[out.estado_id.de] || out.estado_id.de,
+                    a: estadoMap[out.estado_id.a] || out.estado_id.a
+                };
+            }
+            if (out.tipo_ausencia_id) {
+                out.tipo_ausencia_id = {
+                    de: tipoAusenciaMap[out.tipo_ausencia_id.de] || out.tipo_ausencia_id.de,
+                    a: tipoAusenciaMap[out.tipo_ausencia_id.a] || out.tipo_ausencia_id.a
+                };
+            }
+            return out;
+        };
+
+        // Construir detalle compact para entries individuales (formato legacy)
+        const buildCompactDetail = (entry) => {
+            const nombreTrabajador = (workerMap.get(entry.trabajador_id) || {}).nombre || `ID ${entry.trabajador_id}`;
             if (entry.accion === 'CREATE') {
-                detalle = JSON.stringify({
+                return JSON.stringify({
                     resumen: `Asistencia registrada: ${nombreTrabajador} (${entry.fecha})`
                 });
-            } else {
-                // Traducir IDs a nombres legibles
-                const cambiosLegibles = { ...entry.cambios };
-                if (cambiosLegibles.estado_id) {
-                    cambiosLegibles.estado_id = {
-                        de: estadoMap[cambiosLegibles.estado_id.de] || cambiosLegibles.estado_id.de,
-                        a: estadoMap[cambiosLegibles.estado_id.a] || cambiosLegibles.estado_id.a
-                    };
-                }
-                if (cambiosLegibles.tipo_ausencia_id) {
-                    cambiosLegibles.tipo_ausencia_id = {
-                        de: tipoAusenciaMap[cambiosLegibles.tipo_ausencia_id.de] || cambiosLegibles.tipo_ausencia_id.de,
-                        a: tipoAusenciaMap[cambiosLegibles.tipo_ausencia_id.a] || cambiosLegibles.tipo_ausencia_id.a
-                    };
-                }
+            }
+            const cambiosLegibles = traducirCambios(entry.cambios || {});
+            const resumenParts = [];
+            for (const [key, val] of Object.entries(cambiosLegibles)) {
+                const label = fieldLabels[key] || key;
+                resumenParts.push(`${label}: ${formatV(val.de)} → ${formatV(val.a)}`);
+            }
+            return JSON.stringify({
+                trabajador: nombreTrabajador,
+                fecha: entry.fecha,
+                cambios: cambiosLegibles,
+                resumen: `${nombreTrabajador}: ${resumenParts.join(' | ')}`
+            });
+        };
 
-                const resumenParts = [];
-                for (const [key, val] of Object.entries(cambiosLegibles)) {
-                    const label = fieldLabels[key] || key;
-                    const formatV = (v) => v === null || v === undefined ? '—' : (v === true ? 'Sí' : (v === false ? 'No' : String(v)));
-                    resumenParts.push(`${label}: ${formatV(val.de)} → ${formatV(val.a)}`);
-                }
+        // ── Agrupar por obra_id ──
+        const porObra = new Map();
+        for (const entry of entries) {
+            const key = entry.obra_id ?? 'null';
+            if (!porObra.has(key)) porObra.set(key, []);
+            porObra.get(key).push(entry);
+        }
 
-                detalle = JSON.stringify({
-                    trabajador: nombreTrabajador,
-                    fecha: entry.fecha,
-                    cambios: cambiosLegibles,
-                    resumen: `${nombreTrabajador}: ${resumenParts.join(' | ')}`
-                });
+        for (const [obraKey, grupo] of porObra.entries()) {
+            if (grupo.length === 1) {
+                // 1 solo cambio → log individual compact (comportamiento previo)
+                const entry = grupo[0];
+                const detalle = buildCompactDetail(entry);
+                await logManualActivity(userId, 'asistencias', entry.accion, entry.asistencia_id, detalle, req);
+                continue;
             }
 
-            await logManualActivity(userId, 'asistencias', entry.accion, entry.asistencia_id, detalle, req);
+            // ≥2 cambios en la misma obra → log agrupado bulk_asistencia
+            const obraIdNum = obraKey === 'null' ? null : Number(obraKey);
+            const obraNombre = (obraIdNum != null && obraMap[obraIdNum]) ? obraMap[obraIdNum] : (obraIdNum != null ? `Obra ${obraIdNum}` : 'Sin obra');
+            const fechaAsistencia = grupo[0].fecha;
+
+            // Ordenar alfabético por apellido paterno
+            const ordenados = [...grupo].sort((a, b) => {
+                const apA = (workerMap.get(a.trabajador_id) || {}).apellido || '';
+                const apB = (workerMap.get(b.trabajador_id) || {}).apellido || '';
+                return apA.localeCompare(apB, 'es');
+            });
+
+            const creados = ordenados.filter(e => e.accion === 'CREATE').length;
+            const actualizados = ordenados.filter(e => e.accion === 'UPDATE').length;
+
+            const trabajadoresPayload = ordenados.map(e => {
+                const nombre = (workerMap.get(e.trabajador_id) || {}).nombre || `ID ${e.trabajador_id}`;
+                const estadoNombre = e.estado_id != null ? (estadoMap[e.estado_id] || null) : null;
+                const base = {
+                    nombre,
+                    accion: e.accion,
+                    estado: estadoNombre
+                };
+                if (e.accion === 'UPDATE' && e.cambios && Object.keys(e.cambios).length > 0) {
+                    const cambiosLeg = traducirCambios(e.cambios);
+                    // Renombrar keys a labels humanos (Estado, Tipo Ausencia, etc.)
+                    const cambiosHumanos = {};
+                    for (const [k, v] of Object.entries(cambiosLeg)) {
+                        cambiosHumanos[fieldLabels[k] || k] = v;
+                    }
+                    base.cambios = cambiosHumanos;
+                }
+                return base;
+            });
+
+            // Fecha formato DD/MM/YYYY para resumen
+            const fechaFmt = (() => {
+                const parts = String(fechaAsistencia).split('-');
+                return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : fechaAsistencia;
+            })();
+
+            const payload = {
+                type: 'bulk_asistencia',
+                obra_id: obraIdNum,
+                obra_nombre: obraNombre,
+                fecha_asistencia: fechaAsistencia,
+                total: ordenados.length,
+                creados,
+                actualizados,
+                trabajadores: trabajadoresPayload,
+                resumen: `${obraNombre} — ${creados} registrados, ${actualizados} modificados (${fechaFmt})`
+            };
+
+            const itemId = obraIdNum != null ? `obra_${obraIdNum}` : 'obra_null';
+            // Acción siempre UPDATE para bulk (mezcla CREATE+UPDATE → UPDATE; solo CREATE → UPDATE también por consistencia visual)
+            const accionLog = creados > 0 && actualizados === 0 ? 'CREATE' : 'UPDATE';
+
+            await logManualActivity(userId, 'asistencias', accionLog, itemId, JSON.stringify(payload), req);
         }
     },
 
@@ -361,7 +499,7 @@ const asistenciaService = {
         const ALLOWED_FIELDS = new Set([
             'estado_id', 'tipo_ausencia_id', 'observacion',
             'hora_entrada', 'hora_salida', 'hora_colacion_inicio', 'hora_colacion_fin',
-            'horas_extra', 'es_sabado'
+            'horas_extra'
         ]);
         const safeData = {};
         for (const key of Object.keys(data)) {
@@ -541,10 +679,21 @@ const asistenciaService = {
             await conn.beginTransaction();
             for (const h of horarios) {
                 await conn.query(
-                    `INSERT INTO configuracion_horarios (obra_id, dia_semana, hora_entrada, hora_salida, colacion_minutos)
-                     VALUES (?, ?, ?, ?, ?)
-                     ON DUPLICATE KEY UPDATE hora_entrada = VALUES(hora_entrada), hora_salida = VALUES(hora_salida), colacion_minutos = VALUES(colacion_minutos)`,
-                    [obraId, h.dia_semana, h.hora_entrada, h.hora_salida, h.colacion_minutos || 60]
+                    `INSERT INTO configuracion_horarios (obra_id, dia_semana, hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin)
+                     VALUES (?, ?, ?, ?, ?, ?)
+                     ON DUPLICATE KEY UPDATE
+                        hora_entrada = VALUES(hora_entrada),
+                        hora_salida = VALUES(hora_salida),
+                        hora_colacion_inicio = VALUES(hora_colacion_inicio),
+                        hora_colacion_fin = VALUES(hora_colacion_fin)`,
+                    [
+                        obraId,
+                        h.dia_semana,
+                        h.hora_entrada,
+                        h.hora_salida,
+                        h.hora_colacion_inicio || '13:00:00',
+                        h.hora_colacion_fin || '14:00:00'
+                    ]
                 );
             }
             await conn.commit();
@@ -584,6 +733,17 @@ const asistenciaService = {
 
         const start = new Date(fecha_inicio + 'T00:00:00');
         const end = new Date(fecha_fin + 'T23:59:59');
+
+        // Tope de seguridad: evita exports de años completos que tumban el server.
+        // 366 días permite reporte anual pero bloquea rangos absurdos.
+        const MAX_DAYS = 366;
+        const rangeDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+        if (isNaN(rangeDays) || rangeDays < 0) {
+            throw new Error('Rango de fechas inválido');
+        }
+        if (rangeDays > MAX_DAYS) {
+            throw new Error(`Rango demasiado amplio (${rangeDays} días). Máximo permitido: ${MAX_DAYS} días.`);
+        }
 
         // 1. Obtener Datos
         const workerQueryParams = [];
@@ -625,6 +785,12 @@ const asistenciaService = {
 
         if (trabajador_ids) {
             const ids = Array.isArray(trabajador_ids) ? trabajador_ids : trabajador_ids.split(',').filter(Boolean);
+            // Tope de seguridad: evita IN (...) con miles de entradas que revienta
+            // el query parser y abre puerta a DoS.
+            const MAX_IDS = 2000;
+            if (ids.length > MAX_IDS) {
+                throw new Error(`Demasiados trabajador_ids (${ids.length}). Máximo: ${MAX_IDS}.`);
+            }
             if (ids.length > 0) {
                 workerQuery += ` AND t.id IN (${ids.map(() => '?').join(',')})`;
                 workerQueryParams.push(...ids);
@@ -710,12 +876,42 @@ const asistenciaService = {
         const horariosMap = {};
         horariosDb.forEach(h => {
             if (!horariosMap[h.obra_id]) horariosMap[h.obra_id] = {};
-            // Calcular cuantas horas exige la empresa ese día
-            const val = getDiffHours(h.hora_entrada, h.hora_salida) - (h.colacion_minutos / 60);
+            // Calcular cuantas horas exige la empresa ese día (jornada menos colación)
+            const colacionHoras = (h.hora_colacion_inicio && h.hora_colacion_fin)
+                ? getDiffHours(h.hora_colacion_inicio, h.hora_colacion_fin)
+                : 0;
+            const val = getDiffHours(h.hora_entrada, h.hora_salida) - colacionHoras;
             horariosMap[h.obra_id][h.dia_semana] = Math.max(0, val);
         });
         const defaultHorario = { lun:9, mar:9, mie:9, jue:9, vie:9, sab:0, dom:0 };
         const jsDaysMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+
+        // ── Sumar horas de Sábados Extra por trabajador en el rango ──
+        // Solo cuenta el detalle con estado='asistio' de citaciones no canceladas.
+        // Se filtra por obra cuando aplica para que el reporte de una sola obra
+        // no traiga horas de sábados de otra obra.
+        const sabExtraConds = ['s.fecha BETWEEN ? AND ?', "s.estado != 'cancelada'", "t.estado = 'asistio'"];
+        const sabExtraParams = [fecha_inicio, fecha_fin];
+        if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') {
+            sabExtraConds.push('s.obra_id = ?');
+            sabExtraParams.push(obra_id);
+        }
+        const sabExtraSql = `
+            SELECT t.trabajador_id, SUM(t.horas_trabajadas) AS horas_sabado
+            FROM sabados_extra_trabajadores t
+            JOIN sabados_extra s ON s.id = t.sabado_id
+            WHERE ${sabExtraConds.join(' AND ')}
+            GROUP BY t.trabajador_id
+        `;
+        let sabExtraMap = new Map();
+        try {
+            const [sabExtraRows] = await db.query(sabExtraSql, sabExtraParams);
+            sabExtraRows.forEach(r => sabExtraMap.set(r.trabajador_id, parseFloat(r.horas_sabado) || 0));
+        } catch (e) {
+            // Si la tabla no existe (entorno sin migración 038/040 aplicada),
+            // continuar con map vacío en lugar de romper el export completo.
+            console.warn('[asistencia.generarExcel] no se pudieron leer sábados extra:', e.message);
+        }
 
         let maxStrDateInRecords = '';
         registros.forEach(r => {
@@ -962,7 +1158,18 @@ const asistenciaService = {
             horasExtHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
             horasExtHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const obsCol = horasExtCol + 1;
+            // ── Columna SÁB EXTRA (h): horas de sábados extra del rango ──
+            // No suma a HORAS ORD ni HORAS EXT — RRHH la procesa aparte.
+            const sabExtraCol = horasExtCol + 1;
+            ws.mergeCells(7, sabExtraCol, 8, sabExtraCol);
+            const sabExtraHeader = ws.getCell(7, sabExtraCol);
+            sabExtraHeader.value = 'SÁB EXTRA (h)';
+            sabExtraHeader.font = { bold: true, size: 9 };
+            sabExtraHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sabExtraHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F4FF' } };
+            sabExtraHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const obsCol = sabExtraCol + 1;
             const obsHeader = ws.getCell(7, obsCol);
             obsHeader.value = 'OBSERVACIONES';
             ws.mergeCells(7, obsCol, 8, obsCol);
@@ -1132,8 +1339,15 @@ const asistenciaService = {
                 const cExt = ws.getCell(rowIdx, horasExtCol);
                 cExt.value = sumHorasExtra;
                 cExt.numFmt = '0.00';
-                
-                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cExt].forEach(c => {
+
+                // Sábados extra: viene del Map pre-calculado, no se interpola con días lun-vie
+                const horasSabExtra = sabExtraMap.get(worker.id) || 0;
+                const cSabExtra = ws.getCell(rowIdx, sabExtraCol);
+                cSabExtra.value = horasSabExtra;
+                cSabExtra.numFmt = '0.00';
+                cSabExtra.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FBFF' } };
+
+                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cExt, cSabExtra].forEach(c => {
                     c.font = { bold: true, size: 9 };
                     c.alignment = { horizontal: 'center', vertical: 'middle' };
                     c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -1192,6 +1406,7 @@ const asistenciaService = {
             ws.getColumn(totalCol).width = 10;
             ws.getColumn(horasOrdCol).width = 13;
             ws.getColumn(horasExtCol).width = 13;
+            ws.getColumn(sabExtraCol).width = 12;
             ws.getColumn(obsCol).width = 20;
         }
 
@@ -1287,16 +1502,14 @@ const asistenciaService = {
 
             while (current <= fin) {
                 const fechaStr = current.toISOString().split('T')[0];
-                const dayOfWeek = current.getDay(); // 0=dom, 6=sab
-                const esSabado = dayOfWeek === 6;
 
                 await conn.query(
-                    `INSERT INTO asistencias 
-                     (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion, 
+                    `INSERT INTO asistencias
+                     (trabajador_id, obra_id, fecha, estado_id, tipo_ausencia_id, observacion,
                       hora_entrada, hora_salida, hora_colacion_inicio, hora_colacion_fin,
-                      horas_extra, es_sabado, registrado_por)
-                     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, ?, ?)
-                     ON DUPLICATE KEY UPDATE 
+                      horas_extra, registrado_por)
+                     VALUES (?, ?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, 0, ?)
+                     ON DUPLICATE KEY UPDATE
                         estado_id = VALUES(estado_id),
                         tipo_ausencia_id = VALUES(tipo_ausencia_id),
                         observacion = VALUES(observacion),
@@ -1305,7 +1518,7 @@ const asistenciaService = {
                         hora_colacion_inicio = NULL,
                         hora_colacion_fin = NULL,
                         horas_extra = 0`,
-                    [trabajador_id, obra_id, fechaStr, estado_id, tipo_ausencia_id || null, observacion || null, esSabado, userId]
+                    [trabajador_id, obra_id, fechaStr, estado_id, tipo_ausencia_id || null, observacion || null, userId]
                 );
 
                 diasAfectados++;
@@ -1389,35 +1602,61 @@ const asistenciaService = {
      * Cancela un período (soft delete). No revierte los registros de asistencia.
      */
     async cancelarPeriodo(periodoId, userId, req) {
-        const [existing] = await db.query('SELECT * FROM periodos_ausencia WHERE id = ?', [periodoId]);
-        if (existing.length === 0) throw new Error('Período no encontrado');
-
-        await db.query(
-            'UPDATE periodos_ausencia SET activo = FALSE, updated_at = NOW() WHERE id = ?',
-            [periodoId]
-        );
-
-        // Limpiar registros diarios que pertenecen a este periodo y aun tienen el mismo estado
-        const period = existing[0];
-        await db.query(
-            `DELETE FROM asistencias 
-             WHERE trabajador_id = ? 
-             AND obra_id = ? 
-             AND fecha BETWEEN ? AND ? 
-             AND estado_id = ?`,
-            [period.trabajador_id, period.obra_id, period.fecha_inicio, period.fecha_fin, period.estado_id]
-        );
-
+        // Transacción + SELECT ... FOR UPDATE para evitar race condition
+        // cuando dos usuarios cancelan el mismo período simultáneamente
+        // (doble DELETE de asistencias, doble log). El lock de fila serializa.
+        const connection = await db.getConnection();
         try {
-            logManualActivity(userId, 'periodos_ausencia', 'DELETE', periodoId,
-                JSON.stringify({ resumen: `Período #${periodoId} cancelado (${existing[0].fecha_inicio} al ${existing[0].fecha_fin})` }),
-                req
-            );
-        } catch (logErr) {
-            console.error('Error registrando log:', logErr);
-        }
+            await connection.beginTransaction();
 
-        return { id: periodoId, cancelado: true };
+            const [existing] = await connection.query(
+                'SELECT * FROM periodos_ausencia WHERE id = ? FOR UPDATE',
+                [periodoId]
+            );
+            if (existing.length === 0) {
+                await connection.rollback();
+                throw new Error('Período no encontrado');
+            }
+            const period = existing[0];
+
+            // Si ya está cancelado, salir idempotente sin re-borrar asistencias.
+            if (period.activo === 0 || period.activo === false) {
+                await connection.commit();
+                return { id: periodoId, cancelado: true, yaCancelado: true };
+            }
+
+            await connection.query(
+                'UPDATE periodos_ausencia SET activo = FALSE, updated_at = NOW() WHERE id = ?',
+                [periodoId]
+            );
+
+            await connection.query(
+                `DELETE FROM asistencias
+                 WHERE trabajador_id = ?
+                 AND obra_id = ?
+                 AND fecha BETWEEN ? AND ?
+                 AND estado_id = ?`,
+                [period.trabajador_id, period.obra_id, period.fecha_inicio, period.fecha_fin, period.estado_id]
+            );
+
+            await connection.commit();
+
+            try {
+                logManualActivity(userId, 'periodos_ausencia', 'DELETE', periodoId,
+                    JSON.stringify({ resumen: `Período #${periodoId} cancelado (${period.fecha_inicio} al ${period.fecha_fin})` }),
+                    req
+                );
+            } catch (logErr) {
+                console.error('Error registrando log:', logErr);
+            }
+
+            return { id: periodoId, cancelado: true };
+        } catch (err) {
+            try { await connection.rollback(); } catch { /* ya commiteado */ }
+            throw err;
+        } finally {
+            connection.release();
+        }
     },
 
     /**
@@ -1581,10 +1820,22 @@ const asistenciaService = {
             params.push(obraId);
         }
 
-        faltasQuery += ' ORDER BY a.trabajador_id, a.fecha ASC';
+        // Tope de seguridad: ~50k filas = muy por encima del peor mes real
+        // (todos los trabajadores faltando todos los días). Si se alcanza, lo
+        // logueamos para saber que hay que reajustar la regla.
+        const MAX_FALTAS = 50000;
+        faltasQuery += ' ORDER BY a.trabajador_id, a.fecha ASC LIMIT ?';
+        params.push(MAX_FALTAS);
         const [faltas] = await db.query(faltasQuery, params);
+        if (faltas.length >= MAX_FALTAS) {
+            console.warn(`⚠️  getAlertasFaltas alcanzó el tope de ${MAX_FALTAS} filas (obra=${obraId}, ${mes}/${anio}). Resultado posiblemente truncado.`);
+        }
 
         // 4. Agrupar por trabajador
+        //    Usamos Set para deduplicar fechas — un trabajador puede tener 2 filas
+        //    de asistencia en el mismo día si hubo traslado de obra u otra
+        //    situación que produzca registros en obras distintas. Para la regla
+        //    de "faltas" nos importa el día, no la cantidad de filas.
         const porTrabajador = {};
         faltas.forEach(f => {
             if (!porTrabajador[f.trabajador_id]) {
@@ -1593,18 +1844,18 @@ const asistenciaService = {
                     nombres: f.nombres,
                     apellido_paterno: f.apellido_paterno,
                     rut: f.rut,
-                    fechas: []
+                    fechasSet: new Set()
                 };
             }
             const fechaStr = typeof f.fecha === 'string' ? f.fecha.split('T')[0] : f.fecha.toISOString().split('T')[0];
-            porTrabajador[f.trabajador_id].fechas.push(fechaStr);
+            porTrabajador[f.trabajador_id].fechasSet.add(fechaStr);
         });
 
         // 5. Evaluar reglas por trabajador
         const alertas = [];
 
         for (const [tid, data] of Object.entries(porTrabajador)) {
-            const fechas = data.fechas;
+            const fechas = [...data.fechasSet].sort(); // orden ascendente para regla de consecutivas
             const trabajadorAlerts = [];
 
             // Regla 1: 2 días seguidos de falta

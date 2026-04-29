@@ -14,9 +14,10 @@ const createCrudService = (tableName, options = {}) => {
         searchFields = [], 
         joins = '', 
         selectFields = `${tableName}.*`, 
-        activeColumn = 'activo', 
+        activeColumn = 'activo',
         allowedFilters = [],
-        allowedFields = [] // Whitelist for create/update
+        allowedFields = [], // Whitelist for create/update
+        beforeCreate = null // async (safeData, db) => void — mutate safeData before INSERT
     } = options;
 
     return {
@@ -129,6 +130,11 @@ const createCrudService = (tableName, options = {}) => {
                 const { formatRut } = require('../utils/rut');
                 safeData.rut = formatRut(safeData.rut);
             }
+
+            if (typeof beforeCreate === 'function') {
+                await beforeCreate(safeData, db);
+            }
+
             const fields = Object.keys(safeData);
             if (fields.length === 0) throw Object.assign(new Error('No hay campos válidos para crear'), { statusCode: 400 });
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
-import { Pencil, Check, X, ChevronDown, MapPin, Package } from 'lucide-react';
+import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package } from 'lucide-react';
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
@@ -23,6 +23,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
     // ── Desktop edit state (unchanged) ──
     const [editingCell, setEditingCell] = useState<string | null>(null);
     const [editValue, setEditValue] = useState('');
+
+    // ── Desktop collapse state — default all expanded ──
+    const [collapsedCatsDesktop, setCollapsedCatsDesktop] = useState<Set<number>>(new Set());
+    const toggleCatDesktop = (id: number) => {
+        setCollapsedCatsDesktop(prev => {
+            const next = new Set(prev);
+            next.has(id) ? next.delete(id) : next.add(id);
+            return next;
+        });
+    };
 
     const startEdit = (key: string, currentValue: number) => {
         setEditingCell(key);
@@ -67,8 +77,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         className="w-16 px-1 py-0.5 text-[11px] border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
                         autoFocus
                     />
-                    <button onClick={() => saveEdit(itemId, field)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                    <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                    <button type="button" aria-label="Guardar cambio" title="Guardar" onClick={() => saveEdit(itemId, field)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
+                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
                 </div>
             );
         }
@@ -77,7 +87,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
             <div className="flex items-center justify-end gap-1 group">
                 <span>{field === 'valor_arriendo' ? fmtMoney(value) : value}</span>
                 {canEdit && (
-                    <button onClick={() => startEdit(key, value)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-brand-primary/10 rounded transition-opacity">
+                    <button type="button" aria-label="Editar valor" title="Editar" onClick={() => startEdit(key, value)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-brand-primary/10 rounded transition-opacity">
                         <Pencil className="h-2.5 w-2.5 text-brand-primary" />
                     </button>
                 )}
@@ -179,8 +189,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         autoFocus
                                     />
                                     <span className="text-xs font-bold">%</span>
-                                    <button onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 rounded-md"><Check className="h-3 w-3" /></button>
-                                    <button onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 rounded-md"><X className="h-3 w-3" /></button>
+                                    <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 rounded-md"><Check className="h-3 w-3" /></button>
+                                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 rounded-md"><X className="h-3 w-3" /></button>
                                 </div>
                             ) : (
                                 <button
@@ -306,8 +316,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-24 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-right font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Guardar valor de arriendo" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <button
@@ -341,8 +351,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-20 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Guardar cantidad" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <button
@@ -400,14 +410,22 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         </tr>
                     </thead>
                     <tbody>
-                        {data.categorias.map(cat => (
+                        {data.categorias.map(cat => {
+                            const collapsed = collapsedCatsDesktop.has(cat.id);
+                            return (
                             <React.Fragment key={cat.id}>
-                                <tr className="bg-brand-primary/10">
+                                <tr
+                                    className="bg-brand-primary/10 cursor-pointer select-none hover:bg-brand-primary/15 transition-colors"
+                                    onClick={() => toggleCatDesktop(cat.id)}
+                                >
                                     <td colSpan={7} className="px-3 py-1.5 font-black text-[10px] uppercase tracking-widest text-brand-primary">
-                                        {cat.nombre}
+                                        <div className="flex items-center gap-2">
+                                            <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", !collapsed && "rotate-90")} />
+                                            <span>{cat.nombre}</span>
+                                        </div>
                                     </td>
                                 </tr>
-                                {cat.items.map((item, idx) => (
+                                {!collapsed && cat.items.map((item, idx) => (
                                     <tr key={item.id} className={cn("hover:bg-blue-50/30 transition-colors", idx % 2 === 0 ? "bg-white" : "bg-[#F5F5F8]")}>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-[#D8D8DD]">{item.nro_item}</td>
                                         <td className="px-2 py-1 font-medium text-brand-dark truncate max-w-[250px] border-r border-b border-[#D8D8DD]">
@@ -432,7 +450,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         </td>
                                     </tr>
                                 ))}
-                                {/* Subtotal row */}
+                                {/* Subtotal row — always visible, so totals stay readable when category is collapsed */}
                                 <tr className="bg-[#EDEDF2] border-t border-[#D8D8DD]">
                                     <td colSpan={5} className="px-3 py-1.5 text-right font-bold text-[10px] uppercase text-muted-foreground">
                                         Total {cat.nombre}
@@ -441,7 +459,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     <td className="px-2 py-1.5 text-right font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</td>
                                 </tr>
                             </React.Fragment>
-                        ))}
+                            );
+                        })}
                     </tbody>
                     {/* ── Sticky footer — totals, descuento ── */}
                     <tfoot className="sticky bottom-0 z-10">
@@ -468,8 +487,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                             max={100}
                                         />
                                         <span className="text-muted-foreground">%</span>
-                                        <button onClick={handleDescuentoSave} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                                        <button onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                                        <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={handleDescuentoSave} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
+                                        <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
                                     </div>
                                 ) : (
                                     <span

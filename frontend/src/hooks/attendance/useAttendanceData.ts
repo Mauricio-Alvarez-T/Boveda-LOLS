@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useObra } from '../../context/ObraContext';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +12,7 @@ export type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas
 export function useAttendanceData() {
     const { selectedObra } = useObra();
     const { hasPermission } = useAuth();
+    const [searchParams, setSearchParams] = useSearchParams();
 
     const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
     const [loading, setLoading] = useState(false);
@@ -19,7 +21,28 @@ export function useAttendanceData() {
     const [horariosObra, setHorariosObra] = useState<ConfiguracionHorario[]>([]);
     const [estados, setEstados] = useState<EstadoAsistencia[]>([]);
     const [feriadoActual, setFeriadoActual] = useState<Feriado | null>(null);
-    const [searchQuery, setSearchQuery] = useState('');
+    // Lee ?q=... de la URL al montar (usado desde el dashboard para saltar
+    // directo al trabajador con alerta de inasistencia).
+    const [searchQuery, setSearchQueryRaw] = useState(() => searchParams.get('q') || '');
+
+    // Wrapper que mantiene el query param sincronizado con el estado — así el
+    // enlace compartido refleja el filtro y un refresh lo preserva.
+    const setSearchQuery = useCallback((val: string) => {
+        setSearchQueryRaw(val);
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            if (val) next.set('q', val);
+            else next.delete('q');
+            return next;
+        }, { replace: true });
+    }, [setSearchParams]);
+
+    // Si cambia el query param externamente (navegación desde otra página),
+    // sincronizar el estado local.
+    useEffect(() => {
+        const q = searchParams.get('q') || '';
+        setSearchQueryRaw(prev => (prev === q ? prev : q));
+    }, [searchParams]);
     const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<number | null>(null);
     const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
@@ -91,8 +114,7 @@ export function useAttendanceData() {
                         hora_salida: null,
                         hora_colacion_inicio: null,
                         hora_colacion_fin: null,
-                        horas_extra: 0,
-                        es_sabado: dayIndex === 6
+                        horas_extra: 0
                     };
 
                     if (defaultEstado.es_presente && currentSchedule) {

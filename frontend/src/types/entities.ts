@@ -15,6 +15,7 @@ export interface Obra {
     empresa_id: number;
     empresa_nombre?: string;
     activa: boolean;
+    participa_inventario?: boolean;
 }
 
 export interface Cargo {
@@ -106,7 +107,6 @@ export interface Asistencia {
     hora_colacion_inicio: string | null;
     hora_colacion_fin: string | null;
     horas_extra: number;
-    es_sabado: boolean;
     registrado_por: number;
     registrado_por_nombre?: string;
 }
@@ -181,6 +181,8 @@ export interface ItemInventario {
     valor_arriendo: number;
     unidad: string;
     imagen_url: string | null;
+    es_consumible: boolean;
+    propietario: 'dedalius' | 'lols';
     activo: boolean;
 }
 
@@ -205,11 +207,29 @@ export interface Transferencia {
     destino_bodega_id: number | null;
     origen_nombre?: string;
     destino_nombre?: string;
+    // Joins enriquecidos del backend (getById/getAll). Opcionales porque
+    // no todos los endpoints los traen.
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
+    destino_obra_nombre?: string | null;
+    destino_bodega_nombre?: string | null;
+    aprobador_nombre?: string | null;
+    receptor_nombre?: string | null;
+    transportista_nombre?: string | null;
+    observaciones_rechazo?: string | null;
     solicitante_id: number;
     solicitante_nombre?: string;
     aprobador_id: number | null;
     transportista_id: number | null;
     receptor_id: number | null;
+    // Audit trail (migración 039). Pueden ser null si la transferencia
+    // es anterior a la migración o si la transición aún no ocurrió.
+    creado_por?: number | null;
+    aprobado_por?: number | null;
+    despachado_por?: number | null;
+    recibido_por?: number | null;
+    rechazado_por?: number | null;
+    cancelado_por?: number | null;
     fecha_solicitud: string;
     fecha_aprobacion: string | null;
     fecha_despacho: string | null;
@@ -217,6 +237,8 @@ export interface Transferencia {
     requiere_pionetas: boolean;
     cantidad_pionetas: number | null;
     observaciones: string | null;
+    tipo_flujo: 'solicitud' | 'push_directo' | 'intra_bodega' | 'intra_obra' | 'orden_gerencia' | 'devolucion';
+    motivo: string | null;
     items?: TransferenciaItem[];
     activo: boolean;
 }
@@ -230,6 +252,44 @@ export interface TransferenciaItem {
     cantidad_enviada: number | null;
     cantidad_recibida: number | null;
     observacion: string | null;
+    unidad?: string;
+    origen_obra_id?: number | null;
+    origen_bodega_id?: number | null;
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
+    splits?: TransferenciaItemSplit[];
+}
+
+/**
+ * Split de origen de un ítem aprobado multi-origen.
+ * Persistido en transferencia_item_origenes (migración 032).
+ */
+export interface TransferenciaItemSplit {
+    origen_obra_id: number | null;
+    origen_bodega_id: number | null;
+    cantidad_enviada: number;
+    origen_obra_nombre?: string | null;
+    origen_bodega_nombre?: string | null;
+}
+
+/**
+ * Split de aprobación en UI — representa 1 ubicación de despacho elegida
+ * por el aprobador. Una aprobación puede tener N splits por ítem.
+ */
+export interface ApprovalSplit {
+    origen_obra_id: number | null;
+    origen_bodega_id: number | null;
+    cantidad: number;
+}
+
+/**
+ * Estado de aprobación por ítem: la cantidad solicitada (inmutable) y los
+ * splits que el aprobador fue componiendo.
+ */
+export interface ApprovalItemState {
+    item_id: number;
+    cantidad_solicitada: number;
+    splits: ApprovalSplit[];
 }
 
 export interface FacturaInventario {

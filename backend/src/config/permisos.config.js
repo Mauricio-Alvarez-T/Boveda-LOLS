@@ -17,6 +17,12 @@ const MAESTRO_PERMISOS = [
     ['asistencia.horarios.ver',     'Asistencia', 'Ver Horarios',                'Ver la configuración de horarios laborales', 9],
     ['asistencia.horarios.editar',  'Asistencia', 'Editar Horarios',             'Modificar horarios laborales', 10],
     ['asistencia.tomar.global',     'Asistencia', 'Asistencia Global',           'Tomar asistencia de todas las obras simultáneamente', 11],
+    ['asistencia.sabados_extra.ver',           'Asistencia', 'Ver Sábados Extra',           'Ver el listado de citaciones de trabajo extraordinario en sábado', 12],
+    ['asistencia.sabados_extra.crear',         'Asistencia', 'Crear Citación Sábado',       'Crear citaciones de trabajo extraordinario en sábado', 13],
+    ['asistencia.sabados_extra.editar',        'Asistencia', 'Editar Citación Sábado',      'Editar citaciones de trabajo extraordinario en sábado en estado "citada"', 14],
+    ['asistencia.sabados_extra.cancelar',      'Asistencia', 'Cancelar Citación Sábado',    'Cancelar citaciones de trabajo extraordinario en sábado', 15],
+    ['asistencia.sabados_extra.registrar',     'Asistencia', 'Registrar Asistencia Sábado', 'Marcar asistencia y horas trabajadas el sábado', 16],
+    ['asistencia.sabados_extra.enviar_whatsapp','Asistencia','Enviar Sábado por WhatsApp',  'Compartir citación o asistencia de sábado por WhatsApp', 17],
 
     // TRABAJADORES
     ['trabajadores.ver',            'Trabajadores', 'Ver Trabajadores',          'Ver la lista y fichas de trabajadores', 1],

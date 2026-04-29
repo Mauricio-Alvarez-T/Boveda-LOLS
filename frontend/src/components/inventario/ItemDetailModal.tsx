@@ -1,11 +1,20 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Package, MapPin, Warehouse, Copy, Check, X, ImageOff } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
+import { copyToClipboard } from '../../utils/whatsappShare';
 import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useItemDetail';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+
+// Resuelve URL pública de imagen de inventario, tolerando paths con o sin prefijo /api/.
+const resolveImageUrl = (imagen_url: string | null | undefined): string | null => {
+    if (!imagen_url) return null;
+    if (/^https?:\/\//i.test(imagen_url)) return imagen_url;
+    const withApi = imagen_url.startsWith('/api/') ? imagen_url : `/api${imagen_url.startsWith('/') ? '' : '/'}${imagen_url}`;
+    return `${API_BASE}${withApi}`;
+};
 
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
@@ -29,18 +38,27 @@ const ItemDetailModal: React.FC<Props> = ({
     const [copied, setCopied] = useState(false);
 
     const item = itemData;
-    const imageUrl = item?.imagen_url ? `${API_BASE}${item.imagen_url}` : null;
+    const imageUrl = resolveImageUrl(item?.imagen_url);
 
     const obras = stockLocations.filter(l => l.type === 'obra');
     const bodegas = stockLocations.filter(l => l.type === 'bodega');
     const totalStock = stockLocations.reduce((s, l) => s + l.cantidad, 0);
 
-    const copyNroItem = () => {
+    const copyNroItem = async () => {
         if (!item) return;
-        navigator.clipboard.writeText(String(item.nro_item));
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
+        // Usa helper con fallback execCommand para navegadores sin Clipboard API
+        // o contextos no-HTTPS donde navigator.clipboard.writeText falla.
+        const ok = await copyToClipboard(String(item.nro_item));
+        if (ok) setCopied(true);
     };
+
+    // Cleanup del timeout para evitar memory leak si el modal cierra mientras
+    // el badge "copied" está visible.
+    useEffect(() => {
+        if (!copied) return;
+        const id = setTimeout(() => setCopied(false), 1500);
+        return () => clearTimeout(id);
+    }, [copied]);
 
     const qtyColor = (n: number) =>
         n > 10 ? 'text-green-700 bg-green-50' :
@@ -81,17 +99,19 @@ const ItemDetailModal: React.FC<Props> = ({
                         {imageUrl ? (
                             <button
                                 type="button"
+                                aria-label="Ampliar imagen del ítem"
+                                title="Ampliar imagen"
                                 onClick={() => setImageZoom(true)}
-                                className="w-full overflow-hidden rounded-xl border border-[#E8E8ED] hover:border-brand-primary/30 transition-all group"
+                                className="w-full h-64 sm:h-72 flex items-center justify-center overflow-hidden rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] hover:border-brand-primary/30 transition-all group"
                             >
                                 <img
                                     src={imageUrl}
                                     alt={item.descripcion}
-                                    className="w-full aspect-video object-cover group-hover:scale-[1.02] transition-transform duration-300"
+                                    className="max-w-full max-h-full w-auto h-auto object-contain group-hover:scale-[1.02] transition-transform duration-300"
                                 />
                             </button>
                         ) : (
-                            <div className="w-full aspect-video rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] flex flex-col items-center justify-center gap-2">
+                            <div className="w-full h-64 sm:h-72 rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] flex flex-col items-center justify-center gap-2">
                                 <ImageOff className="h-10 w-10 text-muted-foreground/20" />
                                 <p className="text-[10px] text-muted-foreground/50">Sin imagen</p>
                             </div>
@@ -107,6 +127,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                     </span>
                                 )}
                                 <button
+                                    type="button"
+                                    aria-label={`Copiar número de ítem ${item.nro_item}`}
                                     onClick={copyNroItem}
                                     className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F5F7FA] border border-[#E8E8ED] hover:border-brand-primary/30 text-[10px] font-bold text-muted-foreground transition-all"
                                     title="Copiar número de ítem"
@@ -214,6 +236,9 @@ const ItemDetailModal: React.FC<Props> = ({
                     onClick={() => setImageZoom(false)}
                 >
                     <button
+                        type="button"
+                        aria-label="Cerrar imagen ampliada"
+                        title="Cerrar"
                         onClick={() => setImageZoom(false)}
                         className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                     >

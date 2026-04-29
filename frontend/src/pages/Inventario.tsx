@@ -10,18 +10,22 @@ import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
+import ResumenEjecutivoPanel from '../components/inventario/ResumenEjecutivoPanel';
 
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
+import InventarioMaestroGrid from '../components/inventario/InventarioMaestroGrid';
+import StockMaestroGrid from '../components/inventario/StockMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 
-type TabKey = 'resumen' | 'por_ubicacion' | 'transferencias' | 'bombas';
+type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas';
 
-const tabs: { key: TabKey; label: string }[] = [
+const tabs: { key: TabKey; label: string; requiresPerm?: string }[] = [
+    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo' },
     { key: 'resumen', label: 'Resumen' },
     { key: 'por_ubicacion', label: 'Por Obra/Bodega' },
     { key: 'transferencias', label: 'Transferencias' },
-
+    { key: 'maestro', label: 'Maestro', requiresPerm: 'inventario.editar' },
     { key: 'bombas', label: 'Bombas Hormigón' },
 ];
 
@@ -32,8 +36,12 @@ const InventarioPage: React.FC = () => {
     const { obras, selectedObra } = useObra();
     const { resumen, stockObra, stockBodega, loading, fetchResumen, fetchStockObra, fetchStockBodega } = useInventarioData();
     const { updateStock, updateDescuento } = useInventarioActions();
-    const [activeTab, setActiveTab] = useState<TabKey>('resumen');
+    const [activeTab, setActiveTab] = useState<TabKey>('resumen_ejecutivo');
+    const [maestroSubTab, setMaestroSubTab] = useState<'items' | 'stock'>('items');
     const [selectedUbicacionKey, setSelectedUbicacionKey] = useState<string>('');
+    // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
+    // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
+    const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>({ nonce: 0 });
 
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
@@ -48,7 +56,12 @@ const InventarioPage: React.FC = () => {
     useSetPageHeader(headerTitle);
 
     // ── Ubicaciones: bodegas first, then obras ──
-    const allObras = resumen?.obras || obras.map(o => ({ id: o.id, nombre: o.nombre }));
+    // Solo obras que participan del módulo inventario.
+    // Si resumen ya llegó usa esa lista (filtrada server-side); durante la carga inicial
+    // cae al contexto global de obras filtrado client-side.
+    const allObras = resumen?.obras || obras
+        .filter(o => o.participa_inventario !== false)
+        .map(o => ({ id: o.id, nombre: o.nombre }));
     const allBodegas = resumen?.bodegas || [];
 
     const allUbicaciones = useMemo<UbicacionOption[]>(() => {
@@ -68,9 +81,9 @@ const InventarioPage: React.FC = () => {
         }
     }, [allUbicaciones, selectedObra, selectedUbicacionKey]);
 
-    // ── Load resumen on mount ──
+    // ── Load resumen: también necesario para 'por_ubicacion' (bodegas vienen de resumen.bodegas) ──
     useEffect(() => {
-        if (activeTab === 'resumen') fetchResumen();
+        if (activeTab === 'resumen' || activeTab === 'por_ubicacion') fetchResumen();
     }, [activeTab, fetchResumen]);
 
     // ── Load stock when ubicacion selected ──
@@ -105,7 +118,7 @@ const InventarioPage: React.FC = () => {
             {/* Tab Navigation */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
                 <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
-                {tabs.map(tab => (
+                {tabs.filter(t => !t.requiresPerm || hasPermission(t.requiresPerm)).map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
@@ -130,6 +143,20 @@ const InventarioPage: React.FC = () => {
                 transition={{ duration: 0.2 }}
                 className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6 flex-1 min-h-0 flex flex-col"
             >
+                {/* ── RESUMEN EJECUTIVO ── */}
+                {activeTab === 'resumen_ejecutivo' && (
+                    <ResumenEjecutivoPanel
+                        onNavigateTransferencias={({ estado, transferenciaId }) => {
+                            setTrfNavIntent({ estado, id: transferenciaId ?? null, nonce: Date.now() });
+                            setActiveTab('transferencias');
+                        }}
+                        onNavigateObra={(obraId) => {
+                            setSelectedUbicacionKey(`obra_${obraId}`);
+                            setActiveTab('por_ubicacion');
+                        }}
+                    />
+                )}
+
                 {/* ── RESUMEN ── */}
                 {activeTab === 'resumen' && (
                     loading ? (
@@ -226,9 +253,47 @@ const InventarioPage: React.FC = () => {
                 {/* ── TRANSFERENCIAS ── */}
                 {activeTab === 'transferencias' && (
                     <TransferenciasPanel
+                        // key dependiente del nonce: remonta sólo cuando el dashboard navega con intent nuevo
+                        key={`trf-${trfNavIntent.nonce}`}
                         obras={allObras as any}
                         hasPermission={hasPermission}
+                        initialStatusFilter={trfNavIntent.estado}
+                        initialSelectedId={trfNavIntent.id ?? null}
                     />
+                )}
+
+                {activeTab === 'maestro' && (
+                    <div className="flex-1 min-h-0 flex flex-col gap-3">
+                        {/* Sub-tabs Ítems / Stock */}
+                        <div className="flex items-center gap-1 p-1 bg-[#F5F7FA] rounded-xl w-fit shrink-0">
+                            {([
+                                { key: 'items', label: 'Ítems' },
+                                { key: 'stock', label: 'Stock por ubicación' },
+                            ] as const).map(st => (
+                                <button
+                                    key={st.key}
+                                    onClick={() => setMaestroSubTab(st.key)}
+                                    className={cn(
+                                        "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
+                                        maestroSubTab === st.key
+                                            ? "bg-white text-brand-primary shadow-sm"
+                                            : "text-muted-foreground hover:text-brand-dark"
+                                    )}
+                                >
+                                    {st.label}
+                                </button>
+                            ))}
+                        </div>
+                        {maestroSubTab === 'items' ? (
+                            <InventarioMaestroGrid hasEditPermission={hasPermission('inventario.editar')} />
+                        ) : (
+                            <StockMaestroGrid
+                                obras={allObras as any}
+                                bodegas={allBodegas as any}
+                                hasEditPermission={hasPermission('inventario.editar')}
+                            />
+                        )}
+                    </div>
                 )}
 
                 {activeTab === 'bombas' && (

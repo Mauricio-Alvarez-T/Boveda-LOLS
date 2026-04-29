@@ -167,8 +167,7 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
                 hora_salida: '17:00',
                 hora_colacion_inicio: null,
                 hora_colacion_fin: null,
-                horas_extra: 0,
-                es_sabado: 0
+                horas_extra: 0
             }]])
             .mockResolvedValueOnce([{ affectedRows: 1 }]);  // UPDATE
 
@@ -415,7 +414,7 @@ describe('Actualización Individual de Asistencia', () => {
             .mockResolvedValueOnce([[{
                 id: 1, estado_id: 1, tipo_ausencia_id: null,
                 observacion: null, hora_entrada: '08:00', hora_salida: '17:00',
-                horas_extra: 0, es_sabado: 0,
+                horas_extra: 0,
                 hora_colacion_inicio: null, hora_colacion_fin: null
             }]])
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT log
@@ -568,11 +567,13 @@ describe('Períodos de Ausencia', () => {
 
     test('DELETE /api/asistencias/periodos/1 → cancelar período', async () => {
         const deleteToken = makeToken(['asistencia.periodo.eliminar']);
-        db.query
+        const conn = await db.getConnection();
+        conn.query
+            // SELECT ... FOR UPDATE
             .mockResolvedValueOnce([[{
                 id: 1, trabajador_id: 1, obra_id: 1,
                 fecha_inicio: '2025-03-03', fecha_fin: '2025-03-05',
-                estado_id: 3
+                estado_id: 3, activo: 1
             }]])
             .mockResolvedValueOnce([{ affectedRows: 1 }])   // UPDATE activo=FALSE
             .mockResolvedValueOnce([{ affectedRows: 3 }]);   // DELETE asistencias
@@ -583,6 +584,9 @@ describe('Períodos de Ausencia', () => {
 
         expect(res.status).toBe(200);
         expect(res.body.data.cancelado).toBe(true);
+        expect(conn.beginTransaction).toHaveBeenCalled();
+        expect(conn.commit).toHaveBeenCalled();
+        expect(conn.release).toHaveBeenCalled();
     });
 });
 

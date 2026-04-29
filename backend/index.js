@@ -10,7 +10,6 @@ process.on('unhandledRejection', (reason, promise) => {
 require('dotenv').config();
 require('./src/config/env-validator')();
 const versionService = require('./src/services/version.service');
-versionService.init();
 
 const express = require('express');
 const cors = require('cors');
@@ -86,8 +85,9 @@ app.use('/api/auth', require('./src/routes/auth.routes'));
 const createCrudRoutes = require('./src/routes/crud.routes');
 
 try {
-  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', { 
-    searchFields: ['rut', 'razon_social'], 
+  app.use('/api/empresas', createCrudRoutes('empresas', 'empresas', {
+    searchFields: ['rut', 'razon_social'],
+    useSoftDelete: true,
     orderBy: 'razon_social ASC',
     allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo']
   }));
@@ -96,11 +96,14 @@ try {
     joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
     selectFields: 'obras.*, e.razon_social as empresa_nombre',
     activeColumn: 'activa',
+    useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa']
+    allowedFilters: ['participa_inventario'],
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario']
   }));
-  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', { 
-    searchFields: ['nombre'], 
+  app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', {
+    searchFields: ['nombre'],
+    useSoftDelete: true,
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
@@ -118,26 +121,32 @@ try {
     ]
   }));
   const asAusenciaPerms = { ver: 'sistema.tipos_ausencia.gestionar', crear: 'sistema.tipos_ausencia.gestionar', editar: 'sistema.tipos_ausencia.gestionar', eliminar: 'sistema.tipos_ausencia.gestionar' };
-  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', { 
-    searchFields: ['nombre'], 
+  app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', {
+    searchFields: ['nombre'],
+    useSoftDelete: true,
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
 
   const asEstadosPerms = { ver: 'sistema.estados.gestionar', crear: 'sistema.estados.gestionar', editar: 'sistema.estados.gestionar', eliminar: 'sistema.estados.gestionar' };
-  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', { 
-    searchFields: ['nombre', 'codigo'], 
+  app.use('/api/estados-asistencia', createCrudRoutes(asEstadosPerms, 'estados_asistencia', {
+    searchFields: ['nombre', 'codigo'],
+    useSoftDelete: true,
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'codigo', 'color', 'activo', 'es_presente']
   }));
   // ── Inventario CRUD ──
   const invPerms = { ver: 'inventario.ver', crear: 'inventario.crear', editar: 'inventario.editar', eliminar: 'inventario.eliminar' };
   app.use('/api/categorias-inventario', createCrudRoutes(invPerms, 'categorias_inventario', {
-    searchFields: ['nombre'], orderBy: 'orden ASC',
+    searchFields: ['nombre'],
+    useSoftDelete: true,
+    orderBy: 'orden ASC',
     allowedFields: ['nombre', 'orden', 'activo']
   }));
   app.use('/api/bodegas', createCrudRoutes(invPerms, 'bodegas', {
-    searchFields: ['nombre', 'direccion'], activeColumn: 'activa',
+    searchFields: ['nombre', 'direccion'],
+    activeColumn: 'activa',
+    useSoftDelete: true,
     joins: 'LEFT JOIN usuarios u ON bodegas.responsable_id = u.id',
     selectFields: 'bodegas.*, u.nombre as responsable_nombre',
     orderBy: 'bodegas.nombre ASC',
@@ -148,8 +157,17 @@ try {
     joins: 'LEFT JOIN categorias_inventario c ON items_inventario.categoria_id = c.id',
     selectFields: 'items_inventario.*, c.nombre as categoria_nombre',
     allowedFilters: ['categoria_id'],
+    useSoftDelete: true,
     orderBy: 'items_inventario.nro_item ASC',
-    allowedFields: ['nro_item', 'categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'activo']
+    allowedFields: ['categoria_id', 'descripcion', 'm2', 'valor_compra', 'valor_arriendo', 'unidad', 'imagen_url', 'es_consumible', 'propietario', 'activo'],
+    // nro_item es solo referencia visual — autogenerado secuencial por categoria
+    beforeCreate: async (safeData, db) => {
+      const [rows] = await db.query(
+        'SELECT COALESCE(MAX(nro_item), 0) + 1 AS next_nro FROM items_inventario WHERE categoria_id = ?',
+        [safeData.categoria_id]
+      );
+      safeData.nro_item = rows[0].next_nro;
+    }
   }));
 
   logger.info('✅ Rutas CRUD genéricas cargadas');
@@ -166,6 +184,7 @@ safeRoute('/api/bombas-hormigon', './src/routes/bombas-hormigon.routes', 'Bombas
 safeRoute('/api/trabajadores', './src/routes/trabajadores.routes', 'Trabajadores (especializadas)');
 safeRoute('/api/documentos', './src/routes/documentos.routes', 'Documentos');
 safeRoute('/api/asistencias', './src/routes/asistencias.routes', 'Asistencias');
+safeRoute('/api/sabados-extra', './src/routes/sabados-extra.routes', 'Sábados Extra');
 safeRoute('/api/fiscalizacion', './src/routes/fiscalizacion.routes', 'Fiscalización');
 safeRoute('/api/usuarios/me/email-config', './src/routes/email-config.routes', 'Email Config');
 safeRoute('/api/usuarios/me/plantillas', './src/routes/plantillas.routes', 'Plantillas Email');
@@ -246,11 +265,22 @@ if (process.env.NODE_ENV === 'production') {
 app.use(errorHandler);
 
 // Start server
+// Importante: init() de versionService debe completar antes de aceptar requests.
+// Si llega un request antes, el Map de versiones está vacío, versionService.get()
+// devuelve el fallback de 1 y cualquier token de rol con version>1 en DB es
+// rechazado con 401 expired_by_version — causa raíz de los logouts espurios.
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORT, () => {
-    console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
-    console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
-  });
+  versionService.init()
+    .then(() => {
+      app.listen(PORT, () => {
+        console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
+        console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+      });
+    })
+    .catch(err => {
+      console.error('[startup] versionService.init falló — no se levantará el servidor:', err);
+      process.exit(1);
+    });
 }
 
 module.exports = app;

@@ -42,8 +42,9 @@ export function useItemDetail(): UseItemDetailReturn {
                 '/inventario/stock-por-items',
                 { item_ids: [itemId] }
             );
-            return res.data.data[itemId] || [];
-        } catch {
+            return res.data?.data?.[itemId] || [];
+        } catch (err) {
+            console.error(`Failed to fetch stock for item ${itemId}:`, err);
             return [];
         }
     }, []);
@@ -54,11 +55,14 @@ export function useItemDetail(): UseItemDetailReturn {
         if (cached) return cached;
 
         try {
-            const res = await api.get<{ data: ItemInventario }>(`/items-inventario/${itemId}`);
-            const item = res.data.data;
+            // Backend crud.controller.getById returns item directamente (no envuelto en { data })
+            const res = await api.get<ItemInventario>(`/items-inventario/${itemId}`);
+            const item = res.data;
+            if (!item || typeof item !== 'object' || !('id' in item)) return null;
             cache.current.set(itemId, item);
             return item;
-        } catch {
+        } catch (err) {
+            console.error(`Failed to fetch item ${itemId}:`, err);
             return null;
         }
     }, []);
@@ -101,12 +105,18 @@ export function useItemDetail(): UseItemDetailReturn {
             // Sin datos → fetch ambos en paralelo
             setLoading(true);
             setStockLoading(true);
-            Promise.all([fetchItem(itemId), fetchStock(itemId)]).then(([item, stock]) => {
-                if (item) setItemData(item);
-                setStockLocations(stock);
-                setLoading(false);
-                setStockLoading(false);
-            });
+            Promise.all([fetchItem(itemId), fetchStock(itemId)])
+                .then(([item, stock]) => {
+                    if (item) setItemData(item);
+                    setStockLocations(stock);
+                    setLoading(false);
+                    setStockLoading(false);
+                })
+                .catch(err => {
+                    console.error('Error loading item detail:', err);
+                    setLoading(false);
+                    setStockLoading(false);
+                });
         }
     }, [fetchItem, fetchStock]);
 

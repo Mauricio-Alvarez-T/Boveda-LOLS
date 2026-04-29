@@ -36,6 +36,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [holidays, setHolidays] = useState<Feriado[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+    const [deletingPeriodId, setDeletingPeriodId] = useState<number | null>(null);
     const { hasPermission } = useAuth();
 
     useEffect(() => {
@@ -135,11 +136,11 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             toast.error('No tienes permiso para eliminar períodos de ausencia');
             return;
         }
-        if (!window.confirm('¿Estás seguro de que deseas eliminar este período de ausencia?')) return;
-        
+
         try {
             await api.delete(`/asistencias/periodos/${id}`);
             toast.success('Período eliminado');
+            setDeletingPeriodId(null);
             
             // Refrescar datos locales
             const year = currentDate.getFullYear();
@@ -372,13 +373,34 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                             ACTIVO
                                         </div>
                                         {!readOnly && hasPermission('asistencia.periodo.eliminar') && (
-                                            <button 
-                                                onClick={() => handleDeletePeriod(p.id)}
-                                                className="p-1.5 rounded-lg hover:bg-destructive/10 text-[#86868B] hover:text-destructive transition-colors"
-                                                title="Eliminar período"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
+                                            deletingPeriodId === p.id ? (
+                                                <div className="flex items-center gap-1 shrink-0 animate-in fade-in slide-in-from-right-1 duration-200">
+                                                    <Button
+                                                        size="sm"
+                                                        variant="ghost"
+                                                        className="h-7 px-2 text-[10px] font-bold text-muted-foreground hover:bg-muted"
+                                                        onClick={() => setDeletingPeriodId(null)}
+                                                    >
+                                                        No
+                                                    </Button>
+                                                    <Button
+                                                        size="sm"
+                                                        variant="primary"
+                                                        className="h-7 px-2 text-[10px] font-bold bg-destructive hover:bg-destructive/90 border-none"
+                                                        onClick={() => handleDeletePeriod(p.id)}
+                                                    >
+                                                        Sí, borrar
+                                                    </Button>
+                                                </div>
+                                            ) : (
+                                                <button
+                                                    onClick={() => setDeletingPeriodId(p.id)}
+                                                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-[#86868B] hover:text-destructive transition-colors"
+                                                    title="Eliminar período"
+                                                >
+                                                    <Trash2 className="h-3.5 w-3.5" />
+                                                </button>
+                                            )
                                         )}
                                     </div>
                                 </div>

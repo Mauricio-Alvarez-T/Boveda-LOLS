@@ -1,11 +1,28 @@
 const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
+const validateBody = require('../middleware/validateBody');
 const inventarioService = require('../services/inventario.service');
+const itemInventarioBulkService = require('../services/itemInventarioBulk.service');
+const stockBulkService = require('../services/stockBulk.service');
 const uploadInventario = require('../middleware/upload-inventario');
 const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
+
+// GET /api/inventario/dashboard-ejecutivo — Resumen ejecutivo para el dueño (1 request, KPIs + top obras + alertas)
+router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
+        const topRaw = req.query.top_obras_limit ? Number(req.query.top_obras_limit) : null;
+        const topObrasLimit = Number.isFinite(topRaw) && topRaw > 0 ? topRaw : undefined;
+        const result = await inventarioService.getDashboardEjecutivo(
+            Number.isFinite(obraId) && obraId > 0 ? obraId : null,
+            { topObrasLimit }
+        );
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
 
 // GET /api/inventario/resumen
 router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res, next) => {
@@ -33,16 +50,26 @@ router.get('/stock/bodega/:bodegaId', auth, checkPermission('inventario.ver'), a
 });
 
 // PUT /api/inventario/stock — actualizar stock inline
-router.put('/stock', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+// Auditoría 4.4: validación declarativa antes de entrar al handler.
+router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
+    item_id: { required: true, type: 'integer', min: 1 },
+    obra_id: { type: 'integer', min: 1 },
+    bodega_id: { type: 'integer', min: 1 },
+    cantidad: { type: 'integer', min: 0, max: 999999 },
+    valor_arriendo_override: { type: 'number', min: 0 },
+}), async (req, res, next) => {
     try {
         const { item_id, obra_id, bodega_id, cantidad, valor_arriendo_override } = req.body;
-        if (!item_id) return res.status(400).json({ error: 'item_id requerido' });
         const result = await inventarioService.actualizarStock(
             item_id, obra_id || null, bodega_id || null,
             { cantidad, valorArriendoOverride: valor_arriendo_override }
         );
         res.json({ data: result });
-    } catch (err) { next(err); }
+    } catch (err) {
+        // Auditoría 3.2: errores de validación (statusCode 400) → 400 explícito al cliente.
+        if (err && err.statusCode === 400) return res.status(400).json({ error: err.message });
+        next(err);
+    }
 });
 
 // PUT /api/inventario/descuento/obra/:obraId
@@ -103,6 +130,59 @@ router.delete('/items/:itemId/imagen', auth, checkPermission('inventario.editar'
         await db.query('UPDATE items_inventario SET imagen_url = NULL WHERE id = ?', [itemId]);
         res.json({ data: { success: true } });
     } catch (err) { next(err); }
+});
+
+// PUT /api/inventario/items/bulk — edición masiva de ítems (Ola 3)
+// Body: { items: [{ id, ...campos editables }] }
+// Respuestas:
+//   200 { data: { updated, diff } }
+//   413 si supera MAX_ITEMS
+//   400 si payload inválido (validación pre-transacción)
+router.put('/items/bulk', auth, checkPermission('inventario.editar'), validateBody({
+    items: { required: true, type: 'array', minLength: 1 },
+}), async (req, res, next) => {
+    try {
+        const items = req.body?.items;
+        const result = await itemInventarioBulkService.bulkUpdate(items, req.user.id);
+        res.json({ data: result });
+    } catch (err) {
+        if (err.status === 413) {
+            return res.status(413).json({
+                error: err.message,
+                maxItems: itemInventarioBulkService.MAX_ITEMS,
+            });
+        }
+        // Errores de validación sanitize() → 400 (no es bug de servidor)
+        if (/inválid|vacía|sin campos|inexistent|más de una vez/i.test(err.message)) {
+            return res.status(400).json({ error: err.message });
+        }
+        next(err);
+    }
+});
+
+// PUT /api/inventario/stock/bulk — ajuste masivo de stock (Ola 3)
+// Body: { adjustments: [{ item_id, obra_id?|bodega_id?, cantidad?, valor_arriendo_override? }] }
+// Respuestas:
+//   200 { data: { updated, created, diff } }
+//   413 si supera MAX_ITEMS
+//   400 si payload inválido
+router.put('/stock/bulk', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+    try {
+        const adjustments = req.body?.adjustments;
+        const result = await stockBulkService.bulkAdjust(adjustments, req.user.id);
+        res.json({ data: result });
+    } catch (err) {
+        if (err.status === 413) {
+            return res.status(413).json({
+                error: err.message,
+                maxItems: stockBulkService.MAX_ITEMS,
+            });
+        }
+        if (/inválid|sin campos|duplicado|requiere obra|no puede tener/i.test(err.message)) {
+            return res.status(400).json({ error: err.message });
+        }
+        next(err);
+    }
 });
 
 module.exports = router;

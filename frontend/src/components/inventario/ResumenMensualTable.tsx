@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useCallback } from 'react';
 import { cn } from '../../utils/cn';
 import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon, Check, MapPin, Warehouse } from 'lucide-react';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
@@ -96,7 +96,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
 
 
 
-    const renderEditableQty = (
+    // Auditoría 3.9: memoizar renderEditableQty para evitar re-creación en cada render
+    // (se invoca por celda — con N obras × M items la diferencia es notoria al tipear).
+    const renderEditableQty = useCallback((
         cellKey: string, cantidad: number,
         itemId: number, obraId: number | null, bodegaId: number | null,
         hasValue: boolean
@@ -131,7 +133,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 {hasValue ? cantidad : ''}
             </span>
         );
-    };
+    }, [
+        desktopEdit.editingCell,
+        desktopEdit.editValue,
+        desktopEdit.setEditValue,
+        desktopEdit.saveEdit,
+        desktopEdit.cancelEdit,
+        desktopEdit.startEdit,
+        canEdit,
+    ]);
 
     const totalColSpan = 4 + visibleObras.length * 2 + visibleBodegas.length + 2;
     const hiddenCount = hiddenCols.size;
@@ -439,6 +449,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 setHideEmpty={setHideEmpty}
                 hiddenCount={hiddenCount}
                 restoreCols={restoreCols}
+                canCreate={canEdit}
+                onRefresh={onRefresh}
             />
 
             {/* ── Table — fills remaining space, scrolls both axes ── */}
@@ -672,4 +684,6 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     );
 };
 
-export default ResumenMensualTable;
+// Auditoría 3.9: memoizar componente completo para evitar re-renders cuando
+// el padre (Inventario.tsx) re-renderea por estado no relacionado (tabs, modales).
+export default React.memo(ResumenMensualTable);

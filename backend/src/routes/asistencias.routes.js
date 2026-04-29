@@ -40,6 +40,21 @@ router.get('/estados', auth, async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
+// Batch upsert multi-obra / multi-fecha (usado por "Repetir día anterior" y futuras cargas masivas)
+router.post('/batch', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+    try {
+        const { registros } = req.body;
+        if (!registros || !Array.isArray(registros)) {
+            return res.status(400).json({ error: 'registros[] es requerido' });
+        }
+        if (registros.length === 0) {
+            return res.status(400).json({ error: 'registros[] no puede estar vacío' });
+        }
+        const result = await asistenciaService.batchSave(registros, req.user.id, req);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // Bulk create/update
 router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
     try {

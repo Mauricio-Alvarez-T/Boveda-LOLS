@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, History, User, Globe, Cpu, Clock, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, History, User, Globe, Cpu, Clock, ChevronLeft, ChevronRight, Building2, Users, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import api from '../../services/api';
@@ -7,7 +7,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
-import { normalizeLogDetail, getLabel, type LogDetail } from '../../utils/logNormalizer';
+import { normalizeLogDetail, getLabel, type LogDetail, type BulkAsistenciaTrabajador } from '../../utils/logNormalizer';
 
 interface Log {
     id: number;
@@ -178,6 +178,119 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
     );
 };
 
+// ─── Viewer para bulk_asistencia (toma masiva agrupada por obra) ───
+interface BulkAsistenciaPayload {
+    type: 'bulk_asistencia';
+    obra_id: number | null;
+    obra_nombre: string;
+    fecha_asistencia: string;
+    total: number;
+    creados: number;
+    actualizados: number;
+    trabajadores: BulkAsistenciaTrabajador[];
+    resumen?: string;
+}
+
+const formatFechaAsistencia = (raw: string): string => {
+    if (!raw) return '';
+    const parts = raw.split('-');
+    return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]}` : raw;
+};
+
+const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?: string }> = ({ data, responsable }) => {
+    const [expanded, setExpanded] = useState<Record<number, boolean>>({});
+    const toggle = (i: number) => setExpanded(p => ({ ...p, [i]: !p[i] }));
+
+    return (
+        <div className="space-y-5">
+            {/* Header */}
+            <div className="bg-white p-4 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                    <div className="h-10 w-10 bg-brand-primary/5 rounded-full flex items-center justify-center">
+                        <Building2 className="h-5 w-5 text-brand-primary" />
+                    </div>
+                    <div>
+                        <h4 className="text-sm font-bold text-brand-dark uppercase tracking-tight">{data.obra_nombre}</h4>
+                        <p className="text-xs text-muted-foreground font-medium">Toma de asistencia • {formatFechaAsistencia(data.fecha_asistencia)}</p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    {responsable && (
+                        <div className="flex items-center gap-2 bg-brand-primary/5 px-3 py-1.5 rounded-full border border-brand-primary/10">
+                            <span className="text-[10px] font-bold text-brand-primary uppercase tracking-tighter">Tomada por:</span>
+                            <span className="text-xs font-bold text-brand-dark">{responsable}</span>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2 bg-background px-3 py-1.5 rounded-full border border-border/50">
+                        <Users className="h-3.5 w-3.5 text-muted-foreground" />
+                        <span className="text-xs font-semibold text-brand-dark">{data.total} trabajadores</span>
+                    </div>
+                </div>
+            </div>
+
+            {/* Contadores */}
+            <div className="grid grid-cols-2 gap-3">
+                <div className="bg-brand-accent/5 border border-brand-accent/15 rounded-2xl p-3 flex items-center justify-between">
+                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Registrados</span>
+                    <span className="text-xl font-black text-brand-accent tabular-nums">{data.creados}</span>
+                </div>
+                <div className="bg-warning/5 border border-warning/15 rounded-2xl p-3 flex items-center justify-between">
+                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Modificados</span>
+                    <span className="text-xl font-black text-warning tabular-nums">{data.actualizados}</span>
+                </div>
+            </div>
+
+            {/* Lista de trabajadores */}
+            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+                <div className="px-4 py-2.5 bg-background border-b border-border">
+                    <span className="text-[11px] font-black text-brand-dark uppercase tracking-widest opacity-80">Trabajadores</span>
+                </div>
+                <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
+                    {data.trabajadores.map((t, i) => {
+                        const hasCambios = t.cambios && Object.keys(t.cambios).length > 0;
+                        const isOpen = !!expanded[i];
+                        return (
+                            <div key={i} className="px-4 py-2.5">
+                                <div className={cn("flex items-center justify-between gap-3", hasCambios && "cursor-pointer")} onClick={() => hasCambios && toggle(i)}>
+                                    <div className="flex items-center gap-2 min-w-0">
+                                        <span className={cn(
+                                            "text-[9px] font-black px-1.5 py-0.5 rounded",
+                                            t.accion === 'CREATE' ? "bg-brand-accent/10 text-brand-accent" : "bg-warning/10 text-warning"
+                                        )}>
+                                            {t.accion === 'CREATE' ? 'NUEVO' : 'EDITADO'}
+                                        </span>
+                                        <span className="text-xs font-semibold text-brand-dark truncate">{t.nombre}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {t.estado && (
+                                            <span className="text-[10px] font-bold bg-background border border-border/50 px-2 py-0.5 rounded-full text-brand-dark">{t.estado}</span>
+                                        )}
+                                        {hasCambios && (
+                                            <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
+                                        )}
+                                    </div>
+                                </div>
+                                {hasCambios && isOpen && (
+                                    <div className="mt-2 ml-4 space-y-1">
+                                        {Object.entries(t.cambios!).map(([campo, val]) => (
+                                            <div key={campo} className="flex items-center gap-2 text-[10px]">
+                                                <span className="font-black uppercase tracking-wider text-muted-foreground">{campo}:</span>
+                                                <span className="text-destructive line-through decoration-destructive/30">{val.de ?? '—'}</span>
+                                                <span className="text-muted-foreground">→</span>
+                                                <span className="text-brand-dark font-bold">{val.a ?? '—'}</span>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // ─── Componente principal de detalle por log ───
 const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string }> = ({ detail, modulo, responsable }) => {
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -187,6 +300,32 @@ const LogDetails: React.FC<{ detail: string, modulo: string, responsable: string
     const parsed = normalizeLogDetail(detail);
     if (typeof parsed === 'string') return <p className="text-[11px] text-brand-dark leading-snug break-all">{parsed}</p>;
     if (!parsed || (typeof parsed === 'object' && Object.keys(parsed).length === 0)) return <span className="text-xs text-muted-foreground italic">—</span>;
+
+    // ── BULK ASISTENCIA: { type: 'bulk_asistencia', ... } ──
+    if (typeof parsed === 'object' && 'type' in parsed && parsed.type === 'bulk_asistencia') {
+        const bulk = parsed as BulkAsistenciaPayload;
+        return (
+            <>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <span className="text-[9px] font-bold bg-brand-primary/10 text-brand-primary px-1 rounded">TOMA MASIVA:</span>
+                    <span className="text-[11px] font-bold text-brand-dark">{bulk.obra_nombre}</span>
+                    <span className="text-[10px] text-muted-foreground">· {bulk.total} trabajadores</span>
+                    {bulk.actualizados > 0 && (
+                        <span className="text-[9px] font-bold bg-warning/10 text-warning px-1.5 py-0.5 rounded">
+                            {bulk.actualizados} modif.
+                        </span>
+                    )}
+                    <span className="text-[10px] text-muted-foreground">• {formatFechaAsistencia(bulk.fecha_asistencia)}</span>
+                    <button onClick={() => setIsModalOpen(true)} className="text-[10px] font-extrabold text-brand-primary hover:bg-brand-primary/10 px-2 py-0.5 rounded-full bg-brand-primary/5 ml-1 transition-all active:scale-95">
+                        Ver toma completa
+                    </button>
+                </div>
+                <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={`Toma de asistencia — ${bulk.obra_nombre}`} size="lg">
+                    <BulkAsistenciaViewer data={bulk} responsable={responsable} />
+                </Modal>
+            </>
+        );
+    }
 
     // ── NUEVO FORMATO COMPACTO: { type: 'compact', cambios, resumen } ──
     if (typeof parsed === 'object' && 'type' in parsed && parsed.type === 'compact') {

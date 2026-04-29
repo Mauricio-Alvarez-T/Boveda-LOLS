@@ -7,12 +7,24 @@ import { Modal } from '../ui/Modal';
 import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
 import SolicitudForm from './SolicitudForm';
+import MovimientoForm from './MovimientoForm';
+import NewMovimientoModal, { type TipoMovimiento } from './NewMovimientoModal';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
 
 interface Props {
     obras: { id: number; nombre: string }[];
     hasPermission: (p: string) => boolean;
+    /**
+     * Filtro inicial (solo se aplica al montar). Usado cuando se navega desde el
+     * Resumen Ejecutivo. Si cambia el valor, el parent debe forzar remount con `key`.
+     */
+    initialStatusFilter?: string;
+    /**
+     * Transferencia que debe abrirse automáticamente al montar. Mismo caveat que
+     * initialStatusFilter: solo se aplica al montar.
+     */
+    initialSelectedId?: number | null;
 }
 
 // Mirror of STATUS_CHIPS inside TransferenciasList — kept here so the panel
@@ -25,14 +37,15 @@ const MAIN_STATUS_CHIPS: { value: string; label: string }[] = [
     { value: 'discrepancias', label: 'Discrepancias' },
 ];
 
-const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
+const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
     const { user } = useAuth();
     const trfHook = useTransferencias();
 
-    const [selectedId, setSelectedId] = useState<number | null>(null);
-    const [statusFilter, setStatusFilter] = useState('todas');
+    const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
+    const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'todas');
     const [searchQuery, setSearchQuery] = useState('');
-    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [showSelectorModal, setShowSelectorModal] = useState(false);
+    const [activeFlow, setActiveFlow] = useState<TipoMovimiento | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
     // Discrepancias mode
@@ -48,6 +61,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
         })();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Auto-open a transferencia if navigated with initialSelectedId (from dashboard)
+    useEffect(() => {
+        if (initialSelectedId && !isDiscrepanciasMode) {
+            trfHook.fetchById(initialSelectedId);
+        }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
@@ -126,6 +147,51 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
         return result;
     }, [trfHook.crear, trfHook.fetchAll, statusFilter]);
 
+    const handlePushDirecto = useCallback(async (data: any) => {
+        const result = await trfHook.pushDirecto(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.pushDirecto, trfHook.fetchAll, statusFilter]);
+
+    const handleIntraBodega = useCallback(async (data: any) => {
+        const result = await trfHook.intraBodega(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.intraBodega, trfHook.fetchAll, statusFilter]);
+
+    const handleDevolucion = useCallback(async (data: any) => {
+        const result = await trfHook.devolucion(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.devolucion, trfHook.fetchAll, statusFilter]);
+
+    const handleIntraObra = useCallback(async (data: any) => {
+        const result = await trfHook.intraObra(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.intraObra, trfHook.fetchAll, statusFilter]);
+
+    const handleOrdenGerencia = useCallback(async (data: any) => {
+        const result = await trfHook.ordenGerencia(data);
+        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        return result;
+    }, [trfHook.ordenGerencia, trfHook.fetchAll, statusFilter]);
+
+    const handleRechazarRecepcion = useCallback(async (motivo: string) => {
+        setActionLoading(true);
+        const ok = await trfHook.rechazarRecepcion(selectedId!, motivo);
+        if (ok) await refreshAll();
+        setActionLoading(false);
+        return ok;
+    }, [selectedId, trfHook.rechazarRecepcion, refreshAll]);
+
+    const handleSelectFlow = useCallback((tipo: TipoMovimiento) => {
+        setShowSelectorModal(false);
+        setActiveFlow(tipo);
+    }, []);
+
+    const closeActiveFlow = useCallback(() => setActiveFlow(null), []);
+
     // ── Discrepancias handlers ──
     const handleSelectDiscrepancia = useCallback((trf: any) => {
         trfHook.setSelectedDiscrepancia(trf);
@@ -177,10 +243,10 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
                 </h3>
                 {!isDiscrepanciasMode && hasPermission('inventario.crear') && (
                     <button
-                        onClick={() => setShowCreateModal(true)}
+                        onClick={() => setShowSelectorModal(true)}
                         className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20"
                     >
-                        <Plus className="h-3.5 w-3.5" /> Nueva Solicitud
+                        <Plus className="h-3.5 w-3.5" /> Nuevo movimiento
                     </button>
                 )}
             </div>
@@ -287,8 +353,10 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
                             onBack={() => { setSelectedId(null); trfHook.setSelected(null); }}
                             onFetchStock={trfHook.fetchStockPorItems}
                             onAprobar={handleAprobar}
+                            onCrearFaltante={trfHook.crearFaltante}
                             onRecibir={handleRecibir}
                             onRechazar={handleRechazar}
+                            onRechazarRecepcion={handleRechazarRecepcion}
                             onCancelar={handleCancelar}
                         />
                     ) : (
@@ -301,17 +369,99 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission }) => {
                 </div>
             </div>
 
-            {/* Creation modal */}
+            {/* Selector de tipo de movimiento */}
+            <NewMovimientoModal
+                isOpen={showSelectorModal}
+                onClose={() => setShowSelectorModal(false)}
+                onSelect={handleSelectFlow}
+            />
+
+            {/* Solicitud estándar (existente) */}
             <Modal
-                isOpen={showCreateModal}
-                onClose={() => setShowCreateModal(false)}
+                isOpen={activeFlow === 'solicitud'}
+                onClose={closeActiveFlow}
                 title="Nueva Solicitud de Transferencia"
-                size="lg"
+                size="full"
             >
                 <SolicitudForm
                     obras={obras}
                     onCrear={handleCrear}
-                    onClose={() => setShowCreateModal(false)}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Push directo */}
+            <Modal
+                isOpen={activeFlow === 'push_directo'}
+                onClose={closeActiveFlow}
+                title="Push directo"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="push_directo"
+                    obras={obras}
+                    onSubmit={handlePushDirecto}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Intra-bodega */}
+            <Modal
+                isOpen={activeFlow === 'intra_bodega'}
+                onClose={closeActiveFlow}
+                title="Movimiento intra-bodega"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="intra_bodega"
+                    obras={obras}
+                    onSubmit={handleIntraBodega}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Devolución */}
+            <Modal
+                isOpen={activeFlow === 'devolucion'}
+                onClose={closeActiveFlow}
+                title="Devolución de obra a bodega"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="devolucion"
+                    obras={obras}
+                    onSubmit={handleDevolucion}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Intra-obra */}
+            <Modal
+                isOpen={activeFlow === 'intra_obra'}
+                onClose={closeActiveFlow}
+                title="Traslado intra-obra"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="intra_obra"
+                    obras={obras}
+                    onSubmit={handleIntraObra}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Orden de gerencia */}
+            <Modal
+                isOpen={activeFlow === 'orden_gerencia'}
+                onClose={closeActiveFlow}
+                title="Orden de gerencia"
+                size="lg"
+            >
+                <MovimientoForm
+                    flujo="orden_gerencia"
+                    obras={obras}
+                    onSubmit={handleOrdenGerencia}
+                    onClose={closeActiveFlow}
                 />
             </Modal>
         </div>
