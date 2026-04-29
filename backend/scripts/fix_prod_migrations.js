@@ -56,34 +56,36 @@ async function main() {
         try {
             await conn.query(sql);
             const ms = Date.now() - start;
-            // Actualizar schema_migrations con el tiempo real de ejecución
+            // Marcar como aplicada en schema_migrations. INSERT ... ON DUPLICATE
+            // cubre el caso en que el bootstrap incorrecto NO la haya
+            // pre-marcado (024/025+) y también cuando sí (017-023).
             await conn.query(
-                `UPDATE schema_migrations SET applied_at = NOW(), duration_ms = ? WHERE name = ?`,
-                [ms, file]
+                `INSERT INTO schema_migrations (name, applied_at, duration_ms)
+                 VALUES (?, NOW(), ?)
+                 ON DUPLICATE KEY UPDATE applied_at = VALUES(applied_at), duration_ms = VALUES(duration_ms)`,
+                [file, ms]
             );
             console.log(`   ✅ OK (${ms}ms)`);
         } catch (err) {
             // Errores idempotentes esperables — schema ya tiene el cambio
-            // aplicado manualmente o por bootstrap incorrecto. Saltar y
-            // continuar con la siguiente migración.
-            if (err.errno === 1050) { // ER_TABLE_EXISTS_ERROR
-                console.log(`   ⚠️  Tabla ya existe, saltando: ${err.message}`);
-                continue;
-            }
-            if (err.errno === 1060) { // ER_DUP_FIELDNAME — columna ya existe
-                console.log(`   ⚠️  Columna ya existe, saltando: ${err.message}`);
-                continue;
-            }
-            if (err.errno === 1061) { // ER_DUP_KEYNAME — índice ya existe
-                console.log(`   ⚠️  Índice ya existe, saltando: ${err.message}`);
-                continue;
-            }
-            if (err.errno === 1062) { // ER_DUP_ENTRY — fila ya insertada (seeds)
-                console.log(`   ⚠️  Registro ya insertado, saltando: ${err.message}`);
-                continue;
-            }
-            if (err.errno === 1826) { // ER_FK_DUP_NAME — FK ya existe
-                console.log(`   ⚠️  FK ya existe, saltando: ${err.message}`);
+            // aplicado manualmente o por bootstrap incorrecto. Marcar la
+            // migración como aplicada igual y continuar con la siguiente.
+            const idempotentErrors = {
+                1050: 'Tabla ya existe',          // ER_TABLE_EXISTS_ERROR
+                1060: 'Columna ya existe',        // ER_DUP_FIELDNAME
+                1061: 'Índice ya existe',         // ER_DUP_KEYNAME
+                1062: 'Registro ya insertado',    // ER_DUP_ENTRY
+                1826: 'FK ya existe',             // ER_FK_DUP_NAME
+            };
+            if (idempotentErrors[err.errno]) {
+                console.log(`   ⚠️  ${idempotentErrors[err.errno]}, saltando y marcando como aplicada: ${err.message}`);
+                // Marcar como aplicada para que `migrate` no la re-intente
+                await conn.query(
+                    `INSERT INTO schema_migrations (name, applied_at, duration_ms)
+                     VALUES (?, NOW(), 0)
+                     ON DUPLICATE KEY UPDATE applied_at = VALUES(applied_at)`,
+                    [file]
+                );
                 continue;
             }
             console.error(`   ❌ Error: ${err.message}`);
