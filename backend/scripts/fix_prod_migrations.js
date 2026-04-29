@@ -63,14 +63,27 @@ async function main() {
             );
             console.log(`   ✅ OK (${ms}ms)`);
         } catch (err) {
-            // Si la tabla ya existe, continuar
+            // Errores idempotentes esperables — schema ya tiene el cambio
+            // aplicado manualmente o por bootstrap incorrecto. Saltar y
+            // continuar con la siguiente migración.
             if (err.errno === 1050) { // ER_TABLE_EXISTS_ERROR
                 console.log(`   ⚠️  Tabla ya existe, saltando: ${err.message}`);
                 continue;
             }
-            // Si el índice ya existe, continuar
-            if (err.errno === 1061) { // ER_DUP_KEYNAME
+            if (err.errno === 1060) { // ER_DUP_FIELDNAME — columna ya existe
+                console.log(`   ⚠️  Columna ya existe, saltando: ${err.message}`);
+                continue;
+            }
+            if (err.errno === 1061) { // ER_DUP_KEYNAME — índice ya existe
                 console.log(`   ⚠️  Índice ya existe, saltando: ${err.message}`);
+                continue;
+            }
+            if (err.errno === 1062) { // ER_DUP_ENTRY — fila ya insertada (seeds)
+                console.log(`   ⚠️  Registro ya insertado, saltando: ${err.message}`);
+                continue;
+            }
+            if (err.errno === 1826) { // ER_FK_DUP_NAME — FK ya existe
+                console.log(`   ⚠️  FK ya existe, saltando: ${err.message}`);
                 continue;
             }
             console.error(`   ❌ Error: ${err.message}`);
