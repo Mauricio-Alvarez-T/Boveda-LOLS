@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
@@ -96,9 +96,23 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
 
     const allRowIds = useMemo(() => new Set(Object.keys(rows).map(k => Number(k))), [rows]);
 
-    const updateRow = (trabajadorId: number, patch: Partial<RowState>) => {
+    // useCallback para que las filas memoizadas no re-rendericen al tipear en
+    // un input arbitrario. setRows es estable, así que sin deps.
+    const updateRow = useCallback((trabajadorId: number, patch: Partial<RowState>) => {
         setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], ...patch } }));
-    };
+    }, []);
+
+    const setAsistio = useCallback((trabajadorId: number, asistio: boolean) => {
+        setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], asistio } }));
+    }, []);
+
+    const setHorasRow = useCallback((trabajadorId: number, horas: string) => {
+        setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], horas_trabajadas: horas } }));
+    }, []);
+
+    const setObsRow = useCallback((trabajadorId: number, obs: string) => {
+        setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], observacion: obs } }));
+    }, []);
 
     const handleAddExternal = (newWorkers: Trabajador[]) => {
         setRows(prev => {
@@ -396,7 +410,8 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                 <div className="flex gap-1 shrink-0">
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateRow(trabajadorId, { asistio: true })}
+                                                        aria-label={`${row.apellido_paterno} ${row.nombres}: marcar asistió`}
+                                                        onClick={() => setAsistio(trabajadorId, true)}
                                                         disabled={!canRegistrar}
                                                         className={cn(
                                                             'px-3 h-9 text-[11px] font-bold rounded-lg transition-all',
@@ -409,7 +424,8 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                     </button>
                                                     <button
                                                         type="button"
-                                                        onClick={() => updateRow(trabajadorId, { asistio: false })}
+                                                        aria-label={`${row.apellido_paterno} ${row.nombres}: marcar no asistió`}
+                                                        onClick={() => setAsistio(trabajadorId, false)}
                                                         disabled={!canRegistrar}
                                                         className={cn(
                                                             'px-3 h-9 text-[11px] font-bold rounded-lg transition-all',
@@ -429,8 +445,9 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                     max="24"
                                                     step="0.5"
                                                     placeholder="Horas"
+                                                    aria-label={`Horas trabajadas para ${row.apellido_paterno} ${row.nombres}`}
                                                     value={row.horas_trabajadas}
-                                                    onChange={e => updateRow(trabajadorId, { horas_trabajadas: e.target.value })}
+                                                    onChange={e => setHorasRow(trabajadorId, e.target.value)}
                                                     disabled={!canRegistrar || !row.asistio}
                                                     className="w-20 h-9 px-2 bg-white border border-[#D0D0D5] rounded-lg text-sm text-center font-medium focus:outline-none focus:border-brand-primary disabled:opacity-50"
                                                 />
@@ -439,8 +456,9 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                 <input
                                                     type="text"
                                                     placeholder="Nota..."
+                                                    aria-label={`Observación para ${row.apellido_paterno} ${row.nombres}`}
                                                     value={row.observacion}
-                                                    onChange={e => updateRow(trabajadorId, { observacion: e.target.value })}
+                                                    onChange={e => setObsRow(trabajadorId, e.target.value)}
                                                     disabled={!canRegistrar}
                                                     className="flex-1 min-w-[120px] h-9 px-3 bg-white border border-[#D0D0D5] rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
                                                 />

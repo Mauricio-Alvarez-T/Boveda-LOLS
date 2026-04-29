@@ -58,7 +58,7 @@ export function useSabadosExtra() {
 
     const crearCitacion = useCallback(async (
         payload: CrearCitacionPayload
-    ): Promise<{ id: number } | { conflictExistingId: number } | null> => {
+    ): Promise<{ id: number } | { conflictExistingId: number } | { feriadoConflict: string } | null> => {
         try {
             const res = await api.post<{ data: { id: number } }>('/sabados-extra', payload);
             toast.success('Citación creada');
@@ -66,6 +66,11 @@ export function useSabadosExtra() {
         } catch (err: any) {
             const status = err?.response?.status;
             const msg = err?.response?.data?.error || 'Error al crear la citación';
+
+            // 409 + mensaje "feriado" + flag NO seteado → la UI ofrece reintento
+            if (status === 409 && /feriado/i.test(msg) && !payload.acepta_feriado) {
+                return { feriadoConflict: msg };
+            }
 
             if (status === 409) {
                 // Buscar la existente del mismo (obra, fecha) para ofrecer abrirla

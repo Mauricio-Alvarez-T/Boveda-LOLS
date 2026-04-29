@@ -886,6 +886,33 @@ const asistenciaService = {
         const defaultHorario = { lun:9, mar:9, mie:9, jue:9, vie:9, sab:0, dom:0 };
         const jsDaysMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
 
+        // ── Sumar horas de Sábados Extra por trabajador en el rango ──
+        // Solo cuenta el detalle con estado='asistio' de citaciones no canceladas.
+        // Se filtra por obra cuando aplica para que el reporte de una sola obra
+        // no traiga horas de sábados de otra obra.
+        const sabExtraConds = ['s.fecha BETWEEN ? AND ?', "s.estado != 'cancelada'", "t.estado = 'asistio'"];
+        const sabExtraParams = [fecha_inicio, fecha_fin];
+        if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') {
+            sabExtraConds.push('s.obra_id = ?');
+            sabExtraParams.push(obra_id);
+        }
+        const sabExtraSql = `
+            SELECT t.trabajador_id, SUM(t.horas_trabajadas) AS horas_sabado
+            FROM sabados_extra_trabajadores t
+            JOIN sabados_extra s ON s.id = t.sabado_id
+            WHERE ${sabExtraConds.join(' AND ')}
+            GROUP BY t.trabajador_id
+        `;
+        let sabExtraMap = new Map();
+        try {
+            const [sabExtraRows] = await db.query(sabExtraSql, sabExtraParams);
+            sabExtraRows.forEach(r => sabExtraMap.set(r.trabajador_id, parseFloat(r.horas_sabado) || 0));
+        } catch (e) {
+            // Si la tabla no existe (entorno sin migración 038/040 aplicada),
+            // continuar con map vacío en lugar de romper el export completo.
+            console.warn('[asistencia.generarExcel] no se pudieron leer sábados extra:', e.message);
+        }
+
         let maxStrDateInRecords = '';
         registros.forEach(r => {
             const dStr = formatDate(r.fecha);
@@ -1131,7 +1158,18 @@ const asistenciaService = {
             horasExtHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
             horasExtHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const obsCol = horasExtCol + 1;
+            // ── Columna SÁB EXTRA (h): horas de sábados extra del rango ──
+            // No suma a HORAS ORD ni HORAS EXT — RRHH la procesa aparte.
+            const sabExtraCol = horasExtCol + 1;
+            ws.mergeCells(7, sabExtraCol, 8, sabExtraCol);
+            const sabExtraHeader = ws.getCell(7, sabExtraCol);
+            sabExtraHeader.value = 'SÁB EXTRA (h)';
+            sabExtraHeader.font = { bold: true, size: 9 };
+            sabExtraHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            sabExtraHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F4FF' } };
+            sabExtraHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const obsCol = sabExtraCol + 1;
             const obsHeader = ws.getCell(7, obsCol);
             obsHeader.value = 'OBSERVACIONES';
             ws.mergeCells(7, obsCol, 8, obsCol);
@@ -1301,8 +1339,15 @@ const asistenciaService = {
                 const cExt = ws.getCell(rowIdx, horasExtCol);
                 cExt.value = sumHorasExtra;
                 cExt.numFmt = '0.00';
-                
-                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cExt].forEach(c => {
+
+                // Sábados extra: viene del Map pre-calculado, no se interpola con días lun-vie
+                const horasSabExtra = sabExtraMap.get(worker.id) || 0;
+                const cSabExtra = ws.getCell(rowIdx, sabExtraCol);
+                cSabExtra.value = horasSabExtra;
+                cSabExtra.numFmt = '0.00';
+                cSabExtra.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FBFF' } };
+
+                [ws.getCell(rowIdx, q1Col), ws.getCell(rowIdx, q2Col), ws.getCell(rowIdx, totalCol), cExt, cSabExtra].forEach(c => {
                     c.font = { bold: true, size: 9 };
                     c.alignment = { horizontal: 'center', vertical: 'middle' };
                     c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
@@ -1361,6 +1406,7 @@ const asistenciaService = {
             ws.getColumn(totalCol).width = 10;
             ws.getColumn(horasOrdCol).width = 13;
             ws.getColumn(horasExtCol).width = 13;
+            ws.getColumn(sabExtraCol).width = 12;
             ws.getColumn(obsCol).width = 20;
         }
 

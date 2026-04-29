@@ -7,6 +7,15 @@
 export type SabadoEstado = 'citada' | 'realizada' | 'cancelada';
 
 /**
+ * Estado del trabajador dentro de la citación. Migración 040.
+ * - citado: sigue invitado, no se ha registrado asistencia.
+ * - asistio: marcado presente el día.
+ * - no_asistio: marcado ausente.
+ * - cancelado: la citación completa fue cancelada (preserva auditoría).
+ */
+export type SabadoTrabajadorEstado = 'citado' | 'asistio' | 'no_asistio' | 'cancelado';
+
+/**
  * Resumen de citación para listado mensual.
  */
 export interface SabadoExtraResumen {
@@ -35,6 +44,7 @@ export interface SabadoExtraTrabajador {
     obra_origen_nombre: string | null;
     citado: 0 | 1;
     asistio: 0 | 1 | null;            // null = aún no marcado
+    estado?: SabadoTrabajadorEstado;  // migración 040 — opcional para retrocompat
     horas_trabajadas: number | null;  // null = usar horas_default
     observacion: string | null;
     // Joins
@@ -69,6 +79,10 @@ export interface SabadoExtraDetalle {
 
 /**
  * Payload del POST: crear citación.
+ *
+ * `acepta_feriado` (opcional): el backend rechaza con 409 si la fecha
+ * coincide con feriado activo. La UI puede reintentar con este flag tras
+ * confirmación explícita del usuario.
  */
 export interface CrearCitacionPayload {
     obra_id: number;
@@ -77,6 +91,7 @@ export interface CrearCitacionPayload {
     observaciones_por_cargo?: Record<string, string> | null;
     horas_default?: number | null;
     trabajadores: Array<{ trabajador_id: number; obra_origen_id?: number | null }>;
+    acepta_feriado?: boolean;
 }
 
 /**
@@ -87,6 +102,7 @@ export interface EditarCitacionPayload {
     observaciones_por_cargo?: Record<string, string> | null;
     horas_default?: number | null;
     trabajadores: Array<{ trabajador_id: number; obra_origen_id?: number | null }>;
+    acepta_feriado?: boolean;
 }
 
 /**

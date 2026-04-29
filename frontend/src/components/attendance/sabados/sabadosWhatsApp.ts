@@ -17,8 +17,10 @@ export { normalizarFecha, fmtFechaCorta, diaDelMes };
 
 /**
  * Agrupa trabajadores por cargo en un Map ordenado alfabéticamente.
+ * El generic exige `cargo_nombre` y `cargo_id` para que el lookup posterior
+ * de observaciones_por_cargo[cargo_id] no requiera casts.
  */
-function agruparPorCargo<T extends { cargo_nombre: string | null }>(
+function agruparPorCargo<T extends { cargo_nombre: string | null; cargo_id: number | null }>(
     items: T[]
 ): Array<{ cargo: string; items: T[] }> {
     const map: Record<string, T[]> = {};
@@ -77,16 +79,16 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
     // Trabajos a realizar (por cargo si hay observaciones específicas)
     const obs = s.observaciones_por_cargo || {};
     const cargosConObs = grupos.filter(g => {
-        // Lookup por cargo_id del primer trabajador del grupo
-        const cargoId = (s.trabajadores.find(w => (w.cargo_nombre || 'Sin Cargo') === g.cargo) as any)?.cargo_id;
-        return cargoId !== undefined && cargoId !== null && obs[String(cargoId)];
+        const cargoId = g.items[0]?.cargo_id ?? null;
+        return cargoId !== null && Boolean(obs[String(cargoId)]);
     });
 
     if (cargosConObs.length > 0) {
         lines.push('*Trabajos a realizar:*');
         lines.push('');
         cargosConObs.forEach(({ cargo, items }) => {
-            const cargoId = (items[0] as any).cargo_id;
+            const cargoId = items[0]?.cargo_id ?? null;
+            if (cargoId === null) return;
             const texto = obs[String(cargoId)];
             if (texto) lines.push(`*${cargo}:* ${texto}`);
         });

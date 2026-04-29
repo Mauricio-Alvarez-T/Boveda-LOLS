@@ -125,7 +125,6 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             return;
         }
 
-        setSaving(true);
         const trabajadores = allWorkers
             .filter(w => selected.has(w.id))
             .map(w => ({
@@ -139,14 +138,31 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             if (v && v.trim()) obsPorCargo[k] = v.trim();
         });
 
-        const result = await crearCitacion({
+        const basePayload = {
             obra_id: selectedObra.id,
             fecha,
             horas_default: Number(horasDefault) || null,
             observaciones_globales: observacionesGlobales.trim() || null,
             observaciones_por_cargo: Object.keys(obsPorCargo).length > 0 ? obsPorCargo : null,
             trabajadores,
-        });
+        };
+
+        setSaving(true);
+        let result = await crearCitacion(basePayload);
+
+        // Backend rechaza con 409 si la fecha cae en feriado y no se aceptó
+        // explícitamente. Pedir confirmación al usuario y reintentar con flag.
+        if (result && 'feriadoConflict' in result) {
+            const confirmar = window.confirm(
+                `${result.feriadoConflict}\n\n¿Deseas crear la citación de todos modos?`
+            );
+            if (confirmar) {
+                result = await crearCitacion({ ...basePayload, acepta_feriado: true });
+            } else {
+                result = null;
+            }
+        }
+
         setSaving(false);
 
         if (!result) return;

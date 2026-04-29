@@ -411,6 +411,47 @@ Esta tabla resume **cómo se elimina cada entidad del módulo Inventario** y por
 
 ---
 
+## 12.2. Sábados Extra (Trabajo Extraordinario)
+
+**Qué es:** registro de citaciones de personal para trabajos en sábado fuera de la jornada regular. Aislado del flujo de asistencia diaria — no toca la tabla `asistencias` ni los reportes lun-vie estándar (excepto la columna agregada de horas, ver más abajo).
+
+**Tablas (migración 038 + 040):**
+- `sabados_extra`: cabecera. 1 fila por `(obra_id, fecha)`. Estados `citada` / `realizada` / `cancelada`. Audit con `creado_por` y `actualizado_por`.
+- `sabados_extra_trabajadores`: detalle. N filas por sábado. Columna `estado` ∈ {`citado`, `asistio`, `no_asistio`, `cancelado`} agregada en migración 040 para soft delete que preserva auditoría.
+
+**Permisos** (`permisos.config.js`, módulo Asistencia, órdenes 12-17):
+- `asistencia.sabados_extra.ver`, `crear`, `editar`, `cancelar`, `registrar`, `enviar_whatsapp` (granular). La migración 040 hace backfill: roles que tenían `crear` reciben `editar` y `cancelar` automáticamente.
+
+**Restricciones operativas:**
+- 1 citación por `(obra, fecha)` (UNIQUE constraint + `SELECT FOR UPDATE` en backend).
+- Solo sábados (`Date.getDay() === 6`).
+- No fechas pasadas. No fechas más de 1 año adelante.
+- Si la fecha cae en feriado activo → backend responde 409 con mensaje de feriado. La UI debe pedir confirmación y reintentar con `acepta_feriado: true`.
+- Trabajadores deben estar activos y no finiquitados (`fecha_desvinculacion IS NULL`).
+- Obra debe estar activa.
+- Mínimo 1 trabajador, máximo 500 por citación.
+
+**Cancelación (soft delete):**
+- `UPDATE sabados_extra SET estado = 'cancelada'` + `UPDATE sabados_extra_trabajadores SET estado = 'cancelado'` (no DELETE). La auditoría completa (quién creó, quién canceló, lista original de citados) queda preservada para reportes históricos.
+
+**Concurrencia:**
+- Las 4 transiciones de estado (`crearCitacion`, `editarCitacion`, `registrarAsistencia`, `cancelar`) usan `SELECT ... FOR UPDATE` dentro de transacción para prevenir condiciones de carrera (dos super-admins creando/cancelando simultáneamente).
+
+**Reporte mensual Excel (asistencia.service.js → `generarExcel`):**
+- Columna nueva **"SÁB EXTRA (h)"** entre `HORAS EXT` y `OBSERVACIONES`. Suma `SUM(horas_trabajadas)` de los trabajadores con `estado='asistio'` en citaciones `!= 'cancelada'` dentro del rango. NO se agrega a `HORAS ORD` ni `HORAS EXT` — RRHH la procesa aparte como concepto distinto.
+- Si `obra_id` aplica al export, también filtra sábados extra por esa obra.
+
+**Migraciones relevantes:**
+- `038_trabajo_extraordinario_sabado.sql` — tablas iniciales.
+- `040_sabados_extra_audit_y_estado.sql` — columna `estado` en detalle, `actualizado_por`, backfill desde `asistio`, permisos granulares.
+
+**Errores comunes:**
+- _"errno 150"_ al aplicar 040: revisa que las FKs sean `INT` signed (no UNSIGNED) — `usuarios.id` usa INT signed.
+- _"hooks order violation #310"_: nunca poner `useEffect`/`useMemo` después de `if (loading) return …` en componentes de sábados extra. Movido y verificado en commit `bf14d72`.
+- _409 sin razón obvia_: revisa si el sábado coincide con feriado o si ya hay citación activa para esa `(obra,fecha)`.
+
+---
+
 ## 13. Dónde Está Qué
 
 ```

@@ -15,8 +15,13 @@ interface Props {
  * Lista de trabajadores con checkbox, agrupados por cargo (alfabético).
  * Cada item muestra apellido + nombre + RUT. Los externos a la obra
  * anfitriona aparecen con un badge "Otra obra".
+ *
+ * Memoizada con React.memo: re-renderiza solo si cambia `workers`,
+ * `selected` (referencia, no contenido) o el callback `onToggle`. El
+ * caller debe envolver `onToggle` con useCallback y `selected` con
+ * useMemo cuando aplique.
  */
-const WorkerCheckList: React.FC<Props> = ({ workers, selected, onToggle, obraAnfitrionaId }) => {
+const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obraAnfitrionaId }) => {
     const grupos = useMemo(() => {
         const map: Record<string, Trabajador[]> = {};
         workers.forEach(w => {
@@ -107,4 +112,5 @@ const WorkerCheckList: React.FC<Props> = ({ workers, selected, onToggle, obraAnf
     );
 };
 
+const WorkerCheckList = React.memo(WorkerCheckListImpl);
 export default WorkerCheckList;

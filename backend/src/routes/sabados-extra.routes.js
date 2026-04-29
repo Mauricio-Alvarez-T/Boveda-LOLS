@@ -49,7 +49,7 @@ router.post('/', auth, checkPermission('asistencia.sabados_extra.crear'), async 
  * PUT /api/sabados-extra/:id/citacion
  * Edita citación (solo si estado='citada'): observaciones + lista trabajadores.
  */
-router.put('/:id/citacion', auth, checkPermission('asistencia.sabados_extra.crear'), async (req, res, next) => {
+router.put('/:id/citacion', auth, checkPermission('asistencia.sabados_extra.editar'), async (req, res, next) => {
     try {
         const id = Number(req.params.id);
         if (!id) return res.status(400).json({ error: 'ID inválido' });
@@ -80,9 +80,9 @@ router.put('/:id/asistencia', auth, checkPermission('asistencia.sabados_extra.re
 
 /**
  * DELETE /api/sabados-extra/:id
- * Soft delete: estado='cancelada'.
+ * Soft delete: estado='cancelada' + estado='cancelado' en trabajadores.
  */
-router.delete('/:id', auth, checkPermission('asistencia.sabados_extra.crear'), async (req, res, next) => {
+router.delete('/:id', auth, checkPermission('asistencia.sabados_extra.cancelar'), async (req, res, next) => {
     try {
         const id = Number(req.params.id);
         if (!id) return res.status(400).json({ error: 'ID inválido' });
