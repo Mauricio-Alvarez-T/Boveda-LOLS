@@ -5,15 +5,17 @@ import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import AttendanceDailyTab from '../components/attendance/AttendanceDailyTab';
+import AttendanceExtrasMobileTab from '../components/attendance/AttendanceExtrasMobileTab';
 import SabadosExtraTab from '../components/attendance/sabados/SabadosExtraTab';
 import SabadosErrorBoundary from '../components/attendance/sabados/SabadosErrorBoundary';
 
-type TabKey = 'diaria' | 'sabados';
+type TabKey = 'diaria' | 'sabados' | 'extras';
 
 interface TabDef {
     key: TabKey;
     label: string;
     show: boolean;
+    mobileOnly?: boolean;
 }
 
 /**
@@ -32,11 +34,12 @@ const AttendancePage: React.FC = () => {
     const { hasPermission } = useAuth();
     const { selectedObra } = useObra();
     const [searchParams, setSearchParams] = useSearchParams();
-    const activeTab: TabKey = (searchParams.get('tab') as TabKey) === 'sabados' ? 'sabados' : 'diaria';
+    const rawTab = searchParams.get('tab') as TabKey | null;
+    const activeTab: TabKey = rawTab === 'sabados' || rawTab === 'extras' ? rawTab : 'diaria';
 
     const setActiveTab = (t: TabKey) => {
         // sabadoId solo aplica a tab sabados
-        if (t === 'diaria') searchParams.delete('sabadoId');
+        if (t !== 'sabados') searchParams.delete('sabadoId');
         searchParams.set('tab', t);
         setSearchParams(searchParams, { replace: false });
     };
@@ -47,6 +50,15 @@ const AttendancePage: React.FC = () => {
             key: 'sabados',
             label: 'Sábados Extra',
             show: hasPermission('asistencia.sabados_extra.ver') && !!selectedObra,
+        },
+        {
+            // Tab "Más" agrupa acciones secundarias (Excel, Feriado, Repetir,
+            // filtro Empresa) que en mobile no caben en el header. En desktop
+            // estas acciones viven inline en el header → se oculta el tab.
+            key: 'extras',
+            label: 'Más',
+            show: !!selectedObra,
+            mobileOnly: true,
         },
     ];
     const visibleTabs = tabs.filter(t => t.show);
@@ -68,6 +80,7 @@ const AttendancePage: React.FC = () => {
                             onClick={() => setActiveTab(tab.key)}
                             className={cn(
                                 'px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap',
+                                tab.mobileOnly && 'md:hidden',
                                 effectiveTab === tab.key
                                     ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
                                     : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
@@ -95,6 +108,7 @@ const AttendancePage: React.FC = () => {
                             <SabadosExtraTab />
                         </SabadosErrorBoundary>
                     )}
+                    {effectiveTab === 'extras' && <AttendanceExtrasMobileTab onBack={() => setActiveTab('diaria')} />}
                 </motion.div>
             </AnimatePresence>
         </div>

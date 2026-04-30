@@ -3,7 +3,6 @@ import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus } from 'l
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import { cn } from '../../../utils/cn';
-import { AttendanceMobileMenu } from './AttendanceMobileMenu';
 
 interface AttendanceHeaderActionsProps {
     handleShareWhatsApp: () => void;
@@ -54,17 +53,17 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     repetirDiaAnterior,
     repeating = false
 }) => {
-    const [showMobileMenu, setShowMobileMenu] = useState(false);
-
     const isSaveDisabled = saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend;
     const isRepeatDisabled = repeating || saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend || !repetirDiaAnterior;
 
     return (
         <div className="flex items-center gap-2">
             {/* ═══════════════════════════════════════════ */}
-            {/*  MOBILE (<md): compact row                 */}
+            {/*  MOBILE (<md): solo esenciales — Enviar + Guardar  */}
+            {/*  Resto (Excel, Feriado, Repetir, Empresa) viven    */}
+            {/*  en la pestaña "Más" del header de tabs.           */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="flex md:hidden items-center gap-1 h-full">
+            <div className="flex md:hidden items-center gap-1.5 h-full">
                 <Button
                     onClick={handleShareWhatsApp}
                     disabled={!hasPermission('asistencia.enviar_whatsapp')}
@@ -72,25 +71,10 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                         "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
                         !hasPermission('asistencia.enviar_whatsapp') && "opacity-40 grayscale pointer-events-none"
                     )}
-                    title="Enviar"
+                    title="Enviar por WhatsApp"
                 >
                     <Send className="h-4 w-4" fill="currentColor" />
                 </Button>
-
-                {repetirDiaAnterior && (
-                    <Button
-                        onClick={repetirDiaAnterior}
-                        isLoading={repeating}
-                        disabled={isRepeatDisabled}
-                        className={cn(
-                            "h-9 w-9 p-0 justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm active:scale-95 transition-all flex items-center shrink-0",
-                            isRepeatDisabled && "opacity-40 grayscale pointer-events-none"
-                        )}
-                        title="Repetir día anterior"
-                    >
-                        <CopyPlus className="h-4 w-4" />
-                    </Button>
-                )}
 
                 <Button
                     onClick={handleSave}
@@ -104,27 +88,6 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     <span className="text-[10px] font-black uppercase">Guardar</span>
                     <Save className="h-3.5 w-3.5" />
                 </Button>
-
-                <div className="relative">
-                    <button
-                        onClick={() => setShowMobileMenu(!showMobileMenu)}
-                        className={cn(
-                            "flex h-9 w-9 items-center justify-center rounded-xl border transition-all active:scale-90",
-                            showMobileMenu ? "bg-brand-primary text-white border-transparent shadow-lg" : "bg-white text-muted-foreground border-[#E8E8ED] shadow-sm"
-                        )}
-                    >
-                        <MoreHorizontal className="h-5 w-5" />
-                    </button>
-
-                    <AttendanceMobileMenu
-                        show={showMobileMenu}
-                        onClose={() => setShowMobileMenu(false)}
-                        onExportExcel={handleExportExcel}
-                        onToggleFeriado={toggleFeriado}
-                        hasPermission={hasPermission}
-                        isFeriado={isFeriado}
-                    />
-                </div>
             </div>
 
             {/* ═══════════════════════════════════════════ */}
