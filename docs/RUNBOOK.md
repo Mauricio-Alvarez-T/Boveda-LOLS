@@ -486,4 +486,159 @@ Boveda-LOLS/
 
 ---
 
-*Última actualización: Abril 2026 — Agregan secciones: patrón de layout dinámico (sticky + flex), proxy /api en cPanel, worktrees, nuevos errores comunes.*
+## 14. Historial de Actividad (logs_actividad)
+
+> Subsistema de auditoría automática. Refactorizado en abril 2026 (Sprints 1-4 — ver `ROADMAP_HISTORIAL_AUDITORIA.md`).
+
+### 14.1 Qué es
+
+Cada operación que **modifica datos** (POST, PUT, DELETE) y cada login generan una fila en `logs_actividad`. El panel `Configuración → Sistema & Correo → Historial` permite filtrarlos, ver el resumen inline y exportar CSV.
+
+Permiso requerido para ver/exportar: `sistema.logs.ver`.
+
+### 14.2 Cómo funciona el middleware
+
+**Archivo:** `backend/src/middleware/logger.js`
+
+Montado globalmente en `index.js` antes de las rutas. Para cada request:
+
+1. Extrae `accion` del método HTTP (POST→CREATE, PUT→UPDATE, DELETE→DELETE).
+2. Si es UPDATE: lee la fila ANTES en su tabla maestra (sólo módulos de la whitelist `validModulos`) para poder calcular el diff.
+3. En `res.on('finish')` con status 2xx:
+   - Calcula `detalle` JSON: para UPDATE compara antes vs nuevo y arma `{cambios, resumen}`. Para CREATE arma `{datos, resumen}`. Para DELETE arma `{resumen}`.
+   - Llama `resolveEntidad(modulo, item_id, body)` → arma `{tipo, label}` legible.
+   - INSERT a `logs_actividad` con todas las columnas.
+
+**Idempotencia:** flag `res._activityLogged` previene doble logueo cuando hay streams o multer.
+
+**Rutas excluidas:** `/health`, `/logs`, `/auth`, `/asistencias/bulk`, y cualquier URL que matchee `/(kpi|exportar|enviar|download)/i` (suelen ser POSTs de solo-lectura).
+
+### 14.3 Tabla `logs_actividad`
+
+```sql
+id            INT AUTO_INCREMENT PRIMARY KEY
+usuario_id    INT NULL                       -- FK a usuarios.id ON DELETE SET NULL
+modulo        VARCHAR(50) NOT NULL           -- slug del módulo (trabajadores, obras, ...)
+accion        ENUM('CREATE','UPDATE','DELETE','LOGIN','UPLOAD','EMAIL')
+item_id       VARCHAR(50) NULL               -- id del recurso afectado
+entidad_tipo  VARCHAR(40) NULL               -- ej: 'trabajador', 'obra' (migración 041)
+entidad_label VARCHAR(160) NULL              -- ej: 'Juan Pérez', 'TRF-2026-001' (migración 041)
+detalle       TEXT NULL                      -- JSON: {resumen, cambios?, datos?, type?}
+ip            VARCHAR(45) NULL
+user_agent    TEXT NULL
+created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+
+-- Índices:
+idx_logs_created_at        (created_at)
+idx_logs_modulo            (modulo)
+idx_logs_usuario           (usuario_id)
+idx_logs_modulo_created    (modulo, created_at)        -- migración 041
+idx_logs_usuario_created   (usuario_id, created_at)    -- migración 041
+idx_logs_accion            (accion)                    -- migración 041
+idx_logs_entidad           (entidad_tipo, entidad_label) -- migración 041
+```
+
+### 14.4 ENTIDAD_RESOLVERS — agregar un módulo nuevo
+
+**Archivo:** `backend/src/config/log-config.js`
+
+Cuando creas un módulo nuevo (ej. `licencias-medicas`), agregar entrada para que sus logs muestren un label humano:
+
+```js
+ENTIDAD_RESOLVERS = {
+  // ... módulos existentes
+  'licencias-medicas': {
+    tipo:      'licencia',                 // texto que va a entidad_tipo
+    tabla:     'licencias_medicas',        // tabla maestra
+    labelExpr: "CONCAT('Lic. ', folio)",   // expresión SQL para el label
+    bodyKeys:  ['folio'],                  // campos del body para CREATE
+  },
+};
+```
+
+`labelExpr` es SQL embebido en `SELECT ${labelExpr} AS label FROM tabla WHERE id = ?`. Aceptan funciones como `CONCAT()`, `DATE_FORMAT()`, etc.
+
+`bodyKeys` puede ser:
+- string: nombre de campo a leer del body si es string no vacío.
+- function: `(body) => string | null` para combinar campos (ej. `nombres + apellido_paterno`).
+
+Si la resolución falla (módulo desconocido, error de DB, body vacío), el log se guarda con `entidad_label = NULL` y la UI muestra `item_id` como fallback. **El log nunca falla el request.**
+
+### 14.5 Endpoints
+
+| Endpoint | Método | Descripción |
+|---|---|---|
+| `/api/logs` | GET | Listado paginado con filtros (ver § 14.6) |
+| `/api/logs/filtros` | GET | Datos para los dropdowns del panel |
+| `/api/logs/export` | GET | Descarga CSV con los mismos filtros |
+
+Todos requieren `sistema.logs.ver`.
+
+### 14.6 Filtros del endpoint `/api/logs`
+
+| Param | Tipo | Default | Descripción |
+|---|---|---|---|
+| `q` | string | — | Texto libre en `entidad_label OR detalle OR usuario.nombre` |
+| `usuario_id` | int | — | Filtro exacto |
+| `modulo` | string | — | Filtro exacto |
+| `accion` | CSV | — | `CREATE,UPDATE,DELETE` → `IN(...)` |
+| `entidad_tipo` | string | — | Filtro exacto |
+| `desde` / `hasta` | YYYY-MM-DD | — | Rango (inclusive en ambos extremos) |
+| `incluir_logins` | bool | `false` | Si `false`, excluye `accion='LOGIN'` |
+| `page` | int | `1` | Página actual |
+| `limit` | int | `20` | Tope hard 200 |
+
+Response:
+```json
+{ "data": [...], "total": 1234, "page": 1, "limit": 20, "total_pages": 62 }
+```
+
+### 14.7 Por qué los logins están ocultos por default
+
+Decisión del audit (Phase 3). Cada login = 1 fila. Con 100 usuarios × 10 logins/día, los LOGIN ahogan los UPDATEs/DELETEs reales. El default es ocultarlos; el toggle "Incluir accesos" en el panel los muestra cuando se necesita auditar accesos.
+
+Implementado en backend via `NOISY_ACCIONES` (en `log-config.js`) — la query agrega `AND l.accion NOT IN ('LOGIN')` cuando `incluir_logins != 'true'`.
+
+### 14.8 Export CSV
+
+`GET /api/logs/export?{mismos filtros}`:
+- Stream row-por-row → no carga todo en memoria.
+- BOM UTF-8 al inicio para que Excel ES detecte encoding.
+- Tope hard **50.000 filas** para evitar dump accidental.
+- Header: Fecha · Usuario · Módulo · Acción · Tipo entidad · Entidad · Resumen · IP · Item ID.
+- Helper `csvCell()` escapa comillas (`"` → `""`) y envuelve si hay coma, `;` o newline.
+
+Nombre del archivo: `historial_YYYY-MM-DD.csv`.
+
+### 14.9 Resumen inline vs modal (frontend)
+
+`frontend/src/components/settings/ActivityLogsPanel.tsx`:
+
+- Cada fila muestra **resumen inline** (`inlineResumen()`) — extraído del campo `resumen` del JSON, o construido a partir de los primeros 3 campos cambiados.
+- El modal de detalle se abre **sólo cuando** `needsModal()` retorna true:
+  - `bulk_asistencia` → siempre (lista de trabajadores).
+  - `diff` o `compact` con > 3 cambios.
+- IP y user-agent: ocultos en la fila, accesibles via tooltip al hover sobre el avatar de usuario.
+
+### 14.10 Errores comunes
+
+| Síntoma | Causa | Fix |
+|---|---|---|
+| Logs duplicados para una sola acción | Otro middleware o el route handler también llamó `logManualActivity` | Verificar `res._activityLogged` flag o quitar el log manual redundante |
+| `entidad_label` siempre NULL para un módulo X | Módulo no está en `ENTIDAD_RESOLVERS` | Agregar entrada en `log-config.js` (ver § 14.4) |
+| Bulk asistencia no aparece en el panel | Está bien — usa `modulo='asistencias'` y `item_id='obra_X'`, formato JSON `{type:'bulk_asistencia', ...}` | El resolver `BulkAsistenciaViewer` del panel lo renderiza al abrir el modal |
+| Export CSV con tildes rotas en Excel | Excel ES no detectó UTF-8 sin BOM | El backend ya emite BOM (`﻿`); si reaparece, verificar que `Content-Type` incluya `charset=utf-8` |
+| Filtro por fecha no encuentra logs del mismo día | El backend agrega `00:00:00` a `desde` y `23:59:59` a `hasta`, pero si la zona horaria del cliente difiere de la del server, los rangos pueden quedar corridos | Pasar fechas en zona horaria del server (Chile) o aumentar el rango ±1 día |
+
+### 14.11 Cómo agregar un nuevo `accion` ENUM
+
+Si necesitas un tipo de acción nuevo (ej. `EXPORT`, `APPROVAL`):
+
+1. Crear migración nueva (`042_*.sql`) con `ALTER TABLE logs_actividad MODIFY COLUMN accion ENUM('CREATE','UPDATE','DELETE','LOGIN','UPLOAD','EMAIL','EXPORT','APPROVAL') NOT NULL`.
+2. Llamar `logManualActivity(userId, modulo, 'EXPORT', itemId, detalle, req)` desde el código que dispara la acción.
+3. Agregar el badge color en `frontend/src/components/settings/ActivityLogsPanel.tsx → getActionDisplay()`.
+4. Si querés que sea visible por default sin toggle, NO añadirla a `NOISY_ACCIONES` en `log-config.js`.
+
+---
+
+*Última actualización: Abril 2026 — Agregan: § 14 Historial de Actividad (refactor completo Sprints 1-4 + ENTIDAD_RESOLVERS + endpoints filtros y export CSV).*
