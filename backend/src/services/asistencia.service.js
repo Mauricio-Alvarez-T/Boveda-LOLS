@@ -1224,10 +1224,29 @@ const asistenciaService = {
                     } else if (reg) {
                         const est = estadoMap[reg.estado_id];
                         let codigo = est ? est.codigo : '-';
-                        
+
                         // Consolidación dinámica para el Excel
                         if (['NAC', 'DEF', 'MAT'].includes(codigo)) codigo = 'PL';
                         if (codigo === 'AT') codigo = 'JI';
+
+                        // ── Ausencias propagadas a fin de semana / feriado ──
+                        // Cuando se asigna un período de ausencia (LM, VAC, P, etc) el
+                        // backend `crearPeriodo` crea filas en `asistencias` para
+                        // todos los días del rango, incluidos sábados, domingos y
+                        // feriados. Eso pinta esos días con el código de la ausencia
+                        // (ej. "LM"), pero NO son días laborables: deben contarse
+                        // como FDS en el total mensual (reportado por RRHH como bug
+                        // "el sistema suma sat/sun como días de licencia").
+                        // Solución: si la fila tiene un estado NO presente y cae en
+                        // fin de semana o feriado, mostramos FDS en vez del código.
+                        if (est && !est.es_presente && (isWeekend || isFeriado)) {
+                            cell.value = MARKER_FDS;
+                            cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+                            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                            return; // siguiente día — saltamos render normal
+                        }
 
                         cell.value = codigo;
                         
@@ -1496,12 +1515,69 @@ const asistenciaService = {
                 [trabajador_id, obra_id, estado_id, tipo_ausencia_id || null, fecha_inicio, fecha_fin, observacion || null, userId]
             );
 
-            // 3. Generar/actualizar registros de asistencia para cada día del rango
+            // 3. Generar/actualizar registros de asistencia para cada día del rango.
+            //
+            // Para Licencia Médica (LM) saltamos días NO laborables — sábados,
+            // domingos y feriados según el horario de la obra. Bug reportado por
+            // RRHH (abril 2026): el sistema sumaba esos días al total de licencia,
+            // pero la práctica de la empresa es contar sólo días hábiles. Para
+            // los demás tipos de período (vacaciones, permisos, etc.) se mantiene
+            // el comportamiento histórico de marcar todos los días del rango.
+            const skipNonLaborable = nextIsLM;
+
+            // Cargar horario de la obra + feriados del rango sólo si vamos a saltar.
+            let horarioObra = null;
+            let feriadosSet = new Set();
+            if (skipNonLaborable) {
+                const [horarioRows] = await conn.query(
+                    `SELECT dia_semana, hora_entrada, hora_salida
+                     FROM configuracion_horarios
+                     WHERE obra_id = ? AND activo = TRUE`,
+                    [obra_id]
+                );
+                horarioObra = {};
+                for (const h of horarioRows) {
+                    // Día se considera laboral si tiene hora_entrada y hora_salida no nulas.
+                    horarioObra[h.dia_semana] = !!(h.hora_entrada && h.hora_salida);
+                }
+                const [feriadoRows] = await conn.query(
+                    `SELECT fecha FROM feriados
+                     WHERE activo = 1 AND fecha BETWEEN ? AND ?`,
+                    [fecha_inicio, fecha_fin]
+                );
+                for (const f of feriadoRows) {
+                    const fStr = typeof f.fecha === 'string'
+                        ? f.fecha.split('T')[0]
+                        : f.fecha.toISOString().split('T')[0];
+                    feriadosSet.add(fStr);
+                }
+            }
+
+            const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+
             let diasAfectados = 0;
+            let diasSaltados = 0;
             const current = new Date(inicio);
 
             while (current <= fin) {
                 const fechaStr = current.toISOString().split('T')[0];
+
+                if (skipNonLaborable) {
+                    const dow = dowMap[current.getDay()];
+                    // Sin entry en horarioObra para ese día → asume no laboral.
+                    // Default ANTES de cargar horario: sat/sun no laboral, lun-vie laboral
+                    // (cubre obras sin horario explícito configurado).
+                    const tieneHorario = horarioObra && (dow in horarioObra)
+                        ? horarioObra[dow]
+                        : (current.getDay() !== 0 && current.getDay() !== 6);
+                    const esFeriado = feriadosSet.has(fechaStr);
+
+                    if (!tieneHorario || esFeriado) {
+                        diasSaltados++;
+                        current.setDate(current.getDate() + 1);
+                        continue;
+                    }
+                }
 
                 await conn.query(
                     `INSERT INTO asistencias
@@ -1534,9 +1610,12 @@ const asistenciaService = {
                 const nombreTrab = trabajadorRows[0] ? `${trabajadorRows[0].nombres} ${trabajadorRows[0].apellido_paterno}` : `ID ${trabajador_id}`;
                 const nombreEstado = estadoRows[0] ? estadoRows[0].nombre : `ID ${estado_id}`;
 
+                const detalleDias = nextIsLM
+                    ? `(${diasAfectados} días hábiles${diasSaltados > 0 ? `, ${diasSaltados} no laborales saltados` : ''})`
+                    : `(${diasAfectados} días)`;
                 logManualActivity(userId, 'periodos_ausencia', 'CREATE', periodoResult.insertId,
                     JSON.stringify({
-                        resumen: `Período asignado: ${nombreEstado} para ${nombreTrab} del ${fecha_inicio} al ${fecha_fin} (${diasAfectados} días)`
+                        resumen: `Período asignado: ${nombreEstado} para ${nombreTrab} del ${fecha_inicio} al ${fecha_fin} ${detalleDias}`
                     }),
                     req
                 );
@@ -1551,7 +1630,9 @@ const asistenciaService = {
                 estado_id,
                 fecha_inicio,
                 fecha_fin,
-                dias_afectados: diasAfectados
+                dias_afectados: diasAfectados,
+                dias_saltados: diasSaltados,
+                tipo: nextIsLM ? 'LM' : 'OTRO',
             };
         } catch (err) {
             await conn.rollback();
