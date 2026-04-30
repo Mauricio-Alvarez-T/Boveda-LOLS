@@ -1,24 +1,9 @@
 const db = require('../config/db');
-
-// Campos que nunca deben aparecer en los logs
-const EXCLUDED_KEYS = new Set([
-    'id', 'created_at', 'updated_at', 'password', 'password_hash',
-    'user_agent', 'token', 'refresh_token'
-]);
-
-// Mapa de nombres técnicos a nombres legibles
-const LABEL_MAP = {
-    empresa_id: 'Empresa', obra_id: 'Obra', cargo_id: 'Cargo',
-    nombres: 'Nombres', apellido_paterno: 'Apellido P.', apellido_materno: 'Apellido M.',
-    rut: 'RUT', email: 'Correo', telefono: 'Teléfono', activo: 'Estado',
-    razon_social: 'Razón Social', nombre: 'Nombre', direccion: 'Dirección',
-    estado_id: 'Estado Asistencia', tipo_ausencia_id: 'Tipo Ausencia',
-    observacion: 'Observación', hora_entrada: 'Hora Entrada', hora_salida: 'Hora Salida',
-    horas_extra: 'Horas Extra', fecha_ingreso: 'F. Ingreso',
-    categoria_reporte: 'Categoría Reporte', rol_id: 'Rol',
-    tipo_documento_id: 'Tipo Documento', trabajador_id: 'Trabajador',
-    fecha_vencimiento: 'F. Vencimiento'
-};
+const {
+    EXCLUDED_KEYS,
+    LABEL_MAP,
+    ENTIDAD_RESOLVERS,
+} = require('../config/log-config');
 
 /**
  * Normaliza un valor para comparación justa (null ≈ undefined ≈ "")
@@ -133,6 +118,60 @@ const buildCreateResumen = (body) => {
 };
 
 /**
+ * Resuelve `entidad_tipo` y `entidad_label` para un log.
+ *
+ * Estrategia:
+ *   1. El módulo viene del path (`/api/<modulo>/...`).
+ *   2. Si el módulo está en `ENTIDAD_RESOLVERS`:
+ *      a. Si hay item_id → SELECT label FROM tabla WHERE id = item_id.
+ *      b. Si no hay (CREATE) → derivar label desde campos del body según
+ *         `bodyKeys` (en orden, primer match gana).
+ *   3. Si no se puede resolver, devuelve `{ tipo, label: null }` para
+ *      que la columna `entidad_tipo` quede igual y la UI muestre item_id
+ *      como fallback.
+ *
+ * Cualquier excepción de DB se atrapa silenciosamente; el log no debe
+ * fallar el request.
+ */
+async function resolveEntidad(modulo, item_id, body) {
+    const cfg = ENTIDAD_RESOLVERS[modulo];
+    if (!cfg) return { tipo: null, label: null };
+
+    // Caso 1: tenemos item_id → buscar en tabla
+    if (item_id !== null && item_id !== undefined && item_id !== '') {
+        try {
+            const [rows] = await db.query(
+                `SELECT ${cfg.labelExpr} AS label FROM ${cfg.tabla} WHERE id = ?`,
+                [item_id]
+            );
+            if (rows.length > 0 && rows[0].label) {
+                return { tipo: cfg.tipo, label: String(rows[0].label).slice(0, 160) };
+            }
+        } catch (err) {
+            // Tabla no existe en este entorno o columna alias falló — silencio.
+            // El log se guarda con label NULL y la UI muestra item_id.
+        }
+    }
+
+    // Caso 2: derivar desde body (típicamente CREATE)
+    if (body && typeof body === 'object') {
+        for (const k of cfg.bodyKeys || []) {
+            let candidate;
+            if (typeof k === 'function') {
+                try { candidate = k(body); } catch (e) { candidate = null; }
+            } else if (typeof body[k] === 'string' && body[k].trim()) {
+                candidate = body[k].trim();
+            }
+            if (candidate) {
+                return { tipo: cfg.tipo, label: String(candidate).slice(0, 160) };
+            }
+        }
+    }
+
+    return { tipo: cfg.tipo, label: null };
+}
+
+/**
  * Middleware para registrar actividad en la tabla logs_actividad.
  * Solo registra acciones que modifican datos (POST, PUT, DELETE).
  */
@@ -228,9 +267,14 @@ const activityLogger = async (req, res, next) => {
                     }
                 }
 
+                // Resolver entidad para que la UI muestre "Editó trabajador →
+                // Juan Pérez" sin abrir el detalle JSON.
+                const { tipo: entidad_tipo, label: entidad_label } =
+                    await resolveEntidad(modulo, item_id, req.body);
+
                 await db.query(
-                    'INSERT INTO logs_actividad (usuario_id, modulo, accion, item_id, detalle, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)',
-                    [usuario_id, modulo, accion, item_id, detalle, ip, req.get('User-Agent')]
+                    'INSERT INTO logs_actividad (usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+                    [usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, req.get('User-Agent')]
                 );
             } catch (err) {
                 console.error('Error al guardar log de actividad:', err);
@@ -241,18 +285,30 @@ const activityLogger = async (req, res, next) => {
     next();
 };
 
-const logManualActivity = async (usuario_id, modulo, accion, item_id, detalle, req) => {
+const logManualActivity = async (
+    usuario_id, modulo, accion, item_id, detalle, req,
+    extras = {}
+) => {
     try {
         const ip = req ? (req.ip || req.connection.remoteAddress) : null;
         const user_agent = req ? req.get('User-Agent') : null;
 
+        // Permite al caller pasar entidad_tipo/label explícitos o resolverlos
+        // automáticamente desde el módulo + item_id (típico para LOGIN/UPLOAD/EMAIL).
+        let { entidad_tipo, entidad_label } = extras;
+        if (entidad_tipo === undefined && entidad_label === undefined) {
+            const resolved = await resolveEntidad(modulo, item_id, null);
+            entidad_tipo = resolved.tipo;
+            entidad_label = resolved.label;
+        }
+
         await db.query(
-            'INSERT INTO logs_actividad (usuario_id, modulo, accion, item_id, detalle, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)',
-            [usuario_id, modulo, accion, item_id, detalle, ip, user_agent]
+            'INSERT INTO logs_actividad (usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            [usuario_id, modulo, accion, item_id, entidad_tipo || null, entidad_label || null, detalle, ip, user_agent]
         );
     } catch (err) {
         console.error('Error al guardar log manual:', err);
     }
 };
 
-module.exports = { activityLogger, logManualActivity };
+module.exports = { activityLogger, logManualActivity, resolveEntidad };
