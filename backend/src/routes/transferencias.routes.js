@@ -6,8 +6,12 @@ const transferenciaService = require('../services/transferencia.service');
 
 // Auditoría 4.4: schema mínimo común para crear transferencias.
 // Cada flujo extiende esto si necesita campos extra (motivo obligatorio, etc.).
+// items e items_custom son ambos opcionales aquí — el service valida que
+// al menos uno tenga elementos (items_custom = items personalizados fuera
+// de catálogo, p.ej. cosas a comprar).
 const crearTransferenciaSchema = {
-    items: { required: true, type: 'array', minLength: 1 },
+    items: { type: 'array' },
+    items_custom: { type: 'array' },
 };
 const aprobarTransferenciaSchema = {
     items: { required: true, type: 'array', minLength: 1 },

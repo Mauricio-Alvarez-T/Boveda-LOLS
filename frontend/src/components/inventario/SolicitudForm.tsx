@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, Trash2, Send, Search, Package, AlertCircle, ShoppingCart, ChevronRight, Check } from 'lucide-react';
+import { Plus, Minus, Trash2, Send, Search, Package, AlertCircle, ShoppingCart, ChevronRight, Check, ShoppingBag } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
@@ -50,6 +50,15 @@ interface CartLine {
     cantidad: number;
 }
 
+interface CustomItem {
+    // id local (timestamp) — solo para React keys, no se manda al backend
+    _localId: number;
+    descripcion: string;
+    cantidad: number;
+    unidad: string;
+    observacion: string;
+}
+
 const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
     const { fetchStockPorItems } = useTransferencias();
     const itemDetail = useItemDetail();
@@ -67,6 +76,10 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
 
     // Carrito + metadata solicitud
     const [cart, setCart] = useState<CartLine[]>([]);
+    // Items personalizados — fuera del catálogo. El aprobador los lee
+    // para tramitar compra o conseguirlos. Llegan al transportista en
+    // el mensaje WhatsApp en sección separada.
+    const [customItems, setCustomItems] = useState<CustomItem[]>([]);
     const [destinoObraId, setDestinoObraId] = useState<number | null>(null);
     const [observaciones, setObservaciones] = useState('');
     const [requierePionetas, setRequierePionetas] = useState(false);
@@ -169,15 +182,51 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
         setCart(prev => prev.filter(l => l.item_id !== itemId));
     };
 
+    // ── Custom items ops ──
+    const addCustomItem = () => {
+        setCustomItems(prev => [...prev, {
+            _localId: Date.now() + Math.random(),
+            descripcion: '',
+            cantidad: 1,
+            unidad: '',
+            observacion: '',
+        }]);
+    };
+    const updateCustomItem = (localId: number, patch: Partial<Omit<CustomItem, '_localId'>>) => {
+        setCustomItems(prev => prev.map(c => c._localId === localId ? { ...c, ...patch } : c));
+    };
+    const removeCustomItem = (localId: number) => {
+        setCustomItems(prev => prev.filter(c => c._localId !== localId));
+    };
+
+    // Custom items válidos para envío: descripcion no vacía + cantidad >= 1
+    const customItemsValidos = useMemo(() => customItems.filter(c =>
+        c.descripcion.trim() && Number(c.cantidad) >= 1
+    ), [customItems]);
+    const hayCustomInvalidos = customItems.length > customItemsValidos.length;
+
     const handleSubmit = async () => {
         if (!destinoObraId) { toast.error('Selecciona un destino'); return; }
-        if (!cart.length) { toast.error('Agrega al menos un ítem'); return; }
+        if (!cart.length && !customItemsValidos.length) {
+            toast.error('Agrega al menos un ítem (catálogo o personalizado)');
+            return;
+        }
         if (hayExceso) { toast.error('Hay ítems con cantidad mayor al stock disponible'); return; }
+        if (hayCustomInvalidos) {
+            toast.error('Hay ítems personalizados sin descripción o cantidad inválida');
+            return;
+        }
 
         setSubmitting(true);
         const result = await onCrear({
             destino_obra_id: destinoObraId,
             items: cart.map(l => ({ item_id: l.item_id, cantidad: l.cantidad })),
+            items_custom: customItemsValidos.map(c => ({
+                descripcion: c.descripcion.trim(),
+                cantidad: Number(c.cantidad),
+                unidad: c.unidad.trim() || undefined,
+                observacion: c.observacion.trim() || undefined,
+            })),
             observaciones: observaciones || undefined,
             requiere_pionetas: requierePionetas,
             cantidad_pionetas: requierePionetas ? cantidadPionetas : undefined,
@@ -186,7 +235,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
         if (result) onClose();
     };
 
-    const puedeCrear = !!destinoObraId && cart.length > 0 && !hayExceso && !submitting;
+    const puedeCrear = !!destinoObraId
+        && (cart.length > 0 || customItemsValidos.length > 0)
+        && !hayExceso
+        && !hayCustomInvalidos
+        && !submitting;
 
     // ── Subcomponentes inline ──
 
@@ -390,7 +443,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
             </div>
 
             {/* Mobile: floating CTA hacia Mi solicitud */}
-            {cart.length > 0 && (
+            {(cart.length > 0 || customItems.length > 0) && (
                 <button
                     type="button"
                     onClick={() => setMobileTab('sol')}
@@ -398,7 +451,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                 >
                     <span className="flex items-center gap-2">
                         <ShoppingCart className="h-4 w-4" />
-                        Ver mi solicitud ({cart.length})
+                        Ver mi solicitud ({cart.length + customItems.length})
                     </span>
                     <ChevronRight className="h-4 w-4" />
                 </button>
@@ -426,12 +479,12 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                     <ShoppingCart className="h-3.5 w-3.5" />
                     Tu solicitud
                     <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/10 text-brand-primary">
-                        {cart.length}
+                        {cart.length + customItems.length}
                     </span>
                 </div>
-                {totalItemsCart > 0 && (
+                {(totalItemsCart > 0 || customItems.length > 0) && (
                     <span className="text-[10px] text-muted-foreground font-medium">
-                        {totalItemsCart} unidades
+                        {cart.length} catálogo · {customItems.length} personalizado(s)
                     </span>
                 )}
             </div>
@@ -524,6 +577,93 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                 )}
             </div>
 
+            {/* Items personalizados (no en catálogo) */}
+            <div className="shrink-0 border-t border-[#E8E8ED] pt-2">
+                <div className="flex items-center justify-between mb-1.5">
+                    <div className="text-[10px] font-bold text-brand-dark flex items-center gap-1">
+                        <ShoppingBag className="h-3 w-3" />
+                        Personalizados (a comprar)
+                        {customItems.length > 0 && (
+                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px]">
+                                {customItems.length}
+                            </span>
+                        )}
+                    </div>
+                    <button
+                        type="button"
+                        onClick={addCustomItem}
+                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors"
+                    >
+                        <Plus className="h-2.5 w-2.5" strokeWidth={3} />
+                        Agregar
+                    </button>
+                </div>
+                {customItems.length === 0 ? (
+                    <p className="text-[10px] text-muted-foreground italic px-1">
+                        Items que no están en el catálogo (ej. cosas a comprar). El aprobador los verá.
+                    </p>
+                ) : (
+                    <ul className="space-y-1.5 max-h-[180px] overflow-y-auto -mr-1 pr-1">
+                        {customItems.map(c => {
+                            const invalido = !c.descripcion.trim() || Number(c.cantidad) < 1;
+                            return (
+                                <li
+                                    key={c._localId}
+                                    className={cn(
+                                        'rounded-lg border p-1.5 bg-amber-50/40',
+                                        invalido ? 'border-red-300' : 'border-amber-200'
+                                    )}
+                                >
+                                    <div className="flex gap-1.5 items-start">
+                                        <input
+                                            type="text"
+                                            value={c.descripcion}
+                                            onChange={e => updateCustomItem(c._localId, { descripcion: e.target.value })}
+                                            placeholder="Descripción del ítem*"
+                                            maxLength={500}
+                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-[#E8E8ED] rounded-md bg-white focus:ring-1 focus:ring-brand-primary outline-none"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => removeCustomItem(c._localId)}
+                                            className="shrink-0 p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                                            aria-label="Eliminar item personalizado"
+                                        >
+                                            <Trash2 className="h-3 w-3" />
+                                        </button>
+                                    </div>
+                                    <div className="mt-1 flex gap-1.5 items-center">
+                                        <input
+                                            type="number"
+                                            min={1}
+                                            value={c.cantidad}
+                                            onChange={e => updateCustomItem(c._localId, { cantidad: parseInt(e.target.value) || 0 })}
+                                            placeholder="Cant."
+                                            className="w-14 px-2 py-1 text-[11px] font-bold text-center border border-[#E8E8ED] rounded-md bg-white"
+                                        />
+                                        <input
+                                            type="text"
+                                            value={c.unidad}
+                                            onChange={e => updateCustomItem(c._localId, { unidad: e.target.value })}
+                                            placeholder="Unidad (kg, m, U...)"
+                                            maxLength={50}
+                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-[#E8E8ED] rounded-md bg-white"
+                                        />
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={c.observacion}
+                                        onChange={e => updateCustomItem(c._localId, { observacion: e.target.value })}
+                                        placeholder="Observación opcional (marca, especificación...)"
+                                        className="mt-1 w-full px-2 py-1 text-[10px] border border-[#E8E8ED] rounded-md bg-white"
+                                    />
+                                </li>
+                            );
+                        })}
+                    </ul>
+                )}
+            </div>
+
             {/* Observaciones + Pionetas */}
             <div className="shrink-0 space-y-2">
                 <div>
@@ -573,8 +713,9 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                     disabled={!puedeCrear}
                     title={
                         !destinoObraId ? 'Selecciona un destino'
-                        : cart.length === 0 ? 'Agrega al menos un ítem'
+                        : (cart.length === 0 && customItemsValidos.length === 0) ? 'Agrega al menos un ítem (catálogo o personalizado)'
                         : hayExceso ? 'Hay ítems con cantidad mayor al stock'
+                        : hayCustomInvalidos ? 'Hay ítems personalizados sin descripción o cantidad inválida'
                         : undefined
                     }
                     className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all shadow-sm shadow-brand-primary/20"
@@ -608,7 +749,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                         mobileTab === 'sol' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
                     )}
                 >
-                    Mi solicitud {cart.length > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length}</span>}
+                    Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
                 </button>
             </div>
 

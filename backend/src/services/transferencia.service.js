@@ -57,12 +57,30 @@ const transferenciaService = {
 
     async crear(data, solicitanteId) {
         const {
-            destino_obra_id, destino_bodega_id, items, observaciones,
+            destino_obra_id, destino_bodega_id, items, items_custom, observaciones,
             requiere_pionetas, cantidad_pionetas,
             tipo_flujo, motivo,
             origen_obra_id, origen_bodega_id, // para devolución (obra → bodega)
         } = data;
-        if (!items || !items.length) throw new Error('Debe incluir al menos un ítem');
+        const itemsArr = Array.isArray(items) ? items : [];
+        const customArr = Array.isArray(items_custom) ? items_custom : [];
+        if (!itemsArr.length && !customArr.length) {
+            throw new Error('Debe incluir al menos un ítem (catálogo o personalizado)');
+        }
+        // Items custom solo válidos en flujo 'solicitud' (obra pide a bodega cosas a comprar).
+        if (customArr.length && tipo_flujo && tipo_flujo !== 'solicitud') {
+            throw new Error('Items personalizados solo permitidos en flujo de solicitud');
+        }
+        // Validar shape de items custom
+        for (const c of customArr) {
+            if (!c.descripcion || typeof c.descripcion !== 'string' || !c.descripcion.trim()) {
+                throw new Error('Item personalizado: descripcion requerida');
+            }
+            const cant = Number(c.cantidad);
+            if (!Number.isFinite(cant) || cant < 1) {
+                throw new Error('Item personalizado: cantidad debe ser >= 1');
+            }
+        }
         if (!destino_obra_id && !destino_bodega_id) throw new Error('Debe especificar un destino');
         const flujo = tipo_flujo || 'solicitud';
         const flujosPermitidos = ['solicitud', 'devolucion', 'intra_obra'];
@@ -93,7 +111,7 @@ const transferenciaService = {
             // El frontend ya lo valida, pero evitamos que solicitudes imposibles entren
             // al flujo si el cliente está stale o alguien bypasea la UI.
             // Para devolución, el stock relevante es el de la obra origen (no global).
-            for (const item of items) {
+            for (const item of itemsArr) {
                 let disponible;
                 let desc;
                 if (validarStockPorObra) {
@@ -147,10 +165,26 @@ const transferenciaService = {
             );
             const trfId = result.insertId;
 
-            for (const item of items) {
+            for (const item of itemsArr) {
                 await conn.query(
                     `INSERT INTO transferencia_items (transferencia_id, item_id, cantidad_solicitada) VALUES (?, ?, ?)`,
                     [trfId, item.item_id, item.cantidad]
+                );
+            }
+
+            // Items personalizados (no en catálogo) — los lee el aprobador para tramitar compra.
+            for (const c of customArr) {
+                await conn.query(
+                    `INSERT INTO transferencia_items_custom
+                     (transferencia_id, descripcion, cantidad, unidad, observacion)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [
+                        trfId,
+                        String(c.descripcion).trim().slice(0, 500),
+                        Number(c.cantidad),
+                        c.unidad ? String(c.unidad).slice(0, 50) : null,
+                        c.observacion ? String(c.observacion) : null,
+                    ]
                 );
             }
 
@@ -1101,7 +1135,17 @@ const transferenciaService = {
             items.forEach(i => { i.splits = splitsByItem[i.id] || []; });
         }
 
-        return { ...rows[0], items };
+        // Items personalizados (fuera de catálogo). Pueden estar vacíos.
+        const [itemsCustom] = await db.query(
+            `SELECT id, descripcion, cantidad, unidad, observacion,
+                    compra_realizada, notas_compra, fecha_compra
+             FROM transferencia_items_custom
+             WHERE transferencia_id = ?
+             ORDER BY id ASC`,
+            [id]
+        );
+
+        return { ...rows[0], items, items_custom: itemsCustom };
     },
 
     async getPendientes() {

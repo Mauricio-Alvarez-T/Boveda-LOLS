@@ -12,10 +12,20 @@ interface TransferenciaListResponse {
     limit: number;
 }
 
+interface CustomItemPayload {
+    descripcion: string;
+    cantidad: number;
+    unidad?: string;
+    observacion?: string;
+}
+
 interface CrearTransferenciaData {
     destino_obra_id?: number | null;
     destino_bodega_id?: number | null;
     items: { item_id: number; cantidad: number }[];
+    // Items personalizados (fuera de catálogo). El aprobador los lee
+    // para tramitar compra. Se incluyen en mensaje WhatsApp al transportista.
+    items_custom?: CustomItemPayload[];
     observaciones?: string;
     requiere_pionetas?: boolean;
     cantidad_pionetas?: number;
