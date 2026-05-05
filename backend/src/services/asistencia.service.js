@@ -3,36 +3,62 @@ const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
 
-// ── Monkey patch: tamaño del cuadro de comentarios (notas) en .xlsx ──
+// ── Monkey patch: tamaño dinámico del cuadro de comentarios (.xlsx) ──
 // ExcelJS 4.4.0 hardcodea el shape VML de las notas en 97.8pt × 59.1pt
-// (~131 × 79 px). Microsoft Excel respeta exactamente ese tamaño al
-// hover, recortando textos largos. El usuario vio "Detalle Horas:
-// Ordinari..." cortado en mitad de palabra. Google Sheets lo muestra
-// completo porque renderiza el comentario en un overlay propio sin
-// respetar el shape.
+// (~131 × 79 px) sin exponer API para cambiarlo. Microsoft Excel respeta
+// exactamente ese tamaño al hover, recortando textos largos. El usuario
+// vio "Detalle Horas: Ordinari..." cortado a la mitad. Google Sheets
+// renderiza el comentario en un overlay propio sin respetar el shape, por
+// eso allá sí se ve completo.
 //
-// Solución: override la función estática V_SHAPE_ATTRIBUTES para emitir
-// un shape más grande (220pt × 130pt ≈ 293 × 173 px). Así cabe el detalle
-// completo de horas + marcas de reloj sin tocar la lib instalada.
+// Solución: override de V_SHAPE_ATTRIBUTES para que lea dimensiones desde
+// `model.note.size = { width, height }` (extensión propia que asignamos
+// en `cell.note = { texts: [...], size: {...} }`). Si la nota no trae
+// size, cae al default de ExcelJS. Helper computeNoteSize() abajo calcula
+// dimensiones a partir del texto: ancho según línea más larga, alto según
+// número de líneas.
 try {
     // eslint-disable-next-line global-require
     const VmlShapeXform = require('exceljs/lib/xlsx/xform/comment/vml-shape-xform');
     if (VmlShapeXform && VmlShapeXform.V_SHAPE_ATTRIBUTES && !VmlShapeXform.__patchedSize) {
-        VmlShapeXform.V_SHAPE_ATTRIBUTES = (model, index) => ({
-            id: `_x0000_s${1025 + index}`,
-            type: '#_x0000_t202',
-            // 220pt × 130pt → caja amplia visible al hover en Excel desktop
-            style: 'position:absolute; margin-left:80pt; margin-top:10pt; width:220pt; height:130pt; z-index:1; visibility:hidden',
-            fillcolor: 'infoBackground [80]',
-            strokecolor: 'none [81]',
-            'o:insetmode': model.note.margins && model.note.margins.insetmode,
-        });
+        VmlShapeXform.V_SHAPE_ATTRIBUTES = (model, index) => {
+            const size = (model.note && model.note.size) || {};
+            const w = Number.isFinite(size.width) ? size.width : 97.8;
+            const h = Number.isFinite(size.height) ? size.height : 59.1;
+            return {
+                id: `_x0000_s${1025 + index}`,
+                type: '#_x0000_t202',
+                style: `position:absolute; margin-left:80pt; margin-top:10pt; width:${w}pt; height:${h}pt; z-index:1; visibility:hidden`,
+                fillcolor: 'infoBackground [80]',
+                strokecolor: 'none [81]',
+                'o:insetmode': model.note.margins && model.note.margins.insetmode,
+            };
+        };
         VmlShapeXform.__patchedSize = true;
     }
 } catch (e) {
-    // No fallar si la versión de ExcelJS cambia su estructura interna —
-    // los comentarios seguirán saliendo con el tamaño default.
     console.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape:', e.message);
+}
+
+/**
+ * Calcula dimensiones del cuadro de comentario en función del texto.
+ * Heurística empírica para Calibri 8pt (font default de comments en Excel):
+ *   - char ≈ 4pt de ancho promedio
+ *   - línea ≈ 12pt de alto + 4pt interlineado
+ * Mín/máx cap para que la caja no quede absurdamente chica ni desbordando.
+ *
+ * @param {string} text - texto crudo de la nota (puede tener \n)
+ * @returns {{width:number, height:number}} dimensiones en pt
+ */
+function computeNoteSize(text) {
+    if (!text) return { width: 100, height: 60 };
+    const lines = String(text).split('\n');
+    const maxChars = lines.reduce((m, l) => Math.max(m, l.length), 0);
+    // Ancho: ~4.5pt por char + 16pt padding lateral. Cap [120, 360].
+    const width = Math.max(120, Math.min(360, Math.round(maxChars * 4.5 + 16)));
+    // Alto: ~14pt por línea + 16pt padding vertical. Cap [50, 320].
+    const height = Math.max(50, Math.min(320, Math.round(lines.length * 14 + 16)));
+    return { width, height };
 }
 
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -1345,9 +1371,13 @@ const asistenciaService = {
                         }
 
                         if (noteTexts.length > 0) {
+                            const noteText = noteTexts.join('\n---\n');
                             cell.note = {
-                                texts: [{ text: noteTexts.join('\n---\n') }],
+                                texts: [{ text: noteText }],
                                 margins: { insetmode: 'auto' },
+                                // size es leído por el monkey patch a V_SHAPE_ATTRIBUTES
+                                // arriba — caja se ajusta a contenido en MS Excel desktop.
+                                size: computeNoteSize(noteText),
                             };
                         }
                     } else if (isFeriado || isWeekend) {
