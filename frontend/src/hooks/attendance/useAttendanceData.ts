@@ -46,8 +46,26 @@ export function useAttendanceData() {
     const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<number | null>(null);
     const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
-    const [reportMonth, setReportMonth] = useState((new Date().getMonth() + 1).toString().padStart(2, '0'));
-    const [reportYear, setReportYear] = useState(new Date().getFullYear().toString());
+    // reportMonth/reportYear inicializan desde la fecha del calendario diario
+    // (no desde "hoy") para que el export en modo "Todas las Obras" respete
+    // el período que el usuario está revisando. Se sincroniza vía useEffect
+    // cuando `date` cambia (navegación de calendario).
+    const initialYear = date.split('-')[0];
+    const initialMonth = date.split('-')[1];
+    const [reportMonth, setReportMonth] = useState(initialMonth);
+    const [reportYear, setReportYear] = useState(initialYear);
+
+    // Sync reportMonth/reportYear con la fecha activa del calendario.
+    // Si el usuario navega a otro mes en pestaña Diaria, el selector del
+    // Reporte Global se actualiza automáticamente — evita el bug de
+    // descargar el mes en curso cuando se está revisando un mes pasado.
+    useEffect(() => {
+        const [y, m] = date.split('-');
+        if (y && m) {
+            setReportYear(y);
+            setReportMonth(m);
+        }
+    }, [date]);
 
     const defaultEstado = useMemo(() =>
         estados.find(e => e.codigo === 'A') || estados.find(e => e.es_presente) || estados[0],
