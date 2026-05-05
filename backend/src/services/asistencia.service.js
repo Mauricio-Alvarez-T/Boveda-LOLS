@@ -3,6 +3,38 @@ const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
 
+// ── Monkey patch: tamaño del cuadro de comentarios (notas) en .xlsx ──
+// ExcelJS 4.4.0 hardcodea el shape VML de las notas en 97.8pt × 59.1pt
+// (~131 × 79 px). Microsoft Excel respeta exactamente ese tamaño al
+// hover, recortando textos largos. El usuario vio "Detalle Horas:
+// Ordinari..." cortado en mitad de palabra. Google Sheets lo muestra
+// completo porque renderiza el comentario en un overlay propio sin
+// respetar el shape.
+//
+// Solución: override la función estática V_SHAPE_ATTRIBUTES para emitir
+// un shape más grande (220pt × 130pt ≈ 293 × 173 px). Así cabe el detalle
+// completo de horas + marcas de reloj sin tocar la lib instalada.
+try {
+    // eslint-disable-next-line global-require
+    const VmlShapeXform = require('exceljs/lib/xlsx/xform/comment/vml-shape-xform');
+    if (VmlShapeXform && VmlShapeXform.V_SHAPE_ATTRIBUTES && !VmlShapeXform.__patchedSize) {
+        VmlShapeXform.V_SHAPE_ATTRIBUTES = (model, index) => ({
+            id: `_x0000_s${1025 + index}`,
+            type: '#_x0000_t202',
+            // 220pt × 130pt → caja amplia visible al hover en Excel desktop
+            style: 'position:absolute; margin-left:80pt; margin-top:10pt; width:220pt; height:130pt; z-index:1; visibility:hidden',
+            fillcolor: 'infoBackground [80]',
+            strokecolor: 'none [81]',
+            'o:insetmode': model.note.margins && model.note.margins.insetmode,
+        });
+        VmlShapeXform.__patchedSize = true;
+    }
+} catch (e) {
+    // No fallar si la versión de ExcelJS cambia su estructura interna —
+    // los comentarios seguirán saliendo con el tamaño default.
+    console.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape:', e.message);
+}
+
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.error('⛔ FATAL: JWT_SECRET no está configurado en las variables de entorno.');
@@ -1292,15 +1324,21 @@ const asistenciaService = {
                             noteTexts.push(reg.observacion.trim());
                         }
 
-                        // Agregar "auto nota" de desglose si se modificó o hay extras
+                        // Agregar "auto nota" de desglose si se modificó o hay extras.
+                        // Texto compacto sin emojis: Microsoft Excel desktop a veces
+                        // renderiza glyphs SMP como cuadrados, y la caja del comentario
+                        // (incluso con monkey patch) es limitada — preferimos texto
+                        // ASCII para garantizar legibilidad en Excel y Google Sheets.
                         if (customSchedule || hsExtra > 0) {
-                            let dText = `Detalle Horas:\n• Ordinarias: ${calc.toFixed(2)}`;
-                            if (hsExtra > 0) dText += `\n• Extras: ${hsExtra.toFixed(2)}`;
-                            
+                            // Normaliza horas "08:00:00" → "08:00" para compactar
+                            const fmtHora = (h) => (h ? String(h).slice(0, 5) : '');
+                            let dText = `Detalle Horas:\n  Ordinarias: ${calc.toFixed(2)}`;
+                            if (hsExtra > 0) dText += `\n  Extras: ${hsExtra.toFixed(2)}`;
+
                             if (customSchedule) {
-                                dText += `\n\nMarcas de Reloj:\n📥 Ent: ${reg.hora_entrada} | 📤 Sal: ${reg.hora_salida}`;
+                                dText += `\n\nMarcas de Reloj:\n  Ent: ${fmtHora(reg.hora_entrada)}   Sal: ${fmtHora(reg.hora_salida)}`;
                                 if (reg.hora_colacion_inicio && reg.hora_colacion_fin) {
-                                    dText += `\n🍱 Colación: ${reg.hora_colacion_inicio} - ${reg.hora_colacion_fin}`;
+                                    dText += `\n  Colacion: ${fmtHora(reg.hora_colacion_inicio)} - ${fmtHora(reg.hora_colacion_fin)}`;
                                 }
                             }
                             noteTexts.push(dText);
@@ -1308,8 +1346,8 @@ const asistenciaService = {
 
                         if (noteTexts.length > 0) {
                             cell.note = {
-                                texts: [{ text: noteTexts.join('\n\n---\n\n') }],
-                                margins: { insetmode: 'auto' }
+                                texts: [{ text: noteTexts.join('\n---\n') }],
+                                margins: { insetmode: 'auto' },
                             };
                         }
                     } else if (isFeriado || isWeekend) {
