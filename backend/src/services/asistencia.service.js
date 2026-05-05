@@ -20,6 +20,9 @@ const jwt = require('jsonwebtoken');
 try {
     // eslint-disable-next-line global-require
     const VmlShapeXform = require('exceljs/lib/xlsx/xform/comment/vml-shape-xform');
+    // eslint-disable-next-line global-require
+    const VmlClientDataXform = require('exceljs/lib/xlsx/xform/comment/vml-client-data-xform');
+
     if (VmlShapeXform && VmlShapeXform.V_SHAPE_ATTRIBUTES && !VmlShapeXform.__patchedSize) {
         VmlShapeXform.V_SHAPE_ATTRIBUTES = (model, index) => {
             const size = (model.note && model.note.size) || {};
@@ -36,8 +39,42 @@ try {
         };
         VmlShapeXform.__patchedSize = true;
     }
+
+    // Microsoft Excel desktop respeta el `<x:Anchor>` ANTES que el style del
+    // shape para dimensionar el cuadro de comentario en celdas. ExcelJS por
+    // default genera anchor de ~2 cols × 4 rows (chico). Inyectamos un
+    // anchor calculado a partir de `model.note.size` para que Excel también
+    // crezca la caja. Si la nota no trae size, anchor default permanece.
+    if (VmlClientDataXform && VmlClientDataXform.prototype && !VmlClientDataXform.prototype.__patchedAnchor) {
+        const VmlAnchorXform = require('exceljs/lib/xlsx/xform/comment/vml-anchor-xform');
+        const origAnchorRender = VmlAnchorXform.prototype.render;
+        VmlAnchorXform.prototype.render = function patchedAnchorRender(xmlStream, model) {
+            const size = (model.note && model.note.size) || {};
+            const w = Number.isFinite(size.width) ? size.width : 0;
+            const h = Number.isFinite(size.height) ? size.height : 0;
+            // Si tenemos size, derivamos cols/rows. Aprox: col ≈ 48pt ancho,
+            // row ≈ 15pt alto en defaults de Excel. Margen extra +1 col/+1 row
+            // para que el texto no quede pegado a la pared.
+            if ((w > 0 || h > 0) && model.refAddress && !model.anchor) {
+                const cols = w > 0 ? Math.max(2, Math.ceil(w / 48) + 1) : 2;
+                const rows = h > 0 ? Math.max(4, Math.ceil(h / 15) + 1) : 4;
+                const l = model.refAddress.col;
+                const lf = 6;
+                const t = Math.max(model.refAddress.row - 2, 0);
+                const tf = 14;
+                const r = l + cols;
+                const rf = 2;
+                const b = t + rows;
+                const bf = 16;
+                xmlStream.leafNode('x:Anchor', null, [l, lf, t, tf, r, rf, b, bf].join(', '));
+                return;
+            }
+            return origAnchorRender.call(this, xmlStream, model);
+        };
+        VmlClientDataXform.prototype.__patchedAnchor = true;
+    }
 } catch (e) {
-    console.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape:', e.message);
+    console.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape/anchor:', e.message);
 }
 
 /**
