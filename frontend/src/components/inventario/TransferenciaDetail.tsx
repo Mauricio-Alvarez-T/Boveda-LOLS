@@ -4,7 +4,8 @@ import { cn } from '../../utils/cn';
 import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send
+    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send,
+    ShoppingBag,
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
@@ -67,6 +68,17 @@ const TransferenciaDetail: React.FC<Props> = ({
     onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onRechazar, onRechazarRecepcion, onCancelar,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
+    // Items personalizados (fuera de catálogo). Schema mínimo, no comparte interfaz
+    // con TransferenciaItem porque no tiene item_id ni splits.
+    interface TransferenciaItemCustom {
+        id: number;
+        descripcion: string;
+        cantidad: number;
+        unidad: string | null;
+        observacion: string | null;
+        compra_realizada?: boolean;
+    }
+    const itemsCustom: TransferenciaItemCustom[] = (t as { items_custom?: TransferenciaItemCustom[] }).items_custom || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
     const itemDetail = useItemDetail();
     const Icon = cfg.icon;
@@ -122,6 +134,7 @@ const TransferenciaDetail: React.FC<Props> = ({
         const PIN = String.fromCodePoint(0x1F4CD);
         const TARGET = String.fromCodePoint(0x1F3AF);
         const BOX = String.fromCodePoint(0x1F4E6);
+        const CART = String.fromCodePoint(0x1F6D2);
         const MEMO = String.fromCodePoint(0x1F4DD);
         const SPEECH = String.fromCodePoint(0x1F4AC);
         const WARN = String.fromCodePoint(0x26A0, 0xFE0F);
@@ -135,15 +148,28 @@ const TransferenciaDetail: React.FC<Props> = ({
         lines.push(`${PIN} *Retirar en:* ${origen}`);
         lines.push(`${TARGET} *Entregar en:* ${destino}`);
         lines.push('');
-        lines.push(`${BOX} *Items (${items.length}):*`);
-        items.forEach((it) => {
-            const cant = it.cantidad_enviada ?? it.cantidad_solicitada;
-            const unidad = it.unidad ? ` ${it.unidad}` : '';
-            const desc = it.item_descripcion || `Item #${it.item_id}`;
-            lines.push(`• ${cant}${unidad} — ${desc}`);
-            if (it.observacion) lines.push(`   _${it.observacion}_`);
-        });
-        lines.push('');
+        if (items.length > 0) {
+            lines.push(`${BOX} *Items (${items.length}):*`);
+            items.forEach((it) => {
+                const cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                const unidad = it.unidad ? ` ${it.unidad}` : '';
+                const desc = it.item_descripcion || `Item #${it.item_id}`;
+                lines.push(`• ${cant}${unidad} — ${desc}`);
+                if (it.observacion) lines.push(`   _${it.observacion}_`);
+            });
+            lines.push('');
+        }
+        // Items personalizados (a comprar) — sección separada para que el
+        // transportista/aprobador los identifique fácil.
+        if (itemsCustom.length > 0) {
+            lines.push(`${CART} *Por comprar / fuera de catálogo (${itemsCustom.length}):*`);
+            itemsCustom.forEach((it) => {
+                const unidad = it.unidad ? ` ${it.unidad}` : '';
+                lines.push(`• ${it.cantidad}${unidad} — ${it.descripcion}`);
+                if (it.observacion) lines.push(`   _${it.observacion}_`);
+            });
+            lines.push('');
+        }
         if (t.motivo) lines.push(`${MEMO} *Motivo:* ${t.motivo}`);
         if (t.observaciones) lines.push(`${SPEECH} *Observaciones:* ${t.observaciones}`);
         if (t.requiere_pionetas) {
@@ -344,38 +370,75 @@ const TransferenciaDetail: React.FC<Props> = ({
             </div>
 
             {/* ── Items Table ── */}
-            <div className="shrink-0 mb-5">
-                <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
-                    <Package className="h-3.5 w-3.5" />
-                    Items ({items.length})
-                </h4>
-                <div className="border border-[#E8E8ED] rounded-xl overflow-hidden">
-                    <table className="w-full text-[11px]">
-                        <thead>
-                            <tr className="bg-[#F5F7FA]">
-                                <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
-                                <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Solicit.</th>
-                                <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Enviada</th>
-                                <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Recibida</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {items.map((item, idx) => (
-                                <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
-                                    <td className="px-3 py-1.5 font-medium text-brand-dark">
-                                        <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
-                                            {item.item_descripcion || `Item #${item.item_id}`}
-                                        </button>
-                                    </td>
-                                    <td className="px-2 py-1.5 text-center font-semibold">{item.cantidad_solicitada}</td>
-                                    <td className="px-2 py-1.5 text-center">{item.cantidad_enviada ?? '—'}</td>
-                                    <td className="px-2 py-1.5 text-center">{item.cantidad_recibida ?? '—'}</td>
+            {items.length > 0 && (
+                <div className="shrink-0 mb-5">
+                    <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
+                        <Package className="h-3.5 w-3.5" />
+                        Items ({items.length})
+                    </h4>
+                    <div className="border border-[#E8E8ED] rounded-xl overflow-hidden">
+                        <table className="w-full text-[11px]">
+                            <thead>
+                                <tr className="bg-[#F5F7FA]">
+                                    <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Solicit.</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Enviada</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Recibida</th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                            </thead>
+                            <tbody>
+                                {items.map((item, idx) => (
+                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                        <td className="px-3 py-1.5 font-medium text-brand-dark">
+                                            <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
+                                                {item.item_descripcion || `Item #${item.item_id}`}
+                                            </button>
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center font-semibold">{item.cantidad_solicitada}</td>
+                                        <td className="px-2 py-1.5 text-center">{item.cantidad_enviada ?? '—'}</td>
+                                        <td className="px-2 py-1.5 text-center">{item.cantidad_recibida ?? '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
+
+            {/* ── Items Personalizados (a comprar) ── */}
+            {itemsCustom.length > 0 && (
+                <div className="shrink-0 mb-5">
+                    <h4 className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1.5">
+                        <ShoppingBag className="h-3.5 w-3.5" />
+                        Items personalizados — a comprar ({itemsCustom.length})
+                    </h4>
+                    <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30">
+                        <table className="w-full text-[11px]">
+                            <thead>
+                                <tr className="bg-amber-50">
+                                    <th className="text-left px-3 py-2 font-bold text-amber-900">Descripción</th>
+                                    <th className="text-center px-2 py-2 font-bold text-amber-900 w-20">Cantidad</th>
+                                    <th className="text-left px-2 py-2 font-bold text-amber-900 w-24">Unidad</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {itemsCustom.map((it, idx) => (
+                                    <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-amber-50/40")}>
+                                        <td className="px-3 py-1.5 font-medium text-brand-dark">
+                                            <div>{it.descripcion}</div>
+                                            {it.observacion && (
+                                                <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
+                                            )}
+                                        </td>
+                                        <td className="px-2 py-1.5 text-center font-semibold">{it.cantidad}</td>
+                                        <td className="px-2 py-1.5 text-left text-muted-foreground">{it.unidad || '—'}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            )}
 
             {/* ── Info ── */}
             <div className="shrink-0 mb-5 space-y-2">

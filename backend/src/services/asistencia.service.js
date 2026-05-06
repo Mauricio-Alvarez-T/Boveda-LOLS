@@ -3,6 +3,101 @@ const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
 
+// ── Monkey patch: tamaño dinámico del cuadro de comentarios (.xlsx) ──
+// ExcelJS 4.4.0 hardcodea el shape VML de las notas en 97.8pt × 59.1pt
+// (~131 × 79 px) sin exponer API para cambiarlo. Microsoft Excel respeta
+// exactamente ese tamaño al hover, recortando textos largos. El usuario
+// vio "Detalle Horas: Ordinari..." cortado a la mitad. Google Sheets
+// renderiza el comentario en un overlay propio sin respetar el shape, por
+// eso allá sí se ve completo.
+//
+// Solución: override de V_SHAPE_ATTRIBUTES para que lea dimensiones desde
+// `model.note.size = { width, height }` (extensión propia que asignamos
+// en `cell.note = { texts: [...], size: {...} }`). Si la nota no trae
+// size, cae al default de ExcelJS. Helper computeNoteSize() abajo calcula
+// dimensiones a partir del texto: ancho según línea más larga, alto según
+// número de líneas.
+try {
+    // eslint-disable-next-line global-require
+    const VmlShapeXform = require('exceljs/lib/xlsx/xform/comment/vml-shape-xform');
+    // eslint-disable-next-line global-require
+    const VmlClientDataXform = require('exceljs/lib/xlsx/xform/comment/vml-client-data-xform');
+
+    if (VmlShapeXform && VmlShapeXform.V_SHAPE_ATTRIBUTES && !VmlShapeXform.__patchedSize) {
+        VmlShapeXform.V_SHAPE_ATTRIBUTES = (model, index) => {
+            const size = (model.note && model.note.size) || {};
+            const w = Number.isFinite(size.width) ? size.width : 97.8;
+            const h = Number.isFinite(size.height) ? size.height : 59.1;
+            return {
+                id: `_x0000_s${1025 + index}`,
+                type: '#_x0000_t202',
+                style: `position:absolute; margin-left:80pt; margin-top:10pt; width:${w}pt; height:${h}pt; z-index:1; visibility:hidden`,
+                fillcolor: 'infoBackground [80]',
+                strokecolor: 'none [81]',
+                'o:insetmode': model.note.margins && model.note.margins.insetmode,
+            };
+        };
+        VmlShapeXform.__patchedSize = true;
+    }
+
+    // Microsoft Excel desktop respeta el `<x:Anchor>` ANTES que el style del
+    // shape para dimensionar el cuadro de comentario en celdas. ExcelJS por
+    // default genera anchor de ~2 cols × 4 rows (chico). Inyectamos un
+    // anchor calculado a partir de `model.note.size` para que Excel también
+    // crezca la caja. Si la nota no trae size, anchor default permanece.
+    if (VmlClientDataXform && VmlClientDataXform.prototype && !VmlClientDataXform.prototype.__patchedAnchor) {
+        const VmlAnchorXform = require('exceljs/lib/xlsx/xform/comment/vml-anchor-xform');
+        const origAnchorRender = VmlAnchorXform.prototype.render;
+        VmlAnchorXform.prototype.render = function patchedAnchorRender(xmlStream, model) {
+            const size = (model.note && model.note.size) || {};
+            const w = Number.isFinite(size.width) ? size.width : 0;
+            const h = Number.isFinite(size.height) ? size.height : 0;
+            // Si tenemos size, derivamos cols/rows. Aprox: col ≈ 48pt ancho,
+            // row ≈ 15pt alto en defaults de Excel. Margen extra +1 col/+1 row
+            // para que el texto no quede pegado a la pared.
+            if ((w > 0 || h > 0) && model.refAddress && !model.anchor) {
+                const cols = w > 0 ? Math.max(2, Math.ceil(w / 48) + 1) : 2;
+                const rows = h > 0 ? Math.max(4, Math.ceil(h / 15) + 1) : 4;
+                const l = model.refAddress.col;
+                const lf = 6;
+                const t = Math.max(model.refAddress.row - 2, 0);
+                const tf = 14;
+                const r = l + cols;
+                const rf = 2;
+                const b = t + rows;
+                const bf = 16;
+                xmlStream.leafNode('x:Anchor', null, [l, lf, t, tf, r, rf, b, bf].join(', '));
+                return;
+            }
+            return origAnchorRender.call(this, xmlStream, model);
+        };
+        VmlClientDataXform.prototype.__patchedAnchor = true;
+    }
+} catch (e) {
+    console.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape/anchor:', e.message);
+}
+
+/**
+ * Calcula dimensiones del cuadro de comentario en función del texto.
+ * Heurística empírica para Calibri 8pt (font default de comments en Excel):
+ *   - char ≈ 4pt de ancho promedio
+ *   - línea ≈ 12pt de alto + 4pt interlineado
+ * Mín/máx cap para que la caja no quede absurdamente chica ni desbordando.
+ *
+ * @param {string} text - texto crudo de la nota (puede tener \n)
+ * @returns {{width:number, height:number}} dimensiones en pt
+ */
+function computeNoteSize(text) {
+    if (!text) return { width: 100, height: 60 };
+    const lines = String(text).split('\n');
+    const maxChars = lines.reduce((m, l) => Math.max(m, l.length), 0);
+    // Ancho: ~4.5pt por char + 16pt padding lateral. Cap [120, 360].
+    const width = Math.max(120, Math.min(360, Math.round(maxChars * 4.5 + 16)));
+    // Alto: ~14pt por línea + 16pt padding vertical. Cap [50, 320].
+    const height = Math.max(50, Math.min(320, Math.round(lines.length * 14 + 16)));
+    return { width, height };
+}
+
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
     console.error('⛔ FATAL: JWT_SECRET no está configurado en las variables de entorno.');
@@ -1224,10 +1319,29 @@ const asistenciaService = {
                     } else if (reg) {
                         const est = estadoMap[reg.estado_id];
                         let codigo = est ? est.codigo : '-';
-                        
+
                         // Consolidación dinámica para el Excel
                         if (['NAC', 'DEF', 'MAT'].includes(codigo)) codigo = 'PL';
                         if (codigo === 'AT') codigo = 'JI';
+
+                        // ── Ausencias propagadas a fin de semana / feriado ──
+                        // Cuando se asigna un período de ausencia (LM, VAC, P, etc) el
+                        // backend `crearPeriodo` crea filas en `asistencias` para
+                        // todos los días del rango, incluidos sábados, domingos y
+                        // feriados. Eso pinta esos días con el código de la ausencia
+                        // (ej. "LM"), pero NO son días laborables: deben contarse
+                        // como FDS en el total mensual (reportado por RRHH como bug
+                        // "el sistema suma sat/sun como días de licencia").
+                        // Solución: si la fila tiene un estado NO presente y cae en
+                        // fin de semana o feriado, mostramos FDS en vez del código.
+                        if (est && !est.es_presente && (isWeekend || isFeriado)) {
+                            cell.value = MARKER_FDS;
+                            cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+                            cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                            return; // siguiente día — saltamos render normal
+                        }
 
                         cell.value = codigo;
                         
@@ -1273,24 +1387,34 @@ const asistenciaService = {
                             noteTexts.push(reg.observacion.trim());
                         }
 
-                        // Agregar "auto nota" de desglose si se modificó o hay extras
+                        // Agregar "auto nota" de desglose si se modificó o hay extras.
+                        // Texto compacto sin emojis: Microsoft Excel desktop a veces
+                        // renderiza glyphs SMP como cuadrados, y la caja del comentario
+                        // (incluso con monkey patch) es limitada — preferimos texto
+                        // ASCII para garantizar legibilidad en Excel y Google Sheets.
                         if (customSchedule || hsExtra > 0) {
-                            let dText = `Detalle Horas:\n• Ordinarias: ${calc.toFixed(2)}`;
-                            if (hsExtra > 0) dText += `\n• Extras: ${hsExtra.toFixed(2)}`;
-                            
+                            // Normaliza horas "08:00:00" → "08:00" para compactar
+                            const fmtHora = (h) => (h ? String(h).slice(0, 5) : '');
+                            let dText = `Detalle Horas:\n  Ordinarias: ${calc.toFixed(2)}`;
+                            if (hsExtra > 0) dText += `\n  Extras: ${hsExtra.toFixed(2)}`;
+
                             if (customSchedule) {
-                                dText += `\n\nMarcas de Reloj:\n📥 Ent: ${reg.hora_entrada} | 📤 Sal: ${reg.hora_salida}`;
+                                dText += `\n\nMarcas de Reloj:\n  Ent: ${fmtHora(reg.hora_entrada)}   Sal: ${fmtHora(reg.hora_salida)}`;
                                 if (reg.hora_colacion_inicio && reg.hora_colacion_fin) {
-                                    dText += `\n🍱 Colación: ${reg.hora_colacion_inicio} - ${reg.hora_colacion_fin}`;
+                                    dText += `\n  Colacion: ${fmtHora(reg.hora_colacion_inicio)} - ${fmtHora(reg.hora_colacion_fin)}`;
                                 }
                             }
                             noteTexts.push(dText);
                         }
 
                         if (noteTexts.length > 0) {
+                            const noteText = noteTexts.join('\n---\n');
                             cell.note = {
-                                texts: [{ text: noteTexts.join('\n\n---\n\n') }],
-                                margins: { insetmode: 'auto' }
+                                texts: [{ text: noteText }],
+                                margins: { insetmode: 'auto' },
+                                // size es leído por el monkey patch a V_SHAPE_ATTRIBUTES
+                                // arriba — caja se ajusta a contenido en MS Excel desktop.
+                                size: computeNoteSize(noteText),
                             };
                         }
                     } else if (isFeriado || isWeekend) {
@@ -1496,12 +1620,69 @@ const asistenciaService = {
                 [trabajador_id, obra_id, estado_id, tipo_ausencia_id || null, fecha_inicio, fecha_fin, observacion || null, userId]
             );
 
-            // 3. Generar/actualizar registros de asistencia para cada día del rango
+            // 3. Generar/actualizar registros de asistencia para cada día del rango.
+            //
+            // Para Licencia Médica (LM) saltamos días NO laborables — sábados,
+            // domingos y feriados según el horario de la obra. Bug reportado por
+            // RRHH (abril 2026): el sistema sumaba esos días al total de licencia,
+            // pero la práctica de la empresa es contar sólo días hábiles. Para
+            // los demás tipos de período (vacaciones, permisos, etc.) se mantiene
+            // el comportamiento histórico de marcar todos los días del rango.
+            const skipNonLaborable = nextIsLM;
+
+            // Cargar horario de la obra + feriados del rango sólo si vamos a saltar.
+            let horarioObra = null;
+            let feriadosSet = new Set();
+            if (skipNonLaborable) {
+                const [horarioRows] = await conn.query(
+                    `SELECT dia_semana, hora_entrada, hora_salida
+                     FROM configuracion_horarios
+                     WHERE obra_id = ? AND activo = TRUE`,
+                    [obra_id]
+                );
+                horarioObra = {};
+                for (const h of horarioRows) {
+                    // Día se considera laboral si tiene hora_entrada y hora_salida no nulas.
+                    horarioObra[h.dia_semana] = !!(h.hora_entrada && h.hora_salida);
+                }
+                const [feriadoRows] = await conn.query(
+                    `SELECT fecha FROM feriados
+                     WHERE activo = 1 AND fecha BETWEEN ? AND ?`,
+                    [fecha_inicio, fecha_fin]
+                );
+                for (const f of feriadoRows) {
+                    const fStr = typeof f.fecha === 'string'
+                        ? f.fecha.split('T')[0]
+                        : f.fecha.toISOString().split('T')[0];
+                    feriadosSet.add(fStr);
+                }
+            }
+
+            const dowMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
+
             let diasAfectados = 0;
+            let diasSaltados = 0;
             const current = new Date(inicio);
 
             while (current <= fin) {
                 const fechaStr = current.toISOString().split('T')[0];
+
+                if (skipNonLaborable) {
+                    const dow = dowMap[current.getDay()];
+                    // Sin entry en horarioObra para ese día → asume no laboral.
+                    // Default ANTES de cargar horario: sat/sun no laboral, lun-vie laboral
+                    // (cubre obras sin horario explícito configurado).
+                    const tieneHorario = horarioObra && (dow in horarioObra)
+                        ? horarioObra[dow]
+                        : (current.getDay() !== 0 && current.getDay() !== 6);
+                    const esFeriado = feriadosSet.has(fechaStr);
+
+                    if (!tieneHorario || esFeriado) {
+                        diasSaltados++;
+                        current.setDate(current.getDate() + 1);
+                        continue;
+                    }
+                }
 
                 await conn.query(
                     `INSERT INTO asistencias
@@ -1534,9 +1715,12 @@ const asistenciaService = {
                 const nombreTrab = trabajadorRows[0] ? `${trabajadorRows[0].nombres} ${trabajadorRows[0].apellido_paterno}` : `ID ${trabajador_id}`;
                 const nombreEstado = estadoRows[0] ? estadoRows[0].nombre : `ID ${estado_id}`;
 
+                const detalleDias = nextIsLM
+                    ? `(${diasAfectados} días hábiles${diasSaltados > 0 ? `, ${diasSaltados} no laborales saltados` : ''})`
+                    : `(${diasAfectados} días)`;
                 logManualActivity(userId, 'periodos_ausencia', 'CREATE', periodoResult.insertId,
                     JSON.stringify({
-                        resumen: `Período asignado: ${nombreEstado} para ${nombreTrab} del ${fecha_inicio} al ${fecha_fin} (${diasAfectados} días)`
+                        resumen: `Período asignado: ${nombreEstado} para ${nombreTrab} del ${fecha_inicio} al ${fecha_fin} ${detalleDias}`
                     }),
                     req
                 );
@@ -1551,7 +1735,9 @@ const asistenciaService = {
                 estado_id,
                 fecha_inicio,
                 fecha_fin,
-                dias_afectados: diasAfectados
+                dias_afectados: diasAfectados,
+                dias_saltados: diasSaltados,
+                tipo: nextIsLM ? 'LM' : 'OTRO',
             };
         } catch (err) {
             await conn.rollback();

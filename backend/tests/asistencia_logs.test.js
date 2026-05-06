@@ -61,12 +61,12 @@ describe('asistenciaService._logBulkChanges — agrupación de logs', () => {
         expect(inserts).toHaveLength(1);
 
         const [, params] = inserts[0];
-        // params = [usuario_id, modulo, accion, item_id, detalle, ip, user_agent]
+        // params = [usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, user_agent]
         expect(params[1]).toBe('asistencias');
         expect(params[2]).toBe('CREATE'); // todos CREATE
         expect(params[3]).toBe('obra_10');
 
-        const payload = JSON.parse(params[4]);
+        const payload = JSON.parse(params[6]);
         expect(payload.type).toBe('bulk_asistencia');
         expect(payload.obra_id).toBe(10);
         expect(payload.obra_nombre).toBe('BASCUÑAN 661');
@@ -102,7 +102,7 @@ describe('asistenciaService._logBulkChanges — agrupación de logs', () => {
         const inserts = getInsertLogs();
         expect(inserts).toHaveLength(1);
 
-        const payload = JSON.parse(inserts[0][1][4]);
+        const payload = JSON.parse(inserts[0][1][6]);
         expect(payload.type).toBeUndefined();
         expect(payload.resumen).toMatch(/JUAN PEREZ/);
         // item_id es el asistencia_id, no obra_X
@@ -146,7 +146,7 @@ describe('asistenciaService._logBulkChanges — agrupación de logs', () => {
         const inserts = getInsertLogs();
         expect(inserts).toHaveLength(2);
 
-        const payloads = inserts.map(i => JSON.parse(i[1][4]));
+        const payloads = inserts.map(i => JSON.parse(i[1][6]));
         const byObra = Object.fromEntries(payloads.map(p => [p.obra_id, p]));
 
         expect(byObra[10].type).toBe('bulk_asistencia');
@@ -161,7 +161,7 @@ describe('asistenciaService._logBulkChanges — agrupación de logs', () => {
 
         // accion del log: obra 10 todos CREATE → CREATE; obra 20 mixto → UPDATE
         const accionesPorObra = Object.fromEntries(
-            inserts.map(i => [JSON.parse(i[1][4]).obra_id, i[1][2]])
+            inserts.map(i => [JSON.parse(i[1][6]).obra_id, i[1][2]])
         );
         expect(accionesPorObra[10]).toBe('CREATE');
         expect(accionesPorObra[20]).toBe('UPDATE');
@@ -190,7 +190,7 @@ describe('asistenciaService._logBulkChanges — agrupación de logs', () => {
 
         const params = inserts[0][1];
         expect(params[2]).toBe('UPDATE');
-        const payload = JSON.parse(params[4]);
+        const payload = JSON.parse(params[6]);
         expect(payload.type).toBeUndefined();
         expect(payload.trabajador).toBe('JUAN PEREZ');
         expect(payload.cambios.estado_id).toEqual({ de: 'Asiste', a: 'Falta' });
