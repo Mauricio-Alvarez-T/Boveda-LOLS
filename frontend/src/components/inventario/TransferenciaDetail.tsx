@@ -149,12 +149,38 @@ const TransferenciaDetail: React.FC<Props> = ({
         lines.push(`${TARGET} *Entregar en:* ${destino}`);
         lines.push('');
         if (items.length > 0) {
-            lines.push(`${BOX} *Items (${items.length}):*`);
+            // Etiqueta y cantidad dependen del estado para reflejar la columna real
+            // (Solicit / Enviada / Recibida) — antes siempre mostraba enviada y
+            // confundía al receptor cuando la recepción difería del despacho.
+            const itemsLabel =
+                t.estado === 'recibida' ? 'Items recibidos' :
+                t.estado === 'aprobada' || t.estado === 'en_transito' ? 'Items enviados' :
+                'Items solicitados';
+            lines.push(`${BOX} *${itemsLabel} (${items.length}):*`);
             items.forEach((it) => {
-                const cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                let cant: number;
+                if (t.estado === 'recibida') {
+                    cant = it.cantidad_recibida ?? it.cantidad_enviada ?? it.cantidad_solicitada;
+                } else if (t.estado === 'aprobada' || t.estado === 'en_transito') {
+                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                } else {
+                    cant = it.cantidad_solicitada;
+                }
                 const unidad = it.unidad ? ` ${it.unidad}` : '';
                 const desc = it.item_descripcion || `Item #${it.item_id}`;
                 lines.push(`• ${cant}${unidad} — ${desc}`);
+                // Si en recepción hubo discrepancia con lo enviado, anótala bajo el item
+                // — facilita conciliación sin abrir la app.
+                if (
+                    t.estado === 'recibida' &&
+                    it.cantidad_enviada != null &&
+                    it.cantidad_recibida != null &&
+                    it.cantidad_enviada !== it.cantidad_recibida
+                ) {
+                    const diff = it.cantidad_recibida - it.cantidad_enviada;
+                    const signo = diff > 0 ? '+' : '';
+                    lines.push(`   _Enviadas: ${it.cantidad_enviada} (${signo}${diff})_`);
+                }
                 if (it.observacion) lines.push(`   _${it.observacion}_`);
             });
             lines.push('');
