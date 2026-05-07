@@ -232,6 +232,20 @@ const ConsultasPage: React.FC = () => {
                 >
                     <Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />
                 </button>
+                {/* Export Excel — paridad con desktop. Mismo gating de permiso/data. */}
+                <button
+                    onClick={() => handleExportExcel()}
+                    disabled={workers.length === 0 || !hasPermission('reportes.exportar') || exporting}
+                    className={cn(
+                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
+                        "bg-white border-border text-brand-dark active:bg-background",
+                        (workers.length === 0 || !hasPermission('reportes.exportar')) && "opacity-40 grayscale pointer-events-none",
+                        exporting && "opacity-60"
+                    )}
+                    title="Exportar Excel"
+                >
+                    <FileDown className={cn("h-4 w-4 text-brand-primary", exporting && "animate-pulse")} />
+                </button>
                 <button
                     onClick={() => {
                         setShowMobileFilters(prev => !prev);
