@@ -541,13 +541,16 @@ export const ActivityLogsPanel: React.FC = () => {
                         )}
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0">
+                    {/* Mobile: ambos botones en fila ocupando 50/50 (flex-1) para
+                        evitar apretujamiento en pantallas <360px. Desktop: ancho
+                        natural (md:flex-none) y se ubican junto al input. */}
+                    <div className="flex items-center gap-2 md:shrink-0">
                         <Button
                             variant="glass"
                             size="sm"
                             onClick={() => setShowFilters(v => !v)}
                             leftIcon={<FilterIcon className="h-4 w-4" />}
-                            className={cn(showFilters && 'bg-brand-primary/10 text-brand-primary')}
+                            className={cn('flex-1 md:flex-none justify-center', showFilters && 'bg-brand-primary/10 text-brand-primary')}
                         >
                             Filtros
                             {activeFilterCount > 0 && (
@@ -561,6 +564,7 @@ export const ActivityLogsPanel: React.FC = () => {
                             size="sm"
                             onClick={handleExportCSV}
                             leftIcon={<Download className="h-4 w-4" />}
+                            className="flex-1 md:flex-none justify-center"
                         >
                             CSV
                         </Button>
