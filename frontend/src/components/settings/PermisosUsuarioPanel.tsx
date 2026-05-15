@@ -128,13 +128,85 @@ const PermisosUsuarioPanel: React.FC<Props> = ({
                     <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
                 </svg>
                 <p>
-                    Los <b>Overrides</b> permiten forzar un permiso (Conceder) o prohibirlo (Denegar) sin importar lo que el Rol diga. 
+                    Los <b>Overrides</b> permiten forzar un permiso (Conceder) o prohibirlo (Denegar) sin importar lo que el Rol diga.
                     Si está en "Por Defecto", usará el permiso del Rol.
                 </p>
             </div>
 
             <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
-                {catalogo && Object.entries(catalogo).map(([modulo, permisos]) => (
+                {/* Sección destacada Financiero — render PRIMERO con border y
+                    fondo amber para que el admin identifique de un vistazo los
+                    permisos que controlan acceso a información $. Política
+                    deny-by-default decidida con jefatura mayo-26. */}
+                {catalogo && catalogo['Financiero'] && catalogo['Financiero'].length > 0 && (
+                    <div className="border-2 border-amber-300 rounded-lg overflow-hidden shadow-sm">
+                        <div className="bg-amber-100 px-4 py-3 border-b border-amber-300 flex items-start gap-3">
+                            <span className="text-2xl leading-none mt-0.5" aria-hidden>💵</span>
+                            <div>
+                                <div className="font-bold text-amber-900 flex items-center gap-2">
+                                    Datos Financieros
+                                    <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">
+                                        Sensible
+                                    </span>
+                                </div>
+                                <div className="text-xs text-amber-800 mt-1">
+                                    Controlan acceso a montos, costos, precios, sueldos y horas extra.
+                                    Por política, sólo el Super Administrador los recibe por defecto.
+                                    Concédelos manualmente a personal autorizado.
+                                </div>
+                            </div>
+                        </div>
+                        <div className="divide-y divide-amber-100 bg-amber-50/40">
+                            {catalogo['Financiero'].map(p => {
+                                const status = getPermissionStatus(p.clave);
+                                const effective = isEffective(p.clave);
+                                const fromRole = rolePerms.includes(p.clave);
+                                return (
+                                    <div key={p.clave} className="p-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-amber-50 transition-colors">
+                                        <div className="mb-3 md:mb-0 max-w-lg">
+                                            <div className="flex items-center space-x-2">
+                                                <span className={`w-2.5 h-2.5 rounded-full ${effective ? 'bg-green-500' : 'bg-red-500'}`} title={effective ? 'Permitido' : 'Denegado'}></span>
+                                                <span className="font-medium text-amber-900 flex items-center gap-1.5">
+                                                    <span className="text-amber-700" aria-hidden>$</span>
+                                                    {p.nombre}
+                                                </span>
+                                                {status === 'default' && (
+                                                    <span className="text-[10px] bg-amber-200 px-1.5 py-0.5 rounded text-amber-900 uppercase">Rol</span>
+                                                )}
+                                            </div>
+                                            <p className="text-xs text-amber-700 ml-5">{p.descripcion}</p>
+                                        </div>
+                                        <div className="flex items-center bg-amber-100 p-0.5 rounded-lg">
+                                            <button
+                                                onClick={() => handleSetOverride(p.clave, 'grant')}
+                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'grant' ? 'bg-green-500 text-white shadow' : 'text-amber-900 hover:bg-amber-200'}`}
+                                            >
+                                                Conceder
+                                            </button>
+                                            <button
+                                                onClick={() => handleSetOverride(p.clave, 'default')}
+                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'default' ? 'bg-white text-gray-800 shadow' : 'text-amber-900 hover:bg-amber-200'}`}
+                                            >
+                                                Defecto ({fromRole ? '✓' : '✗'})
+                                            </button>
+                                            <button
+                                                onClick={() => handleSetOverride(p.clave, 'deny')}
+                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'deny' ? 'bg-red-500 text-white shadow' : 'text-amber-900 hover:bg-amber-200'}`}
+                                            >
+                                                Denegar
+                                            </button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                )}
+
+                {/* Resto de módulos — render normal después de Financiero. */}
+                {catalogo && Object.entries(catalogo)
+                    .filter(([modulo]) => modulo !== 'Financiero')
+                    .map(([modulo, permisos]) => (
                     <div key={modulo} className="border rounded-lg overflow-hidden">
                         <div className="bg-gray-100 px-4 py-2 border-b font-semibold text-gray-700">
                             {modulo}
@@ -144,7 +216,7 @@ const PermisosUsuarioPanel: React.FC<Props> = ({
                                 const status = getPermissionStatus(p.clave);
                                 const effective = isEffective(p.clave);
                                 const fromRole = rolePerms.includes(p.clave);
-                                
+
                                 return (
                                     <div key={p.clave} className="p-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-gray-50 transition-colors">
                                         <div className="mb-3 md:mb-0 max-w-lg">
@@ -159,19 +231,19 @@ const PermisosUsuarioPanel: React.FC<Props> = ({
                                         </div>
 
                                         <div className="flex items-center bg-gray-200 p-0.5 rounded-lg">
-                                            <button 
+                                            <button
                                                 onClick={() => handleSetOverride(p.clave, 'grant')}
                                                 className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'grant' ? 'bg-green-500 text-white shadow' : 'text-gray-600 hover:bg-gray-300'}`}
                                             >
                                                 Conceder
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleSetOverride(p.clave, 'default')}
                                                 className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'default' ? 'bg-white text-gray-800 shadow' : 'text-gray-600 hover:bg-gray-300'}`}
                                             >
                                                 Defecto ({fromRole ? '✓' : '✗'})
                                             </button>
-                                            <button 
+                                            <button
                                                 onClick={() => handleSetOverride(p.clave, 'deny')}
                                                 className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'deny' ? 'bg-red-500 text-white shadow' : 'text-gray-600 hover:bg-gray-300'}`}
                                             >

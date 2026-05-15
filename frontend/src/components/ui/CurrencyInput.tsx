@@ -10,10 +10,11 @@ interface CurrencyInputProps {
     onChange: (value: number) => void;
     onBlur?: () => void;
     className?: string;
+    disabled?: boolean;
 }
 
 export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputProps>(
-    ({ label, error, placeholder, value, onChange, onBlur, className }, ref) => {
+    ({ label, error, placeholder, value, onChange, onBlur, className, disabled = false }, ref) => {
         const [display, setDisplay] = useState<string>(value ? formatCLP(value) : '');
 
         useEffect(() => {
@@ -21,6 +22,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
         }, [value]);
 
         const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+            if (disabled) return;
             const parsed = parseCLP(e.target.value);
             onChange(parsed);
             setDisplay(parsed ? formatCLP(parsed) : e.target.value.replace(/[^\d$.,]/g, ''));
@@ -41,9 +43,12 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
                     onChange={handleChange}
                     onBlur={onBlur}
                     placeholder={placeholder || '$0'}
+                    disabled={disabled}
+                    aria-disabled={disabled}
                     className={cn(
                         "flex h-11 w-full rounded-xl border border-border bg-white px-4 py-2 text-base text-brand-dark placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[#B0B0B5]",
                         error && "border-destructive focus-visible:ring-destructive/30 focus-visible:border-destructive",
+                        disabled && "bg-gray-100 text-gray-500 cursor-not-allowed hover:border-border",
                         className
                     )}
                 />

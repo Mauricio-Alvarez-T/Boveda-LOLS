@@ -3,6 +3,7 @@ import { Droplets, Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, 
 import api from '../../services/api';
 import type { RegistroBombaHormigon } from '../../types/entities';
 import { cn } from '../../utils/cn';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
     obras: { id: number; nombre: string }[];
@@ -14,6 +15,12 @@ const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2
 const fmtDateShort = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 
 const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
+    // Gate financiero: usuarios sin `inventario.bombas.ver_costos` no ven
+    // el StatCard "Costo Total" ni la columna costo por registro (el backend
+    // ya sanitiza `r.costo` → undefined, aquí cubrimos la parte UI).
+    const { hasPermission } = useAuth();
+    const verCostos = hasPermission('inventario.bombas.ver_costos');
+
     const [registros, setRegistros] = useState<RegistroBombaHormigon[]>([]);
     const [loading, setLoading] = useState(false);
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
@@ -128,12 +135,14 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
                         value={String(stats.externas)}
                         color="bg-amber-50 text-amber-600"
                     />
-                    <StatCard
-                        icon={DollarSign}
-                        label="Costo Total"
-                        value={stats.costoTotal > 0 ? fmtMoney(stats.costoTotal) : '—'}
-                        color="bg-violet-50 text-violet-600"
-                    />
+                    {verCostos && (
+                        <StatCard
+                            icon={DollarSign}
+                            label="Costo Total"
+                            value={stats.costoTotal > 0 ? fmtMoney(stats.costoTotal) : '—'}
+                            color="bg-violet-50 text-violet-600"
+                        />
+                    )}
                 </div>
             </div>
 

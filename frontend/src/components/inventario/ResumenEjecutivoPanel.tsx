@@ -17,6 +17,7 @@ import {
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
+import { useAuth } from '../../context/AuthContext';
 
 interface ObraOpcion { id: number; nombre: string; }
 
@@ -385,6 +386,14 @@ function formatRelativeTime(lastUpdated: number | null, now: number): { label: s
 }
 
 const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNavigateObra }) => {
+    // Permiso financiero para mostrar valores $ en el resumen ejecutivo.
+    // El backend ya sanitiza (Sprint 1), por lo que sin permiso los campos
+    // monetarios llegan undefined. Aquí escondemos los KPIs/secciones $
+    // completos para evitar mostrar "$0" sin contexto.
+    const { hasPermission } = useAuth();
+    const verValoresResumen = hasPermission('inventario.resumen.ver_valores');
+    const verCostosBombas = hasPermission('inventario.bombas.ver_costos');
+
     const [obraFilter, setObraFilter] = useState<number | null>(null);
     const [obras, setObras] = useState<ObraOpcion[]>([]);
     const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo(obraFilter);
@@ -551,21 +560,25 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             historico={data?.historico?.estancados}
                             invertDelta
                         />
-                        <KpiCard
-                            tone="green"
-                            icon={<Wallet className="h-5 w-5" />}
-                            label="Valor obras"
-                            value={fmtCLP(data?.kpis.valor_total_obras ?? 0)}
-                            subline="arriendo mensual"
-                            tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
-                            historico={data?.historico?.valor_obras}
-                        />
+                        {verValoresResumen && (
+                            <KpiCard
+                                tone="green"
+                                icon={<Wallet className="h-5 w-5" />}
+                                label="Valor obras"
+                                value={fmtCLP(data?.kpis.valor_total_obras ?? 0)}
+                                subline="arriendo mensual"
+                                tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
+                                historico={data?.historico?.valor_obras}
+                            />
+                        )}
                     </>
                 )}
             </div>
 
-            {/* Ranking de obras — oculto cuando hay filtro por obra */}
-            {!obraFilter && (
+            {/* Ranking de obras — oculto cuando hay filtro por obra o el
+                usuario no tiene permiso para ver valores monetarios. La
+                sección entera ranquea por $ — sin permiso $ no aporta. */}
+            {!obraFilter && verValoresResumen && (
             <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
@@ -685,7 +698,9 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     {loading && !data ? (
                         <Skeleton className="h-[80px]" />
                     ) : (
-                        <div className="grid grid-cols-3 gap-3">
+                        // Sin permiso de ver costos de bombas: layout pasa a 2
+                        // columnas (Bombeos + Obras), oculta "Costo ext.".
+                        <div className={`grid gap-3 ${verCostosBombas ? 'grid-cols-3' : 'grid-cols-2'}`}>
                             <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100">
                                 <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Bombeos</span>
                                 <span className="text-2xl font-black text-cyan-900 mt-1">
@@ -698,15 +713,17 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                     {data!.bombas_hormigon_mes.obras_distintas}
                                 </span>
                             </div>
-                            <div
-                                className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100"
-                                title={`Costo externo total del mes: ${fmtCLPFull(data!.bombas_hormigon_mes.costo_externo)}`}
-                            >
-                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Costo ext.</span>
-                                <span className="text-2xl font-black text-cyan-900 mt-1">
-                                    {fmtCLP(data!.bombas_hormigon_mes.costo_externo)}
-                                </span>
-                            </div>
+                            {verCostosBombas && (
+                                <div
+                                    className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100"
+                                    title={`Costo externo total del mes: ${fmtCLPFull(data!.bombas_hormigon_mes.costo_externo ?? 0)}`}
+                                >
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Costo ext.</span>
+                                    <span className="text-2xl font-black text-cyan-900 mt-1">
+                                        {fmtCLP(data!.bombas_hormigon_mes.costo_externo ?? 0)}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>

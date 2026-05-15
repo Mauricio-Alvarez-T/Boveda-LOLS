@@ -13,6 +13,7 @@ import api from '../../services/api';
 import type { ItemInventario, CategoriaInventario } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
+import { useAuth } from '../../context/AuthContext';
 
 const schema = z.object({
     categoria_id: z.coerce.number().int().min(1, 'Categoría requerida'),
@@ -34,6 +35,13 @@ interface Props {
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+    // Permisos financieros — gating visual de campos $.
+    //   verCostos=false  → ocultar columnas valor_compra/valor_arriendo.
+    //   editarCostos=false → mostrar disabled (solo lectura) si verCostos=true.
+    const { hasPermission } = useAuth();
+    const verCostos = hasPermission('inventario.costos.ver');
+    const editarCostos = hasPermission('inventario.costos.editar');
+
     const [categorias, setCategorias] = useState<CategoriaInventario[]>([]);
     const [imagePreview, setImagePreview] = useState<string | null>(initialData?.imagen_url ? `${API_BASE}${initialData.imagen_url}` : null);
     const [imageFile, setImageFile] = useState<File | null>(null);
@@ -103,7 +111,14 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
 
     const onSubmit = async (data: FormData) => {
         try {
-            const payload = { ...data, m2: data.m2 || null };
+            const payload: Record<string, unknown> = { ...data, m2: data.m2 || null };
+            // Gate financiero: si no puede editar costos, omitir esos campos
+            // del payload para no pisar los valores guardados en la BD. El
+            // backend valida el mismo gate (defensa en profundidad).
+            if (!editarCostos) {
+                delete payload.valor_compra;
+                delete payload.valor_arriendo;
+            }
             let itemId = initialData?.id;
             if (initialData) {
                 await api.put(`/items-inventario/${initialData.id}`, payload);
@@ -131,34 +146,42 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                 options={categorias.map(c => ({ value: c.id, label: c.nombre }))}
             />
             <Input label="Descripción" {...register('descripcion')} error={errors.descripcion?.message} placeholder="ANDAMIO VERTICAL PATA REGULABLE" />
-            <div className="grid grid-cols-3 gap-4">
+            {/* Grid se adapta: 3 cols cuando se ven costos, 1 col cuando se
+                ocultan (sólo M2 visible) — mantiene layout limpio. */}
+            <div className={`grid gap-4 ${verCostos ? 'grid-cols-3' : 'grid-cols-1'}`}>
                 <Input label="M2 (moldajes)" type="number" step="0.0001" {...register('m2')} error={errors.m2?.message} placeholder="0.00" />
-                <Controller
-                    control={control}
-                    name="valor_compra"
-                    render={({ field }) => (
-                        <CurrencyInput
-                            label="Valor Compra"
-                            value={field.value}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                            error={errors.valor_compra?.message}
-                        />
-                    )}
-                />
-                <Controller
-                    control={control}
-                    name="valor_arriendo"
-                    render={({ field }) => (
-                        <CurrencyInput
-                            label="Valor Arriendo"
-                            value={field.value}
-                            onChange={field.onChange}
-                            onBlur={field.onBlur}
-                            error={errors.valor_arriendo?.message}
-                        />
-                    )}
-                />
+                {verCostos && (
+                    <Controller
+                        control={control}
+                        name="valor_compra"
+                        render={({ field }) => (
+                            <CurrencyInput
+                                label={editarCostos ? 'Valor Compra' : 'Valor Compra (solo lectura)'}
+                                value={field.value}
+                                onChange={editarCostos ? field.onChange : () => { /* readonly */ }}
+                                onBlur={field.onBlur}
+                                error={errors.valor_compra?.message}
+                                disabled={!editarCostos}
+                            />
+                        )}
+                    />
+                )}
+                {verCostos && (
+                    <Controller
+                        control={control}
+                        name="valor_arriendo"
+                        render={({ field }) => (
+                            <CurrencyInput
+                                label={editarCostos ? 'Valor Arriendo' : 'Valor Arriendo (solo lectura)'}
+                                value={field.value}
+                                onChange={editarCostos ? field.onChange : () => { /* readonly */ }}
+                                onBlur={field.onBlur}
+                                error={errors.valor_arriendo?.message}
+                                disabled={!editarCostos}
+                            />
+                        )}
+                    />
+                )}
             </div>
             <Input label="Unidad" {...register('unidad')} error={errors.unidad?.message} placeholder="U" />
 
