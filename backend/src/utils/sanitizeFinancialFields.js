@@ -48,6 +48,10 @@ function sanitizeItemCosto(item, perms) {
 /**
  * Resumen ejecutivo / dashboards de inventario con valores agregados.
  * Si no puede ver montos $ del resumen, omitimos los totales monetarios.
+ *
+ * Soporta DOS shapes de entrada:
+ *   A) Dashboard ejecutivo: { valor_bruto, valor_neto, top_obras: [{valor, ...}], bombas: {costo_externo}, ... }
+ *   B) Resumen mensual:     { obras, bodegas, categorias: [{items: [{valor_arriendo, total_arriendo, ubicaciones: {[k]:{cantidad,total}}}]}], descuentos }
  */
 function sanitizeResumenInventario(resumen, perms) {
     if (resumen == null) return resumen;
@@ -56,15 +60,19 @@ function sanitizeResumenInventario(resumen, perms) {
     // Clon superficial para no mutar el original.
     const clean = { ...resumen };
 
-    // Top-level: valor_bruto, valor_neto, subtotal_bruto, etc.
+    // ── Shape A: dashboard ejecutivo (top-level $) ──
     delete clean.valor_bruto;
     delete clean.valor_neto;
     delete clean.subtotal_bruto;
     delete clean.subtotal_neto;
     delete clean.costo_externo;
     delete clean.valor_mensual;
+    delete clean.total_facturacion;
+    delete clean.total_con_descuento;
+    delete clean.descuento_monto;
+    delete clean.descuento_porcentaje;
 
-    // Top obras: cada obra puede traer valor_neto/valor_bruto.
+    // top_obras / obras: cada obra puede traer valores monetarios.
     if (Array.isArray(clean.top_obras)) {
         clean.top_obras = clean.top_obras.map(o => {
             const { valor, valor_bruto, valor_neto, valor_mensual, descuento_porcentaje, ...obraRest } = o;
@@ -84,6 +92,86 @@ function sanitizeResumenInventario(resumen, perms) {
         clean.bombas = bRest;
     }
 
+    // ── Shape B: resumen mensual con categorías + items + ubicaciones ──
+    // Mapa de descuentos por obra: lo eliminamos completamente (es información $).
+    if (clean.descuentos !== undefined) {
+        delete clean.descuentos;
+    }
+
+    if (Array.isArray(clean.categorias)) {
+        clean.categorias = clean.categorias.map(cat => {
+            if (!cat || typeof cat !== 'object') return cat;
+            const cCat = { ...cat };
+            // Subtotales monetarios por categoría
+            delete cCat.subtotal_arriendo;
+            // Items dentro de la categoría
+            if (Array.isArray(cCat.items)) {
+                cCat.items = cCat.items.map(it => {
+                    if (!it || typeof it !== 'object') return it;
+                    const cItem = { ...it };
+                    delete cItem.valor_arriendo;
+                    delete cItem.valor_compra;
+                    delete cItem.total_arriendo;
+                    delete cItem.total;
+                    // ubicaciones: { obra_X: {cantidad, total}, bodega_Y: {...} }
+                    // Quitamos `total` de cada ubicación, dejamos `cantidad`.
+                    if (cItem.ubicaciones && typeof cItem.ubicaciones === 'object') {
+                        const ubic = {};
+                        for (const key of Object.keys(cItem.ubicaciones)) {
+                            const u = cItem.ubicaciones[key];
+                            if (u && typeof u === 'object') {
+                                const { total, ...uRest } = u;
+                                ubic[key] = uRest;
+                            } else {
+                                ubic[key] = u;
+                            }
+                        }
+                        cItem.ubicaciones = ubic;
+                    }
+                    return cItem;
+                });
+            }
+            return cCat;
+        });
+    }
+
+    return clean;
+}
+
+/**
+ * Stock detallado por ubicación (obra o bodega). Estructura:
+ *   { obra, categorias: [{items: [{valor_arriendo, total}], subtotal_arriendo}], total_facturacion, descuento_*, total_con_descuento }
+ * Gateado por `inventario.costos.ver` — sin permiso, vista solo con cantidades.
+ */
+function sanitizeStockUbicacionData(data, perms) {
+    if (data == null) return data;
+    if (has(perms, 'inventario.costos.ver')) return data;
+
+    const clean = { ...data };
+    // Totales generales monetarios
+    delete clean.total_facturacion;
+    delete clean.descuento_porcentaje;
+    delete clean.descuento_monto;
+    delete clean.total_con_descuento;
+
+    if (Array.isArray(clean.categorias)) {
+        clean.categorias = clean.categorias.map(cat => {
+            if (!cat || typeof cat !== 'object') return cat;
+            const cCat = { ...cat };
+            delete cCat.subtotal_arriendo;
+            if (Array.isArray(cCat.items)) {
+                cCat.items = cCat.items.map(it => {
+                    if (!it || typeof it !== 'object') return it;
+                    const cItem = { ...it };
+                    delete cItem.valor_arriendo;
+                    delete cItem.valor_compra;
+                    delete cItem.total;
+                    return cItem;
+                });
+            }
+            return cCat;
+        });
+    }
     return clean;
 }
 
@@ -163,6 +251,7 @@ module.exports = {
     sanitizeItemCosto,
     sanitizeItemsCosto,
     sanitizeResumenInventario,
+    sanitizeStockUbicacionData,
     sanitizeRegistroBomba,
     sanitizeRegistrosBomba,
     sanitizeTrabajadorFinanciero,

@@ -5,6 +5,7 @@ import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import { useInlineEdit } from '../../hooks/inventario/useInlineEdit';
 import { useResumenMensualFilters } from '../../hooks/inventario/useResumenMensualFilters';
+import { useAuth } from '../../context/AuthContext';
 import ItemDetailModal from './ItemDetailModal';
 import { ResumenToolbar } from './ResumenToolbar';
 import { exportResumen } from '../../utils/exportExcel';
@@ -22,6 +23,11 @@ const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onRefresh }) => {
     const { obras, bodegas, categorias } = data;
+
+    // Gate financiero: si no tiene `inventario.resumen.ver_valores`, ocultar
+    // todas las columnas/filas $ del Resumen Mensual.
+    const { hasPermission } = useAuth();
+    const verValores = hasPermission('inventario.resumen.ver_valores');
 
     // ── Item detail modal ──
     const itemDetail = useItemDetail();
@@ -143,7 +149,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
         canEdit,
     ]);
 
-    const totalColSpan = 4 + visibleObras.length * 2 + visibleBodegas.length + 2;
+    // colSpan dinámico: cuando se ocultan columnas $ el total cambia.
+    //   verValores=true:  # + Img + Desc + V.Arriendo + (Cant+Total)*obras + Cant*bodegas + Total Arriendo + Total Unid
+    //   verValores=false: # + Img + Desc           + Cant*obras           + Cant*bodegas                  + Total Unid
+    const totalColSpan = verValores
+        ? 4 + visibleObras.length * 2 + visibleBodegas.length + 2
+        : 3 + visibleObras.length + visibleBodegas.length + 1;
     const hiddenCount = hiddenCols.size;
 
     // ── Mobile: expanded item state ──
@@ -187,19 +198,23 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     <ChevronDown className="h-4 w-4 text-muted-foreground pointer-events-none" />
                 </div>
 
-                {/* Mobile Grand Totals — summary card at top */}
+                {/* Mobile Grand Totals — summary card at top.
+                    Gate financiero: si no verValores, mostrar sólo el conteo de unidades y items
+                    (sin montos $). */}
                 <div className="shrink-0 bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white">
                     <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-2">Resumen General</p>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className={cn("grid gap-3", verValores ? "grid-cols-3" : "grid-cols-2")}>
                         <div>
                             <p className="text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
                             <p className="text-[10px] opacity-80">Unidades</p>
                         </div>
-                        <div>
-                            <p className="text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
-                            <p className="text-[10px] opacity-80">Arriendo</p>
-                        </div>
-                        {grandTotals.totalDescuento > 0 ? (
+                        {verValores && (
+                            <div>
+                                <p className="text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
+                                <p className="text-[10px] opacity-80">Arriendo</p>
+                            </div>
+                        )}
+                        {verValores && grandTotals.totalDescuento > 0 ? (
                             <div>
                                 <p className="text-lg font-black">{fmtMoney(grandTotals.totalConDescuento)}</p>
                                 <p className="text-[10px] opacity-80 text-brand-primary line-through whitespace-nowrap overflow-hidden text-ellipsis">{fmtMoney(grandTotals.totalArriendo)}</p>
@@ -287,7 +302,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                         {totalLocs} ubicacion{totalLocs !== 1 ? 'es' : ''}
                                                                     </span>
                                                                 )}
-                                                                {item.valor_arriendo > 0 && (
+                                                                {verValores && item.valor_arriendo > 0 && (
                                                                     <span className="text-[10px] text-muted-foreground">
                                                                         {fmtMoney(item.valor_arriendo)}/mes
                                                                     </span>
@@ -299,7 +314,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                         <div className="flex items-center gap-2 shrink-0">
                                                             <div className="text-right">
                                                                 <p className="text-sm font-black text-brand-dark">{fmt(item.total_cantidad)}</p>
-                                                                {item.total_arriendo > 0 && (
+                                                                {verValores && item.total_arriendo > 0 && (
                                                                     <p className="text-[10px] font-semibold text-brand-primary">{fmtMoney(item.total_arriendo)}</p>
                                                                 )}
                                                             </div>
@@ -355,7 +370,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                                     {qty}
                                                                                 </button>
                                                                             )}
-                                                                            {total > 0 && mobileEdit.editingCell !== cellKey && (
+                                                                            {verValores && total > 0 && mobileEdit.editingCell !== cellKey && (
                                                                                 <span className="text-[10px] font-semibold text-brand-primary w-20 text-right">{fmtMoney(total)}</span>
                                                                             )}
                                                                         </div>
@@ -468,9 +483,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 <ImageIcon className={cn("h-3.5 w-3.5 mx-auto transition-colors", showImages ? "text-brand-primary" : "text-muted-foreground/40")} />
                             </th>
                             <th className={cn("sticky z-30 bg-[#F5F7FA] px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#E8E8ED] min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
-                            <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
+                            {verValores && (
+                                <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED] w-16">V. Arriendo</th>
+                            )}
                             {visibleObras.map((o, oIdx) => (
-                                <th key={`obra_${o.id}`} colSpan={2} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", oIdx % 2 === 0 ? "bg-[#EBF0FB]" : "bg-[#DEE6F7]")}>
+                                <th key={`obra_${o.id}`} colSpan={verValores ? 2 : 1} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", oIdx % 2 === 0 ? "bg-[#EBF0FB]" : "bg-[#DEE6F7]")}>
                                     <div className="flex items-center justify-center gap-1">
                                         <span className="truncate">{o.nombre}</span>
                                         <button
@@ -497,7 +514,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </div>
                                 </th>
                             ))}
-                            <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED]">Total Arriendo</th>
+                            {verValores && (
+                                <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED]">Total Arriendo</th>
+                            )}
                             <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-[#E8E8ED]">Total Unid.</th>
                         </tr>
                         {/* Header row 2 — sub-headers with solid bg */}
@@ -505,17 +524,19 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <th className="sticky left-0 z-30 bg-[#EDEDF2] border-b border-r border-[#D8D8DD]" />
                             <th className="bg-[#EDEDF2] border-b border-r border-[#D8D8DD]" />
                             <th className={cn("sticky z-30 bg-[#EDEDF2] border-b border-r border-[#D8D8DD]", showImages ? "left-[68px]" : "left-8")} />
-                            <th className="bg-[#EDEDF2] border-b border-r border-[#E8E8ED]" />
+                            {verValores && <th className="bg-[#EDEDF2] border-b border-r border-[#E8E8ED]" />}
                             {visibleObras.map((o, oIdx) => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
                                     <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-[#D8D8DD] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-[#E8EDF8]" : "bg-[#DDE4F4]")}>Cant</th>
-                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-[#E8EDF8]" : "bg-[#DDE4F4]")}>Total</th>
+                                    {verValores && (
+                                        <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-[#E8EDF8]" : "bg-[#DDE4F4]")}>Total</th>
+                                    )}
                                 </React.Fragment>
                             ))}
                             {visibleBodegas.map((b, bIdx) => (
                                 <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-[#D8D8DD] border-r-[#BBBBCC] uppercase tracking-wider", bIdx % 2 === 0 ? "bg-[#F9F0DE]" : "bg-[#F4E8CF]")}>Cant</th>
                             ))}
-                            <th className="bg-[#E5F5EB] border-b border-r border-[#E8E8ED]" />
+                            {verValores && <th className="bg-[#E5F5EB] border-b border-r border-[#E8E8ED]" />}
                             <th className="bg-[#E5F5EB] border-b border-[#E8E8ED]" />
                         </tr>
                     </thead>
@@ -538,7 +559,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                 </span>
                                                 {totals && (
                                                     <span className="ml-2 text-[10px] font-medium text-muted-foreground">
-                                                        {totals.count} ítems · {fmt(totals.totalCantidad)} unid. · {fmtMoney(totals.totalArriendo)}
+                                                        {totals.count} ítems · {fmt(totals.totalCantidad)} unid.
+                                                        {verValores && ` · ${fmtMoney(totals.totalArriendo)}`}
                                                     </span>
                                                 )}
                                             </div>
@@ -566,7 +588,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                     {item.descripcion}
                                                 </button>
                                             </td>
-                                            <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]")}>{fmtMoney(item.valor_arriendo)}</td>
+                                            {verValores && (
+                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]")}>{fmtMoney(item.valor_arriendo)}</td>
+                                            )}
                                             {visibleObras.map((o, oIdx) => {
                                                 const ub = item.ubicaciones[`obra_${o.id}`];
                                                 const cellKey = `obra_${o.id}_item_${item.id}`;
@@ -576,9 +600,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                         <td className={cn("px-2 py-1.5 text-center border-r border-b border-[#D8D8DD]", colBg)}>
                                                             {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, o.id, null, !!(ub && ub.cantidad > 0))}
                                                         </td>
-                                                        <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
-                                                            {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
-                                                        </td>
+                                                        {verValores && (
+                                                            <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-[#D8D8DD] border-r-[#BBBBCC]", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
+                                                                {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
+                                                            </td>
+                                                        )}
                                                     </React.Fragment>
                                                 );
                                             })}
@@ -592,9 +618,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                     </td>
                                                 );
                                             })}
-                                            <td className="px-2 py-1.5 text-right font-semibold text-brand-accent border-r border-b border-[#D8D8DD]">
-                                                {item.total_arriendo > 0 ? fmtMoney(item.total_arriendo) : ''}
-                                            </td>
+                                            {verValores && (
+                                                <td className="px-2 py-1.5 text-right font-semibold text-brand-accent border-r border-b border-[#D8D8DD]">
+                                                    {item.total_arriendo > 0 ? fmtMoney(item.total_arriendo) : ''}
+                                                </td>
+                                            )}
                                             <td className="px-2 py-1.5 text-right font-semibold text-brand-dark border-b border-[#D8D8DD]">
                                                 {item.total_cantidad > 0 ? fmt(item.total_cantidad) : ''}
                                             </td>
@@ -605,10 +633,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             );
                         })}
                     </tbody>
-                    {/* ── Sticky totals footer — solid bg, clear labels ── */}
+                    {/* ── Sticky totals footer — solid bg, clear labels ──
+                        Sin permiso `inventario.resumen.ver_valores` se renderiza una versión
+                        reducida sólo con conteos de unidades, sin montos $. */}
                     <tfoot className="sticky bottom-0 z-10">
                         <tr className="border-t-2 border-brand-primary/30">
-                            <td colSpan={4} className="bg-[#F0F2F8] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
+                            <td colSpan={verValores ? 4 : 3} className="bg-[#F0F2F8] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
                             {visibleObras.map(o => {
@@ -619,7 +649,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 return (
                                     <React.Fragment key={`total_obra_${o.id}`}>
                                         <td className="bg-[#F0F2F8] px-2 py-2.5 text-center font-bold text-brand-dark text-[11px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
-                                        <td className="bg-[#F0F2F8] px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-r-[#BBBBCC]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
+                                        {verValores && (
+                                            <td className="bg-[#F0F2F8] px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-r-[#BBBBCC]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
+                                        )}
                                     </React.Fragment>
                                 );
                             })}
@@ -632,14 +664,16 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </td>
                                 );
                             })}
-                            <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-primary border-r-2 border-[#BBBBCC]">
-                                {fmtMoney(grandTotals.totalArriendo)}
-                            </td>
+                            {verValores && (
+                                <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-primary border-r-2 border-[#BBBBCC]">
+                                    {fmtMoney(grandTotals.totalArriendo)}
+                                </td>
+                            )}
                             <td className="bg-[#E6F0EA] px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 {fmt(grandTotals.totalCantidad)}
                             </td>
                         </tr>
-                        {grandTotals.totalDescuento > 0 && (
+                        {verValores && grandTotals.totalDescuento > 0 && (
                             <>
                                 <tr className="border-t border-[#D8D8DD]">
                                     <td colSpan={totalColSpan - 2} className="bg-[#FEF9EE] px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground border-r-2 border-[#BBBBCC]">

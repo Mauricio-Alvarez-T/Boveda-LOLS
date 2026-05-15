@@ -15,6 +15,7 @@ const path = require('path');
 const {
     sanitizeItemsCosto,
     sanitizeResumenInventario,
+    sanitizeStockUbicacionData,
     guardEditCostos,
 } = require('../utils/sanitizeFinancialFields');
 
@@ -45,7 +46,9 @@ router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res,
 router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await inventarioService.getStockPorObra(req.params.obraId);
-        res.json({ data: sanitizeItemsCosto(result, req.user?.p) });
+        // Estructura anidada {obra, categorias: [{items: [...]}], totales} → usar
+        // sanitizer especializado (sanitizeItemsCosto sólo soporta array plano).
+        res.json({ data: sanitizeStockUbicacionData(result, req.user?.p) });
     } catch (err) { next(err); }
 });
 
@@ -53,7 +56,7 @@ router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), async
 router.get('/stock/bodega/:bodegaId', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await inventarioService.getStockPorBodega(req.params.bodegaId);
-        res.json({ data: sanitizeItemsCosto(result, req.user?.p) });
+        res.json({ data: sanitizeStockUbicacionData(result, req.user?.p) });
     } catch (err) { next(err); }
 });
 
