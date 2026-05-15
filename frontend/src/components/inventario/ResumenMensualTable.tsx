@@ -80,9 +80,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
             }
         }
 
-        // 2. Calcular descuento total (por obra)
+        // 2. Calcular descuento total (por obra).
+        //    `data.descuentos` puede estar omitido por el backend cuando el
+        //    usuario no tiene `inventario.resumen.ver_valores` — optional chaining
+        //    para evitar TypeError leyendo prop de undefined.
         obras.forEach(o => {
-            const descPorcentaje = data.descuentos[o.id] || 0;
+            const descPorcentaje = data.descuentos?.[o.id] || 0;
             if (descPorcentaje > 0) {
                 // Calcular el total de arriendo de esta obra
                 const obraArriendo = categorias.reduce((sum, cat) =>
