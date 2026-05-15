@@ -641,4 +641,80 @@ Si necesitas un tipo de acción nuevo (ej. `EXPORT`, `APPROVAL`):
 
 ---
 
-*Última actualización: Abril 2026 — Agregan: § 14 Historial de Actividad (refactor completo Sprints 1-4 + ENTIDAD_RESOLVERS + endpoints filtros y export CSV).*
+## 15. Permisos Financieros ($)
+
+> Decisión jefatura mayo-26: sólo personal autorizado debe ver información
+> relacionada con dinero. Implementado en migración 043 + módulo `Financiero`
+> del catálogo de permisos. Política **deny-by-default**: sólo Super Admin
+> recibe estos permisos automáticamente; admin asigna manualmente al resto
+> vía `PermisosRolPanel` o `PermisosUsuarioPanel` (Overrides).
+
+### 15.1 Lista de permisos $
+
+| Clave | Qué gatea |
+|---|---|
+| `inventario.costos.ver` | Columnas `valor_compra`, `valor_arriendo`, `valor_arriendo_override` en items y ubicaciones |
+| `inventario.costos.editar` | Edición de los campos $ anteriores (PUT bulk + form) |
+| `inventario.facturas.ver` | Endpoint `GET /api/facturas-inventario` y la pestaña Facturas en UI |
+| `inventario.facturas.gestionar` | Crear y anular facturas con precios |
+| `inventario.bombas.ver_costos` | Campo `costo` de `RegistroBombaHormigon` + StatCard "Costo Total" |
+| `inventario.descuentos.gestionar` | Endpoint `PUT /api/inventario/descuento/obra/:obraId` |
+| `inventario.resumen.ver_valores` | `valor_bruto`, `valor_neto`, `subtotal_bruto`, KPI "Valor obras", ranking "Top Obras" |
+| `asistencia.horas_extra.ver` | Inputs HE en daily tab + columnas HE en export Excel (quedan vacías sin permiso) |
+| `trabajadores.financiero.ver` | (Preventivo) Sueldo base, anticipo, descuento, bono, gratificación, valor hora |
+| `trabajadores.financiero.editar` | (Preventivo) Edición de los campos $ del trabajador |
+
+### 15.2 Guía operacional rápida — quién necesita qué
+
+| Permiso | Rol/usuario sugerido |
+|---|---|
+| `inventario.costos.ver/editar` | Compras, Operaciones senior, Finanzas |
+| `inventario.facturas.ver/gestionar` | Finanzas, Tesorería |
+| `inventario.bombas.ver_costos` | Operaciones, Compras |
+| `inventario.descuentos.gestionar` | Operaciones senior, Finanzas |
+| `inventario.resumen.ver_valores` | Gerencia, Operaciones senior |
+| `asistencia.horas_extra.ver` | RRHH, Finanzas |
+| `trabajadores.financiero.*` | RRHH (cuando se agreguen los campos) |
+
+### 15.3 Cómo asignar a un rol o usuario
+
+**Rol entero** (todos los usuarios con ese rol heredan):
+1. Configuración → Usuarios y Roles → editar rol → checkboxes en sección "Datos Financieros".
+2. `POST /api/usuarios/roles/:id/permisos` actualiza `permisos_rol_v2`.
+
+**Usuario individual** (override sobre el rol):
+1. Configuración → Usuarios → ⋯ → "Permisos Personalizados".
+2. Para cada permiso $ elegir Conceder (override grant), Defecto (hereda del rol) o Denegar (override deny).
+3. `POST /api/usuarios/user-overrides/:id` actualiza `permisos_usuario_override`.
+
+Tras guardar, el usuario destino verá sus permisos nuevos en su siguiente login (bump automático de `roles.version`).
+
+### 15.4 Defensa en profundidad
+
+| Capa | Implementación |
+|---|---|
+| Backend | `backend/src/utils/sanitizeFinancialFields.js` — omite campos $ del JSON. Routes usan `sanitizeItemsCosto`, `sanitizeResumenInventario`, `sanitizeRegistroBomba`. PUT/POST gatean con `guardEditCostos` o `checkPermission('inventario.costos.editar')`. |
+| Frontend | `useAuth().hasPermission('inventario.costos.ver')` esconde columnas/secciones. Layout responde (grids de 3→1 col cuando se ocultan ambos $). |
+
+Aun si un atacante interceptara el JSON crudo desde DevTools, **no vería los valores monetarios** — el backend nunca los emite.
+
+### 15.5 Agregar un permiso $ nuevo a futuro
+
+1. Añadir entrada en `backend/src/config/permisos.config.js` con `'Financiero'` como módulo (5to argumento = orden visual).
+2. Agregar la clave también al array `PERMISOS_FINANCIEROS` del mismo archivo.
+3. Crear migración `NNN_permiso_X.sql` con dos `INSERT IGNORE`: uno en `permisos_catalogo`, otro en `permisos_rol_v2` (rol_id=1). Bump `roles.version`.
+4. Backend: agregar wrapper en `sanitizeFinancialFields.js` que omita el campo nuevo. Usar en el route correspondiente.
+5. Frontend: import `useAuth`, gate el componente con `hasPermission('nuevo.permiso')`.
+6. Documentar aquí (15.1 y 15.2).
+
+### 15.6 Migración 043 — operación en producción
+
+Cuando hagas merge a `main` por primera vez con este sprint:
+
+1. cPanel → Setup Node.js App → Run JS script → `migrate`.
+2. La migración 043 es idempotente — segura para re-ejecutar.
+3. Resultado esperado: las 10 claves en `permisos_catalogo`, las 10 asignaciones en `permisos_rol_v2` para rol_id=1, y `roles.version` incrementado (Super Admin se desloguea automáticamente en próximo request — debe re-loguear).
+
+---
+
+*Última actualización: Mayo 2026 — Agregado § 15 Permisos Financieros (Sprints 1-3 + migración 043).*
