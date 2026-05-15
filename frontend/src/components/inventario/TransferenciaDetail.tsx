@@ -92,7 +92,11 @@ const TransferenciaDetail: React.FC<Props> = ({
     const canRecibir = (t.estado === 'en_transito' || t.estado === 'aprobada') && hasPermission('inventario.editar');
     const canRechazarRecepcion = t.estado === 'en_transito' && hasPermission('inventario.editar') && !!onRechazarRecepcion;
     const canCancelar = (t.estado === 'pendiente' || t.estado === 'en_transito') && (hasPermission('inventario.editar') || t.solicitante_id === userId);
-    const canCompartirWhatsApp = ['aprobada', 'en_transito', 'recibida'].includes(t.estado);
+    // Pendiente entra en la lista porque RRHH/operaciones quieren notificar al
+    // grupo WhatsApp para que el aprobador a cargo abra la app y revise la
+    // factibilidad. El mensaje pendiente lleva las cantidades solicitadas
+    // (la rama del `if` por estado en handleShareWhatsApp ya cubre eso).
+    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recibida'].includes(t.estado);
     const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
     // ── Clipboard helper con fallback para navegadores sin clipboard API ──
@@ -141,9 +145,17 @@ const TransferenciaDetail: React.FC<Props> = ({
         const PERSON = String.fromCodePoint(0x1F464);
         const CHECK = String.fromCodePoint(0x2705);
 
+        // Codepoints: 1F4C5 = 📅 calendar (fecha solicitud).
+        const CALENDAR = String.fromCodePoint(0x1F4C5);
+
         const lines: string[] = [];
         lines.push(`${TRUCK} *TRANSFERENCIA ${t.codigo}*`);
         lines.push(`Estado: ${cfg.label}`);
+        // Fecha de solicitud — requerimiento jefatura para notificación de
+        // pendientes. fmtDateTime ya formatea día/mes hora:minuto en es-CL.
+        if (t.fecha_solicitud) {
+            lines.push(`${CALENDAR} Solicitada: ${fmtDateTime(t.fecha_solicitud)}`);
+        }
         lines.push('');
         lines.push(`${PIN} *Retirar en:* ${origen}`);
         lines.push(`${TARGET} *Entregar en:* ${destino}`);
@@ -525,9 +537,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                     {canCompartirWhatsApp && (
                         <button onClick={handleShareWhatsApp} disabled={actionLoading}
-                            title="Enviar información del movimiento por WhatsApp"
+                            title={
+                                t.estado === 'pendiente'
+                                    ? 'Notificar nueva solicitud al grupo de WhatsApp para que el aprobador la revise'
+                                    : 'Enviar información del movimiento por WhatsApp'
+                            }
                             className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-[#25D366] rounded-xl hover:bg-[#1EBE5B] disabled:opacity-50 transition-all shadow-sm">
-                            <Send className="h-3.5 w-3.5" /> Enviar por WhatsApp
+                            <Send className="h-3.5 w-3.5" />
+                            {t.estado === 'pendiente' ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}
                         </button>
                     )}
                 </div>
