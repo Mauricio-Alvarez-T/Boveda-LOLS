@@ -49,12 +49,23 @@ api.interceptors.response.use(
 
         // Auditoría 4.6: 403 centralizado. Antes cada hook tenía que mostrar su propio
         // toast — ahora el interceptor se encarga, con throttle para no spamear.
+        //
+        // Mayo 2026: skip toast en GET/HEAD/OPTIONS — esos son fetches de lectura
+        // en background (cargar resumen, listar items, etc). El frontend filtra
+        // qué se renderiza por permisos, así que un 403 en lectura suele ser
+        // ruido. Toast sólo en acciones explícitas (POST/PUT/DELETE/PATCH).
+        // El error sigue propagándose al caller → puede mostrar UI vacía o
+        // logear a consola si necesita.
         if (status === 403) {
-            const now = Date.now();
-            if (now - _last403Ts > TOAST_403_THROTTLE_MS) {
-                _last403Ts = now;
-                const msg = error.response?.data?.error || 'No tienes permiso para esta acción.';
-                toast.error(msg);
+            const method = String(error.config?.method || '').toLowerCase();
+            const isReadOnly = method === 'get' || method === 'head' || method === 'options';
+            if (!isReadOnly) {
+                const now = Date.now();
+                if (now - _last403Ts > TOAST_403_THROTTLE_MS) {
+                    _last403Ts = now;
+                    const msg = error.response?.data?.error || 'No tienes permiso para esta acción.';
+                    toast.error(msg);
+                }
             }
         }
 

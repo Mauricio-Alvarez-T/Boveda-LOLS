@@ -39,7 +39,14 @@ const InventarioPage: React.FC = () => {
     const { obras, selectedObra } = useObra();
     const { resumen, stockObra, stockBodega, loading, fetchResumen, fetchStockObra, fetchStockBodega } = useInventarioData();
     const { updateStock, updateDescuento } = useInventarioActions();
-    const [activeTab, setActiveTab] = useState<TabKey>('resumen_ejecutivo');
+    // Lazy init: arrancar en el PRIMER tab al que el usuario tenga acceso.
+    // Si arrancamos siempre en 'resumen_ejecutivo', un usuario sin ese permiso
+    // verá la pestaña montada en el primer render y disparará la llamada al API
+    // → 403 → toast confuso. El init lazy evita ese efecto.
+    const [activeTab, setActiveTab] = useState<TabKey>(() => {
+        const first = tabs.find(t => !t.requiresPerm || hasPermission(t.requiresPerm));
+        return (first?.key ?? 'resumen_ejecutivo') as TabKey;
+    });
     const [maestroSubTab, setMaestroSubTab] = useState<'items' | 'stock'>('items');
     const [selectedUbicacionKey, setSelectedUbicacionKey] = useState<string>('');
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
