@@ -819,8 +819,13 @@ const asistenciaService = {
     /**
      * Generar archivo Excel con reporte de asistencia
      */
-    async generarExcel(query = {}) {
+    async generarExcel(query = {}, options = {}) {
         const { obra_id, fecha_inicio, fecha_fin, empresa_id, cargo_id, categoria_reporte, activo, trabajador_ids } = query;
+        // Gate financiero: si el caller pasa `incluirHorasExtra: false`, las
+        // celdas de HE y Sábados Extra se mantienen (estructura de columnas
+        // intacta) pero con valor en blanco — el receptor del Excel no ve
+        // horas que serían insumo de pago. Default true para retrocompat.
+        const incluirHorasExtra = options.incluirHorasExtra !== false;
 
         if (!fecha_inicio || !fecha_fin) {
             throw new Error('fecha_inicio y fecha_fin son requeridos para exportar');
@@ -1461,13 +1466,13 @@ const asistenciaService = {
                 cOrd.numFmt = '0.00';
                 
                 const cExt = ws.getCell(rowIdx, horasExtCol);
-                cExt.value = sumHorasExtra;
+                cExt.value = incluirHorasExtra ? sumHorasExtra : '';
                 cExt.numFmt = '0.00';
 
                 // Sábados extra: viene del Map pre-calculado, no se interpola con días lun-vie
                 const horasSabExtra = sabExtraMap.get(worker.id) || 0;
                 const cSabExtra = ws.getCell(rowIdx, sabExtraCol);
-                cSabExtra.value = horasSabExtra;
+                cSabExtra.value = incluirHorasExtra ? horasSabExtra : '';
                 cSabExtra.numFmt = '0.00';
                 cSabExtra.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8FBFF' } };
 

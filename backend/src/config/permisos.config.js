@@ -85,7 +85,49 @@ const MAESTRO_PERMISOS = [
     ['sistema.plantillas.gestionar', 'Sistema', 'Gestionar Plantillas',           'Crear y editar plantillas de email', 3],
     ['sistema.tipos_doc.gestionar',  'Sistema', 'Gestionar Tipos Doc.',           'Crear y editar tipos de documento', 4],
     ['sistema.estados.gestionar',    'Sistema', 'Gestionar Estados Asist.',       'Crear y editar estados de asistencia', 5],
-    ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6]
+    ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // FINANCIERO — sección transversal que gatea visibilidad de campos $ en
+    // varios módulos. Política deny-by-default: sólo Super Admin los recibe
+    // automáticamente; admins asignan al resto manualmente vía PermisosRolPanel
+    // o PermisosUsuarioPanel (Overrides).
+    //
+    // El módulo "Financiero" se detecta por nombre en el frontend para
+    // mostrar la sección con badge $ destacado al inicio del modal.
+    // ─────────────────────────────────────────────────────────────────────────
+    ['inventario.costos.ver',           'Financiero', 'Ver Costos de Inventario',         'Ver valor_compra y valor_arriendo de items y ubicaciones', 1],
+    ['inventario.costos.editar',        'Financiero', 'Editar Costos de Inventario',      'Modificar valor_compra y valor_arriendo (requiere ver)', 2],
+    ['inventario.facturas.ver',         'Financiero', 'Ver Facturas',                     'Acceder a la pestaña Facturas con montos y precios unitarios', 3],
+    ['inventario.facturas.gestionar',   'Financiero', 'Gestionar Facturas',               'Crear, editar o anular facturas con precios', 4],
+    ['inventario.bombas.ver_costos',    'Financiero', 'Ver Costos Bombas Hormigón',       'Ver el costo de registros de bombas de hormigón', 5],
+    ['inventario.descuentos.gestionar', 'Financiero', 'Gestionar Descuentos Obra',        'Configurar porcentajes de descuento por obra', 6],
+    ['inventario.resumen.ver_valores',  'Financiero', 'Ver Valores en Resumen Ejecutivo', 'Ver valor_bruto, valor_neto y subtotales monetarios en el Resumen Ejecutivo', 7],
+    ['asistencia.horas_extra.ver',      'Financiero', 'Ver Horas Extra',                  'Ver columnas de horas extra y sábado en asistencia (insumo de pago)', 8],
+    ['trabajadores.financiero.ver',     'Financiero', 'Ver Datos Financieros Trabajador', 'Ver sueldo base, anticipos y descuentos del trabajador (campos futuros)', 9],
+    ['trabajadores.financiero.editar',  'Financiero', 'Editar Datos Financieros Trabajador','Editar sueldo base, anticipos y descuentos del trabajador (campos futuros)', 10]
 ];
 
+// Constante exportada para consumo en frontend (detectar sección destacada)
+// y en helpers de sanitización. Mantener sincronizada con las claves del
+// bloque "FINANCIERO" arriba.
+const PERMISOS_FINANCIEROS = [
+    'inventario.costos.ver',
+    'inventario.costos.editar',
+    'inventario.facturas.ver',
+    'inventario.facturas.gestionar',
+    'inventario.bombas.ver_costos',
+    'inventario.descuentos.gestionar',
+    'inventario.resumen.ver_valores',
+    'asistencia.horas_extra.ver',
+    'trabajadores.financiero.ver',
+    'trabajadores.financiero.editar'
+];
+
+// Export histórico: `require('./permisos.config')` devuelve el array MAESTRO
+// (compatibilidad con `permisos.service.js`). Se adjuntan también propiedades
+// nombradas para que nuevos consumidores puedan importarlas:
+//   const PERMISOS = require('./permisos.config');                // array
+//   const { PERMISOS_FINANCIEROS } = require('./permisos.config'); // subset
 module.exports = MAESTRO_PERMISOS;
+module.exports.PERMISOS_FINANCIEROS = PERMISOS_FINANCIEROS;
