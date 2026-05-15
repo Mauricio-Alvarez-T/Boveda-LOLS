@@ -8,8 +8,9 @@
  *     en función del array de permisos.
  *
  *  2) Catálogo de permisos: las 10 claves financieras existen en
- *     `permisos.config.js` con módulo 'Financiero' y la lista
- *     `PERMISOS_FINANCIEROS` expone exactamente las mismas claves.
+ *     `permisos.config.js` (7 en módulo 'Financiero' = inventario; 3 en
+ *     sus módulos naturales Asistencia/Trabajadores con prefijo "$" en el
+ *     nombre). `PERMISOS_FINANCIEROS` expone sólo el subset de inventario.
  *
  * No requiere DB real — el helper trabaja sobre objetos JS.
  */
@@ -46,13 +47,25 @@ describe('Permisos Financieros — catálogo', () => {
         });
     });
 
-    test('los 10 permisos están en el módulo "Financiero"', () => {
+    test('el módulo "Financiero" contiene sólo los 7 permisos de inventario', () => {
         const financieros = PERMISOS_MAESTRO.filter(p => p[1] === 'Financiero');
-        expect(financieros.length).toBe(10);
+        expect(financieros.length).toBe(7);
     });
 
-    test('PERMISOS_FINANCIEROS exporta exactamente las 10 claves financieras', () => {
-        expect(PERMISOS_FINANCIEROS).toHaveLength(10);
+    test('asistencia.horas_extra.ver vive en módulo Asistencia', () => {
+        const fila = PERMISOS_MAESTRO.find(p => p[0] === 'asistencia.horas_extra.ver');
+        expect(fila[1]).toBe('Asistencia');
+    });
+
+    test('trabajadores.financiero.* viven en módulo Trabajadores', () => {
+        const ver = PERMISOS_MAESTRO.find(p => p[0] === 'trabajadores.financiero.ver');
+        const ed  = PERMISOS_MAESTRO.find(p => p[0] === 'trabajadores.financiero.editar');
+        expect(ver[1]).toBe('Trabajadores');
+        expect(ed[1]).toBe('Trabajadores');
+    });
+
+    test('PERMISOS_FINANCIEROS exporta exactamente las 7 claves financieras de inventario', () => {
+        expect(PERMISOS_FINANCIEROS).toHaveLength(7);
         const modulosFinancieros = PERMISOS_MAESTRO
             .filter(p => p[1] === 'Financiero')
             .map(p => p[0]);

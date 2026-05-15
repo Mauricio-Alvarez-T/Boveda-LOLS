@@ -23,6 +23,7 @@ const MAESTRO_PERMISOS = [
     ['asistencia.sabados_extra.cancelar',      'Asistencia', 'Cancelar Citación Sábado',    'Cancelar citaciones de trabajo extraordinario en sábado', 15],
     ['asistencia.sabados_extra.registrar',     'Asistencia', 'Registrar Asistencia Sábado', 'Marcar asistencia y horas trabajadas el sábado', 16],
     ['asistencia.sabados_extra.enviar_whatsapp','Asistencia','Enviar Sábado por WhatsApp',  'Compartir citación o asistencia de sábado por WhatsApp', 17],
+    ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta las columnas "Horas Extra" y "Horas Sábado" (datos sensibles porque son insumo del cálculo de pago).', 18],
 
     // TRABAJADORES
     ['trabajadores.ver',            'Trabajadores', 'Ver Trabajadores',          'Ver la lista y fichas de trabajadores', 1],
@@ -31,6 +32,8 @@ const MAESTRO_PERMISOS = [
     ['trabajadores.eliminar',       'Trabajadores', 'Finiquitar Trabajador',     'Finiquitar o eliminar trabajadores', 4],
     ['trabajadores.reactivar',      'Trabajadores', 'Reactivar Trabajador',      'Reactivar trabajadores finiquitados', 5],
     ['trabajadores.depurar',        'Trabajadores', 'Depurar Trabajador',        'Eliminar permanentemente trabajadores finiquitados', 6],
+    ['trabajadores.financiero.ver', 'Trabajadores', '$ Ver Datos Financieros',   'Trabajadores → Ficha del Trabajador: si está denegado, oculta la sección de sueldo base, anticipos y descuentos. (Campos en desarrollo — aún no implementados en la UI.)', 7],
+    ['trabajadores.financiero.editar','Trabajadores','$ Editar Datos Financieros','Trabajadores → Ficha del Trabajador: si está denegado, los campos de sueldo, anticipos y descuentos aparecen como solo lectura. Requiere también "Ver Datos Financieros". (Campos en desarrollo.)', 8],
 
     // DOCUMENTOS
     ['documentos.ver',              'Documentos', 'Ver Documentos',              'Ver la documentación de los trabajadores', 1],
@@ -88,29 +91,31 @@ const MAESTRO_PERMISOS = [
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
 
     // ─────────────────────────────────────────────────────────────────────────
-    // FINANCIERO — sección transversal que gatea visibilidad de campos $ en
-    // varios módulos. Política deny-by-default: sólo Super Admin los recibe
-    // automáticamente; admins asignan al resto manualmente vía PermisosRolPanel
-    // o PermisosUsuarioPanel (Overrides).
+    // FINANCIERO — sección transversal que gatea visibilidad de campos $ del
+    // módulo INVENTARIO (costos, facturas, bombas, descuentos, resumen).
+    // Política deny-by-default: sólo Super Admin los recibe automáticamente;
+    // admins asignan al resto manualmente vía PermisosRolPanel o
+    // PermisosUsuarioPanel (Overrides).
     //
-    // El módulo "Financiero" se detecta por nombre en el frontend para
-    // mostrar la sección con badge $ destacado al inicio del modal.
+    // El módulo "Financiero" se detecta por nombre en el frontend para mostrar
+    // la sección con badge $ destacado al inicio del modal.
+    //
+    // Permisos $ de OTROS módulos (asistencia.horas_extra.ver,
+    // trabajadores.financiero.*) viven en sus módulos naturales con prefijo
+    // "$" en el nombre — separación clara entre $ inventario y $ otros.
     // ─────────────────────────────────────────────────────────────────────────
-    ['inventario.costos.ver',           'Financiero', 'Ver Costos de Inventario',         'Ver valor_compra y valor_arriendo de items y ubicaciones', 1],
-    ['inventario.costos.editar',        'Financiero', 'Editar Costos de Inventario',      'Modificar valor_compra y valor_arriendo (requiere ver)', 2],
-    ['inventario.facturas.ver',         'Financiero', 'Ver Facturas',                     'Acceder a la pestaña Facturas con montos y precios unitarios', 3],
-    ['inventario.facturas.gestionar',   'Financiero', 'Gestionar Facturas',               'Crear, editar o anular facturas con precios', 4],
-    ['inventario.bombas.ver_costos',    'Financiero', 'Ver Costos Bombas Hormigón',       'Ver el costo de registros de bombas de hormigón', 5],
-    ['inventario.descuentos.gestionar', 'Financiero', 'Gestionar Descuentos Obra',        'Configurar porcentajes de descuento por obra', 6],
-    ['inventario.resumen.ver_valores',  'Financiero', 'Ver Valores en Resumen Ejecutivo', 'Ver valor_bruto, valor_neto y subtotales monetarios en el Resumen Ejecutivo', 7],
-    ['asistencia.horas_extra.ver',      'Financiero', 'Ver Horas Extra',                  'Ver columnas de horas extra y sábado en asistencia (insumo de pago)', 8],
-    ['trabajadores.financiero.ver',     'Financiero', 'Ver Datos Financieros Trabajador', 'Ver sueldo base, anticipos y descuentos del trabajador (campos futuros)', 9],
-    ['trabajadores.financiero.editar',  'Financiero', 'Editar Datos Financieros Trabajador','Editar sueldo base, anticipos y descuentos del trabajador (campos futuros)', 10]
+    ['inventario.costos.ver',           'Financiero', 'Ver Costos de Inventario',         'Inventario → Items y Stock: si está denegado, oculta las columnas y campos "Valor Compra" y "Valor Arriendo" en el formulario del item y en las listas de stock por obra/bodega.', 1],
+    ['inventario.costos.editar',        'Financiero', 'Editar Costos de Inventario',      'Inventario → Formulario de Item: si está denegado, los campos "Valor Compra" y "Valor Arriendo" aparecen como solo lectura (no se pueden modificar). Requiere también "Ver Costos de Inventario".', 2],
+    ['inventario.facturas.ver',         'Financiero', 'Ver Facturas',                     'Inventario → Pestaña "Facturas": si está denegado, la pestaña completa queda inaccesible (no se ven montos netos, precios unitarios ni detalle de facturas).', 3],
+    ['inventario.facturas.gestionar',   'Financiero', 'Gestionar Facturas',               'Inventario → Pestaña "Facturas": si está denegado, el usuario puede ver el listado (si tiene "Ver Facturas") pero no puede crear, editar ni anular facturas con precios.', 4],
+    ['inventario.bombas.ver_costos',    'Financiero', 'Ver Costos Bombas Hormigón',       'Inventario → Pestaña "Bombas de Hormigón": si está denegado, oculta la columna "Costo" de cada registro y la tarjeta "Costo Total" del panel resumen.', 5],
+    ['inventario.descuentos.gestionar', 'Financiero', 'Gestionar Descuentos Obra',        'Inventario → Stock por Obra: si está denegado, el usuario no puede configurar ni modificar el porcentaje de descuento aplicado a la obra.', 6],
+    ['inventario.resumen.ver_valores',  'Financiero', 'Ver Valores en Resumen Ejecutivo', 'Inventario → Pestaña "Resumen Ejecutivo": si está denegado, oculta la tarjeta "Valor obras" (valor bruto/neto) y el ranking "Top Obras por Valor".', 7]
 ];
 
 // Constante exportada para consumo en frontend (detectar sección destacada)
 // y en helpers de sanitización. Mantener sincronizada con las claves del
-// bloque "FINANCIERO" arriba.
+// bloque "FINANCIERO" arriba (sólo permisos $ de inventario).
 const PERMISOS_FINANCIEROS = [
     'inventario.costos.ver',
     'inventario.costos.editar',
@@ -118,10 +123,7 @@ const PERMISOS_FINANCIEROS = [
     'inventario.facturas.gestionar',
     'inventario.bombas.ver_costos',
     'inventario.descuentos.gestionar',
-    'inventario.resumen.ver_valores',
-    'asistencia.horas_extra.ver',
-    'trabajadores.financiero.ver',
-    'trabajadores.financiero.editar'
+    'inventario.resumen.ver_valores'
 ];
 
 // Export histórico: `require('./permisos.config')` devuelve el array MAESTRO
