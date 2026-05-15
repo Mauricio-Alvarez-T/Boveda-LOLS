@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn';
 import { motion } from 'framer-motion';
 import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useInventarioMaestro';
+import { useAuth } from '../../context/AuthContext';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
@@ -90,6 +91,12 @@ const InventarioItemCard: React.FC<Props> = ({
     const catColor = getCatColor(item.categoria_nombre);
     const propBadge = PROPIETARIO_BADGE[String(getVal('propietario'))] || PROPIETARIO_BADGE.lols;
     const activo = !!getVal('activo');
+
+    // Gate financiero: oculta V.Compra/V.Arriendo si no tiene `inventario.costos.ver`;
+    // los renderiza como disabled si tiene ver pero no `inventario.costos.editar`.
+    const { hasPermission } = useAuth();
+    const verCostos = hasPermission('inventario.costos.ver');
+    const editarCostos = hasPermission('inventario.costos.editar');
 
     const totalStock = stockLocations.reduce((s, l) => s + l.cantidad, 0);
     // Bodegas siempre primero, luego obras — solo con stock > 0
@@ -300,33 +307,40 @@ const InventarioItemCard: React.FC<Props> = ({
                             </div>
                         </div>
 
-                        {/* Valores */}
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="text-[9px] font-bold text-muted-foreground uppercase">V. Compra</label>
-                                <input
-                                    type="number"
-                                    value={Number(getVal('valor_compra') ?? 0)}
-                                    onChange={e => setField('valor_compra', Number(e.target.value))}
-                                    className={cn(
-                                        "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
-                                        isFieldDirty('valor_compra') ? "border-amber-300" : "border-[#E8E8ED]"
-                                    )}
-                                />
+                        {/* Valores — sólo si tiene `inventario.costos.ver`. Si tiene
+                            ver pero no `inventario.costos.editar`, inputs disabled. */}
+                        {verCostos && (
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">V. Compra</label>
+                                    <input
+                                        type="number"
+                                        value={Number(getVal('valor_compra') ?? 0)}
+                                        onChange={e => setField('valor_compra', Number(e.target.value))}
+                                        disabled={!editarCostos}
+                                        className={cn(
+                                            "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
+                                            isFieldDirty('valor_compra') ? "border-amber-300" : "border-[#E8E8ED]",
+                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                        )}
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">V. Arriendo</label>
+                                    <input
+                                        type="number"
+                                        value={Number(getVal('valor_arriendo') ?? 0)}
+                                        onChange={e => setField('valor_arriendo', Number(e.target.value))}
+                                        disabled={!editarCostos}
+                                        className={cn(
+                                            "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
+                                            isFieldDirty('valor_arriendo') ? "border-amber-300" : "border-[#E8E8ED]",
+                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                        )}
+                                    />
+                                </div>
                             </div>
-                            <div>
-                                <label className="text-[9px] font-bold text-muted-foreground uppercase">V. Arriendo</label>
-                                <input
-                                    type="number"
-                                    value={Number(getVal('valor_arriendo') ?? 0)}
-                                    onChange={e => setField('valor_arriendo', Number(e.target.value))}
-                                    className={cn(
-                                        "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
-                                        isFieldDirty('valor_arriendo') ? "border-amber-300" : "border-[#E8E8ED]"
-                                    )}
-                                />
-                            </div>
-                        </div>
+                        )}
 
                         {/* Propietario + Toggles */}
                         <div className="flex items-center gap-3 flex-wrap">

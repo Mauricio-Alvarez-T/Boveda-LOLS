@@ -72,6 +72,15 @@ function sanitizeResumenInventario(resumen, perms) {
     delete clean.descuento_monto;
     delete clean.descuento_porcentaje;
 
+    // valor_por_categoria: ranking de categorías por valor $ — omitir entero.
+    delete clean.valor_por_categoria;
+
+    // kpis.valor_total_obras anidado dentro de kpis — limpiar
+    if (clean.kpis && typeof clean.kpis === 'object') {
+        const { valor_total_obras, ...kRest } = clean.kpis;
+        clean.kpis = kRest;
+    }
+
     // top_obras / obras: cada obra puede traer valores monetarios.
     if (Array.isArray(clean.top_obras)) {
         clean.top_obras = clean.top_obras.map(o => {
@@ -234,6 +243,42 @@ function sanitizeTrabajadoresFinanciero(arr, perms) {
 // correspondiente. Devuelve { ok:true } o { ok:false, error:string }.
 // ─────────────────────────────────────────────────────────────────────────
 
+/**
+ * Middleware Express: intercepta `res.json` y limpia campos $ de listas o
+ * items individuales del catálogo maestro (`/api/items-inventario`). Usado
+ * cuando la ruta proviene del CRUD genérico (no aplicamos sanitizer manual
+ * por route handler). Soporta tres shapes:
+ *   - { data: [items], total } (listado paginado)
+ *   - [items]                  (listado plano)
+ *   - { ...item }              (registro individual)
+ */
+function sanitizeItemsMaestroMiddleware(req, res, next) {
+    const original = res.json.bind(res);
+    res.json = (body) => {
+        const perms = req.user?.p;
+        if (has(perms, 'inventario.costos.ver')) return original(body);
+        if (body == null) return original(body);
+
+        // Listado paginado
+        if (body && Array.isArray(body.data)) {
+            return original({ ...body, data: body.data.map(it => sanitizeItemCosto(it, perms)) });
+        }
+        // Array plano
+        if (Array.isArray(body)) {
+            return original(body.map(it => sanitizeItemCosto(it, perms)));
+        }
+        // Item individual con id (heurística: tiene valor_compra o valor_arriendo)
+        if (typeof body === 'object' && (
+            Object.prototype.hasOwnProperty.call(body, 'valor_compra') ||
+            Object.prototype.hasOwnProperty.call(body, 'valor_arriendo')
+        )) {
+            return original(sanitizeItemCosto(body, perms));
+        }
+        return original(body);
+    };
+    next();
+}
+
 function guardEditCostos(body, perms) {
     const touchesCostos =
         body && (
@@ -256,5 +301,6 @@ module.exports = {
     sanitizeRegistrosBomba,
     sanitizeTrabajadorFinanciero,
     sanitizeTrabajadoresFinanciero,
+    sanitizeItemsMaestroMiddleware,
     guardEditCostos,
 };
