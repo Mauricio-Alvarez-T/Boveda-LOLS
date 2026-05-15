@@ -23,6 +23,18 @@ const sabadosExtraService = require('../src/services/sabadosExtra.service');
 const db = require('../src/config/db');
 const { queryMock, connQueryMock, commitMock, rollbackMock } = db.__mocks;
 
+// Fecha dinámica del próximo sábado — evita que tests dejen de funcionar
+// cada vez que la fecha hardcoded queda en el pasado. Antes se usaba
+// FUTURO_SABADO literal y al pasar esa fecha la validación `No se permite
+// fecha pasada` se disparaba antes de la lógica bajo test.
+function proximoSabado() {
+    const d = new Date();
+    const offset = ((6 - d.getDay() + 7) % 7) || 7; // 6 = sábado; si hoy=sáb saltamos al siguiente
+    d.setDate(d.getDate() + offset);
+    return d.toISOString().split('T')[0];
+}
+const FUTURO_SABADO = proximoSabado();
+
 /**
  * Mock helper para `crearCitacion`. Encadena los SELECTs en orden:
  *   1. SELECT FOR UPDATE (lock obra+fecha) — vacío
@@ -86,7 +98,7 @@ describe('SabadosExtra Service', () => {
         test('rechaza si falta obra_id', async () => {
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { fecha: '2026-05-09', trabajadores: [{ trabajador_id: 1 }] },
+                    { fecha: FUTURO_SABADO, trabajadores: [{ trabajador_id: 1 }] },
                     1
                 )
             ).rejects.toMatchObject({ message: 'obra_id y fecha son requeridos', statusCode: 400 });
@@ -95,7 +107,7 @@ describe('SabadosExtra Service', () => {
         test('rechaza si trabajadores está vacío', async () => {
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', trabajadores: [] },
+                    { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: [] },
                     1
                 )
             ).rejects.toMatchObject({ message: /al menos 1 trabajador/i, statusCode: 400 });
@@ -105,7 +117,7 @@ describe('SabadosExtra Service', () => {
             const huge = Array.from({ length: 501 }, (_, i) => ({ trabajador_id: i + 1 }));
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', trabajadores: huge },
+                    { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: huge },
                     1
                 )
             ).rejects.toMatchObject({ message: /Demasiados trabajadores/, statusCode: 400 });
@@ -114,7 +126,7 @@ describe('SabadosExtra Service', () => {
         test('rechaza horas_default fuera de rango', async () => {
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', horas_default: 30, trabajadores: [{ trabajador_id: 1 }] },
+                    { obra_id: 1, fecha: FUTURO_SABADO, horas_default: 30, trabajadores: [{ trabajador_id: 1 }] },
                     1
                 )
             ).rejects.toMatchObject({ statusCode: 400 });
@@ -127,7 +139,7 @@ describe('SabadosExtra Service', () => {
                 .mockResolvedValueOnce([[{ id: 1, activa: 0 }]]); // obra INACTIVA
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', trabajadores: [{ trabajador_id: 10 }] },
+                    { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: [{ trabajador_id: 10 }] },
                     1
                 )
             ).rejects.toMatchObject({ message: /obra inactiva/i, statusCode: 400 });
@@ -144,7 +156,7 @@ describe('SabadosExtra Service', () => {
                 ]]);
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', trabajadores: [{ trabajador_id: 10 }, { trabajador_id: 11 }] },
+                    { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: [{ trabajador_id: 10 }, { trabajador_id: 11 }] },
                     1
                 )
             ).rejects.toMatchObject({ message: /inactivos o finiquitados/i, statusCode: 400 });
@@ -156,7 +168,7 @@ describe('SabadosExtra Service', () => {
                 .mockResolvedValueOnce([[{ id: 1, nombre: 'Día del Trabajador' }]]); // ES feriado
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', trabajadores: [{ trabajador_id: 10 }] },
+                    { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: [{ trabajador_id: 10 }] },
                     1
                 )
             ).rejects.toMatchObject({ message: /feriado/i, statusCode: 409 });
@@ -171,7 +183,7 @@ describe('SabadosExtra Service', () => {
                 .mockResolvedValueOnce([{ insertId: 50 }])
                 .mockResolvedValueOnce([{ affectedRows: 1 }]);
             const result = await sabadosExtraService.crearCitacion(
-                { obra_id: 1, fecha: '2026-05-09', trabajadores: [{ trabajador_id: 10 }], acepta_feriado: true },
+                { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: [{ trabajador_id: 10 }], acepta_feriado: true },
                 1
             );
             expect(result).toEqual({ id: 50 });
@@ -182,7 +194,7 @@ describe('SabadosExtra Service', () => {
             const result = await sabadosExtraService.crearCitacion(
                 {
                     obra_id: 1,
-                    fecha: '2026-05-09',
+                    fecha: FUTURO_SABADO,
                     horas_default: 8,
                     observaciones_globales: 'Avance losa',
                     observaciones_por_cargo: { 3: 'Tejer muros' },
@@ -209,7 +221,7 @@ describe('SabadosExtra Service', () => {
 
             await expect(
                 sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: '2026-05-09', trabajadores: [{ trabajador_id: 10 }] },
+                    { obra_id: 1, fecha: FUTURO_SABADO, trabajadores: [{ trabajador_id: 10 }] },
                     1
                 )
             ).rejects.toMatchObject({

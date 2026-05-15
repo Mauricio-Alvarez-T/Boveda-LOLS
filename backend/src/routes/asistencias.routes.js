@@ -153,7 +153,11 @@ router.post('/horarios/:obraId', auth, checkPermission('asistencia.horarios.edit
 // Export Excel (Authenticated)
 router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel'), async (req, res, next) => {
     try {
-        const buffer = await asistenciaService.generarExcel(req.query);
+        // Gate financiero: usuarios sin `asistencia.horas_extra.ver` reciben
+        // el Excel con columnas HE en blanco (estructura preservada para no
+        // romper plantillas externas que dependen del layout).
+        const incluirHorasExtra = (req.user?.p || []).includes('asistencia.horas_extra.ver');
+        const buffer = await asistenciaService.generarExcel(req.query, { incluirHorasExtra });
         const fileName = `asistencia_${req.query.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
         res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');

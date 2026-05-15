@@ -143,9 +143,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         const result = await trfHook.crear(data);
         if (result) {
             await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+            // Aterriza en el detail de la solicitud recién creada — UX fluida:
+            // el solicitante puede pulsar "Notificar por WhatsApp" sin tener
+            // que buscar el código en la lista. Requerimiento jefatura mayo-26.
+            setSelectedId(result.id);
+            await trfHook.fetchById(result.id);
         }
         return result;
-    }, [trfHook.crear, trfHook.fetchAll, statusFilter]);
+    }, [trfHook.crear, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
 
     const handlePushDirecto = useCallback(async (data: any) => {
         const result = await trfHook.pushDirecto(data);

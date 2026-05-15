@@ -9,6 +9,14 @@ const uploadInventario = require('../middleware/upload-inventario');
 const db = require('../config/db');
 const fs = require('fs');
 const path = require('path');
+// Sanitización de campos $ — omite valor_compra/valor_arriendo/etc cuando
+// el usuario no tiene los permisos financieros. Política deny-by-default
+// (ver backend/src/utils/sanitizeFinancialFields.js).
+const {
+    sanitizeItemsCosto,
+    sanitizeResumenInventario,
+    guardEditCostos,
+} = require('../utils/sanitizeFinancialFields');
 
 // GET /api/inventario/dashboard-ejecutivo — Resumen ejecutivo para el dueño (1 request, KPIs + top obras + alertas)
 router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), async (req, res, next) => {
@@ -20,7 +28,7 @@ router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), asyn
             Number.isFinite(obraId) && obraId > 0 ? obraId : null,
             { topObrasLimit }
         );
-        res.json({ data: result });
+        res.json({ data: sanitizeResumenInventario(result, req.user?.p) });
     } catch (err) { next(err); }
 });
 
@@ -29,7 +37,7 @@ router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res,
     try {
         const { obra_id } = req.query;
         const result = await inventarioService.getResumen(obra_id || null);
-        res.json({ data: result });
+        res.json({ data: sanitizeResumenInventario(result, req.user?.p) });
     } catch (err) { next(err); }
 });
 
@@ -37,7 +45,7 @@ router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res,
 router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await inventarioService.getStockPorObra(req.params.obraId);
-        res.json({ data: result });
+        res.json({ data: sanitizeItemsCosto(result, req.user?.p) });
     } catch (err) { next(err); }
 });
 
@@ -45,7 +53,7 @@ router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), async
 router.get('/stock/bodega/:bodegaId', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await inventarioService.getStockPorBodega(req.params.bodegaId);
-        res.json({ data: result });
+        res.json({ data: sanitizeItemsCosto(result, req.user?.p) });
     } catch (err) { next(err); }
 });
 
@@ -59,6 +67,12 @@ router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
     valor_arriendo_override: { type: 'number', min: 0 },
 }), async (req, res, next) => {
     try {
+        // Gate financiero: si el body trae valor_arriendo_override y el usuario
+        // no tiene `inventario.costos.editar` → 403. Mantiene posibilidad de
+        // ajustar `cantidad` sin tocar campos $.
+        const guard = guardEditCostos(req.body, req.user?.p);
+        if (!guard.ok) return res.status(403).json({ error: guard.error });
+
         const { item_id, obra_id, bodega_id, cantidad, valor_arriendo_override } = req.body;
         const result = await inventarioService.actualizarStock(
             item_id, obra_id || null, bodega_id || null,
@@ -72,8 +86,10 @@ router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
     }
 });
 
-// PUT /api/inventario/descuento/obra/:obraId
-router.put('/descuento/obra/:obraId', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+// PUT /api/inventario/descuento/obra/:obraId — gestiona porcentaje de
+// descuento por obra. Requiere `inventario.descuentos.gestionar` (no basta
+// con `inventario.editar`) porque el descuento afecta el cálculo de valores.
+router.put('/descuento/obra/:obraId', auth, checkPermission('inventario.descuentos.gestionar'), async (req, res, next) => {
     try {
         const { porcentaje } = req.body;
         if (porcentaje === undefined) return res.status(400).json({ error: 'porcentaje requerido' });
@@ -143,6 +159,20 @@ router.put('/items/bulk', auth, checkPermission('inventario.editar'), validateBo
 }), async (req, res, next) => {
     try {
         const items = req.body?.items;
+        // Gate financiero: si ALGÚN item del bulk toca campos $ y el usuario
+        // no tiene `inventario.costos.editar` → 403. Detiene la operación
+        // completa para evitar updates parciales.
+        const touchesCostos = Array.isArray(items) && items.some(
+            it => it && (
+                Object.prototype.hasOwnProperty.call(it, 'valor_compra') ||
+                Object.prototype.hasOwnProperty.call(it, 'valor_arriendo')
+            )
+        );
+        if (touchesCostos && !(req.user?.p || []).includes('inventario.costos.editar')) {
+            return res.status(403).json({
+                error: 'No autorizado para editar campos financieros (valor_compra / valor_arriendo) en bulk.',
+            });
+        }
         const result = await itemInventarioBulkService.bulkUpdate(items, req.user.id);
         res.json({ data: result });
     } catch (err) {
@@ -169,6 +199,16 @@ router.put('/items/bulk', auth, checkPermission('inventario.editar'), validateBo
 router.put('/stock/bulk', auth, checkPermission('inventario.editar'), async (req, res, next) => {
     try {
         const adjustments = req.body?.adjustments;
+        // Gate financiero: bloquea si ALGÚN adjustment trae valor_arriendo_override
+        // sin permiso `inventario.costos.editar`. Mismo patrón que /items/bulk.
+        const touchesCostos = Array.isArray(adjustments) && adjustments.some(
+            a => a && Object.prototype.hasOwnProperty.call(a, 'valor_arriendo_override')
+        );
+        if (touchesCostos && !(req.user?.p || []).includes('inventario.costos.editar')) {
+            return res.status(403).json({
+                error: 'No autorizado para editar valor_arriendo_override en bulk.',
+            });
+        }
         const result = await stockBulkService.bulkAdjust(adjustments, req.user.id);
         res.json({ data: result });
     } catch (err) {
