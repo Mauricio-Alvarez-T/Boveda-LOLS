@@ -76,11 +76,20 @@ const MAESTRO_PERMISOS = [
     ['usuarios.permisos.gestionar', 'Usuarios', 'Gestionar Permisos',             'Asignar permisos a roles y usuarios', 9],
 
     // INVENTARIO
-    ['inventario.ver',              'Inventario', 'Ver Inventario',              'Ver el módulo de inventario completo', 1],
+    ['inventario.ver',              'Inventario', 'Ver Inventario',              'Acceso base al módulo de inventario (debe ir acompañado de al menos un permiso de tab abajo)', 1],
     ['inventario.crear',            'Inventario', 'Crear en Inventario',         'Crear solicitudes, transferencias y registros de inventario', 2],
     ['inventario.editar',           'Inventario', 'Editar Inventario',           'Modificar stock, descuentos y registros de inventario', 3],
     ['inventario.aprobar',          'Inventario', 'Aprobar Transferencias',      'Aprobar o rechazar solicitudes de transferencia de equipos', 4],
     ['inventario.eliminar',         'Inventario', 'Eliminar en Inventario',      'Anular o eliminar registros de inventario', 5],
+    // Tabs del módulo Inventario — visibilidad granular por tab. Cada permiso
+    // gatea sólo la APARICIÓN de la pestaña en el menú superior; los datos $
+    // dentro siguen gateados por permisos del módulo "Financiero".
+    ['inventario.tab.resumen_ejecutivo','Inventario','Ver Tab Resumen Ejecutivo','Inventario → Pestaña "Resumen Ejecutivo": si está denegado, la pestaña no aparece en el menú superior del módulo.', 6],
+    ['inventario.tab.resumen',          'Inventario','Ver Tab Resumen',          'Inventario → Pestaña "Resumen": si está denegado, la pestaña no aparece en el menú superior del módulo.', 7],
+    ['inventario.tab.por_ubicacion',    'Inventario','Ver Tab Por Obra/Bodega',  'Inventario → Pestaña "Por Obra/Bodega": si está denegado, la pestaña no aparece en el menú superior del módulo.', 8],
+    ['inventario.tab.transferencias',   'Inventario','Ver Tab Transferencias',   'Inventario → Pestaña "Transferencias": si está denegado, la pestaña no aparece en el menú superior del módulo.', 9],
+    ['inventario.tab.maestro',          'Inventario','Ver Tab Maestro',          'Inventario → Pestaña "Maestro" (edición de items y stock): si está denegado, la pestaña no aparece. Requiere también "Editar Inventario" para usar las acciones internas.', 10],
+    ['inventario.tab.bombas',           'Inventario','Ver Tab Bombas Hormigón',  'Inventario → Pestaña "Bombas Hormigón": si está denegado, la pestaña no aparece en el menú superior del módulo.', 11],
 
     // SISTEMA
     ['sistema.logs.ver',            'Sistema', 'Ver Historial',                  'Ver el historial de actividad del sistema', 1],

@@ -20,13 +20,16 @@ import type { StockObraData } from '../hooks/inventario/useInventarioData';
 
 type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas';
 
+// Tabs del módulo Inventario. Cada uno gateado individualmente por su permiso
+// `inventario.tab.*`. El acceso al módulo entero ya está gateado un nivel
+// arriba por `inventario.ver` (ruta protegida en el router).
 const tabs: { key: TabKey; label: string; requiresPerm?: string }[] = [
-    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo' },
-    { key: 'resumen', label: 'Resumen' },
-    { key: 'por_ubicacion', label: 'Por Obra/Bodega' },
-    { key: 'transferencias', label: 'Transferencias' },
-    { key: 'maestro', label: 'Maestro', requiresPerm: 'inventario.editar' },
-    { key: 'bombas', label: 'Bombas Hormigón' },
+    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', requiresPerm: 'inventario.tab.resumen_ejecutivo' },
+    { key: 'resumen',           label: 'Resumen',           requiresPerm: 'inventario.tab.resumen' },
+    { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   requiresPerm: 'inventario.tab.por_ubicacion' },
+    { key: 'transferencias',    label: 'Transferencias',    requiresPerm: 'inventario.tab.transferencias' },
+    { key: 'maestro',           label: 'Maestro',           requiresPerm: 'inventario.tab.maestro' },
+    { key: 'bombas',            label: 'Bombas Hormigón',   requiresPerm: 'inventario.tab.bombas' },
 ];
 
 type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; key: string };
@@ -54,6 +57,22 @@ const InventarioPage: React.FC = () => {
     ), []);
 
     useSetPageHeader(headerTitle);
+
+    // Tabs visibles para el usuario actual — filtra por permiso individual.
+    const visibleTabs = useMemo(
+        () => tabs.filter(t => !t.requiresPerm || hasPermission(t.requiresPerm)),
+        [hasPermission]
+    );
+
+    // Si el activeTab actual queda sin permiso (por cambio de overrides o
+    // ingreso a un módulo sin la tab por defecto), saltar al primer tab
+    // disponible. Evita renderizar contenido de una tab que no debería verse.
+    useEffect(() => {
+        if (visibleTabs.length === 0) return;
+        if (!visibleTabs.some(t => t.key === activeTab)) {
+            setActiveTab(visibleTabs[0].key);
+        }
+    }, [visibleTabs, activeTab]);
 
     // ── Ubicaciones: bodegas first, then obras ──
     // Solo obras que participan del módulo inventario.
@@ -118,7 +137,7 @@ const InventarioPage: React.FC = () => {
             {/* Tab Navigation */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
                 <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
-                {tabs.filter(t => !t.requiresPerm || hasPermission(t.requiresPerm)).map(tab => (
+                {visibleTabs.map(tab => (
                     <button
                         key={tab.key}
                         onClick={() => setActiveTab(tab.key)}
