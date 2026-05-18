@@ -18,9 +18,14 @@ const aprobarTransferenciaSchema = {
 };
 
 // GET /api/transferencias
+// Si NO tiene `inventario.transferencias.ver_todas` → backend scopea por
+// solicitante_id = user.id (sólo ve sus propias). Permiso default deny;
+// admin lo concede a roles que necesiten visión global.
 router.get('/', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
-        const result = await transferenciaService.getAll(req.query);
+        const verTodas = Array.isArray(req.user?.p) && req.user.p.includes('inventario.transferencias.ver_todas');
+        const solicitanteId = verTodas ? null : req.user.id;
+        const result = await transferenciaService.getAll(req.query, solicitanteId);
         res.json(result);
     } catch (err) { next(err); }
 });
@@ -62,9 +67,18 @@ router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.apro
 });
 
 // GET /api/transferencias/:id
+// Defensa en profundidad: si NO tiene `inventario.transferencias.ver_todas`,
+// sólo puede ver el detalle de transferencias que él mismo creó. Evita
+// que un usuario adivine IDs y abra solicitudes de terceros.
 router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getById(req.params.id);
+        if (!result) return res.status(404).json({ error: 'Transferencia no encontrada' });
+
+        const verTodas = Array.isArray(req.user?.p) && req.user.p.includes('inventario.transferencias.ver_todas');
+        if (!verTodas && result.solicitante_id !== req.user.id) {
+            return res.status(403).json({ error: 'No tienes permiso para ver esta transferencia' });
+        }
         res.json({ data: result });
     } catch (err) { next(err); }
 });

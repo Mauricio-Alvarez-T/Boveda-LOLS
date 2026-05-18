@@ -1051,11 +1051,15 @@ const transferenciaService = {
         }
     },
 
-    async getAll(query = {}) {
+    async getAll(query = {}, solicitanteId = null) {
+        // Cuando solicitanteId viene seteado, scopear el listado a las solicitudes
+        // del usuario (caller decide; típicamente cuando NO tiene
+        // `inventario.transferencias.ver_todas`). null = sin filtro = ver todas.
         const { estado, page = 1, limit = 20 } = query;
         let where = 'WHERE t.activo = 1';
         const params = [];
 
+        if (solicitanteId != null) { where += ' AND t.solicitante_id = ?'; params.push(solicitanteId); }
         if (estado) { where += ' AND t.estado = ?'; params.push(estado); }
 
         const offset = (page - 1) * limit;
