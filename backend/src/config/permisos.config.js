@@ -90,6 +90,12 @@ const MAESTRO_PERMISOS = [
     ['inventario.tab.transferencias',   'Inventario','Ver Tab Transferencias',   'Inventario → Pestaña "Transferencias": si está denegado, la pestaña no aparece en el menú superior del módulo.', 9],
     ['inventario.tab.maestro',          'Inventario','Ver Tab Maestro',          'Inventario → Pestaña "Maestro" (edición de items y stock): si está denegado, la pestaña no aparece. Requiere también "Editar Inventario" para usar las acciones internas.', 10],
     ['inventario.tab.bombas',           'Inventario','Ver Tab Bombas Hormigón',  'Inventario → Pestaña "Bombas Hormigón": si está denegado, la pestaña no aparece en el menú superior del módulo.', 11],
+    // Visibilidad transversal en pestaña Transferencias: si está denegado, el
+    // listado SÓLO muestra las transferencias cuyo solicitante_id = usuario actual.
+    // Sin este permiso, el usuario nunca ve solicitudes de terceros (ni por GET /:id).
+    // Default deny — admin debe asignar manualmente a roles que requieran visión
+    // global (jefatura, bodega central, aprobadores que necesitan auditar).
+    ['inventario.transferencias.ver_todas','Inventario','Ver Todas las Transferencias','Inventario → Pestaña "Transferencias": si está denegado, el usuario sólo ve las solicitudes que él mismo creó. Si está concedido, ve el listado completo de todas las solicitudes del sistema.', 12],
 
     // SISTEMA
     ['sistema.logs.ver',            'Sistema', 'Ver Historial',                  'Ver el historial de actividad del sistema', 1],
