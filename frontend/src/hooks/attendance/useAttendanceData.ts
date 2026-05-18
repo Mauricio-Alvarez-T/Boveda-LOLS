@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useObra } from '../../context/ObraContext';
@@ -25,17 +25,36 @@ export function useAttendanceData() {
     // directo al trabajador con alerta de inasistencia).
     const [searchQuery, setSearchQueryRaw] = useState(() => searchParams.get('q') || '');
 
+    // Perf: con 183 trabajadores, cada keystroke recompute filteredWorkers +
+    // re-render de filas + sync URL. En máquinas modestas el render bloquea el
+    // input y se pierden chars ("mauricio" → "murico"). Dos optimizaciones:
+    //   1) useDeferredValue: filter usa el valor "atrasado", el input usa el
+    //      inmediato → typing siempre fluido aunque la lista se filtre con
+    //      micro-retardo imperceptible.
+    //   2) URL sync debounced 350 ms — evita push al history en cada tecla
+    //      (también costoso; setSearchParams crea un nuevo objeto cada llamada).
+    const deferredSearchQuery = useDeferredValue(searchQuery);
+    const urlSyncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
     // Wrapper que mantiene el query param sincronizado con el estado — así el
     // enlace compartido refleja el filtro y un refresh lo preserva.
     const setSearchQuery = useCallback((val: string) => {
         setSearchQueryRaw(val);
-        setSearchParams(prev => {
-            const next = new URLSearchParams(prev);
-            if (val) next.set('q', val);
-            else next.delete('q');
-            return next;
-        }, { replace: true });
+        if (urlSyncTimerRef.current) clearTimeout(urlSyncTimerRef.current);
+        urlSyncTimerRef.current = setTimeout(() => {
+            setSearchParams(prev => {
+                const next = new URLSearchParams(prev);
+                if (val) next.set('q', val);
+                else next.delete('q');
+                return next;
+            }, { replace: true });
+        }, 350);
     }, [setSearchParams]);
+
+    // Cleanup timer on unmount — evita warning "setSearchParams on unmounted".
+    useEffect(() => () => {
+        if (urlSyncTimerRef.current) clearTimeout(urlSyncTimerRef.current);
+    }, []);
 
     // Si cambia el query param externamente (navegación desde otra página),
     // sincronizar el estado local.
@@ -241,8 +260,8 @@ export function useAttendanceData() {
             });
         }
 
-        if (searchQuery) {
-            const q = searchQuery.toLowerCase().trim();
+        if (deferredSearchQuery) {
+            const q = deferredSearchQuery.toLowerCase().trim();
             const qCollapsed = q.replace(/[\s.-]/g, '');
             result = result.filter(w => {
                 const fullName = `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.toLowerCase();
@@ -264,7 +283,7 @@ export function useAttendanceData() {
             };
             return getFullNameSort(a).localeCompare(getFullNameSort(b), 'es', { sensitivity: 'base' });
         });
-    }, [workers, searchQuery, selectedEmpresaId, statusFilter, attendance, date]);
+    }, [workers, deferredSearchQuery, selectedEmpresaId, statusFilter, attendance, date]);
 
     const summary = useMemo(() => {
         const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};

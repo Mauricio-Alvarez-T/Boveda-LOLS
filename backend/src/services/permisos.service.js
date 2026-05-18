@@ -7,10 +7,44 @@ const permisosService = {
      * Devuelve un Array<string> con las claves de los permisos.
      */
     async getPermisosEfectivos(usuario_id, rol_id) {
-        // 0. Super Administrator (God Mode): Return ALL permissions
+        // 0. Super Administrator (rol_id === 1): parte con TODOS los permisos del
+        //    catálogo (God Mode). Antes los overrides se ignoraban completamente,
+        //    pero eso hacía imposible que un Super Admin probara escenarios de
+        //    "denegar acceso a info $" sobre sí mismo. Ahora aplicamos overrides
+        //    deny SOLO si la clave NO está en SAFE_KEYS — así el admin nunca puede
+        //    bloquearse acceso a la gestión de usuarios/permisos y siempre tiene
+        //    forma de revertir el experimento.
         if (rol_id === 1) {
             const [catalogo] = await db.query('SELECT clave FROM permisos_catalogo');
-            return catalogo.map(c => c.clave);
+            const all = new Set(catalogo.map(c => c.clave));
+
+            // Lock-out safety: estos permisos NUNCA se pueden denegar al Super
+            // Admin vía override. Garantiza recuperación si se prueba con la
+            // propia cuenta.
+            const SAFE_KEYS = new Set([
+                'usuarios.ver',
+                'usuarios.crear',
+                'usuarios.editar',
+                'usuarios.eliminar',
+                'usuarios.roles.ver',
+                'usuarios.roles.crear',
+                'usuarios.roles.editar',
+                'usuarios.roles.eliminar',
+                'usuarios.permisos.gestionar',
+                'sistema.logs.ver',
+            ]);
+
+            const [adminOverrides] = await db.query(
+                'SELECT permiso_clave, tipo FROM permisos_usuario_override WHERE usuario_id = ?',
+                [usuario_id]
+            );
+            for (const ov of adminOverrides) {
+                if (ov.tipo === 'deny' && !SAFE_KEYS.has(ov.permiso_clave)) {
+                    all.delete(ov.permiso_clave);
+                }
+                // 'grant' no aplica: Super Admin ya tiene todo.
+            }
+            return Array.from(all);
         }
 
         // 1. Obtener permisos base del rol

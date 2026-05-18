@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useInventarioMaestro } from '../../hooks/inventario/useInventarioMaestro';
 import InventarioItemCard from './InventarioItemCard';
 import type { ItemInventario } from '../../types/entities';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
     hasEditPermission: boolean;
@@ -39,6 +40,11 @@ const fmtCLP = (v: number | null | undefined) =>
  */
 const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
     const { items, categorias, stockMap, loading, saving, fetchAll, bulkUpdate } = useInventarioMaestro();
+    // Gate financiero: oculta columnas V.Compra/V.Arriendo en tabla cuando falta
+    // `inventario.costos.ver`; las muestra disabled si tiene ver pero no editar.
+    const { hasPermission } = useAuth();
+    const verCostos = hasPermission('inventario.costos.ver');
+    const editarCostos = hasPermission('inventario.costos.editar');
     const [dirty, setDirty] = useState<DirtyMap>({});
     const [search, setSearch] = useState('');
     const [filtroCategoria, setFiltroCategoria] = useState<number | 'todas'>('todas');
@@ -377,14 +383,18 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                         title="Unidad de medida del item (ej: U = unidad, M = metro, KG = kilogramo)."
                                         className="text-left px-2 py-2 font-bold text-brand-dark w-16 cursor-help"
                                     >Unidad</th>
-                                    <th
-                                        title="Valor de compra del item en pesos. Costo histórico de adquisición utilizado para inventario y reportes contables."
-                                        className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
-                                    >V. Compra</th>
-                                    <th
-                                        title="Valor de arriendo mensual del item en pesos. Se cobra siempre por mes completo y se usa para calcular el costo del item asignado a cada obra."
-                                        className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
-                                    >V. Arriendo</th>
+                                    {verCostos && (
+                                        <th
+                                            title="Valor de compra del item en pesos. Costo histórico de adquisición utilizado para inventario y reportes contables."
+                                            className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
+                                        >V. Compra</th>
+                                    )}
+                                    {verCostos && (
+                                        <th
+                                            title="Valor de arriendo mensual del item en pesos. Se cobra siempre por mes completo y se usa para calcular el costo del item asignado a cada obra."
+                                            className="text-right px-2 py-2 font-bold text-brand-dark w-28 cursor-help"
+                                        >V. Arriendo</th>
+                                    )}
                                     <th
                                         title="Indica si el item es consumible: se gasta o desaparece tras su uso y no se devuelve a bodega (ej: pernos, clavos)."
                                         className="text-center px-2 py-2 font-bold text-brand-dark w-16 cursor-help"
@@ -442,24 +452,36 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 />
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 rounded")}>
-                                                <input
-                                                    type="number"
-                                                    value={Number(getVal(it, 'valor_compra') ?? 0)}
-                                                    onChange={e => setField(it, 'valor_compra', Number(e.target.value))}
-                                                    className="w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
-                                                    title={fmtCLP(Number(getVal(it, 'valor_compra')))}
-                                                />
-                                            </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 rounded")}>
-                                                <input
-                                                    type="number"
-                                                    value={Number(getVal(it, 'valor_arriendo') ?? 0)}
-                                                    onChange={e => setField(it, 'valor_arriendo', Number(e.target.value))}
-                                                    className="w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
-                                                    title={fmtCLP(Number(getVal(it, 'valor_arriendo')))}
-                                                />
-                                            </td>
+                                            {verCostos && (
+                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 rounded")}>
+                                                    <input
+                                                        type="number"
+                                                        value={Number(getVal(it, 'valor_compra') ?? 0)}
+                                                        onChange={e => setField(it, 'valor_compra', Number(e.target.value))}
+                                                        disabled={!editarCostos}
+                                                        className={cn(
+                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
+                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                                        )}
+                                                        title={fmtCLP(Number(getVal(it, 'valor_compra')))}
+                                                    />
+                                                </td>
+                                            )}
+                                            {verCostos && (
+                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 rounded")}>
+                                                    <input
+                                                        type="number"
+                                                        value={Number(getVal(it, 'valor_arriendo') ?? 0)}
+                                                        onChange={e => setField(it, 'valor_arriendo', Number(e.target.value))}
+                                                        disabled={!editarCostos}
+                                                        className={cn(
+                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
+                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                                        )}
+                                                        title={fmtCLP(Number(getVal(it, 'valor_arriendo')))}
+                                                    />
+                                                </td>
+                                            )}
                                             <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'es_consumible') && "bg-amber-100/60")}>
                                                 <input
                                                     type="checkbox"

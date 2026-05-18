@@ -152,7 +152,12 @@ try {
     orderBy: 'bodegas.nombre ASC',
     allowedFields: ['nombre', 'direccion', 'responsable_id', 'activa']
   }));
-  app.use('/api/items-inventario', createCrudRoutes(invPerms, 'items_inventario', {
+  // Middleware sanitiza valor_compra/valor_arriendo si el usuario no tiene
+  // `inventario.costos.ver`. Aplica antes de la ruta CRUD genérica porque
+  // ésta llama res.json() directamente desde el controller (no podemos pasar
+  // un sanitizer al CRUD genérico sin invasivo refactor).
+  const { sanitizeItemsMaestroMiddleware } = require('./src/utils/sanitizeFinancialFields');
+  app.use('/api/items-inventario', sanitizeItemsMaestroMiddleware, createCrudRoutes(invPerms, 'items_inventario', {
     searchFields: ['descripcion'],
     joins: 'LEFT JOIN categorias_inventario c ON items_inventario.categoria_id = c.id',
     selectFields: 'items_inventario.*, c.nombre as categoria_nombre',

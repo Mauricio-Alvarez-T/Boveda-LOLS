@@ -3,6 +3,7 @@ import { cn } from '../../utils/cn';
 import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package } from 'lucide-react';
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
+import { useAuth } from '../../context/AuthContext';
 import ItemDetailModal from './ItemDetailModal';
 
 interface Props {
@@ -17,6 +18,13 @@ interface Props {
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
 const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh }) => {
+    // Gate financiero: ocultar columnas/cards $ si no tiene `inventario.costos.ver`.
+    // El backend ya sanitiza el JSON (`valor_arriendo`, `total`, `total_facturacion`,
+    // `descuento_*`, `total_con_descuento` no llegan). Aquí ocultamos columnas para
+    // no mostrar UI vacía.
+    const { hasPermission } = useAuth();
+    const verCostos = hasPermission('inventario.costos.ver');
+    const editarDescuento = hasPermission('inventario.descuentos.gestionar');
     // ── Item detail modal ──
     const itemDetail = useItemDetail();
 
@@ -161,7 +169,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         </div>
                     </div>
 
-                    {!isBodega && (
+                    {!isBodega && verCostos && (
                     <div className="grid grid-cols-3 gap-2">
                         {/* Facturación */}
                         <div className="bg-white/10 rounded-xl p-2.5">
@@ -169,10 +177,10 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                             <p className="text-sm font-black leading-tight">{fmtMoney(data.total_facturacion)}</p>
                         </div>
 
-                        {/* Descuento (tappable) */}
+                        {/* Descuento (tappable) — edición requiere `inventario.descuentos.gestionar`. */}
                         <div className={cn(
                             "bg-white/10 rounded-xl p-2.5",
-                            canEdit && "active:bg-white/20 transition-colors"
+                            editarDescuento && "active:bg-white/20 transition-colors"
                         )}>
                             <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Descuento</p>
                             {mobileEditCell === 'm_descuento' ? (
@@ -194,8 +202,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                 </div>
                             ) : (
                                 <button
-                                    onClick={() => canEdit && mobileStartEdit('m_descuento', data.descuento_porcentaje)}
-                                    disabled={!canEdit}
+                                    onClick={() => editarDescuento && mobileStartEdit('m_descuento', data.descuento_porcentaje)}
+                                    disabled={!editarDescuento}
                                     className="text-left w-full disabled:cursor-default"
                                 >
                                     <p className="text-sm font-black leading-tight">{data.descuento_porcentaje}%</p>
@@ -240,7 +248,9 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         </div>
                                         <div className="flex items-center gap-3 text-[10px] shrink-0">
                                             <span className="font-bold text-brand-dark">{cat.subtotal_cantidad} u.</span>
-                                            <span className="font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</span>
+                                            {verCostos && (
+                                                <span className="font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</span>
+                                            )}
                                         </div>
                                     </button>
 
@@ -268,14 +278,14 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                 >{item.descripcion}</p>
                                                                 <div className="flex items-center gap-2 mt-1">
                                                                     <span className="text-[10px] font-semibold text-brand-dark">{item.cantidad} {item.unidad}</span>
-                                                                    {item.valor_arriendo > 0 && (
+                                                                    {verCostos && item.valor_arriendo > 0 && (
                                                                         <span className="text-[10px] text-muted-foreground">· {fmtMoney(item.valor_arriendo)}/mes</span>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
                                                                 <div className="text-right">
-                                                                    {item.total > 0 && (
+                                                                    {verCostos && item.total > 0 && (
                                                                         <p className="text-xs font-black text-brand-primary">{fmtMoney(item.total)}</p>
                                                                     )}
                                                                 </div>
@@ -300,7 +310,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                     <span className="text-xs font-medium text-brand-dark">{item.unidad}</span>
                                                                 </div>
 
-                                                                {/* Valor arriendo (editable) */}
+                                                                {/* Valor arriendo (editable) — sólo si tiene `inventario.costos.ver` */}
+                                                                {verCostos && (
                                                                 <div className="flex items-center justify-between py-2 border-b border-[#F0F0F5]">
                                                                     <span className="text-xs text-muted-foreground">V. Arriendo</span>
                                                                     {mobileEditCell === arrKey ? (
@@ -334,6 +345,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                         </button>
                                                                     )}
                                                                 </div>
+                                                                )}
 
                                                                 {/* Cantidad (editable) */}
                                                                 <div className="flex items-center justify-between py-2 border-b border-[#F0F0F5]">
@@ -372,13 +384,15 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                     )}
                                                                 </div>
 
-                                                                {/* Total */}
+                                                                {/* Total — gateado por `inventario.costos.ver` */}
+                                                                {verCostos && (
                                                                 <div className="flex items-center justify-between py-2">
                                                                     <span className="text-xs font-bold text-brand-dark">Total</span>
                                                                     <span className="text-sm font-black text-brand-primary">
                                                                         {item.total > 0 ? fmtMoney(item.total) : '$0'}
                                                                     </span>
                                                                 </div>
+                                                                )}
                                                             </div>
                                                         )}
                                                     </div>
@@ -403,10 +417,14 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                             <th className="bg-[#F5F7FA] px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#D8D8DD] w-8">#</th>
                             <th className="bg-[#F5F7FA] px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-[#D8D8DD] min-w-[200px]">Descripción</th>
                             <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#D8D8DD] w-14">M2</th>
-                            <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#D8D8DD] w-24">V. Arriendo</th>
+                            {verCostos && (
+                                <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#D8D8DD] w-24">V. Arriendo</th>
+                            )}
                             <th className="bg-[#F5F7FA] px-2 py-2 text-center font-bold text-brand-dark border-b border-r border-[#D8D8DD] w-10">UN</th>
                             <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#D8D8DD] w-16">Cantidad</th>
-                            <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-[#D8D8DD] w-24">Total</th>
+                            {verCostos && (
+                                <th className="bg-[#F5F7FA] px-2 py-2 text-right font-bold text-brand-dark border-b border-[#D8D8DD] w-24">Total</th>
+                            )}
                         </tr>
                     </thead>
                     <tbody>
@@ -418,7 +436,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     className="bg-brand-primary/10 cursor-pointer select-none hover:bg-brand-primary/15 transition-colors"
                                     onClick={() => toggleCatDesktop(cat.id)}
                                 >
-                                    <td colSpan={7} className="px-3 py-1.5 font-black text-[10px] uppercase tracking-widest text-brand-primary">
+                                    <td colSpan={verCostos ? 7 : 5} className="px-3 py-1.5 font-black text-[10px] uppercase tracking-widest text-brand-primary">
                                         <div className="flex items-center gap-2">
                                             <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", !collapsed && "rotate-90")} />
                                             <span>{cat.nombre}</span>
@@ -438,33 +456,43 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                             </button>
                                         </td>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-[#D8D8DD]">{item.m2 ? item.m2.toFixed(2) : ''}</td>
-                                        <td className="px-2 py-1 text-right border-r border-b border-[#D8D8DD]">
-                                            {renderCell(`arr_${item.id}`, item.valor_arriendo, item.id, 'valor_arriendo')}
-                                        </td>
+                                        {verCostos && (
+                                            <td className="px-2 py-1 text-right border-r border-b border-[#D8D8DD]">
+                                                {renderCell(`arr_${item.id}`, item.valor_arriendo, item.id, 'valor_arriendo')}
+                                            </td>
+                                        )}
                                         <td className="px-2 py-1 text-center text-muted-foreground border-r border-b border-[#D8D8DD]">{item.unidad}</td>
                                         <td className="px-2 py-1 text-right border-r border-b border-[#D8D8DD]">
                                             {renderCell(`cant_${item.id}`, item.cantidad, item.id, 'cantidad')}
                                         </td>
-                                        <td className="px-2 py-1 text-right font-semibold text-brand-dark border-b border-[#D8D8DD]">
-                                            {item.total > 0 ? fmtMoney(item.total) : ''}
-                                        </td>
+                                        {verCostos && (
+                                            <td className="px-2 py-1 text-right font-semibold text-brand-dark border-b border-[#D8D8DD]">
+                                                {item.total > 0 ? fmtMoney(item.total) : ''}
+                                            </td>
+                                        )}
                                     </tr>
                                 ))}
-                                {/* Subtotal row — always visible, so totals stay readable when category is collapsed */}
+                                {/* Subtotal row — always visible, so totals stay readable when category is collapsed.
+                                    colSpan adjustment: con verCostos hay 7 cols (label hasta UN = 5 + cant + arriendo),
+                                    sin verCostos hay 5 cols (label hasta UN = 4 + cant). */}
                                 <tr className="bg-[#EDEDF2] border-t border-[#D8D8DD]">
-                                    <td colSpan={5} className="px-3 py-1.5 text-right font-bold text-[10px] uppercase text-muted-foreground">
+                                    <td colSpan={verCostos ? 5 : 4} className="px-3 py-1.5 text-right font-bold text-[10px] uppercase text-muted-foreground">
                                         Total {cat.nombre}
                                     </td>
                                     <td className="px-2 py-1.5 text-right font-bold text-brand-dark border-r border-[#D8D8DD]">{cat.subtotal_cantidad}</td>
-                                    <td className="px-2 py-1.5 text-right font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</td>
+                                    {verCostos && (
+                                        <td className="px-2 py-1.5 text-right font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</td>
+                                    )}
                                 </tr>
                             </React.Fragment>
                             );
                         })}
                     </tbody>
-                    {/* ── Sticky footer — totals, descuento ── */}
+                    {/* ── Sticky footer — totals, descuento.
+                        Sólo se renderiza si el usuario tiene `inventario.costos.ver`
+                        (sin permiso no hay valores que mostrar en el pie). ── */}
                     <tfoot className="sticky bottom-0 z-10">
-                        {!isBodega && (<>
+                        {!isBodega && verCostos && (<>
                         {/* Grand total */}
                         <tr className="border-t-2 border-brand-primary/30">
                             <td colSpan={6} className="bg-[#F0F2F8] px-3 py-2.5 text-right font-black text-xs text-brand-dark">TOTAL FACTURACIÓN</td>
@@ -492,13 +520,13 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     </div>
                                 ) : (
                                     <span
-                                        onClick={() => canEdit ? startEdit('descuento', data.descuento_porcentaje) : undefined}
+                                        onClick={() => editarDescuento ? startEdit('descuento', data.descuento_porcentaje) : undefined}
                                         className={cn(
-                                            canEdit && "cursor-pointer hover:bg-amber-100 hover:ring-1 hover:ring-amber-300 rounded px-2 py-0.5 transition-all"
+                                            editarDescuento && "cursor-pointer hover:bg-amber-100 hover:ring-1 hover:ring-amber-300 rounded px-2 py-0.5 transition-all"
                                         )}
-                                        title={canEdit ? 'Click para editar descuento' : undefined}
+                                        title={editarDescuento ? 'Click para editar descuento' : undefined}
                                     >
-                                        Descuento {data.descuento_porcentaje > 0 ? `${data.descuento_porcentaje}%` : '(sin descuento — click para agregar)'}
+                                        Descuento {data.descuento_porcentaje > 0 ? `${data.descuento_porcentaje}%` : editarDescuento ? '(sin descuento — click para agregar)' : '(sin descuento)'}
                                     </span>
                                 )}
                             </td>

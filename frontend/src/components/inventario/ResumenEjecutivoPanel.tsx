@@ -610,8 +610,10 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             </div>
             )}
 
-            {/* Valor por categoría — barras horizontales */}
-            {(loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
+            {/* Valor por categoría — barras horizontales.
+                Gate financiero: gateado por `inventario.resumen.ver_valores` porque
+                muestra montos $ totales por categoría y un total general $. */}
+            {verValoresResumen && (loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
                 <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-baseline justify-between mb-4">
                         <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
