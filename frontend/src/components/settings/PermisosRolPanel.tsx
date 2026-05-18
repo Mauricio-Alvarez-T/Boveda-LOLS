@@ -1,202 +1,102 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
-import { toast } from 'sonner';
+import React from 'react';
+import { Check } from 'lucide-react';
+import { usePermissionsEditor } from '../../hooks/usePermissionsEditor';
+import { PermissionsTree } from './permissions/PermissionsTree';
+import { StickyFooter } from './permissions/StickyFooter';
+import { cn } from '../../utils/cn';
+import type { PermNode } from '../../utils/permisosTree';
 
-interface PermissionDefinition {
-    clave: string;
-    nombre: string;
-    descripcion: string;
-}
-
-interface CatalogoGrouped {
-    [modulo: string]: PermissionDefinition[];
-}
-
+/**
+ * Panel para editar los permisos asignados a un Rol (control binario).
+ * Compone `<PermissionsTree>` + `<StickyFooter>` con un control checkbox
+ * por fila. Toda la lógica de estado vive en `usePermissionsEditor`.
+ *
+ * El padre (Settings.tsx) lo envuelve en `<Modal size="full" noBodyPadding>`.
+ */
 interface Props {
     rolId: number;
     rolNombre: string;
-    onClose?: () => void;
+    onClose: () => void;
 }
 
 const PermisosRolPanel: React.FC<Props> = ({ rolId, rolNombre, onClose }) => {
-    const { token } = useAuth();
-    const [catalogo, setCatalogo] = useState<CatalogoGrouped | null>(null);
-    const [permisosActivos, setPermisosActivos] = useState<string[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+    const { state, actions } = usePermissionsEditor({
+        mode: 'rol',
+        rolId,
+        onSaved: onClose,
+    });
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const config = { headers: { Authorization: `Bearer ${token}` } };
-                const [resCat, resPerms] = await Promise.all([
-                    axios.get(`${import.meta.env.VITE_API_URL}/usuarios/permisos/catalogo`, config),
-                    axios.get(`${import.meta.env.VITE_API_URL}/usuarios/roles/${rolId}/permisos`, config)
-                ]);
-                setCatalogo(resCat.data);
-                setPermisosActivos(resPerms.data);
-            } catch (err) {
-                console.error('Error fetching permissions:', err);
-                toast.error('Error al cargar catálogo de permisos');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchData();
-    }, [rolId, token]);
-
-    const handleToggle = (clave: string) => {
-        setPermisosActivos(prev => 
-            prev.includes(clave) ? prev.filter(c => c !== clave) : [...prev, clave]
+    if (state.loading) {
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+                Cargando catálogo de permisos...
+            </div>
         );
-    };
-
-    const handleSave = async () => {
-        setIsSaving(true);
-        try {
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            await axios.post(`${import.meta.env.VITE_API_URL}/usuarios/roles/${rolId}/permisos`, {
-                permisos: permisosActivos
-            }, config);
-            toast.success('Permisos actualizados correctamente');
-            if (onClose) onClose();
-        } catch (err) {
-            console.error('Error saving permissions:', err);
-            toast.error('Error al guardar cambios');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    if (isLoading) return <div className="p-4 text-center">Cargando catálogo...</div>;
+    }
 
     return (
-        <div className="bg-white rounded-lg shadow p-6 max-w-4xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-bold text-gray-800">
-                    Permisos para el Rol: <span className="text-primary">{rolNombre}</span>
-                </h2>
-                {onClose && (
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
-                )}
+        <div className="flex flex-col h-full min-h-0">
+            {/* Subtítulo con nombre del rol */}
+            <div className="px-4 py-2 bg-gray-50 border-b border-border text-sm text-muted-foreground">
+                Editando rol: <span className="font-semibold text-gray-800">{rolNombre}</span>
             </div>
 
-            <div className="space-y-8 max-h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
-                {/* Sección destacada Financiero — render PRIMERO con estilo
-                    amber. Visible tanto al editar rol como en overrides usuario
-                    (consistencia UX). Permisos $ no se conceden por defecto a
-                    roles nuevos; admin debe marcarlos manualmente. */}
-                {catalogo && catalogo['Financiero'] && catalogo['Financiero'].length > 0 && (
-                    <div className="border-2 border-amber-300 rounded-lg p-4 bg-amber-50/40">
-                        <div className="flex items-start gap-3 mb-4 border-b border-amber-300 pb-3">
-                            <span className="text-2xl leading-none mt-0.5" aria-hidden>💵</span>
-                            <div>
-                                <h3 className="text-lg font-bold text-amber-900 flex items-center gap-2">
-                                    Datos Financieros
-                                    <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">
-                                        Sensible
-                                    </span>
-                                </h3>
-                                <div className="text-xs text-amber-800 mt-1">
-                                    Acceso a montos, costos, precios, sueldos y horas extra.
-                                    Asigna estos permisos sólo a roles que deban operar con datos $.
-                                </div>
-                            </div>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {catalogo['Financiero'].map(p => (
-                                <label key={p.clave} className="flex items-start space-x-3 p-2 rounded hover:bg-white transition-colors cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        className="mt-1 w-4 h-4 text-amber-600 border-amber-300 rounded focus:ring-amber-500 h-checkbox"
-                                        checked={permisosActivos.includes(p.clave)}
-                                        onChange={() => handleToggle(p.clave)}
-                                    />
-                                    <div>
-                                        <div className="font-medium text-amber-900 group-hover:text-amber-700 transition-colors text-sm flex items-center gap-1.5">
-                                            <span className="text-amber-700" aria-hidden>$</span>
-                                            {p.nombre}
-                                        </div>
-                                        {p.descripcion && (
-                                            <div className="text-xs text-amber-700 italic">
-                                                {p.descripcion}
-                                            </div>
-                                        )}
-                                    </div>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-                )}
-
-                {/* Resto de módulos — render normal después de Financiero. */}
-                {catalogo && Object.entries(catalogo)
-                    .filter(([modulo]) => modulo !== 'Financiero')
-                    .map(([modulo, permisos]) => (
-                    <div key={modulo} className="border rounded-lg p-4 bg-gray-50">
-                        <h3 className="text-lg font-semibold text-gray-700 mb-4 border-b pb-2 flex items-center">
-                            <span className="w-2 h-6 bg-primary rounded mr-3"></span>
-                            {modulo}
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            {permisos.map(p => (
-                                <label key={p.clave} className="flex items-start space-x-3 p-2 rounded hover:bg-white transition-colors cursor-pointer group">
-                                    <input
-                                        type="checkbox"
-                                        className="mt-1 w-4 h-4 text-primary border-gray-300 rounded focus:ring-primary h-checkbox"
-                                        checked={permisosActivos.includes(p.clave)}
-                                        onChange={() => handleToggle(p.clave)}
-                                    />
-                                    <div>
-                                        <div className="font-medium text-gray-800 group-hover:text-primary transition-colors text-sm">
-                                            {p.nombre}
-                                        </div>
-                                        {p.descripcion && (
-                                            <div className="text-xs text-gray-500 italic">
-                                                {p.descripcion}
-                                            </div>
-                                        )}
-                                    </div>
-                                </label>
-                            ))}
-                        </div>
-                    </div>
-                ))}
+            {/* Árbol principal */}
+            <div className="flex-1 min-h-0">
+                <PermissionsTree
+                    tree={state.tree}
+                    activeSeccion={state.activeSeccion}
+                    onSelectSeccion={actions.setActiveSeccion}
+                    search={state.search}
+                    onSearchChange={actions.setSearch}
+                    modifiedClaves={state.modifiedClaves}
+                    onBulkToggle={actions.bulkToggle}
+                    renderControl={(perm: PermNode) => (
+                        <RolCheckbox
+                            checked={state.permisosActivos.includes(perm.def.clave)}
+                            onChange={() => actions.togglePermiso(perm.def.clave)}
+                        />
+                    )}
+                />
             </div>
 
-            <div className="mt-8 flex justify-end space-x-3 border-t pt-6">
-                {onClose && (
-                    <button 
-                        onClick={onClose}
-                        className="px-6 py-2 border rounded-lg hover:bg-gray-50 text-gray-600 transition-colors"
-                        disabled={isSaving}
-                    >
-                        Cancelar
-                    </button>
-                )}
-                <button 
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="px-8 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md transition-all disabled:opacity-50 flex items-center"
-                >
-                    {isSaving ? (
-                        <>
-                            <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                            </svg>
-                            Guardando...
-                        </>
-                    ) : 'Guardar Cambios'}
-                </button>
+            {/* Footer sticky con contador + botones */}
+            <div className="border-t border-border bg-white px-4 py-3 shrink-0">
+                <StickyFooter
+                    pendingCount={state.pendingChangesCount}
+                    saving={state.saving}
+                    onCancel={onClose}
+                    onSave={actions.save}
+                />
             </div>
         </div>
     );
 };
+
+// ─────────────────────────────────────────────────────────────────────────
+// Checkbox visual del modo rol
+// ─────────────────────────────────────────────────────────────────────────
+
+interface RolCheckboxProps {
+    checked: boolean;
+    onChange: () => void;
+}
+
+const RolCheckbox: React.FC<RolCheckboxProps> = ({ checked, onChange }) => (
+    <button
+        type="button"
+        role="checkbox"
+        aria-checked={checked}
+        onClick={onChange}
+        className={cn(
+            'w-9 h-9 rounded-md border-2 flex items-center justify-center transition-all',
+            checked
+                ? 'bg-primary border-primary text-white shadow-sm'
+                : 'bg-white border-gray-300 hover:border-primary/50'
+        )}
+    >
+        {checked && <Check className="w-5 h-5" strokeWidth={3} />}
+    </button>
+);
 
 export default PermisosRolPanel;

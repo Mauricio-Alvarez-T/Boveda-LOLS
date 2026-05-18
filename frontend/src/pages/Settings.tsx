@@ -593,7 +593,8 @@ const SettingsPage: React.FC = () => {
                 isOpen={rolPermsModal.open}
                 onClose={() => setRolPermsModal({ open: false, rol: null })}
                 title="Configuración de Permisos de Rol"
-                size="lg"
+                size="full"
+                noBodyPadding
             >
                 {rolPermsModal.rol && (
                     <PermisosRolPanel 
@@ -608,7 +609,8 @@ const SettingsPage: React.FC = () => {
                 isOpen={userPermsModal.open}
                 onClose={() => setUserPermsModal({ open: false, user: null })}
                 title="Overrides de Permisos de Usuario"
-                size="lg"
+                size="full"
+                noBodyPadding
             >
                 {userPermsModal.user && (
                     <PermisosUsuarioPanel 

@@ -1,279 +1,173 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
-import { useAuth } from '../../context/AuthContext';
-import { toast } from 'sonner';
+import React from 'react';
+import { usePermissionsEditor } from '../../hooks/usePermissionsEditor';
+import { PermissionsTree } from './permissions/PermissionsTree';
+import { StickyFooter } from './permissions/StickyFooter';
+import { cn } from '../../utils/cn';
+import type { PermNode } from '../../utils/permisosTree';
 
-interface PermissionDefinition {
-    clave: string;
-    nombre: string;
-    descripcion: string;
-}
-
-interface CatalogoGrouped {
-    [modulo: string]: PermissionDefinition[];
-}
-
-interface Override {
-    permiso_clave: string;
-    tipo: 'grant' | 'deny';
-}
-
+/**
+ * Panel para editar overrides de permisos de un Usuario (tristate).
+ * - Concede: fuerza permiso aunque el rol no lo tenga.
+ * - Defecto: hereda del rol (sin override).
+ * - Deniega: bloquea aunque el rol lo conceda.
+ *
+ * Compone `<PermissionsTree>` con un control tristate por fila + status dot
+ * que indica si el permiso es efectivo (verde/rojo). Toda la lógica vive en
+ * `usePermissionsEditor`.
+ */
 interface Props {
     usuarioId: number;
     usuarioNombre: string;
     rolId: number;
     rolNombre: string;
-    onClose?: () => void;
+    onClose: () => void;
 }
 
-const PermisosUsuarioPanel: React.FC<Props> = ({ 
-    usuarioId, 
-    usuarioNombre, 
-    rolId, 
-    rolNombre, 
-    onClose 
+const PermisosUsuarioPanel: React.FC<Props> = ({
+    usuarioId,
+    usuarioNombre,
+    rolId,
+    rolNombre,
+    onClose,
 }) => {
-    const { token } = useAuth();
-    const [catalogo, setCatalogo] = useState<CatalogoGrouped | null>(null);
-    const [rolePerms, setRolePerms] = useState<string[]>([]);
-    const [overrides, setOverrides] = useState<Override[]>([]);
-    const [isLoading, setIsLoading] = useState(true);
-    const [isSaving, setIsSaving] = useState(false);
+    const { state, actions } = usePermissionsEditor({
+        mode: 'usuario',
+        rolId,
+        usuarioId,
+        onSaved: onClose,
+    });
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const config = { headers: { Authorization: `Bearer ${token}` } };
-                const [resCat, resRole, resOver] = await Promise.all([
-                    axios.get(`${import.meta.env.VITE_API_URL}/usuarios/permisos/catalogo`, config),
-                    axios.get(`${import.meta.env.VITE_API_URL}/usuarios/roles/${rolId}/permisos`, config),
-                    axios.get(`${import.meta.env.VITE_API_URL}/usuarios/user-overrides/${usuarioId}`, config)
-                ]);
-                setCatalogo(resCat.data);
-                setRolePerms(resRole.data);
-                setOverrides(resOver.data);
-            } catch (err) {
-                console.error('Error fetching data:', err);
-                toast.error('Error al cargar datos de permisos');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-        fetchData();
-    }, [usuarioId, rolId, token]);
-
-    const getPermissionStatus = (clave: string) => {
-        const override = overrides.find(o => o.permiso_clave === clave);
-        if (override) return override.tipo;
-        return 'default'; // Inherited from role
-    };
-
-    const isEffective = (clave: string) => {
-        const status = getPermissionStatus(clave);
-        if (status === 'grant') return true;
-        if (status === 'deny') return false;
-        return rolePerms.includes(clave);
-    };
-
-    const handleSetOverride = (clave: string, tipo: 'grant' | 'deny' | 'default') => {
-        setOverrides(prev => {
-            const filtered = prev.filter(o => o.permiso_clave !== clave);
-            if (tipo === 'default') return filtered;
-            return [...filtered, { permiso_clave: clave, tipo }];
-        });
-    };
-
-    const handleSave = async () => {
-        setIsSaving(true);
-        try {
-            const config = { headers: { Authorization: `Bearer ${token}` } };
-            await axios.post(`${import.meta.env.VITE_API_URL}/usuarios/user-overrides/${usuarioId}`, {
-                overrides,
-                rol_id: rolId
-            }, config);
-            toast.success('Cambios guardados. El usuario deberá re-iniciar sesión.');
-            if (onClose) onClose();
-        } catch (err) {
-            console.error('Error saving overrides:', err);
-            toast.error('Error al guardar cambios');
-        } finally {
-            setIsSaving(false);
-        }
-    };
-
-    if (isLoading) return <div className="p-4 text-center">Cargando...</div>;
+    if (state.loading) {
+        return (
+            <div className="flex items-center justify-center h-full text-muted-foreground">
+                Cargando overrides de permisos...
+            </div>
+        );
+    }
 
     return (
-        <div className="bg-white rounded-lg shadow-xl border p-6 max-w-5xl mx-auto">
-            <div className="flex justify-between items-center mb-6">
+        <div className="flex flex-col h-full min-h-0">
+            {/* Subtítulo con usuario + rol */}
+            <div className="px-4 py-2 bg-gray-50 border-b border-border text-sm text-muted-foreground flex items-center justify-between flex-wrap gap-2">
                 <div>
-                    <h2 className="text-xl font-bold text-gray-800">
-                        Ajustes para <span className="text-primary">{usuarioNombre}</span>
-                    </h2>
-                    <p className="text-sm text-gray-500">
-                        Rol base: <span className="font-semibold">{rolNombre}</span>
-                    </p>
+                    Editando: <span className="font-semibold text-gray-800">{usuarioNombre}</span>
+                    {' · '}
+                    Rol base: <span className="font-semibold text-gray-800">{rolNombre}</span>
                 </div>
-                {onClose && (
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
-                        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                <div className="text-xs text-muted-foreground italic">
+                    Los overrides forzan/bloquean permisos sin importar el rol.
+                </div>
+            </div>
+
+            {/* Árbol principal */}
+            <div className="flex-1 min-h-0">
+                <PermissionsTree
+                    tree={state.tree}
+                    activeSeccion={state.activeSeccion}
+                    onSelectSeccion={actions.setActiveSeccion}
+                    search={state.search}
+                    onSearchChange={actions.setSearch}
+                    modifiedClaves={state.modifiedClaves}
+                    diffOnly={state.diffOnly}
+                    onToggleDiffOnly={actions.toggleDiffOnly}
+                    renderRowMeta={(perm: PermNode) => (
+                        <EffectiveStatusDot effective={actions.isActive(perm.def.clave)} />
+                    )}
+                    renderControl={(perm: PermNode) => (
+                        <TristatePill
+                            value={actions.getOverrideTipo(perm.def.clave)}
+                            rolDefault={state.rolePerms.includes(perm.def.clave)}
+                            onChange={(tipo) => actions.setOverride(perm.def.clave, tipo)}
+                        />
+                    )}
+                />
+            </div>
+
+            {/* Footer sticky con contador + botones */}
+            <div className="border-t border-border bg-white px-4 py-3 shrink-0">
+                <StickyFooter
+                    pendingCount={state.pendingChangesCount}
+                    saving={state.saving}
+                    onCancel={onClose}
+                    onSave={actions.save}
+                    saveLabel="Guardar Overrides"
+                />
+            </div>
+        </div>
+    );
+};
+
+// ─────────────────────────────────────────────────────────────────────────
+// Dot de status efectivo (verde = permitido, rojo = denegado)
+// ─────────────────────────────────────────────────────────────────────────
+
+const EffectiveStatusDot: React.FC<{ effective: boolean }> = ({ effective }) => (
+    <span
+        className={cn(
+            'inline-block w-2.5 h-2.5 rounded-full',
+            effective ? 'bg-green-500' : 'bg-red-400'
+        )}
+        title={effective ? 'Permitido' : 'Denegado'}
+        aria-label={effective ? 'Permitido' : 'Denegado'}
+    />
+);
+
+// ─────────────────────────────────────────────────────────────────────────
+// Tristate Pill (Conceder / Defecto / Denegar)
+// ─────────────────────────────────────────────────────────────────────────
+
+interface TristateProps {
+    value: 'grant' | 'deny' | 'default';
+    rolDefault: boolean;
+    onChange: (v: 'grant' | 'deny' | 'default') => void;
+}
+
+const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) => {
+    return (
+        <div className="inline-flex items-center bg-gray-100 p-0.5 rounded-lg" role="radiogroup">
+            <button
+                type="button"
+                role="radio"
+                aria-checked={value === 'grant'}
+                onClick={() => onChange('grant')}
+                className={cn(
+                    'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
+                    value === 'grant'
+                        ? 'bg-green-500 text-white shadow'
+                        : 'text-gray-600 hover:bg-gray-200'
                 )}
-            </div>
-
-            <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-6 text-sm text-blue-700 flex items-start">
-                <svg className="w-5 h-5 mr-3 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-                <p>
-                    Los <b>Overrides</b> permiten forzar un permiso (Conceder) o prohibirlo (Denegar) sin importar lo que el Rol diga.
-                    Si está en "Por Defecto", usará el permiso del Rol.
-                </p>
-            </div>
-
-            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
-                {/* Sección destacada Financiero — render PRIMERO con border y
-                    fondo amber para que el admin identifique de un vistazo los
-                    permisos que controlan acceso a información $. Política
-                    deny-by-default decidida con jefatura mayo-26. */}
-                {catalogo && catalogo['Financiero'] && catalogo['Financiero'].length > 0 && (
-                    <div className="border-2 border-amber-300 rounded-lg overflow-hidden shadow-sm">
-                        <div className="bg-amber-100 px-4 py-3 border-b border-amber-300 flex items-start gap-3">
-                            <span className="text-2xl leading-none mt-0.5" aria-hidden>💵</span>
-                            <div>
-                                <div className="font-bold text-amber-900 flex items-center gap-2">
-                                    Datos Financieros
-                                    <span className="text-[10px] bg-amber-200 text-amber-900 px-2 py-0.5 rounded-full font-semibold uppercase tracking-wide">
-                                        Sensible
-                                    </span>
-                                </div>
-                                <div className="text-xs text-amber-800 mt-1">
-                                    Controlan acceso a montos, costos, precios, sueldos y horas extra.
-                                    Por política, sólo el Super Administrador los recibe por defecto.
-                                    Concédelos manualmente a personal autorizado.
-                                </div>
-                            </div>
-                        </div>
-                        <div className="divide-y divide-amber-100 bg-amber-50/40">
-                            {catalogo['Financiero'].map(p => {
-                                const status = getPermissionStatus(p.clave);
-                                const effective = isEffective(p.clave);
-                                const fromRole = rolePerms.includes(p.clave);
-                                return (
-                                    <div key={p.clave} className="p-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-amber-50 transition-colors">
-                                        <div className="mb-3 md:mb-0 max-w-lg">
-                                            <div className="flex items-center space-x-2">
-                                                <span className={`w-2.5 h-2.5 rounded-full ${effective ? 'bg-green-500' : 'bg-red-500'}`} title={effective ? 'Permitido' : 'Denegado'}></span>
-                                                <span className="font-medium text-amber-900 flex items-center gap-1.5">
-                                                    <span className="text-amber-700" aria-hidden>$</span>
-                                                    {p.nombre}
-                                                </span>
-                                                {status === 'default' && (
-                                                    <span className="text-[10px] bg-amber-200 px-1.5 py-0.5 rounded text-amber-900 uppercase">Rol</span>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-amber-700 ml-5">{p.descripcion}</p>
-                                        </div>
-                                        <div className="flex items-center bg-amber-100 p-0.5 rounded-lg">
-                                            <button
-                                                onClick={() => handleSetOverride(p.clave, 'grant')}
-                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'grant' ? 'bg-green-500 text-white shadow' : 'text-amber-900 hover:bg-amber-200'}`}
-                                            >
-                                                Conceder
-                                            </button>
-                                            <button
-                                                onClick={() => handleSetOverride(p.clave, 'default')}
-                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'default' ? 'bg-white text-gray-800 shadow' : 'text-amber-900 hover:bg-amber-200'}`}
-                                            >
-                                                Defecto ({fromRole ? '✓' : '✗'})
-                                            </button>
-                                            <button
-                                                onClick={() => handleSetOverride(p.clave, 'deny')}
-                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'deny' ? 'bg-red-500 text-white shadow' : 'text-amber-900 hover:bg-amber-200'}`}
-                                            >
-                                                Denegar
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
+            >
+                Conceder
+            </button>
+            <button
+                type="button"
+                role="radio"
+                aria-checked={value === 'default'}
+                onClick={() => onChange('default')}
+                className={cn(
+                    'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
+                    value === 'default'
+                        ? 'bg-white text-gray-800 shadow'
+                        : 'text-gray-600 hover:bg-gray-200'
                 )}
-
-                {/* Resto de módulos — render normal después de Financiero. */}
-                {catalogo && Object.entries(catalogo)
-                    .filter(([modulo]) => modulo !== 'Financiero')
-                    .map(([modulo, permisos]) => (
-                    <div key={modulo} className="border rounded-lg overflow-hidden">
-                        <div className="bg-gray-100 px-4 py-2 border-b font-semibold text-gray-700">
-                            {modulo}
-                        </div>
-                        <div className="divide-y bg-white">
-                            {permisos.map(p => {
-                                const status = getPermissionStatus(p.clave);
-                                const effective = isEffective(p.clave);
-                                const fromRole = rolePerms.includes(p.clave);
-
-                                return (
-                                    <div key={p.clave} className="p-4 flex flex-col md:flex-row md:items-center justify-between hover:bg-gray-50 transition-colors">
-                                        <div className="mb-3 md:mb-0 max-w-lg">
-                                            <div className="flex items-center space-x-2">
-                                                <span className={`w-2.5 h-2.5 rounded-full ${effective ? 'bg-green-500' : 'bg-red-500'}`} title={effective ? 'Permitido' : 'Denegado'}></span>
-                                                <span className="font-medium text-gray-800">{p.nombre}</span>
-                                                {status === 'default' && (
-                                                    <span className="text-[10px] bg-gray-200 px-1.5 py-0.5 rounded text-gray-600 uppercase">Rol</span>
-                                                )}
-                                            </div>
-                                            <p className="text-xs text-gray-500 ml-5">{p.descripcion}</p>
-                                        </div>
-
-                                        <div className="flex items-center bg-gray-200 p-0.5 rounded-lg">
-                                            <button
-                                                onClick={() => handleSetOverride(p.clave, 'grant')}
-                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'grant' ? 'bg-green-500 text-white shadow' : 'text-gray-600 hover:bg-gray-300'}`}
-                                            >
-                                                Conceder
-                                            </button>
-                                            <button
-                                                onClick={() => handleSetOverride(p.clave, 'default')}
-                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'default' ? 'bg-white text-gray-800 shadow' : 'text-gray-600 hover:bg-gray-300'}`}
-                                            >
-                                                Defecto ({fromRole ? '✓' : '✗'})
-                                            </button>
-                                            <button
-                                                onClick={() => handleSetOverride(p.clave, 'deny')}
-                                                className={`px-3 py-1 text-xs rounded-md transition-all ${status === 'deny' ? 'bg-red-500 text-white shadow' : 'text-gray-600 hover:bg-gray-300'}`}
-                                            >
-                                                Denegar
-                                            </button>
-                                        </div>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
-            </div>
-
-            <div className="mt-8 flex justify-end space-x-3 border-t pt-6">
-                <button 
-                    onClick={onClose}
-                    className="px-6 py-2 border rounded-lg hover:bg-gray-50 text-gray-600"
-                    disabled={isSaving}
-                >
-                    Cancelar
-                </button>
-                <button 
-                    onClick={handleSave}
-                    disabled={isSaving}
-                    className="px-8 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 shadow-md transition-all disabled:opacity-50 flex items-center"
-                >
-                    {isSaving ? 'Guardando...' : 'Guardar Overrides'}
-                </button>
-            </div>
+                title={`Por defecto (rol ${rolDefault ? 'concede' : 'no concede'})`}
+            >
+                Defecto {rolDefault ? '✓' : '✗'}
+            </button>
+            <button
+                type="button"
+                role="radio"
+                aria-checked={value === 'deny'}
+                onClick={() => onChange('deny')}
+                className={cn(
+                    'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
+                    value === 'deny'
+                        ? 'bg-red-500 text-white shadow'
+                        : 'text-gray-600 hover:bg-gray-200'
+                )}
+            >
+                Denegar
+            </button>
         </div>
     );
 };
