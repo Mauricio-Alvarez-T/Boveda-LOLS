@@ -13,6 +13,8 @@ interface Props {
     searchQuery: string;
     onSearchChange: (q: string) => void;
     discrepanciasCount?: number;
+    /** Si false, el chip "Discrepancias" se oculta. Default true para back-compat. */
+    canVerDiscrepancias?: boolean;
 }
 
 export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
@@ -45,10 +47,14 @@ const TransferenciasList: React.FC<Props> = ({
     transferencias, loading, selectedId, onSelect,
     statusFilter, onStatusFilterChange, searchQuery, onSearchChange,
     discrepanciasCount = 0,
+    canVerDiscrepancias = true,
 }) => {
     const filtered = transferencias.filter(t =>
         !searchQuery || t.codigo.toLowerCase().includes(searchQuery.toLowerCase())
     );
+
+    // Discrepancias requiere permiso aprobador. Si no lo tiene, oculta el chip.
+    const visibleChips = STATUS_CHIPS.filter(c => c.value !== 'discrepancias' || canVerDiscrepancias);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
@@ -71,7 +77,7 @@ const TransferenciasList: React.FC<Props> = ({
 
             {/* Status filter chips */}
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
-                {STATUS_CHIPS.map(chip => {
+                {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
                     return (

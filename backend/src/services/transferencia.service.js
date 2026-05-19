@@ -1,6 +1,27 @@
 const db = require('../config/db');
 
 /**
+ * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas
+ * de Segregation of Duties (solicitante ≠ aprobador ≠ transportista ≠ receptor)?
+ * Usado en flujo normal (aprobar / despachar / recibir). Los flujos especiales
+ * (push_directo, intra_bodega, orden_gerencia) NO aplican SoD porque por diseño
+ * consolidan roles — su gate de permiso individual ya implica autoridad.
+ */
+function _hasBypass(userPermisos) {
+    return Array.isArray(userPermisos) && userPermisos.includes('inventario.transferencias.sod_bypass');
+}
+
+/**
+ * Construye un Error con statusCode 403 para violaciones SoD. El errorHandler
+ * global respeta `err.statusCode` (ver middleware/errorHandler.js:61).
+ */
+function _sodError(msg) {
+    const e = new Error(msg);
+    e.statusCode = 403;
+    return e;
+}
+
+/**
  * Flujo de stock (Ola 2 — decremento al recibir):
  *
  *  pendiente   → no toca stock
@@ -269,7 +290,7 @@ const transferenciaService = {
      *   Nota Ola 2: dos aprobaciones pueden comprometer el mismo stock físico
      *   (validación no reserva). La segunda recepción lo notará como discrepancia.
      */
-    async aprobar(id, aprobadorId, data) {
+    async aprobar(id, aprobadorId, data, userPermisos) {
         const { items } = data;
         if (!items || !items.length) throw new Error('Debe incluir ítems');
 
@@ -307,8 +328,15 @@ const transferenciaService = {
             await conn.beginTransaction();
 
             // FOR UPDATE: lock pesimista contra race condition de doble aprobación
-            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
+            const [trf] = await conn.query('SELECT estado, solicitante_id FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trf.length || trf[0].estado !== 'pendiente') throw new Error('Transferencia no está pendiente');
+
+            // SoD: el aprobador no puede ser el solicitante.
+            // sod_bypass es para casos excepcionales (obra unipersonal, emergencias);
+            // queda registrado en logs_actividad para auditoría.
+            if (trf[0].solicitante_id != null && trf[0].solicitante_id === aprobadorId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes aprobar transferencias que tú mismo solicitaste. Otro usuario con permiso "Aprobar Transferencia" debe hacerlo.');
+            }
 
             const [dbItems] = await conn.query(
                 'SELECT id, item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
@@ -485,13 +513,18 @@ const transferenciaService = {
     /**
      * Cambia el estado a en_transito. No mueve stock (ya se movió al aprobar).
      */
-    async despachar(id, transportistaId) {
+    async despachar(id, transportistaId, userPermisos) {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
-            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
+            const [trf] = await conn.query('SELECT estado, aprobador_id FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trf.length || trf[0].estado !== 'aprobada') throw new Error('Transferencia no está aprobada');
+
+            // SoD: el transportista (quien despacha) no puede ser el aprobador.
+            if (trf[0].aprobador_id != null && trf[0].aprobador_id === transportistaId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes despachar transferencias que tú mismo aprobaste. Otro usuario con permiso "Despachar Transferencia" debe hacerlo.');
+            }
 
             await conn.query(
                 "UPDATE transferencias SET estado = 'en_transito', transportista_id = ?, despachado_por = ?, fecha_despacho = NOW() WHERE id = ?",
@@ -521,7 +554,7 @@ const transferenciaService = {
      *   · recibida > enviada → sobrante (miscount u otro error)
      * La diferencia NO se revierte al origen — queda registrada para auditoría.
      */
-    async recibir(id, receptorId, items) {
+    async recibir(id, receptorId, items, userPermisos) {
         if (!items || !items.length) throw new Error('Debe incluir ítems');
 
         const conn = await db.getConnection();
@@ -533,6 +566,17 @@ const transferenciaService = {
             const trf = trfRows[0];
             if (trf.estado !== 'en_transito' && trf.estado !== 'aprobada') {
                 throw new Error('Transferencia no puede ser recibida');
+            }
+
+            // SoD: el receptor no puede ser el transportista (quien despachó).
+            // Caso aprobada→recibida directa (sin estado en_tránsito intermedio):
+            // tampoco puede ser el aprobador (transportista_id está null).
+            if (trf.transportista_id != null && trf.transportista_id === receptorId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes recibir transferencias que tú mismo despachaste. Otro usuario con permiso "Recibir Transferencia" debe hacerlo.');
+            }
+            if (trf.estado === 'aprobada' && trf.transportista_id == null && trf.aprobador_id != null
+                && trf.aprobador_id === receptorId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes recibir transferencias que tú mismo aprobaste (sin paso por despacho). Otro usuario debe recibirla.');
             }
 
             // Régimen nuevo: decrementar origen según splits. Si la columna no

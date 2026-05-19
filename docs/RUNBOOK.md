@@ -717,4 +717,80 @@ Cuando hagas merge a `main` por primera vez con este sprint:
 
 ---
 
-*Última actualización: Mayo 2026 — Agregado § 15 Permisos Financieros (Sprints 1-3 + migración 043).*
+## § 16. Permisos Granulares de Transferencias + SoD
+
+**Contexto:** hasta mayo 2026 el flujo de transferencias (solicitar → aprobar → despachar → recibir) corría bajo 3 permisos genéricos (`inventario.crear`, `inventario.aprobar`, `inventario.editar`). Esto permitía que un mismo usuario solicite y apruebe la misma transferencia (sin Segregation of Duties). Migración 046 introduce 9 permisos atómicos + SoD enforcement en backend.
+
+### 16.1 Los 9 permisos nuevos
+
+| Clave | Qué gatea | Sensible |
+|---|---|---|
+| `inventario.transferencias.solicitar` | POST `/transferencias`, `/devolucion`, `/intra-obra`, `/:id/crear-faltante` | — |
+| `inventario.transferencias.aprobar` | PUT `/:id/aprobar`, `/:id/rechazar`, GET `/pendientes`, GET/PUT `/discrepancias*` | — |
+| `inventario.transferencias.despachar` | PUT `/:id/despachar` | — |
+| `inventario.transferencias.recibir` | PUT `/:id/recibir`, `/:id/rechazar-recepcion` | — |
+| `inventario.transferencias.cancelar` | PUT `/:id/cancelar` (terceros). Solicitante puede cancelar propia sin permiso. | — |
+| `inventario.transferencias.push_directo` | POST `/push-directo` (bodega → obra sin aprobación, consolida 3 roles) | ⚠️ Crítico |
+| `inventario.transferencias.intra_bodega` | POST `/intra-bodega` (bodega → bodega instantáneo, consolida 4 roles) | ⚠️ Crítico |
+| `inventario.transferencias.orden_gerencia` | POST `/orden-gerencia` (PM bypasa aprobación, consolida 3 roles) | ⚠️ Crítico |
+| `inventario.transferencias.sod_bypass` | Permite acciones consecutivas en flujo normal (obras unipersonales / emergencias) | ⚠️ Crítico |
+
+### 16.2 Política SoD (Segregation of Duties)
+
+Backend rechaza con **403** si la misma identidad intenta dos roles consecutivos sobre la misma transferencia:
+
+- `aprobar()` rechaza si `solicitante_id === aprobadorId`
+- `despachar()` rechaza si `aprobador_id === transportistaId`
+- `recibir()` rechaza si `transportista_id === receptorId` (o `aprobador_id === receptorId` si se salta despacho)
+
+Override: el permiso `inventario.transferencias.sod_bypass` desactiva las validaciones SoD para ese usuario. **Auditoría obligatoria:** cada uso queda en `logs_actividad` con actor + timestamp.
+
+### 16.3 Flujos especiales (sin SoD aplicado)
+
+`push_directo`, `intra_bodega`, `orden_gerencia` están diseñados para consolidar roles en una sola persona. Su permiso individual ya implica la autoridad — no se aplica SoD adicional. Mantener restringidos a roles con responsabilidad operacional.
+
+### 16.4 Migración 046 — operación en producción
+
+```
+cPanel → Setup Node.js App → Run JS script → `migrate`
+```
+
+La migración asigna los 9 permisos sólo al **Super Admin (rol_id=1)**. Idempotente — segura para re-ejecutar.
+
+### 16.5 Reasignación manual post-deploy
+
+Por decisión de jefatura, los roles existentes NO heredan automáticamente los nuevos permisos. Admin debe ir a **Configuración → Roles** y reasignar según esta matriz sugerida:
+
+| Rol legacy | Permisos nuevos recomendados |
+|---|---|
+| En Terreno | `transferencias.solicitar`, `transferencias.recibir` |
+| Bodeguero | `transferencias.despachar`, `transferencias.recibir`, `transferencias.cancelar`, `transferencias.intra_bodega` |
+| Jefe Obra | `transferencias.solicitar`, `transferencias.aprobar`, `transferencias.cancelar` |
+| Gerencia / PM | `transferencias.aprobar`, `transferencias.orden_gerencia`, `transferencias.sod_bypass` (sólo si crítico) |
+| Operaciones | todos los `transferencias.*` salvo `sod_bypass` |
+
+Mientras no se reasignen, **los usuarios de esos roles no podrán ejecutar acciones de transferencias** (default deny). Hacerlo inmediatamente después del deploy minimiza la ventana de impacto operacional.
+
+### 16.6 Audit log de SoD bypass
+
+Toda acción ejecutada con `sod_bypass` queda en `logs_actividad`. Revisar periódicamente:
+
+```sql
+SELECT la.fecha, u.nombre, la.accion, la.detalle
+FROM logs_actividad la
+JOIN usuarios u ON la.usuario_id = u.id
+WHERE la.detalle LIKE '%transferencias%' AND la.detalle LIKE '%sod_bypass%'
+ORDER BY la.fecha DESC LIMIT 50;
+```
+
+### 16.7 Frontend: identity gates + banner SoD
+
+`TransferenciaDetail.tsx` esconde los botones de acción cuando el usuario tiene rol previo en la TRF (solicitante intentando aprobar, etc.). Un banner amber explica al usuario por qué no aparece el botón ("tú creaste esta solicitud — otro usuario debe aprobarla"). El backend es la fuente de verdad — la UI sólo evita confusión.
+
+`NewMovimientoModal.tsx` filtra los flujos visibles por permiso individual. Si el user no tiene ninguno, muestra mensaje "No tienes permisos para crear movimientos".
+
+`TransferenciasList.tsx` oculta el chip "Discrepancias" si el user no es aprobador.
+
+---
+
+*Última actualización: Mayo 2026 — Agregado § 16 Permisos Granulares de Transferencias + SoD (migración 046).*

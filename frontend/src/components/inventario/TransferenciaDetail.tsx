@@ -5,7 +5,7 @@ import {
     ChevronLeft, FileText, CheckCircle2, PackageCheck,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
     MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send,
-    ShoppingBag,
+    ShoppingBag, Info,
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
@@ -86,18 +86,60 @@ const TransferenciaDetail: React.FC<Props> = ({
     const origen = t.origen_obra_nombre || t.origen_bodega_nombre || '—';
     const destino = t.destino_obra_nombre || t.destino_bodega_nombre || '—';
 
-    // ── Action permissions ──
-    const canAprobar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
-    const canRechazar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
-    const canRecibir = (t.estado === 'en_transito' || t.estado === 'aprobada') && hasPermission('inventario.editar');
-    const canRechazarRecepcion = t.estado === 'en_transito' && hasPermission('inventario.editar') && !!onRechazarRecepcion;
-    const canCancelar = (t.estado === 'pendiente' || t.estado === 'en_transito') && (hasPermission('inventario.editar') || t.solicitante_id === userId);
+    // ── Action permissions + SoD identity checks ──
+    // SoD: solicitante ≠ aprobador ≠ transportista ≠ receptor. UI oculta el
+    // botón cuando el usuario actual tiene rol previo en la TRF. Backend
+    // valida igual con 403 (defensa en profundidad). El permiso especial
+    // `sod_bypass` permite a un usuario ejecutar acciones consecutivas
+    // (obras unipersonales, emergencias) — queda en audit log.
+    const hasBypass = hasPermission('inventario.transferencias.sod_bypass');
+    const isSolicitante = t.solicitante_id === userId;
+    const isAprobador = (t as any).aprobador_id === userId;
+    const isTransportista = (t as any).transportista_id === userId;
+
+    const canAprobar =
+        t.estado === 'pendiente' &&
+        hasPermission('inventario.transferencias.aprobar') &&
+        (!isSolicitante || hasBypass);
+    const canRechazar = canAprobar;
+    const canDespachar =
+        t.estado === 'aprobada' &&
+        hasPermission('inventario.transferencias.despachar') &&
+        (!isAprobador || hasBypass);
+    const canRecibir =
+        (t.estado === 'en_transito' || t.estado === 'aprobada') &&
+        hasPermission('inventario.transferencias.recibir') &&
+        // si estado aprobada (sin paso por despacho), bloquea si soy el aprobador
+        (t.estado === 'aprobada' ? (!isAprobador || hasBypass) : (!isTransportista || hasBypass));
+    const canRechazarRecepcion =
+        t.estado === 'en_transito' &&
+        hasPermission('inventario.transferencias.recibir') &&
+        (!isTransportista || hasBypass) &&
+        !!onRechazarRecepcion;
+    // Cancelar: el solicitante siempre puede cancelar su propia TRF (caso de
+    // usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
+    const canCancelar =
+        ['pendiente', 'aprobada', 'en_transito'].includes(t.estado) &&
+        (hasPermission('inventario.transferencias.cancelar') || isSolicitante);
+
+    // Banners SoD: alertar visualmente cuando el user actual no puede avanzar
+    // la TRF por su rol previo. Educa al usuario sobre por qué la acción no
+    // aparece (evita "¿por qué no veo el botón Aprobar?").
+    const showSodBannerSolicitante =
+        isSolicitante && t.estado === 'pendiente' &&
+        hasPermission('inventario.transferencias.aprobar') && !hasBypass;
+    const showSodBannerAprobador =
+        isAprobador && t.estado === 'aprobada' &&
+        hasPermission('inventario.transferencias.despachar') && !hasBypass;
+    const showSodBannerTransportista =
+        isTransportista && t.estado === 'en_transito' &&
+        hasPermission('inventario.transferencias.recibir') && !hasBypass;
     // Pendiente entra en la lista porque RRHH/operaciones quieren notificar al
     // grupo WhatsApp para que el aprobador a cargo abra la app y revise la
     // factibilidad. El mensaje pendiente lleva las cantidades solicitadas
     // (la rama del `if` por estado en handleShareWhatsApp ya cubre eso).
     const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recibida'].includes(t.estado);
-    const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
+    const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
     // ── Clipboard helper con fallback para navegadores sin clipboard API ──
     const copyToClipboard = async (text: string): Promise<boolean> => {
@@ -501,6 +543,22 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
                 </div>
             </div>
+
+            {/* ── SoD Banner: explica por qué el botón de acción no aparece ── */}
+            {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && !activeForm && (
+                <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-sm">
+                    <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                        <strong className="text-amber-900">SoD activo:</strong>
+                        <span className="text-amber-800">
+                            {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
+                            {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
+                            {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
+                            Si no hay otra persona disponible, contacta al admin para que conceda el permiso "Bypass SoD".
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* ── Action Buttons ── */}
             {hasActions && !activeForm && (

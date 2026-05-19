@@ -246,7 +246,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                         'Transferencias'
                     )}
                 </h3>
-                {!isDiscrepanciasMode && hasPermission('inventario.crear') && (
+                {/* "Nuevo movimiento" visible si tiene AL MENOS UN flujo. El modal
+                    interno filtra qué flujos específicos puede ejecutar. */}
+                {!isDiscrepanciasMode && (
+                    hasPermission('inventario.transferencias.solicitar') ||
+                    hasPermission('inventario.transferencias.push_directo') ||
+                    hasPermission('inventario.transferencias.intra_bodega') ||
+                    hasPermission('inventario.transferencias.orden_gerencia')
+                ) && (
                     <button
                         onClick={() => setShowSelectorModal(true)}
                         className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20"
@@ -267,8 +274,12 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     {isDiscrepanciasMode ? (
                         <>
                             {/* Top row: status chips (same as regular list, so user can switch back) */}
+                            {/* Filtra "Discrepancias" si el user no es aprobador — auditoría
+                                de discrepancias es competencia del rol aprobador/jefatura. */}
                             <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
-                                {MAIN_STATUS_CHIPS.map(chip => {
+                                {MAIN_STATUS_CHIPS
+                                    .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
+                                    .map(chip => {
                                     const isActive = statusFilter === chip.value;
                                     const isDisc = chip.value === 'discrepancias';
                                     return (
@@ -323,6 +334,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             searchQuery={searchQuery}
                             onSearchChange={setSearchQuery}
                             discrepanciasCount={pendientesCount}
+                            canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
                         />
                     )}
                 </div>
@@ -379,6 +391,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 isOpen={showSelectorModal}
                 onClose={() => setShowSelectorModal(false)}
                 onSelect={handleSelectFlow}
+                hasPermission={hasPermission}
             />
 
             {/* Solicitud estándar (existente) */}
