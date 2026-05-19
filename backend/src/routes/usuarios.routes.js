@@ -17,7 +17,15 @@ const usuariosService = createCrudService('usuarios', {
 });
 
 // basic CRUD for roles
-const rolesService = createCrudService('roles', { searchFields: ['nombre'], orderBy: 'nombre ASC' });
+// selectFields override: incluye `permisos_count` para que el frontend pueda
+// mostrar badge ⚠️ "Sin permisos" en la tabla de roles + preview en
+// UsuarioForm. Subquery en lugar de JOIN porque cada rol puede tener N
+// permisos y GROUP BY rompería los demás campos del rol.
+const rolesService = createCrudService('roles', {
+    searchFields: ['nombre'],
+    selectFields: 'roles.*, (SELECT COUNT(*) FROM permisos_rol_v2 WHERE rol_id = roles.id) AS permisos_count',
+    orderBy: 'nombre ASC'
+});
 const rolesController = createCrudController(rolesService);
 
 // Alias /roles/list para consumo específico en ciertos dropdowns del frontend
@@ -120,7 +128,30 @@ router.put('/:id', auth, checkPermission('usuarios.editar'), async (req, res, ne
             data.password_hash = await bcrypt.hash(data.password, 10);
             delete data.password;
         }
+
+        // Detectar cambio de rol_id ANTES del update para saber si invalidar
+        // la sesión activa del usuario. Si no detectamos el cambio, el usuario
+        // mantiene su JWT viejo (con rol_id viejo + permisos viejos) hasta
+        // logout manual — bug reportado por jefatura mayo 2026.
+        let oldRolId = null;
+        if (data.rol_id !== undefined) {
+            const [rows] = await db.query('SELECT rol_id FROM usuarios WHERE id = ?', [req.params.id]);
+            if (rows.length) oldRolId = rows[0].rol_id;
+        }
+
         const user = await usuariosService.update(req.params.id, data);
+
+        // Si el rol_id cambió, bumpear la versión del rol VIEJO. Esto causa
+        // mismatch en auth middleware (rv del JWT ≠ versionService.get(oldRol))
+        // → 401 expired_by_version → forced logout → re-login → JWT nuevo con
+        // rol_id nuevo + permisos nuevos.
+        //
+        // Side effect aceptado: otros usuarios actualmente en el rol viejo
+        // también se desloguean. Trade-off OK para escala Bóveda LOLS (~50 users).
+        if (oldRolId != null && data.rol_id != null && Number(oldRolId) !== Number(data.rol_id)) {
+            await versionService.increment(oldRolId);
+        }
+
         res.json(user);
     } catch (err) { next(err); }
 });
