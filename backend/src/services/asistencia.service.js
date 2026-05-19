@@ -1013,6 +1013,35 @@ const asistenciaService = {
             console.warn('[asistencia.generarExcel] no se pudieron leer sábados extra:', e.message);
         }
 
+        // ── Períodos de Licencia Médica (LM) activos en el rango ──
+        // Los fines de semana y feriados que caen dentro de un período LM no
+        // deben sumar al total mensual: los paga la ISAPRE/Mutual, no la
+        // empresa. Marcamos esas celdas con MARKER_FDS_LM (distinto de FDS)
+        // y excluimos ese marcador del COUNTIF de totales.
+        const lmDaysSet = new Set();
+        try {
+            const [lmPeriods] = await db.query(`
+                SELECT p.trabajador_id, p.fecha_inicio, p.fecha_fin
+                FROM periodos_ausencia p
+                JOIN estados_asistencia e ON e.id = p.estado_id
+                WHERE e.codigo = 'LM' AND p.activo = TRUE
+                  AND p.fecha_inicio <= ? AND p.fecha_fin >= ?
+            `, [fecha_fin, fecha_inicio]);
+            for (const p of lmPeriods) {
+                const startStr = formatDate(p.fecha_inicio);
+                const endStr = formatDate(p.fecha_fin);
+                if (!startStr || !endStr) continue;
+                const cur = new Date(startStr + 'T00:00:00');
+                const last = new Date(endStr + 'T00:00:00');
+                while (cur <= last) {
+                    lmDaysSet.add(`${p.trabajador_id}:${cur.toISOString().split('T')[0]}`);
+                    cur.setDate(cur.getDate() + 1);
+                }
+            }
+        } catch (e) {
+            console.warn('[asistencia.generarExcel] no se pudieron leer períodos LM:', e.message);
+        }
+
         let maxStrDateInRecords = '';
         registros.forEach(r => {
             const dStr = formatDate(r.fecha);
@@ -1071,6 +1100,7 @@ const asistenciaService = {
                 })
         )];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
+        const MARKER_FDS_LM = 'FDS_L'; // Weekend/feriado dentro de Licencia Médica — NO suma al total
 
         // ── Agrupar trabajadores por empresa ──
         const empresaGroups = {};
@@ -1330,17 +1360,15 @@ const asistenciaService = {
                         if (codigo === 'AT') codigo = 'JI';
 
                         // ── Ausencias propagadas a fin de semana / feriado ──
-                        // Cuando se asigna un período de ausencia (LM, VAC, P, etc) el
-                        // backend `crearPeriodo` crea filas en `asistencias` para
-                        // todos los días del rango, incluidos sábados, domingos y
-                        // feriados. Eso pinta esos días con el código de la ausencia
-                        // (ej. "LM"), pero NO son días laborables: deben contarse
-                        // como FDS en el total mensual (reportado por RRHH como bug
-                        // "el sistema suma sat/sun como días de licencia").
-                        // Solución: si la fila tiene un estado NO presente y cae en
-                        // fin de semana o feriado, mostramos FDS en vez del código.
+                        // Cuando se asigna un período de ausencia el backend
+                        // `crearPeriodo` puede crear filas para weekends/feriados
+                        // dentro del rango. Esos días no son laborables: si la
+                        // celda cae dentro de un período LM activo del trabajador,
+                        // usamos FDS_L (no suma — lo paga ISAPRE/Mutual); en otro
+                        // caso usamos FDS (suma como día del mes).
                         if (est && !est.es_presente && (isWeekend || isFeriado)) {
-                            cell.value = MARKER_FDS;
+                            const inLM = lmDaysSet.has(`${worker.id}:${fStr}`);
+                            cell.value = inLM ? MARKER_FDS_LM : MARKER_FDS;
                             cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                             cell.alignment = { horizontal: 'center', vertical: 'middle' };
@@ -1423,8 +1451,11 @@ const asistenciaService = {
                             };
                         }
                     } else if (isFeriado || isWeekend) {
-                        // Fin de semana o feriado SIN registro → marcar con FDS para que sume
-                        cell.value = MARKER_FDS;
+                        // Fin de semana o feriado SIN registro. Si cae dentro de
+                        // un período LM del trabajador, usamos FDS_L (no suma);
+                        // si no, FDS normal (suma como día del mes).
+                        const inLM = lmDaysSet.has(`${worker.id}:${fStr}`);
+                        cell.value = inLM ? MARKER_FDS_LM : MARKER_FDS;
                         cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                     } else {
@@ -1442,9 +1473,11 @@ const asistenciaService = {
                 });
 
                 // ── FÓRMULAS DE SUMATORIA CORREGIDAS ──
-                // Contar estados que suman + marcador FDS (fines de semana y feriados)
+                // Contar estados que suman + marcador FDS (fines de semana y feriados).
+                // MARKER_FDS_LM (weekends/feriados dentro de Licencia Médica) NO se
+                // incluye intencionalmente — esos días los paga ISAPRE/Mutual.
                 const q1Range = `${ws.getCell(rowIdx, dayColStart).address}:${ws.getCell(rowIdx, dayColStart + 14).address}`;
-                
+
                 // Construir COUNTIF para cada código que suma + FDS
                 const allCodigos = [...codigosSumanDia, MARKER_FDS];
                 const countifParts = allCodigos.map(cod => `COUNTIF(${q1Range},"${cod}")`);

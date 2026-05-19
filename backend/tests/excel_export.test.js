@@ -133,6 +133,74 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         expect(sheetNames.some(n => n.includes('PROVISORIOS'))).toBe(true);
     });
 
+    // ── Test 5: FDS_L para weekends dentro de Licencia Médica ──
+    test('weekend/feriado dentro de período LM debe mostrar FDS_L y no sumar al total', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 0 }
+        ];
+
+        // LM período: lunes 9 al domingo 15 de marzo 2026 (incluye sab 14 + dom 15)
+        // crearPeriodo habría insertado filas para lun-vie (9-13). Sat 14 + Dom 15 no tienen registro.
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-09', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-10', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-11', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-12', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 4 }
+        ];
+
+        const mockLMPeriods = [
+            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15' }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('FROM periodos_ausencia')) return Promise.resolve([mockLMPeriods]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Día 1 = Domingo, FUERA de LM → FDS (suma)
+        expect(wsLols.getCell(9, 9).value).toBe('FDS');
+
+        // Día 7 = Sábado, FUERA de LM → FDS (suma)
+        expect(wsLols.getCell(9, 15).value).toBe('FDS');
+
+        // Días 9-13 (lun-vie) con LM registrado → LM
+        expect(wsLols.getCell(9, 17).value).toBe('LM');  // día 9 = col 9+8 = 17
+        expect(wsLols.getCell(9, 21).value).toBe('LM');  // día 13 = col 9+12 = 21
+
+        // Día 14 = Sábado DENTRO de LM → FDS_L (NO suma)
+        // Q1 cubre días 1-15 → col 9+13 = 22
+        expect(wsLols.getCell(9, 22).value).toBe('FDS_L');
+
+        // Día 15 = Domingo DENTRO de LM. Está en columna 16 (col 9 + 15 + offset Q1 = 24).
+        // El offset por la columna Q1 hace que día 16+ se desplace +1.
+        // Día 15 es el último día de Q1, pos 14 = col 9+14 = 23
+        expect(wsLols.getCell(9, 23).value).toBe('FDS_L');
+
+        // Verificar que fórmula COUNTIF NO incluye FDS_L
+        const q1Cell = wsLols.getCell(9, 24); // dayColStart(9) + 15 = col 24 (Q1 col)
+        const formula = q1Cell.value.formula;
+        expect(formula).toContain('"FDS"');
+        expect(formula).not.toContain('"FDS_L"');
+    });
+
     // ── Test 4: Leyenda en dos columnas (no más de 4 filas) ──
     test('la leyenda debe organizarse en dos columnas sin solapar datos', async () => {
         const mockWorkers = [
