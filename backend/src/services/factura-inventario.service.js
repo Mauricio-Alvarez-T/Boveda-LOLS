@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { normalizeUbicacion } = require('../utils/ubicacionStock');
 
 const facturaInventarioService = {
     async crear(data, userId) {
@@ -17,10 +18,13 @@ const facturaInventarioService = {
             const facturaId = result.insertId;
 
             for (const item of items) {
+                // XOR (mig 050): la factura aterriza el stock en obra XOR bodega.
+                const ubic = normalizeUbicacion(item.obra_id, item.bodega_id);
+
                 await conn.query(
                     `INSERT INTO factura_items (factura_id, item_id, obra_id, bodega_id, cantidad, precio_unitario)
                      VALUES (?, ?, ?, ?, ?, ?)`,
-                    [facturaId, item.item_id, item.obra_id || null, item.bodega_id || null, item.cantidad, item.precio_unitario]
+                    [facturaId, item.item_id, ubic.obra, ubic.bodega, item.cantidad, item.precio_unitario]
                 );
 
                 // Auto-incrementar stock en destino
@@ -28,7 +32,7 @@ const facturaInventarioService = {
                     `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                      VALUES (?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                    [item.item_id, item.obra_id || null, item.bodega_id || null, item.cantidad]
+                    [item.item_id, ubic.obra, ubic.bodega, item.cantidad]
                 );
             }
 
@@ -91,10 +95,14 @@ const facturaInventarioService = {
             // Reversar stock
             const [items] = await conn.query('SELECT * FROM factura_items WHERE factura_id = ?', [id]);
             for (const item of items) {
+                // Normalizar antes del WHERE: facturas legacy pueden tener obra+bodega
+                // ambos seteados en factura_items, pero ubicaciones_stock ya fue
+                // consolidada (mig 050) a la versión obra-only.
+                const ubic = normalizeUbicacion(item.obra_id, item.bodega_id);
                 await conn.query(
                     `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                      WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                    [item.cantidad, item.item_id, item.obra_id, item.bodega_id]
+                    [item.cantidad, item.item_id, ubic.obra, ubic.bodega]
                 );
             }
 

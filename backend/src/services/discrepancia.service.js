@@ -1,13 +1,16 @@
 const db = require('../config/db');
+const { normalizeUbicacion } = require('../utils/ubicacionStock');
 
 const discrepanciaService = {
     async reportar(data, userId) {
-        const { item_id, obra_id, bodega_id, cantidad_reportada } = data;
+        const { item_id, cantidad_reportada } = data;
+        // XOR (mig 050): la discrepancia se reporta para una ubicación obra XOR bodega.
+        const ubic = normalizeUbicacion(data.obra_id, data.bodega_id);
 
         // Obtener cantidad en sistema
         const [stock] = await db.query(
             'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
-            [item_id, obra_id || null, bodega_id || null]
+            [item_id, ubic.obra, ubic.bodega]
         );
         const cantidadSistema = stock.length ? stock[0].cantidad : 0;
 
@@ -16,7 +19,7 @@ const discrepanciaService = {
         const [result] = await db.query(
             `INSERT INTO discrepancias_inventario (item_id, obra_id, bodega_id, cantidad_sistema, cantidad_reportada, reportado_por)
              VALUES (?, ?, ?, ?, ?, ?)`,
-            [item_id, obra_id || null, bodega_id || null, cantidadSistema, cantidad_reportada, userId]
+            [item_id, ubic.obra, ubic.bodega, cantidadSistema, cantidad_reportada, userId]
         );
         return { id: result.insertId, diferencia: cantidad_reportada - cantidadSistema };
     },
@@ -34,11 +37,13 @@ const discrepanciaService = {
 
             // Opcionalmente ajustar stock al valor reportado
             if (ajustar_stock) {
+                // Defensa: registros legacy de discrepancias pueden tener obra+bodega ambos seteados.
+                const ubic = normalizeUbicacion(d.obra_id, d.bodega_id);
                 await conn.query(
                     `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                      VALUES (?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)`,
-                    [d.item_id, d.obra_id, d.bodega_id, d.cantidad_reportada]
+                    [d.item_id, ubic.obra, ubic.bodega, d.cantidad_reportada]
                 );
             }
 
