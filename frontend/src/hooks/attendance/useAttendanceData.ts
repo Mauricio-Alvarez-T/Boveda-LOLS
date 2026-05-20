@@ -9,6 +9,16 @@ import type { ApiResponse } from '../../types';
 
 export type AlertaFalta = { trabajador_id: number; total_faltas: number; alertas: { tipo: string; mensaje: string }[] };
 
+// Normaliza string para búsqueda: lowercase + quita tildes (NFD) + trim.
+// Centralizar acá garantiza que todos los matches usen el mismo criterio.
+const STRIP_DIACRITICS = /[̀-ͯ]/g;
+const normalize = (s: string | null | undefined): string =>
+    (s ?? '')
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(STRIP_DIACRITICS, '')
+        .trim();
+
 export function useAttendanceData() {
     const { selectedObra } = useObra();
     const { hasPermission } = useAuth();
@@ -239,51 +249,74 @@ export function useAttendanceData() {
             .sort((a, b) => a.nombre.localeCompare(b.nombre));
     }, [workers]);
 
+    // Corpus pre-normalizado por worker: se calcula una sola vez cuando cambian
+    // los workers (no por keystroke). Cada item contiene un "blob" con todos los
+    // campos buscables concatenados ya en lowercase + sin tildes, lo que permite
+    // que `filteredWorkers` haga solo `String.includes` baratos por keystroke.
+    //
+    // Campos incluidos: apellido_paterno, apellido_materno, nombres (con todos
+    // los nombres separados por espacios), rut (formateado y colapsado),
+    // empresa_nombre y cargo_nombre. Esto habilita buscar por cualquier combo
+    // de nombres + apellidos + empresa + cargo + rut sin l\u00f3gica especial.
+    const searchableWorkers = useMemo(() => {
+        return workers.map(w => {
+            const rut = w.rut || '';
+            const rutCollapsed = rut.replace(/[\s.-]/g, '');
+            const blob = normalize(
+                `${w.apellido_paterno || ''} ${w.apellido_materno || ''} ${w.nombres || ''} ${rut} ${rutCollapsed} ${w.empresa_nombre || ''} ${w.cargo_nombre || ''}`
+            );
+            return { worker: w, blob, rutCollapsed };
+        });
+    }, [workers]);
+
+    // Sort estable por nombre \u2014 independiente del query. Se recalcula solo
+    // cuando cambia la lista de workers, no en cada tecla del input.
+    const sortedSearchable = useMemo(() => {
+        return [...searchableWorkers].sort((a, b) =>
+            a.blob.localeCompare(b.blob, 'es', { sensitivity: 'base' })
+        );
+    }, [searchableWorkers]);
+
     const filteredWorkers = useMemo(() => {
-        let result = workers.filter(w => {
+        // Filtros estructurales: activo, rango contractual, empresa, estado de
+        // asistencia. Estos no dependen del query.
+        let result = sortedSearchable.filter(({ worker: w }) => {
             if (!w.activo) return false;
             const fIngreso = w.fecha_ingreso ? String(w.fecha_ingreso).split('T')[0] : null;
             const fDesvinc = w.fecha_desvinculacion ? String(w.fecha_desvinculacion).split('T')[0] : null;
             const isDesvinculado = fDesvinc ? date > fDesvinc : false;
             const isPreContrato = fIngreso ? date < fIngreso : false;
-            return !isDesvinculado && !isPreContrato;
-        });
-
-        if (selectedEmpresaId !== null) {
-            result = result.filter(w => w.empresa_id === selectedEmpresaId);
-        }
-
-        if (statusFilter !== null) {
-            result = result.filter(w => {
+            if (isDesvinculado || isPreContrato) return false;
+            if (selectedEmpresaId !== null && w.empresa_id !== selectedEmpresaId) return false;
+            if (statusFilter !== null) {
                 const a = attendance[w.id];
-                return a && a.estado_id === statusFilter;
-            });
-        }
-
-        if (deferredSearchQuery) {
-            const q = deferredSearchQuery.toLowerCase().trim();
-            const qCollapsed = q.replace(/[\s.-]/g, '');
-            result = result.filter(w => {
-                const fullName = `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.toLowerCase();
-                const rutExact = w.rut.toLowerCase();
-                const rutCollapsed = w.rut.toLowerCase().replace(/[\s.-]/g, '');
-
-                return fullName.includes(q) ||
-                    rutExact.includes(q) ||
-                    (qCollapsed.length > 0 && rutCollapsed.includes(qCollapsed));
-            });
-        }
-        return [...result].sort((a, b) => {
-            const getFullNameSort = (w: any) => {
-                return `${w.apellido_paterno || ''} ${w.apellido_materno || ''} ${w.nombres || ''}`
-                    .toLowerCase()
-                    .trim()
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "");
-            };
-            return getFullNameSort(a).localeCompare(getFullNameSort(b), 'es', { sensitivity: 'base' });
+                if (!a || a.estado_id !== statusFilter) return false;
+            }
+            return true;
         });
-    }, [workers, deferredSearchQuery, selectedEmpresaId, statusFilter, attendance, date]);
+
+        // B\u00fasqueda multi-token con AND: tipe\u00e1s "juan perez" y trae a quien tenga
+        // AMBOS tokens en el corpus. Habilita cualquier combo nombre+apellido,
+        // empresa+nombre, cargo+empresa, etc. Cada token es independiente y se
+        // matchea por substring contra el blob ya normalizado.
+        const q = deferredSearchQuery.trim();
+        if (q) {
+            const tokens = normalize(q).split(/\s+/).filter(Boolean);
+            result = result.filter(({ blob, rutCollapsed }) => {
+                return tokens.every(t => {
+                    if (blob.includes(t)) return true;
+                    // Match alternativo de RUT: tipe\u00e1s "123456789" y matchea
+                    // "12.345.678-9". Solo aplicamos si el token parece RUT
+                    // (>=3 chars tras colapsar) para no producir falsos
+                    // positivos con tokens cortos.
+                    const tCollapsed = t.replace(/[\s.-]/g, '');
+                    return tCollapsed.length >= 3 && rutCollapsed.includes(tCollapsed);
+                });
+            });
+        }
+
+        return result.map(({ worker }) => worker);
+    }, [sortedSearchable, deferredSearchQuery, selectedEmpresaId, statusFilter, attendance, date]);
 
     const summary = useMemo(() => {
         const counts: Record<string, { count: number; estado: EstadoAsistencia }> = {};

@@ -333,11 +333,12 @@ const AttendanceDailyTab: React.FC = () => {
                                 const workerAlerta = alertasFaltas.find(a => a.trabajador_id === worker.id);
 
                                 return (
-                                    <motion.div
+                                    // Perf: sin motion.div + whileInView en el row. Con 183 workers
+                                    // y AnimatePresence padre, cada keystroke disparaba IntersectionObserver
+                                    // sobre todas las filas → input se pegaba y omitía caracteres.
+                                    // Trade-off: pierde fade-in stagger. Velocidad > animación.
+                                    <div
                                         key={`${worker.id}-${date}`}
-                                        initial={{ opacity: 0, y: 10 }}
-                                        whileInView={{ opacity: 1, y: 0 }}
-                                        viewport={{ once: true }}
                                         title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
                                         className={cn(
                                             "transition-all duration-200 bg-white rounded-2xl border border-[#E8E8ED] shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
@@ -520,7 +521,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                 </motion.div>
                                             )}
                                         </AnimatePresence>
-                                    </motion.div>
+                                    </div>
                                 )
                             })}
                         </AnimatePresence>
