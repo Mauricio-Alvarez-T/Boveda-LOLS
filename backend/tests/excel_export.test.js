@@ -19,10 +19,10 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
-            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 1 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
         ];
 
         // Juan solo tiene 1 asistencia el viernes 13 de marzo 2026
@@ -69,8 +69,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
         ];
 
         // Solo asistió el viernes 13 de marzo 2026
@@ -140,9 +140,9 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#5856D6', activo: 1, es_presente: 0 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#5856D6', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
         ];
 
         // LM período: lunes 9 al domingo 15 de marzo 2026 (incluye sab 14 + dom 15)
@@ -196,7 +196,7 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         expect(domLM.value).toBe('LM');
         expect(domLM.fill?.fgColor?.argb).toBe('FF5856D6');
 
-        // Verificar que fórmula COUNTIF NO incluye "LM" (LM es_presente=0, no está en codigosSumanDia)
+        // Verificar que fórmula COUNTIF NO incluye "LM" (LM cuenta_dia_trabajado=0, no está en codigosSumanDia)
         const q1Cell = wsLols.getCell(9, 24); // Q1 col
         const formula = q1Cell.value.formula;
         expect(formula).toContain('"FDS"');
@@ -215,12 +215,12 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         // 6 estados + 1 FDS = 7 items → 4 izquierda, 3 derecha
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
-            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 1 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 1 },
-            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1 },
-            { id: 6, codigo: 'AT', nombre: 'Atraso', color: '#FF6B6B', activo: 1, es_presente: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 6, codigo: 'AT', nombre: 'Atraso', color: '#FF6B6B', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 }
         ];
 
         db.query.mockImplementation((sql) => {

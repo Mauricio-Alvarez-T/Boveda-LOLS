@@ -1107,12 +1107,15 @@ const asistenciaService = {
         };
 
         // ── Códigos que suman como día trabajado (DINÁMICO desde BD) ──
-        // Se lee el campo es_presente de estados_asistencia para que cualquier
-        // cambio en la configuración se refleje automáticamente en el Excel.
+        // Se lee el campo cuenta_dia_trabajado (migración 049) para separar la
+        // semántica "estuvo físicamente presente" (es_presente, usada por
+        // dashboard/fiscalización) de "se paga este día" (cuenta_dia_trabajado,
+        // usada acá para el Excel de nómina). Vacaciones (V) y permisos legales
+        // pagados (PL) tienen es_presente=FALSE pero cuenta_dia_trabajado=TRUE.
         // Se aplican las mismas consolidaciones de código (NAC/DEF/MAT→PL, AT→JI).
         const codigosSumanDia = [...new Set(
             estados
-                .filter(e => e.es_presente)
+                .filter(e => e.cuenta_dia_trabajado)
                 .map(e => {
                     let cod = e.codigo;
                     if (['NAC', 'DEF', 'MAT'].includes(cod)) cod = 'PL';
