@@ -15,8 +15,6 @@ interface AttendanceHeaderActionsProps {
     hasPermission: (p: string) => boolean;
     isFeriado: boolean;
     isWeekend: boolean;
-    searchQuery: string;
-    setSearchQuery: (val: string) => void;
     selectedEmpresaId: number | null;
     setSelectedEmpresaId: (val: number | null) => void;
     availableEmpresas: { id: number, nombre: string }[];
@@ -30,9 +28,9 @@ interface AttendanceHeaderActionsProps {
  * Layout strategy by breakpoint:
  *   - Mobile (<md):    Send + Repeat + Save + overflow "..." menu
  *   - Tablet (md-lg):  Overflow "..." menu (holds WhatsApp/Excel/Repeat/Feriado/Empresa) + Save
- *                      Search bar + Empresa filter are rendered OUTSIDE this component,
- *                      inside the page body via <AttendanceToolbar />.
- *   - Desktop (lg+):   Inline search + empresa + all action buttons + Save
+ *   - Desktop (lg+):   Inline empresa filter + all action buttons + Save
+ *
+ * El buscador vive en <AttendanceSummaryRow /> para md+ y como FAB en mobile.
  */
 export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = ({
     handleShareWhatsApp,
@@ -45,8 +43,6 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     hasPermission,
     isFeriado,
     isWeekend,
-    searchQuery,
-    setSearchQuery,
     selectedEmpresaId,
     setSelectedEmpresaId,
     availableEmpresas,
@@ -91,23 +87,10 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
             </div>
 
             {/* ═══════════════════════════════════════════ */}
-            {/*  DESKTOP (lg+): search (separado) + empresa */}
+            {/*  DESKTOP (lg+): filtro empresa              */}
+            {/*  (Buscador ahora vive en AttendanceSummaryRow) */}
             {/* ═══════════════════════════════════════════ */}
-            <div className="hidden lg:flex items-center gap-2 min-w-0 flex-1 max-w-[480px]">
-                {/* Buscador — caja propia */}
-                <div className="flex-1 min-w-0 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl shadow-sm overflow-hidden">
-                    <div className="relative group">
-                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-hover:text-brand-primary" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-                        <input
-                            type="text"
-                            placeholder="Buscar..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full h-9 pl-8 pr-3 bg-transparent text-xs font-medium focus:outline-none"
-                        />
-                    </div>
-                </div>
-
+            <div className="hidden lg:flex items-center gap-2 shrink-0">
                 {/* Filtro empresa — caja propia */}
                 <div className="bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl shadow-sm overflow-hidden shrink-0">
                     <select
