@@ -14,18 +14,10 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
         <PageHeaderProvider>
           <App />
           <Toaster
-            position="top-right"
+            position="bottom-center"
             closeButton
             duration={3000}
-            toastOptions={{
-              style: {
-                background: 'white',
-              },
-              className: 'shadow-lg border border-[#E8E8ED] !opacity-100',
-              classNames: {
-                closeButton: '!bg-background !text-brand-dark !border border-[#E8E8ED] hover:!bg-[#E8E8ED] !opacity-100 focus:!ring-2 focus:!ring-brand-primary'
-              }
-            }}
+            theme="light"
           />
         </PageHeaderProvider>
       </ObraProvider>
