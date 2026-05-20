@@ -41,17 +41,23 @@ describe('recibir() — régimen nuevo vs legacy', () => {
         conn.query
             // SELECT transferencias
             .mockResolvedValueOnce([[trfRow]])
-            // SELECT transferencia_items (dbItems)
-            .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: 3, origen_obra_id: null, origen_bodega_id: 2 }]])
-            // SELECT splits for item 200
-            .mockResolvedValueOnce([[{ origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 3 }]])
-            // UPDATE ubicaciones_stock (decremento origen)
+            // SELECT transferencia_items (dbItems) — ahora incluye cantidad_recibida
+            .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: 3, cantidad_recibida: null, origen_obra_id: null, origen_bodega_id: 2 }]])
+            // INSERT transferencia_recepciones (header del evento de recepción)
+            .mockResolvedValueOnce([{ insertId: 5000 }])
+            // SELECT splits for item 200 — ahora incluye id + cantidad_decrementada
+            .mockResolvedValueOnce([[{ id: 700, origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 3, cantidad_decrementada: 0 }]])
+            // UPDATE ubicaciones_stock (decremento origen) — por split FIFO
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // UPDATE transferencia_items cantidad_recibida
+            // UPDATE transferencia_item_origenes cantidad_decrementada++
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            // UPDATE transferencia_items cantidad_recibida acumulado
             .mockResolvedValueOnce([{ affectedRows: 1 }])
             // INSERT ubicaciones_stock destino
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // UPDATE transferencias → recibida
+            // INSERT transferencia_recepcion_items (audit)
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            // UPDATE transferencias → recibida (tipo='total' default, cantidad=enviada=3, sin discrepancia)
             .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
         await transferenciaService.recibir(100, 77, [
@@ -87,10 +93,13 @@ describe('recibir() — régimen nuevo vs legacy', () => {
 
         conn.query
             .mockResolvedValueOnce([[trfRow]])
-            .mockResolvedValueOnce([[{ id: 201, item_id: 5, cantidad_enviada: 3, origen_obra_id: null, origen_bodega_id: 2 }]])
-            // NO hay SELECT splits — régimen legacy salta decremento
-            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE cantidad_recibida
+            .mockResolvedValueOnce([[{ id: 201, item_id: 5, cantidad_enviada: 3, cantidad_recibida: null, origen_obra_id: null, origen_bodega_id: 2 }]])
+            // INSERT transferencia_recepciones (header)
+            .mockResolvedValueOnce([{ insertId: 5001 }])
+            // NO hay SELECT splits — régimen legacy salta decremento origen
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE cantidad_recibida acumulado
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT destino
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT recepcion_items audit
             .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE → recibida
 
         await transferenciaService.recibir(101, 77, [

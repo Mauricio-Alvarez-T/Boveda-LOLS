@@ -151,9 +151,22 @@ router.put('/:id/despachar', auth, checkPermission('inventario.transferencias.de
 });
 
 // PUT /api/transferencias/:id/recibir — SoD: el receptor no puede ser el transportista
+// Body acepta `tipo: 'parcial' | 'total'` (default 'total' por back-compat).
+// En modo parcial: deja la TRF en estado 'recepcion_parcial' para múltiples viajes.
+// En modo total: cierra la TRF (estado 'recibida') y genera discrepancias por gaps.
 router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.recibir'), async (req, res, next) => {
     try {
-        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p);
+        const tipo = req.body.tipo === 'parcial' ? 'parcial' : 'total';
+        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// GET /api/transferencias/:id/recepciones — historial de eventos de recepción
+// Cualquier usuario con permiso de ver la TRF puede ver su historial.
+router.get('/:id/recepciones', auth, checkPermission('inventario.transferencias.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getRecepciones(req.params.id);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

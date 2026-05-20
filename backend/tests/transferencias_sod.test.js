@@ -242,15 +242,21 @@ describe('SoD — recibir()', () => {
 
         conn.query
             .mockResolvedValueOnce([[trfRow]])
-            // SELECT transferencia_items
-            .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: 3, origen_obra_id: null, origen_bodega_id: 2 }]])
-            // SELECT splits
-            .mockResolvedValueOnce([[{ origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 3 }]])
+            // SELECT transferencia_items (con cantidad_recibida)
+            .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: 3, cantidad_recibida: null, origen_obra_id: null, origen_bodega_id: 2 }]])
+            // INSERT transferencia_recepciones header
+            .mockResolvedValueOnce([{ insertId: 5100 }])
+            // SELECT splits (con id + cantidad_decrementada)
+            .mockResolvedValueOnce([[{ id: 800, origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 3, cantidad_decrementada: 0 }]])
             // UPDATE ubicaciones_stock decremento origen
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // UPDATE transferencia_items cantidad_recibida
+            // UPDATE transferencia_item_origenes cantidad_decrementada
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            // UPDATE transferencia_items cantidad_recibida (acumulado)
             .mockResolvedValueOnce([{ affectedRows: 1 }])
             // INSERT ubicaciones_stock destino
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            // INSERT transferencia_recepcion_items audit
             .mockResolvedValueOnce([{ affectedRows: 1 }])
             // UPDATE transferencias → recibida
             .mockResolvedValueOnce([{ affectedRows: 1 }]);

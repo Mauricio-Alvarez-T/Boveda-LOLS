@@ -1,5 +1,5 @@
 import React from 'react';
-import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, AlertTriangle } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, AlertTriangle, PackageOpen } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { Transferencia } from '../../types/entities';
 
@@ -21,6 +21,10 @@ export const estadoConfig: Record<string, { label: string; color: string; bgSoli
     pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200', bgSolid: 'bg-amber-500', icon: Clock },
     aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
     en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200', bgSolid: 'bg-indigo-500', icon: Truck },
+    // recepcion_parcial: sub-estado entre en_transito y recibida. La TRF llegó
+    // en parte pero quedan más viajes pendientes. Color púrpura para diferenciarlo
+    // visualmente de en_transito (indigo) — "está llegando" vs "viene en camino".
+    recepcion_parcial: { label: 'Recibiendo Parcial', color: 'bg-purple-100 text-purple-700 border-purple-200', bgSolid: 'bg-purple-500', icon: PackageOpen },
     recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200', bgSolid: 'bg-green-500', icon: PackageCheck },
     rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200', bgSolid: 'bg-red-500', icon: XCircle },
     cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200', bgSolid: 'bg-gray-400', icon: Ban },

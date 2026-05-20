@@ -2,13 +2,13 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import {
-    ChevronLeft, FileText, CheckCircle2, PackageCheck,
+    ChevronLeft, FileText, CheckCircle2, PackageCheck, PackageOpen,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
     MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send,
-    ShoppingBag, Info,
+    ShoppingBag, Info, History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
-import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
+import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit, TransferenciaRecepcion } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
 import FaltanteDecisionModal from './FaltanteDecisionModal';
@@ -38,7 +38,12 @@ interface Props {
         >;
     }) => Promise<boolean>;
     onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
-    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => Promise<boolean>;
+    onRecibir: (
+        items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
+        tipo?: 'parcial' | 'total'
+    ) => Promise<boolean>;
+    /** Fetcher del historial de eventos de recepción. Inyectado por el panel padre. */
+    onFetchRecepciones?: (id: number) => Promise<TransferenciaRecepcion[]>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onRechazarRecepcion?: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
@@ -51,8 +56,10 @@ const STEPS = [
     { key: 'recibida', label: 'Recibida', icon: PackageCheck },
 ];
 
+// recepcion_parcial entra como step 1 (junto con aprobada/en_transito) porque
+// aún no termina el flujo — la TRF sigue abierta hasta el cierre total.
 const STEP_INDEX: Record<string, number> = {
-    pendiente: 0, aprobada: 1, en_transito: 1, recibida: 2,
+    pendiente: 0, aprobada: 1, en_transito: 1, recepcion_parcial: 1, recibida: 2,
     rechazada: -1, cancelada: -1,
 };
 
@@ -65,7 +72,7 @@ const fmtDateTime = (d: string | null) =>
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onRechazar, onRechazarRecepcion, onCancelar,
+    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     // Items personalizados (fuera de catálogo). Schema mínimo, no comparte interfaz
@@ -107,10 +114,15 @@ const TransferenciaDetail: React.FC<Props> = ({
         hasPermission('inventario.transferencias.despachar') &&
         (!isAprobador || hasBypass);
     const canRecibir =
-        (t.estado === 'en_transito' || t.estado === 'aprobada') &&
+        (t.estado === 'en_transito' || t.estado === 'aprobada' || t.estado === 'recepcion_parcial') &&
         hasPermission('inventario.transferencias.recibir') &&
         // si estado aprobada (sin paso por despacho), bloquea si soy el aprobador
         (t.estado === 'aprobada' ? (!isAprobador || hasBypass) : (!isTransportista || hasBypass));
+    // Rechazo de recepción: solo en en_transito (antes de recibir nada). Una
+    // vez en recepcion_parcial el receptor ya movió stock, por lo que rechazar
+    // dejaría inventario inconsistente. Para "abortar" desde parcial, usar
+    // "Recepción Total" con cantidad=0 en los pendientes → cierra el flujo y
+    // genera discrepancia por lo no llegado.
     const canRechazarRecepcion =
         t.estado === 'en_transito' &&
         hasPermission('inventario.transferencias.recibir') &&
@@ -132,13 +144,14 @@ const TransferenciaDetail: React.FC<Props> = ({
         isAprobador && t.estado === 'aprobada' &&
         hasPermission('inventario.transferencias.despachar') && !hasBypass;
     const showSodBannerTransportista =
-        isTransportista && t.estado === 'en_transito' &&
+        isTransportista && (t.estado === 'en_transito' || t.estado === 'recepcion_parcial') &&
         hasPermission('inventario.transferencias.recibir') && !hasBypass;
     // Pendiente entra en la lista porque RRHH/operaciones quieren notificar al
     // grupo WhatsApp para que el aprobador a cargo abra la app y revise la
     // factibilidad. El mensaje pendiente lleva las cantidades solicitadas
     // (la rama del `if` por estado en handleShareWhatsApp ya cubre eso).
-    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recibida'].includes(t.estado);
+    // recepcion_parcial también comparte (caso útil: "ya llegó la mitad, faltan X").
+    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial', 'recibida'].includes(t.estado);
     const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
     // ── Clipboard helper con fallback para navegadores sin clipboard API ──
@@ -206,8 +219,10 @@ const TransferenciaDetail: React.FC<Props> = ({
             // Etiqueta y cantidad dependen del estado para reflejar la columna real
             // (Solicit / Enviada / Recibida) — antes siempre mostraba enviada y
             // confundía al receptor cuando la recepción difería del despacho.
+            // recepcion_parcial: ya llegó algo, falta más → muestra acumulado + pendiente.
             const itemsLabel =
                 t.estado === 'recibida' ? 'Items recibidos' :
+                t.estado === 'recepcion_parcial' ? 'Items en curso de recepción' :
                 t.estado === 'aprobada' || t.estado === 'en_transito' ? 'Items enviados' :
                 'Items solicitados';
             lines.push(`${BOX} *${itemsLabel} (${items.length}):*`);
@@ -215,6 +230,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                 let cant: number;
                 if (t.estado === 'recibida') {
                     cant = it.cantidad_recibida ?? it.cantidad_enviada ?? it.cantidad_solicitada;
+                } else if (t.estado === 'recepcion_parcial') {
+                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
                 } else if (t.estado === 'aprobada' || t.estado === 'en_transito') {
                     cant = it.cantidad_enviada ?? it.cantidad_solicitada;
                 } else {
@@ -223,6 +240,16 @@ const TransferenciaDetail: React.FC<Props> = ({
                 const unidad = it.unidad ? ` ${it.unidad}` : '';
                 const desc = it.item_descripcion || `Item #${it.item_id}`;
                 lines.push(`• ${cant}${unidad} — ${desc}`);
+                // En recepcion_parcial mostrar lo ya recibido y lo pendiente
+                // — el aprobador/transportista necesita saber qué viaje queda.
+                if (
+                    t.estado === 'recepcion_parcial' &&
+                    it.cantidad_enviada != null
+                ) {
+                    const recibida = it.cantidad_recibida ?? 0;
+                    const pendiente = it.cantidad_enviada - recibida;
+                    lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
+                }
                 // Si en recepción hubo discrepancia con lo enviado, anótala bajo el item
                 // — facilita conciliación sin abrir la app.
                 if (
@@ -320,11 +347,25 @@ const TransferenciaDetail: React.FC<Props> = ({
         faltantes: { item_descripcion: string; cantidad_faltante: number; unidad?: string }[];
     }>({ isOpen: false, loading: false, faltantes: [] });
 
-    // Receive state
+    // Receive state — cantidad_recibida representa "cantidad de ESTE viaje".
+    // Para parciales, el default es lo PENDIENTE (enviada - recibida_acumulada),
+    // no la enviada total. Permite que el usuario solo edite las cantidades que
+    // efectivamente trajo el camión.
     const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string }[]>([]);
+
+    // Historial de eventos de recepción (parciales + total). Se carga cuando la
+    // TRF está en recepcion_parcial o recibida y existe al menos 1 evento.
+    const [recepciones, setRecepciones] = useState<TransferenciaRecepcion[]>([]);
+    const [historialOpen, setHistorialOpen] = useState(false);
 
     // Reject state
     const [rejectMotivo, setRejectMotivo] = useState('');
+
+    // Helper: cantidad ya recibida acumulada por item (de transferencia_items).
+    // Usada para calcular "pendiente" en cada viaje sucesivo.
+    const recibidaPrevia = (item: TransferenciaItem) => item.cantidad_recibida ?? 0;
+    const pendientePorItem = (item: TransferenciaItem) =>
+        (item.cantidad_enviada ?? item.cantidad_solicitada) - recibidaPrevia(item);
 
     // Reset forms when transferencia changes.
     // useEffect (no useMemo): los useMemo no garantizan ejecutar side effects
@@ -337,15 +378,33 @@ const TransferenciaDetail: React.FC<Props> = ({
             cantidad_solicitada: i.cantidad_solicitada,
             splits: [],
         })));
+        // Default cantidad este viaje = pendiente (lo que aún no ha llegado).
+        // Permite al usuario simplemente confirmar si trajeron todo lo pendiente.
         setReceiveItems(items.map(i => ({
             item_id: i.item_id,
-            cantidad_recibida: i.cantidad_enviada || i.cantidad_solicitada,
+            cantidad_recibida: pendientePorItem(i),
             correcto: true,
             observacion: '',
         })));
         setRejectMotivo('');
+        setRecepciones([]);
+        setHistorialOpen(false);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t.id]);
+
+    // Cargar historial de recepciones cuando la TRF tiene eventos previos.
+    // Disparado al cambiar de TRF o cuando se cierra el form de recepción
+    // (después de un parcial) para reflejar el nuevo evento.
+    useEffect(() => {
+        if (!onFetchRecepciones) return;
+        if (t.estado !== 'recepcion_parcial' && t.estado !== 'recibida') return;
+        let cancelled = false;
+        onFetchRecepciones(t.id).then(rows => {
+            if (!cancelled) setRecepciones(rows);
+        });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [t.id, t.estado, activeForm]);
 
     // Load stock when approval form opens
     useEffect(() => {
@@ -485,6 +544,75 @@ const TransferenciaDetail: React.FC<Props> = ({
                 </div>
             )}
 
+            {/* ── Historial de recepciones (parciales + total) ──
+                Solo se muestra si hubo al menos 1 evento. Permite al receptor
+                ver cuándo y qué llegó en viajes anteriores antes de registrar
+                el siguiente. Datos vienen del endpoint GET /:id/recepciones. */}
+            {recepciones.length > 0 && (
+                <div className="shrink-0 mb-5">
+                    <button
+                        type="button"
+                        onClick={() => setHistorialOpen(o => !o)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-purple-50/60 hover:bg-purple-50 border border-purple-200 rounded-xl transition-all"
+                    >
+                        <h4 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                            <History className="h-3.5 w-3.5" />
+                            Historial de recepciones ({recepciones.length})
+                        </h4>
+                        {historialOpen ? <ChevronUp className="h-4 w-4 text-purple-700" /> : <ChevronDown className="h-4 w-4 text-purple-700" />}
+                    </button>
+                    {historialOpen && (
+                        <div className="mt-2 space-y-2">
+                            {recepciones.map((rec, idx) => (
+                                <div
+                                    key={rec.id}
+                                    className={cn(
+                                        "border rounded-xl p-3",
+                                        rec.tipo === 'total'
+                                            ? "bg-green-50/40 border-green-200"
+                                            : "bg-purple-50/40 border-purple-200"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-bold text-muted-foreground">#{idx + 1}</span>
+                                            <span
+                                                className={cn(
+                                                    "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                                                    rec.tipo === 'total'
+                                                        ? "bg-green-100 text-green-800 border-green-300"
+                                                        : "bg-purple-100 text-purple-800 border-purple-300"
+                                                )}
+                                            >
+                                                {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            por <strong className="text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</strong>
+                                        </span>
+                                    </div>
+                                    <ul className="space-y-0.5 ml-2">
+                                        {rec.items.map(ri => (
+                                            <li key={ri.id} className="text-[11px] flex justify-between">
+                                                <span className="text-brand-dark">
+                                                    <span className="font-semibold">{ri.cantidad_recibida}</span>
+                                                    {ri.unidad ? <span className="text-muted-foreground"> {ri.unidad}</span> : null}
+                                                    <span className="text-muted-foreground"> · {ri.item_descripcion || `Item #${ri.item_id}`}</span>
+                                                </span>
+                                                {ri.observacion && (
+                                                    <span className="text-[10px] text-muted-foreground italic ml-2">{ri.observacion}</span>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
                 <div className="shrink-0 mb-5">
@@ -577,8 +705,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                     {canRecibir && (
                         <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
+                            title={
+                                t.estado === 'recepcion_parcial'
+                                    ? 'Registrar nuevo viaje de recepción (parcial o total)'
+                                    : 'Registrar recepción de este cargamento (parcial o total)'
+                            }
                             className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                            <PackageCheck className="h-3.5 w-3.5" /> Confirmar Recepcion
+                            <PackageCheck className="h-3.5 w-3.5" />
+                            {t.estado === 'recepcion_parcial' ? 'Registrar Nuevo Viaje' : 'Registrar Recepción'}
                         </button>
                     )}
                     {canRechazarRecepcion && (
@@ -1222,22 +1356,51 @@ const TransferenciaDetail: React.FC<Props> = ({
             )}
 
             {/* ════════════════════════════════════════════
-                ── RECEIVE FORM — per-item confirmation ──
+                ── RECEIVE FORM — parcial vs total ──
+                Por ítem: Enviada total / Recibida previa (de viajes anteriores)
+                / Pendiente (lo que aún falta llegar). El usuario ingresa cuánto
+                trajo ESTE viaje. Dos botones:
+                  · Recepción Parcial → estado recepcion_parcial, más viajes vendrán.
+                  · Recepción Total   → estado recibida, cierra el flujo, gaps =
+                    discrepancia.
                ════════════════════════════════════════════ */}
-            {activeForm === 'recibir' && (
+            {activeForm === 'recibir' && (() => {
+                // Calcula si hay over-receive en modo parcial (input > pendiente).
+                // Si lo hay, deshabilita el botón "Recepción Parcial" — el usuario
+                // debe usar "Recepción Total" para cerrar con discrepancia.
+                const hasOverReceive = receiveItems.some((ri, idx) => {
+                    const item = items[idx];
+                    if (!item) return false;
+                    return ri.cantidad_recibida > pendientePorItem(item);
+                });
+                const totalRecibidoEsteViaje = receiveItems.reduce((s, ri) => s + (ri.cantidad_recibida || 0), 0);
+
+                return (
                 <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl p-4 mb-4 space-y-4">
                     <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
-                        <PackageCheck className="h-4 w-4 text-brand-primary" /> Confirmar Recepcion
+                        <PackageCheck className="h-4 w-4 text-brand-primary" /> Confirmar Recepción
                     </h4>
+
+                    {/* Hint del modo parcial */}
+                    <div className="text-[11px] text-muted-foreground bg-white/60 rounded-lg px-3 py-2 border border-[#E8E8ED]">
+                        Ingresa <strong className="text-brand-dark">cuánto trajo este viaje</strong>. Si vienen más viajes, elige
+                        <strong className="text-purple-700"> "Recepción Parcial"</strong>; si es el último, elige
+                        <strong className="text-green-700"> "Recepción Total"</strong> para cerrar la transferencia.
+                    </div>
 
                     <div className="space-y-2">
                         {items.map((item, idx) => {
                             const ri = receiveItems[idx];
                             if (!ri) return null;
+                            const enviada = item.cantidad_enviada ?? item.cantidad_solicitada;
+                            const previa = recibidaPrevia(item);
+                            const pendiente = pendientePorItem(item);
+                            const isOver = ri.cantidad_recibida > pendiente;
                             return (
                                 <div key={item.id || idx} className={cn(
                                     "bg-white rounded-xl border p-3 transition-all",
-                                    ri.correcto ? "border-green-200" : "border-red-200"
+                                    isOver ? "border-amber-300" :
+                                        ri.correcto ? "border-green-200" : "border-red-200"
                                 )}>
                                     {/* Item name + correct toggle */}
                                     <div className="flex items-center justify-between mb-2">
@@ -1261,51 +1424,83 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         </button>
                                     </div>
 
-                                    {/* Quantity */}
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <span className="text-[10px] text-muted-foreground">
-                                            Enviada: <span className="font-semibold text-brand-dark">{item.cantidad_enviada ?? item.cantidad_solicitada}</span>
-                                        </span>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] text-muted-foreground">Recibida:</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...receiveItems];
-                                                    const current = updated[idx].cantidad_recibida;
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, current - 1) };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                disabled={ri.cantidad_recibida <= 0}
-                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                                aria-label="Restar 1"
-                                            >
-                                                <Minus className="h-3 w-3" />
-                                            </button>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={ri.cantidad_recibida}
-                                                onChange={e => {
-                                                    const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                className="w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
-                                                aria-label="Sumar 1"
-                                            >
-                                                <Plus className="h-3 w-3" />
-                                            </button>
+                                    {/* Quantity columns: Enviada / Previa / Pendiente */}
+                                    <div className="grid grid-cols-3 gap-2 mb-2 text-center text-[10px]">
+                                        <div className="bg-[#F5F7FA] rounded-lg py-1.5">
+                                            <div className="text-muted-foreground">Enviada</div>
+                                            <div className="font-bold text-brand-dark">{enviada}</div>
                                         </div>
+                                        <div className={cn("rounded-lg py-1.5", previa > 0 ? "bg-purple-50" : "bg-[#F5F7FA]")}>
+                                            <div className="text-muted-foreground">Recibida previa</div>
+                                            <div className={cn("font-bold", previa > 0 ? "text-purple-700" : "text-brand-dark")}>{previa}</div>
+                                        </div>
+                                        <div className={cn("rounded-lg py-1.5", pendiente > 0 ? "bg-amber-50" : "bg-green-50")}>
+                                            <div className="text-muted-foreground">Pendiente</div>
+                                            <div className={cn("font-bold", pendiente > 0 ? "text-amber-700" : "text-green-700")}>{pendiente}</div>
+                                        </div>
+                                    </div>
+
+                                    {/* Input cantidad este viaje */}
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] text-muted-foreground font-medium">Este viaje:</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const updated = [...receiveItems];
+                                                const current = updated[idx].cantidad_recibida;
+                                                updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, current - 1) };
+                                                setReceiveItems(updated);
+                                            }}
+                                            disabled={ri.cantidad_recibida <= 0}
+                                            className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                            aria-label="Restar 1"
+                                        >
+                                            <Minus className="h-3 w-3" />
+                                        </button>
+                                        <input
+                                            type="number"
+                                            min={0}
+                                            value={ri.cantidad_recibida}
+                                            onChange={e => {
+                                                const updated = [...receiveItems];
+                                                updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
+                                                setReceiveItems(updated);
+                                            }}
+                                            className={cn(
+                                                "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
+                                                isOver && "border-amber-400 bg-amber-50 text-amber-800"
+                                            )}
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const updated = [...receiveItems];
+                                                updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
+                                                setReceiveItems(updated);
+                                            }}
+                                            className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                            aria-label="Sumar 1"
+                                        >
+                                            <Plus className="h-3 w-3" />
+                                        </button>
+                                        {/* Quick-fill: setea al pendiente */}
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                const updated = [...receiveItems];
+                                                updated[idx] = { ...updated[idx], cantidad_recibida: pendiente };
+                                                setReceiveItems(updated);
+                                            }}
+                                            className="text-[9px] font-bold text-brand-primary hover:underline px-1.5"
+                                            title="Setear al pendiente"
+                                        >
+                                            todo
+                                        </button>
+                                        {isOver && (
+                                            <span className="text-[9px] text-amber-700 font-bold flex items-center gap-0.5">
+                                                <AlertTriangle className="h-3 w-3" /> Excede pendiente — usa Total
+                                            </span>
+                                        )}
                                     </div>
 
                                     {/* Observation (if incorrect) */}
@@ -1329,35 +1524,69 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                     {/* Summary */}
                     <div className="text-xs text-center text-muted-foreground">
+                        Total este viaje: <span className="font-bold text-brand-dark">{totalRecibidoEsteViaje}</span> · {' '}
                         <span className="font-bold text-green-600">{correctCount}</span> de <span className="font-bold">{items.length}</span> items correctos
                     </div>
 
-                    {/* Confirm / Cancel */}
-                    <div className="flex gap-2">
+                    {/* Buttons: Parcial / Total / Cancelar */}
+                    <div className="flex flex-wrap gap-2">
                         <button
                             onClick={async () => {
-                                const ok = await onRecibir(receiveItems.map(ri => ({
-                                    item_id: ri.item_id,
-                                    cantidad_recibida: ri.cantidad_recibida,
-                                    // Solo se envía la observación si el receptor marcó "Incorrecto"
-                                    // y escribió algo — queda guardada en la fila de discrepancia.
-                                    observacion: !ri.correcto && ri.observacion.trim()
-                                        ? ri.observacion.trim()
-                                        : undefined,
-                                })));
+                                const ok = await onRecibir(
+                                    receiveItems.map(ri => ({
+                                        item_id: ri.item_id,
+                                        cantidad_recibida: ri.cantidad_recibida,
+                                        observacion: !ri.correcto && ri.observacion.trim()
+                                            ? ri.observacion.trim()
+                                            : undefined,
+                                    })),
+                                    'parcial'
+                                );
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading || hasOverReceive || totalRecibidoEsteViaje === 0}
+                            title={
+                                hasOverReceive
+                                    ? 'No puedes exceder el pendiente en una recepción parcial. Usa "Recepción Total" para cerrar con discrepancia.'
+                                    : totalRecibidoEsteViaje === 0
+                                        ? 'No se ingresó ninguna cantidad'
+                                        : 'Registra lo de este viaje y deja la transferencia abierta para próximos viajes'
+                            }
+                            className="flex-1 min-w-[140px] py-2.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                        >
+                            <PackageOpen className="h-3.5 w-3.5" />
+                            {actionLoading ? 'Registrando...' : 'Recepción Parcial'}
+                        </button>
+                        <button
+                            onClick={async () => {
+                                const ok = await onRecibir(
+                                    receiveItems.map(ri => ({
+                                        item_id: ri.item_id,
+                                        cantidad_recibida: ri.cantidad_recibida,
+                                        // Solo se envía la observación si el receptor marcó "Incorrecto"
+                                        // y escribió algo — queda guardada en la fila de discrepancia.
+                                        observacion: !ri.correcto && ri.observacion.trim()
+                                            ? ri.observacion.trim()
+                                            : undefined,
+                                    })),
+                                    'total'
+                                );
                                 if (ok) setActiveForm(null);
                             }}
                             disabled={actionLoading}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all"
+                            title="Cierra la transferencia. Cualquier diferencia entre lo enviado y el acumulado recibido se registra como discrepancia."
+                            className="flex-1 min-w-[140px] py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
                         >
-                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepcion'}
+                            <PackageCheck className="h-3.5 w-3.5" />
+                            {actionLoading ? 'Cerrando...' : 'Recepción Total'}
                         </button>
                         <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                             Cancelar
                         </button>
                     </div>
                 </div>
-            )}
+                );
+            })()}
 
             {/* Item Detail Modal */}
             <ItemDetailModal

@@ -793,4 +793,70 @@ ORDER BY la.fecha DESC LIMIT 50;
 
 ---
 
-*Última actualización: Mayo 2026 — Agregado § 16 Permisos Granulares de Transferencias + SoD (migración 046).*
+## 17. Recepción Parcial de Transferencias (migración 048)
+
+**Caso de uso:** una transferencia aprobada requiere varios viajes para entregar todos los ítems (capacidad del camión, distancia entre obras). El receptor elige al confirmar la llegada de un cargamento:
+- **Recepción Parcial** → registra lo que llegó en este viaje, deja la TRF en estado `recepcion_parcial`, espera próximos viajes. Sin discrepancia.
+- **Recepción Total** → cierra la TRF (estado `recibida`). Cualquier gap entre `cantidad_enviada` y `cantidad_recibida` acumulada se registra como discrepancia (merma o sobrante).
+
+### 17.1 Modelo de datos
+
+Migración 048 introduce:
+- `transferencias.estado` ENUM agrega `'recepcion_parcial'` entre `en_transito` y `recibida`.
+- `transferencia_recepciones` — header por evento de recepción (`receptor_id`, `fecha_recepcion`, `tipo`, `observacion`).
+- `transferencia_recepcion_items` — qué llegó en cada evento (`recepcion_id`, `transferencia_item_id`, `cantidad_recibida`).
+- `transferencia_item_origenes.cantidad_decrementada` — tracking FIFO para parciales sucesivos en multi-origen.
+
+### 17.2 Reglas de stock
+
+- **Régimen nuevo** (`stock_reconciliado = TRUE`): cada parcial decrementa origen + incrementa destino SOLO por la cantidad de ese viaje. Origen consume splits en orden FIFO (id ASC) via `cantidad_decrementada` por split.
+- **Régimen legacy** (`stock_reconciliado = FALSE`): origen ya se descontó al aprobar (FULL). Cada parcial solo incrementa destino. Discrepancia se calcula igual en recepción total.
+
+### 17.3 Estado machine
+
+| Desde | Acción | Destino |
+|---|---|---|
+| `en_transito` o `aprobada` | `recibir(..., 'parcial')` | `recepcion_parcial` |
+| `en_transito` o `aprobada` | `recibir(..., 'total')` | `recibida` |
+| `recepcion_parcial` | `recibir(..., 'parcial')` | `recepcion_parcial` |
+| `recepcion_parcial` | `recibir(..., 'total')` | `recibida` |
+
+### 17.4 Validaciones
+
+- **Over-receive en parcial**: `cantidad_recibida_acumulada + este_viaje > cantidad_enviada` → 400. El receptor debe usar "Recepción Total" si quiere recibir excedente (que se loguea como sobrante).
+- **SoD**: validado en CADA evento de recepción (receptor ≠ transportista; si aprobada directa también ≠ aprobador). Bypass via `inventario.transferencias.sod_bypass`.
+- **Rechazar Recepción** solo permitido en `en_transito` (no en `recepcion_parcial`). Si el receptor ya movió stock parcial y quiere "abortar", debe cerrar con "Recepción Total" con cantidad=0 en los pendientes — eso genera discrepancia por lo no llegado.
+
+### 17.5 Header `receptor_id` / `recibido_por` / `fecha_recepcion`
+
+Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada evento se audita en `transferencia_recepciones` con su propio receptor — útil cuando bodegueros distintos reciben viajes distintos.
+
+### 17.6 UI Frontend
+
+`TransferenciaDetail.tsx`:
+- Estado `recepcion_parcial` muestra badge "Recibiendo Parcial" (color púrpura, icono `PackageOpen`).
+- Botón principal: "Registrar Recepción" (o "Registrar Nuevo Viaje" si ya hay parciales).
+- Form de recepción muestra por ítem 3 columnas: Enviada / Recibida previa / Pendiente. Input "este viaje" defaults al pendiente. Quick-fill "todo" setea al pendiente. Validación visual si excede pendiente.
+- Dos botones de confirmación: "Recepción Parcial" (púrpura, deshabilitado si over-receive) + "Recepción Total" (verde, siempre habilitado).
+- Sección desplegable "Historial de recepciones" — se renderiza si hay eventos. Lista cada uno con fecha, receptor, items + cantidades.
+
+`useTransferencias.ts`: firma `recibir(id, items, tipo)` con `tipo: 'parcial' | 'total'` (default `'total'` por back-compat). Nuevo método `fetchRecepciones(id)`.
+
+### 17.7 Tests
+
+`backend/tests/transferencia_recepcion_parcial.test.js` cubre 9 casos: parcial→parcial→total, stock por evento, FIFO multi-split, over-receive bloqueado, sin discrepancia en parcial, discrepancia en total con merma, SoD en parcial, transiciones desde recepcion_parcial, tipo inválido, y getRecepciones.
+
+### 17.8 Smoke test producción
+
+1. Crear TRF Obra A → Obra B con 3 items (10/10/10 unidades).
+2. Aprobar (user distinto al solicitante). Despachar (user distinto al aprobador).
+3. **Recepción 1 (parcial):** receptor (≠ transportista) marca 5/5/0. Click "Recepción Parcial".
+4. Verificar: estado `recepcion_parcial`, stock A=-5/-5/0, stock B=+5/+5/0, `transferencia_items.cantidad_recibida`=5/5/0, 1 fila en `transferencia_recepciones`, 0 discrepancias.
+5. **Recepción 2 (parcial):** receptor marca 5/0/5. Verificar acumulado=10/5/5, sigue en `recepcion_parcial`.
+6. **Intentar over-receive en parcial:** intentar recibir 5 del item 1 (ya tiene 10/10). Backend retorna 400.
+7. **Recepción 3 (total):** receptor marca 0/5/5 (cierra pendientes). Verificar estado `recibida`, sin discrepancia.
+8. **Caso merma:** crear otra TRF, parcial 8/10, luego total 0/0. Verificar discrepancia tipo merma para item 1 (cantidad_enviada=10, cantidad_recibida=8).
+
+---
+
+*Última actualización: Mayo 2026 — Agregado § 17 Recepción Parcial (migración 048).*

@@ -110,12 +110,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return ok;
     }, [selectedId, trfHook.aprobar, refreshAll]);
 
-    const handleRecibir = useCallback(async (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => {
+    const handleRecibir = useCallback(async (
+        items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
+        tipo: 'parcial' | 'total' = 'total'
+    ) => {
         setActionLoading(true);
-        const ok = await trfHook.recibir(selectedId!, items);
+        const ok = await trfHook.recibir(selectedId!, items, tipo);
         if (ok) {
             await refreshAll();
-            // Refresh pending discrepancies count — recibir() may have created new ones
+            // Refresh pending discrepancies count — recibir() may have created new ones.
+            // En modo parcial no se crea discrepancia, pero el refetch es barato.
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
         }
@@ -372,6 +376,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onAprobar={handleAprobar}
                             onCrearFaltante={trfHook.crearFaltante}
                             onRecibir={handleRecibir}
+                            onFetchRecepciones={trfHook.fetchRecepciones}
                             onRechazar={handleRechazar}
                             onRechazarRecepcion={handleRechazarRecepcion}
                             onCancelar={handleCancelar}

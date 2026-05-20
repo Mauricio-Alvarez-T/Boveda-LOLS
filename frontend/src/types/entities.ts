@@ -200,7 +200,7 @@ export interface UbicacionStock {
 export interface Transferencia {
     id: number;
     codigo: string;
-    estado: 'pendiente' | 'aprobada' | 'en_transito' | 'recibida' | 'rechazada' | 'cancelada';
+    estado: 'pendiente' | 'aprobada' | 'en_transito' | 'recepcion_parcial' | 'recibida' | 'rechazada' | 'cancelada';
     origen_obra_id: number | null;
     origen_bodega_id: number | null;
     destino_obra_id: number | null;
@@ -270,6 +270,35 @@ export interface TransferenciaItemSplit {
     cantidad_enviada: number;
     origen_obra_nombre?: string | null;
     origen_bodega_nombre?: string | null;
+}
+
+/**
+ * Evento de recepción (audit). Una TRF puede tener N parciales + 1 total.
+ * Persistido en transferencia_recepciones (migración 048).
+ */
+export interface TransferenciaRecepcion {
+    id: number;
+    transferencia_id: number;
+    receptor_id: number;
+    receptor_nombre?: string | null;
+    fecha_recepcion: string;
+    tipo: 'parcial' | 'total';
+    observacion: string | null;
+    items: TransferenciaRecepcionItem[];
+}
+
+/**
+ * Item recibido en un evento específico de recepción.
+ * Persistido en transferencia_recepcion_items (migración 048).
+ */
+export interface TransferenciaRecepcionItem {
+    id: number;
+    transferencia_item_id: number;
+    item_id?: number;
+    item_descripcion?: string;
+    unidad?: string;
+    cantidad_recibida: number;
+    observacion: string | null;
 }
 
 /**
