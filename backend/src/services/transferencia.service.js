@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionStock');
 
 /**
  * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas
@@ -242,11 +243,12 @@ const transferenciaService = {
             if (splits.length > 0) {
                 for (const s of splits) {
                     if (s.cantidad_enviada > 0) {
+                        const ubic = _normalizeUbicacion(s.origen_obra_id, s.origen_bodega_id);
                         await conn.query(
                             `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                              VALUES (?, ?, ?, ?)
                              ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                            [item.item_id, s.origen_obra_id, s.origen_bodega_id, s.cantidad_enviada]
+                            [item.item_id, ubic.obra, ubic.bodega, s.cantidad_enviada]
                         );
                     }
                 }
@@ -256,11 +258,12 @@ const transferenciaService = {
                 if (cantidad > 0) {
                     const obraId = item.origen_obra_id ?? trf.origen_obra_id;
                     const bodegaId = item.origen_bodega_id ?? trf.origen_bodega_id;
+                    const ubic = _normalizeUbicacion(obraId, bodegaId);
                     await conn.query(
                         `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                          VALUES (?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                        [item.item_id, obraId, bodegaId, cantidad]
+                        [item.item_id, ubic.obra, ubic.bodega, cantidad]
                     );
                 }
             }
@@ -678,10 +681,11 @@ const transferenciaService = {
                             const splitDisponible = (s.cantidad_enviada || 0) - (s.cantidad_decrementada || 0);
                             if (splitDisponible <= 0) continue;
                             const take = Math.min(amountRemaining, splitDisponible);
+                            const ubicSplit = _normalizeUbicacion(s.origen_obra_id, s.origen_bodega_id);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                                  WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                                [take, item.item_id, s.origen_obra_id, s.origen_bodega_id]
+                                [take, item.item_id, ubicSplit.obra, ubicSplit.bodega]
                             );
                             await conn.query(
                                 'UPDATE transferencia_item_origenes SET cantidad_decrementada = cantidad_decrementada + ? WHERE id = ?',
@@ -695,10 +699,11 @@ const transferenciaService = {
                             const itemRow = itemRowMap[item.item_id];
                             const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                             const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
+                            const ubicFb = _normalizeUbicacion(obraId, bodegaId);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                                  WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                                [amountRemaining, item.item_id, obraId, bodegaId]
+                                [amountRemaining, item.item_id, ubicFb.obra, ubicFb.bodega]
                             );
                         }
                     } else {
@@ -706,10 +711,11 @@ const transferenciaService = {
                         const itemRow = itemRowMap[item.item_id];
                         const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                         const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
+                        const ubicFb = _normalizeUbicacion(obraId, bodegaId);
                         await conn.query(
                             `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                              WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                            [recibidaEnEvento, item.item_id, obraId, bodegaId]
+                            [recibidaEnEvento, item.item_id, ubicFb.obra, ubicFb.bodega]
                         );
                     }
                 }
@@ -722,11 +728,12 @@ const transferenciaService = {
 
                 // Incrementar stock en destino (upsert)
                 if (recibidaEnEvento > 0) {
+                    const ubicDest = _normalizeUbicacion(trf.destino_obra_id, trf.destino_bodega_id);
                     await conn.query(
                         `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                          VALUES (?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                        [item.item_id, trf.destino_obra_id, trf.destino_bodega_id, recibidaEnEvento]
+                        [item.item_id, ubicDest.obra, ubicDest.bodega, recibidaEnEvento]
                     );
                 }
 

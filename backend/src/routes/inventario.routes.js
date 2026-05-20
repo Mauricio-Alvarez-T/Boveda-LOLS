@@ -76,6 +76,15 @@ router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
         const guard = guardEditCostos(req.body, req.user?.p);
         if (!guard.ok) return res.status(403).json({ error: guard.error });
 
+        // XOR check (mig 050): obra_id y bodega_id son mutuamente excluyentes.
+        // El service también valida (defensa en profundidad) pero devolver 400
+        // acá ahorra una capa de stack.
+        if ((!!req.body.obra_id) === (!!req.body.bodega_id)) {
+            return res.status(400).json({
+                error: 'obra_id y bodega_id son mutuamente excluyentes (exactamente uno requerido)'
+            });
+        }
+
         const { item_id, obra_id, bodega_id, cantidad, valor_arriendo_override } = req.body;
         const result = await inventarioService.actualizarStock(
             item_id, obra_id || null, bodega_id || null,

@@ -146,7 +146,7 @@ const inventarioService = {
                    us.id as ubicacion_stock_id
             FROM items_inventario i
             JOIN categorias_inventario c ON i.categoria_id = c.id
-            LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id = ?
+            LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id = ? AND us.bodega_id IS NULL
             WHERE i.activo = 1
             ORDER BY c.orden ASC, i.nro_item ASC
         `, [obraId]);
@@ -221,7 +221,7 @@ const inventarioService = {
                    us.id as ubicacion_stock_id
             FROM items_inventario i
             JOIN categorias_inventario c ON i.categoria_id = c.id
-            LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.bodega_id = ?
+            LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.bodega_id = ? AND us.obra_id IS NULL
             WHERE i.activo = 1
             ORDER BY c.orden ASC, i.nro_item ASC
         `, [bodegaId]);
@@ -268,6 +268,18 @@ const inventarioService = {
      * Upsert: si no existe la fila en ubicaciones_stock, la crea.
      */
     async actualizarStock(itemId, obraId, bodegaId, { cantidad, valorArriendoOverride }) {
+        // ── XOR check: ubicación = obra XOR bodega (mig 050) ──
+        // Schema acepta cualquier combinación pero semánticamente es exclusivo.
+        // Sin esta validación los flujos podían crear rows huérfanas (ambos NULL)
+        // o duplicadas (ambos seteados) que aparecían 2× en la vista Por Obra/Bodega.
+        const hasObra = obraId != null && Number(obraId) > 0;
+        const hasBodega = bodegaId != null && Number(bodegaId) > 0;
+        if (hasObra === hasBodega) {
+            const err = new Error('Debe especificar exactamente uno: obra_id o bodega_id');
+            err.statusCode = 400;
+            throw err;
+        }
+
         // Auditoría 3.2: validar rangos antes del UPSERT (antes el UPSERT aceptaba negativos sin error).
         if (cantidad !== undefined && cantidad !== null) {
             const num = Number(cantidad);
