@@ -905,6 +905,26 @@ const asistenciaService = {
         const [estados] = await db.query('SELECT * FROM estados_asistencia WHERE activo = TRUE ORDER BY id');
         const estadoMap = Object.fromEntries(estados.map(e => [e.id, e]));
 
+        // Color LM para celdas weekend/feriado dentro de período LM — se pintan
+        // visualmente idénticas a las celdas LM para que el rango luzca como
+        // un bloque continuo en el reporte. Fallback al hex de migration 006.
+        const toArgb = (hex) => hex
+            ? (hex.startsWith('#') ? 'FF' + hex.slice(1).toUpperCase() : 'FF' + hex.toUpperCase())
+            : 'FF5856D6';
+        const lmEstado = estados.find(e => e.codigo === 'LM');
+        const lmColor = toArgb(lmEstado?.color);
+
+        // Helpers de borde: color del borde matchea el fill para que celdas
+        // consecutivas del mismo estado se vean como un solo bloque (sin
+        // líneas internas). Celdas sin fill usan gris claro.
+        const DEFAULT_BORDER_COLOR = 'FFD0D0D0';
+        const makeBorder = (argb) => ({
+            top: { style: 'thin', color: { argb } },
+            left: { style: 'thin', color: { argb } },
+            bottom: { style: 'thin', color: { argb } },
+            right: { style: 'thin', color: { argb } },
+        });
+
         // ── Incluir trabajadores trasladados que ya no pertenecen a esta obra ──
         // Después de un TO, el worker.obra_id cambia al destino, pero sus registros
         // de asistencia en la obra origen siguen existiendo. Los detectamos aquí.
@@ -1015,9 +1035,10 @@ const asistenciaService = {
 
         // ── Períodos de Licencia Médica (LM) activos en el rango ──
         // Los fines de semana y feriados que caen dentro de un período LM no
-        // deben sumar al total mensual: los paga la ISAPRE/Mutual, no la
-        // empresa. Marcamos esas celdas con MARKER_FDS_LM (distinto de FDS)
-        // y excluimos ese marcador del COUNTIF de totales.
+        // deben sumar al total mensual (los paga ISAPRE/Mutual). Como LM tiene
+        // es_presente=FALSE, no está en codigosSumanDia → COUNTIF de total no
+        // cuenta "LM". Renderizamos esas celdas con valor "LM" (igual que las
+        // celdas LM reales) para bloque continuo visual; total sigue correcto.
         const lmDaysSet = new Set();
         try {
             const [lmPeriods] = await db.query(`
@@ -1100,7 +1121,6 @@ const asistenciaService = {
                 })
         )];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
-        const MARKER_FDS_LM = 'FDS_L'; // Weekend/feriado dentro de Licencia Médica — NO suma al total
 
         // ── Agrupar trabajadores por empresa ──
         const empresaGroups = {};
@@ -1362,17 +1382,25 @@ const asistenciaService = {
                         // ── Ausencias propagadas a fin de semana / feriado ──
                         // Cuando se asigna un período de ausencia el backend
                         // `crearPeriodo` puede crear filas para weekends/feriados
-                        // dentro del rango. Esos días no son laborables: si la
-                        // celda cae dentro de un período LM activo del trabajador,
-                        // usamos FDS_L (no suma — lo paga ISAPRE/Mutual); en otro
-                        // caso usamos FDS (suma como día del mes).
+                        // dentro del rango. Si la celda cae dentro de un período
+                        // LM del trabajador → render igual a LM (bloque continuo,
+                        // no suma). Otros estados no-presentes en weekend → FDS.
                         if (est && !est.es_presente && (isWeekend || isFeriado)) {
                             const inLM = lmDaysSet.has(`${worker.id}:${fStr}`);
-                            cell.value = inLM ? MARKER_FDS_LM : MARKER_FDS;
-                            cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+                            if (inLM) {
+                                // Visualmente idéntico a LM (bloque continuo).
+                                // Total NO suma porque LM es es_presente=FALSE
+                                // y por tanto no está en codigosSumanDia.
+                                cell.value = 'LM';
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lmColor } };
+                                cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
+                            } else {
+                                cell.value = MARKER_FDS;
+                                cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+                            }
                             cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                            cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                            cell.border = makeBorder(cell.fill.fgColor.argb);
                             return; // siguiente día — saltamos render normal
                         }
 
@@ -1451,13 +1479,19 @@ const asistenciaService = {
                             };
                         }
                     } else if (isFeriado || isWeekend) {
-                        // Fin de semana o feriado SIN registro. Si cae dentro de
-                        // un período LM del trabajador, usamos FDS_L (no suma);
-                        // si no, FDS normal (suma como día del mes).
+                        // Weekend/feriado SIN registro. Si cae dentro de período
+                        // LM del trabajador → render igual a LM (bloque continuo,
+                        // no suma al total). Si no → FDS gris (suma normal).
                         const inLM = lmDaysSet.has(`${worker.id}:${fStr}`);
-                        cell.value = inLM ? MARKER_FDS_LM : MARKER_FDS;
-                        cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+                        if (inLM) {
+                            cell.value = 'LM';
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lmColor } };
+                            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
+                        } else {
+                            cell.value = MARKER_FDS;
+                            cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
+                        }
                     } else {
                         // Día laboral sin registro (no suma)
                         cell.value = '';
@@ -1469,13 +1503,17 @@ const asistenciaService = {
                     }
                     
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
-                    cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                    // Borde color-matched al fill → runs del mismo estado (LM,
+                    // V, F, PSG, etc.) se ven como un bloque continuo. Celdas
+                    // sin fill usan gris suave para reducir ruido visual.
+                    const fillArgb = cell.fill?.fgColor?.argb;
+                    cell.border = makeBorder(fillArgb || DEFAULT_BORDER_COLOR);
                 });
 
                 // ── FÓRMULAS DE SUMATORIA CORREGIDAS ──
                 // Contar estados que suman + marcador FDS (fines de semana y feriados).
-                // MARKER_FDS_LM (weekends/feriados dentro de Licencia Médica) NO se
-                // incluye intencionalmente — esos días los paga ISAPRE/Mutual.
+                // Las celdas "LM" (incluidas las weekend/feriado dentro de período LM)
+                // NO suman porque LM tiene es_presente=FALSE → excluido de codigosSumanDia.
                 const q1Range = `${ws.getCell(rowIdx, dayColStart).address}:${ws.getCell(rowIdx, dayColStart + 14).address}`;
 
                 // Construir COUNTIF para cada código que suma + FDS

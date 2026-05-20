@@ -133,8 +133,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         expect(sheetNames.some(n => n.includes('PROVISORIOS'))).toBe(true);
     });
 
-    // ── Test 5: FDS_L para weekends dentro de Licencia Médica ──
-    test('weekend/feriado dentro de período LM debe mostrar FDS_L y no sumar al total', async () => {
+    // ── Test 5: Weekend/feriado dentro de LM se renderiza como bloque LM ──
+    test('weekend dentro de período LM debe mostrar "LM" con fill LM y no sumar al total', async () => {
         const mockWorkers = [
             { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
         ];
@@ -142,7 +142,7 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         const mockEstados = [
             { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
             { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 0 }
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#5856D6', activo: 1, es_presente: 0 }
         ];
 
         // LM período: lunes 9 al domingo 15 de marzo 2026 (incluye sab 14 + dom 15)
@@ -175,30 +175,36 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
 
-        // Día 1 = Domingo, FUERA de LM → FDS (suma)
+        // Día 1 = Domingo, FUERA de LM → FDS gris (suma)
         expect(wsLols.getCell(9, 9).value).toBe('FDS');
 
-        // Día 7 = Sábado, FUERA de LM → FDS (suma)
+        // Día 7 = Sábado, FUERA de LM → FDS gris (suma)
         expect(wsLols.getCell(9, 15).value).toBe('FDS');
 
-        // Días 9-13 (lun-vie) con LM registrado → LM
-        expect(wsLols.getCell(9, 17).value).toBe('LM');  // día 9 = col 9+8 = 17
-        expect(wsLols.getCell(9, 21).value).toBe('LM');  // día 13 = col 9+12 = 21
+        // Días 9-13 (lun-vie) con LM registrado → LM (fill azul)
+        const lmCellMid = wsLols.getCell(9, 21); // día 13
+        expect(lmCellMid.value).toBe('LM');
+        expect(lmCellMid.fill?.fgColor?.argb).toBe('FF5856D6');
 
-        // Día 14 = Sábado DENTRO de LM → FDS_L (NO suma)
-        // Q1 cubre días 1-15 → col 9+13 = 22
-        expect(wsLols.getCell(9, 22).value).toBe('FDS_L');
+        // Día 14 = Sábado DENTRO de LM → "LM" con fill LM (bloque continuo, NO suma)
+        const sabLM = wsLols.getCell(9, 22);
+        expect(sabLM.value).toBe('LM');
+        expect(sabLM.fill?.fgColor?.argb).toBe('FF5856D6');
 
-        // Día 15 = Domingo DENTRO de LM. Está en columna 16 (col 9 + 15 + offset Q1 = 24).
-        // El offset por la columna Q1 hace que día 16+ se desplace +1.
-        // Día 15 es el último día de Q1, pos 14 = col 9+14 = 23
-        expect(wsLols.getCell(9, 23).value).toBe('FDS_L');
+        // Día 15 = Domingo DENTRO de LM → "LM" con fill LM
+        const domLM = wsLols.getCell(9, 23);
+        expect(domLM.value).toBe('LM');
+        expect(domLM.fill?.fgColor?.argb).toBe('FF5856D6');
 
-        // Verificar que fórmula COUNTIF NO incluye FDS_L
-        const q1Cell = wsLols.getCell(9, 24); // dayColStart(9) + 15 = col 24 (Q1 col)
+        // Verificar que fórmula COUNTIF NO incluye "LM" (LM es_presente=0, no está en codigosSumanDia)
+        const q1Cell = wsLols.getCell(9, 24); // Q1 col
         const formula = q1Cell.value.formula;
         expect(formula).toContain('"FDS"');
-        expect(formula).not.toContain('"FDS_L"');
+        expect(formula).not.toMatch(/"LM"/);
+
+        // Bordes color-matched al fill → bloque visual continuo
+        const borderArgb = sabLM.border?.top?.color?.argb;
+        expect(borderArgb).toBe('FF5856D6');
     });
 
     // ── Test 4: Leyenda en dos columnas (no más de 4 filas) ──
