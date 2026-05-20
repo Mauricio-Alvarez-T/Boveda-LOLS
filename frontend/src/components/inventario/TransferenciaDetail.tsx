@@ -12,6 +12,7 @@ import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
 import FaltanteDecisionModal from './FaltanteDecisionModal';
+import { Modal } from '../ui/Modal';
 import { fmtFecha } from '../../utils/fechas';
 
 interface StockLocation {
@@ -222,7 +223,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             // recepcion_parcial: ya llegó algo, falta más → muestra acumulado + pendiente.
             const itemsLabel =
                 t.estado === 'recibida' ? 'Items recibidos' :
-                t.estado === 'recepcion_parcial' ? 'Items en curso de recepción' :
+                t.estado === 'recepcion_parcial' ? 'Items con entrega en curso' :
                 t.estado === 'aprobada' || t.estado === 'en_transito' ? 'Items enviados' :
                 'Items solicitados';
             lines.push(`${BOX} *${itemsLabel} (${items.length}):*`);
@@ -358,6 +359,15 @@ const TransferenciaDetail: React.FC<Props> = ({
     const [recepciones, setRecepciones] = useState<TransferenciaRecepcion[]>([]);
     const [historialOpen, setHistorialOpen] = useState(false);
 
+    // Cierre final con merma:
+    // - `cierreFinal` checkbox dentro del form. Marca "esta es la última entrega"
+    //   cuando hay pendientes sin recibir. Oculta el botón "Faltan más viajes"
+    //   (contradictorio) y dispara directo el cierre total sin modal.
+    // - `confirmMermaOpen` modal defensivo cuando el user clickea "Esta es toda
+    //   la entrega" con cantidades < Falta SIN haber marcado el checkbox.
+    const [cierreFinal, setCierreFinal] = useState(false);
+    const [confirmMermaOpen, setConfirmMermaOpen] = useState(false);
+
     // Reject state
     const [rejectMotivo, setRejectMotivo] = useState('');
 
@@ -389,6 +399,10 @@ const TransferenciaDetail: React.FC<Props> = ({
         setRejectMotivo('');
         setRecepciones([]);
         setHistorialOpen(false);
+        setCierreFinal(false);
+        setConfirmMermaOpen(false);
+        // Historial empieza cerrado pero se abre automáticamente cuando se
+        // detectan eventos previos (efecto separado abajo).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t.id]);
 
@@ -400,7 +414,11 @@ const TransferenciaDetail: React.FC<Props> = ({
         if (t.estado !== 'recepcion_parcial' && t.estado !== 'recibida') return;
         let cancelled = false;
         onFetchRecepciones(t.id).then(rows => {
-            if (!cancelled) setRecepciones(rows);
+            if (cancelled) return;
+            setRecepciones(rows);
+            // Default open si hay 1+ viajes previos — info contextual relevante
+            // al receptor (saber qué llegó antes para ajustar el viaje actual).
+            if (rows.length > 0) setHistorialOpen(true);
         });
         return () => { cancelled = true; };
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -421,8 +439,9 @@ const TransferenciaDetail: React.FC<Props> = ({
     const activeStep = STEP_INDEX[t.estado] ?? -1;
     const isTerminated = t.estado === 'rechazada' || t.estado === 'cancelada';
 
-    // Receive summary
-    const correctCount = receiveItems.filter(i => i.correcto).length;
+    // Nota: `correcto` y `observacion` del state se mantienen en el shape por
+    // back-compat con onRecibir(), pero ya no se exponen en UI tras el rediseño
+    // V2. Toda discrepancia se infiere de la diferencia entre enviada y recibida.
 
     return (
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
@@ -656,7 +675,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <span>{t.observaciones}</span>
                     </div>
                 )}
-                {t.requiere_pionetas && (
+                {Boolean(t.requiere_pionetas) && (
                     <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                         <span>Requiere {t.cantidad_pionetas || ''} pionetas</span>
@@ -705,14 +724,10 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                     {canRecibir && (
                         <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
-                            title={
-                                t.estado === 'recepcion_parcial'
-                                    ? 'Registrar nuevo viaje de recepción (parcial o total)'
-                                    : 'Registrar recepción de este cargamento (parcial o total)'
-                            }
+                            title="Marca qué llegó del cargamento de hoy. Si falta, podrás registrar próximos viajes."
                             className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
                             <PackageCheck className="h-3.5 w-3.5" />
-                            {t.estado === 'recepcion_parcial' ? 'Registrar Nuevo Viaje' : 'Registrar Recepción'}
+                            Registrar lo que llegó
                         </button>
                     )}
                     {canRechazarRecepcion && (
@@ -1365,225 +1380,342 @@ const TransferenciaDetail: React.FC<Props> = ({
                     discrepancia.
                ════════════════════════════════════════════ */}
             {activeForm === 'recibir' && (() => {
-                // Calcula si hay over-receive en modo parcial (input > pendiente).
-                // Si lo hay, deshabilita el botón "Recepción Parcial" — el usuario
-                // debe usar "Recepción Total" para cerrar con discrepancia.
-                const hasOverReceive = receiveItems.some((ri, idx) => {
-                    const item = items[idx];
-                    if (!item) return false;
-                    return ri.cantidad_recibida > pendientePorItem(item);
-                });
+                // Cálculos derivados para la UI:
+                // - totalRecibidoEsteViaje = suma de inputs (info en footer)
+                // - totalFaltaGlobal = suma de pendientes (lo que el camión debería traer)
+                // - hayFaltantes = true si suma_inputs < suma_falta (al menos 1 ítem no completa)
+                //   → habilita checkbox "Esta es la entrega final" y modal de confirmación.
                 const totalRecibidoEsteViaje = receiveItems.reduce((s, ri) => s + (ri.cantidad_recibida || 0), 0);
+                const totalFaltaGlobal = items.reduce((s, it) => s + pendientePorItem(it), 0);
+                const hayFaltantes = items.some((it, idx) => {
+                    const ri = receiveItems[idx];
+                    if (!ri) return false;
+                    return ri.cantidad_recibida < pendientePorItem(it);
+                });
+
+                // Ítems que quedarán sin recibir si se cierra ahora — usado en
+                // el banner amber del checkbox y en el modal de confirmación.
+                const faltantesAlCerrar = items
+                    .map((it, idx) => {
+                        const ri = receiveItems[idx];
+                        if (!ri) return null;
+                        const faltante = pendientePorItem(it) - ri.cantidad_recibida;
+                        if (faltante <= 0) return null;
+                        return {
+                            descripcion: it.item_descripcion || `Item #${it.item_id}`,
+                            cantidad: faltante,
+                            unidad: it.unidad || '',
+                        };
+                    })
+                    .filter((x): x is { descripcion: string; cantidad: number; unidad: string } => x !== null);
+
+                // Handler único de cierre total. Llamado desde:
+                // 1. Botón "Esta es toda la entrega" sin faltantes → directo
+                // 2. Botón "Esta es toda la entrega" con checkbox marcado → directo
+                // 3. Modal de confirmación tras detectar faltantes sin checkbox
+                const handleCerrarTotal = async () => {
+                    const ok = await onRecibir(
+                        receiveItems.map(ri => ({
+                            item_id: ri.item_id,
+                            cantidad_recibida: ri.cantidad_recibida,
+                        })),
+                        'total'
+                    );
+                    if (ok) setActiveForm(null);
+                };
+
+                const handleClickCerrar = () => {
+                    if (hayFaltantes && !cierreFinal) {
+                        setConfirmMermaOpen(true);
+                    } else {
+                        handleCerrarTotal();
+                    }
+                };
+
+                const handleParcial = async () => {
+                    const ok = await onRecibir(
+                        receiveItems.map(ri => ({
+                            item_id: ri.item_id,
+                            cantidad_recibida: ri.cantidad_recibida,
+                        })),
+                        'parcial'
+                    );
+                    if (ok) setActiveForm(null);
+                };
+
+                // Quick-fill: rellena todos al pendiente / vacía todos.
+                const setAll = (mode: 'pendiente' | 'cero') => {
+                    setReceiveItems(receiveItems.map((ri, idx) => ({
+                        ...ri,
+                        cantidad_recibida: mode === 'pendiente' ? pendientePorItem(items[idx]) : 0,
+                    })));
+                };
 
                 return (
-                <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl p-4 mb-4 space-y-4">
-                    <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
-                        <PackageCheck className="h-4 w-4 text-brand-primary" /> Confirmar Recepción
-                    </h4>
-
-                    {/* Hint del modo parcial */}
-                    <div className="text-[11px] text-muted-foreground bg-white/60 rounded-lg px-3 py-2 border border-[#E8E8ED]">
-                        Ingresa <strong className="text-brand-dark">cuánto trajo este viaje</strong>. Si vienen más viajes, elige
-                        <strong className="text-purple-700"> "Recepción Parcial"</strong>; si es el último, elige
-                        <strong className="text-green-700"> "Recepción Total"</strong> para cerrar la transferencia.
+                <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl mb-4 overflow-hidden">
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-brand-primary/20 bg-white/40">
+                        <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
+                            <PackageCheck className="h-4 w-4 text-brand-primary" /> Recepción de cargamento
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Marca qué llegó este viaje. Si falta algo, podrás registrar otros viajes después.
+                        </p>
                     </div>
 
-                    <div className="space-y-2">
-                        {items.map((item, idx) => {
-                            const ri = receiveItems[idx];
-                            if (!ri) return null;
-                            const enviada = item.cantidad_enviada ?? item.cantidad_solicitada;
-                            const previa = recibidaPrevia(item);
-                            const pendiente = pendientePorItem(item);
-                            const isOver = ri.cantidad_recibida > pendiente;
-                            return (
-                                <div key={item.id || idx} className={cn(
-                                    "bg-white rounded-xl border p-3 transition-all",
-                                    isOver ? "border-amber-300" :
-                                        ri.correcto ? "border-green-200" : "border-red-200"
-                                )}>
-                                    {/* Item name + correct toggle */}
-                                    <div className="flex items-center justify-between mb-2">
-                                        <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark flex-1 mr-2 text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">{item.item_descripcion}</button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], correcto: !updated[idx].correcto };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className={cn(
-                                                "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
-                                                ri.correcto
-                                                    ? "bg-green-50 border-green-300 text-green-700"
-                                                    : "bg-red-50 border-red-300 text-red-700"
-                                            )}
-                                        >
-                                            {ri.correcto ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
-                                            {ri.correcto ? 'Correcto' : 'Incorrecto'}
-                                        </button>
-                                    </div>
-
-                                    {/* Quantity columns: Enviada / Previa / Pendiente */}
-                                    <div className="grid grid-cols-3 gap-2 mb-2 text-center text-[10px]">
-                                        <div className="bg-[#F5F7FA] rounded-lg py-1.5">
-                                            <div className="text-muted-foreground">Enviada</div>
-                                            <div className="font-bold text-brand-dark">{enviada}</div>
-                                        </div>
-                                        <div className={cn("rounded-lg py-1.5", previa > 0 ? "bg-purple-50" : "bg-[#F5F7FA]")}>
-                                            <div className="text-muted-foreground">Recibida previa</div>
-                                            <div className={cn("font-bold", previa > 0 ? "text-purple-700" : "text-brand-dark")}>{previa}</div>
-                                        </div>
-                                        <div className={cn("rounded-lg py-1.5", pendiente > 0 ? "bg-amber-50" : "bg-green-50")}>
-                                            <div className="text-muted-foreground">Pendiente</div>
-                                            <div className={cn("font-bold", pendiente > 0 ? "text-amber-700" : "text-green-700")}>{pendiente}</div>
-                                        </div>
-                                    </div>
-
-                                    {/* Input cantidad este viaje */}
-                                    <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] text-muted-foreground font-medium">Este viaje:</span>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const updated = [...receiveItems];
-                                                const current = updated[idx].cantidad_recibida;
-                                                updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, current - 1) };
-                                                setReceiveItems(updated);
-                                            }}
-                                            disabled={ri.cantidad_recibida <= 0}
-                                            className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                            aria-label="Restar 1"
-                                        >
-                                            <Minus className="h-3 w-3" />
-                                        </button>
-                                        <input
-                                            type="number"
-                                            min={0}
-                                            value={ri.cantidad_recibida}
-                                            onChange={e => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className={cn(
-                                                "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
-                                                isOver && "border-amber-400 bg-amber-50 text-amber-800"
-                                            )}
-                                        />
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
-                                            aria-label="Sumar 1"
-                                        >
-                                            <Plus className="h-3 w-3" />
-                                        </button>
-                                        {/* Quick-fill: setea al pendiente */}
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], cantidad_recibida: pendiente };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className="text-[9px] font-bold text-brand-primary hover:underline px-1.5"
-                                            title="Setear al pendiente"
-                                        >
-                                            todo
-                                        </button>
-                                        {isOver && (
-                                            <span className="text-[9px] text-amber-700 font-bold flex items-center gap-0.5">
-                                                <AlertTriangle className="h-3 w-3" /> Excede pendiente — usa Total
+                    {/* Tabla densa: una fila por ítem */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-white/60 border-b border-[#E8E8ED]">
+                                    <th className="text-left px-3 py-2 font-bold text-brand-dark">Ítem</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Enviada</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Falta</th>
+                                    <th className="text-left px-3 py-2 font-bold text-brand-dark w-44">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span>Llegó este viaje</span>
+                                            <span className="flex gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAll('pendiente')}
+                                                    className="text-[9px] font-bold text-brand-primary hover:underline"
+                                                    title="Rellenar todo al pendiente"
+                                                >
+                                                    todo
+                                                </button>
+                                                <span className="text-muted-foreground">·</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAll('cero')}
+                                                    className="text-[9px] font-bold text-muted-foreground hover:underline"
+                                                    title="Vaciar todos los inputs"
+                                                >
+                                                    nada
+                                                </button>
                                             </span>
-                                        )}
-                                    </div>
+                                        </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((item, idx) => {
+                                    const ri = receiveItems[idx];
+                                    if (!ri) return null;
+                                    const enviada = item.cantidad_enviada ?? item.cantidad_solicitada;
+                                    const falta = pendientePorItem(item);
+                                    const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
+                                    const incompleto = ri.cantidad_recibida < falta;
+                                    return (
+                                        <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                            <td className="px-3 py-1.5 text-brand-dark">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => itemDetail.openItem(item.item_id)}
+                                                    className="text-left font-medium hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                >
+                                                    {item.item_descripcion || `Item #${item.item_id}`}
+                                                </button>
+                                                {item.unidad && <span className="text-[10px] text-muted-foreground ml-1">({item.unidad})</span>}
+                                            </td>
+                                            <td className="text-center text-muted-foreground">{enviada}</td>
+                                            <td className={cn(
+                                                "text-center font-bold",
+                                                falta === 0 ? "text-green-600" : "text-amber-700"
+                                            )}>
+                                                {falta}
+                                            </td>
+                                            <td className="px-3 py-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const updated = [...receiveItems];
+                                                            updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, updated[idx].cantidad_recibida - 1) };
+                                                            setReceiveItems(updated);
+                                                        }}
+                                                        disabled={ri.cantidad_recibida <= 0}
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                                        aria-label={`Restar 1 a ${item.item_descripcion}`}
+                                                    >
+                                                        <Minus className="h-3 w-3" />
+                                                    </button>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={ri.cantidad_recibida}
+                                                        onChange={e => {
+                                                            const updated = [...receiveItems];
+                                                            updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
+                                                            setReceiveItems(updated);
+                                                        }}
+                                                        className={cn(
+                                                            "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
+                                                            sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#E8E8ED]"
+                                                        )}
+                                                        aria-label={`Cantidad recibida de ${item.item_descripcion}`}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const updated = [...receiveItems];
+                                                            updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
+                                                            setReceiveItems(updated);
+                                                        }}
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                                        aria-label={`Sumar 1 a ${item.item_descripcion}`}
+                                                    >
+                                                        <Plus className="h-3 w-3" />
+                                                    </button>
+                                                    {sobrante > 0 && (
+                                                        <span
+                                                            className="ml-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full"
+                                                            title="Vino más de lo enviado — se registrará como sobrante al cerrar"
+                                                        >
+                                                            +{sobrante} sobrante
+                                                        </span>
+                                                    )}
+                                                    {incompleto && falta > 0 && ri.cantidad_recibida > 0 && (
+                                                        <span
+                                                            className="ml-1 text-[9px] font-medium text-muted-foreground"
+                                                            title={`Faltan ${falta - ri.cantidad_recibida} para completar este ítem`}
+                                                        >
+                                                            faltan {falta - ri.cantidad_recibida}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
 
-                                    {/* Observation (if incorrect) */}
-                                    {!ri.correcto && (
-                                        <input
-                                            type="text"
-                                            placeholder="Observacion (que esta mal?)..."
-                                            value={ri.observacion}
-                                            onChange={e => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], observacion: e.target.value };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className="w-full mt-1 px-2 py-1 text-[10px] border border-red-200 rounded-lg focus:ring-1 focus:ring-red-300 outline-none"
-                                        />
-                                    )}
+                    {/* Sticky footer: checkbox + totales + botones */}
+                    <div className="border-t border-brand-primary/20 bg-white/60 px-4 py-3 space-y-3">
+                        {/* Checkbox "entrega final" — solo visible si hay faltantes */}
+                        {hayFaltantes && (
+                            <label className="flex items-start gap-2 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={cierreFinal}
+                                    onChange={e => setCierreFinal(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                />
+                                <span className="text-xs text-brand-dark">
+                                    <span className="font-bold">Esta es la entrega final</span> — los ítems faltantes quedarán como merma.
+                                    <Info className="inline h-3 w-3 ml-0.5 text-muted-foreground" />
+                                    <span className="block text-[10px] text-muted-foreground mt-0.5">
+                                        Marca esta opción si NO van a venir más viajes. Los ítems no recibidos se registrarán como discrepancia.
+                                    </span>
+                                </span>
+                            </label>
+                        )}
+
+                        {/* Banner amber resumen — solo si checkbox marcado */}
+                        {cierreFinal && faltantesAlCerrar.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-900">
+                                <div className="font-bold mb-1 flex items-center gap-1.5">
+                                    <AlertTriangle className="h-3.5 w-3.5" /> Se registrarán como merma:
                                 </div>
-                            );
-                        })}
+                                <ul className="ml-5 space-y-0.5 list-disc">
+                                    {faltantesAlCerrar.map((f, i) => (
+                                        <li key={i}>
+                                            <span className="font-bold">{f.cantidad}</span>
+                                            {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Totales */}
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>
+                                Total este viaje: <span className="font-bold text-brand-dark">{totalRecibidoEsteViaje}</span>
+                                {totalFaltaGlobal > 0 && (
+                                    <> · Pendiente global: <span className="font-bold text-amber-700">{totalFaltaGlobal}</span></>
+                                )}
+                            </span>
+                            <span>{items.length} ítem{items.length === 1 ? '' : 's'}</span>
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div className="flex flex-wrap gap-2">
+                            {/* "Faltan más viajes" — oculto si checkbox marcado (contradictorio) */}
+                            {!cierreFinal && (
+                                <button
+                                    onClick={handleParcial}
+                                    disabled={actionLoading || totalRecibidoEsteViaje === 0}
+                                    title={
+                                        totalRecibidoEsteViaje === 0
+                                            ? 'Marca al menos 1 unidad de algún ítem antes de registrar'
+                                            : 'Registra lo de este viaje. La transferencia queda abierta esperando próximos viajes.'
+                                    }
+                                    className="flex-1 min-w-[160px] py-2.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                                >
+                                    <PackageOpen className="h-3.5 w-3.5" />
+                                    {actionLoading ? 'Registrando...' : 'Faltan más viajes'}
+                                </button>
+                            )}
+                            <button
+                                onClick={handleClickCerrar}
+                                disabled={actionLoading}
+                                title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como discrepancia."
+                                className="flex-1 min-w-[160px] py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <PackageCheck className="h-3.5 w-3.5" />
+                                {actionLoading ? 'Cerrando...' : 'Esta es toda la entrega'}
+                            </button>
+                            <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                                Cancelar
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Summary */}
-                    <div className="text-xs text-center text-muted-foreground">
-                        Total este viaje: <span className="font-bold text-brand-dark">{totalRecibidoEsteViaje}</span> · {' '}
-                        <span className="font-bold text-green-600">{correctCount}</span> de <span className="font-bold">{items.length}</span> items correctos
-                    </div>
-
-                    {/* Buttons: Parcial / Total / Cancelar */}
-                    <div className="flex flex-wrap gap-2">
-                        <button
-                            onClick={async () => {
-                                const ok = await onRecibir(
-                                    receiveItems.map(ri => ({
-                                        item_id: ri.item_id,
-                                        cantidad_recibida: ri.cantidad_recibida,
-                                        observacion: !ri.correcto && ri.observacion.trim()
-                                            ? ri.observacion.trim()
-                                            : undefined,
-                                    })),
-                                    'parcial'
-                                );
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading || hasOverReceive || totalRecibidoEsteViaje === 0}
-                            title={
-                                hasOverReceive
-                                    ? 'No puedes exceder el pendiente en una recepción parcial. Usa "Recepción Total" para cerrar con discrepancia.'
-                                    : totalRecibidoEsteViaje === 0
-                                        ? 'No se ingresó ninguna cantidad'
-                                        : 'Registra lo de este viaje y deja la transferencia abierta para próximos viajes'
-                            }
-                            className="flex-1 min-w-[140px] py-2.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
-                        >
-                            <PackageOpen className="h-3.5 w-3.5" />
-                            {actionLoading ? 'Registrando...' : 'Recepción Parcial'}
-                        </button>
-                        <button
-                            onClick={async () => {
-                                const ok = await onRecibir(
-                                    receiveItems.map(ri => ({
-                                        item_id: ri.item_id,
-                                        cantidad_recibida: ri.cantidad_recibida,
-                                        // Solo se envía la observación si el receptor marcó "Incorrecto"
-                                        // y escribió algo — queda guardada en la fila de discrepancia.
-                                        observacion: !ri.correcto && ri.observacion.trim()
-                                            ? ri.observacion.trim()
-                                            : undefined,
-                                    })),
-                                    'total'
-                                );
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading}
-                            title="Cierra la transferencia. Cualquier diferencia entre lo enviado y el acumulado recibido se registra como discrepancia."
-                            className="flex-1 min-w-[140px] py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
-                        >
-                            <PackageCheck className="h-3.5 w-3.5" />
-                            {actionLoading ? 'Cerrando...' : 'Recepción Total'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
+                    {/* Modal de confirmación defensivo — si el user clickea cerrar con
+                        faltantes y NO marcó el checkbox. Defensa contra cierre accidental. */}
+                    <Modal
+                        isOpen={confirmMermaOpen}
+                        onClose={() => setConfirmMermaOpen(false)}
+                        title="¿Cerrar transferencia?"
+                        size="sm"
+                        footer={
+                            <div className="flex justify-end gap-2 w-full">
+                                <button
+                                    onClick={() => setConfirmMermaOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setConfirmMermaOpen(false);
+                                        await handleCerrarTotal();
+                                    }}
+                                    disabled={actionLoading}
+                                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all"
+                                >
+                                    Sí, cerrar con merma
+                                </button>
+                            </div>
+                        }
+                    >
+                        <div className="space-y-3 text-sm">
+                            <p className="text-brand-dark">Quedan estos ítems sin recibir:</p>
+                            <ul className="ml-5 space-y-1 list-disc text-xs">
+                                {faltantesAlCerrar.map((f, i) => (
+                                    <li key={i}>
+                                        <span className="font-bold">{f.cantidad}</span>
+                                        {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                Se registrarán como discrepancia/merma. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
+                            </p>
+                        </div>
+                    </Modal>
                 </div>
                 );
             })()}

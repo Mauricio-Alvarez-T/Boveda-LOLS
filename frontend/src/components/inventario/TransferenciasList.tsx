@@ -24,7 +24,7 @@ export const estadoConfig: Record<string, { label: string; color: string; bgSoli
     // recepcion_parcial: sub-estado entre en_transito y recibida. La TRF llegó
     // en parte pero quedan más viajes pendientes. Color púrpura para diferenciarlo
     // visualmente de en_transito (indigo) — "está llegando" vs "viene en camino".
-    recepcion_parcial: { label: 'Recibiendo Parcial', color: 'bg-purple-100 text-purple-700 border-purple-200', bgSolid: 'bg-purple-500', icon: PackageOpen },
+    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200', bgSolid: 'bg-purple-500', icon: PackageOpen },
     recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200', bgSolid: 'bg-green-500', icon: PackageCheck },
     rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200', bgSolid: 'bg-red-500', icon: XCircle },
     cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200', bgSolid: 'bg-gray-400', icon: Ban },

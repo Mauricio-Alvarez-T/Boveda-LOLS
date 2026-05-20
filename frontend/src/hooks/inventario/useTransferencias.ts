@@ -267,9 +267,9 @@ export function useTransferencias() {
         try {
             await api.put(`/transferencias/${id}/recibir`, { items, tipo });
             if (tipo === 'parcial') {
-                toast.success('Recepción parcial registrada — stock actualizado. La transferencia queda abierta para los próximos viajes.', { duration: 5000 });
+                toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { duration: 5000 });
             } else {
-                toast.success('Transferencia recibida — stock actualizado');
+                toast.success('Transferencia cerrada ✓');
             }
             return true;
         } catch (err) {
