@@ -36,6 +36,9 @@ interface RoleData {
     nombre: string;
     descripcion?: string;
     activo: boolean;
+    /** Subquery del backend (usuarios.routes.js rolesService). Count de permisos
+        asignados al rol. Usado para badge ⚠️ "Sin permisos" en tabla. */
+    permisos_count?: number;
 }
 import { EmpresaForm } from '../components/settings/EmpresaForm';
 import { ObraForm } from '../components/settings/ObraForm';
@@ -213,6 +216,25 @@ const usuarioCols: ColumnDef<UserData>[] = [
 const rolCols: ColumnDef<RoleData>[] = [
     { key: 'nombre', label: 'Nombre' },
     { key: 'descripcion', label: 'Descripción', render: (v) => v || '—' },
+    {
+        key: 'permisos_count',
+        label: 'Permisos',
+        render: (v) => {
+            const count = typeof v === 'number' ? v : 0;
+            if (count === 0) {
+                return (
+                    <span className="inline-flex items-center gap-1 text-amber-700 text-xs font-semibold">
+                        <AlertTriangle className="h-3 w-3" /> Sin permisos
+                    </span>
+                );
+            }
+            return (
+                <span className="text-xs text-muted-foreground font-medium">
+                    {count} permiso{count === 1 ? '' : 's'}
+                </span>
+            );
+        },
+    },
 ];
 
 const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
@@ -593,7 +615,8 @@ const SettingsPage: React.FC = () => {
                 isOpen={rolPermsModal.open}
                 onClose={() => setRolPermsModal({ open: false, rol: null })}
                 title="Configuración de Permisos de Rol"
-                size="lg"
+                size="full"
+                noBodyPadding
             >
                 {rolPermsModal.rol && (
                     <PermisosRolPanel 
@@ -608,7 +631,8 @@ const SettingsPage: React.FC = () => {
                 isOpen={userPermsModal.open}
                 onClose={() => setUserPermsModal({ open: false, user: null })}
                 title="Overrides de Permisos de Usuario"
-                size="lg"
+                size="full"
+                noBodyPadding
             >
                 {userPermsModal.user && (
                     <PermisosUsuarioPanel 

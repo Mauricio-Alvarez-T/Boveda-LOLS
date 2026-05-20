@@ -1,6 +1,27 @@
 const db = require('../config/db');
 
 /**
+ * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas
+ * de Segregation of Duties (solicitante ≠ aprobador ≠ transportista ≠ receptor)?
+ * Usado en flujo normal (aprobar / despachar / recibir). Los flujos especiales
+ * (push_directo, intra_bodega, orden_gerencia) NO aplican SoD porque por diseño
+ * consolidan roles — su gate de permiso individual ya implica autoridad.
+ */
+function _hasBypass(userPermisos) {
+    return Array.isArray(userPermisos) && userPermisos.includes('inventario.transferencias.sod_bypass');
+}
+
+/**
+ * Construye un Error con statusCode 403 para violaciones SoD. El errorHandler
+ * global respeta `err.statusCode` (ver middleware/errorHandler.js:61).
+ */
+function _sodError(msg) {
+    const e = new Error(msg);
+    e.statusCode = 403;
+    return e;
+}
+
+/**
  * Flujo de stock (Ola 2 — decremento al recibir):
  *
  *  pendiente   → no toca stock
@@ -269,7 +290,7 @@ const transferenciaService = {
      *   Nota Ola 2: dos aprobaciones pueden comprometer el mismo stock físico
      *   (validación no reserva). La segunda recepción lo notará como discrepancia.
      */
-    async aprobar(id, aprobadorId, data) {
+    async aprobar(id, aprobadorId, data, userPermisos) {
         const { items } = data;
         if (!items || !items.length) throw new Error('Debe incluir ítems');
 
@@ -307,8 +328,15 @@ const transferenciaService = {
             await conn.beginTransaction();
 
             // FOR UPDATE: lock pesimista contra race condition de doble aprobación
-            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
+            const [trf] = await conn.query('SELECT estado, solicitante_id FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trf.length || trf[0].estado !== 'pendiente') throw new Error('Transferencia no está pendiente');
+
+            // SoD: el aprobador no puede ser el solicitante.
+            // sod_bypass es para casos excepcionales (obra unipersonal, emergencias);
+            // queda registrado en logs_actividad para auditoría.
+            if (trf[0].solicitante_id != null && trf[0].solicitante_id === aprobadorId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes aprobar transferencias que tú mismo solicitaste. Otro usuario con permiso "Aprobar Transferencia" debe hacerlo.');
+            }
 
             const [dbItems] = await conn.query(
                 'SELECT id, item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
@@ -485,13 +513,18 @@ const transferenciaService = {
     /**
      * Cambia el estado a en_transito. No mueve stock (ya se movió al aprobar).
      */
-    async despachar(id, transportistaId) {
+    async despachar(id, transportistaId, userPermisos) {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
-            const [trf] = await conn.query('SELECT estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
+            const [trf] = await conn.query('SELECT estado, aprobador_id FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trf.length || trf[0].estado !== 'aprobada') throw new Error('Transferencia no está aprobada');
+
+            // SoD: el transportista (quien despacha) no puede ser el aprobador.
+            if (trf[0].aprobador_id != null && trf[0].aprobador_id === transportistaId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes despachar transferencias que tú mismo aprobaste. Otro usuario con permiso "Despachar Transferencia" debe hacerlo.');
+            }
 
             await conn.query(
                 "UPDATE transferencias SET estado = 'en_transito', transportista_id = ?, despachado_por = ?, fecha_despacho = NOW() WHERE id = ?",
@@ -510,19 +543,37 @@ const transferenciaService = {
 
     /**
      * Recepción: stock sube al destino y baja del origen (régimen nuevo).
+     * Soporta DOS modos via parámetro `tipo`:
+     *   · 'total'    → cierra la TRF (estado 'recibida'). Gaps acumulados vs
+     *                  cantidad_enviada generan discrepancias automáticamente.
+     *                  Comportamiento por defecto (back-compat con clientes
+     *                  que no envían `tipo`).
+     *   · 'parcial'  → registra lo que llegó en ESTE viaje y deja la TRF en
+     *                  estado 'recepcion_parcial'. Permite múltiples eventos
+     *                  hasta que el receptor cierre con 'total'. No genera
+     *                  discrepancia. Bloquea over-receive (cumulative > enviada).
      *
-     * Ola 2: el stock del origen se decrementa ACÁ (antes se hacía al aprobar).
-     *   · stock_reconciliado = TRUE  → decrementa origen por splits + aumenta destino.
-     *   · stock_reconciliado = FALSE → LEGACY. El stock ya se descontó al aprobar,
-     *     así que solo se aumenta destino (comportamiento previo a Ola 2).
+     * Stock por evento (régimen nuevo): cada llamada decrementa origen +
+     * incrementa destino SOLO por la cantidad de ESTE viaje (no por la
+     * cantidad_enviada total). Para origen, FIFO por split via columna
+     * transferencia_item_origenes.cantidad_decrementada (migración 048).
      *
-     * Si cantidad_recibida ≠ cantidad_enviada → se registra discrepancia.
-     *   · recibida < enviada → merma/pérdida en tránsito
-     *   · recibida > enviada → sobrante (miscount u otro error)
-     * La diferencia NO se revierte al origen — queda registrada para auditoría.
+     * Régimen legacy (stock_reconciliado = FALSE): el origen ya se descontó
+     * al aprobar la TRF completa. Solo se incrementa destino. La auditoría
+     * y los eventos se registran igual.
+     *
+     * cantidad_recibida en transferencia_items ACUMULA (no sobreescribe) entre
+     * eventos. La cifra final = SUM de todos los eventos.
+     *
+     * SoD: el receptor no puede ser el transportista. Caso aprobada→recibida
+     * directa (sin despacho intermedio): tampoco el aprobador. Se valida en
+     * CADA evento.
      */
-    async recibir(id, receptorId, items) {
+    async recibir(id, receptorId, items, userPermisos, tipo = 'total') {
         if (!items || !items.length) throw new Error('Debe incluir ítems');
+        if (tipo !== 'parcial' && tipo !== 'total') {
+            throw new Error('tipo debe ser "parcial" o "total"');
+        }
 
         const conn = await db.getConnection();
         try {
@@ -531,112 +582,255 @@ const transferenciaService = {
             const [trfRows] = await conn.query('SELECT * FROM transferencias WHERE id = ? FOR UPDATE', [id]);
             if (!trfRows.length) throw new Error('Transferencia no encontrada');
             const trf = trfRows[0];
-            if (trf.estado !== 'en_transito' && trf.estado !== 'aprobada') {
+            if (!['en_transito', 'aprobada', 'recepcion_parcial'].includes(trf.estado)) {
                 throw new Error('Transferencia no puede ser recibida');
             }
 
-            // Régimen nuevo: decrementar origen según splits. Si la columna no
-            // existe (DB pre-036) o es FALSE, saltar (legacy / ya descontado).
+            // SoD: el receptor no puede ser el transportista (quien despachó).
+            // Caso aprobada→recibida directa (sin estado en_tránsito intermedio):
+            // tampoco puede ser el aprobador (transportista_id está null).
+            if (trf.transportista_id != null && trf.transportista_id === receptorId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes recibir transferencias que tú mismo despachaste. Otro usuario con permiso "Recibir Transferencia" debe hacerlo.');
+            }
+            if (trf.estado === 'aprobada' && trf.transportista_id == null && trf.aprobador_id != null
+                && trf.aprobador_id === receptorId && !_hasBypass(userPermisos)) {
+                throw _sodError('SoD violation: no puedes recibir transferencias que tú mismo aprobaste (sin paso por despacho). Otro usuario debe recibirla.');
+            }
+
+            // Régimen nuevo: decrementar origen según splits. Si la columna es
+            // FALSE, legacy / ya descontado al aprobar.
             const regimenNuevo = trf.stock_reconciliado !== 0 && trf.stock_reconciliado !== false;
 
-            // Fetch cantidades enviadas + splits desde BD (fuente de verdad)
+            // Fetch cantidades enviadas + cantidad_recibida acumulada desde BD
             const [dbItems] = await conn.query(
-                'SELECT id, item_id, cantidad_enviada, origen_obra_id, origen_bodega_id FROM transferencia_items WHERE transferencia_id = ?',
+                'SELECT id, item_id, cantidad_enviada, cantidad_recibida, origen_obra_id, origen_bodega_id FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
             );
             const enviadaMap = {};
+            const acumuladoMap = {};
+            const trfItemIdMap = {};
             const itemRowMap = {};
             dbItems.forEach(r => {
                 enviadaMap[r.item_id] = r.cantidad_enviada || 0;
+                acumuladoMap[r.item_id] = r.cantidad_recibida || 0;
+                trfItemIdMap[r.item_id] = r.id;
                 itemRowMap[r.item_id] = r;
             });
 
-            // Decremento de origen (solo régimen nuevo). Usa splits como fuente
-            // de verdad; si no hay splits, fallback al origen de transferencia_items.
-            if (regimenNuevo) {
-                for (const itemRow of dbItems) {
+            // Validación parcial: cumulative recibida (acumulado + este viaje)
+            // no puede exceder cantidad_enviada. Para over-receive usar tipo='total'.
+            if (tipo === 'parcial') {
+                for (const item of items) {
+                    if (!(item.item_id in enviadaMap)) {
+                        throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
+                    }
+                    const recibidaEnEvento = parseInt(item.cantidad_recibida, 10) || 0;
+                    if (recibidaEnEvento < 0) {
+                        throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
+                    }
+                    const proyectado = acumuladoMap[item.item_id] + recibidaEnEvento;
+                    if (proyectado > enviadaMap[item.item_id]) {
+                        const err = new Error(
+                            `Recepción parcial no puede exceder cantidad enviada (ítem ${item.item_id}: ` +
+                            `acumulado ${acumuladoMap[item.item_id]} + este viaje ${recibidaEnEvento} > enviada ${enviadaMap[item.item_id]}). ` +
+                            `Usa "Recepción Total" para cerrar con discrepancia.`
+                        );
+                        err.statusCode = 400;
+                        throw err;
+                    }
+                }
+            }
+
+            // Insertar cabecera del evento de recepción (audit)
+            const [recepHeader] = await conn.query(
+                `INSERT INTO transferencia_recepciones (transferencia_id, receptor_id, tipo, observacion)
+                 VALUES (?, ?, ?, ?)`,
+                [id, receptorId, tipo, null]
+            );
+            const recepcionId = recepHeader.insertId;
+
+            // Procesar cada item del evento
+            for (const item of items) {
+                if (!(item.item_id in enviadaMap)) {
+                    throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
+                }
+                const recibidaEnEvento = parseInt(item.cantidad_recibida, 10) || 0;
+                if (recibidaEnEvento < 0) {
+                    throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
+                }
+
+                // Decremento de origen (solo régimen nuevo): FIFO por split via
+                // cantidad_decrementada. En parciales sucesivos, el split que no
+                // tiene saldo se salta y se consume del siguiente.
+                if (regimenNuevo && recibidaEnEvento > 0) {
+                    let amountRemaining = recibidaEnEvento;
+                    const trfItemId = trfItemIdMap[item.item_id];
                     const [splits] = await conn.query(
-                        `SELECT origen_obra_id, origen_bodega_id, cantidad_enviada
-                         FROM transferencia_item_origenes WHERE transferencia_item_id = ?`,
-                        [itemRow.id]
+                        `SELECT id, origen_obra_id, origen_bodega_id, cantidad_enviada, cantidad_decrementada
+                         FROM transferencia_item_origenes
+                         WHERE transferencia_item_id = ?
+                         ORDER BY id ASC FOR UPDATE`,
+                        [trfItemId]
                     );
                     if (splits.length > 0) {
                         for (const s of splits) {
-                            if (s.cantidad_enviada > 0) {
-                                await conn.query(
-                                    `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
-                                     WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                                    [s.cantidad_enviada, itemRow.item_id, s.origen_obra_id, s.origen_bodega_id]
-                                );
-                            }
+                            if (amountRemaining <= 0) break;
+                            const splitDisponible = (s.cantidad_enviada || 0) - (s.cantidad_decrementada || 0);
+                            if (splitDisponible <= 0) continue;
+                            const take = Math.min(amountRemaining, splitDisponible);
+                            await conn.query(
+                                `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
+                                 WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
+                                [take, item.item_id, s.origen_obra_id, s.origen_bodega_id]
+                            );
+                            await conn.query(
+                                'UPDATE transferencia_item_origenes SET cantidad_decrementada = cantidad_decrementada + ? WHERE id = ?',
+                                [take, s.id]
+                            );
+                            amountRemaining -= take;
                         }
-                    } else if (itemRow.cantidad_enviada > 0) {
-                        // Fallback: origen del transferencia_items (o cabecera)
+                        // Si quedó remaining después de splits (caso total con
+                        // over-receive), se descuenta del origen primario como fallback.
+                        if (amountRemaining > 0) {
+                            const itemRow = itemRowMap[item.item_id];
+                            const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
+                            const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
+                            await conn.query(
+                                `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
+                                 WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
+                                [amountRemaining, item.item_id, obraId, bodegaId]
+                            );
+                        }
+                    } else {
+                        // Sin splits → fallback al origen de transferencia_items o cabecera
+                        const itemRow = itemRowMap[item.item_id];
                         const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                         const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
                         await conn.query(
                             `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                              WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
-                            [itemRow.cantidad_enviada, itemRow.item_id, obraId, bodegaId]
+                            [recibidaEnEvento, item.item_id, obraId, bodegaId]
+                        );
+                    }
+                }
+
+                // Acumular cantidad_recibida en transferencia_items (no sobreescribir)
+                await conn.query(
+                    'UPDATE transferencia_items SET cantidad_recibida = COALESCE(cantidad_recibida, 0) + ? WHERE transferencia_id = ? AND item_id = ?',
+                    [recibidaEnEvento, id, item.item_id]
+                );
+
+                // Incrementar stock en destino (upsert)
+                if (recibidaEnEvento > 0) {
+                    await conn.query(
+                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
+                         VALUES (?, ?, ?, ?)
+                         ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
+                        [item.item_id, trf.destino_obra_id, trf.destino_bodega_id, recibidaEnEvento]
+                    );
+                }
+
+                // Audit item del evento
+                await conn.query(
+                    `INSERT INTO transferencia_recepcion_items
+                     (recepcion_id, transferencia_item_id, cantidad_recibida, observacion)
+                     VALUES (?, ?, ?, ?)`,
+                    [recepcionId, trfItemIdMap[item.item_id], recibidaEnEvento, item.observacion || null]
+                );
+
+                // Discrepancia: SOLO en recepción total y solo si cumulative ≠ enviada.
+                // En parcial no se crea discrepancia (lo que falta "viene en otro viaje").
+                if (tipo === 'total') {
+                    const totalRecibidoFinal = acumuladoMap[item.item_id] + recibidaEnEvento;
+                    if (totalRecibidoFinal !== enviadaMap[item.item_id]) {
+                        await conn.query(
+                            `INSERT INTO transferencia_discrepancias
+                             (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion)
+                             VALUES (?, ?, ?, ?, ?)`,
+                            [id, item.item_id, enviadaMap[item.item_id], totalRecibidoFinal, item.observacion || null]
                         );
                     }
                 }
             }
 
-            for (const item of items) {
-                if (!(item.item_id in enviadaMap)) {
-                    throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
-                }
-                const enviada = enviadaMap[item.item_id];
-                const recibida = parseInt(item.cantidad_recibida, 10) || 0;
-                if (recibida < 0) {
-                    throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
-                }
-                // Se permite recibir MÁS o MENOS que lo enviado. Cualquier
-                // diferencia genera un registro de discrepancia para auditoría.
-
-                // Actualizar cantidad recibida
+            // Transición de estado:
+            //   · parcial → recepcion_parcial. Header receptor/fecha NO se setea
+            //     (queda para la recepción final que cierra la TRF).
+            //   · total   → recibida. Header receptor/fecha = ESTE evento.
+            if (tipo === 'parcial') {
                 await conn.query(
-                    'UPDATE transferencia_items SET cantidad_recibida = ? WHERE transferencia_id = ? AND item_id = ?',
-                    [recibida, id, item.item_id]
+                    "UPDATE transferencias SET estado = 'recepcion_parcial' WHERE id = ?",
+                    [id]
                 );
-
-                // Incrementar stock en destino (upsert)
-                if (recibida > 0) {
-                    await conn.query(
-                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                         VALUES (?, ?, ?, ?)
-                         ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                        [item.item_id, trf.destino_obra_id, trf.destino_bodega_id, recibida]
-                    );
-                }
-
-                // Registrar discrepancia ante cualquier diferencia (merma o sobrante).
-                // La columna `diferencia` es GENERATED (enviada - recibida), por lo
-                // que será negativa cuando hay sobrante.
-                if (recibida !== enviada) {
-                    await conn.query(
-                        `INSERT INTO transferencia_discrepancias
-                         (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion)
-                         VALUES (?, ?, ?, ?, ?)`,
-                        [id, item.item_id, enviada, recibida, item.observacion || null]
-                    );
-                }
+            } else {
+                await conn.query(
+                    "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
+                    [receptorId, receptorId, id]
+                );
             }
 
-            await conn.query(
-                "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
-                [receptorId, receptorId, id]
-            );
-
             await conn.commit();
-            return { id, estado: 'recibida' };
+            return { id, estado: tipo === 'parcial' ? 'recepcion_parcial' : 'recibida', recepcion_id: recepcionId };
         } catch (err) {
             await conn.rollback();
             throw err;
         } finally {
             conn.release();
         }
+    },
+
+    /**
+     * Devuelve el historial de eventos de recepción de una TRF con items embebidos.
+     * Usado por el frontend para renderizar la sección "Historial de recepciones"
+     * en TransferenciaDetail.
+     */
+    async getRecepciones(transferenciaId) {
+        const [recepciones] = await db.query(
+            `SELECT r.id, r.transferencia_id, r.receptor_id, r.fecha_recepcion, r.tipo, r.observacion,
+                    u.nombre AS receptor_nombre
+             FROM transferencia_recepciones r
+             LEFT JOIN usuarios u ON u.id = r.receptor_id
+             WHERE r.transferencia_id = ?
+             ORDER BY r.fecha_recepcion ASC, r.id ASC`,
+            [transferenciaId]
+        );
+        if (recepciones.length === 0) return [];
+
+        const ids = recepciones.map(r => r.id);
+        const [itemRows] = await db.query(
+            `SELECT ri.id, ri.recepcion_id, ri.transferencia_item_id, ri.cantidad_recibida, ri.observacion,
+                    ti.item_id, i.descripcion AS item_descripcion, i.unidad
+             FROM transferencia_recepcion_items ri
+             INNER JOIN transferencia_items ti ON ti.id = ri.transferencia_item_id
+             LEFT JOIN items i ON i.id = ti.item_id
+             WHERE ri.recepcion_id IN (?)
+             ORDER BY ri.id ASC`,
+            [ids]
+        );
+        const itemsByRecepcion = {};
+        itemRows.forEach(r => {
+            if (!itemsByRecepcion[r.recepcion_id]) itemsByRecepcion[r.recepcion_id] = [];
+            itemsByRecepcion[r.recepcion_id].push({
+                id: r.id,
+                transferencia_item_id: r.transferencia_item_id,
+                item_id: r.item_id,
+                item_descripcion: r.item_descripcion,
+                unidad: r.unidad,
+                cantidad_recibida: r.cantidad_recibida,
+                observacion: r.observacion,
+            });
+        });
+
+        return recepciones.map(r => ({
+            id: r.id,
+            transferencia_id: r.transferencia_id,
+            receptor_id: r.receptor_id,
+            receptor_nombre: r.receptor_nombre,
+            fecha_recepcion: r.fecha_recepcion,
+            tipo: r.tipo,
+            observacion: r.observacion,
+            items: itemsByRecepcion[r.id] || [],
+        }));
     },
 
     /**

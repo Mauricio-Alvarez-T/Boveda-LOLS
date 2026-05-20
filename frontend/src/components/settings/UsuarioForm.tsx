@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save } from 'lucide-react';
+import { Save, AlertTriangle } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -13,6 +13,8 @@ import type { ApiResponse } from '../../types';
 interface Role {
     id: number;
     nombre: string;
+    /** Subquery del backend — número de permisos asignados a este rol. */
+    permisos_count?: number;
 }
 
 interface Obra {
@@ -58,7 +60,7 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
     const [roles, setRoles] = useState<Role[]>([]);
     const [obras, setObras] = useState<Obra[]>([]);
 
-    const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
+    const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
             nombre: initialData?.nombre || '',
@@ -69,6 +71,16 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             obra_id: initialData?.obra_id || 0,
         },
     });
+
+    // Observa el rol seleccionado en tiempo real para mostrar preview de
+    // permisos. Sin esto el admin no ve cuántos permisos tiene el rol que
+    // está a punto de asignar — causa "asigné el rol pero el usuario no
+    // tiene permisos" cuando el rol está vacío.
+    const watchedRolId = watch('rol_id');
+    const selectedRol = useMemo<Role | undefined>(
+        () => roles.find(r => Number(r.id) === Number(watchedRolId)),
+        [roles, watchedRolId]
+    );
 
     useEffect(() => {
         api.get<ApiResponse<Role[]>>('/usuarios/roles/list').then(res => setRoles(res.data.data)).catch(() => { });
@@ -83,8 +95,19 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             if (!payload.email_corporativo) payload.email_corporativo = null;
 
             if (initialData) {
+                // Detectar cambio de rol_id para mostrar toast informando
+                // que el usuario será forzado a re-loguear (backend bumpea
+                // versionService del rol viejo).
+                const rolChanged = Number(initialData.rol_id) !== Number(data.rol_id);
                 await api.put(`/usuarios/${initialData.id}`, payload);
-                toast.success('Usuario actualizado');
+                if (rolChanged) {
+                    toast.success(
+                        'Usuario actualizado. Si está conectado actualmente, será desconectado automáticamente para aplicar el rol nuevo.',
+                        { duration: 6000 }
+                    );
+                } else {
+                    toast.success('Usuario actualizado');
+                }
             } else {
                 if (!data.password) {
                     toast.error('La contraseña es requerida para nuevos usuarios');
@@ -120,10 +143,27 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                     <select {...register('rol_id')} className={selectClass}>
                         <option value={0} className="bg-white text-brand-dark">Seleccionar rol...</option>
                         {roles.map(r => (
-                            <option key={r.id} value={r.id} className="bg-white text-brand-dark">{r.nombre}</option>
+                            <option key={r.id} value={r.id} className="bg-white text-brand-dark">
+                                {r.nombre}{typeof r.permisos_count === 'number' ? ` (${r.permisos_count} permisos)` : ''}
+                            </option>
                         ))}
                     </select>
                     {errors.rol_id && <p className="text-xs text-destructive font-medium ml-1">{errors.rol_id.message}</p>}
+                    {/* Preview del rol seleccionado — alerta si tiene 0 permisos. */}
+                    {selectedRol && typeof selectedRol.permisos_count === 'number' && (
+                        selectedRol.permisos_count === 0 ? (
+                            <div className="flex items-start gap-1.5 mt-1 ml-1 text-xs text-amber-700 font-medium">
+                                <AlertTriangle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                                <span>
+                                    El rol "<strong>{selectedRol.nombre}</strong>" no tiene permisos asignados. El usuario no tendrá acceso a nada hasta que asignes permisos al rol.
+                                </span>
+                            </div>
+                        ) : (
+                            <p className="text-xs text-muted-foreground mt-1 ml-1">
+                                Rol "<strong className="text-brand-dark">{selectedRol.nombre}</strong>" tiene <strong>{selectedRol.permisos_count}</strong> permiso{selectedRol.permisos_count === 1 ? '' : 's'} asignado{selectedRol.permisos_count === 1 ? '' : 's'}.
+                            </p>
+                        )
+                    )}
                 </div>
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-muted-foreground ml-1">Obra Asignada</label>

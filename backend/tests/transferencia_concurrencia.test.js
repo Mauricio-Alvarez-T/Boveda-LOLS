@@ -38,13 +38,15 @@ describe('Race conditions: SELECT FOR UPDATE en transiciones de estado', () => {
     test('aprobar() usa FOR UPDATE en el SELECT inicial', () => {
         const body = getMethodBody('aprobar');
         expect(body).toBeTruthy();
-        expect(body).toMatch(/SELECT\s+estado\s+FROM\s+transferencias\s+WHERE\s+id\s*=\s*\?\s*FOR\s+UPDATE/i);
+        // Acepta SELECT estado, ... FROM (SoD añadió solicitante_id al SELECT).
+        expect(body).toMatch(/SELECT\s+estado[\s\w,]*FROM\s+transferencias\s+WHERE\s+id\s*=\s*\?\s*FOR\s+UPDATE/i);
     });
 
     test('despachar() usa FOR UPDATE en el SELECT inicial', () => {
         const body = getMethodBody('despachar');
         expect(body).toBeTruthy();
-        expect(body).toMatch(/SELECT\s+estado\s+FROM\s+transferencias\s+WHERE\s+id\s*=\s*\?\s*FOR\s+UPDATE/i);
+        // Acepta SELECT estado, ... FROM (SoD añadió aprobador_id al SELECT).
+        expect(body).toMatch(/SELECT\s+estado[\s\w,]*FROM\s+transferencias\s+WHERE\s+id\s*=\s*\?\s*FOR\s+UPDATE/i);
     });
 
     test('recibir() usa FOR UPDATE en el SELECT inicial', () => {

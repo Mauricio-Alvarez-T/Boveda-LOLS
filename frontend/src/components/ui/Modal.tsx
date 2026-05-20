@@ -12,6 +12,12 @@ interface ModalProps {
     children: React.ReactNode;
     footer?: React.ReactNode;
     size?: 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'full' | 'dynamic';
+    /**
+     * Si `true`, elimina el padding interior del body y desactiva el overflow
+     * automático — el contenido manda su propio scroll. Útil para modales con
+     * layouts complejos (sidebar+main) que necesitan ocupar el ancho completo.
+     */
+    noBodyPadding?: boolean;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -20,7 +26,8 @@ export const Modal: React.FC<ModalProps> = ({
     title,
     children,
     footer,
-    size = 'md'
+    size = 'md',
+    noBodyPadding = false
 }) => {
     // Desktop-only max-widths
     const desktopSizes: Record<string, string> = {
@@ -29,7 +36,7 @@ export const Modal: React.FC<ModalProps> = ({
         lg: 'md:max-w-3xl',
         xl: 'md:max-w-5xl',
         '2xl': 'md:max-w-7xl',
-        full: 'md:max-w-[95vw]',
+        full: 'md:max-w-[95vw] md:h-[90vh]',
         dynamic: 'md:max-w-4xl',
     };
 
@@ -104,7 +111,10 @@ export const Modal: React.FC<ModalProps> = ({
                             </div>
 
                             {/* Body */}
-                            <div className="flex-1 overflow-y-auto px-5 py-2 custom-scrollbar relative min-h-0">
+                            <div className={cn(
+                                "flex-1 relative min-h-0",
+                                noBodyPadding ? "overflow-hidden" : "overflow-y-auto px-5 py-2 custom-scrollbar"
+                            )}>
                                 {children}
                             </div>
 
@@ -145,7 +155,10 @@ export const Modal: React.FC<ModalProps> = ({
                                 </Button>
                             </div>
                             {/* Body */}
-                            <div className="p-6 overflow-y-auto custom-scrollbar flex-1 relative">
+                            <div className={cn(
+                                "flex-1 relative min-h-0",
+                                noBodyPadding ? "overflow-hidden" : "p-6 overflow-y-auto custom-scrollbar"
+                            )}>
                                 {children}
                             </div>
                             {/* Footer */}

@@ -3,7 +3,7 @@ import { toast } from 'sonner';
 import api from '../../services/api';
 import { showApiError } from '../../utils/toastUtils';
 import type { ApiResponse } from '../../types';
-import type { Transferencia, TransferenciaConDiscrepancias } from '../../types/entities';
+import type { Transferencia, TransferenciaConDiscrepancias, TransferenciaRecepcion } from '../../types/entities';
 
 interface TransferenciaListResponse {
     data: Transferencia[];
@@ -251,14 +251,43 @@ export function useTransferencias() {
         }
     }, []);
 
-    const recibir = useCallback(async (id: number, items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => {
+    /**
+     * Recepción de TRF. `tipo` controla si se cierra la TRF o se deja abierta:
+     *   · 'total'   → cierra (estado 'recibida'). Gaps acumulados → discrepancia.
+     *                 Comportamiento por defecto (back-compat).
+     *   · 'parcial' → registra lo que llegó en ESTE viaje. Estado queda en
+     *                 'recepcion_parcial' para futuros viajes. Sin discrepancia.
+     *                 Backend bloquea over-receive (acumulado > enviada).
+     */
+    const recibir = useCallback(async (
+        id: number,
+        items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
+        tipo: 'parcial' | 'total' = 'total'
+    ) => {
         try {
-            await api.put(`/transferencias/${id}/recibir`, { items });
-            toast.success('Transferencia recibida — stock actualizado');
+            await api.put(`/transferencias/${id}/recibir`, { items, tipo });
+            if (tipo === 'parcial') {
+                toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { duration: 5000 });
+            } else {
+                toast.success('Transferencia cerrada ✓');
+            }
             return true;
         } catch (err) {
             showApiError(err, 'Error al recibir');
             return false;
+        }
+    }, []);
+
+    /**
+     * Historial de eventos de recepción para una TRF.
+     * Backend: GET /api/transferencias/:id/recepciones (migración 048).
+     */
+    const fetchRecepciones = useCallback(async (id: number): Promise<TransferenciaRecepcion[]> => {
+        try {
+            const res = await api.get<ApiResponse<TransferenciaRecepcion[]>>(`/transferencias/${id}/recepciones`);
+            return res.data.data || [];
+        } catch {
+            return [];
         }
     }, []);
 
@@ -342,7 +371,7 @@ export function useTransferencias() {
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
         fetchAll, fetchById, crear, pushDirecto, intraBodega, devolucion,
         intraObra, ordenGerencia,
-        aprobar, crearFaltante, despachar, recibir, rechazar, rechazarRecepcion, cancelar,
+        aprobar, crearFaltante, despachar, recibir, fetchRecepciones, rechazar, rechazarRecepcion, cancelar,
         fetchDiscrepancias, resolverDiscrepancia,
         fetchStockPorItems, setSelected
     };

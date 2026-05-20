@@ -19,10 +19,10 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
-            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 1 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
         ];
 
         // Juan solo tiene 1 asistencia el viernes 13 de marzo 2026
@@ -69,8 +69,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
         ];
 
         // Solo asistió el viernes 13 de marzo 2026
@@ -133,6 +133,80 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         expect(sheetNames.some(n => n.includes('PROVISORIOS'))).toBe(true);
     });
 
+    // ── Test 5: Weekend/feriado dentro de LM se renderiza como bloque LM ──
+    test('weekend dentro de período LM debe mostrar "LM" con fill LM y no sumar al total', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#5856D6', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
+        ];
+
+        // LM período: lunes 9 al domingo 15 de marzo 2026 (incluye sab 14 + dom 15)
+        // crearPeriodo habría insertado filas para lun-vie (9-13). Sat 14 + Dom 15 no tienen registro.
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-09', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-10', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-11', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-12', estado_id: 4 },
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 4 }
+        ];
+
+        const mockLMPeriods = [
+            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15' }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('FROM periodos_ausencia')) return Promise.resolve([mockLMPeriods]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Día 1 = Domingo, FUERA de LM → FDS gris (suma)
+        expect(wsLols.getCell(9, 9).value).toBe('FDS');
+
+        // Día 7 = Sábado, FUERA de LM → FDS gris (suma)
+        expect(wsLols.getCell(9, 15).value).toBe('FDS');
+
+        // Días 9-13 (lun-vie) con LM registrado → LM (fill azul)
+        const lmCellMid = wsLols.getCell(9, 21); // día 13
+        expect(lmCellMid.value).toBe('LM');
+        expect(lmCellMid.fill?.fgColor?.argb).toBe('FF5856D6');
+
+        // Día 14 = Sábado DENTRO de LM → "LM" con fill LM (bloque continuo, NO suma)
+        const sabLM = wsLols.getCell(9, 22);
+        expect(sabLM.value).toBe('LM');
+        expect(sabLM.fill?.fgColor?.argb).toBe('FF5856D6');
+
+        // Día 15 = Domingo DENTRO de LM → "LM" con fill LM
+        const domLM = wsLols.getCell(9, 23);
+        expect(domLM.value).toBe('LM');
+        expect(domLM.fill?.fgColor?.argb).toBe('FF5856D6');
+
+        // Verificar que fórmula COUNTIF NO incluye "LM" (LM cuenta_dia_trabajado=0, no está en codigosSumanDia)
+        const q1Cell = wsLols.getCell(9, 24); // Q1 col
+        const formula = q1Cell.value.formula;
+        expect(formula).toContain('"FDS"');
+        expect(formula).not.toMatch(/"LM"/);
+
+        // Bordes color-matched al fill → bloque visual continuo
+        const borderArgb = sabLM.border?.top?.color?.argb;
+        expect(borderArgb).toBe('FF5856D6');
+    });
+
     // ── Test 4: Leyenda en dos columnas (no más de 4 filas) ──
     test('la leyenda debe organizarse en dos columnas sin solapar datos', async () => {
         const mockWorkers = [
@@ -141,12 +215,12 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         // 6 estados + 1 FDS = 7 items → 4 izquierda, 3 derecha
         const mockEstados = [
-            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1 },
-            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0 },
-            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 1 },
-            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 1 },
-            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1 },
-            { id: 6, codigo: 'AT', nombre: 'Atraso', color: '#FF6B6B', activo: 1, es_presente: 1 }
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 2, codigo: 'F', nombre: 'Falta', color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#AF52DE', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 6, codigo: 'AT', nombre: 'Atraso', color: '#FF6B6B', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 }
         ];
 
         db.query.mockImplementation((sql) => {

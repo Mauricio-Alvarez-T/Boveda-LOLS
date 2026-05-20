@@ -2,16 +2,17 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import {
-    ChevronLeft, FileText, CheckCircle2, PackageCheck,
+    ChevronLeft, FileText, CheckCircle2, PackageCheck, PackageOpen,
     XCircle, Ban, AlertTriangle, MessageSquare, Users,
     MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send,
-    ShoppingBag,
+    ShoppingBag, Info, History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
-import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../types/entities';
+import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit, TransferenciaRecepcion } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
 import FaltanteDecisionModal from './FaltanteDecisionModal';
+import { Modal } from '../ui/Modal';
 import { fmtFecha } from '../../utils/fechas';
 
 interface StockLocation {
@@ -38,7 +39,12 @@ interface Props {
         >;
     }) => Promise<boolean>;
     onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
-    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[]) => Promise<boolean>;
+    onRecibir: (
+        items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
+        tipo?: 'parcial' | 'total'
+    ) => Promise<boolean>;
+    /** Fetcher del historial de eventos de recepción. Inyectado por el panel padre. */
+    onFetchRecepciones?: (id: number) => Promise<TransferenciaRecepcion[]>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onRechazarRecepcion?: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
@@ -51,8 +57,10 @@ const STEPS = [
     { key: 'recibida', label: 'Recibida', icon: PackageCheck },
 ];
 
+// recepcion_parcial entra como step 1 (junto con aprobada/en_transito) porque
+// aún no termina el flujo — la TRF sigue abierta hasta el cierre total.
 const STEP_INDEX: Record<string, number> = {
-    pendiente: 0, aprobada: 1, en_transito: 1, recibida: 2,
+    pendiente: 0, aprobada: 1, en_transito: 1, recepcion_parcial: 1, recibida: 2,
     rechazada: -1, cancelada: -1,
 };
 
@@ -65,7 +73,7 @@ const fmtDateTime = (d: string | null) =>
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onRechazar, onRechazarRecepcion, onCancelar,
+    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     // Items personalizados (fuera de catálogo). Schema mínimo, no comparte interfaz
@@ -86,18 +94,66 @@ const TransferenciaDetail: React.FC<Props> = ({
     const origen = t.origen_obra_nombre || t.origen_bodega_nombre || '—';
     const destino = t.destino_obra_nombre || t.destino_bodega_nombre || '—';
 
-    // ── Action permissions ──
-    const canAprobar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
-    const canRechazar = t.estado === 'pendiente' && hasPermission('inventario.aprobar');
-    const canRecibir = (t.estado === 'en_transito' || t.estado === 'aprobada') && hasPermission('inventario.editar');
-    const canRechazarRecepcion = t.estado === 'en_transito' && hasPermission('inventario.editar') && !!onRechazarRecepcion;
-    const canCancelar = (t.estado === 'pendiente' || t.estado === 'en_transito') && (hasPermission('inventario.editar') || t.solicitante_id === userId);
+    // ── Action permissions + SoD identity checks ──
+    // SoD: solicitante ≠ aprobador ≠ transportista ≠ receptor. UI oculta el
+    // botón cuando el usuario actual tiene rol previo en la TRF. Backend
+    // valida igual con 403 (defensa en profundidad). El permiso especial
+    // `sod_bypass` permite a un usuario ejecutar acciones consecutivas
+    // (obras unipersonales, emergencias) — queda en audit log.
+    const hasBypass = hasPermission('inventario.transferencias.sod_bypass');
+    const isSolicitante = t.solicitante_id === userId;
+    const isAprobador = (t as any).aprobador_id === userId;
+    const isTransportista = (t as any).transportista_id === userId;
+
+    const canAprobar =
+        t.estado === 'pendiente' &&
+        hasPermission('inventario.transferencias.aprobar') &&
+        (!isSolicitante || hasBypass);
+    const canRechazar = canAprobar;
+    const canDespachar =
+        t.estado === 'aprobada' &&
+        hasPermission('inventario.transferencias.despachar') &&
+        (!isAprobador || hasBypass);
+    const canRecibir =
+        (t.estado === 'en_transito' || t.estado === 'aprobada' || t.estado === 'recepcion_parcial') &&
+        hasPermission('inventario.transferencias.recibir') &&
+        // si estado aprobada (sin paso por despacho), bloquea si soy el aprobador
+        (t.estado === 'aprobada' ? (!isAprobador || hasBypass) : (!isTransportista || hasBypass));
+    // Rechazo de recepción: solo en en_transito (antes de recibir nada). Una
+    // vez en recepcion_parcial el receptor ya movió stock, por lo que rechazar
+    // dejaría inventario inconsistente. Para "abortar" desde parcial, usar
+    // "Recepción Total" con cantidad=0 en los pendientes → cierra el flujo y
+    // genera discrepancia por lo no llegado.
+    const canRechazarRecepcion =
+        t.estado === 'en_transito' &&
+        hasPermission('inventario.transferencias.recibir') &&
+        (!isTransportista || hasBypass) &&
+        !!onRechazarRecepcion;
+    // Cancelar: el solicitante siempre puede cancelar su propia TRF (caso de
+    // usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
+    const canCancelar =
+        ['pendiente', 'aprobada', 'en_transito'].includes(t.estado) &&
+        (hasPermission('inventario.transferencias.cancelar') || isSolicitante);
+
+    // Banners SoD: alertar visualmente cuando el user actual no puede avanzar
+    // la TRF por su rol previo. Educa al usuario sobre por qué la acción no
+    // aparece (evita "¿por qué no veo el botón Aprobar?").
+    const showSodBannerSolicitante =
+        isSolicitante && t.estado === 'pendiente' &&
+        hasPermission('inventario.transferencias.aprobar') && !hasBypass;
+    const showSodBannerAprobador =
+        isAprobador && t.estado === 'aprobada' &&
+        hasPermission('inventario.transferencias.despachar') && !hasBypass;
+    const showSodBannerTransportista =
+        isTransportista && (t.estado === 'en_transito' || t.estado === 'recepcion_parcial') &&
+        hasPermission('inventario.transferencias.recibir') && !hasBypass;
     // Pendiente entra en la lista porque RRHH/operaciones quieren notificar al
     // grupo WhatsApp para que el aprobador a cargo abra la app y revise la
     // factibilidad. El mensaje pendiente lleva las cantidades solicitadas
     // (la rama del `if` por estado en handleShareWhatsApp ya cubre eso).
-    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recibida'].includes(t.estado);
-    const hasActions = canAprobar || canRechazar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
+    // recepcion_parcial también comparte (caso útil: "ya llegó la mitad, faltan X").
+    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial', 'recibida'].includes(t.estado);
+    const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
     // ── Clipboard helper con fallback para navegadores sin clipboard API ──
     const copyToClipboard = async (text: string): Promise<boolean> => {
@@ -164,8 +220,10 @@ const TransferenciaDetail: React.FC<Props> = ({
             // Etiqueta y cantidad dependen del estado para reflejar la columna real
             // (Solicit / Enviada / Recibida) — antes siempre mostraba enviada y
             // confundía al receptor cuando la recepción difería del despacho.
+            // recepcion_parcial: ya llegó algo, falta más → muestra acumulado + pendiente.
             const itemsLabel =
                 t.estado === 'recibida' ? 'Items recibidos' :
+                t.estado === 'recepcion_parcial' ? 'Items con entrega en curso' :
                 t.estado === 'aprobada' || t.estado === 'en_transito' ? 'Items enviados' :
                 'Items solicitados';
             lines.push(`${BOX} *${itemsLabel} (${items.length}):*`);
@@ -173,6 +231,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                 let cant: number;
                 if (t.estado === 'recibida') {
                     cant = it.cantidad_recibida ?? it.cantidad_enviada ?? it.cantidad_solicitada;
+                } else if (t.estado === 'recepcion_parcial') {
+                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
                 } else if (t.estado === 'aprobada' || t.estado === 'en_transito') {
                     cant = it.cantidad_enviada ?? it.cantidad_solicitada;
                 } else {
@@ -181,6 +241,16 @@ const TransferenciaDetail: React.FC<Props> = ({
                 const unidad = it.unidad ? ` ${it.unidad}` : '';
                 const desc = it.item_descripcion || `Item #${it.item_id}`;
                 lines.push(`• ${cant}${unidad} — ${desc}`);
+                // En recepcion_parcial mostrar lo ya recibido y lo pendiente
+                // — el aprobador/transportista necesita saber qué viaje queda.
+                if (
+                    t.estado === 'recepcion_parcial' &&
+                    it.cantidad_enviada != null
+                ) {
+                    const recibida = it.cantidad_recibida ?? 0;
+                    const pendiente = it.cantidad_enviada - recibida;
+                    lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
+                }
                 // Si en recepción hubo discrepancia con lo enviado, anótala bajo el item
                 // — facilita conciliación sin abrir la app.
                 if (
@@ -278,11 +348,34 @@ const TransferenciaDetail: React.FC<Props> = ({
         faltantes: { item_descripcion: string; cantidad_faltante: number; unidad?: string }[];
     }>({ isOpen: false, loading: false, faltantes: [] });
 
-    // Receive state
+    // Receive state — cantidad_recibida representa "cantidad de ESTE viaje".
+    // Para parciales, el default es lo PENDIENTE (enviada - recibida_acumulada),
+    // no la enviada total. Permite que el usuario solo edite las cantidades que
+    // efectivamente trajo el camión.
     const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string }[]>([]);
+
+    // Historial de eventos de recepción (parciales + total). Se carga cuando la
+    // TRF está en recepcion_parcial o recibida y existe al menos 1 evento.
+    const [recepciones, setRecepciones] = useState<TransferenciaRecepcion[]>([]);
+    const [historialOpen, setHistorialOpen] = useState(false);
+
+    // Cierre final con merma:
+    // - `cierreFinal` checkbox dentro del form. Marca "esta es la última entrega"
+    //   cuando hay pendientes sin recibir. Oculta el botón "Faltan más viajes"
+    //   (contradictorio) y dispara directo el cierre total sin modal.
+    // - `confirmMermaOpen` modal defensivo cuando el user clickea "Esta es toda
+    //   la entrega" con cantidades < Falta SIN haber marcado el checkbox.
+    const [cierreFinal, setCierreFinal] = useState(false);
+    const [confirmMermaOpen, setConfirmMermaOpen] = useState(false);
 
     // Reject state
     const [rejectMotivo, setRejectMotivo] = useState('');
+
+    // Helper: cantidad ya recibida acumulada por item (de transferencia_items).
+    // Usada para calcular "pendiente" en cada viaje sucesivo.
+    const recibidaPrevia = (item: TransferenciaItem) => item.cantidad_recibida ?? 0;
+    const pendientePorItem = (item: TransferenciaItem) =>
+        (item.cantidad_enviada ?? item.cantidad_solicitada) - recibidaPrevia(item);
 
     // Reset forms when transferencia changes.
     // useEffect (no useMemo): los useMemo no garantizan ejecutar side effects
@@ -295,15 +388,41 @@ const TransferenciaDetail: React.FC<Props> = ({
             cantidad_solicitada: i.cantidad_solicitada,
             splits: [],
         })));
+        // Default cantidad este viaje = pendiente (lo que aún no ha llegado).
+        // Permite al usuario simplemente confirmar si trajeron todo lo pendiente.
         setReceiveItems(items.map(i => ({
             item_id: i.item_id,
-            cantidad_recibida: i.cantidad_enviada || i.cantidad_solicitada,
+            cantidad_recibida: pendientePorItem(i),
             correcto: true,
             observacion: '',
         })));
         setRejectMotivo('');
+        setRecepciones([]);
+        setHistorialOpen(false);
+        setCierreFinal(false);
+        setConfirmMermaOpen(false);
+        // Historial empieza cerrado pero se abre automáticamente cuando se
+        // detectan eventos previos (efecto separado abajo).
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t.id]);
+
+    // Cargar historial de recepciones cuando la TRF tiene eventos previos.
+    // Disparado al cambiar de TRF o cuando se cierra el form de recepción
+    // (después de un parcial) para reflejar el nuevo evento.
+    useEffect(() => {
+        if (!onFetchRecepciones) return;
+        if (t.estado !== 'recepcion_parcial' && t.estado !== 'recibida') return;
+        let cancelled = false;
+        onFetchRecepciones(t.id).then(rows => {
+            if (cancelled) return;
+            setRecepciones(rows);
+            // Default open si hay 1+ viajes previos — info contextual relevante
+            // al receptor (saber qué llegó antes para ajustar el viaje actual).
+            if (rows.length > 0) setHistorialOpen(true);
+        });
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [t.id, t.estado, activeForm]);
 
     // Load stock when approval form opens
     useEffect(() => {
@@ -320,8 +439,9 @@ const TransferenciaDetail: React.FC<Props> = ({
     const activeStep = STEP_INDEX[t.estado] ?? -1;
     const isTerminated = t.estado === 'rechazada' || t.estado === 'cancelada';
 
-    // Receive summary
-    const correctCount = receiveItems.filter(i => i.correcto).length;
+    // Nota: `correcto` y `observacion` del state se mantienen en el shape por
+    // back-compat con onRecibir(), pero ya no se exponen en UI tras el rediseño
+    // V2. Toda discrepancia se infiere de la diferencia entre enviada y recibida.
 
     return (
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
@@ -443,6 +563,75 @@ const TransferenciaDetail: React.FC<Props> = ({
                 </div>
             )}
 
+            {/* ── Historial de recepciones (parciales + total) ──
+                Solo se muestra si hubo al menos 1 evento. Permite al receptor
+                ver cuándo y qué llegó en viajes anteriores antes de registrar
+                el siguiente. Datos vienen del endpoint GET /:id/recepciones. */}
+            {recepciones.length > 0 && (
+                <div className="shrink-0 mb-5">
+                    <button
+                        type="button"
+                        onClick={() => setHistorialOpen(o => !o)}
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-purple-50/60 hover:bg-purple-50 border border-purple-200 rounded-xl transition-all"
+                    >
+                        <h4 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                            <History className="h-3.5 w-3.5" />
+                            Historial de recepciones ({recepciones.length})
+                        </h4>
+                        {historialOpen ? <ChevronUp className="h-4 w-4 text-purple-700" /> : <ChevronDown className="h-4 w-4 text-purple-700" />}
+                    </button>
+                    {historialOpen && (
+                        <div className="mt-2 space-y-2">
+                            {recepciones.map((rec, idx) => (
+                                <div
+                                    key={rec.id}
+                                    className={cn(
+                                        "border rounded-xl p-3",
+                                        rec.tipo === 'total'
+                                            ? "bg-green-50/40 border-green-200"
+                                            : "bg-purple-50/40 border-purple-200"
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between mb-1.5">
+                                        <div className="flex items-center gap-1.5">
+                                            <span className="text-[10px] font-bold text-muted-foreground">#{idx + 1}</span>
+                                            <span
+                                                className={cn(
+                                                    "text-[10px] font-bold px-2 py-0.5 rounded-full border",
+                                                    rec.tipo === 'total'
+                                                        ? "bg-green-100 text-green-800 border-green-300"
+                                                        : "bg-purple-100 text-purple-800 border-purple-300"
+                                                )}
+                                            >
+                                                {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
+                                            </span>
+                                            <span className="text-[10px] text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
+                                        </div>
+                                        <span className="text-[10px] text-muted-foreground">
+                                            por <strong className="text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</strong>
+                                        </span>
+                                    </div>
+                                    <ul className="space-y-0.5 ml-2">
+                                        {rec.items.map(ri => (
+                                            <li key={ri.id} className="text-[11px] flex justify-between">
+                                                <span className="text-brand-dark">
+                                                    <span className="font-semibold">{ri.cantidad_recibida}</span>
+                                                    {ri.unidad ? <span className="text-muted-foreground"> {ri.unidad}</span> : null}
+                                                    <span className="text-muted-foreground"> · {ri.item_descripcion || `Item #${ri.item_id}`}</span>
+                                                </span>
+                                                {ri.observacion && (
+                                                    <span className="text-[10px] text-muted-foreground italic ml-2">{ri.observacion}</span>
+                                                )}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
                 <div className="shrink-0 mb-5">
@@ -486,7 +675,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <span>{t.observaciones}</span>
                     </div>
                 )}
-                {t.requiere_pionetas && (
+                {Boolean(t.requiere_pionetas) && (
                     <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                         <span>Requiere {t.cantidad_pionetas || ''} pionetas</span>
@@ -501,6 +690,22 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
                 </div>
             </div>
+
+            {/* ── SoD Banner: explica por qué el botón de acción no aparece ── */}
+            {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && !activeForm && (
+                <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-sm">
+                    <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                    <div>
+                        <strong className="text-amber-900">SoD activo:</strong>
+                        <span className="text-amber-800">
+                            {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
+                            {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
+                            {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
+                            Si no hay otra persona disponible, contacta al admin para que conceda el permiso "Bypass SoD".
+                        </span>
+                    </div>
+                </div>
+            )}
 
             {/* ── Action Buttons ── */}
             {hasActions && !activeForm && (
@@ -519,8 +724,10 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                     {canRecibir && (
                         <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
+                            title="Marca qué llegó del cargamento de hoy. Si falta, podrás registrar próximos viajes."
                             className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                            <PackageCheck className="h-3.5 w-3.5" /> Confirmar Recepcion
+                            <PackageCheck className="h-3.5 w-3.5" />
+                            Registrar lo que llegó
                         </button>
                     )}
                     {canRechazarRecepcion && (
@@ -1164,142 +1371,354 @@ const TransferenciaDetail: React.FC<Props> = ({
             )}
 
             {/* ════════════════════════════════════════════
-                ── RECEIVE FORM — per-item confirmation ──
+                ── RECEIVE FORM — parcial vs total ──
+                Por ítem: Enviada total / Recibida previa (de viajes anteriores)
+                / Pendiente (lo que aún falta llegar). El usuario ingresa cuánto
+                trajo ESTE viaje. Dos botones:
+                  · Recepción Parcial → estado recepcion_parcial, más viajes vendrán.
+                  · Recepción Total   → estado recibida, cierra el flujo, gaps =
+                    discrepancia.
                ════════════════════════════════════════════ */}
-            {activeForm === 'recibir' && (
-                <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl p-4 mb-4 space-y-4">
-                    <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
-                        <PackageCheck className="h-4 w-4 text-brand-primary" /> Confirmar Recepcion
-                    </h4>
+            {activeForm === 'recibir' && (() => {
+                // Cálculos derivados para la UI:
+                // - totalRecibidoEsteViaje = suma de inputs (info en footer)
+                // - totalFaltaGlobal = suma de pendientes (lo que el camión debería traer)
+                // - hayFaltantes = true si suma_inputs < suma_falta (al menos 1 ítem no completa)
+                //   → habilita checkbox "Esta es la entrega final" y modal de confirmación.
+                const totalRecibidoEsteViaje = receiveItems.reduce((s, ri) => s + (ri.cantidad_recibida || 0), 0);
+                const totalFaltaGlobal = items.reduce((s, it) => s + pendientePorItem(it), 0);
+                const hayFaltantes = items.some((it, idx) => {
+                    const ri = receiveItems[idx];
+                    if (!ri) return false;
+                    return ri.cantidad_recibida < pendientePorItem(it);
+                });
 
-                    <div className="space-y-2">
-                        {items.map((item, idx) => {
-                            const ri = receiveItems[idx];
-                            if (!ri) return null;
-                            return (
-                                <div key={item.id || idx} className={cn(
-                                    "bg-white rounded-xl border p-3 transition-all",
-                                    ri.correcto ? "border-green-200" : "border-red-200"
-                                )}>
-                                    {/* Item name + correct toggle */}
-                                    <div className="flex items-center justify-between mb-2">
-                                        <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark flex-1 mr-2 text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">{item.item_descripcion}</button>
-                                        <button
-                                            type="button"
-                                            onClick={() => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], correcto: !updated[idx].correcto };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className={cn(
-                                                "flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all",
-                                                ri.correcto
-                                                    ? "bg-green-50 border-green-300 text-green-700"
-                                                    : "bg-red-50 border-red-300 text-red-700"
-                                            )}
-                                        >
-                                            {ri.correcto ? <Check className="h-3 w-3" /> : <XIcon className="h-3 w-3" />}
-                                            {ri.correcto ? 'Correcto' : 'Incorrecto'}
-                                        </button>
-                                    </div>
+                // Ítems que quedarán sin recibir si se cierra ahora — usado en
+                // el banner amber del checkbox y en el modal de confirmación.
+                const faltantesAlCerrar = items
+                    .map((it, idx) => {
+                        const ri = receiveItems[idx];
+                        if (!ri) return null;
+                        const faltante = pendientePorItem(it) - ri.cantidad_recibida;
+                        if (faltante <= 0) return null;
+                        return {
+                            descripcion: it.item_descripcion || `Item #${it.item_id}`,
+                            cantidad: faltante,
+                            unidad: it.unidad || '',
+                        };
+                    })
+                    .filter((x): x is { descripcion: string; cantidad: number; unidad: string } => x !== null);
 
-                                    {/* Quantity */}
-                                    <div className="flex items-center gap-3 mb-1">
-                                        <span className="text-[10px] text-muted-foreground">
-                                            Enviada: <span className="font-semibold text-brand-dark">{item.cantidad_enviada ?? item.cantidad_solicitada}</span>
-                                        </span>
-                                        <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] text-muted-foreground">Recibida:</span>
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...receiveItems];
-                                                    const current = updated[idx].cantidad_recibida;
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, current - 1) };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                disabled={ri.cantidad_recibida <= 0}
-                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                                aria-label="Restar 1"
-                                            >
-                                                <Minus className="h-3 w-3" />
-                                            </button>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                value={ri.cantidad_recibida}
-                                                onChange={e => {
-                                                    const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                className="w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold"
-                                            />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
-                                                aria-label="Sumar 1"
-                                            >
-                                                <Plus className="h-3 w-3" />
-                                            </button>
+                // Handler único de cierre total. Llamado desde:
+                // 1. Botón "Esta es toda la entrega" sin faltantes → directo
+                // 2. Botón "Esta es toda la entrega" con checkbox marcado → directo
+                // 3. Modal de confirmación tras detectar faltantes sin checkbox
+                const handleCerrarTotal = async () => {
+                    const ok = await onRecibir(
+                        receiveItems.map(ri => ({
+                            item_id: ri.item_id,
+                            cantidad_recibida: ri.cantidad_recibida,
+                        })),
+                        'total'
+                    );
+                    if (ok) setActiveForm(null);
+                };
+
+                const handleClickCerrar = () => {
+                    if (hayFaltantes && !cierreFinal) {
+                        setConfirmMermaOpen(true);
+                    } else {
+                        handleCerrarTotal();
+                    }
+                };
+
+                const handleParcial = async () => {
+                    const ok = await onRecibir(
+                        receiveItems.map(ri => ({
+                            item_id: ri.item_id,
+                            cantidad_recibida: ri.cantidad_recibida,
+                        })),
+                        'parcial'
+                    );
+                    if (ok) setActiveForm(null);
+                };
+
+                // Quick-fill: rellena todos al pendiente / vacía todos.
+                const setAll = (mode: 'pendiente' | 'cero') => {
+                    setReceiveItems(receiveItems.map((ri, idx) => ({
+                        ...ri,
+                        cantidad_recibida: mode === 'pendiente' ? pendientePorItem(items[idx]) : 0,
+                    })));
+                };
+
+                return (
+                <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl mb-4 overflow-hidden">
+                    {/* Header */}
+                    <div className="px-4 py-3 border-b border-brand-primary/20 bg-white/40">
+                        <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
+                            <PackageCheck className="h-4 w-4 text-brand-primary" /> Recepción de cargamento
+                        </h4>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                            Marca qué llegó este viaje. Si falta algo, podrás registrar otros viajes después.
+                        </p>
+                    </div>
+
+                    {/* Tabla densa: una fila por ítem */}
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                            <thead>
+                                <tr className="bg-white/60 border-b border-[#E8E8ED]">
+                                    <th className="text-left px-3 py-2 font-bold text-brand-dark">Ítem</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Enviada</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Falta</th>
+                                    <th className="text-left px-3 py-2 font-bold text-brand-dark w-44">
+                                        <div className="flex items-center justify-between gap-2">
+                                            <span>Llegó este viaje</span>
+                                            <span className="flex gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAll('pendiente')}
+                                                    className="text-[9px] font-bold text-brand-primary hover:underline"
+                                                    title="Rellenar todo al pendiente"
+                                                >
+                                                    todo
+                                                </button>
+                                                <span className="text-muted-foreground">·</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setAll('cero')}
+                                                    className="text-[9px] font-bold text-muted-foreground hover:underline"
+                                                    title="Vaciar todos los inputs"
+                                                >
+                                                    nada
+                                                </button>
+                                            </span>
                                         </div>
-                                    </div>
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {items.map((item, idx) => {
+                                    const ri = receiveItems[idx];
+                                    if (!ri) return null;
+                                    const enviada = item.cantidad_enviada ?? item.cantidad_solicitada;
+                                    const falta = pendientePorItem(item);
+                                    const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
+                                    const incompleto = ri.cantidad_recibida < falta;
+                                    return (
+                                        <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                            <td className="px-3 py-1.5 text-brand-dark">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => itemDetail.openItem(item.item_id)}
+                                                    className="text-left font-medium hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                >
+                                                    {item.item_descripcion || `Item #${item.item_id}`}
+                                                </button>
+                                                {item.unidad && <span className="text-[10px] text-muted-foreground ml-1">({item.unidad})</span>}
+                                            </td>
+                                            <td className="text-center text-muted-foreground">{enviada}</td>
+                                            <td className={cn(
+                                                "text-center font-bold",
+                                                falta === 0 ? "text-green-600" : "text-amber-700"
+                                            )}>
+                                                {falta}
+                                            </td>
+                                            <td className="px-3 py-1.5">
+                                                <div className="flex items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const updated = [...receiveItems];
+                                                            updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, updated[idx].cantidad_recibida - 1) };
+                                                            setReceiveItems(updated);
+                                                        }}
+                                                        disabled={ri.cantidad_recibida <= 0}
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                                        aria-label={`Restar 1 a ${item.item_descripcion}`}
+                                                    >
+                                                        <Minus className="h-3 w-3" />
+                                                    </button>
+                                                    <input
+                                                        type="number"
+                                                        min={0}
+                                                        value={ri.cantidad_recibida}
+                                                        onChange={e => {
+                                                            const updated = [...receiveItems];
+                                                            updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
+                                                            setReceiveItems(updated);
+                                                        }}
+                                                        className={cn(
+                                                            "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
+                                                            sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#E8E8ED]"
+                                                        )}
+                                                        aria-label={`Cantidad recibida de ${item.item_descripcion}`}
+                                                    />
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => {
+                                                            const updated = [...receiveItems];
+                                                            updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
+                                                            setReceiveItems(updated);
+                                                        }}
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                                        aria-label={`Sumar 1 a ${item.item_descripcion}`}
+                                                    >
+                                                        <Plus className="h-3 w-3" />
+                                                    </button>
+                                                    {sobrante > 0 && (
+                                                        <span
+                                                            className="ml-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full"
+                                                            title="Vino más de lo enviado — se registrará como sobrante al cerrar"
+                                                        >
+                                                            +{sobrante} sobrante
+                                                        </span>
+                                                    )}
+                                                    {incompleto && falta > 0 && ri.cantidad_recibida > 0 && (
+                                                        <span
+                                                            className="ml-1 text-[9px] font-medium text-muted-foreground"
+                                                            title={`Faltan ${falta - ri.cantidad_recibida} para completar este ítem`}
+                                                        >
+                                                            faltan {falta - ri.cantidad_recibida}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
 
-                                    {/* Observation (if incorrect) */}
-                                    {!ri.correcto && (
-                                        <input
-                                            type="text"
-                                            placeholder="Observacion (que esta mal?)..."
-                                            value={ri.observacion}
-                                            onChange={e => {
-                                                const updated = [...receiveItems];
-                                                updated[idx] = { ...updated[idx], observacion: e.target.value };
-                                                setReceiveItems(updated);
-                                            }}
-                                            className="w-full mt-1 px-2 py-1 text-[10px] border border-red-200 rounded-lg focus:ring-1 focus:ring-red-300 outline-none"
-                                        />
-                                    )}
+                    {/* Sticky footer: checkbox + totales + botones */}
+                    <div className="border-t border-brand-primary/20 bg-white/60 px-4 py-3 space-y-3">
+                        {/* Checkbox "entrega final" — solo visible si hay faltantes */}
+                        {hayFaltantes && (
+                            <label className="flex items-start gap-2 cursor-pointer group">
+                                <input
+                                    type="checkbox"
+                                    checked={cierreFinal}
+                                    onChange={e => setCierreFinal(e.target.checked)}
+                                    className="mt-0.5 h-4 w-4 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                                />
+                                <span className="text-xs text-brand-dark">
+                                    <span className="font-bold">Esta es la entrega final</span> — los ítems faltantes quedarán como merma.
+                                    <Info className="inline h-3 w-3 ml-0.5 text-muted-foreground" />
+                                    <span className="block text-[10px] text-muted-foreground mt-0.5">
+                                        Marca esta opción si NO van a venir más viajes. Los ítems no recibidos se registrarán como discrepancia.
+                                    </span>
+                                </span>
+                            </label>
+                        )}
+
+                        {/* Banner amber resumen — solo si checkbox marcado */}
+                        {cierreFinal && faltantesAlCerrar.length > 0 && (
+                            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-900">
+                                <div className="font-bold mb-1 flex items-center gap-1.5">
+                                    <AlertTriangle className="h-3.5 w-3.5" /> Se registrarán como merma:
                                 </div>
-                            );
-                        })}
+                                <ul className="ml-5 space-y-0.5 list-disc">
+                                    {faltantesAlCerrar.map((f, i) => (
+                                        <li key={i}>
+                                            <span className="font-bold">{f.cantidad}</span>
+                                            {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        )}
+
+                        {/* Totales */}
+                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                            <span>
+                                Total este viaje: <span className="font-bold text-brand-dark">{totalRecibidoEsteViaje}</span>
+                                {totalFaltaGlobal > 0 && (
+                                    <> · Pendiente global: <span className="font-bold text-amber-700">{totalFaltaGlobal}</span></>
+                                )}
+                            </span>
+                            <span>{items.length} ítem{items.length === 1 ? '' : 's'}</span>
+                        </div>
+
+                        {/* Botones de acción */}
+                        <div className="flex flex-wrap gap-2">
+                            {/* "Faltan más viajes" — oculto si checkbox marcado (contradictorio) */}
+                            {!cierreFinal && (
+                                <button
+                                    onClick={handleParcial}
+                                    disabled={actionLoading || totalRecibidoEsteViaje === 0}
+                                    title={
+                                        totalRecibidoEsteViaje === 0
+                                            ? 'Marca al menos 1 unidad de algún ítem antes de registrar'
+                                            : 'Registra lo de este viaje. La transferencia queda abierta esperando próximos viajes.'
+                                    }
+                                    className="flex-1 min-w-[160px] py-2.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                                >
+                                    <PackageOpen className="h-3.5 w-3.5" />
+                                    {actionLoading ? 'Registrando...' : 'Faltan más viajes'}
+                                </button>
+                            )}
+                            <button
+                                onClick={handleClickCerrar}
+                                disabled={actionLoading}
+                                title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como discrepancia."
+                                className="flex-1 min-w-[160px] py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                            >
+                                <PackageCheck className="h-3.5 w-3.5" />
+                                {actionLoading ? 'Cerrando...' : 'Esta es toda la entrega'}
+                            </button>
+                            <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                                Cancelar
+                            </button>
+                        </div>
                     </div>
 
-                    {/* Summary */}
-                    <div className="text-xs text-center text-muted-foreground">
-                        <span className="font-bold text-green-600">{correctCount}</span> de <span className="font-bold">{items.length}</span> items correctos
-                    </div>
-
-                    {/* Confirm / Cancel */}
-                    <div className="flex gap-2">
-                        <button
-                            onClick={async () => {
-                                const ok = await onRecibir(receiveItems.map(ri => ({
-                                    item_id: ri.item_id,
-                                    cantidad_recibida: ri.cantidad_recibida,
-                                    // Solo se envía la observación si el receptor marcó "Incorrecto"
-                                    // y escribió algo — queda guardada en la fila de discrepancia.
-                                    observacion: !ri.correcto && ri.observacion.trim()
-                                        ? ri.observacion.trim()
-                                        : undefined,
-                                })));
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all"
-                        >
-                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepcion'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
+                    {/* Modal de confirmación defensivo — si el user clickea cerrar con
+                        faltantes y NO marcó el checkbox. Defensa contra cierre accidental. */}
+                    <Modal
+                        isOpen={confirmMermaOpen}
+                        onClose={() => setConfirmMermaOpen(false)}
+                        title="¿Cerrar transferencia?"
+                        size="sm"
+                        footer={
+                            <div className="flex justify-end gap-2 w-full">
+                                <button
+                                    onClick={() => setConfirmMermaOpen(false)}
+                                    className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
+                                >
+                                    Cancelar
+                                </button>
+                                <button
+                                    onClick={async () => {
+                                        setConfirmMermaOpen(false);
+                                        await handleCerrarTotal();
+                                    }}
+                                    disabled={actionLoading}
+                                    className="px-4 py-2 text-xs font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all"
+                                >
+                                    Sí, cerrar con merma
+                                </button>
+                            </div>
+                        }
+                    >
+                        <div className="space-y-3 text-sm">
+                            <p className="text-brand-dark">Quedan estos ítems sin recibir:</p>
+                            <ul className="ml-5 space-y-1 list-disc text-xs">
+                                {faltantesAlCerrar.map((f, i) => (
+                                    <li key={i}>
+                                        <span className="font-bold">{f.cantidad}</span>
+                                        {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                                Se registrarán como discrepancia/merma. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
+                            </p>
+                        </div>
+                    </Modal>
                 </div>
-            )}
+                );
+            })()}
 
             {/* Item Detail Modal */}
             <ItemDetailModal

@@ -96,6 +96,21 @@ const MAESTRO_PERMISOS = [
     // Default deny — admin debe asignar manualmente a roles que requieran visión
     // global (jefatura, bodega central, aprobadores que necesitan auditar).
     ['inventario.transferencias.ver_todas','Inventario','Ver Todas las Transferencias','Inventario → Pestaña "Transferencias": si está denegado, el usuario sólo ve las solicitudes que él mismo creó. Si está concedido, ve el listado completo de todas las solicitudes del sistema.', 12],
+    // ── Permisos granulares del flujo de transferencias (SoD) ──
+    // Reemplazan los gates genéricos (`inventario.crear`/`.aprobar`/`.editar`)
+    // para separar identidad por rol del flujo: solicitante ≠ aprobador ≠
+    // transportista ≠ receptor. SoD se enforcea en backend
+    // (transferencia.service.js) — un user con `aprobar` no puede aprobar
+    // transferencias que él mismo solicitó, salvo que tenga `sod_bypass`.
+    ['inventario.transferencias.solicitar',    'Inventario', 'Solicitar Transferencia',     'Crear solicitudes de transferencia normal, devolución e intra-obra. NO incluye flujos especiales (push directo, intra-bodega, orden gerencia).', 13],
+    ['inventario.transferencias.aprobar',      'Inventario', 'Aprobar Transferencia',       'Aprobar o rechazar solicitudes pendientes. SoD: no puede aprobar transferencias que él mismo solicitó (excepto con sod_bypass).', 14],
+    ['inventario.transferencias.despachar',    'Inventario', 'Despachar Transferencia',     'Marcar una transferencia aprobada como en tránsito. SoD: no puede despachar transferencias que él mismo aprobó.', 15],
+    ['inventario.transferencias.recibir',      'Inventario', 'Recibir Transferencia',       'Confirmar recepción física de una transferencia en tránsito. SoD: no puede recibir transferencias que él mismo despachó.', 16],
+    ['inventario.transferencias.cancelar',     'Inventario', 'Cancelar Transferencia',      'Cancelar una transferencia en estado pendiente, aprobada o en tránsito. El solicitante puede cancelar su propia TRF sin este permiso.', 17],
+    ['inventario.transferencias.push_directo', 'Inventario', '⚠️ Push Directo Bodega→Obra',  'Flujo especial: el usuario despacha stock de bodega a obra sin pasar por aprobación. Consolida solicitante + aprobador + transportista en un solo usuario. Para bodegueros con autoridad operacional.', 18],
+    ['inventario.transferencias.intra_bodega', 'Inventario', '⚠️ Movimiento Intra-Bodega',   'Flujo especial: mover stock entre bodegas instantáneamente. Consolida los 4 roles. Para gestión de stock interno.', 19],
+    ['inventario.transferencias.orden_gerencia','Inventario','⚠️ Orden de Gerencia',          'Flujo especial: PM/dueño ejecuta movimiento bypaseando aprobación normal. Consolida solicitante + aprobador + transportista. Sólo PM o gerencia.', 20],
+    ['inventario.transferencias.sod_bypass',   'Inventario', '⚠️ Bypass SoD',                'Permite ejecutar acciones consecutivas sobre la misma transferencia (solicitar + aprobar + despachar + recibir). Para obras con personal único o emergencias. Audit log obligatorio.', 21],
 
     // SISTEMA
     ['sistema.logs.ver',            'Sistema', 'Ver Historial',                  'Ver el historial de actividad del sistema', 1],

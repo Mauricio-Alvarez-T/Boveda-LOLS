@@ -717,4 +717,146 @@ Cuando hagas merge a `main` por primera vez con este sprint:
 
 ---
 
-*Última actualización: Mayo 2026 — Agregado § 15 Permisos Financieros (Sprints 1-3 + migración 043).*
+## § 16. Permisos Granulares de Transferencias + SoD
+
+**Contexto:** hasta mayo 2026 el flujo de transferencias (solicitar → aprobar → despachar → recibir) corría bajo 3 permisos genéricos (`inventario.crear`, `inventario.aprobar`, `inventario.editar`). Esto permitía que un mismo usuario solicite y apruebe la misma transferencia (sin Segregation of Duties). Migración 046 introduce 9 permisos atómicos + SoD enforcement en backend.
+
+### 16.1 Los 9 permisos nuevos
+
+| Clave | Qué gatea | Sensible |
+|---|---|---|
+| `inventario.transferencias.solicitar` | POST `/transferencias`, `/devolucion`, `/intra-obra`, `/:id/crear-faltante` | — |
+| `inventario.transferencias.aprobar` | PUT `/:id/aprobar`, `/:id/rechazar`, GET `/pendientes`, GET/PUT `/discrepancias*` | — |
+| `inventario.transferencias.despachar` | PUT `/:id/despachar` | — |
+| `inventario.transferencias.recibir` | PUT `/:id/recibir`, `/:id/rechazar-recepcion` | — |
+| `inventario.transferencias.cancelar` | PUT `/:id/cancelar` (terceros). Solicitante puede cancelar propia sin permiso. | — |
+| `inventario.transferencias.push_directo` | POST `/push-directo` (bodega → obra sin aprobación, consolida 3 roles) | ⚠️ Crítico |
+| `inventario.transferencias.intra_bodega` | POST `/intra-bodega` (bodega → bodega instantáneo, consolida 4 roles) | ⚠️ Crítico |
+| `inventario.transferencias.orden_gerencia` | POST `/orden-gerencia` (PM bypasa aprobación, consolida 3 roles) | ⚠️ Crítico |
+| `inventario.transferencias.sod_bypass` | Permite acciones consecutivas en flujo normal (obras unipersonales / emergencias) | ⚠️ Crítico |
+
+### 16.2 Política SoD (Segregation of Duties)
+
+Backend rechaza con **403** si la misma identidad intenta dos roles consecutivos sobre la misma transferencia:
+
+- `aprobar()` rechaza si `solicitante_id === aprobadorId`
+- `despachar()` rechaza si `aprobador_id === transportistaId`
+- `recibir()` rechaza si `transportista_id === receptorId` (o `aprobador_id === receptorId` si se salta despacho)
+
+Override: el permiso `inventario.transferencias.sod_bypass` desactiva las validaciones SoD para ese usuario. **Auditoría obligatoria:** cada uso queda en `logs_actividad` con actor + timestamp.
+
+### 16.3 Flujos especiales (sin SoD aplicado)
+
+`push_directo`, `intra_bodega`, `orden_gerencia` están diseñados para consolidar roles en una sola persona. Su permiso individual ya implica la autoridad — no se aplica SoD adicional. Mantener restringidos a roles con responsabilidad operacional.
+
+### 16.4 Migración 046 — operación en producción
+
+```
+cPanel → Setup Node.js App → Run JS script → `migrate`
+```
+
+La migración asigna los 9 permisos sólo al **Super Admin (rol_id=1)**. Idempotente — segura para re-ejecutar.
+
+### 16.5 Reasignación manual post-deploy
+
+Por decisión de jefatura, los roles existentes NO heredan automáticamente los nuevos permisos. Admin debe ir a **Configuración → Roles** y reasignar según esta matriz sugerida:
+
+| Rol legacy | Permisos nuevos recomendados |
+|---|---|
+| En Terreno | `transferencias.solicitar`, `transferencias.recibir` |
+| Bodeguero | `transferencias.despachar`, `transferencias.recibir`, `transferencias.cancelar`, `transferencias.intra_bodega` |
+| Jefe Obra | `transferencias.solicitar`, `transferencias.aprobar`, `transferencias.cancelar` |
+| Gerencia / PM | `transferencias.aprobar`, `transferencias.orden_gerencia`, `transferencias.sod_bypass` (sólo si crítico) |
+| Operaciones | todos los `transferencias.*` salvo `sod_bypass` |
+
+Mientras no se reasignen, **los usuarios de esos roles no podrán ejecutar acciones de transferencias** (default deny). Hacerlo inmediatamente después del deploy minimiza la ventana de impacto operacional.
+
+### 16.6 Audit log de SoD bypass
+
+Toda acción ejecutada con `sod_bypass` queda en `logs_actividad`. Revisar periódicamente:
+
+```sql
+SELECT la.fecha, u.nombre, la.accion, la.detalle
+FROM logs_actividad la
+JOIN usuarios u ON la.usuario_id = u.id
+WHERE la.detalle LIKE '%transferencias%' AND la.detalle LIKE '%sod_bypass%'
+ORDER BY la.fecha DESC LIMIT 50;
+```
+
+### 16.7 Frontend: identity gates + banner SoD
+
+`TransferenciaDetail.tsx` esconde los botones de acción cuando el usuario tiene rol previo en la TRF (solicitante intentando aprobar, etc.). Un banner amber explica al usuario por qué no aparece el botón ("tú creaste esta solicitud — otro usuario debe aprobarla"). El backend es la fuente de verdad — la UI sólo evita confusión.
+
+`NewMovimientoModal.tsx` filtra los flujos visibles por permiso individual. Si el user no tiene ninguno, muestra mensaje "No tienes permisos para crear movimientos".
+
+`TransferenciasList.tsx` oculta el chip "Discrepancias" si el user no es aprobador.
+
+---
+
+## 17. Recepción Parcial de Transferencias (migración 048)
+
+**Caso de uso:** una transferencia aprobada requiere varios viajes para entregar todos los ítems (capacidad del camión, distancia entre obras). El receptor elige al confirmar la llegada de un cargamento:
+- **Recepción Parcial** → registra lo que llegó en este viaje, deja la TRF en estado `recepcion_parcial`, espera próximos viajes. Sin discrepancia.
+- **Recepción Total** → cierra la TRF (estado `recibida`). Cualquier gap entre `cantidad_enviada` y `cantidad_recibida` acumulada se registra como discrepancia (merma o sobrante).
+
+### 17.1 Modelo de datos
+
+Migración 048 introduce:
+- `transferencias.estado` ENUM agrega `'recepcion_parcial'` entre `en_transito` y `recibida`.
+- `transferencia_recepciones` — header por evento de recepción (`receptor_id`, `fecha_recepcion`, `tipo`, `observacion`).
+- `transferencia_recepcion_items` — qué llegó en cada evento (`recepcion_id`, `transferencia_item_id`, `cantidad_recibida`).
+- `transferencia_item_origenes.cantidad_decrementada` — tracking FIFO para parciales sucesivos en multi-origen.
+
+### 17.2 Reglas de stock
+
+- **Régimen nuevo** (`stock_reconciliado = TRUE`): cada parcial decrementa origen + incrementa destino SOLO por la cantidad de ese viaje. Origen consume splits en orden FIFO (id ASC) via `cantidad_decrementada` por split.
+- **Régimen legacy** (`stock_reconciliado = FALSE`): origen ya se descontó al aprobar (FULL). Cada parcial solo incrementa destino. Discrepancia se calcula igual en recepción total.
+
+### 17.3 Estado machine
+
+| Desde | Acción | Destino |
+|---|---|---|
+| `en_transito` o `aprobada` | `recibir(..., 'parcial')` | `recepcion_parcial` |
+| `en_transito` o `aprobada` | `recibir(..., 'total')` | `recibida` |
+| `recepcion_parcial` | `recibir(..., 'parcial')` | `recepcion_parcial` |
+| `recepcion_parcial` | `recibir(..., 'total')` | `recibida` |
+
+### 17.4 Validaciones
+
+- **Over-receive en parcial**: `cantidad_recibida_acumulada + este_viaje > cantidad_enviada` → 400. El receptor debe usar "Recepción Total" si quiere recibir excedente (que se loguea como sobrante).
+- **SoD**: validado en CADA evento de recepción (receptor ≠ transportista; si aprobada directa también ≠ aprobador). Bypass via `inventario.transferencias.sod_bypass`.
+- **Rechazar Recepción** solo permitido en `en_transito` (no en `recepcion_parcial`). Si el receptor ya movió stock parcial y quiere "abortar", debe cerrar con "Recepción Total" con cantidad=0 en los pendientes — eso genera discrepancia por lo no llegado.
+
+### 17.5 Header `receptor_id` / `recibido_por` / `fecha_recepcion`
+
+Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada evento se audita en `transferencia_recepciones` con su propio receptor — útil cuando bodegueros distintos reciben viajes distintos.
+
+### 17.6 UI Frontend
+
+`TransferenciaDetail.tsx`:
+- Estado `recepcion_parcial` muestra badge "Recibiendo Parcial" (color púrpura, icono `PackageOpen`).
+- Botón principal: "Registrar Recepción" (o "Registrar Nuevo Viaje" si ya hay parciales).
+- Form de recepción muestra por ítem 3 columnas: Enviada / Recibida previa / Pendiente. Input "este viaje" defaults al pendiente. Quick-fill "todo" setea al pendiente. Validación visual si excede pendiente.
+- Dos botones de confirmación: "Recepción Parcial" (púrpura, deshabilitado si over-receive) + "Recepción Total" (verde, siempre habilitado).
+- Sección desplegable "Historial de recepciones" — se renderiza si hay eventos. Lista cada uno con fecha, receptor, items + cantidades.
+
+`useTransferencias.ts`: firma `recibir(id, items, tipo)` con `tipo: 'parcial' | 'total'` (default `'total'` por back-compat). Nuevo método `fetchRecepciones(id)`.
+
+### 17.7 Tests
+
+`backend/tests/transferencia_recepcion_parcial.test.js` cubre 9 casos: parcial→parcial→total, stock por evento, FIFO multi-split, over-receive bloqueado, sin discrepancia en parcial, discrepancia en total con merma, SoD en parcial, transiciones desde recepcion_parcial, tipo inválido, y getRecepciones.
+
+### 17.8 Smoke test producción
+
+1. Crear TRF Obra A → Obra B con 3 items (10/10/10 unidades).
+2. Aprobar (user distinto al solicitante). Despachar (user distinto al aprobador).
+3. **Recepción 1 (parcial):** receptor (≠ transportista) marca 5/5/0. Click "Recepción Parcial".
+4. Verificar: estado `recepcion_parcial`, stock A=-5/-5/0, stock B=+5/+5/0, `transferencia_items.cantidad_recibida`=5/5/0, 1 fila en `transferencia_recepciones`, 0 discrepancias.
+5. **Recepción 2 (parcial):** receptor marca 5/0/5. Verificar acumulado=10/5/5, sigue en `recepcion_parcial`.
+6. **Intentar over-receive en parcial:** intentar recibir 5 del item 1 (ya tiene 10/10). Backend retorna 400.
+7. **Recepción 3 (total):** receptor marca 0/5/5 (cierra pendientes). Verificar estado `recibida`, sin discrepancia.
+8. **Caso merma:** crear otra TRF, parcial 8/10, luego total 0/0. Verificar discrepancia tipo merma para item 1 (cantidad_enviada=10, cantidad_recibida=8).
+
+---
+
+*Última actualización: Mayo 2026 — Agregado § 17 Recepción Parcial (migración 048).*
