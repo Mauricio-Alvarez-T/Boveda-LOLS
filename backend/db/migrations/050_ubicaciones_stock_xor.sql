@@ -22,13 +22,16 @@
 -- =============================================
 
 -- ─── A. Crear row "obra-only" placeholder donde existan corruptas ───
--- INSERT con ON DUPLICATE KEY no-op: si la row (item, obra, NULL) ya existe,
--- no la toca. Si no existe, la crea con cantidad=0 para tener target del UPDATE.
-INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
+-- INSERT IGNORE: si la row (item, obra, NULL) ya existe, el UNIQUE
+-- uk_item_ubicacion la rechaza silenciosamente. Si no existe, se crea con
+-- cantidad=0 para tener target del UPDATE de step B.
+--
+-- (Antes usaba ON DUPLICATE KEY UPDATE cantidad = cantidad, pero MySQL
+-- considera el `cantidad` derecho ambiguo en INSERT...SELECT...ODKU.)
+INSERT IGNORE INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
 SELECT DISTINCT item_id, obra_id, NULL, 0, NULL
 FROM ubicaciones_stock
-WHERE obra_id IS NOT NULL AND bodega_id IS NOT NULL
-ON DUPLICATE KEY UPDATE cantidad = cantidad;
+WHERE obra_id IS NOT NULL AND bodega_id IS NOT NULL;
 
 -- ─── B. Acumular cantidades de rows corruptas en la row obra-only ───
 UPDATE ubicaciones_stock target
