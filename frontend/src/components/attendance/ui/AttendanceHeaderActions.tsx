@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus } from 'lucide-react';
+import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2 } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import { cn } from '../../../utils/cn';
@@ -26,7 +26,8 @@ interface AttendanceHeaderActionsProps {
  * Header actions for the Attendance page.
  *
  * Layout strategy by breakpoint:
- *   - Mobile (<md):    Send + Repeat + Save + overflow "..." menu
+ *   - Mobile (<md):    Filtros (+) + Enviar WhatsApp + Guardar (solo iconos).
+ *                      El "+" abre un popover con el selector de empresa.
  *   - Tablet (md-lg):  Overflow "..." menu (holds WhatsApp/Excel/Repeat/Feriado/Empresa) + Save
  *   - Desktop (lg+):   Inline empresa filter + all action buttons + Save
  *
@@ -55,11 +56,17 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     return (
         <div className="flex items-center gap-2">
             {/* ═══════════════════════════════════════════ */}
-            {/*  MOBILE (<md): solo esenciales — Enviar + Guardar  */}
-            {/*  Resto (Excel, Feriado, Repetir, Empresa) viven    */}
-            {/*  en la pestaña "Más" del header de tabs.           */}
+            {/*  MOBILE (<md): Filtros (+) + Enviar + Guardar      */}
+            {/*  Resto (Excel, Feriado, Repetir) viven en la       */}
+            {/*  pestaña "Más" del header de tabs.                 */}
             {/* ═══════════════════════════════════════════ */}
             <div className="flex md:hidden items-center gap-1.5 h-full">
+                <MobileFilterMenu
+                    selectedEmpresaId={selectedEmpresaId}
+                    setSelectedEmpresaId={setSelectedEmpresaId}
+                    availableEmpresas={availableEmpresas}
+                />
+
                 <Button
                     onClick={handleShareWhatsApp}
                     disabled={!hasPermission('asistencia.enviar_whatsapp')}
@@ -77,12 +84,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     isLoading={saving}
                     disabled={isSaveDisabled}
                     className={cn(
-                        "h-9 px-3 rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center gap-1.5",
+                        "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
                         isSaveDisabled && "opacity-40 grayscale pointer-events-none"
                     )}
+                    title="Guardar"
                 >
-                    <span className="text-[10px] font-black uppercase">Guardar</span>
-                    <Save className="h-3.5 w-3.5" />
+                    <Save className="h-4 w-4" />
                 </Button>
             </div>
 
@@ -302,6 +309,91 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                             {isFeriado ? 'Quitar Feriado' : 'Marcar Feriado'}
                         </button>
                     )}
+                </div>
+            )}
+        </div>
+    );
+};
+
+/* ------------------------------------------------------------------ */
+/*  MobileFilterMenu — botón "+" visible solo en mobile (<md).        */
+/*  Despliega un popover con el selector de empresa, sin navegar      */
+/*  a la pestaña "Más".                                               */
+/* ------------------------------------------------------------------ */
+interface MobileFilterMenuProps {
+    selectedEmpresaId: number | null;
+    setSelectedEmpresaId: (val: number | null) => void;
+    availableEmpresas: { id: number; nombre: string }[];
+}
+
+const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
+    selectedEmpresaId, setSelectedEmpresaId, availableEmpresas
+}) => {
+    const [open, setOpen] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        return () => document.removeEventListener('mousedown', handler);
+    }, []);
+
+    const hasActiveFilter = selectedEmpresaId !== null;
+    const empresaActiva = hasActiveFilter
+        ? availableEmpresas.find(e => e.id === selectedEmpresaId)?.nombre
+        : null;
+
+    return (
+        <div ref={ref} className="relative md:hidden">
+            <button
+                onClick={() => setOpen(v => !v)}
+                className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl border transition-all shrink-0 relative",
+                    open
+                        ? "bg-brand-dark text-white border-transparent shadow-lg"
+                        : hasActiveFilter
+                            ? "bg-brand-primary text-white border-transparent shadow-md"
+                            : "bg-white text-brand-primary border-[#E8E8ED] shadow-sm hover:border-brand-primary/30"
+                )}
+                title="Filtros"
+            >
+                <Plus className={cn("h-5 w-5 transition-transform duration-200", open && "rotate-45")} />
+                {hasActiveFilter && !open && (
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-brand-accent rounded-full border-2 border-white" />
+                )}
+            </button>
+
+            {open && (
+                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl border border-[#E8E8ED] shadow-xl z-[200] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
+                    <div className="px-3 pt-1 pb-2">
+                        <div className="flex items-center gap-1.5 mb-1.5">
+                            <Building2 className="h-3 w-3 text-muted-foreground/60" />
+                            <label className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-wider">Filtrar por empresa</label>
+                        </div>
+                        <select
+                            value={selectedEmpresaId || ""}
+                            onChange={(e) => { setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null); }}
+                            className="w-full h-10 bg-background border border-border rounded-lg text-xs font-bold text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
+                        >
+                            <option value="">Todas las empresas</option>
+                            {availableEmpresas.map(emp => (
+                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
+                            ))}
+                        </select>
+                        {empresaActiva && (
+                            <div className="flex items-center justify-between mt-2 px-2 py-1 bg-brand-primary/5 rounded-md border border-brand-primary/10">
+                                <span className="text-[10px] font-bold text-brand-primary truncate">{empresaActiva}</span>
+                                <button
+                                    onClick={() => setSelectedEmpresaId(null)}
+                                    className="text-[9px] font-black uppercase text-brand-primary/70 hover:text-brand-primary tracking-wider shrink-0 ml-2"
+                                >
+                                    Quitar
+                                </button>
+                            </div>
+                        )}
+                    </div>
                 </div>
             )}
         </div>
