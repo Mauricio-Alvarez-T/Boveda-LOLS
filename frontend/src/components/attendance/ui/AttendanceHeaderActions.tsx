@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2 } from 'lucide-react';
+import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
 import { cn } from '../../../utils/cn';
@@ -330,24 +330,49 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
     selectedEmpresaId, setSelectedEmpresaId, availableEmpresas
 }) => {
     const [open, setOpen] = useState(false);
-    const ref = useRef<HTMLDivElement>(null);
+    const [popoverTop, setPopoverTop] = useState<number>(0);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
 
+    // Click fuera cierra el popover. Listener en el doc, excluyendo el wrapper y el popover (que es portal-like, posición fixed).
     useEffect(() => {
         const handler = (e: MouseEvent | TouchEvent) => {
-            if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+            if (!open) return;
+            const target = e.target as Node;
+            const insideWrapper = wrapperRef.current?.contains(target);
+            const insidePopover = popoverRef.current?.contains(target);
+            if (!insideWrapper && !insidePopover) setOpen(false);
         };
         document.addEventListener('mousedown', handler);
-        return () => document.removeEventListener('mousedown', handler);
-    }, []);
+        document.addEventListener('touchstart', handler);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('touchstart', handler);
+        };
+    }, [open]);
+
+    // Calcula la posición vertical del popover justo debajo del botón cada vez que se abre.
+    // Posición fixed con left/right fijos = el popover queda centrado horizontalmente
+    // respecto al viewport, sin depender de dónde caiga el botón en el header.
+    useEffect(() => {
+        if (open && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPopoverTop(rect.bottom + 8); // 8px de separación
+        }
+    }, [open]);
 
     const hasActiveFilter = selectedEmpresaId !== null;
-    const empresaActiva = hasActiveFilter
-        ? availableEmpresas.find(e => e.id === selectedEmpresaId)?.nombre
-        : null;
+
+    const handleSelect = (id: number | null) => {
+        setSelectedEmpresaId(id);
+        setOpen(false);
+    };
 
     return (
-        <div ref={ref} className="relative md:hidden">
+        <div ref={wrapperRef} className="relative md:hidden">
             <button
+                ref={buttonRef}
                 onClick={() => setOpen(v => !v)}
                 className={cn(
                     "flex h-9 w-9 items-center justify-center rounded-xl border transition-all shrink-0 relative",
@@ -366,35 +391,53 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
             </button>
 
             {open && (
-                <div className="absolute top-full right-0 mt-2 w-64 bg-white rounded-xl border border-[#E8E8ED] shadow-xl z-[200] py-2 animate-in fade-in slide-in-from-top-2 duration-150">
-                    <div className="px-3 pt-1 pb-2">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                            <Building2 className="h-3 w-3 text-muted-foreground/60" />
-                            <label className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-wider">Filtrar por empresa</label>
+                <>
+                    {/* Popover: position fixed con left/right pegados al viewport → centrado natural en mobile */}
+                    <div
+                        ref={popoverRef}
+                        style={{ top: popoverTop }}
+                        className="fixed left-3 right-3 bg-white rounded-2xl border border-[#E8E8ED] shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col"
+                    >
+                        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-[#F0F0F5]">
+                            <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
+                            <label className="text-[10px] font-black uppercase text-muted-foreground/70 tracking-wider">Filtrar por empresa</label>
                         </div>
-                        <select
-                            value={selectedEmpresaId || ""}
-                            onChange={(e) => { setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null); }}
-                            className="w-full h-10 bg-background border border-border rounded-lg text-xs font-bold text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
-                        >
-                            <option value="">Todas las empresas</option>
-                            {availableEmpresas.map(emp => (
-                                <option key={emp.id} value={emp.id}>{emp.nombre}</option>
-                            ))}
-                        </select>
-                        {empresaActiva && (
-                            <div className="flex items-center justify-between mt-2 px-2 py-1 bg-brand-primary/5 rounded-md border border-brand-primary/10">
-                                <span className="text-[10px] font-bold text-brand-primary truncate">{empresaActiva}</span>
-                                <button
-                                    onClick={() => setSelectedEmpresaId(null)}
-                                    className="text-[9px] font-black uppercase text-brand-primary/70 hover:text-brand-primary tracking-wider shrink-0 ml-2"
-                                >
-                                    Quitar
-                                </button>
-                            </div>
-                        )}
+
+                        <div className="flex-1 overflow-y-auto py-1.5">
+                            <button
+                                onClick={() => handleSelect(null)}
+                                className={cn(
+                                    "w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-bold transition-colors",
+                                    selectedEmpresaId === null
+                                        ? "bg-brand-primary/10 text-brand-primary"
+                                        : "text-brand-dark hover:bg-background active:bg-background"
+                                )}
+                            >
+                                <span className="truncate text-left">Todas las empresas</span>
+                                {selectedEmpresaId === null && <Check className="h-4 w-4 shrink-0 text-brand-primary" />}
+                            </button>
+
+                            {availableEmpresas.map(emp => {
+                                const isActive = selectedEmpresaId === emp.id;
+                                return (
+                                    <button
+                                        key={emp.id}
+                                        onClick={() => handleSelect(emp.id)}
+                                        className={cn(
+                                            "w-full flex items-center justify-between gap-2 px-4 py-2.5 text-xs font-bold transition-colors",
+                                            isActive
+                                                ? "bg-brand-primary/10 text-brand-primary"
+                                                : "text-brand-dark hover:bg-background active:bg-background"
+                                        )}
+                                    >
+                                        <span className="truncate text-left">{emp.nombre}</span>
+                                        {isActive && <Check className="h-4 w-4 shrink-0 text-brand-primary" />}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
-                </div>
+                </>
             )}
         </div>
     );
