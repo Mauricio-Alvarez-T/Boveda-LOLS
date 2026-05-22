@@ -68,6 +68,7 @@ type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'role
 interface TabDef {
     key: TabKey;
     label: string;
+    shortLabel?: string;
     icon: React.ElementType;
 }
 
@@ -96,7 +97,7 @@ const tabGroups: TabGroup[] = [
         items: [
             { key: 'usuarios', label: 'Usuarios', icon: Users },
             { key: 'roles', label: 'Roles', icon: Shield },
-            { key: 'tipos_doc', label: 'Tipos de Documento', icon: FileText },
+            { key: 'tipos_doc', label: 'Tipos de Documento', shortLabel: 'Tipos Doc.', icon: FileText },
         ]
     },
     {
@@ -106,7 +107,7 @@ const tabGroups: TabGroup[] = [
         items: [
             { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
             { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
-            { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
+            { key: 'horarios', label: 'Horarios Laborales', shortLabel: 'Horarios', icon: Clock },
             { key: 'feriados', label: 'Feriados', icon: CheckSquare },
         ]
     },
@@ -125,9 +126,9 @@ const tabGroups: TabGroup[] = [
         shortTitle: "Sistema",
         icon: Settings,
         items: [
-            { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
-            { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
-            { key: 'logs', label: 'Historial de Actividad', icon: Clock },
+            { key: 'mi_correo', label: 'Mi Correo', shortLabel: 'Correo', icon: Mail },
+            { key: 'plantillas', label: 'Plantillas Email', shortLabel: 'Plantillas', icon: FileText },
+            { key: 'logs', label: 'Historial de Actividad', shortLabel: 'Historial', icon: Clock },
             { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
     }
@@ -397,7 +398,8 @@ const SettingsPage: React.FC = () => {
                             )}
                         >
                             <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
-                            {tab.label}
+                            <span className="md:hidden">{tab.shortLabel || tab.label}</span>
+                            <span className="hidden md:inline">{tab.label}</span>
                         </button>
                     ))}
                 </div>
