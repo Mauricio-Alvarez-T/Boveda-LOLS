@@ -8,6 +8,14 @@ const db = require('../src/config/db');
 describe('Inventario Service — getDashboardEjecutivo', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Congelar fecha para que findMesAnterior sea determinista.
+        // Con 2026-05-01, target (hoy-30 = 2026-04-01) queda >3 días de
+        // todos los snapshots mock (2026-03-25 … 2026-04-23).
+        jest.useFakeTimers({ now: new Date('2026-05-01T12:00:00Z') });
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     test('retorna shape con kpis, top_obras, alertas y rechazos_recientes', async () => {
@@ -132,7 +140,7 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.historico.pendientes).toBeDefined();
         // Sparkline pendientes: últimos 6 snapshots (incluye el del 25/03 + abril) + valor hoy (7)
         expect(result.historico.pendientes.sparkline[result.historico.pendientes.sparkline.length - 1]).toBe(7);
-        // mes_anterior solo se setea cuando hay ≥20 puntos en la serie. Con 5 puntos debe ser null.
+        // mes_anterior = null cuando no hay snapshot dentro de ±3 días de (hoy - 30). Con fecha congelada en 2026-05-01, target es 2026-04-01, lejos de los mocks.
         expect(result.historico.pendientes.mes_anterior).toBeNull();
         expect(result.historico.valor_obras.sparkline[result.historico.valor_obras.sparkline.length - 1])
             .toBeCloseTo(18200000 + 12100000 * 0.9, 0);
