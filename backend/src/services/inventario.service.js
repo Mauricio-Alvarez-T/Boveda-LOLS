@@ -50,7 +50,11 @@ const inventarioService = {
                 stockMap.set(s.item_id, inner);
             }
             const key = s.obra_id ? `obra_${s.obra_id}` : `bodega_${s.bodega_id}`;
-            inner.set(key, { cantidad: s.cantidad, override: s.valor_arriendo_override });
+            // Mig 052 cambió cantidad INT → DECIMAL(12,4). mysql2 retorna DECIMAL
+            // como string ("10.0000") por defecto → al sumar con `+` concatenaba
+            // en lugar de sumar (bug visible: header categoría mostraba
+            // "0010.00001.00001..." en vez de la suma).
+            inner.set(key, { cantidad: Number(s.cantidad) || 0, override: s.valor_arriendo_override });
         }
 
         // Helper retorna Map; convertimos a objeto plain para mantener compat con:
@@ -204,10 +208,13 @@ const inventarioService = {
                 };
             }
 
+            // Mig 052: cantidad ahora es DECIMAL → mysql2 retorna string.
+            // Convertir a Number explícitamente para evitar concatenación en `+=`.
+            const cantidad = Number(item.cantidad) || 0;
             const arriendo = item.valor_arriendo_override != null
                 ? parseFloat(item.valor_arriendo_override)
                 : parseFloat(item.valor_arriendo);
-            const total = item.cantidad * arriendo;
+            const total = cantidad * arriendo;
 
             categorias[catKey].items.push({
                 id: item.id,
@@ -216,12 +223,12 @@ const inventarioService = {
                 m2: item.m2 ? parseFloat(item.m2) : null,
                 valor_arriendo: arriendo,
                 unidad: item.unidad,
-                cantidad: item.cantidad,
+                cantidad,
                 total,
                 ubicacion_stock_id: item.ubicacion_stock_id
             });
 
-            categorias[catKey].subtotal_cantidad += item.cantidad;
+            categorias[catKey].subtotal_cantidad += cantidad;
             categorias[catKey].subtotal_arriendo += total;
             totalFacturacion += total;
         });
@@ -270,6 +277,8 @@ const inventarioService = {
                     subtotal_cantidad: 0
                 };
             }
+            // Mig 052: cantidad DECIMAL → string; convertir antes de sumar.
+            const cantidad = Number(item.cantidad) || 0;
             categorias[catKey].items.push({
                 id: item.id,
                 nro_item: item.nro_item,
@@ -277,11 +286,11 @@ const inventarioService = {
                 m2: item.m2 ? parseFloat(item.m2) : null,
                 valor_arriendo: parseFloat(item.valor_arriendo),
                 unidad: item.unidad,
-                cantidad: item.cantidad,
+                cantidad,
                 total: 0, // bodegas no facturan arriendo — campo presente para consistencia con getStockPorObra
                 ubicacion_stock_id: item.ubicacion_stock_id
             });
-            categorias[catKey].subtotal_cantidad += item.cantidad;
+            categorias[catKey].subtotal_cantidad += cantidad;
         });
 
         // Agregar subtotal_arriendo = 0 a cada categoría para consistencia de shape
@@ -670,7 +679,7 @@ const inventarioService = {
         // Si no hay punto exacto, tomar el más cercano dentro de ventana ±3 días para
         // evitar comparar contra un día arbitrario lejano (ej. cron que faltó 5 días).
         const findMesAnterior = (series) => {
-            if (!series.length) return null;
+            if (!series || !series.length) return null;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const targetMs = today.getTime() - 30 * 86400000;
