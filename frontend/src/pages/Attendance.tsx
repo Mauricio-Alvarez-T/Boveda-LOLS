@@ -1,6 +1,7 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { CheckSquare, CalendarDays, MoreHorizontal } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
@@ -14,6 +15,8 @@ type TabKey = 'diaria' | 'sabados' | 'extras';
 interface TabDef {
     key: TabKey;
     label: string;
+    shortLabel: string;
+    icon: React.ElementType;
     show: boolean;
     mobileOnly?: boolean;
 }
@@ -45,10 +48,12 @@ const AttendancePage: React.FC = () => {
     };
 
     const tabs: TabDef[] = [
-        { key: 'diaria', label: 'Asistencia Diaria', show: true },
+        { key: 'diaria', label: 'Asistencia Diaria', shortLabel: 'Diaria', icon: CheckSquare, show: true },
         {
             key: 'sabados',
             label: 'Sábados Extra',
+            shortLabel: 'Sábados',
+            icon: CalendarDays,
             show: hasPermission('asistencia.sabados_extra.ver') && !!selectedObra,
         },
         {
@@ -57,6 +62,8 @@ const AttendancePage: React.FC = () => {
             // estas acciones viven inline en el header → se oculta el tab.
             key: 'extras',
             label: 'Más',
+            shortLabel: 'Más',
+            icon: MoreHorizontal,
             show: !!selectedObra,
             mobileOnly: true,
         },
@@ -72,23 +79,30 @@ const AttendancePage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-3">
             {/* Tab bar — solo si hay más de 1 tab visible */}
             {visibleTabs.length > 1 && (
-                <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 overflow-x-auto scrollbar-none">
-                    {visibleTabs.map(tab => (
-                        <button
-                            key={tab.key}
-                            type="button"
-                            onClick={() => setActiveTab(tab.key)}
-                            className={cn(
-                                'px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all whitespace-nowrap',
-                                tab.mobileOnly && 'md:hidden',
-                                effectiveTab === tab.key
-                                    ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
-                                    : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
-                            )}
-                        >
-                            {tab.label}
-                        </button>
-                    ))}
+                <div className="flex items-center gap-0.5 md:gap-1 p-1 md:p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 overflow-x-auto scrollbar-none">
+                    {visibleTabs.map(tab => {
+                        const TabIcon = tab.icon;
+                        const isActive = effectiveTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                type="button"
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    'flex items-center justify-center gap-1.5 rounded-xl font-bold uppercase tracking-wider transition-all whitespace-nowrap',
+                                    'flex-1 md:flex-none px-3 py-2 text-[11px] md:px-5 md:py-2.5 md:text-xs',
+                                    tab.mobileOnly && 'md:hidden',
+                                    isActive
+                                        ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
+                                        : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
+                                )}
+                            >
+                                <TabIcon className="h-4 w-4 md:hidden shrink-0" />
+                                <span className="md:hidden">{tab.shortLabel}</span>
+                                <span className="hidden md:inline">{tab.label}</span>
+                            </button>
+                        );
+                    })}
                 </div>
             )}
 
