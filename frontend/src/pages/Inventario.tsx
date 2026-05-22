@@ -7,6 +7,7 @@ import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
+import { useInventarioCache } from '../hooks/inventario/useInventarioCache';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
@@ -105,6 +106,16 @@ const InventarioPage: React.FC = () => {
     }, [allObras, allBodegas]);
 
     const selectedUbicacion = allUbicaciones.find(u => u.key === selectedUbicacionKey) || null;
+
+    // Cache cross-tab: tras cualquier mutación de stock, refetch en paralelo de
+    // Resumen + Por Obra/Bodega activa. Evita "stale al cambiar de tab".
+    const { invalidateStockAll } = useInventarioCache({
+        fetchResumen,
+        fetchStockObra,
+        fetchStockBodega,
+        activeObraId: selectedUbicacion?.type === 'obra' ? selectedUbicacion.id : null,
+        activeBodegaId: selectedUbicacion?.type === 'bodega' ? selectedUbicacion.id : null,
+    });
 
     // ── Default selection: user's obra context, or first available ──
     useEffect(() => {
@@ -206,7 +217,7 @@ const InventarioPage: React.FC = () => {
                             data={resumen}
                             canEdit={hasPermission('inventario.editar')}
                             onUpdateStock={updateStock}
-                            onRefresh={fetchResumen}
+                            onRefresh={invalidateStockAll}
                         />
                     ) : (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -273,10 +284,7 @@ const InventarioPage: React.FC = () => {
                                 isBodega={isBodega}
                                 onUpdateStock={(itemId, ubicId, data) => updateStock(itemId, isBodega ? null : ubicId, isBodega ? ubicId : null, data)}
                                 onUpdateDescuento={updateDescuento}
-                                onRefresh={() => {
-                                    if (selectedUbicacion?.type === 'bodega') fetchStockBodega(selectedUbicacion.id);
-                                    else if (selectedUbicacion) fetchStockObra(selectedUbicacion.id);
-                                }}
+                                onRefresh={invalidateStockAll}
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 text-center">
