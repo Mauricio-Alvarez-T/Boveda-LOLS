@@ -39,13 +39,14 @@ describe('stockBulk.bulkAdjust', () => {
         db.getConnection.mockResolvedValue(conn);
 
         conn.query
-            // Ajuste 1: SELECT existente (item=5, bodega=2) → encontrado
-            .mockResolvedValueOnce([[{ id: 77, cantidad: 10, valor_arriendo_override: null }]])
-            // UPDATE
+            // BATCH SELECT (mig 056 + Sprint 1.4): 1 sola query con WHERE item_id IN (5,6).
+            // Solo item=5 existe (con bodega_id=2). Item=6 no existe → ausente del resultado.
+            .mockResolvedValueOnce([[
+                { id: 77, item_id: 5, obra_id: null, bodega_id: 2, cantidad: 10, valor_arriendo_override: null },
+            ]])
+            // UPDATE item=5
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // Ajuste 2: SELECT (item=6, obra=9) → no existe
-            .mockResolvedValueOnce([[]])
-            // INSERT
+            // INSERT item=6
             .mockResolvedValueOnce([{ insertId: 201, affectedRows: 1 }]);
 
         const result = await svc.bulkAdjust([
@@ -93,11 +94,14 @@ describe('stockBulk.bulkAdjust', () => {
         db.getConnection.mockResolvedValue(conn);
 
         conn.query
-            // Ajuste 1: OK
-            .mockResolvedValueOnce([[{ id: 1, cantidad: 5, valor_arriendo_override: null }]])
+            // BATCH SELECT: ambos items existen
+            .mockResolvedValueOnce([[
+                { id: 1, item_id: 10, obra_id: null, bodega_id: 1, cantidad: 5, valor_arriendo_override: null },
+                { id: 2, item_id: 11, obra_id: null, bodega_id: 1, cantidad: 8, valor_arriendo_override: null },
+            ]])
+            // UPDATE item=10 OK
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // Ajuste 2: SELECT existe pero UPDATE falla
-            .mockResolvedValueOnce([[{ id: 2, cantidad: 8, valor_arriendo_override: null }]])
+            // UPDATE item=11 falla
             .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
         await expect(svc.bulkAdjust([

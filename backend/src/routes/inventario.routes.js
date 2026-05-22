@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
+const cacheControl = require('../middleware/cacheControl');
 const inventarioService = require('../services/inventario.service');
 const itemInventarioBulkService = require('../services/itemInventarioBulk.service');
 const stockBulkService = require('../services/stockBulk.service');
@@ -20,7 +21,8 @@ const {
 } = require('../utils/sanitizeFinancialFields');
 
 // GET /api/inventario/dashboard-ejecutivo — Resumen ejecutivo para el dueño (1 request, KPIs + top obras + alertas)
-router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+// cacheControl(60): 10+ queries paralelas → ETag de 60s reduce carga DB en navegaciones repetidas.
+router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), cacheControl(60), async (req, res, next) => {
     try {
         const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
         const topRaw = req.query.top_obras_limit ? Number(req.query.top_obras_limit) : null;
@@ -34,7 +36,8 @@ router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), asyn
 });
 
 // GET /api/inventario/resumen
-router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+// cacheControl(30): 5 queries paralelas → ETag 30s. Mutaciones via PUT /stock invalidan implícitamente (refetch sin If-None-Match).
+router.get('/resumen', auth, checkPermission('inventario.ver'), cacheControl(30), async (req, res, next) => {
     try {
         const { obra_id } = req.query;
         const result = await inventarioService.getResumen(obra_id || null);
@@ -43,7 +46,7 @@ router.get('/resumen', auth, checkPermission('inventario.ver'), async (req, res,
 });
 
 // GET /api/inventario/stock/obra/:obraId
-router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), cacheControl(30), async (req, res, next) => {
     try {
         const result = await inventarioService.getStockPorObra(req.params.obraId);
         // Estructura anidada {obra, categorias: [{items: [...]}], totales} → usar
@@ -53,7 +56,7 @@ router.get('/stock/obra/:obraId', auth, checkPermission('inventario.ver'), async
 });
 
 // GET /api/inventario/stock/bodega/:bodegaId
-router.get('/stock/bodega/:bodegaId', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+router.get('/stock/bodega/:bodegaId', auth, checkPermission('inventario.ver'), cacheControl(30), async (req, res, next) => {
     try {
         const result = await inventarioService.getStockPorBodega(req.params.bodegaId);
         res.json({ data: sanitizeStockUbicacionData(result, req.user?.p) });

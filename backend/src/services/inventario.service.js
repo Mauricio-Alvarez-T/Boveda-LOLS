@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { getDescuentoMap, getDescuentoForObra } = require('../utils/descuentoMap');
 
 const inventarioService = {
     /**
@@ -24,7 +25,7 @@ const inventarioService = {
             [bodegas],
             [items],
             [stock],
-            [descuentos],
+            descuentoMapInstance,
         ] = await Promise.all([
             db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
             db.query('SELECT id, nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
@@ -36,13 +37,8 @@ const inventarioService = {
                 ORDER BY c.orden ASC, i.nro_item ASC
             `),
             db.query(stockQuery, stockParams),
-            // Solo descuentos de obras activas que participan en inventario (FK CASCADE protege contra obras eliminadas)
-            db.query(`
-                SELECT d.obra_id, d.porcentaje
-                FROM descuentos_obra d
-                JOIN obras o ON d.obra_id = o.id
-                WHERE o.activa = 1 AND o.participa_inventario = 1
-            `),
+            // Helper compartido (utils/descuentoMap) — antes inline query duplicada con getStockPorObra
+            getDescuentoMap(db),
         ]);
 
         // 4. Indexar stock por item_id en una sola pasada usando Map (lookup O(1) más eficiente que objeto plain)
@@ -57,10 +53,12 @@ const inventarioService = {
             inner.set(key, { cantidad: s.cantidad, override: s.valor_arriendo_override });
         }
 
-        // Pre-construir descuentoMap
+        // Helper retorna Map; convertimos a objeto plain para mantener compat con:
+        // (a) acceso `descuentoMap[oid]` en loop de totales abajo
+        // (b) serialización JSON en `descuentos: descuentoMap` (Map → {} en JSON.stringify)
         const descuentoMap = {};
-        for (const d of descuentos) {
-            descuentoMap[d.obra_id] = parseFloat(d.porcentaje);
+        for (const [obraId, pct] of descuentoMapInstance) {
+            descuentoMap[obraId] = pct;
         }
 
         // Pre-extraer arrays planos de IDs para evitar acceso repetido en loops calientes
@@ -186,9 +184,8 @@ const inventarioService = {
             ORDER BY c.orden ASC, i.nro_item ASC
         `, [obraId]);
 
-        // Descuento
-        const [descRows] = await db.query('SELECT porcentaje FROM descuentos_obra WHERE obra_id = ?', [obraId]);
-        const descuento = descRows.length ? parseFloat(descRows[0].porcentaje) : 0;
+        // Descuento (helper compartido — antes inline duplicado con getResumen)
+        const descuento = await getDescuentoForObra(db, obraId);
 
         // Agrupar por categoría
         const categorias = {};

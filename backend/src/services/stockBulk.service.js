@@ -116,21 +116,41 @@ const stockBulkService = {
             let created = 0;
             const diff = [];
 
+            // ── Optimización N+1 (Sprint 1.4) ─────────────────────────────
+            // Antes: SELECT FOR UPDATE por cada ajuste (500 items = 500 queries
+            // adicionales antes del UPDATE/INSERT). Total: ~1000 round-trips DB.
+            //
+            // Ahora: 1 SELECT batch con `WHERE item_id IN (...)` + filtro en
+            // memoria por (obra_id, bodega_id). El UNIQUE uk_item_ubicacion +
+            // índice nuevo idx_us_item_obra_bodega (mig 056) hacen este SELECT
+            // muy barato. Reducción: 500 → 1 query de lookup.
+            //
+            // Nota: FOR UPDATE batch bloquea todas las rows existentes que
+            // matchean los item_ids, lo cual es semánticamente correcto (la
+            // transacción debe ver/modificar todas atomicamente).
+            const itemIds = [...new Set(sanitized.map(s => s.item_id))];
+            const [existingRows] = await conn.query(
+                `SELECT id, item_id, obra_id, bodega_id, cantidad, valor_arriendo_override
+                 FROM ubicaciones_stock
+                 WHERE item_id IN (?)
+                 FOR UPDATE`,
+                [itemIds]
+            );
+            // Índice en memoria: key = `${item_id}|${obra_id ?? 'n'}|${bodega_id ?? 'n'}`
+            const existingMap = new Map();
+            for (const row of existingRows) {
+                const key = `${row.item_id}|${row.obra_id ?? 'n'}|${row.bodega_id ?? 'n'}`;
+                existingMap.set(key, row);
+            }
+
             for (const adj of sanitized) {
-                // 1) Lookup existente con null-safe eq
-                const [rows] = await conn.query(
-                    `SELECT id, cantidad, valor_arriendo_override
-                     FROM ubicaciones_stock
-                     WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?
-                     FOR UPDATE`,
-                    [adj.item_id, adj.obra_id, adj.bodega_id]
-                );
+                const lookupKey = `${adj.item_id}|${adj.obra_id ?? 'n'}|${adj.bodega_id ?? 'n'}`;
+                const prev = existingMap.get(lookupKey);
 
                 const keys = Object.keys(adj.fields);
                 const values = keys.map(k => adj.fields[k]);
 
-                if (rows.length > 0) {
-                    const prev = rows[0];
+                if (prev) {
                     const setSql = keys.map(k => `${k} = ?`).join(', ');
                     const [result] = await conn.query(
                         `UPDATE ubicaciones_stock SET ${setSql} WHERE id = ?`,
