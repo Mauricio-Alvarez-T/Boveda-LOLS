@@ -73,12 +73,16 @@ interface TabDef {
 
 interface TabGroup {
     title: string;
+    shortTitle: string;
+    icon: React.ElementType;
     items: TabDef[];
 }
 
 const tabGroups: TabGroup[] = [
     {
         title: "Organización",
+        shortTitle: "Org.",
+        icon: Building2,
         items: [
             { key: 'empresas', label: 'Empresas', icon: Building2 },
             { key: 'obras', label: 'Obras', icon: HardHat },
@@ -87,6 +91,8 @@ const tabGroups: TabGroup[] = [
     },
     {
         title: "Personal & Documentos",
+        shortTitle: "Personal",
+        icon: Users,
         items: [
             { key: 'usuarios', label: 'Usuarios', icon: Users },
             { key: 'roles', label: 'Roles', icon: Shield },
@@ -95,15 +101,19 @@ const tabGroups: TabGroup[] = [
     },
     {
         title: "Asistencia",
+        shortTitle: "Asist.",
+        icon: CheckSquare,
         items: [
             { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
             { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
             { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
-            { key: 'feriados', label: 'Feriados', icon: CheckSquare }, // Reusing an icon for simplicity
+            { key: 'feriados', label: 'Feriados', icon: CheckSquare },
         ]
     },
     {
         title: "Inventario",
+        shortTitle: "Invent.",
+        icon: Package,
         items: [
             { key: 'cat_inventario', label: 'Categorías', icon: Package },
             { key: 'bodegas', label: 'Bodegas', icon: Warehouse },
@@ -112,6 +122,8 @@ const tabGroups: TabGroup[] = [
     },
     {
         title: "Sistema & Correo",
+        shortTitle: "Sistema",
+        icon: Settings,
         items: [
             { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
             { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
@@ -309,50 +321,82 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-3 md:gap-4 lg:gap-5 p-0 overflow-hidden w-full">
-            {/* Top Navigation - Category Tabs */}
-            <div className="flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
-                    {tabGroups.map((group, idx) => {
-                        const isActive = activeGroup.title === group.title;
-                        return (
-                            <button
-                                key={idx}
-                                onClick={() => setActiveTab(group.items[0].key)}
-                                className={cn(
-                                    "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
-                                    isActive
-                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
-                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                                )}
-                            >
-                                <span className="relative z-10">{group.title}</span>
-                                {isActive && (
-                                    <motion.div
-                                        layoutId="activeCategoryGlow"
-                                        className="absolute inset-0 bg-white/10"
-                                    />
-                                )}
-                            </button>
-                        );
-                    })}
-                </div>
+            {/* ── Mobile: Icon + Short Label Category Tabs (all 5 visible) ── */}
+            <div className="md:hidden flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-1 flex items-center gap-0.5 shadow-sm">
+                {tabGroups.map((group, idx) => {
+                    const isActive = activeGroup.title === group.title;
+                    const GroupIcon = group.icon;
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => setActiveTab(group.items[0].key)}
+                            className={cn(
+                                "flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all relative overflow-hidden",
+                                isActive
+                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                                    : "text-muted-foreground active:bg-background"
+                            )}
+                        >
+                            <GroupIcon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
+                            <span className="text-[7px] font-black uppercase tracking-tight leading-none relative z-10">
+                                {group.shortTitle}
+                            </span>
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeCategoryMobile"
+                                    className="absolute inset-0 bg-white/10 rounded-xl"
+                                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                                />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* ── Desktop: Full Text Category Tabs ── */}
+            <div className="hidden md:flex flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-2 items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+                {tabGroups.map((group, idx) => {
+                    const isActive = activeGroup.title === group.title;
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => setActiveTab(group.items[0].key)}
+                            className={cn(
+                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
+                                isActive
+                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
+                                    : "text-muted-foreground hover:bg-background hover:text-brand-dark"
+                            )}
+                        >
+                            <span className="relative z-10">{group.title}</span>
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeCategoryGlow"
+                                    className="absolute inset-0 bg-white/10"
+                                />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
 
             {/* Main Content Area (Full Width) */}
             <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                 
                 {/* Internal Header: Sub-Tabs */}
-                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-3 lg:px-5 flex items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
+                <div className="min-h-[48px] md:h-[60px] border-b border-[#F0F0F5] bg-white/50 px-2.5 md:px-3 lg:px-5 flex items-center shrink-0 overflow-x-auto scrollbar-none gap-1.5 md:gap-2 py-1.5 md:py-0">
                     {activeGroup.items.map(tab => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={cn(
-                                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
+                                "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[11px] md:text-xs font-bold transition-all border whitespace-nowrap shrink-0",
                                 activeTab === tab.key
                                     ? "bg-white border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
                                     : "bg-white/50 border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
                             )}
                         >
-                            <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
+                            <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
                             {tab.label}
                         </button>
                     ))}
