@@ -37,7 +37,15 @@ type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; ke
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const { obras, selectedObra } = useObra();
-    const { resumen, stockObra, stockBodega, loading, fetchResumen, fetchStockObra, fetchStockBodega } = useInventarioData();
+    const {
+        resumen, stockObra, stockBodega,
+        resumenLoading, stockObraLoading, stockBodegaLoading,
+        fetchResumen, fetchStockObra, fetchStockBodega,
+    } = useInventarioData();
+    // Loading combinado: solo una sección se monta a la vez, alcanza con un OR.
+    // El hook expone flags granulares por endpoint para casos futuros (spinner
+    // independiente por tab), pero la UI actual usa un único spinner.
+    const loading = resumenLoading || stockObraLoading || stockBodegaLoading;
     const { updateStock, updateDescuento } = useInventarioActions();
     // Lazy init: arrancar en el PRIMER tab al que el usuario tenga acceso.
     // Si arrancamos siempre en 'resumen_ejecutivo', un usuario sin ese permiso
