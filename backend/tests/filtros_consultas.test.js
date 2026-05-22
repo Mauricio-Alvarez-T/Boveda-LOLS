@@ -59,9 +59,10 @@ describe('Motor de Filtros — Trabajadores (CRUD Genérico)', () => {
         const executedQuery = db.query.mock.calls[0][0];
         const params = db.query.mock.calls[0][1];
 
-        // Debe haber reemplazado los caracteres para buscar el rut plano
-        expect(executedQuery).toContain("REPLACE(REPLACE(trabajadores.rut, '.', ''), '-', '') LIKE ?");
-        // Además, al ser más de una "palabra" por los separadores temporales o similares, 
+        // Auditoría perf (mig 053): trabajadores usa la columna GENERATED
+        // rut_normalized (indexada) en vez de REPLACE(...) inline.
+        expect(executedQuery).toContain('trabajadores.rut_normalized LIKE ?');
+        // Además, al ser más de una "palabra" por los separadores temporales o similares,
         // debe incluir el collapsedQuery '%176119888%'
         expect(params).toContain('%176119888%');
     });

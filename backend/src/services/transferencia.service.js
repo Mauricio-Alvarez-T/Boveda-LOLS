@@ -187,10 +187,14 @@ const transferenciaService = {
             );
             const trfId = result.insertId;
 
-            for (const item of itemsArr) {
+            // Auditoría perf: batch INSERT en vez de loop async (N round-trips → 1).
+            // Antes: 20 ítems = 20 queries serializadas dentro de transacción.
+            if (itemsArr.length > 0) {
+                const placeholders = itemsArr.map(() => '(?, ?, ?)').join(', ');
+                const values = itemsArr.flatMap(item => [trfId, item.item_id, item.cantidad]);
                 await conn.query(
-                    `INSERT INTO transferencia_items (transferencia_id, item_id, cantidad_solicitada) VALUES (?, ?, ?)`,
-                    [trfId, item.item_id, item.cantidad]
+                    `INSERT INTO transferencia_items (transferencia_id, item_id, cantidad_solicitada) VALUES ${placeholders}`,
+                    values
                 );
             }
 
@@ -403,7 +407,10 @@ const transferenciaService = {
                 [aprobadorId, aprobadorId, primario?.obraId || null, primario?.bodegaId || null, id]
             );
 
-            // Actualizar cada transferencia_item + persistir splits + decrementar stock
+            // Actualizar cada transferencia_item + persistir splits.
+            // Auditoría perf: acumular splits en un solo INSERT batch al final
+            // (antes era 1 INSERT por split dentro del loop anidado).
+            const origenRows = [];
             for (const c of canonicales) {
                 const info = itemInfo[c.item_id];
                 const total = c.splits.reduce((a, s) => a + s.cantidad, 0);
@@ -423,14 +430,21 @@ const transferenciaService = {
                 );
 
                 for (const s of c.splits) {
-                    await conn.query(
-                        `INSERT INTO transferencia_item_origenes
-                         (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
-                         VALUES (?, ?, ?, ?)`,
-                        [info.id, s.obraId, s.bodegaId, s.cantidad]
-                    );
-                    // Ola 2: no se decrementa stock acá — el decremento ocurre al recibir.
+                    origenRows.push([info.id, s.obraId, s.bodegaId, s.cantidad]);
                 }
+            }
+
+            // Batch INSERT de todos los splits acumulados. Ola 2: no se decrementa
+            // stock acá — el decremento ocurre al recibir.
+            if (origenRows.length > 0) {
+                const placeholders = origenRows.map(() => '(?, ?, ?, ?)').join(', ');
+                const values = origenRows.flatMap(r => r);
+                await conn.query(
+                    `INSERT INTO transferencia_item_origenes
+                     (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
+                     VALUES ${placeholders}`,
+                    values
+                );
             }
 
             await conn.commit();

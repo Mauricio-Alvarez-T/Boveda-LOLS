@@ -110,10 +110,14 @@ describe('transferenciaService.aprobar — parcial + multi-origen', () => {
 
         expect(res.estado).toBe('aprobada');
 
+        // Auditoría perf (Fase 10): ahora se hace 1 batch INSERT con todos los splits
+        // (antes era 1 INSERT por split). El test valida que las 2 filas de splits se
+        // persisten en una sola query con 8 params (2 splits × 4 cols).
         const insertSplitCalls = conn.query.mock.calls.filter(c =>
             /INSERT INTO transferencia_item_origenes/.test(c[0])
         );
-        expect(insertSplitCalls).toHaveLength(2);
+        expect(insertSplitCalls).toHaveLength(1);
+        expect(insertSplitCalls[0][1]).toHaveLength(8); // 2 filas × 4 columnas
 
         // Ola 2: aprobar ya no decrementa stock
         const decrementCalls = conn.query.mock.calls.filter(c =>

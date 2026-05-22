@@ -467,13 +467,15 @@ const inventarioService = {
                 GROUP BY o.id, o.nombre
                 ORDER BY valor_neto DESC
             `, obraIdNum ? [obraIdNum] : []),
-            // 5a. Alertas: transferencias pendientes más antiguas (top 5)
+            // 5a. Alertas: transferencias pendientes más antiguas (top 5).
+            // Auditoría perf: items_count via COUNT(ti.id) agregado en lugar de
+            // subquery correlacionada (antes ejecutaba 1 subquery por fila).
             db.query(`
                 SELECT t.id, t.codigo, t.fecha_solicitud,
                        oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
                        do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
                        us.nombre as solicitante_nombre,
-                       (SELECT COUNT(*) FROM transferencia_items ti WHERE ti.transferencia_id = t.id) as items_count,
+                       COUNT(ti.id) as items_count,
                        DATEDIFF(NOW(), t.fecha_solicitud) as dias
                 FROM transferencias t
                 LEFT JOIN obras oo ON t.origen_obra_id = oo.id
@@ -481,7 +483,10 @@ const inventarioService = {
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 LEFT JOIN usuarios us ON t.solicitante_id = us.id
+                LEFT JOIN transferencia_items ti ON ti.transferencia_id = t.id
                 WHERE t.activo = 1 AND t.estado = 'pendiente' ${tFilter}
+                GROUP BY t.id, t.codigo, t.fecha_solicitud,
+                         oo.nombre, ob.nombre, do2.nombre, db2.nombre, us.nombre
                 ORDER BY t.fecha_solicitud ASC
                 LIMIT 5
             `, tParams),
