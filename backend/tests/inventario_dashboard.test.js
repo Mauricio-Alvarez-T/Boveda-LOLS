@@ -13,6 +13,15 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
     test('retorna shape con kpis, top_obras, alertas y rechazos_recientes', async () => {
         // Las 9 queries del service corren en paralelo con Promise.all, así que
         // mockeamos cada invocación sucesiva en el orden declarado en el service.
+        //
+        // Snapshots usan fechas RELATIVAS a "hoy" para que el test sea
+        // determinista en cualquier fecha. Antes usaba fechas fijas (2026-04-XX)
+        // que con el paso del tiempo terminaron coincidiendo con el target
+        // de findMesAnterior (today - 30 días ±3) — el test fallaba en CI.
+        // Snapshots ahora todos fuera de ventana ±3 días para que mes_anterior=null.
+        const today = new Date();
+        const isoOffset = (daysAgo) =>
+            new Date(today.getTime() - daysAgo * 86400000).toISOString().split('T')[0];
         db.query
             // 1. transferencias pendientes count
             .mockResolvedValueOnce([[{ count: 7 }]])
@@ -63,15 +72,17 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 rechazado_por_nombre: 'María',
                 dias: 2,
             }]])
-            // 8. snapshots últimos 31 días (sparklines + comparativa)
+            // 8. snapshots últimos 31 días (sparklines + comparativa).
+            // Fechas relativas (hoy - N días). Todas fuera de ventana ±3 días
+            // alrededor de "hoy - 30 días" para garantizar mes_anterior=null.
             .mockResolvedValueOnce([[
-                { fecha: '2026-03-25', kpi: 'pendientes', valor: 10 },
-                { fecha: '2026-03-25', kpi: 'valor_obras', valor: 25000000 },
-                { fecha: '2026-04-20', kpi: 'pendientes', valor: 8 },
-                { fecha: '2026-04-21', kpi: 'pendientes', valor: 6 },
-                { fecha: '2026-04-22', kpi: 'pendientes', valor: 5 },
-                { fecha: '2026-04-23', kpi: 'pendientes', valor: 4 },
-                { fecha: '2026-04-23', kpi: 'valor_obras', valor: 28000000 },
+                { fecha: isoOffset(50), kpi: 'pendientes', valor: 10 },
+                { fecha: isoOffset(50), kpi: 'valor_obras', valor: 25000000 },
+                { fecha: isoOffset(5),  kpi: 'pendientes', valor: 8 },
+                { fecha: isoOffset(4),  kpi: 'pendientes', valor: 6 },
+                { fecha: isoOffset(3),  kpi: 'pendientes', valor: 5 },
+                { fecha: isoOffset(2),  kpi: 'pendientes', valor: 4 },
+                { fecha: isoOffset(2),  kpi: 'valor_obras', valor: 28000000 },
             ]])
             // 9. valor por categoría (donut)
             .mockResolvedValueOnce([[
