@@ -24,34 +24,34 @@
 -- =============================================
 
 -- ── A. Renumerar duplicados per categoría ─────────────────────
--- MySQL 8 soporta CTE en UPDATE.
--- Estrategia:
+-- MariaDB no soporta `WITH ... UPDATE` (CTE en DML). Re-escribimos como
+-- subqueries derivadas dentro de UPDATE ... JOIN — equivalente funcional.
+-- Estrategia idéntica a la versión CTE:
 --   * dup_rows asigna ROW_NUMBER por (categoria_id, nro_item).
---   * to_renum filtra rn>1 — esos son los duplicados a mover.
---   * max_per_cat captura el techo actual de cada categoría ANTES
---     del UPDATE (snapshot consistente — no se contamina por las
---     mismas asignaciones que está haciendo el UPDATE).
---   * El nuevo nro_item = max_categoria + offset_secuencial.
-WITH dup_rows AS (
-    SELECT id, categoria_id, nro_item,
-           ROW_NUMBER() OVER (PARTITION BY categoria_id, nro_item ORDER BY id) AS rn
-    FROM items_inventario
-),
-to_renum AS (
-    SELECT id, categoria_id,
-           ROW_NUMBER() OVER (PARTITION BY categoria_id ORDER BY id) AS offset_in_cat
-    FROM dup_rows
-    WHERE rn > 1
-),
-max_per_cat AS (
-    SELECT categoria_id, COALESCE(MAX(nro_item), 0) AS max_n
-    FROM items_inventario
-    GROUP BY categoria_id
-)
+--   * filter rn>1 → solo los duplicados a mover.
+--   * offset_in_cat: orden secuencial dentro de la categoría.
+--   * max_per_cat: techo actual capturado en snapshot antes del UPDATE.
+--   * nuevo nro_item = max_categoria + offset_secuencial.
 UPDATE items_inventario i
-JOIN to_renum t ON t.id = i.id
-JOIN max_per_cat m ON m.categoria_id = i.categoria_id
-SET i.nro_item = m.max_n + t.offset_in_cat;
+JOIN (
+    SELECT t.id, m.max_n + t.offset_in_cat AS new_nro
+    FROM (
+        SELECT id, categoria_id,
+               ROW_NUMBER() OVER (PARTITION BY categoria_id ORDER BY id) AS offset_in_cat
+        FROM (
+            SELECT id, categoria_id, nro_item,
+                   ROW_NUMBER() OVER (PARTITION BY categoria_id, nro_item ORDER BY id) AS rn
+            FROM items_inventario
+        ) dup_rows
+        WHERE rn > 1
+    ) t
+    JOIN (
+        SELECT categoria_id, COALESCE(MAX(nro_item), 0) AS max_n
+        FROM items_inventario
+        GROUP BY categoria_id
+    ) m ON m.categoria_id = t.categoria_id
+) renum ON renum.id = i.id
+SET i.nro_item = renum.new_nro;
 
 -- ── B. UNIQUE (categoria_id, nro_item) ────────────────────────
 -- Idempotente: solo agrega si no existe.
