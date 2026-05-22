@@ -85,9 +85,9 @@ const tabGroups: TabGroup[] = [
         shortTitle: "Org.",
         icon: Building2,
         items: [
-            { key: 'empresas', label: 'Empresas', icon: Building2 },
-            { key: 'obras', label: 'Obras', icon: HardHat },
-            { key: 'cargos', label: 'Cargos', icon: Briefcase },
+            { key: 'empresas', label: 'Empresas', shortLabel: 'Empresas', icon: Building2 },
+            { key: 'obras', label: 'Obras', shortLabel: 'Obras', icon: HardHat },
+            { key: 'cargos', label: 'Cargos', shortLabel: 'Cargos', icon: Briefcase },
         ]
     },
     {
@@ -95,8 +95,8 @@ const tabGroups: TabGroup[] = [
         shortTitle: "Personal",
         icon: Users,
         items: [
-            { key: 'usuarios', label: 'Usuarios', icon: Users },
-            { key: 'roles', label: 'Roles', icon: Shield },
+            { key: 'usuarios', label: 'Usuarios', shortLabel: 'Usuarios', icon: Users },
+            { key: 'roles', label: 'Roles', shortLabel: 'Roles', icon: Shield },
             { key: 'tipos_doc', label: 'Tipos de Documento', shortLabel: 'Tipos Doc.', icon: FileText },
         ]
     },
@@ -105,10 +105,10 @@ const tabGroups: TabGroup[] = [
         shortTitle: "Asist.",
         icon: CheckSquare,
         items: [
-            { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
-            { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
+            { key: 'estados_asistencia', label: 'Estados Asist.', shortLabel: 'Estados', icon: CheckSquare },
+            { key: 'tipos_ausencia', label: 'Tipos Ausencia', shortLabel: 'Ausencia', icon: AlertTriangle },
             { key: 'horarios', label: 'Horarios Laborales', shortLabel: 'Horarios', icon: Clock },
-            { key: 'feriados', label: 'Feriados', icon: CheckSquare },
+            { key: 'feriados', label: 'Feriados', shortLabel: 'Feriados', icon: CheckSquare },
         ]
     },
     {
@@ -116,9 +116,9 @@ const tabGroups: TabGroup[] = [
         shortTitle: "Invent.",
         icon: Package,
         items: [
-            { key: 'cat_inventario', label: 'Categorías', icon: Package },
-            { key: 'bodegas', label: 'Bodegas', icon: Warehouse },
-            { key: 'items_inventario', label: 'Ítems', icon: Wrench },
+            { key: 'cat_inventario', label: 'Categorías', shortLabel: 'Categ.', icon: Package },
+            { key: 'bodegas', label: 'Bodegas', shortLabel: 'Bodegas', icon: Warehouse },
+            { key: 'items_inventario', label: 'Ítems', shortLabel: 'Ítems', icon: Wrench },
         ]
     },
     {
@@ -384,22 +384,52 @@ const SettingsPage: React.FC = () => {
             {/* Main Content Area (Full Width) */}
             <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                 
-                {/* Internal Header: Sub-Tabs */}
-                <div className="min-h-[48px] md:h-[60px] border-b border-[#F0F0F5] bg-white/50 px-2.5 md:px-3 lg:px-5 flex items-center shrink-0 overflow-x-auto scrollbar-none gap-1.5 md:gap-2 py-1.5 md:py-0">
+                {/* ── Mobile Sub-Tabs: icono arriba + label abajo + fondo verde activo ── */}
+                <div className="md:hidden border-b border-[#F0F0F5] bg-white/50 px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
+                    {activeGroup.items.map(tab => {
+                        const isActive = activeTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    "flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all relative overflow-hidden",
+                                    isActive
+                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                                        : "text-muted-foreground active:bg-background"
+                                )}
+                            >
+                                <tab.icon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
+                                <span className="text-[7px] font-black uppercase tracking-tight leading-none relative z-10">
+                                    {tab.shortLabel || tab.label}
+                                </span>
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeSubTabMobile"
+                                        className="absolute inset-0 bg-white/10 rounded-xl"
+                                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                                    />
+                                )}
+                            </button>
+                        );
+                    })}
+                </div>
+
+                {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
+                <div className="hidden md:flex h-[60px] border-b border-[#F0F0F5] bg-white/50 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
                     {activeGroup.items.map(tab => (
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
                             className={cn(
-                                "flex items-center gap-1.5 md:gap-2 px-3 md:px-4 py-1.5 md:py-2 rounded-full text-[11px] md:text-xs font-bold transition-all border whitespace-nowrap shrink-0",
+                                "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
                                 activeTab === tab.key
                                     ? "bg-white border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
                                     : "bg-white/50 border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
                             )}
                         >
-                            <tab.icon className={cn("h-3.5 w-3.5 md:h-4 md:w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
-                            <span className="md:hidden">{tab.shortLabel || tab.label}</span>
-                            <span className="hidden md:inline">{tab.label}</span>
+                            <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
+                            {tab.label}
                         </button>
                     ))}
                 </div>
