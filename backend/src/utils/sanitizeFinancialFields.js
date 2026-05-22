@@ -106,6 +106,10 @@ function sanitizeResumenInventario(resumen, perms) {
     if (clean.descuentos !== undefined) {
         delete clean.descuentos;
     }
+    // Auditoría 6.1: totales agregados (valor_bruto/neto/descuento) son $ — omitir.
+    if (clean.totales !== undefined) {
+        delete clean.totales;
+    }
 
     if (Array.isArray(clean.categorias)) {
         clean.categorias = clean.categorias.map(cat => {

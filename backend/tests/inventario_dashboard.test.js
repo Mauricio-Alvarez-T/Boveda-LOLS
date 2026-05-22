@@ -22,9 +22,10 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ transferencias_afectadas: 3, unidades_totales: 42 }]])
             // 4. valor por obra
             .mockResolvedValueOnce([[
-                { id: 1, nombre: 'CERRILLOS', subtotal_bruto: 18200000, descuento_porcentaje: 0 },
-                { id: 2, nombre: 'DOMEYKO', subtotal_bruto: 12100000, descuento_porcentaje: 10 },
-                { id: 3, nombre: 'SIN STOCK', subtotal_bruto: 0, descuento_porcentaje: 0 },
+                // Auditoría 6.1: backend ahora calcula valor_neto en SQL (no se recalcula en JS).
+                { id: 1, nombre: 'CERRILLOS', valor_neto: 18200000, valor_bruto: 18200000, descuento_porcentaje: 0 },
+                { id: 2, nombre: 'DOMEYKO', valor_neto: 10890000, valor_bruto: 12100000, descuento_porcentaje: 10 },
+                { id: 3, nombre: 'SIN STOCK', valor_neto: 0, valor_bruto: 0, descuento_porcentaje: 0 },
             ]])
             // 5a. alertas pendientes
             .mockResolvedValueOnce([[{
@@ -176,7 +177,7 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ count: 1 }]])  // 2 transito
             .mockResolvedValueOnce([[{ transferencias_afectadas: 0, unidades_totales: 0 }]])  // 3 discrep
             .mockResolvedValueOnce([[                                                          // 4 valor obras (1 sola)
-                { id: 5, nombre: 'CERRILLOS', subtotal_bruto: 9000000, descuento_porcentaje: 0 },
+                { id: 5, nombre: 'CERRILLOS', valor_neto: 9000000, valor_bruto: 9000000, descuento_porcentaje: 0 },
             ]])
             .mockResolvedValueOnce([[]])  // 5a alertas pendientes
             .mockResolvedValueOnce([[]])  // 5b alertas discrep

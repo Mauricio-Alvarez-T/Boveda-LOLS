@@ -67,41 +67,46 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     }, [categorias]);
 
     // ── Grand totals ──
+    // Auditoría 6.1: priorizar totales pre-calculados por el backend para que coincidan
+    // exactamente con los KPIs del dashboard (donut + valor obras). El cálculo JS se
+    // mantiene como fallback por si el backend omite `data.totales` (rol sin permiso de
+    // ver_valores o respuesta antigua).
     const grandTotals = useMemo(() => {
+        if (data.totales) {
+            return {
+                totalArriendo: data.totales.valor_bruto,
+                totalCantidad: data.totales.total_cantidad,
+                totalDescuento: data.totales.valor_descuento,
+                totalConDescuento: data.totales.valor_neto,
+            };
+        }
+
+        // Fallback (sin permisos de valores o respuesta sin totales)
         let totalArriendo = 0;
         let totalCantidad = 0;
         let totalDescuento = 0;
-
-        // 1. Calcular totales por ítem
         for (const cat of categorias) {
             for (const item of cat.items) {
                 totalArriendo += item.total_arriendo;
                 totalCantidad += item.total_cantidad;
             }
         }
-
-        // 2. Calcular descuento total (por obra).
-        //    `data.descuentos` puede estar omitido por el backend cuando el
-        //    usuario no tiene `inventario.resumen.ver_valores` — optional chaining
-        //    para evitar TypeError leyendo prop de undefined.
         obras.forEach(o => {
             const descPorcentaje = data.descuentos?.[o.id] || 0;
             if (descPorcentaje > 0) {
-                // Calcular el total de arriendo de esta obra
                 const obraArriendo = categorias.reduce((sum, cat) =>
                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
                 );
                 totalDescuento += (obraArriendo * descPorcentaje) / 100;
             }
         });
-
-        return { 
-            totalArriendo, 
-            totalCantidad, 
+        return {
+            totalArriendo,
+            totalCantidad,
             totalDescuento,
-            totalConDescuento: totalArriendo - totalDescuento
+            totalConDescuento: totalArriendo - totalDescuento,
         };
-    }, [categorias, obras, data.descuentos]);
+    }, [categorias, obras, data.descuentos, data.totales]);
 
 
 

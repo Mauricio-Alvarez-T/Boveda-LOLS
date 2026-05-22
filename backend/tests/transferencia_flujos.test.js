@@ -76,7 +76,9 @@ describe('recibir() — régimen nuevo vs legacy', () => {
             /INSERT INTO ubicaciones_stock/.test(c[0]) && /ON DUPLICATE KEY/.test(c[0])
         );
         expect(incrementCalls).toHaveLength(1);
-        expect(incrementCalls[0][1]).toEqual([5, 9, null, 3]);
+        // Auditoría 6.6: el INSERT destino ahora copia valor_arriendo_override del origen
+        // (null cuando origen no tiene override registrado).
+        expect(incrementCalls[0][1]).toEqual([5, 9, null, 3, null]);
 
         expect(conn.commit).toHaveBeenCalled();
     });

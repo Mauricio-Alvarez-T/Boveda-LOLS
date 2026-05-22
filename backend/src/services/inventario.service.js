@@ -122,11 +122,37 @@ const inventarioService = {
             });
         }
 
+        // Auditoría 6.1: calcular totales en backend para que coincidan exactamente
+        // con los KPIs del dashboard. Antes el frontend hacía
+        // `totalDescuento += (obraArriendo * desc / 100)` con floats JS, y eso podía
+        // diferir del cálculo NETO del dashboard en algunos pesos.
+        // Calculamos por-obra primero (necesario porque descuento es por obra).
+        let valorBruto = 0;
+        let valorDescuento = 0;
+        let totalCantidad = 0;
+        for (const cat of categorias.values()) {
+            for (const item of cat.items) {
+                totalCantidad += item.total_cantidad;
+                for (const oid of obraIds) {
+                    const cellTotal = item.ubicaciones[`obra_${oid}`]?.total || 0;
+                    valorBruto += cellTotal;
+                    const desc = descuentoMap[oid] || 0;
+                    valorDescuento += cellTotal * desc / 100;
+                }
+            }
+        }
+
         return {
             obras: obras.map(o => ({ id: o.id, nombre: o.nombre })),
             bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre })),
             categorias: Array.from(categorias.values()).sort((a, b) => a.orden - b.orden),
             descuentos: descuentoMap,
+            totales: {
+                valor_bruto: valorBruto,
+                valor_descuento: valorDescuento,
+                valor_neto: valorBruto - valorDescuento,
+                total_cantidad: totalCantidad,
+            },
         };
     },
 
@@ -134,8 +160,17 @@ const inventarioService = {
      * Stock detallado de una obra específica (vista tipo hoja Excel por obra).
      */
     async getStockPorObra(obraId) {
-        const [obraRows] = await db.query('SELECT id, nombre FROM obras WHERE id = ?', [obraId]);
-        if (!obraRows.length) throw new Error('Obra no encontrada');
+        // Auditoría 6.3.A: rechazar obras inactivas — antes seguían visibles y
+        // sus descuentos persistían sin que la UI lo advirtiera.
+        const [obraRows] = await db.query(
+            'SELECT id, nombre FROM obras WHERE id = ? AND activa = 1',
+            [obraId]
+        );
+        if (!obraRows.length) {
+            const err = new Error('Obra no encontrada o inactiva');
+            err.statusCode = 404;
+            throw err;
+        }
         const obra = obraRows[0];
 
         const [items] = await db.query(`
@@ -257,9 +292,16 @@ const inventarioService = {
             .map(c => ({ ...c, subtotal_arriendo: 0 }))
             .sort((a, b) => a.orden - b.orden);
 
+        // Auditoría 6.2: homologar shape con getStockPorObra. Bodegas no facturan
+        // arriendo (no aplican descuento), pero devolver los campos en 0 evita
+        // que el frontend tenga que hardcodear defaults dispersos.
         return {
             bodega,
-            categorias: categoriasFinal
+            categorias: categoriasFinal,
+            total_facturacion: 0,
+            descuento_porcentaje: 0,
+            descuento_monto: 0,
+            total_con_descuento: 0
         };
     },
 
@@ -333,12 +375,21 @@ const inventarioService = {
      * Actualizar descuento de una obra.
      */
     async actualizarDescuento(obraId, porcentaje) {
+        // Auditoría 6.3.B: validar rango [0, 100]. Antes solo bloqueaba negativos
+        // por validateBody en routes, pero >100 pasaba al backend y producía
+        // monto_descuento > total_facturacion (descuento absurdo).
+        const num = Number(porcentaje);
+        if (!Number.isFinite(num) || num < 0 || num > 100) {
+            const err = new Error('porcentaje debe estar entre 0 y 100');
+            err.statusCode = 400;
+            throw err;
+        }
         await db.query(
             `INSERT INTO descuentos_obra (obra_id, porcentaje) VALUES (?, ?)
              ON DUPLICATE KEY UPDATE porcentaje = VALUES(porcentaje)`,
-            [obraId, porcentaje]
+            [obraId, num]
         );
-        return { obra_id: obraId, porcentaje };
+        return { obra_id: obraId, porcentaje: num };
     },
 
     /**
@@ -395,18 +446,26 @@ const inventarioService = {
                 WHERE t.activo = 1 AND d.estado = 'pendiente' ${tFilter}
             `, tParams),
             // 4. Valor total de arriendo por obra (usando override si existe, caso contrario valor_arriendo)
-            //    Aplica descuento por obra si existe. Cuando hay obraId, solo esa obra.
+            //    Auditoría 6.1: el cálculo NETO se hace en SQL (igual que query 9 del donut)
+            //    para que ambos caminos den el mismo total al peso. Antes calculaba BRUTO
+            //    y el frontend restaba descuento en JS con precisión float distinta a SQL.
+            //    GROUP BY simplificado (d.porcentaje era redundante: descuentos_obra UNIQUE(obra_id)).
             db.query(`
                 SELECT o.id, o.nombre,
-                       COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as subtotal_bruto,
+                       COALESCE(SUM(
+                           us.cantidad
+                           * COALESCE(us.valor_arriendo_override, i.valor_arriendo)
+                           * (1 - COALESCE(d.porcentaje, 0) / 100)
+                       ), 0) as valor_neto,
+                       COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as valor_bruto,
                        COALESCE(d.porcentaje, 0) as descuento_porcentaje
                 FROM obras o
                 LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
                 LEFT JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
                 WHERE o.activa = 1 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
-                GROUP BY o.id, o.nombre, d.porcentaje
-                ORDER BY subtotal_bruto DESC
+                GROUP BY o.id, o.nombre
+                ORDER BY valor_neto DESC
             `, obraIdNum ? [obraIdNum] : []),
             // 5a. Alertas: transferencias pendientes más antiguas (top 5)
             db.query(`
@@ -529,11 +588,12 @@ const inventarioService = {
             `, obraIdNum ? [obraIdNum] : []),
         ]);
 
-        // Normalizar valor por obra aplicando descuento
+        // Auditoría 6.1: el backend ya devuelve valor_neto y valor_bruto calculados en SQL.
+        // No recalculamos en JS para que coincida exactamente con la query 9 (donut por categoría).
         const obrasConValor = valorObrasRows.map(r => {
-            const bruto = Number(r.subtotal_bruto) || 0;
+            const neto = Number(r.valor_neto) || 0;
+            const bruto = Number(r.valor_bruto) || 0;
             const desc = Number(r.descuento_porcentaje) || 0;
-            const neto = bruto * (1 - desc / 100);
             return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc };
         });
         const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);

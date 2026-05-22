@@ -124,16 +124,19 @@ const InventarioPage: React.FC = () => {
     }, [activeTab, selectedUbicacionKey, fetchStockObra, fetchStockBodega]);
 
     // ── Normalize stock data for StockUbicacionTable ──
+    // Auditoría 6.2: el backend ya devuelve total_facturacion/descuento_* en
+    // getStockPorBodega (en 0, porque bodegas no facturan), así que aquí solo
+    // remapeamos `bodega` → `obra` para reusar StockObraData.
     const isBodega = selectedUbicacion?.type === 'bodega';
     const currentStockData: StockObraData | null = useMemo(() => {
         if (isBodega && stockBodega) {
             return {
                 obra: stockBodega.bodega,
                 categorias: stockBodega.categorias,
-                total_facturacion: 0,
-                descuento_porcentaje: 0,
-                descuento_monto: 0,
-                total_con_descuento: 0,
+                total_facturacion: stockBodega.total_facturacion ?? 0,
+                descuento_porcentaje: stockBodega.descuento_porcentaje ?? 0,
+                descuento_monto: stockBodega.descuento_monto ?? 0,
+                total_con_descuento: stockBodega.total_con_descuento ?? 0,
             };
         }
         return stockObra;

@@ -74,7 +74,7 @@ const discrepanciaService = {
                    o.nombre as obra_nombre, b.nombre as bodega_nombre,
                    u.nombre as reportado_por_nombre
             FROM discrepancias_inventario d
-            JOIN items_inventario i ON d.item_id = i.id
+            JOIN items_inventario i ON d.item_id = i.id AND i.activo = 1
             LEFT JOIN obras o ON d.obra_id = o.id
             LEFT JOIN bodegas b ON d.bodega_id = b.id
             LEFT JOIN usuarios u ON d.reportado_por = u.id

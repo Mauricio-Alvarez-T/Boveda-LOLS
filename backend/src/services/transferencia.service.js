@@ -308,13 +308,13 @@ const transferenciaService = {
                     .map(s => ({
                         obraId: s.origen_obra_id ?? null,
                         bodegaId: s.origen_bodega_id ?? null,
-                        cantidad: parseInt(s.cantidad, 10) || 0,
+                        cantidad: parseFloat(s.cantidad) || 0,
                     }))
                     .filter(s => s.cantidad > 0);
                 return { item_id: item.item_id, splits };
             }
             // Legacy shape
-            const enviada = parseInt(item.cantidad_enviada, 10) || 0;
+            const enviada = parseFloat(item.cantidad_enviada) || 0;
             if (enviada <= 0) return { item_id: item.item_id, splits: [] };
             return {
                 item_id: item.item_id,
@@ -372,13 +372,16 @@ const transferenciaService = {
                 }
             }
 
-            // Validar stock por origen (check de sanity; NO reserva bajo Ola 2).
-            // Si el aprobador selecciona un origen con stock insuficiente, lo
-            // avisamos — previene aprobar hacia ubicaciones vacías por error.
+            // Validar stock por origen + lock pesimista para evitar race condition.
+            // Auditoría 6.5: antes era un SELECT sin lock, y dos aprobaciones
+            // concurrentes del mismo ítem desde la misma obra pasaban ambas
+            // validación → decrementaban origen dos veces. Ahora SELECT ... FOR UPDATE
+            // dentro de la transacción ya abierta serializa las aprobaciones que
+            // tocan la misma fila de stock.
             for (const c of canonicales) {
                 for (const s of c.splits) {
                     const [stock] = await conn.query(
-                        'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
+                        'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ? FOR UPDATE',
                         [c.item_id, s.obraId, s.bodegaId]
                     );
                     const disponible = stock.length ? stock[0].cantidad : 0;
@@ -627,7 +630,7 @@ const transferenciaService = {
                     if (!(item.item_id in enviadaMap)) {
                         throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
                     }
-                    const recibidaEnEvento = parseInt(item.cantidad_recibida, 10) || 0;
+                    const recibidaEnEvento = parseFloat(item.cantidad_recibida) || 0;
                     if (recibidaEnEvento < 0) {
                         throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
                     }
@@ -657,7 +660,7 @@ const transferenciaService = {
                 if (!(item.item_id in enviadaMap)) {
                     throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
                 }
-                const recibidaEnEvento = parseInt(item.cantidad_recibida, 10) || 0;
+                const recibidaEnEvento = parseFloat(item.cantidad_recibida) || 0;
                 if (recibidaEnEvento < 0) {
                     throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
                 }
@@ -727,13 +730,36 @@ const transferenciaService = {
                 );
 
                 // Incrementar stock en destino (upsert)
+                // Auditoría 6.6: copiar valor_arriendo_override del origen al destino si
+                // el destino aún no existe. Antes el INSERT no incluía el override y la
+                // facturación destino caía al valor base, perdiendo el precio especial
+                // que tenía el ítem en la obra de origen.
+                // Usamos el origen registrado en transferencia_items (itemRowMap) en vez
+                // del trf.origen_* del header, porque el header puede ser NULL en flujos
+                // legacy o multi-origen. Si tampoco está, omitimos la búsqueda (override
+                // queda NULL en destino — comportamiento previo, sin regresión).
+                // Si el destino YA tiene una fila, mantenemos su override (no
+                // sobrescribir — el destino pudo haber sido configurado a propósito).
                 if (recibidaEnEvento > 0) {
                     const ubicDest = _normalizeUbicacion(trf.destino_obra_id, trf.destino_bodega_id);
+                    const rowItem = itemRowMap[item.item_id];
+                    let overrideOrigen = null;
+                    if (rowItem && (rowItem.origen_obra_id || rowItem.origen_bodega_id)) {
+                        const origenResult = await conn.query(
+                            `SELECT valor_arriendo_override FROM ubicaciones_stock
+                             WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
+                            [item.item_id, rowItem.origen_obra_id ?? null, rowItem.origen_bodega_id ?? null]
+                        );
+                        const rows = Array.isArray(origenResult) ? origenResult[0] : null;
+                        if (Array.isArray(rows) && rows.length > 0) {
+                            overrideOrigen = rows[0].valor_arriendo_override ?? null;
+                        }
+                    }
                     await conn.query(
-                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                         VALUES (?, ?, ?, ?)
+                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
+                         VALUES (?, ?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                        [item.item_id, ubicDest.obra, ubicDest.bodega, recibidaEnEvento]
+                        [item.item_id, ubicDest.obra, ubicDest.bodega, recibidaEnEvento, overrideOrigen]
                     );
                 }
 
@@ -953,7 +979,7 @@ const transferenciaService = {
 
             // Validar stock en bodega origen por cada ítem
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
                 const [stock] = await conn.query(
                     'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?',
@@ -979,7 +1005,7 @@ const transferenciaService = {
 
             // Persistir items + splits (único origen = bodega)
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 const [itemRes] = await conn.query(
                     `INSERT INTO transferencia_items
                      (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, origen_bodega_id)
@@ -1027,7 +1053,7 @@ const transferenciaService = {
 
             // Validar stock
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
                 const [stock] = await conn.query(
                     'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?',
@@ -1053,7 +1079,7 @@ const transferenciaService = {
 
             // Mover stock atómicamente + persistir items con recibida=enviada=solicitada
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 const [itemRes] = await conn.query(
                     `INSERT INTO transferencia_items
                      (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, cantidad_recibida, origen_bodega_id)
@@ -1176,7 +1202,7 @@ const transferenciaService = {
 
             // Validar stock en el origen (obra o bodega).
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
                 let disponible = 0;
                 if (origen_obra_id) {
@@ -1224,7 +1250,7 @@ const transferenciaService = {
 
             // Persistir items + splits (único origen)
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 const [itemRes] = await conn.query(
                     `INSERT INTO transferencia_items
                      (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, origen_obra_id, origen_bodega_id)
