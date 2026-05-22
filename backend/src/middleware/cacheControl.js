@@ -11,20 +11,30 @@ const crypto = require('crypto');
  *      - Miss  → setear Cache-Control + ETag y mandar body normal
  *
  * Política:
- *   - `private`: solo browser del usuario cachea (no proxies/CDN).
- *   - `max-age` configurable por endpoint (30s default).
- *   - Vary: Authorization → cada usuario tiene su propio cache key.
+ *   - `Cache-Control: private, no-cache`: el browser PUEDE almacenar pero
+ *     SIEMPRE debe revalidar con If-None-Match antes de reusar. Esto evita
+ *     el bug de "edit → refetch dentro de max-age → axios devuelve stale".
+ *     Con `no-cache` cada fetch dispara un round-trip al servidor pero la
+ *     respuesta es 304 (sin body) si nada cambió → ahorra bandwidth +
+ *     parseo JSON + computación downstream, sin riesgo de staleness.
+ *   - `Vary: Authorization` → cache key per-usuario.
  *
- * Importante:
- *   Las mutaciones (PUT/POST/DELETE) ignoran este middleware (no se aplica).
- *   Tras una mutación, el frontend dispara refetch que NO envía
- *   If-None-Match (request fresca) → respuesta nueva con ETag actualizado.
- *   Así el bug de "stale después de editar" se evita.
+ * Ahorros con 304:
+ *   - Sin body en wire (vs ~20-200KB en dashboard ejecutivo).
+ *   - Sin re-serialización JSON ni re-render del frontend si data igual.
+ *   - El servidor SÍ corre las queries para calcular el hash, así que el
+ *     ahorro está en bandwidth + frontend. Para ahorrar queries también
+ *     habría que agregar un cache layer en memoria (Redis/LRU) — fuera
+ *     del alcance de Sprint 1.
  *
- * @param {number} maxAgeSec  Segundos que el browser puede usar cache sin revalidar (default 30).
+ * Mutaciones (PUT/POST/DELETE) NO usan este middleware → responden 200
+ * normal. El frontend post-mutación dispara refetch → ETag nuevo se computa
+ * sobre el dato fresco → no hay desincronización.
+ *
+ * @param {number} _maxAgeSec  Mantenido por compat de firma (ignorado: usamos no-cache).
  * @returns {import('express').RequestHandler}
  */
-function cacheControl(maxAgeSec = 30) {
+function cacheControl(_maxAgeSec = 30) {
     return (req, res, next) => {
         const originalJson = res.json.bind(res);
         res.json = (body) => {
@@ -32,7 +42,7 @@ function cacheControl(maxAgeSec = 30) {
                 const payload = JSON.stringify(body);
                 const etag = '"' + crypto.createHash('md5').update(payload).digest('hex') + '"';
 
-                res.set('Cache-Control', `private, max-age=${maxAgeSec}`);
+                res.set('Cache-Control', 'private, no-cache');
                 res.set('ETag', etag);
                 res.set('Vary', 'Authorization');
 
