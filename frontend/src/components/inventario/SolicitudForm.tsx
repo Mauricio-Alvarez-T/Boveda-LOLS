@@ -614,7 +614,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                         Items que no están en el catálogo (ej. cosas a comprar). El aprobador los verá.
                     </p>
                 ) : (
-                    <ul className="space-y-1.5 max-h-[180px] overflow-y-auto -mr-1 pr-1">
+                    <ul className="space-y-1.5 md:max-h-[180px] md:overflow-y-auto md:-mr-1 md:pr-1">
                         {customItems.map(c => {
                             const invalido = !c.descripcion.trim() || Number(c.cantidad) < 1;
                             return (
