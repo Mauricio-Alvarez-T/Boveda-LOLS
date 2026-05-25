@@ -121,13 +121,13 @@ const TransferenciasList: React.FC<Props> = ({
             <div className={cn(
                 "flex-1 min-h-0 overflow-y-auto",
                 wide
-                    ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 auto-rows-min content-start"
+                    ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 auto-rows-min content-start"
                     : "space-y-1.5"
             )}>
                 {loading ? (
                     <div className="py-8 text-center text-muted-foreground text-xs">Cargando...</div>
                 ) : filtered.length === 0 ? (
-                    <div className="py-12 text-center text-muted-foreground">
+                    <div className={cn("py-12 text-center text-muted-foreground", wide && "col-span-full")}>
                         <Truck className="h-8 w-8 mx-auto opacity-20 mb-2" />
                         <p className="text-xs">No hay transferencias</p>
                     </div>
@@ -138,42 +138,88 @@ const TransferenciasList: React.FC<Props> = ({
                         const origen = (t as any).origen_obra_nombre || (t as any).origen_bodega_nombre || '—';
                         const destino = (t as any).destino_obra_nombre || (t as any).destino_bodega_nombre || '—';
                         const isSelected = t.id === selectedId;
+                        const fechaStr = new Date(t.fecha_solicitud).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+
+                        /* ── Modo lista compacta (con detail abierto) ── */
+                        if (!wide) {
+                            return (
+                                <div
+                                    key={t.id}
+                                    onClick={() => onSelect(t.id)}
+                                    className={cn(
+                                        "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all cursor-pointer",
+                                        isSelected
+                                            ? "border-brand-primary bg-brand-primary/5 shadow-sm"
+                                            : "border-[#E8E8ED] hover:border-brand-primary/30 hover:bg-brand-primary/[0.02]"
+                                    )}
+                                >
+                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", cfg.color)}>
+                                        <Icon className="h-3.5 w-3.5" />
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <div className="flex items-center gap-2 mb-0.5">
+                                            <span className="text-[11px] font-bold text-brand-dark">{t.codigo}</span>
+                                            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", cfg.color)}>
+                                                {cfg.label}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
+                                            <span className="truncate">{origen}</span>
+                                            <ArrowRight className="h-2.5 w-2.5 shrink-0" />
+                                            <span className="truncate">{destino}</span>
+                                        </div>
+                                    </div>
+                                    <p className="text-[9px] text-muted-foreground shrink-0">{fechaStr}</p>
+                                </div>
+                            );
+                        }
+
+                        /* ── Modo grid (sin detail, ancho completo) ── */
                         return (
                             <div
                                 key={t.id}
                                 onClick={() => onSelect(t.id)}
                                 className={cn(
-                                    "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all cursor-pointer",
+                                    "group relative flex flex-col rounded-2xl border bg-white overflow-hidden transition-all duration-200 cursor-pointer",
+                                    "hover:shadow-md hover:-translate-y-0.5",
                                     isSelected
-                                        ? "border-brand-primary bg-brand-primary/5 shadow-sm"
-                                        : "border-[#E8E8ED] hover:border-brand-primary/30 hover:bg-brand-primary/[0.02]"
+                                        ? "border-brand-primary shadow-md ring-2 ring-brand-primary/20"
+                                        : "border-[#E8E8ED] shadow-sm hover:border-brand-primary/40"
                                 )}
                             >
-                                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", cfg.color)}>
-                                    <Icon className="h-3.5 w-3.5" />
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-2 mb-0.5">
-                                        <span className="text-[11px] font-bold text-brand-dark">{t.codigo}</span>
-                                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", cfg.color)}>
+                                {/* Barra de color según estado */}
+                                <div className={cn("h-1 w-full", cfg.bgSolid)} />
+
+                                <div className="px-4 py-3 flex flex-col gap-2.5">
+                                    {/* Fila: Código + Fecha */}
+                                    <div className="flex items-center justify-between">
+                                        <span className="text-[13px] font-black text-brand-dark tracking-tight">{t.codigo}</span>
+                                        <span className="text-[10px] text-muted-foreground/60 font-medium tabular-nums">{fechaStr}</span>
+                                    </div>
+
+                                    {/* Badges */}
+                                    <div className="flex items-center gap-1.5 flex-wrap">
+                                        <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full border", cfg.color)}>
                                             {cfg.label}
                                         </span>
                                         {t.tipo_flujo && t.tipo_flujo !== 'solicitud' && (
-                                            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
+                                            <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
                                                 {(tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).label}
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
-                                        <span className="truncate">{origen}</span>
-                                        <ArrowRight className="h-2.5 w-2.5 shrink-0" />
-                                        <span className="truncate">{destino}</span>
+
+                                    {/* Origen → Destino */}
+                                    <div className="flex items-center gap-2 pt-1 border-t border-[#F0F0F5]">
+                                        <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", cfg.color)}>
+                                            <Icon className="h-3 w-3" />
+                                        </div>
+                                        <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
+                                            <span className="truncate font-semibold text-brand-dark/80">{origen}</span>
+                                            <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
+                                            <span className="truncate font-semibold text-brand-dark/80">{destino}</span>
+                                        </div>
                                     </div>
-                                </div>
-                                <div className="text-right shrink-0">
-                                    <p className="text-[9px] text-muted-foreground">
-                                        {new Date(t.fecha_solicitud).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' })}
-                                    </p>
                                 </div>
                             </div>
                         );
