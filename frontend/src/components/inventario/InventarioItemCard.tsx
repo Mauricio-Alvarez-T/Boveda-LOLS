@@ -76,9 +76,9 @@ const LocationRow: React.FC<{ loc: StockLocation }> = ({ loc }) => (
         </span>
         <span className={cn(
             "px-1.5 py-0.5 rounded-full text-[10px] font-black border",
-            qtyColor(loc.cantidad)
+            qtyColor(Number(loc.cantidad))
         )}>
-            {loc.cantidad}
+            {Number(loc.cantidad)}
         </span>
     </div>
 );
@@ -98,11 +98,11 @@ const InventarioItemCard: React.FC<Props> = ({
     const verCostos = hasPermission('inventario.costos.ver');
     const editarCostos = hasPermission('inventario.costos.editar');
 
-    const totalStock = stockLocations.reduce((s, l) => s + l.cantidad, 0);
+    const totalStock = stockLocations.reduce((s, l) => s + Number(l.cantidad), 0);
     // Bodegas siempre primero, luego obras — solo con stock > 0
     const allLocations = [
-        ...stockLocations.filter(l => l.type === 'bodega' && l.cantidad > 0),
-        ...stockLocations.filter(l => l.type === 'obra' && l.cantidad > 0),
+        ...stockLocations.filter(l => l.type === 'bodega' && Number(l.cantidad) > 0),
+        ...stockLocations.filter(l => l.type === 'obra' && Number(l.cantidad) > 0),
     ];
     const ubicacionesConStock = allLocations.length;
 

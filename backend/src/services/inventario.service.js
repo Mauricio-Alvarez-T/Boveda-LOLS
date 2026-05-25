@@ -783,7 +783,7 @@ const inventarioService = {
                 type: row.obra_id ? 'obra' : 'bodega',
                 id: row.obra_id || row.bodega_id,
                 nombre: row.obra_nombre || row.bodega_nombre,
-                cantidad: row.cantidad,
+                cantidad: Number(row.cantidad) || 0,
             });
         }
         return result;
