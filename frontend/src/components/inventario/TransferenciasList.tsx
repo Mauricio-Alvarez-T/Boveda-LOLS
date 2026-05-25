@@ -1,5 +1,6 @@
 import React from 'react';
-import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, AlertTriangle, PackageOpen } from 'lucide-react';
+import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, AlertTriangle, PackageOpen, LayoutGrid } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import type { Transferencia } from '../../types/entities';
 
@@ -47,12 +48,12 @@ const BORDER_LEFT_COLOR: Record<string, string> = {
     cancelada: 'border-l-gray-400',
 };
 
-const STATUS_CHIPS: { value: string; label: string; discrepancia?: boolean }[] = [
-    { value: 'todas', label: 'Todas' },
-    { value: 'pendiente', label: 'Pendientes' },
-    { value: 'aprobada', label: 'Aprobadas' },
-    { value: 'recibida', label: 'Recibidas' },
-    { value: 'discrepancias', label: 'Discrepancias', discrepancia: true },
+const STATUS_CHIPS: { value: string; label: string; shortLabel: string; icon: React.ElementType; discrepancia?: boolean }[] = [
+    { value: 'todas',          label: 'Todas',          shortLabel: 'Todas',    icon: LayoutGrid },
+    { value: 'pendiente',      label: 'Pendientes',     shortLabel: 'Pend.',    icon: Clock },
+    { value: 'aprobada',       label: 'Aprobadas',      shortLabel: 'Aprob.',   icon: CheckCircle2 },
+    { value: 'recibida',       label: 'Recibidas',      shortLabel: 'Recib.',   icon: PackageCheck },
+    { value: 'discrepancias',  label: 'Discrepancias',  shortLabel: 'Discrep.', icon: AlertTriangle, discrepancia: true },
 ];
 
 const TransferenciasList: React.FC<Props> = ({
@@ -87,11 +88,57 @@ const TransferenciasList: React.FC<Props> = ({
                 )}
             </div>
 
-            {/* Status filter chips */}
-            <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+            {/* Status filter — Mobile: icon + short label stacked */}
+            <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 mb-3 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
+                    const ChipIcon = chip.icon;
+                    return (
+                        <button
+                            key={chip.value}
+                            onClick={() => onStatusFilterChange(chip.value)}
+                            className={cn(
+                                "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
+                                isActive
+                                    ? "text-white"
+                                    : isDiscrep && discrepanciasCount > 0
+                                        ? "text-red-600"
+                                        : "text-muted-foreground"
+                            )}
+                        >
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeStatusChipMobile"
+                                    className={cn(
+                                        "absolute inset-0 rounded-xl shadow-sm",
+                                        isDiscrep ? "bg-red-500" : "bg-brand-primary"
+                                    )}
+                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                />
+                            )}
+                            <div className="relative z-10 flex items-center">
+                                <ChipIcon className="h-[15px] w-[15px]" />
+                                {isDiscrep && discrepanciasCount > 0 && !isActive && (
+                                    <span className="absolute -top-1 -right-2 px-1 py-[1px] rounded-full text-[7px] font-black leading-none bg-red-500 text-white">
+                                        {discrepanciasCount}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center">
+                                {chip.shortLabel}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Status filter — Desktop: pill chips */}
+            <div className="hidden md:flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+                {visibleChips.map(chip => {
+                    const isActive = statusFilter === chip.value;
+                    const isDiscrep = !!chip.discrepancia;
+                    const ChipIcon = chip.icon;
                     return (
                         <button
                             key={chip.value}
@@ -107,7 +154,7 @@ const TransferenciasList: React.FC<Props> = ({
                                         : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
                             )}
                         >
-                            {isDiscrep && <AlertTriangle className="h-2.5 w-2.5" />}
+                            <ChipIcon className="h-3 w-3" />
                             <span>{chip.label}</span>
                             {isDiscrep && discrepanciasCount > 0 && (
                                 <span className={cn(

@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
@@ -24,13 +24,13 @@ type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencia
 // Tabs del módulo Inventario. Cada uno gateado individualmente por su permiso
 // `inventario.tab.*`. El acceso al módulo entero ya está gateado un nivel
 // arriba por `inventario.ver` (ruta protegida en el router).
-const tabs: { key: TabKey; label: string; requiresPerm?: string }[] = [
-    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', requiresPerm: 'inventario.tab.resumen_ejecutivo' },
-    { key: 'resumen',           label: 'Resumen',           requiresPerm: 'inventario.tab.resumen' },
-    { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   requiresPerm: 'inventario.tab.por_ubicacion' },
-    { key: 'transferencias',    label: 'Transferencias',    requiresPerm: 'inventario.tab.transferencias' },
-    { key: 'maestro',           label: 'Maestro',           requiresPerm: 'inventario.tab.maestro' },
-    { key: 'bombas',            label: 'Bombas Hormigón',   requiresPerm: 'inventario.tab.bombas' },
+const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.ElementType; requiresPerm?: string }[] = [
+    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', shortLabel: 'Ejecutivo', icon: BarChart3,       requiresPerm: 'inventario.tab.resumen_ejecutivo' },
+    { key: 'resumen',           label: 'Resumen',           shortLabel: 'Resumen',   icon: ClipboardList,   requiresPerm: 'inventario.tab.resumen' },
+    { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   shortLabel: 'Obra/Bod.', icon: Building2,       requiresPerm: 'inventario.tab.por_ubicacion' },
+    { key: 'transferencias',    label: 'Transferencias',    shortLabel: 'Transf.',   icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
+    { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
+    { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: Droplets,        requiresPerm: 'inventario.tab.bombas' },
 ];
 
 type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; key: string };
@@ -165,21 +165,63 @@ const InventarioPage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-4">
             {/* Tab Navigation */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
-                <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
-                {visibleTabs.map(tab => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0",
-                            activeTab === tab.key
-                                ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
-                                : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                        )}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+                {/* ── Mobile: icon + short label stacked ── */}
+                <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+                    {visibleTabs.map(tab => {
+                        const TabIcon = tab.icon;
+                        const isActive = activeTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 px-1 flex-1 min-w-0 transition-all",
+                                    isActive
+                                        ? "text-white"
+                                        : "text-muted-foreground"
+                                )}
+                            >
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeInventarioTab"
+                                        className="absolute inset-0 bg-brand-primary rounded-xl shadow-lg shadow-brand-primary/25"
+                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                    />
+                                )}
+                                <TabIcon className={cn(
+                                    "h-[18px] w-[18px] relative z-10 transition-colors",
+                                    isActive ? "text-white" : "text-muted-foreground"
+                                )} />
+                                <span className={cn(
+                                    "text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center",
+                                    isActive ? "text-white" : "text-muted-foreground"
+                                )}>
+                                    {tab.shortLabel}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+                {/* ── Desktop: text pills ── */}
+                <div className="hidden md:flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+                    {visibleTabs.map(tab => {
+                        const TabIcon = tab.icon;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                                    activeTab === tab.key
+                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
+                                )}
+                            >
+                                <TabIcon className="h-4 w-4" />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
