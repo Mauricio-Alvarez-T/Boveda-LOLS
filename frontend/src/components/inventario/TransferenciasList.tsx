@@ -15,6 +15,8 @@ interface Props {
     discrepanciasCount?: number;
     /** Si false, el chip "Discrepancias" se oculta. Default true para back-compat. */
     canVerDiscrepancias?: boolean;
+    /** true cuando la lista ocupa todo el ancho (sin detail panel). Habilita grid multi-columna. */
+    wide?: boolean;
 }
 
 export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
@@ -52,6 +54,7 @@ const TransferenciasList: React.FC<Props> = ({
     statusFilter, onStatusFilterChange, searchQuery, onSearchChange,
     discrepanciasCount = 0,
     canVerDiscrepancias = true,
+    wide = false,
 }) => {
     const filtered = transferencias.filter(t =>
         !searchQuery || t.codigo.toLowerCase().includes(searchQuery.toLowerCase())
@@ -114,8 +117,13 @@ const TransferenciasList: React.FC<Props> = ({
                 })}
             </div>
 
-            {/* Card list */}
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-1.5">
+            {/* Card list — grid multi-columna cuando la lista tiene ancho completo */}
+            <div className={cn(
+                "flex-1 min-h-0 overflow-y-auto",
+                wide
+                    ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2 auto-rows-min content-start"
+                    : "space-y-1.5"
+            )}>
                 {loading ? (
                     <div className="py-8 text-center text-muted-foreground text-xs">Cargando...</div>
                 ) : filtered.length === 0 ? (

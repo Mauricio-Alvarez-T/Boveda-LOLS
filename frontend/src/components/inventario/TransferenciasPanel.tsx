@@ -267,13 +267,15 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}
             </div>
 
-            {/* Master-Detail body */}
+            {/* Master-Detail body — sin selección la lista ocupa todo el ancho;
+                con selección se activa el split list+detail */}
             <div className="flex flex-1 min-h-0 gap-4">
                 {/* LEFT: List */}
                 <div className={cn(
                     "flex flex-col min-h-0",
-                    detailPaneActive ? "hidden md:flex" : "flex",
-                    "w-full md:w-[360px] md:shrink-0"
+                    detailPaneActive
+                        ? "hidden md:flex md:w-[400px] md:shrink-0"
+                        : "flex w-full"
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
@@ -339,14 +341,15 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onSearchChange={setSearchQuery}
                             discrepanciasCount={pendientesCount}
                             canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                            wide={!detailPaneActive}
                         />
                     )}
                 </div>
 
-                {/* RIGHT: Detail */}
+                {/* RIGHT: Detail — solo visible cuando hay selección activa */}
                 <div className={cn(
                     "flex-1 min-h-0",
-                    detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
+                    detailPaneActive ? "flex flex-col" : "hidden"
                 )}>
                     {isDiscrepanciasMode ? (
                         trfHook.selectedDiscrepancia ? (
