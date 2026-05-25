@@ -189,14 +189,17 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
     };
 
     // ── Custom items ops ──
+    // Prepend: el nuevo item vacío aparece arriba y los ya completados bajan.
+    // Esto permite "agregar uno a uno" sin tener que hacer scroll buscando el
+    // input vacío al final de la lista. UX optimizado para jefes de obra.
     const addCustomItem = () => {
-        setCustomItems(prev => [...prev, {
+        setCustomItems(prev => [{
             _localId: Date.now() + Math.random(),
             descripcion: '',
             cantidad: 1,
             unidad: '',
             observacion: '',
-        }]);
+        }, ...prev]);
     };
     const updateCustomItem = (localId: number, patch: Partial<Omit<CustomItem, '_localId'>>) => {
         setCustomItems(prev => prev.map(c => c._localId === localId ? { ...c, ...patch } : c));
@@ -615,8 +618,12 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                     </p>
                 ) : (
                     <ul className="space-y-1.5 md:max-h-[180px] md:overflow-y-auto md:-mr-1 md:pr-1">
-                        {customItems.map(c => {
+                        {customItems.map((c, idx) => {
                             const invalido = !c.descripcion.trim() || Number(c.cantidad) < 1;
+                            // El primer item es siempre el más reciente (prepend).
+                            // Autofocus en su descripción facilita "agregar uno a uno"
+                            // sin necesidad de buscar el input nuevo.
+                            const esNuevo = idx === 0 && !c.descripcion.trim();
                             return (
                                 <li
                                     key={c._localId}
@@ -632,6 +639,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             onChange={e => updateCustomItem(c._localId, { descripcion: e.target.value })}
                                             placeholder="Descripción del ítem*"
                                             maxLength={500}
+                                            autoFocus={esNuevo}
                                             className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-[#E8E8ED] rounded-md bg-white focus:ring-1 focus:ring-brand-primary outline-none"
                                         />
                                         <button
