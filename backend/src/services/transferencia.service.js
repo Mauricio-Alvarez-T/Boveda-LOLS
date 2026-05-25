@@ -89,9 +89,12 @@ const transferenciaService = {
         if (!itemsArr.length && !customArr.length) {
             throw new Error('Debe incluir al menos un ítem (catálogo o personalizado)');
         }
-        // Items custom solo válidos en flujo 'solicitud' (obra pide a bodega cosas a comprar).
-        if (customArr.length && tipo_flujo && tipo_flujo !== 'solicitud') {
-            throw new Error('Items personalizados solo permitidos en flujo de solicitud');
+        // Items custom solo válidos en flujos donde la obra pide cosas a comprar
+        // (solicitud estándar y solicitud de materiales). En devolucion/intra_obra
+        // no aplica porque ya son items existentes que se trasladan.
+        const flujosConItemsCustom = ['solicitud', 'solicitud_materiales'];
+        if (customArr.length && tipo_flujo && !flujosConItemsCustom.includes(tipo_flujo)) {
+            throw new Error('Items personalizados solo permitidos en flujos de solicitud');
         }
         // Validar shape de items custom
         for (const c of customArr) {

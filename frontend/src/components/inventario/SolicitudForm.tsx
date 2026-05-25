@@ -471,35 +471,42 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
     // ── Columna: Solicitud / Carrito ──
     const CartColumn = (
         <div className="flex flex-col min-h-0 gap-3">
-            {/* Destino */}
-            <div className="shrink-0">
-                <SearchableSelect
-                    label="Destino"
-                    options={obras.map(o => ({ value: o.id, label: o.nombre }))}
-                    value={destinoObraId}
-                    onChange={(val) => setDestinoObraId(val as number | null)}
-                    placeholder="Seleccionar obra destino..."
-                />
-            </div>
-
-            {/* Cart header */}
-            <div className="shrink-0 flex items-center justify-between">
-                <div className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    Tu solicitud
-                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/10 text-brand-primary">
-                        {cart.length + customItems.length}
-                    </span>
+            {/* Destino arriba — solo cuando hay catálogo. En hideCatalog se renderiza al final. */}
+            {!hideCatalog && (
+                <div className="shrink-0">
+                    <SearchableSelect
+                        label="Destino"
+                        options={obras.map(o => ({ value: o.id, label: o.nombre }))}
+                        value={destinoObraId}
+                        onChange={(val) => setDestinoObraId(val as number | null)}
+                        placeholder="Seleccionar obra destino..."
+                    />
                 </div>
-                {(totalItemsCart > 0 || customItems.length > 0) && (
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                        {cart.length} catálogo · {customItems.length} personalizado(s)
-                    </span>
-                )}
-            </div>
+            )}
 
-            {/* Cart items */}
-            <div className="flex-1 overflow-y-auto min-h-[80px] -mr-1 pr-1">
+            {/* Cart header — solo cuando hay catálogo */}
+            {!hideCatalog && (
+                <div className="shrink-0 flex items-center justify-between">
+                    <div className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        Tu solicitud
+                        <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/10 text-brand-primary">
+                            {cart.length + customItems.length}
+                        </span>
+                    </div>
+                    {(totalItemsCart > 0 || customItems.length > 0) && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                            {cart.length} catálogo · {customItems.length} personalizado(s)
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Cart items — hideCatalog oculta esto, ya que no hay catálogo del que armar carrito */}
+            <div className={cn(
+                "overflow-y-auto -mr-1 pr-1",
+                hideCatalog ? "hidden" : "flex-1 min-h-[80px]"
+            )}>
                 {cart.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6 border-2 border-dashed border-[#E8E8ED] rounded-xl">
                         <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mb-2" />
@@ -716,6 +723,19 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                     )}
                 </div>
             </div>
+
+            {/* Destino abajo — solo en hideCatalog (debajo de pionetas, antes del CTA) */}
+            {hideCatalog && (
+                <div className="shrink-0">
+                    <SearchableSelect
+                        label="Destino"
+                        options={obras.map(o => ({ value: o.id, label: o.nombre }))}
+                        value={destinoObraId}
+                        onChange={(val) => setDestinoObraId(val as number | null)}
+                        placeholder="Seleccionar obra destino..."
+                    />
+                </div>
+            )}
 
             {/* CTA */}
             <div className="shrink-0 pt-2 border-t border-[#E8E8ED] flex gap-2">
