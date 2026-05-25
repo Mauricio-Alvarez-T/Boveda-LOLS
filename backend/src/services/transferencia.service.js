@@ -863,7 +863,7 @@ const transferenciaService = {
                 item_id: r.item_id,
                 item_descripcion: r.item_descripcion,
                 unidad: r.unidad,
-                cantidad_recibida: r.cantidad_recibida,
+                cantidad_recibida: Number(r.cantidad_recibida) || 0,
                 observacion: r.observacion,
             });
         });
@@ -1356,6 +1356,13 @@ const transferenciaService = {
             WHERE ti.transferencia_id = ?
         `, [id]);
 
+        // Normalizar DECIMAL → Number (mysql2 devuelve DECIMAL como string).
+        items.forEach(i => {
+            i.cantidad_solicitada = Number(i.cantidad_solicitada) || 0;
+            i.cantidad_enviada = i.cantidad_enviada != null ? Number(i.cantidad_enviada) : null;
+            i.cantidad_recibida = i.cantidad_recibida != null ? Number(i.cantidad_recibida) : null;
+        });
+
         // Adjuntar splits (múltiples orígenes por ítem) si existen.
         // Un ítem aprobado normalmente tiene 1 split; si fue aprobado con
         // multi-origen tendrá N. Ítems pendientes (no aprobados aún) no tienen
@@ -1374,6 +1381,7 @@ const transferenciaService = {
 
             const splitsByItem = {};
             splits.forEach(s => {
+                s.cantidad_enviada = Number(s.cantidad_enviada) || 0;
                 if (!splitsByItem[s.transferencia_item_id]) splitsByItem[s.transferencia_item_id] = [];
                 splitsByItem[s.transferencia_item_id].push(s);
             });
@@ -1389,6 +1397,11 @@ const transferenciaService = {
              ORDER BY id ASC`,
             [id]
         );
+
+        // Normalizar DECIMAL → Number en items personalizados
+        itemsCustom.forEach(i => {
+            i.cantidad = Number(i.cantidad) || 0;
+        });
 
         return { ...rows[0], items, items_custom: itemsCustom };
     },
@@ -1488,7 +1501,13 @@ const transferenciaService = {
 
         const data = trfRows.map(t => {
             const discrepancias = byTrf[t.id] || [];
-            const total_unidades_perdidas = discrepancias.reduce((s, d) => s + (d.diferencia || 0), 0);
+            // Normalizar DECIMAL → Number (mysql2 devuelve DECIMAL como string)
+            discrepancias.forEach(d => {
+                d.cantidad_enviada = Number(d.cantidad_enviada) || 0;
+                d.cantidad_recibida = Number(d.cantidad_recibida) || 0;
+                d.diferencia = Number(d.diferencia) || 0;
+            });
+            const total_unidades_perdidas = discrepancias.reduce((s, d) => s + d.diferencia, 0);
             return {
                 ...t,
                 discrepancias,

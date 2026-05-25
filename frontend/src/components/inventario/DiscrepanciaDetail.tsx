@@ -187,13 +187,13 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                     <div className="rounded-lg bg-blue-50 border border-blue-100 px-2 py-1.5">
                                         <p className="text-[8px] text-blue-600 uppercase font-bold leading-none mb-0.5">Enviado</p>
                                         <p className="text-xs font-black text-blue-700 leading-none">
-                                            {item.cantidad_enviada} <span className="font-normal text-[9px]">{item.unidad}</span>
+                                            {Number(item.cantidad_enviada)} <span className="font-normal text-[9px]">{item.unidad}</span>
                                         </p>
                                     </div>
                                     <div className="rounded-lg bg-green-50 border border-green-100 px-2 py-1.5">
                                         <p className="text-[8px] text-green-600 uppercase font-bold leading-none mb-0.5">Recibido</p>
                                         <p className="text-xs font-black text-green-700 leading-none">
-                                            {item.cantidad_recibida} <span className="font-normal text-[9px]">{item.unidad}</span>
+                                            {Number(item.cantidad_recibida)} <span className="font-normal text-[9px]">{item.unidad}</span>
                                         </p>
                                     </div>
                                     <div className={cn(
@@ -315,9 +315,9 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                         <div className="bg-[#F9F9FB] rounded-lg p-3 text-xs">
                             <p className="font-bold text-brand-dark mb-1">#{modalItem.nro_item} · {modalItem.item_descripcion}</p>
                             <p className="text-muted-foreground">
-                                Enviado: <span className="font-semibold text-brand-dark">{modalItem.cantidad_enviada}</span>
+                                Enviado: <span className="font-semibold text-brand-dark">{Number(modalItem.cantidad_enviada)}</span>
                                 {' · '}
-                                Recibido: <span className="font-semibold text-brand-dark">{modalItem.cantidad_recibida}</span>
+                                Recibido: <span className="font-semibold text-brand-dark">{Number(modalItem.cantidad_recibida)}</span>
                                 {' · '}
                                 Diferencia: <span className="font-semibold text-red-600">
                                     {modalItem.diferencia > 0 ? '-' : '+'}{Math.abs(modalItem.diferencia)}

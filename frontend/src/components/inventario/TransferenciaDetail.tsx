@@ -230,13 +230,13 @@ const TransferenciaDetail: React.FC<Props> = ({
             items.forEach((it) => {
                 let cant: number;
                 if (t.estado === 'recibida') {
-                    cant = it.cantidad_recibida ?? it.cantidad_enviada ?? it.cantidad_solicitada;
+                    cant = Number(it.cantidad_recibida) || Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
                 } else if (t.estado === 'recepcion_parcial') {
-                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                    cant = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
                 } else if (t.estado === 'aprobada' || t.estado === 'en_transito') {
-                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                    cant = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
                 } else {
-                    cant = it.cantidad_solicitada;
+                    cant = Number(it.cantidad_solicitada);
                 }
                 const unidad = it.unidad ? ` ${it.unidad}` : '';
                 const desc = it.item_descripcion || `Item #${it.item_id}`;
@@ -247,8 +247,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                     t.estado === 'recepcion_parcial' &&
                     it.cantidad_enviada != null
                 ) {
-                    const recibida = it.cantidad_recibida ?? 0;
-                    const pendiente = it.cantidad_enviada - recibida;
+                    const recibida = Number(it.cantidad_recibida) || 0;
+                    const pendiente = Number(it.cantidad_enviada) - recibida;
                     lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
                 }
                 // Si en recepción hubo discrepancia con lo enviado, anótala bajo el item
@@ -257,11 +257,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                     t.estado === 'recibida' &&
                     it.cantidad_enviada != null &&
                     it.cantidad_recibida != null &&
-                    it.cantidad_enviada !== it.cantidad_recibida
+                    Number(it.cantidad_enviada) !== Number(it.cantidad_recibida)
                 ) {
-                    const diff = it.cantidad_recibida - it.cantidad_enviada;
+                    const diff = Number(it.cantidad_recibida) - Number(it.cantidad_enviada);
                     const signo = diff > 0 ? '+' : '';
-                    lines.push(`   _Enviadas: ${it.cantidad_enviada} (${signo}${diff})_`);
+                    lines.push(`   _Enviadas: ${Number(it.cantidad_enviada)} (${signo}${diff})_`);
                 }
                 if (it.observacion) lines.push(`   _${it.observacion}_`);
             });
@@ -373,9 +373,10 @@ const TransferenciaDetail: React.FC<Props> = ({
 
     // Helper: cantidad ya recibida acumulada por item (de transferencia_items).
     // Usada para calcular "pendiente" en cada viaje sucesivo.
-    const recibidaPrevia = (item: TransferenciaItem) => item.cantidad_recibida ?? 0;
+    // Number() defensivo: mysql2 puede devolver DECIMAL como string.
+    const recibidaPrevia = (item: TransferenciaItem) => Number(item.cantidad_recibida) || 0;
     const pendientePorItem = (item: TransferenciaItem) =>
-        (item.cantidad_enviada ?? item.cantidad_solicitada) - recibidaPrevia(item);
+        (Number(item.cantidad_enviada) || Number(item.cantidad_solicitada)) - recibidaPrevia(item);
 
     // Reset forms when transferencia changes.
     // useEffect (no useMemo): los useMemo no garantizan ejecutar side effects
@@ -552,9 +553,9 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 {item.item_descripcion || `Item #${item.item_id}`}
                                             </button>
                                         </td>
-                                        <td className="px-2 py-1.5 text-center font-semibold">{item.cantidad_solicitada}</td>
-                                        <td className="px-2 py-1.5 text-center">{item.cantidad_enviada ?? '—'}</td>
-                                        <td className="px-2 py-1.5 text-center">{item.cantidad_recibida ?? '—'}</td>
+                                        <td className="px-2 py-1.5 text-center font-semibold">{Number(item.cantidad_solicitada)}</td>
+                                        <td className="px-2 py-1.5 text-center">{item.cantidad_enviada != null ? Number(item.cantidad_enviada) : '—'}</td>
+                                        <td className="px-2 py-1.5 text-center">{item.cantidad_recibida != null ? Number(item.cantidad_recibida) : '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -615,7 +616,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         {rec.items.map(ri => (
                                             <li key={ri.id} className="text-[11px] flex justify-between">
                                                 <span className="text-brand-dark">
-                                                    <span className="font-semibold">{ri.cantidad_recibida}</span>
+                                                    <span className="font-semibold">{Number(ri.cantidad_recibida)}</span>
                                                     {ri.unidad ? <span className="text-muted-foreground"> {ri.unidad}</span> : null}
                                                     <span className="text-muted-foreground"> · {ri.item_descripcion || `Item #${ri.item_id}`}</span>
                                                 </span>
@@ -657,7 +658,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
                                             )}
                                         </td>
-                                        <td className="px-2 py-1.5 text-center font-semibold">{it.cantidad}</td>
+                                        <td className="px-2 py-1.5 text-center font-semibold">{Number(it.cantidad)}</td>
                                         <td className="px-2 py-1.5 text-left text-muted-foreground">{it.unidad || '—'}</td>
                                     </tr>
                                 ))}
@@ -894,7 +895,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 const itemStatus = approvalItems.map(ai => {
                     const total = totalOfItem(ai);
                     const locs = stockData[ai.item_id] || [];
-                    const stockTotal = locs.reduce((s, l) => s + l.cantidad, 0);
+                    const stockTotal = locs.reduce((s, l) => s + Number(l.cantidad), 0);
 
                     // Validar cada split: ubicación existente con suficiente stock.
                     let errorPorSplit = false;
@@ -1013,7 +1014,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 const hasStock = locations.length > 0;
                                 const totalSplits = status.total;
                                 const solicitada = ai.cantidad_solicitada;
-                                const sumAvailable = locations.reduce((s, l) => s + l.cantidad, 0);
+                                const sumAvailable = locations.reduce((s, l) => s + Number(l.cantidad), 0);
 
                                 // ¿Mostrar chip "Enviar solo N (lo que hay)"?
                                 const mostrarSoloLoQueHay =
@@ -1501,7 +1502,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 {items.map((item, idx) => {
                                     const ri = receiveItems[idx];
                                     if (!ri) return null;
-                                    const enviada = item.cantidad_enviada ?? item.cantidad_solicitada;
+                                    const enviada = Number(item.cantidad_enviada) || Number(item.cantidad_solicitada);
                                     const falta = pendientePorItem(item);
                                     const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
                                     const incompleto = ri.cantidad_recibida < falta;
