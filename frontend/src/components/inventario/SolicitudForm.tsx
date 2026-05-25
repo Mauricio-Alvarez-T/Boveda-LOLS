@@ -43,6 +43,12 @@ interface Props {
     obras: { id: number; nombre: string }[];
     onCrear: (data: any) => Promise<any>;
     onClose: () => void;
+    /**
+     * Si true: oculta la columna de catálogo y muestra solo el panel de la solicitud
+     * (destino, items personalizados, observaciones, pionetas, CTA). Usado para el
+     * flujo "Solicitud de Materiales" donde el aprobador compra los items.
+     */
+    hideCatalog?: boolean;
 }
 
 interface CartLine {
@@ -59,7 +65,7 @@ interface CustomItem {
     observacion: string;
 }
 
-const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
+const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog = false }) => {
     const { fetchStockPorItems } = useTransferencias();
     const itemDetail = useItemDetail();
 
@@ -729,38 +735,48 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
 
     return (
         <>
-            {/* Mobile tabs */}
-            <div className="md:hidden mb-3 flex gap-1.5 p-1 bg-[#F5F5F7] rounded-xl">
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('cat')}
-                    className={cn(
-                        'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
-                        mobileTab === 'cat' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
-                    )}
-                >
-                    Catálogo
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('sol')}
-                    className={cn(
-                        'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
-                        mobileTab === 'sol' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
-                    )}
-                >
-                    Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
-                </button>
-            </div>
-
-            {/* Layout: desktop two columns, mobile tabs */}
-            <div className="flex flex-col md:flex-row gap-4 min-h-0 md:h-[calc(85vh-120px)]">
-                <div className={cn('flex flex-col min-h-0 flex-1', mobileTab === 'cat' ? 'flex' : 'hidden md:flex')}>
-                    {CatalogColumn}
+            {/* Mobile tabs — solo cuando hay catálogo */}
+            {!hideCatalog && (
+                <div className="md:hidden mb-3 flex gap-1.5 p-1 bg-[#F5F5F7] rounded-xl">
+                    <button
+                        type="button"
+                        onClick={() => setMobileTab('cat')}
+                        className={cn(
+                            'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
+                            mobileTab === 'cat' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
+                        )}
+                    >
+                        Catálogo
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileTab('sol')}
+                        className={cn(
+                            'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
+                            mobileTab === 'sol' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
+                        )}
+                    >
+                        Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
+                    </button>
                 </div>
+            )}
+
+            {/* Layout: desktop two columns, mobile tabs. En hideCatalog: solo sidebar centrado. */}
+            <div className={cn(
+                "flex flex-col md:flex-row gap-4 min-h-0 md:h-[calc(85vh-120px)]",
+                hideCatalog && "md:justify-center"
+            )}>
+                {!hideCatalog && (
+                    <div className={cn('flex flex-col min-h-0 flex-1', mobileTab === 'cat' ? 'flex' : 'hidden md:flex')}>
+                        {CatalogColumn}
+                    </div>
+                )}
                 <div className={cn(
-                    'flex flex-col min-h-0 md:w-[360px] md:shrink-0 md:border-l md:border-[#E8E8ED] md:pl-4',
-                    mobileTab === 'sol' ? 'flex' : 'hidden md:flex'
+                    'flex flex-col min-h-0',
+                    hideCatalog
+                        ? 'flex w-full md:max-w-[480px]'
+                        : 'md:w-[360px] md:shrink-0 md:border-l md:border-[#E8E8ED] md:pl-4',
+                    !hideCatalog && (mobileTab === 'sol' ? 'flex' : 'hidden md:flex')
                 )}>
                     {CartColumn}
                 </div>

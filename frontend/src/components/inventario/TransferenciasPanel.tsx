@@ -465,17 +465,18 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 />
             </Modal>
 
-            {/* Solicitud de materiales (reusa SolicitudForm) */}
+            {/* Solicitud de materiales (reusa SolicitudForm sin catálogo) */}
             <Modal
                 isOpen={activeFlow === 'solicitud_materiales'}
                 onClose={closeActiveFlow}
                 title="Solicitud de Materiales de Construcción"
-                size="full"
+                size="lg"
             >
                 <SolicitudForm
                     obras={obras}
                     onCrear={handleSolicitudMateriales}
                     onClose={closeActiveFlow}
+                    hideCatalog
                 />
             </Modal>
 
