@@ -157,6 +157,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return result;
     }, [trfHook.crear, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
 
+    const handleSolicitudMateriales = useCallback(async (data: any) => {
+        const result = await trfHook.solicitudMateriales(data);
+        if (result) {
+            await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+            setSelectedId(result.id);
+            await trfHook.fetchById(result.id);
+        }
+        return result;
+    }, [trfHook.solicitudMateriales, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
+
     const handlePushDirecto = useCallback(async (data: any) => {
         const result = await trfHook.pushDirecto(data);
         if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
@@ -451,6 +461,20 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 <SolicitudForm
                     obras={obras}
                     onCrear={handleCrear}
+                    onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Solicitud de materiales (reusa SolicitudForm) */}
+            <Modal
+                isOpen={activeFlow === 'solicitud_materiales'}
+                onClose={closeActiveFlow}
+                title="Solicitud de Materiales de Construcción"
+                size="full"
+            >
+                <SolicitudForm
+                    obras={obras}
+                    onCrear={handleSolicitudMateriales}
                     onClose={closeActiveFlow}
                 />
             </Modal>

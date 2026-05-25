@@ -29,8 +29,18 @@ interface CrearTransferenciaData {
     observaciones?: string;
     requiere_pionetas?: boolean;
     cantidad_pionetas?: number;
-    tipo_flujo?: 'solicitud' | 'devolucion';
+    tipo_flujo?: 'solicitud' | 'solicitud_materiales' | 'devolucion';
     motivo?: string;
+}
+
+interface SolicitudMaterialesData {
+    destino_obra_id?: number | null;
+    destino_bodega_id?: number | null;
+    items: { item_id: number; cantidad: number }[];
+    items_custom?: CustomItemPayload[];
+    observaciones?: string;
+    requiere_pionetas?: boolean;
+    cantidad_pionetas?: number;
 }
 
 interface PushDirectoData {
@@ -144,6 +154,17 @@ export function useTransferencias() {
             return res.data.data;
         } catch (err) {
             showApiError(err, 'Error al crear solicitud');
+            return null;
+        }
+    }, []);
+
+    const solicitudMateriales = useCallback(async (data: SolicitudMaterialesData) => {
+        try {
+            const res = await api.post<ApiResponse<{ id: number; codigo: string }>>('/transferencias/solicitud-materiales', data);
+            toast.success(`Solicitud de materiales ${res.data.data.codigo} creada`);
+            return res.data.data;
+        } catch (err) {
+            showApiError(err, 'Error al crear solicitud de materiales');
             return null;
         }
     }, []);
@@ -369,7 +390,7 @@ export function useTransferencias() {
     return {
         transferencias, selected, loading, total,
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
-        fetchAll, fetchById, crear, pushDirecto, intraBodega, devolucion,
+        fetchAll, fetchById, crear, solicitudMateriales, pushDirecto, intraBodega, devolucion,
         intraObra, ordenGerencia,
         aprobar, crearFaltante, despachar, recibir, fetchRecepciones, rechazar, rechazarRecepcion, cancelar,
         fetchDiscrepancias, resolverDiscrepancia,

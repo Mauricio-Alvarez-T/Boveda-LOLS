@@ -1,9 +1,9 @@
 import React from 'react';
-import { ClipboardList, Truck, ArrowLeftRight, Undo2, Building2, Crown, AlertTriangle } from 'lucide-react';
+import { ClipboardList, Truck, ArrowLeftRight, Undo2, Building2, Crown, AlertTriangle, HardHat } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
 
-export type TipoMovimiento = 'solicitud' | 'push_directo' | 'intra_bodega' | 'devolucion' | 'intra_obra' | 'orden_gerencia';
+export type TipoMovimiento = 'solicitud' | 'solicitud_materiales' | 'push_directo' | 'intra_bodega' | 'devolucion' | 'intra_obra' | 'orden_gerencia';
 
 interface Props {
     isOpen: boolean;
@@ -40,6 +40,15 @@ const OPTIONS: Option[] = [
         description: 'Flujo con aprobación: pendiente → aprobada → en tránsito → recibida.',
         accent: 'brand-primary',
         permiso: 'inventario.transferencias.solicitar',
+    },
+    {
+        tipo: 'solicitud_materiales',
+        icon: <HardHat className="h-5 w-5" />,
+        title: 'Solicitud de materiales',
+        subtitle: 'Obra pide materiales de construcción',
+        description: 'Solicita materiales (cemento, fierro, áridos, etc.). Flujo con aprobación.',
+        accent: 'teal-500',
+        permiso: 'inventario.transferencias.solicitud_materiales',
     },
     {
         tipo: 'push_directo',

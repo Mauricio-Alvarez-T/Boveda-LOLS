@@ -30,6 +30,7 @@ export const estadoConfig: Record<string, { label: string; color: string; bgSoli
 
 export const tipoFlujoConfig: Record<string, { label: string; color: string }> = {
     solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200' },
+    solicitud_materiales: { label: 'Mat. construcción', color: 'bg-teal-100 text-teal-700 border-teal-200' },
     push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
     intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200' },
     intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },

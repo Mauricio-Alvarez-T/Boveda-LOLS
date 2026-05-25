@@ -237,7 +237,7 @@ export interface Transferencia {
     requiere_pionetas: boolean;
     cantidad_pionetas: number | null;
     observaciones: string | null;
-    tipo_flujo: 'solicitud' | 'push_directo' | 'intra_bodega' | 'intra_obra' | 'orden_gerencia' | 'devolucion';
+    tipo_flujo: 'solicitud' | 'solicitud_materiales' | 'push_directo' | 'intra_bodega' | 'intra_obra' | 'orden_gerencia' | 'devolucion';
     motivo: string | null;
     items?: TransferenciaItem[];
     activo: boolean;

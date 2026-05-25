@@ -105,7 +105,7 @@ const transferenciaService = {
         }
         if (!destino_obra_id && !destino_bodega_id) throw new Error('Debe especificar un destino');
         const flujo = tipo_flujo || 'solicitud';
-        const flujosPermitidos = ['solicitud', 'devolucion', 'intra_obra'];
+        const flujosPermitidos = ['solicitud', 'solicitud_materiales', 'devolucion', 'intra_obra'];
         if (!flujosPermitidos.includes(flujo)) {
             throw new Error(`tipo_flujo inválido para crear(): ${flujo}`);
         }

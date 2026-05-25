@@ -91,6 +91,17 @@ router.post('/', auth, checkPermission('inventario.transferencias.solicitar'), v
     } catch (err) { next(err); }
 });
 
+// POST /api/transferencias/solicitud-materiales — obra pide materiales de construcción.
+// Misma lógica que solicitud estándar (flujo con aprobación, SoD aplica) pero con
+// permiso independiente para gating granular por rol.
+router.post('/solicitud-materiales', auth, checkPermission('inventario.transferencias.solicitud_materiales'), validateBody(crearTransferenciaSchema), async (req, res, next) => {
+    try {
+        req.body.tipo_flujo = 'solicitud_materiales';
+        const result = await transferenciaService.crear(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // POST /api/transferencias/push-directo — bodega → obra sin aprobación.
 // Por diseño consolida solicitante + aprobador + transportista en 1 user; SoD no aplica.
 router.post('/push-directo', auth, checkPermission('inventario.transferencias.push_directo'), async (req, res, next) => {
