@@ -15,17 +15,12 @@ interface Props {
     discrepanciasCount?: number;
     /** Si false, el chip "Discrepancias" se oculta. Default true para back-compat. */
     canVerDiscrepancias?: boolean;
-    /** true cuando la lista ocupa todo el ancho (sin detail panel). Habilita grid multi-columna. */
-    wide?: boolean;
 }
 
 export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
     pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200', bgSolid: 'bg-amber-500', icon: Clock },
     aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
     en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200', bgSolid: 'bg-indigo-500', icon: Truck },
-    // recepcion_parcial: sub-estado entre en_transito y recibida. La TRF llegó
-    // en parte pero quedan más viajes pendientes. Color púrpura para diferenciarlo
-    // visualmente de en_transito (indigo) — "está llegando" vs "viene en camino".
     recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200', bgSolid: 'bg-purple-500', icon: PackageOpen },
     recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200', bgSolid: 'bg-green-500', icon: PackageCheck },
     rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200', bgSolid: 'bg-red-500', icon: XCircle },
@@ -41,6 +36,17 @@ export const tipoFlujoConfig: Record<string, { label: string; color: string }> =
     devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200' },
 };
 
+/** Color sólido del borde izquierdo por estado */
+const BORDER_LEFT_COLOR: Record<string, string> = {
+    pendiente: 'border-l-amber-500',
+    aprobada: 'border-l-blue-500',
+    en_transito: 'border-l-indigo-500',
+    recepcion_parcial: 'border-l-purple-500',
+    recibida: 'border-l-green-500',
+    rechazada: 'border-l-red-500',
+    cancelada: 'border-l-gray-400',
+};
+
 const STATUS_CHIPS: { value: string; label: string; discrepancia?: boolean }[] = [
     { value: 'todas', label: 'Todas' },
     { value: 'pendiente', label: 'Pendientes' },
@@ -54,7 +60,6 @@ const TransferenciasList: React.FC<Props> = ({
     statusFilter, onStatusFilterChange, searchQuery, onSearchChange,
     discrepanciasCount = 0,
     canVerDiscrepancias = true,
-    wide = false,
 }) => {
     const filtered = transferencias.filter(t =>
         !searchQuery || t.codigo.toLowerCase().includes(searchQuery.toLowerCase())
@@ -117,17 +122,12 @@ const TransferenciasList: React.FC<Props> = ({
                 })}
             </div>
 
-            {/* Card list — grid multi-columna cuando la lista tiene ancho completo */}
-            <div className={cn(
-                "flex-1 min-h-0 overflow-y-auto",
-                wide
-                    ? "grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 auto-rows-min content-start"
-                    : "space-y-1.5"
-            )}>
+            {/* Lista compacta estilo master — borde izquierdo coloreado por estado */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
                 {loading ? (
                     <div className="py-8 text-center text-muted-foreground text-xs">Cargando...</div>
                 ) : filtered.length === 0 ? (
-                    <div className={cn("py-12 text-center text-muted-foreground", wide && "col-span-full")}>
+                    <div className="py-12 text-center text-muted-foreground">
                         <Truck className="h-8 w-8 mx-auto opacity-20 mb-2" />
                         <p className="text-xs">No hay transferencias</p>
                     </div>
@@ -139,86 +139,63 @@ const TransferenciasList: React.FC<Props> = ({
                         const destino = (t as any).destino_obra_nombre || (t as any).destino_bodega_nombre || '—';
                         const isSelected = t.id === selectedId;
                         const fechaStr = new Date(t.fecha_solicitud).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
+                        const borderLeft = BORDER_LEFT_COLOR[t.estado] || 'border-l-gray-300';
+                        const flujo = t.tipo_flujo && t.tipo_flujo !== 'solicitud'
+                            ? tipoFlujoConfig[t.tipo_flujo] || null
+                            : null;
 
-                        /* ── Modo lista compacta (con detail abierto) ── */
-                        if (!wide) {
-                            return (
-                                <div
-                                    key={t.id}
-                                    onClick={() => onSelect(t.id)}
-                                    className={cn(
-                                        "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all cursor-pointer",
-                                        isSelected
-                                            ? "border-brand-primary bg-brand-primary/5 shadow-sm"
-                                            : "border-[#E8E8ED] hover:border-brand-primary/30 hover:bg-brand-primary/[0.02]"
-                                    )}
-                                >
-                                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", cfg.color)}>
-                                        <Icon className="h-3.5 w-3.5" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-0.5">
-                                            <span className="text-[11px] font-bold text-brand-dark">{t.codigo}</span>
-                                            <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-full border", cfg.color)}>
-                                                {cfg.label}
-                                            </span>
-                                        </div>
-                                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground truncate">
-                                            <span className="truncate">{origen}</span>
-                                            <ArrowRight className="h-2.5 w-2.5 shrink-0" />
-                                            <span className="truncate">{destino}</span>
-                                        </div>
-                                    </div>
-                                    <p className="text-[9px] text-muted-foreground shrink-0">{fechaStr}</p>
-                                </div>
-                            );
-                        }
-
-                        /* ── Modo grid (sin detail, ancho completo) ── */
                         return (
                             <div
                                 key={t.id}
                                 onClick={() => onSelect(t.id)}
                                 className={cn(
-                                    "group relative flex flex-col rounded-2xl border bg-white overflow-hidden transition-all duration-200 cursor-pointer",
-                                    "hover:shadow-md hover:-translate-y-0.5",
+                                    "flex gap-3 pl-3 pr-3 py-2.5 rounded-lg border-l-[3px] cursor-pointer transition-all",
+                                    borderLeft,
                                     isSelected
-                                        ? "border-brand-primary shadow-md ring-2 ring-brand-primary/20"
-                                        : "border-[#E8E8ED] shadow-sm hover:border-brand-primary/40"
+                                        ? "bg-brand-primary/[0.06] shadow-sm ring-1 ring-brand-primary/20"
+                                        : "bg-white hover:bg-[#F8F9FC]"
                                 )}
                             >
-                                {/* Barra de color según estado */}
-                                <div className={cn("h-1 w-full", cfg.bgSolid)} />
+                                {/* Icono estado */}
+                                <div className={cn(
+                                    "w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5",
+                                    cfg.color
+                                )}>
+                                    <Icon className="h-3 w-3" />
+                                </div>
 
-                                <div className="px-4 py-3 flex flex-col gap-2.5">
-                                    {/* Fila: Código + Fecha */}
-                                    <div className="flex items-center justify-between">
-                                        <span className="text-[13px] font-black text-brand-dark tracking-tight">{t.codigo}</span>
-                                        <span className="text-[10px] text-muted-foreground/60 font-medium tabular-nums">{fechaStr}</span>
+                                {/* Contenido */}
+                                <div className="flex-1 min-w-0">
+                                    {/* Fila 1: Código + fecha */}
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span className={cn(
+                                            "text-[11px] font-bold truncate",
+                                            isSelected ? "text-brand-primary" : "text-brand-dark"
+                                        )}>
+                                            {t.codigo}
+                                        </span>
+                                        <span className="text-[9px] text-muted-foreground/60 tabular-nums shrink-0">
+                                            {fechaStr}
+                                        </span>
                                     </div>
 
-                                    {/* Badges */}
-                                    <div className="flex items-center gap-1.5 flex-wrap">
-                                        <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full border", cfg.color)}>
+                                    {/* Fila 2: Estado badge + flujo */}
+                                    <div className="flex items-center gap-1.5 mt-0.5">
+                                        <span className={cn("text-[8px] font-bold px-1.5 py-[1px] rounded-full border leading-none", cfg.color)}>
                                             {cfg.label}
                                         </span>
-                                        {t.tipo_flujo && t.tipo_flujo !== 'solicitud' && (
-                                            <span className={cn("text-[9px] font-bold px-2 py-0.5 rounded-full border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
-                                                {(tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).label}
+                                        {flujo && (
+                                            <span className={cn("text-[8px] font-bold px-1.5 py-[1px] rounded-full border leading-none", flujo.color)}>
+                                                {flujo.label}
                                             </span>
                                         )}
                                     </div>
 
-                                    {/* Origen → Destino */}
-                                    <div className="flex items-center gap-2 pt-1 border-t border-[#F0F0F5]">
-                                        <div className={cn("w-6 h-6 rounded-md flex items-center justify-center shrink-0", cfg.color)}>
-                                            <Icon className="h-3 w-3" />
-                                        </div>
-                                        <div className="flex items-center gap-1.5 min-w-0 text-[11px]">
-                                            <span className="truncate font-semibold text-brand-dark/80">{origen}</span>
-                                            <ArrowRight className="h-3 w-3 shrink-0 text-muted-foreground/30" />
-                                            <span className="truncate font-semibold text-brand-dark/80">{destino}</span>
-                                        </div>
+                                    {/* Fila 3: Origen → Destino */}
+                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
+                                        <span className="truncate max-w-[40%]">{origen}</span>
+                                        <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
+                                        <span className="truncate max-w-[40%]">{destino}</span>
                                     </div>
                                 </div>
                             </div>

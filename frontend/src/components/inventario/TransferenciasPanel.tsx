@@ -267,15 +267,13 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}
             </div>
 
-            {/* Master-Detail body — sin selección la lista ocupa todo el ancho;
-                con selección se activa el split list+detail */}
+            {/* Master-Detail body — siempre split en desktop (lista sidebar + detail);
+                en mobile alterna entre lista y detalle */}
             <div className="flex flex-1 min-h-0 gap-4">
-                {/* LEFT: List */}
+                {/* LEFT: List sidebar — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0",
-                    detailPaneActive
-                        ? "hidden md:flex md:w-[400px] md:shrink-0"
-                        : "flex w-full"
+                    "flex flex-col min-h-0 md:w-[340px] lg:w-[380px] md:shrink-0",
+                    detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
@@ -341,15 +339,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onSearchChange={setSearchQuery}
                             discrepanciasCount={pendientesCount}
                             canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
-                            wide={!detailPaneActive}
                         />
                     )}
                 </div>
 
-                {/* RIGHT: Detail — solo visible cuando hay selección activa */}
+                {/* RIGHT: Detail — siempre visible en desktop, en mobile solo con selección */}
                 <div className={cn(
                     "flex-1 min-h-0",
-                    detailPaneActive ? "flex flex-col" : "hidden"
+                    detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
                 )}>
                     {isDiscrepanciasMode ? (
                         trfHook.selectedDiscrepancia ? (
