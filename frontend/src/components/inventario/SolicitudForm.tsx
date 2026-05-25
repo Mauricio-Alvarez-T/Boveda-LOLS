@@ -598,9 +598,14 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                     <button
                         type="button"
                         onClick={addCustomItem}
-                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors"
+                        className={cn(
+                            // Mobile: verde grande, fácil de tocar para jefe de obra
+                            "flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 border border-brand-primary rounded-lg shadow-sm transition-colors",
+                            // Desktop: chico ámbar (look discreto integrado al panel)
+                            "md:gap-1 md:px-2 md:py-0.5 md:text-[10px] md:text-amber-800 md:bg-amber-50 md:hover:bg-amber-100 md:border-amber-200 md:rounded-md md:shadow-none"
+                        )}
                     >
-                        <Plus className="h-2.5 w-2.5" strokeWidth={3} />
+                        <Plus className="h-4 w-4 md:h-2.5 md:w-2.5" strokeWidth={3} />
                         Agregar
                     </button>
                 </div>
@@ -706,10 +711,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
 
             {/* CTA */}
             <div className="shrink-0 pt-2 border-t border-[#E8E8ED] flex gap-2">
+                {/* Cancelar oculto en mobile — la X del modal cumple esa función */}
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-3 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
+                    className="hidden md:inline-flex px-3 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
                 >
                     Cancelar
                 </button>
