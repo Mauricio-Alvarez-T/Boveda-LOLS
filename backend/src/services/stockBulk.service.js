@@ -19,6 +19,7 @@
  */
 const db = require('../config/db');
 const logger = require('../utils/logger-structured');
+const { registrarMovimiento } = require('./stockMovimiento.service');
 
 const MAX_ITEMS = 500;
 
@@ -179,6 +180,19 @@ const stockBulkService = {
                             changed,
                         });
                     }
+                    // Kardex (Fase 13): movimiento ajuste_manual si cambió cantidad.
+                    if (adj.fields.cantidad !== undefined) {
+                        await registrarMovimiento(conn, {
+                            item_id: adj.item_id,
+                            obra_id: adj.obra_id,
+                            bodega_id: adj.bodega_id,
+                            tipo: 'ajuste_manual',
+                            cantidad_anterior: Number(prev.cantidad) || 0,
+                            cantidad_nueva: Number(adj.fields.cantidad) || 0,
+                            motivo: 'Ajuste masivo de stock',
+                            usuario_id: userId,
+                        });
+                    }
                     updated += 1;
                 } else {
                     // Crear — cantidad por defecto 0 si no viene
@@ -202,6 +216,19 @@ const stockBulkService = {
                                 : {}),
                         },
                     });
+                    // Kardex (Fase 13): alta de stock = movimiento desde 0.
+                    if (adj.fields.cantidad !== undefined) {
+                        await registrarMovimiento(conn, {
+                            item_id: adj.item_id,
+                            obra_id: adj.obra_id,
+                            bodega_id: adj.bodega_id,
+                            tipo: 'ajuste_manual',
+                            cantidad_anterior: 0,
+                            cantidad_nueva: Number(cantidad) || 0,
+                            motivo: 'Ajuste masivo de stock (alta)',
+                            usuario_id: userId,
+                        });
+                    }
                     created += 1;
                 }
             }

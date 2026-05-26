@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { getDescuentoMap, getDescuentoForObra } = require('../utils/descuentoMap');
+const { registrarMovimiento } = require('./stockMovimiento.service');
 
 const inventarioService = {
     /**
@@ -316,8 +317,17 @@ const inventarioService = {
     /**
      * Actualizar stock de una ubicación (edición inline).
      * Upsert: si no existe la fila en ubicaciones_stock, la crea.
+     *
+     * Fase 13 (kardex): cuando cambia `cantidad`, registra un movimiento
+     * `ajuste_manual` en stock_movimientos con el delta antes→después. Todo
+     * dentro de una transacción para que stock + kardex sean atómicos.
+     *
+     * @param {number} itemId
+     * @param {number|null} obraId
+     * @param {number|null} bodegaId
+     * @param {object} payload  { cantidad, valorArriendoOverride, usuarioId, motivo }
      */
-    async actualizarStock(itemId, obraId, bodegaId, { cantidad, valorArriendoOverride }) {
+    async actualizarStock(itemId, obraId, bodegaId, { cantidad, valorArriendoOverride, usuarioId = null, motivo = null }) {
         // ── XOR check: ubicación = obra XOR bodega (mig 050) ──
         // Schema acepta cualquier combinación pero semánticamente es exclusivo.
         // Sin esta validación los flujos podían crear rows huérfanas (ambos NULL)
@@ -357,28 +367,61 @@ const inventarioService = {
 
         if (Object.keys(updates).length === 0) throw new Error('Nada que actualizar');
 
-        // Upsert
         const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
         const values = Object.values(updates);
 
-        const [existing] = await db.query(
-            'SELECT id FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
-            [itemId, obraId || null, bodegaId || null]
-        );
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
 
-        if (existing.length) {
-            await db.query(
-                `UPDATE ubicaciones_stock SET ${setClauses} WHERE id = ?`,
-                [...values, existing[0].id]
+            // FOR UPDATE: lockea la fila para leer cantidad previa y evitar
+            // races con otros ajustes/transferencias sobre el mismo stock.
+            const [existing] = await conn.query(
+                'SELECT id, cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ? FOR UPDATE',
+                [itemId, obraId || null, bodegaId || null]
             );
-            return { id: existing[0].id, ...updates };
-        } else {
-            const [result] = await db.query(
-                `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [itemId, obraId || null, bodegaId || null, cantidad || 0, valorArriendoOverride || null]
-            );
-            return { id: result.insertId, ...updates };
+
+            let stockId;
+            let cantidadAnterior;
+            if (existing.length) {
+                cantidadAnterior = Number(existing[0].cantidad) || 0;
+                await conn.query(
+                    `UPDATE ubicaciones_stock SET ${setClauses} WHERE id = ?`,
+                    [...values, existing[0].id]
+                );
+                stockId = existing[0].id;
+            } else {
+                cantidadAnterior = 0;
+                const [result] = await conn.query(
+                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [itemId, obraId || null, bodegaId || null, cantidad || 0, valorArriendoOverride || null]
+                );
+                stockId = result.insertId;
+            }
+
+            // Kardex: solo si cambió la cantidad (override no genera movimiento).
+            if (cantidad !== undefined && cantidad !== null) {
+                const cantidadNueva = Number(cantidad) || 0;
+                await registrarMovimiento(conn, {
+                    item_id: itemId,
+                    obra_id: obraId || null,
+                    bodega_id: bodegaId || null,
+                    tipo: 'ajuste_manual',
+                    cantidad_anterior: cantidadAnterior,
+                    cantidad_nueva: cantidadNueva,
+                    motivo,
+                    usuario_id: usuarioId,
+                });
+            }
+
+            await conn.commit();
+            return { id: stockId, ...updates };
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         }
     },
 
@@ -401,6 +444,61 @@ const inventarioService = {
             [obraId, num]
         );
         return { obra_id: obraId, porcentaje: num };
+    },
+
+    /**
+     * Kardex: historial de movimientos de stock (Fase 13).
+     * Filtros opcionales: obra_id, bodega_id, item_id, tipo, desde, hasta.
+     * Paginado. Devuelve filas enriquecidas con nombres de item/ubicación/usuario.
+     */
+    async getMovimientos(query = {}) {
+        const { obra_id, bodega_id, item_id, tipo, desde, hasta } = query;
+        const page = Math.max(1, Number(query.page) || 1);
+        const limit = Math.min(200, Math.max(1, Number(query.limit) || 50));
+        const offset = (page - 1) * limit;
+
+        const where = [];
+        const params = [];
+        if (obra_id) { where.push('m.obra_id = ?'); params.push(Number(obra_id)); }
+        if (bodega_id) { where.push('m.bodega_id = ?'); params.push(Number(bodega_id)); }
+        if (item_id) { where.push('m.item_id = ?'); params.push(Number(item_id)); }
+        if (tipo) { where.push('m.tipo = ?'); params.push(tipo); }
+        if (desde) { where.push('m.created_at >= ?'); params.push(`${desde} 00:00:00`); }
+        if (hasta) { where.push('m.created_at <= ?'); params.push(`${hasta} 23:59:59`); }
+        const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+        const [rows] = await db.query(`
+            SELECT m.id, m.item_id, m.obra_id, m.bodega_id, m.tipo,
+                   m.cantidad_anterior, m.cantidad_nueva, m.delta,
+                   m.referencia_tipo, m.referencia_id, m.motivo,
+                   m.usuario_id, m.created_at,
+                   i.nro_item, i.descripcion AS item_descripcion, i.unidad,
+                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre,
+                   u.nombre AS usuario_nombre
+            FROM stock_movimientos m
+            JOIN items_inventario i ON i.id = m.item_id
+            LEFT JOIN obras o ON o.id = m.obra_id
+            LEFT JOIN bodegas b ON b.id = m.bodega_id
+            LEFT JOIN usuarios u ON u.id = m.usuario_id
+            ${whereClause}
+            ORDER BY m.created_at DESC, m.id DESC
+            LIMIT ? OFFSET ?
+        `, [...params, limit, offset]);
+
+        const [countRows] = await db.query(
+            `SELECT COUNT(*) AS total FROM stock_movimientos m ${whereClause}`,
+            params
+        );
+
+        return {
+            data: rows,
+            pagination: {
+                page,
+                limit,
+                total: countRows[0].total,
+                pages: Math.ceil(countRows[0].total / limit),
+            },
+        };
     },
 
     /**

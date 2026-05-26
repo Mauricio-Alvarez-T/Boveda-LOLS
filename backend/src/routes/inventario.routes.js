@@ -88,10 +88,15 @@ router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
             });
         }
 
-        const { item_id, obra_id, bodega_id, cantidad, valor_arriendo_override } = req.body;
+        const { item_id, obra_id, bodega_id, cantidad, valor_arriendo_override, motivo } = req.body;
         const result = await inventarioService.actualizarStock(
             item_id, obra_id || null, bodega_id || null,
-            { cantidad, valorArriendoOverride: valor_arriendo_override }
+            {
+                cantidad,
+                valorArriendoOverride: valor_arriendo_override,
+                usuarioId: req.user?.id || null,
+                motivo: motivo ? String(motivo).slice(0, 255) : null,
+            }
         );
         res.json({ data: result });
     } catch (err) {
@@ -238,6 +243,15 @@ router.put('/stock/bulk', auth, checkPermission('inventario.editar'), async (req
         }
         next(err);
     }
+});
+
+// GET /api/inventario/movimientos — kardex de movimientos de stock (Fase 13)
+// Filtros: obra_id, bodega_id, item_id, tipo, desde, hasta, page, limit.
+router.get('/movimientos', auth, checkPermission('inventario.movimientos.ver'), async (req, res, next) => {
+    try {
+        const result = await inventarioService.getMovimientos(req.query);
+        res.json(result);
+    } catch (err) { next(err); }
 });
 
 module.exports = router;
