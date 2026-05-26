@@ -106,12 +106,13 @@ describe('Audit trail: columnas creado_por, aprobado_por, despachado_por, recibi
         expect(body).toMatch(/despachado_por/);
     });
 
-    test('intraBodega() INSERT incluye los 4 audit columns (transferencia ya recibida)', () => {
+    test('intraBodega() delega en crear() (flujo con aprobación, mayo 2026)', () => {
+        // Cambio jefatura: intra-bodega ya NO es instantáneo. Ahora delega en
+        // crear() con tipo_flujo='intra_bodega' → nace pendiente, audit fluye
+        // por el ciclo normal (creado_por en crear, aprobado_por en aprobar, etc).
         const body = getMethodBody('intraBodega');
-        expect(body).toMatch(/creado_por/);
-        expect(body).toMatch(/aprobado_por/);
-        expect(body).toMatch(/despachado_por/);
-        expect(body).toMatch(/recibido_por/);
+        expect(body).toMatch(/this\.crear/);
+        expect(body).toMatch(/tipo_flujo:\s*'intra_bodega'/);
     });
 
     test('ordenGerencia() INSERT incluye creado_por, aprobado_por y despachado_por', () => {

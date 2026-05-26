@@ -114,8 +114,9 @@ router.post('/push-directo', auth, checkPermission('inventario.transferencias.pu
     } catch (err) { next(err); }
 });
 
-// POST /api/transferencias/intra-bodega — bodega → bodega, instantáneo.
-// Por diseño consolida los 4 roles en 1 user; SoD no aplica.
+// POST /api/transferencias/intra-bodega — bodega → bodega CON aprobación.
+// Nace 'pendiente'; sigue el flujo normal (aprobar → despachar → recibir).
+// El stock se mueve recién en la recepción (decisión jefatura mayo 2026).
 router.post('/intra-bodega', auth, checkPermission('inventario.transferencias.intra_bodega'), async (req, res, next) => {
     try {
         const result = await transferenciaService.intraBodega(req.body, req.user.id);

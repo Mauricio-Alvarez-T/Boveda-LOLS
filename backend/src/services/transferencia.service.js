@@ -108,7 +108,7 @@ const transferenciaService = {
         }
         if (!destino_obra_id && !destino_bodega_id) throw new Error('Debe especificar un destino');
         const flujo = tipo_flujo || 'solicitud';
-        const flujosPermitidos = ['solicitud', 'solicitud_materiales', 'devolucion', 'intra_obra'];
+        const flujosPermitidos = ['solicitud', 'solicitud_materiales', 'devolucion', 'intra_obra', 'intra_bodega'];
         if (!flujosPermitidos.includes(flujo)) {
             throw new Error(`tipo_flujo inválido para crear(): ${flujo}`);
         }
@@ -125,8 +125,20 @@ const transferenciaService = {
                 throw new Error('Intra-obra: origen y destino deben ser obras distintas');
             }
         }
-        // Stock relevante para validación: por obra (devolucion, intra_obra) o global (solicitud).
+        // Intra-bodega: origen y destino son bodegas distintas. Antes era un flujo
+        // instantáneo aparte (nacía 'recibida'); ahora pasa por el flujo normal con
+        // aprobación (decisión jefatura: bodeguero no mueve stock sin visto bueno).
+        if (flujo === 'intra_bodega') {
+            if (!origen_bodega_id) throw new Error('Intra-bodega requiere origen_bodega_id');
+            if (!destino_bodega_id) throw new Error('Intra-bodega requiere destino_bodega_id');
+            if (origen_bodega_id === destino_bodega_id) {
+                throw new Error('Intra-bodega: origen y destino deben ser bodegas distintas');
+            }
+        }
+        // Stock relevante para validación: por obra (devolucion, intra_obra),
+        // por bodega (intra_bodega) o global (solicitud).
         const validarStockPorObra = flujo === 'devolucion' || flujo === 'intra_obra';
+        const validarStockPorBodega = flujo === 'intra_bodega';
 
         const conn = await db.getConnection();
         try {
@@ -146,6 +158,16 @@ const transferenciaService = {
                          FROM ubicaciones_stock
                          WHERE item_id = ? AND obra_id = ? AND bodega_id IS NULL`,
                         [item.item_id, item.item_id, origen_obra_id]
+                    );
+                    disponible = stockRows.length ? Number(stockRows[0].total) || 0 : 0;
+                    desc = stockRows.length ? stockRows[0].descripcion : `ítem ${item.item_id}`;
+                } else if (validarStockPorBodega) {
+                    const [stockRows] = await conn.query(
+                        `SELECT COALESCE(cantidad, 0) as total,
+                                (SELECT descripcion FROM items_inventario WHERE id = ?) as descripcion
+                         FROM ubicaciones_stock
+                         WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?`,
+                        [item.item_id, item.item_id, origen_bodega_id]
                     );
                     disponible = stockRows.length ? Number(stockRows[0].total) || 0 : 0;
                     desc = stockRows.length ? stockRows[0].descripcion : `ítem ${item.item_id}`;
@@ -175,8 +197,12 @@ const transferenciaService = {
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     codigo,
-                    validarStockPorObra ? origen_obra_id : (origen_obra_id || null),
-                    validarStockPorObra ? null : (origen_bodega_id || null),
+                    // origen_obra_id: flujos por obra (devolucion, intra_obra) o solicitud con obra.
+                    //   intra_bodega nunca tiene obra origen.
+                    validarStockPorBodega ? null : (validarStockPorObra ? origen_obra_id : (origen_obra_id || null)),
+                    // origen_bodega_id: intra_bodega (siempre) o solicitud con bodega.
+                    //   devolucion/intra_obra nunca tienen bodega origen.
+                    validarStockPorBodega ? origen_bodega_id : (validarStockPorObra ? null : (origen_bodega_id || null)),
                     destino_obra_id || null,
                     destino_bodega_id || null,
                     solicitanteId,
@@ -1102,8 +1128,16 @@ const transferenciaService = {
     },
 
     /**
-     * Intra-bodega: bodega → bodega, instantáneo (estado 'recibida' en la misma tx).
-     * No hay tránsito — mismo dueño, mismo edificio logísticamente hablando.
+     * Intra-bodega: bodega → bodega CON aprobación.
+     *
+     * Decisión jefatura (mayo 2026): antes era instantáneo (nacía 'recibida' y
+     * movía stock en la misma tx). Ahora pasa por el flujo normal
+     * pendiente → aprobada → en_transito → recibida, igual que intra_obra y
+     * devolucion. El stock se mueve recién en la recepción. El bodeguero no
+     * mueve stock sin visto bueno de Leonardo (o su reemplazo).
+     *
+     * Delega en crear() con tipo_flujo='intra_bodega'. aprobar() y recibir()
+     * ya soportan splits/destinos de bodega vía _normalizeUbicacion.
      *
      * payload: {
      *   origen_bodega_id, destino_bodega_id,
@@ -1112,80 +1146,7 @@ const transferenciaService = {
      * }
      */
     async intraBodega(data, userId) {
-        const { origen_bodega_id, destino_bodega_id, items, observaciones, motivo } = data;
-        if (!origen_bodega_id) throw new Error('Debe especificar bodega origen');
-        if (!destino_bodega_id) throw new Error('Debe especificar bodega destino');
-        if (origen_bodega_id === destino_bodega_id) throw new Error('Origen y destino deben ser bodegas distintas');
-        if (!items || !items.length) throw new Error('Debe incluir al menos un ítem');
-
-        const conn = await db.getConnection();
-        try {
-            await conn.beginTransaction();
-
-            // Validar stock
-            for (const item of items) {
-                const cantidad = parseFloat(item.cantidad) || 0;
-                if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
-                const [stock] = await conn.query(
-                    'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?',
-                    [item.item_id, origen_bodega_id]
-                );
-                const disponible = stock.length ? Number(stock[0].cantidad) || 0 : 0;
-                if (cantidad > disponible) {
-                    throw new Error(`Stock insuficiente para ítem ${item.item_id} en bodega origen. Disponible: ${disponible}, requerido: ${cantidad}`);
-                }
-            }
-
-            const codigo = await this._generarCodigo();
-            const [result] = await conn.query(
-                `INSERT INTO transferencias
-                 (codigo, origen_bodega_id, destino_bodega_id, solicitante_id, aprobador_id, receptor_id,
-                  observaciones, tipo_flujo, motivo, estado,
-                  fecha_aprobacion, fecha_despacho, fecha_recepcion,
-                  creado_por, aprobado_por, despachado_por, recibido_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'intra_bodega', ?, 'recibida', NOW(), NOW(), NOW(), ?, ?, ?, ?)`,
-                [codigo, origen_bodega_id, destino_bodega_id, userId, userId, userId, observaciones || null, motivo || null, userId, userId, userId, userId]
-            );
-            const trfId = result.insertId;
-
-            // Mover stock atómicamente + persistir items con recibida=enviada=solicitada
-            for (const item of items) {
-                const cantidad = parseFloat(item.cantidad) || 0;
-                const [itemRes] = await conn.query(
-                    `INSERT INTO transferencia_items
-                     (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, cantidad_recibida, origen_bodega_id)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [trfId, item.item_id, cantidad, cantidad, cantidad, origen_bodega_id]
-                );
-                await conn.query(
-                    `INSERT INTO transferencia_item_origenes
-                     (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
-                     VALUES (?, NULL, ?, ?)`,
-                    [itemRes.insertId, origen_bodega_id, cantidad]
-                );
-                // Decrementar origen
-                await conn.query(
-                    `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
-                     WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?`,
-                    [cantidad, item.item_id, origen_bodega_id]
-                );
-                // Incrementar destino (upsert)
-                await conn.query(
-                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                     VALUES (?, NULL, ?, ?)
-                     ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                    [item.item_id, destino_bodega_id, cantidad]
-                );
-            }
-
-            await conn.commit();
-            return { id: trfId, codigo, estado: 'recibida' };
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
-        }
+        return this.crear({ ...data, tipo_flujo: 'intra_bodega' }, userId);
     },
 
     /**

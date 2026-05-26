@@ -187,10 +187,10 @@ export function useTransferencias() {
             const res = await api.post<ApiResponse<{ id: number; codigo: string; estado: string }>>(
                 '/transferencias/intra-bodega', data
             );
-            toast.success(`Movimiento ${res.data.data.codigo} registrado — stock actualizado`);
+            toast.success(`Movimiento intra-bodega ${res.data.data.codigo} creado — pendiente de aprobación`);
             return res.data.data;
         } catch (err) {
-            showApiError(err, 'Error al mover entre bodegas');
+            showApiError(err, 'Error al crear movimiento intra-bodega');
             return null;
         }
     }, []);

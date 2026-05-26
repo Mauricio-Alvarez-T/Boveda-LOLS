@@ -42,10 +42,10 @@ const FLUJO_LABELS: Record<Flujo, { title: string; origenLabel: string; destinoL
         cta: 'Registrar despacho',
     },
     intra_bodega: {
-        title: 'Movimiento intra-bodega (Bodega → Bodega)',
+        title: 'Movimiento intra-bodega (Bodega → Bodega, con aprobación)',
         origenLabel: 'Bodega origen',
         destinoLabel: 'Bodega destino',
-        cta: 'Registrar movimiento',
+        cta: 'Crear solicitud',
     },
     devolucion: {
         title: 'Devolución (Obra → Bodega)',

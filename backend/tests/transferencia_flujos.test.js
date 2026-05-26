@@ -232,27 +232,24 @@ describe('pushDirecto()', () => {
     });
 });
 
-describe('intraBodega()', () => {
+describe('intraBodega() — con aprobación (decisión jefatura mayo 2026)', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    test('7) crea transferencia recibida en misma tx + mueve stock atómicamente', async () => {
+    // Cambio semántico: intra-bodega ya NO es instantáneo. Delega en crear()
+    // con tipo_flujo='intra_bodega' → nace 'pendiente', NO mueve stock (eso
+    // ocurre recién al recibir, vía el flujo normal aprobar→despachar→recibir).
+    test('7) crea transferencia PENDIENTE, origen=bodega, destino=bodega, SIN mover stock', async () => {
         const conn = makeConn();
         db.getConnection.mockResolvedValue(conn);
-        db.query.mockResolvedValueOnce([[]]);
+        db.query.mockResolvedValueOnce([[]]); // _generarCodigo
 
         conn.query
-            // SELECT stock bodega origen
-            .mockResolvedValueOnce([[{ cantidad: 10 }]])
+            // SELECT stock bodega origen (validarStockPorBodega)
+            .mockResolvedValueOnce([[{ total: 10, descripcion: 'Ítem X' }]])
             // INSERT transferencias
             .mockResolvedValueOnce([{ insertId: 500 }])
-            // INSERT transferencia_items
-            .mockResolvedValueOnce([{ insertId: 600 }])
-            // INSERT transferencia_item_origenes
-            .mockResolvedValueOnce([{ insertId: 1 }])
-            // UPDATE stock origen (decremento)
-            .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // INSERT stock destino (incremento upsert)
-            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+            // INSERT transferencia_items (batch)
+            .mockResolvedValueOnce([{ insertId: 600 }]);
 
         const res = await transferenciaService.intraBodega({
             origen_bodega_id: 2,
@@ -260,30 +257,35 @@ describe('intraBodega()', () => {
             items: [{ item_id: 5, cantidad: 4 }],
         }, 77);
 
-        expect(res).toMatchObject({ id: 500, estado: 'recibida' });
+        // crear() retorna { id, codigo } sin estado (nace pendiente por default DB)
+        expect(res).toMatchObject({ id: 500 });
 
         const trfInsert = conn.query.mock.calls.find(c => /INSERT INTO transferencias/.test(c[0]));
-        expect(trfInsert[0]).toMatch(/'intra_bodega'/);
-        expect(trfInsert[0]).toMatch(/'recibida'/);
+        expect(trfInsert[0]).toMatch(/'intra_bodega'|\?/); // tipo_flujo param
+        // Params: codigo, origen_obra_id, origen_bodega_id, destino_obra_id, destino_bodega_id, ...
+        expect(trfInsert[1][1]).toBe(null);  // origen_obra_id = null
+        expect(trfInsert[1][2]).toBe(2);     // origen_bodega_id = 2
+        expect(trfInsert[1][3]).toBe(null);  // destino_obra_id = null
+        expect(trfInsert[1][4]).toBe(3);     // destino_bodega_id = 3
+        expect(trfInsert[1][9]).toBe('intra_bodega'); // tipo_flujo
 
-        // Debe haber 1 decremento y 1 incremento
-        const decrementCalls = conn.query.mock.calls.filter(c =>
-            /UPDATE ubicaciones_stock SET cantidad = GREATEST/.test(c[0])
+        // NO debe mover stock al crear (ni decremento ni upsert incremento)
+        const stockMoves = conn.query.mock.calls.filter(c =>
+            /UPDATE ubicaciones_stock SET cantidad = GREATEST/.test(c[0]) ||
+            (/INSERT INTO ubicaciones_stock/.test(c[0]) && /ON DUPLICATE KEY/.test(c[0]))
         );
-        expect(decrementCalls).toHaveLength(1);
-        const upsertCalls = conn.query.mock.calls.filter(c =>
-            /INSERT INTO ubicaciones_stock/.test(c[0]) && /ON DUPLICATE KEY/.test(c[0])
-        );
-        expect(upsertCalls).toHaveLength(1);
+        expect(stockMoves).toHaveLength(0);
 
         expect(conn.commit).toHaveBeenCalled();
     });
 
-    test('intra-bodega con stock insuficiente → rollback', async () => {
+    test('intra-bodega con stock insuficiente en bodega origen → rollback', async () => {
         const conn = makeConn();
         db.getConnection.mockResolvedValue(conn);
+        db.query.mockResolvedValueOnce([[]]); // _generarCodigo
 
-        conn.query.mockResolvedValueOnce([[{ cantidad: 1 }]]); // disponible=1, requerido=4
+        // disponible=1, requerido=4
+        conn.query.mockResolvedValueOnce([[{ total: 1, descripcion: 'Ítem X' }]]);
 
         await expect(transferenciaService.intraBodega({
             origen_bodega_id: 2,
@@ -293,6 +295,21 @@ describe('intraBodega()', () => {
 
         expect(conn.rollback).toHaveBeenCalled();
         expect(conn.commit).not.toHaveBeenCalled();
+    });
+
+    test('intra-bodega origen = destino → error (bodegas deben ser distintas)', async () => {
+        await expect(transferenciaService.intraBodega({
+            origen_bodega_id: 2,
+            destino_bodega_id: 2,
+            items: [{ item_id: 5, cantidad: 4 }],
+        }, 77)).rejects.toThrow(/distintas/);
+    });
+
+    test('intra-bodega sin origen_bodega_id → error', async () => {
+        await expect(transferenciaService.intraBodega({
+            destino_bodega_id: 3,
+            items: [{ item_id: 5, cantidad: 4 }],
+        }, 77)).rejects.toThrow(/origen_bodega_id/);
     });
 });
 
