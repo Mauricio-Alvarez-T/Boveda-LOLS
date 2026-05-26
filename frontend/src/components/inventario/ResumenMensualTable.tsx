@@ -211,7 +211,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     (sin montos $). */}
                 <div className="shrink-0 bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white">
                     <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-2">Resumen General</p>
-                    <div className={cn("grid gap-3", verValores ? "grid-cols-3" : "grid-cols-2")}>
+                    <div className={cn("grid gap-3", verValores ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2")}>
                         <div>
                             <p className="text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
                             <p className="text-[10px] opacity-80">Unidades</p>
