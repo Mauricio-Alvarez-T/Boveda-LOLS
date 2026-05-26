@@ -1086,6 +1086,26 @@ const transferenciaService = {
     },
 
     /**
+     * Otorga 10 días más de plazo a una solicitud PENDIENTE estancada.
+     * Resetea el "reloj" de estancamiento: prorroga_hasta = hoy + 10 días.
+     * Solo aplica a transferencias en estado 'pendiente'.
+     * Punto 55 del checklist: alerta accionable de solicitudes estancadas.
+     */
+    async prorrogar(id, userId) {
+        const [rows] = await db.query('SELECT estado FROM transferencias WHERE id = ? AND activo = 1', [id]);
+        if (!rows.length) throw new Error('Transferencia no encontrada');
+        if (rows[0].estado !== 'pendiente') {
+            throw new Error('Solo se pueden prorrogar transferencias pendientes');
+        }
+        await db.query(
+            'UPDATE transferencias SET prorroga_hasta = DATE_ADD(CURDATE(), INTERVAL 10 DAY) WHERE id = ?',
+            [id]
+        );
+        const [updated] = await db.query('SELECT prorroga_hasta FROM transferencias WHERE id = ?', [id]);
+        return { id, prorroga_hasta: updated[0]?.prorroga_hasta || null };
+    },
+
+    /**
      * Push directo: bodega → obra SIN paso de aprobación. Material ya está listo
      * para salir; el bodeguero solo registra el movimiento. Queda en 'en_transito'
      * hasta que el receptor confirma en la obra.

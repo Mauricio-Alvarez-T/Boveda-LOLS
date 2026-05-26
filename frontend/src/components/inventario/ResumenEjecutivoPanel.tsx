@@ -14,6 +14,7 @@ import {
     Droplets,
     Filter,
 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
@@ -244,9 +245,16 @@ const ObraRankingItem = React.memo(ObraRankingItemImpl);
 interface AlertaItemProps {
     alerta: DashboardAlerta;
     onClick: () => void;
+    /** Solo para pendientes estancadas: extender 10 días. */
+    onProrrogar?: () => void;
+    /** Solo para pendientes estancadas: cancelar la solicitud. */
+    onCancelar?: () => void;
+    /** Deshabilita las acciones mientras se procesa una. */
+    actionLoading?: boolean;
 }
 
-const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
+const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrrogar, onCancelar, actionLoading }) => {
+    const isEstancada = alerta.tipo === 'pendiente' && !!alerta.estancada;
     const toneMap: Record<DashboardAlerta['tipo'], { bg: string; border: string; icon: React.ReactNode; iconBg: string; cta: string }> = {
         pendiente: {
             bg: 'bg-amber-50/60',
@@ -273,41 +281,77 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick }) => {
     const t = toneMap[alerta.tipo];
 
     const diasLabel = alerta.dias === 0 ? 'hoy' : alerta.dias === 1 ? 'hace 1 día' : `hace ${alerta.dias} días`;
+    // Las estancadas usan tono rojo para destacar que requieren decisión.
+    const bg = isEstancada ? 'bg-red-50/70' : t.bg;
+    const border = isEstancada ? 'border-red-300' : t.border;
+    const iconBg = isEstancada ? 'bg-red-200/80 text-red-800' : t.iconBg;
+    const showActions = isEstancada && (onProrrogar || onCancelar);
 
     return (
-        <button
-            type="button"
-            onClick={onClick}
-            aria-label={`${alerta.titulo}. ${alerta.detalle}. ${diasLabel}. Click para ver.`}
+        <div
             className={cn(
-                'flex items-center gap-3 w-full p-3.5 rounded-xl border-2 transition-all text-left hover:shadow-md active:scale-[0.995]',
-                t.bg,
-                t.border
+                'rounded-xl border-2 transition-all',
+                bg, border
             )}
         >
-            <div className={cn('shrink-0 p-2 rounded-lg', t.iconBg)}>
-                {t.icon}
-            </div>
-            <div className="flex-1 min-w-0">
-                <div className="text-sm font-bold text-brand-dark truncate">
-                    {alerta.titulo}
-                    <span className="ml-2 text-[11px] font-semibold text-muted-foreground">— {diasLabel}</span>
+            <button
+                type="button"
+                onClick={onClick}
+                aria-label={`${alerta.titulo}. ${alerta.detalle}. ${diasLabel}. Click para ver.`}
+                className="flex items-center gap-3 w-full p-3.5 text-left hover:opacity-90 active:scale-[0.995] transition-all"
+            >
+                <div className={cn('shrink-0 p-2 rounded-lg', iconBg)}>
+                    {isEstancada ? <AlertTriangle className="h-4 w-4" /> : t.icon}
                 </div>
-                <div className="text-xs text-muted-foreground truncate mt-0.5">
-                    {alerta.detalle}
-                </div>
-                {alerta.solicitante && (
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5 truncate">
-                        <User className="h-3 w-3 shrink-0" />
-                        <span className="font-semibold truncate">{alerta.solicitante}</span>
+                <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-brand-dark truncate">
+                        {alerta.titulo}
+                        <span className="ml-2 text-[11px] font-semibold text-muted-foreground">— {diasLabel}</span>
                     </div>
-                )}
-            </div>
-            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold">
-                {t.cta}
-                <ChevronRight className="h-3.5 w-3.5" />
-            </span>
-        </button>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">
+                        {alerta.detalle}
+                    </div>
+                    {alerta.solicitante && (
+                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5 truncate">
+                            <User className="h-3 w-3 shrink-0" />
+                            <span className="font-semibold truncate">{alerta.solicitante}</span>
+                        </div>
+                    )}
+                </div>
+                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold">
+                    {isEstancada ? 'Modificar' : t.cta}
+                    <ChevronRight className="h-3.5 w-3.5" />
+                </span>
+            </button>
+
+            {/* Acciones para solicitudes estancadas: extender plazo o cancelar */}
+            {showActions && (
+                <div className="flex items-center gap-2 px-3.5 pb-3 -mt-1">
+                    {onProrrogar && (
+                        <button
+                            type="button"
+                            onClick={onProrrogar}
+                            disabled={actionLoading}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                        >
+                            <Timer className="h-3 w-3" />
+                            Extender 10 días
+                        </button>
+                    )}
+                    {onCancelar && (
+                        <button
+                            type="button"
+                            onClick={onCancelar}
+                            disabled={actionLoading}
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                        >
+                            <XCircle className="h-3 w-3" />
+                            Cancelar
+                        </button>
+                    )}
+                </div>
+            )}
+        </div>
     );
 };
 const AlertaItem = React.memo(AlertaItemImpl);
@@ -398,6 +442,38 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
     const [obras, setObras] = useState<ObraOpcion[]>([]);
     const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo(obraFilter);
     const [now, setNow] = useState(() => Date.now());
+
+    // Acciones sobre solicitudes estancadas (punto 55)
+    const canAprobar = hasPermission('inventario.transferencias.aprobar');
+    const canCancelar = hasPermission('inventario.transferencias.cancelar');
+    const [actionLoadingId, setActionLoadingId] = useState<number | null>(null);
+
+    const handleProrrogar = async (id: number) => {
+        setActionLoadingId(id);
+        try {
+            await api.put(`/transferencias/${id}/prorrogar`);
+            toast.success('Plazo extendido 10 días');
+            refetch();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al extender el plazo');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
+
+    const handleCancelarSolicitud = async (id: number) => {
+        if (!window.confirm('¿Cancelar esta solicitud estancada? Esta acción no se puede deshacer.')) return;
+        setActionLoadingId(id);
+        try {
+            await api.put(`/transferencias/${id}/cancelar`);
+            toast.success('Solicitud cancelada');
+            refetch();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al cancelar');
+        } finally {
+            setActionLoadingId(null);
+        }
+    };
 
     // Cargar obras participantes una sola vez para el selector
     useEffect(() => {
@@ -760,6 +836,9 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                     estado: alerta.tipo === 'discrepancia' ? 'discrepancias' : alerta.tipo === 'transito' ? 'en_transito' : 'pendiente',
                                     transferenciaId: alerta.transferencia_id,
                                 })}
+                                onProrrogar={canAprobar ? () => handleProrrogar(alerta.transferencia_id) : undefined}
+                                onCancelar={canCancelar ? () => handleCancelarSolicitud(alerta.transferencia_id) : undefined}
+                                actionLoading={actionLoadingId === alerta.transferencia_id}
                             />
                         ))}
                     </div>

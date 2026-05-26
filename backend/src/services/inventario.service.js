@@ -580,12 +580,15 @@ const inventarioService = {
             // Auditoría perf: items_count via COUNT(ti.id) agregado en lugar de
             // subquery correlacionada (antes ejecutaba 1 subquery por fila).
             db.query(`
-                SELECT t.id, t.codigo, t.fecha_solicitud,
+                SELECT t.id, t.codigo, t.fecha_solicitud, t.prorroga_hasta,
                        oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
                        do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
                        us.nombre as solicitante_nombre,
                        COUNT(ti.id) as items_count,
-                       DATEDIFF(NOW(), t.fecha_solicitud) as dias
+                       DATEDIFF(NOW(), t.fecha_solicitud) as dias,
+                       -- Días que faltan hasta el límite (10 desde solicitud, o prórroga).
+                       -- Si es negativo o 0, la solicitud está estancada.
+                       DATEDIFF(COALESCE(t.prorroga_hasta, DATE_ADD(DATE(t.fecha_solicitud), INTERVAL 10 DAY)), CURDATE()) as dias_hasta_limite
                 FROM transferencias t
                 LEFT JOIN obras oo ON t.origen_obra_id = oo.id
                 LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
@@ -594,7 +597,7 @@ const inventarioService = {
                 LEFT JOIN usuarios us ON t.solicitante_id = us.id
                 LEFT JOIN transferencia_items ti ON ti.transferencia_id = t.id
                 WHERE t.activo = 1 AND t.estado = 'pendiente' ${tFilter}
-                GROUP BY t.id, t.codigo, t.fecha_solicitud,
+                GROUP BY t.id, t.codigo, t.fecha_solicitud, t.prorroga_hasta,
                          oo.nombre, ob.nombre, do2.nombre, db2.nombre, us.nombre
                 ORDER BY t.fecha_solicitud ASC
                 LIMIT 5
@@ -634,12 +637,12 @@ const inventarioService = {
                 ORDER BY t.fecha_despacho ASC
                 LIMIT 5
             `, tParams),
-            // 6. KPI: en tránsito estancados ≥7 días
+            // 6. KPI: en tránsito estancados ≥10 días (umbral definido por jefatura)
             db.query(`
                 SELECT COUNT(*) as count
                 FROM transferencias
                 WHERE activo = 1 AND estado = 'en_transito'
-                  AND DATEDIFF(NOW(), fecha_despacho) >= 7 ${directFilter}
+                  AND DATEDIFF(NOW(), fecha_despacho) >= 10 ${directFilter}
             `, directParams),
             // 7. Rechazos recientes (últimos 7 días, máx 8)
             db.query(`
@@ -721,12 +724,19 @@ const inventarioService = {
         const alertas = [];
 
         alertasPendientesRows.forEach(r => {
+            // Estancada: superó el límite (10 días desde solicitud, o la prórroga).
+            const diasHastaLimite = Number(r.dias_hasta_limite);
+            const estancada = Number.isFinite(diasHastaLimite) && diasHastaLimite <= 0;
             alertas.push({
                 tipo: 'pendiente',
                 transferencia_id: r.id,
                 codigo: r.codigo,
                 dias: Number(r.dias) || 0,
-                titulo: `${r.codigo} espera tu aprobación`,
+                estancada,
+                prorroga_hasta: r.prorroga_hasta || null,
+                titulo: estancada
+                    ? `${r.codigo} estancada (${Number(r.dias)} días pendiente)`
+                    : `${r.codigo} espera tu aprobación`,
                 detalle: `${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)} · ${r.items_count} ítems`,
                 solicitante: r.solicitante_nombre || null,
             });

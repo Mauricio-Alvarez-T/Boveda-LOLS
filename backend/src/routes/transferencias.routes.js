@@ -221,4 +221,13 @@ router.put('/:id/cancelar', auth, checkPermission('inventario.transferencias.can
     } catch (err) { next(err); }
 });
 
+// PUT /api/transferencias/:id/prorrogar — extiende 10 días una solicitud pendiente estancada.
+// Requiere permiso de aprobar (quien gestiona el flujo decide extender el plazo).
+router.put('/:id/prorrogar', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.prorrogar(req.params.id, req.user.id);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 module.exports = router;
