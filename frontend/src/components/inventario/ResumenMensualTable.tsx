@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import ItemDetailModal from './ItemDetailModal';
 import { ResumenToolbar } from './ResumenToolbar';
 import { exportResumen } from '../../utils/exportExcel';
+import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
 interface Props {
     data: ResumenData;
@@ -406,7 +407,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                             <div className="w-6 h-6 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
                                                                                 <Warehouse className="h-3 w-3 text-amber-600" />
                                                                             </div>
-                                                                            <span className="text-xs font-medium text-brand-dark truncate">{b.nombre}</span>
+                                                                            <span className="text-xs font-medium text-brand-dark truncate" title={formatBodegaConResponsable(b)}>{formatBodegaConResponsable(b)}</span>
                                                                         </div>
                                                                         <div className="flex items-center gap-3 shrink-0">
                                                                             {mobileEdit.editingCell === cellKey ? (
@@ -516,20 +517,23 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </div>
                                 </th>
                             ))}
-                            {visibleBodegas.map((b, bIdx) => (
-                                <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-[#FDF6E8]" : "bg-[#F9EDD5]")}>
-                                    <div className="flex items-center justify-center gap-1">
-                                        <span className="truncate">{b.nombre}</span>
-                                        <button
-                                            onClick={() => toggleCol(`bodega_${b.id}`)}
-                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
-                                            title={`Ocultar ${b.nombre}`}
-                                        >
-                                            <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                        </button>
-                                    </div>
-                                </th>
-                            ))}
+                            {visibleBodegas.map((b, bIdx) => {
+                                const bodegaLabel = formatBodegaConResponsable(b);
+                                return (
+                                    <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-[#FDF6E8]" : "bg-[#F9EDD5]")}>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="truncate" title={bodegaLabel}>{bodegaLabel}</span>
+                                            <button
+                                                onClick={() => toggleCol(`bodega_${b.id}`)}
+                                                className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
+                                                title={`Ocultar ${b.nombre}`}
+                                            >
+                                                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                            </button>
+                                        </div>
+                                    </th>
+                                );
+                            })}
                             {verValores && (
                                 <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED]">Total Arriendo</th>
                             )}
