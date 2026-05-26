@@ -381,11 +381,11 @@ const SettingsPage: React.FC = () => {
                 })}
             </div>
 
-            {/* Main Content Area (Full Width) */}
-            <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
-                
-                {/* ── Mobile Sub-Tabs: icono arriba + label abajo + fondo verde activo ── */}
-                <div className="md:hidden border-b border-[#F0F0F5] bg-white/50 px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
+            {/* Main Content Area (Full Width) — mobile: full-bleed sin chrome; md+: card */}
+            <div className="flex-1 min-h-0 flex flex-col md:bg-white md:border md:border-[#E2E2E7] md:rounded-3xl md:shadow-[0_10px_40px_rgb(0,0,0,0.08)] md:overflow-hidden relative">
+
+                {/* ── Mobile Sub-Tabs: pill card flotante (sin wrapper blanco encima) ── */}
+                <div className="md:hidden bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shadow-sm px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
                     {activeGroup.items.map(tab => {
                         const isActive = activeTab === tab.key;
                         return (
@@ -434,8 +434,8 @@ const SettingsPage: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Inner Content Area - Scrollable */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F9F9FB] p-4 md:p-6 lg:p-8">
+                {/* Inner Content Area - Scrollable — mobile: pt-3 sin padding lateral; md+: p-6/p-8 con bg gris */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar md:bg-[#F9F9FB] pt-3 md:p-6 lg:p-8">
                     <motion.div
                         key={activeTab}
                         initial={{ opacity: 0, y: 10 }}
