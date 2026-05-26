@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets, History } from 'lucide-react';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets, History, ChevronDown, FileSpreadsheet, ClipboardCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -37,6 +37,73 @@ const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.Elemen
 ];
 
 type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; key: string };
+
+/**
+ * Dropdown con dos modos de exportación a Excel:
+ *  - "Inventario actual": planilla con cantidades y valores actuales.
+ *  - "Planilla en blanco": columna cantidad vacía para conteo físico en obra.
+ *
+ * El click outside cierra el menú. Pattern simple sin libs externas — el módulo
+ * Inventario ya carga ExcelJS, así que evitamos agregar dependencias de UI.
+ */
+const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData }) => {
+    const [open, setOpen] = useState(false);
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onClick = (e: MouseEvent) => {
+            if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', onClick);
+        return () => document.removeEventListener('mousedown', onClick);
+    }, [open]);
+
+    const handleExport = (modo: 'normal' | 'checklist') => {
+        exportStockObra(stockData, modo);
+        setOpen(false);
+    };
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <button
+                onClick={() => setOpen(v => !v)}
+                className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
+            >
+                <Download className="h-3.5 w-3.5" />
+                <span>Exportar Excel</span>
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            </button>
+            {open && (
+                <div className="absolute right-0 mt-1 w-72 bg-white border border-[#E8E8ED] rounded-xl shadow-lg z-30 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => handleExport('normal')}
+                        className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-brand-primary/5 transition-colors"
+                    >
+                        <FileSpreadsheet className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                            <div className="text-xs font-bold text-brand-dark">Inventario actual</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">Con cantidades y valores actuales</div>
+                        </div>
+                    </button>
+                    <div className="border-t border-[#F0F0F5]" />
+                    <button
+                        type="button"
+                        onClick={() => handleExport('checklist')}
+                        className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-brand-primary/5 transition-colors"
+                    >
+                        <ClipboardCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                            <div className="text-xs font-bold text-brand-dark">Planilla para conteo físico</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">Cantidades en blanco para inventariar en obra</div>
+                        </div>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
 
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
@@ -307,13 +374,7 @@ const InventarioPage: React.FC = () => {
                                 </optgroup>
                             </select>
                             {currentStockData && !isBodega && (
-                                <button
-                                    onClick={() => { exportStockObra(currentStockData); }}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
-                                >
-                                    <Download className="h-3.5 w-3.5" />
-                                    Exportar Excel
-                                </button>
+                                <ExportExcelDropdown stockData={currentStockData} />
                             )}
                         </div>
 
