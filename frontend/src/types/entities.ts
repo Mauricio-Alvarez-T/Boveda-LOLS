@@ -165,8 +165,10 @@ export interface Bodega {
     id: number;
     nombre: string;
     direccion: string | null;
+    /** Legacy FK — sin uso desde mig 060. Reservado por compatibilidad. */
     responsable_id: number | null;
-    responsable_nombre?: string;
+    /** Texto libre editable desde BodegaForm (mig 060). */
+    responsable_nombre?: string | null;
     activa: boolean;
 }
 
@@ -211,8 +213,12 @@ export interface Transferencia {
     // no todos los endpoints los traen.
     origen_obra_nombre?: string | null;
     origen_bodega_nombre?: string | null;
+    /** Responsable de la bodega origen (mig 060). Solo si origen es bodega. */
+    origen_bodega_responsable_nombre?: string | null;
     destino_obra_nombre?: string | null;
     destino_bodega_nombre?: string | null;
+    /** Responsable de la bodega destino (mig 060). Solo si destino es bodega. */
+    destino_bodega_responsable_nombre?: string | null;
     aprobador_nombre?: string | null;
     receptor_nombre?: string | null;
     transportista_nombre?: string | null;
@@ -386,8 +392,12 @@ export interface TransferenciaConDiscrepancias {
     fecha_recepcion: string | null;
     origen_obra_nombre: string | null;
     origen_bodega_nombre: string | null;
+    /** Responsable de la bodega origen (mig 060). */
+    origen_bodega_responsable_nombre?: string | null;
     destino_obra_nombre: string | null;
     destino_bodega_nombre: string | null;
+    /** Responsable de la bodega destino (mig 060). */
+    destino_bodega_responsable_nombre?: string | null;
     solicitante_id: number | null;
     solicitante_nombre: string | null;
     aprobador_id: number | null;

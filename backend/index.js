@@ -144,13 +144,13 @@ try {
     allowedFields: ['nombre', 'orden', 'activo']
   }));
   app.use('/api/bodegas', createCrudRoutes(invPerms, 'bodegas', {
-    searchFields: ['nombre', 'direccion'],
+    // responsable_nombre ahora es columna real (mig 060), texto libre editable
+    // desde el form. Sin JOIN para evitar colisión de alias con la columna real.
+    searchFields: ['nombre', 'direccion', 'responsable_nombre'],
     activeColumn: 'activa',
     useSoftDelete: true,
-    joins: 'LEFT JOIN usuarios u ON bodegas.responsable_id = u.id',
-    selectFields: 'bodegas.*, u.nombre as responsable_nombre',
     orderBy: 'bodegas.nombre ASC',
-    allowedFields: ['nombre', 'direccion', 'responsable_id', 'activa']
+    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa']
   }));
   // Middleware sanitiza valor_compra/valor_arriendo si el usuario no tiene
   // `inventario.costos.ver`. Aplica antes de la ruta CRUD genérica porque

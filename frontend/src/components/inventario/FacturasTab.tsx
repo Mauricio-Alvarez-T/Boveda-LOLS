@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { fmtFecha } from '../../utils/fechas';
+import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
 const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 
@@ -125,7 +126,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
     const destinoOptions = useMemo(() => [
         ...obras.map(o => ({ value: `obra-${o.id}`, label: `Obra: ${o.nombre}` })),
-        ...bodegas.map(b => ({ value: `bodega-${b.id}`, label: `Bodega: ${b.nombre}` })),
+        ...bodegas.map(b => ({ value: `bodega-${b.id}`, label: `Bodega: ${formatBodegaConResponsable(b)}` })),
     ], [obras, bodegas]);
 
     /* ── Submit ── */

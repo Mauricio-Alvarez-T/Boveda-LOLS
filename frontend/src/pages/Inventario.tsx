@@ -18,6 +18,7 @@ import InventarioMaestroGrid from '../components/inventario/InventarioMaestroGri
 import StockMaestroGrid from '../components/inventario/StockMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
+import { formatBodegaConResponsable } from '../utils/formatBodega';
 
 type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas';
 
@@ -290,7 +291,7 @@ const InventarioPage: React.FC = () => {
                                     <optgroup label="🏢 Bodegas">
                                         {allBodegas.map(b => (
                                             <option key={`bodega_${b.id}`} value={`bodega_${b.id}`}>
-                                                🏢 {b.nombre}
+                                                🏢 {formatBodegaConResponsable(b)}
                                             </option>
                                         ))}
                                     </optgroup>

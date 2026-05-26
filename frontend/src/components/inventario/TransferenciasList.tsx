@@ -3,6 +3,7 @@ import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Sea
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import type { Transferencia } from '../../types/entities';
+import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
 interface Props {
     transferencias: Transferencia[];
@@ -183,8 +184,14 @@ const TransferenciasList: React.FC<Props> = ({
                     filtered.map(t => {
                         const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
                         const Icon = cfg.icon;
-                        const origen = (t as any).origen_obra_nombre || (t as any).origen_bodega_nombre || '—';
-                        const destino = (t as any).destino_obra_nombre || (t as any).destino_bodega_nombre || '—';
+                        const origenBodega = (t as any).origen_bodega_nombre as string | null | undefined;
+                        const destinoBodega = (t as any).destino_bodega_nombre as string | null | undefined;
+                        const origen = (t as any).origen_obra_nombre
+                            || (origenBodega ? formatBodegaNombreResponsable(origenBodega, (t as any).origen_bodega_responsable_nombre) : null)
+                            || '—';
+                        const destino = (t as any).destino_obra_nombre
+                            || (destinoBodega ? formatBodegaNombreResponsable(destinoBodega, (t as any).destino_bodega_responsable_nombre) : null)
+                            || '—';
                         const isSelected = t.id === selectedId;
                         const fechaStr = new Date(t.fecha_solicitud).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
                         const borderLeft = BORDER_LEFT_COLOR[t.estado] || 'border-l-gray-300';

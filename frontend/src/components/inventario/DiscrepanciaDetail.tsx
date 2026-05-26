@@ -9,6 +9,7 @@ import { Button } from '../ui/Button';
 import type { TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
+import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
 interface Props {
     discrepancia: TransferenciaConDiscrepancias;
@@ -61,8 +62,16 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
         }
     };
 
-    const origenLabel = discrepancia.origen_obra_nombre || discrepancia.origen_bodega_nombre || '—';
-    const destinoLabel = discrepancia.destino_obra_nombre || discrepancia.destino_bodega_nombre || '—';
+    const origenLabel = discrepancia.origen_obra_nombre
+        || (discrepancia.origen_bodega_nombre
+            ? formatBodegaNombreResponsable(discrepancia.origen_bodega_nombre, discrepancia.origen_bodega_responsable_nombre)
+            : null)
+        || '—';
+    const destinoLabel = discrepancia.destino_obra_nombre
+        || (discrepancia.destino_bodega_nombre
+            ? formatBodegaNombreResponsable(discrepancia.destino_bodega_nombre, discrepancia.destino_bodega_responsable_nombre)
+            : null)
+        || '—';
     const origenIsObra = !!discrepancia.origen_obra_nombre;
     const destinoIsObra = !!discrepancia.destino_obra_nombre;
 

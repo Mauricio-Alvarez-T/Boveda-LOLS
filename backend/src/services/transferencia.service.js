@@ -1310,7 +1310,9 @@ const transferenciaService = {
         const [rows] = await db.query(`
             SELECT t.*,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                   ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, ua.nombre as aprobador_nombre
             FROM transferencias t
             LEFT JOIN obras oo ON t.origen_obra_id = oo.id
@@ -1333,7 +1335,9 @@ const transferenciaService = {
         const [rows] = await db.query(`
             SELECT t.*,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                   ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, ua.nombre as aprobador_nombre,
                    ut.nombre as transportista_nombre, ur.nombre as receptor_nombre
             FROM transferencias t
@@ -1417,7 +1421,8 @@ const transferenciaService = {
         const { page = 1, limit = 20 } = query;
         const offset = (page - 1) * limit;
         const [rows] = await db.query(`
-            SELECT t.*, do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre
+            SELECT t.*, do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre
             FROM transferencias t
             LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
             LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
@@ -1453,7 +1458,9 @@ const transferenciaService = {
             SELECT DISTINCT t.id, t.codigo, t.fecha_solicitud, t.fecha_aprobacion,
                    t.fecha_despacho, t.fecha_recepcion,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                   ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, us.id as solicitante_id,
                    ua.nombre as aprobador_nombre, ua.id as aprobador_id,
                    ut.nombre as transportista_nombre, ut.id as transportista_id,

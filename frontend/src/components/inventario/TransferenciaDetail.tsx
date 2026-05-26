@@ -14,12 +14,15 @@ import ItemDetailModal from './ItemDetailModal';
 import FaltanteDecisionModal from './FaltanteDecisionModal';
 import { Modal } from '../ui/Modal';
 import { fmtFecha } from '../../utils/fechas';
+import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
 interface StockLocation {
     type: string;
     id: number;
     nombre: string;
     cantidad: number;
+    /** Solo aplica cuando type === 'bodega' (mig 060). */
+    responsable_nombre?: string | null;
 }
 
 interface Props {
@@ -91,8 +94,16 @@ const TransferenciaDetail: React.FC<Props> = ({
     const itemDetail = useItemDetail();
     const Icon = cfg.icon;
 
-    const origen = t.origen_obra_nombre || t.origen_bodega_nombre || '—';
-    const destino = t.destino_obra_nombre || t.destino_bodega_nombre || '—';
+    const origen = t.origen_obra_nombre
+        || (t.origen_bodega_nombre
+            ? formatBodegaNombreResponsable(t.origen_bodega_nombre, t.origen_bodega_responsable_nombre)
+            : null)
+        || '—';
+    const destino = t.destino_obra_nombre
+        || (t.destino_bodega_nombre
+            ? formatBodegaNombreResponsable(t.destino_bodega_nombre, t.destino_bodega_responsable_nombre)
+            : null)
+        || '—';
 
     // ── Action permissions + SoD identity checks ──
     // SoD: solicitante ≠ aprobador ≠ transportista ≠ receptor. UI oculta el
@@ -1076,13 +1087,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                         ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
                                                                         : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                                                             )}
-                                                            title={`${isBodega ? 'Bodega' : 'Obra'}: ${loc.nombre} — ${disponible} disponibles`}
+                                                            title={`${isBodega ? 'Bodega' : 'Obra'}: ${isBodega ? formatBodegaNombreResponsable(loc.nombre, loc.responsable_nombre) : loc.nombre} — ${disponible} disponibles`}
                                                         >
                                                             {isBodega
                                                                 ? <Warehouse className="h-2.5 w-2.5" />
                                                                 : <MapPin className="h-2.5 w-2.5" />
                                                             }
-                                                            {loc.nombre}: <span className="font-bold">{disponible}</span>
+                                                            {isBodega ? formatBodegaNombreResponsable(loc.nombre, loc.responsable_nombre) : loc.nombre}: <span className="font-bold">{disponible}</span>
                                                             {isActive && <Check className="h-2.5 w-2.5" />}
                                                         </button>
                                                     );

@@ -28,7 +28,7 @@ const inventarioService = {
             descuentoMapInstance,
         ] = await Promise.all([
             db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
-            db.query('SELECT id, nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
+            db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
             db.query(`
                 SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
                 FROM items_inventario i
@@ -768,7 +768,8 @@ const inventarioService = {
 
         const [rows] = await db.query(`
             SELECT us.item_id, us.obra_id, us.bodega_id, us.cantidad,
-                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre
+                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre,
+                   b.responsable_nombre AS bodega_responsable_nombre
             FROM ubicaciones_stock us
             LEFT JOIN obras o ON us.obra_id = o.id
             LEFT JOIN bodegas b ON us.bodega_id = b.id
@@ -779,11 +780,14 @@ const inventarioService = {
         const result = {};
         for (const row of rows) {
             if (!result[row.item_id]) result[row.item_id] = [];
+            const isObra = !!row.obra_id;
             result[row.item_id].push({
-                type: row.obra_id ? 'obra' : 'bodega',
+                type: isObra ? 'obra' : 'bodega',
                 id: row.obra_id || row.bodega_id,
                 nombre: row.obra_nombre || row.bodega_nombre,
                 cantidad: Number(row.cantidad) || 0,
+                // Solo aplica a bodegas (mig 060). Para obras siempre null.
+                responsable_nombre: isObra ? null : row.bodega_responsable_nombre,
             });
         }
         return result;

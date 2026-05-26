@@ -31,6 +31,8 @@ interface ResumenCategoria {
 interface Ubicacion {
     id: number;
     nombre: string;
+    /** Solo aplica a bodegas (mig 060). Para obras siempre será undefined. */
+    responsable_nombre?: string | null;
 }
 
 export interface ResumenData {
