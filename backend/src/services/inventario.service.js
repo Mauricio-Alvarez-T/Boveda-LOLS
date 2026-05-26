@@ -330,11 +330,14 @@ const inventarioService = {
             throw err;
         }
 
-        // Auditoría 3.2: validar rangos antes del UPSERT (antes el UPSERT aceptaba negativos sin error).
+        // Auditoría 3.2 + Fase 11: validar rangos antes del UPSERT.
+        // Acepta DECIMAL (mig 052 cambió cantidad a DECIMAL(12,4) para soportar
+        // unidades como kg/ton/m³). Tope subido a 9999999 (7 dígitos) para casos
+        // de inventario en peso/volumen donde 999999 quedaba corto.
         if (cantidad !== undefined && cantidad !== null) {
             const num = Number(cantidad);
-            if (!Number.isFinite(num) || num < 0 || num > 999999) {
-                const err = new Error('cantidad debe ser un entero entre 0 y 999999');
+            if (!Number.isFinite(num) || num < 0 || num > 9999999) {
+                const err = new Error('cantidad debe ser un número entre 0 y 9999999');
                 err.statusCode = 400;
                 throw err;
             }

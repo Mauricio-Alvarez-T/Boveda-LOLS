@@ -69,7 +69,7 @@ router.put('/stock', auth, checkPermission('inventario.editar'), validateBody({
     item_id: { required: true, type: 'integer', min: 1 },
     obra_id: { type: 'integer', min: 1 },
     bodega_id: { type: 'integer', min: 1 },
-    cantidad: { type: 'integer', min: 0, max: 999999 },
+    cantidad: { type: 'number', min: 0, max: 9999999 },
     valor_arriendo_override: { type: 'number', min: 0 },
 }), async (req, res, next) => {
     try {

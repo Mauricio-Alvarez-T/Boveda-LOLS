@@ -49,9 +49,11 @@ function sanitizeAdjustment(raw, idx) {
     const fields = {};
     if (raw.cantidad !== undefined) {
         const n = Number(raw.cantidad);
-        // Auditoría 3.2: además del lower bound, agregar upper bound 999999 para evitar overflows accidentales.
-        if (!Number.isFinite(n) || n < 0 || n > 999999) {
-            throw new Error(`Ajuste #${idx} (item=${item_id}): cantidad inválida (rango 0-999999)`);
+        // Auditoría 3.2 + Fase 11: acepta DECIMAL (mig 052) hasta 9999999.
+        // Antes restringía a entero 0-999999; ahora soporta fracciones (kg, m³)
+        // y rango mayor para inventario en peso/volumen.
+        if (!Number.isFinite(n) || n < 0 || n > 9999999) {
+            throw new Error(`Ajuste #${idx} (item=${item_id}): cantidad inválida (rango 0-9999999)`);
         }
         fields.cantidad = n;
     }
