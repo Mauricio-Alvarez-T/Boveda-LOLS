@@ -140,11 +140,15 @@ const TransferenciaDetail: React.FC<Props> = ({
         hasPermission('inventario.transferencias.recibir') &&
         (!isTransportista || hasBypass) &&
         !!onRechazarRecepcion;
-    // Cancelar: el solicitante siempre puede cancelar su propia TRF (caso de
-    // usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
+    // Cancelar: el solicitante siempre puede cancelar su propia TRF pendiente/aprobada
+    // (caso de usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
+    // Punto 34: una transferencia DESPACHADA (en_transito) solo se cancela con el
+    // permiso especial "Cancelar en Tránsito" (o sod_bypass) — su stock ya viaja.
+    const puedeCancelarBase = hasPermission('inventario.transferencias.cancelar') || isSolicitante;
+    const puedeCancelarEnTransito = hasPermission('inventario.transferencias.cancelar_en_transito') || hasBypass;
     const canCancelar =
-        ['pendiente', 'aprobada', 'en_transito'].includes(t.estado) &&
-        (hasPermission('inventario.transferencias.cancelar') || isSolicitante);
+        (['pendiente', 'aprobada'].includes(t.estado) && puedeCancelarBase) ||
+        (t.estado === 'en_transito' && puedeCancelarEnTransito);
 
     // Banners SoD: alertar visualmente cuando el user actual no puede avanzar
     // la TRF por su rol previo. Educa al usuario sobre por qué la acción no

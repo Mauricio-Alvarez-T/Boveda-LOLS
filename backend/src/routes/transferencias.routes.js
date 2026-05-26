@@ -216,7 +216,7 @@ router.post('/:id/crear-faltante', auth, checkPermission('inventario.transferenc
 // PUT /api/transferencias/:id/cancelar
 router.put('/:id/cancelar', auth, checkPermission('inventario.transferencias.cancelar'), async (req, res, next) => {
     try {
-        const result = await transferenciaService.cancelar(req.params.id, req.user.id);
+        const result = await transferenciaService.cancelar(req.params.id, req.user.id, req.user.p);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

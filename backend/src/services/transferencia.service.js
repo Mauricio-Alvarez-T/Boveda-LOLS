@@ -13,6 +13,11 @@ function _hasBypass(userPermisos) {
     return Array.isArray(userPermisos) && userPermisos.includes('inventario.transferencias.sod_bypass');
 }
 
+/** ¿El usuario tiene un permiso específico? */
+function _hasPerm(userPermisos, permiso) {
+    return Array.isArray(userPermisos) && userPermisos.includes(permiso);
+}
+
 /**
  * Construye un Error con statusCode 403 para violaciones SoD. El errorHandler
  * global respeta `err.statusCode` (ver middleware/errorHandler.js:61).
@@ -1051,7 +1056,7 @@ const transferenciaService = {
      * Soporta cancelación post-despacho (estado='en_transito'): el solicitante
      * o el aprobador aborta la transferencia aunque ya está físicamente viajando.
      */
-    async cancelar(id, userId) {
+    async cancelar(id, userId, userPermisos) {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
@@ -1064,6 +1069,16 @@ const transferenciaService = {
             if (!trf) throw new Error('Transferencia no encontrada');
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden cancelar transferencias pendientes, aprobadas o en tránsito');
+            }
+
+            // Punto 34: una transferencia YA DESPACHADA (en_transito) tiene stock
+            // físicamente viajando al destino. No se cancela en el flujo normal —
+            // si llega con problema, el receptor usa "Rechazar Recepción". Solo un
+            // rol con permiso especial (o sod_bypass) puede cancelarla post-despacho.
+            if (trf.estado === 'en_transito'
+                && !_hasPerm(userPermisos, 'inventario.transferencias.cancelar_en_transito')
+                && !_hasBypass(userPermisos)) {
+                throw _sodError('No puedes cancelar una transferencia ya despachada. Si llegó con problemas, recházala al recibir. Requiere permiso especial "Cancelar en Tránsito".');
             }
 
             // Legacy (stock_reconciliado=FALSE) + aprobada|en_transito → revertir stock.

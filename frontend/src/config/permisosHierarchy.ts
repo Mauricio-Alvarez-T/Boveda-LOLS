@@ -145,6 +145,7 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'inventario.transferencias.despachar':     { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'editar' },
     'inventario.transferencias.recibir':       { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'editar' },
     'inventario.transferencias.cancelar':      { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'eliminar' },
+    'inventario.transferencias.cancelar_en_transito': { seccion: 'inventario', subseccion: 'Transferencias', verbo: 'eliminar', sensible: 'critico' },
     'inventario.transferencias.push_directo':  { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'editar',  sensible: 'critico' },
     'inventario.transferencias.intra_bodega':  { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'editar',  sensible: 'critico' },
     'inventario.transferencias.orden_gerencia':{ seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'aprobar', sensible: 'critico' },
