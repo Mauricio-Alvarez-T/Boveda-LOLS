@@ -239,6 +239,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | `errno 1061 — Duplicate key name` | Índice ya creado previamente. | Usar `CREATE INDEX IF NOT EXISTS` o tolerar en fix script. |
 | `Timeout (control socket)` en deploy | FTP-Deploy-Action escaneó directorio grande (logs/tmp/uploads). | Solución ya aplicada: usar `lftp mirror --only-newer` con excludes. Si reaparece: verificar que `tmp/` y `uploads/` sigan en la lista de exclusión del workflow. |
 | Tests fallan con `row.fecha.toISOString is not a function` | Mock de DB no incluye `obra_id` o `fecha`, lookup key del batch pre-fetch no matchea. | Agregar `obra_id` y `fecha` al objeto del mock para que la key `"workerId_obraId_fecha"` funcione. |
+| `Backend Tests CI` rojo en commits que **no tocan backend**, después de agregar un caso a un feature existente | `toThrow(/...literal.../)` en algún test quedó acoplado al mensaje exacto. Cuando se suma un 2.º caso al feature (ej: nuevo `tipo_flujo` válido), el mensaje pluraliza ("flujo" → "flujos") y el regex literal ya no matchea. El CI corre `npm test` completo en **cada** push a `develop`/`main` sin importar qué se tocó → frontends quedan en rojo por culpa ajena. | Hacer regex tolerante a las variaciones razonables del mensaje: `flujos?` (opcional `s`), `[^.]*` para frases descriptivas, anclar solo en el sustantivo único. Ejemplo real (`3f90a39`): `/solo permitidos en flujo de solicitud/` → `/solo permitidos en flujos? de solicitud/`. Regla: al escribir `toThrow(...)`, asumir que el mensaje **va a cambiar** y matchear solo lo distintivo. |
 | App da 500 al arrancar | Passenger crasheó al iniciar `index.js`. | Revisar `/boveda/logs/app_YYYY-MM-DD.log` o `/boveda/startup_debug.log`. |
 | `env-validator: variable faltante` al arrancar | Falta alguna variable en el `.env` del servidor. | SSH/FTP al servidor, editar `/boveda/.env`, añadir la variable faltante, reiniciar. |
 | JWT inválido / login loop | Token de versión de rol desactualizado. | El usuario debe cerrar sesión, borrar `localStorage` (`sgdl_token`, `sgdl_user`), y volver a entrar. |
@@ -859,4 +860,4 @@ Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada ev
 
 ---
 
-*Última actualización: Mayo 2026 — Agregado § 17 Recepción Parcial (migración 048).*
+*Última actualización: Mayo 2026 — § 6 entrada nueva: regex tolerante en `toThrow()` para sobrevivir pluralización del mensaje al agregar casos a un feature.*
