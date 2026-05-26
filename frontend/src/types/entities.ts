@@ -380,6 +380,8 @@ export interface TransferenciaDiscrepanciaItem {
     resuelto_por: number | null;
     resuelto_por_nombre: string | null;
     fecha_resolucion: string | null;
+    reportado_por: number | null;
+    reportado_por_nombre: string | null;
     created_at: string;
 }
 

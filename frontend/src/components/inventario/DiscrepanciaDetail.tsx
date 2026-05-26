@@ -238,6 +238,14 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                     </div>
                                 )}
 
+                                {/* Reportado por (quien recibió y detectó la discrepancia) */}
+                                {item.reportado_por_nombre && (
+                                    <p className="text-[9px] text-muted-foreground mb-2 flex items-center gap-1">
+                                        <User className="h-2.5 w-2.5" />
+                                        Reportado por <span className="font-semibold text-brand-dark">{item.reportado_por_nombre}</span>
+                                    </p>
+                                )}
+
                                 {/* Resolución / Acciones */}
                                 {isPendiente && canEdit && (
                                     <div className="flex gap-1.5">

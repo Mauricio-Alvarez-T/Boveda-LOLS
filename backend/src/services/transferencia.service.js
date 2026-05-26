@@ -907,9 +907,9 @@ const transferenciaService = {
                     if (totalRecibidoFinal !== enviadaMap[item.item_id]) {
                         await conn.query(
                             `INSERT INTO transferencia_discrepancias
-                             (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion)
-                             VALUES (?, ?, ?, ?, ?)`,
-                            [id, item.item_id, enviadaMap[item.item_id], totalRecibidoFinal, item.observacion || null]
+                             (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion, reportado_por)
+                             VALUES (?, ?, ?, ?, ?, ?)`,
+                            [id, item.item_id, enviadaMap[item.item_id], totalRecibidoFinal, item.observacion || null, receptorId]
                         );
                     }
                 }
@@ -1533,10 +1533,12 @@ const transferenciaService = {
         const trfIds = trfRows.map(r => r.id);
         const [discRows] = await db.query(`
             SELECT d.*, i.descripcion as item_descripcion, i.nro_item, i.unidad,
-                   ru.nombre as resuelto_por_nombre
+                   ru.nombre as resuelto_por_nombre,
+                   rp.nombre as reportado_por_nombre
             FROM transferencia_discrepancias d
             JOIN items_inventario i ON d.item_id = i.id
             LEFT JOIN usuarios ru ON d.resuelto_por = ru.id
+            LEFT JOIN usuarios rp ON d.reportado_por = rp.id
             WHERE d.transferencia_id IN (?)
             ORDER BY d.transferencia_id, d.id
         `, [trfIds]);
