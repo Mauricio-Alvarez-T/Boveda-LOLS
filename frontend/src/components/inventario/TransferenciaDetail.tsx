@@ -781,7 +781,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <h4 className="text-sm font-bold text-green-800">Aprobar Solicitud de Materiales</h4>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                        Esta solicitud contiene <strong>{transferencia?.items_custom?.length || 0}</strong> {((transferencia?.items_custom?.length || 0) === 1) ? 'item' : 'items'} a comprar. Al aprobar, el solicitante podrá continuar con el flujo de recepción una vez que el material llegue a obra.
+                        Esta solicitud contiene <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} a comprar. Al aprobar, el solicitante podrá continuar con el flujo de recepción una vez que el material llegue a obra.
                     </p>
                     <div className="flex gap-2 pt-1">
                         <button
@@ -1428,7 +1428,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <h4 className="text-sm font-bold text-blue-800">Confirmar Recepción de Materiales</h4>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                        Confirma que recibiste los <strong>{transferencia?.items_custom?.length || 0}</strong> {((transferencia?.items_custom?.length || 0) === 1) ? 'item' : 'items'} solicitados. La transferencia quedará cerrada como recibida.
+                        Confirma que recibiste los <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} solicitados. La transferencia quedará cerrada como recibida.
                     </p>
                     <div className="flex gap-2 pt-1">
                         <button
