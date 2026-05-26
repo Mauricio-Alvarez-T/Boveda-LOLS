@@ -73,7 +73,7 @@ describe('crear() — items_custom', () => {
                 items_custom: [{ descripcion: 'X', cantidad: 1 }],
                 tipo_flujo: 'intra_obra',
             }, 99)
-        ).rejects.toThrow(/solo permitidos en flujo de solicitud/i);
+        ).rejects.toThrow(/solo permitidos en flujos? de solicitud/i);
     });
 
     test('crea solicitud SOLO con items_custom (sin items de catálogo)', async () => {
