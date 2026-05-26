@@ -301,8 +301,7 @@ const transferenciaService = {
      *   (validación no reserva). La segunda recepción lo notará como discrepancia.
      */
     async aprobar(id, aprobadorId, data, userPermisos) {
-        const { items } = data;
-        if (!items || !items.length) throw new Error('Debe incluir ítems');
+        const items = (data && data.items) || [];
 
         const defaultObraId = data.origen_obra_id || null;
         const defaultBodegaId = data.origen_bodega_id || null;
@@ -352,6 +351,30 @@ const transferenciaService = {
                 'SELECT id, item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
             );
+
+            // ── Early branch: transferencia sin items de catálogo ──
+            // Caso típico: solicitud_materiales (sólo items_custom, materiales a comprar).
+            // No hay stock que reservar ni splits que crear — sólo transición de estado.
+            if (dbItems.length === 0) {
+                const [customCnt] = await conn.query(
+                    'SELECT COUNT(*) AS c FROM transferencia_items_custom WHERE transferencia_id = ?',
+                    [id]
+                );
+                if (Number(customCnt[0].c) === 0) {
+                    throw new Error('La transferencia no tiene items para aprobar');
+                }
+                await conn.query(
+                    `UPDATE transferencias
+                     SET estado = 'aprobada', aprobador_id = ?, aprobado_por = ?, fecha_aprobacion = NOW()
+                     WHERE id = ?`,
+                    [aprobadorId, aprobadorId, id]
+                );
+                await conn.commit();
+                return { id, estado: 'aprobada' };
+            }
+
+            // ── Caso normal: requiere items en payload ──
+            if (!items.length) throw new Error('Debe incluir ítems');
             const itemInfo = {}; // item_id → { id, cantidad_solicitada }
             dbItems.forEach(r => { itemInfo[r.item_id] = { id: r.id, cantidad_solicitada: r.cantidad_solicitada }; });
 
@@ -593,7 +616,9 @@ const transferenciaService = {
      * CADA evento.
      */
     async recibir(id, receptorId, items, userPermisos, tipo = 'total') {
-        if (!items || !items.length) throw new Error('Debe incluir ítems');
+        // items vacío es válido en transferencias de sólo items_custom (ej. solicitud_materiales).
+        // Se valida después: si hay items de catálogo en BD, exigimos items en el payload.
+        items = Array.isArray(items) ? items : [];
         if (tipo !== 'parcial' && tipo !== 'total') {
             throw new Error('tipo debe ser "parcial" o "total"');
         }
@@ -629,6 +654,35 @@ const transferenciaService = {
                 'SELECT id, item_id, cantidad_enviada, cantidad_recibida, origen_obra_id, origen_bodega_id FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
             );
+
+            // ── Early branch: transferencia sin items de catálogo ──
+            // Caso típico: solicitud_materiales (sólo items_custom). No hay stock
+            // que decrementar/incrementar — sólo transición de estado a 'recibida'.
+            if (dbItems.length === 0) {
+                const [customCnt] = await conn.query(
+                    'SELECT COUNT(*) AS c FROM transferencia_items_custom WHERE transferencia_id = ?',
+                    [id]
+                );
+                if (Number(customCnt[0].c) === 0) {
+                    throw new Error('La transferencia no tiene items para recibir');
+                }
+                // Audit: registrar evento de recepción aunque sin items específicos
+                const [recRes] = await conn.query(
+                    `INSERT INTO transferencia_recepciones (transferencia_id, receptor_id, tipo, observacion)
+                     VALUES (?, ?, 'total', NULL)`,
+                    [id, receptorId]
+                );
+                await conn.query(
+                    "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
+                    [receptorId, receptorId, id]
+                );
+                await conn.commit();
+                return { id, estado: 'recibida', recepcion_id: recRes.insertId };
+            }
+
+            // ── Caso normal: requiere items en payload ──
+            if (!items.length) throw new Error('Debe incluir ítems');
+
             const enviadaMap = {};
             const acumuladoMap = {};
             const trfItemIdMap = {};

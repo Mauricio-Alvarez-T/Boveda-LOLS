@@ -772,7 +772,35 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ════════════════════════════════════════════════
                 ── APPROVAL FORM — splits multi-origen + quick-fix ──
                ════════════════════════════════════════════════ */}
-            {activeForm === 'aprobar' && (() => {
+            {activeForm === 'aprobar' && items.length === 0 && (
+                // Branch simplificado: transferencia sin items de catálogo (ej.
+                // solicitud_materiales). No hay stock que asignar — sólo aprobar la compra.
+                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-700" />
+                        <h4 className="text-sm font-bold text-green-800">Aprobar Solicitud de Materiales</h4>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Esta solicitud contiene <strong>{transferencia?.items_custom?.length || 0}</strong> {((transferencia?.items_custom?.length || 0) === 1) ? 'item' : 'items'} a comprar. Al aprobar, el solicitante podrá continuar con el flujo de recepción una vez que el material llegue a obra.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={async () => {
+                                const ok = await onAprobar({ items: [] });
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading}
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobación'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+            {activeForm === 'aprobar' && items.length > 0 && (() => {
                 // Helpers locales ---------------------------------------------------
                 const totalOfItem = (ai: ApprovalItemState) =>
                     ai.splits.reduce((s, sp) => s + (sp.cantidad || 0), 0);
@@ -1391,7 +1419,35 @@ const TransferenciaDetail: React.FC<Props> = ({
                   · Recepción Total   → estado recibida, cierra el flujo, gaps =
                     discrepancia.
                ════════════════════════════════════════════ */}
-            {activeForm === 'recibir' && (() => {
+            {activeForm === 'recibir' && items.length === 0 && (
+                // Branch simplificado: transferencia sin items de catálogo (solicitud_materiales).
+                // No hay stock que actualizar — sólo confirmar recepción del material comprado.
+                <div className="shrink-0 border border-blue-200 bg-blue-50/30 rounded-xl p-4 mb-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <PackageCheck className="h-4 w-4 text-blue-700" />
+                        <h4 className="text-sm font-bold text-blue-800">Confirmar Recepción de Materiales</h4>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Confirma que recibiste los <strong>{transferencia?.items_custom?.length || 0}</strong> {((transferencia?.items_custom?.length || 0) === 1) ? 'item' : 'items'} solicitados. La transferencia quedará cerrada como recibida.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={async () => {
+                                const ok = await onRecibir([], 'total');
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading}
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepción'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+            {activeForm === 'recibir' && items.length > 0 && (() => {
                 // Cálculos derivados para la UI:
                 // - totalRecibidoEsteViaje = suma de inputs (info en footer)
                 // - totalFaltaGlobal = suma de pendientes (lo que el camión debería traer)

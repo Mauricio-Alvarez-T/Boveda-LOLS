@@ -13,8 +13,11 @@ const crearTransferenciaSchema = {
     items: { type: 'array' },
     items_custom: { type: 'array' },
 };
+// `items` no es required: una transferencia puede contener sólo items_custom
+// (ej. solicitud_materiales) — el servicio detecta ese caso y bypasea el flujo
+// de splits/stock, sólo transiciona el estado.
 const aprobarTransferenciaSchema = {
-    items: { required: true, type: 'array', minLength: 1 },
+    items: { type: 'array' },
 };
 
 // GET /api/transferencias
