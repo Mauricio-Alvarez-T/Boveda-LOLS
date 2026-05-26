@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, FileText, XCircle, Trash2, Receipt } from 'lucide-react';
+import { Plus, Minus, FileText, XCircle, Trash2, Receipt, PackagePlus } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import type { FacturaInventario, ItemInventario } from '../../types/entities';
+import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
@@ -48,6 +48,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
     const [bodegas, setBodegas] = useState<{ id: number; nombre: string }[]>([]);
 
+    /* ── Crear ítem nuevo inline ── */
+    const [categorias, setCategorias] = useState<CategoriaInventario[]>([]);
+    const [showNewItemModal, setShowNewItemModal] = useState(false);
+    const [newItemTargetIdx, setNewItemTargetIdx] = useState<number | null>(null);
+    const [creatingItem, setCreatingItem] = useState(false);
+    const [newItem, setNewItem] = useState({ categoria_id: '' as number | '', descripcion: '', unidad: 'U', valor_compra: '' });
+
     /* ── Fetch facturas ── */
     const fetchFacturas = async () => {
         setLoading(true);
@@ -68,7 +75,56 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             .catch(() => {});
         api.get('/obras?participa_inventario=1').then(res => setObras(res.data.data || [])).catch(() => {});
         api.get('/bodegas').then(res => setBodegas(res.data.data || [])).catch(() => {});
+        api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=100')
+            .then(res => setCategorias(res.data.data || []))
+            .catch(() => {});
     }, [showModal]);
+
+    /* ── Abrir modal de creación de ítem para una línea concreta ── */
+    const openNewItem = (idx: number) => {
+        setNewItemTargetIdx(idx);
+        setNewItem({ categoria_id: '', descripcion: '', unidad: 'U', valor_compra: '' });
+        setShowNewItemModal(true);
+    };
+
+    /* ── Crear ítem en catálogo y auto-seleccionarlo en la línea ── */
+    const handleCreateItem = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!newItem.categoria_id) { toast.error('Selecciona una categoría'); return; }
+        if (!newItem.descripcion.trim()) { toast.error('Ingresa la descripción'); return; }
+        if (!newItem.unidad.trim()) { toast.error('Ingresa la unidad'); return; }
+
+        setCreatingItem(true);
+        try {
+            const payload: Record<string, unknown> = {
+                categoria_id: Number(newItem.categoria_id),
+                descripcion: newItem.descripcion.trim(),
+                unidad: newItem.unidad.trim(),
+            };
+            if (newItem.valor_compra.trim() !== '') payload.valor_compra = Number(newItem.valor_compra) || 0;
+
+            const res = await api.post<ApiResponse<ItemInventario>>('/items-inventario', payload);
+            const created = res.data.data;
+            // Refrescar catálogo e insertar el nuevo ítem para que el selector lo encuentre
+            setCatalogoItems(prev => [...prev, created]);
+            // Auto-seleccionar en la línea que disparó la creación
+            if (newItemTargetIdx != null) {
+                updateItem(newItemTargetIdx, {
+                    item_id: created.id,
+                    descripcion: created.descripcion,
+                    unidad: created.unidad,
+                    precio_unitario: created.valor_compra || 0,
+                });
+            }
+            toast.success(`Ítem "${created.descripcion}" creado y vinculado`);
+            setShowNewItemModal(false);
+            setNewItemTargetIdx(null);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al crear el ítem');
+        } finally {
+            setCreatingItem(false);
+        }
+    };
 
     /* ── Reset form when modal closes ── */
     const resetForm = () => {
@@ -279,13 +335,26 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                         <div className="space-y-2">
                             {items.map((item, idx) => (
                                 <div key={idx} className="bg-[#F9F9FB] rounded-xl border border-[#E8E8ED] p-3 space-y-3">
-                                    {/* Item selector */}
-                                    <SearchableSelect
-                                        options={availableOptions.filter(o => !items.some((i, j) => j !== idx && i.item_id === o.value))}
-                                        value={item.item_id || null}
-                                        onChange={(val) => selectCatalogItem(idx, val)}
-                                        placeholder="Buscar item..."
-                                    />
+                                    {/* Item selector + crear nuevo */}
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 min-w-0">
+                                            <SearchableSelect
+                                                options={availableOptions.filter(o => !items.some((i, j) => j !== idx && i.item_id === o.value))}
+                                                value={item.item_id || null}
+                                                onChange={(val) => selectCatalogItem(idx, val)}
+                                                placeholder="Buscar item..."
+                                            />
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => openNewItem(idx)}
+                                            title="Crear un ítem nuevo en el catálogo"
+                                            className="flex items-center gap-1 px-2.5 py-2 text-[11px] font-bold text-brand-primary bg-brand-primary/10 hover:bg-brand-primary/20 rounded-lg transition-colors shrink-0 whitespace-nowrap"
+                                        >
+                                            <PackagePlus className="h-3.5 w-3.5" />
+                                            <span className="hidden sm:inline">Nuevo</span>
+                                        </button>
+                                    </div>
 
                                     {/* Destino (obra o bodega) */}
                                     <SearchableSelect
@@ -395,6 +464,85 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-brand-primary/20">
                             <Receipt className="h-3.5 w-3.5" />
                             {submitting ? 'Registrando...' : 'Registrar Factura'}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
+
+            {/* ═══ MODAL CREAR ÍTEM NUEVO (anidado) ═══ */}
+            <Modal isOpen={showNewItemModal} onClose={() => setShowNewItemModal(false)} title="Crear ítem nuevo" size="md">
+                <form onSubmit={handleCreateItem} className="space-y-4">
+                    <p className="text-[11px] text-muted-foreground">
+                        El ítem se agrega al catálogo y se vincula automáticamente a esta línea de la factura.
+                    </p>
+
+                    {/* Categoría */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">Categoría <span className="text-red-500">*</span></label>
+                        <select
+                            value={newItem.categoria_id}
+                            onChange={e => setNewItem(n => ({ ...n, categoria_id: e.target.value ? Number(e.target.value) : '' }))}
+                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            required
+                        >
+                            <option value="">Seleccionar categoría...</option>
+                            {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
+                        </select>
+                    </div>
+
+                    {/* Descripción */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">Descripción <span className="text-red-500">*</span></label>
+                        <input
+                            type="text"
+                            value={newItem.descripcion}
+                            onChange={e => setNewItem(n => ({ ...n, descripcion: e.target.value }))}
+                            placeholder="Ej: Saco de cemento especial"
+                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            required
+                        />
+                    </div>
+
+                    {/* Unidad + Valor compra */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Unidad <span className="text-red-500">*</span></label>
+                            <input
+                                type="text"
+                                value={newItem.unidad}
+                                onChange={e => setNewItem(n => ({ ...n, unidad: e.target.value }))}
+                                placeholder="U, kg, m, m²..."
+                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                required
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Valor compra <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                                <input
+                                    type="number" min={0} step="any"
+                                    value={newItem.valor_compra}
+                                    onChange={e => setNewItem(n => ({ ...n, valor_compra: e.target.value }))}
+                                    placeholder="0"
+                                    className="w-full pl-7 pr-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-1">
+                        <button type="button" onClick={() => setShowNewItemModal(false)}
+                            className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={creatingItem}
+                            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
+                            <PackagePlus className="h-3.5 w-3.5" />
+                            {creatingItem ? 'Creando...' : 'Crear y vincular'}
                         </button>
                     </div>
                 </form>

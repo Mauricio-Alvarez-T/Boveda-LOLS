@@ -1,20 +1,45 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Droplets, Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X } from 'lucide-react';
+import { Droplets, Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { toast } from 'sonner';
 import api from '../../services/api';
 import type { RegistroBombaHormigon } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
+import { Modal } from '../ui/Modal';
 
 interface Props {
     obras: { id: number; nombre: string }[];
     canCreate: boolean;
+    /** Permite editar/eliminar registros existentes. Default false. */
+    canEdit?: boolean;
 }
+
+/** Shape del formulario de registro/edición de bomba. */
+interface BombaFormState {
+    obra_id: number | '';
+    fecha: string;
+    tipo_bomba: string;
+    es_externa: boolean;
+    proveedor: string;
+    costo: string; // string para el input; se castea a number al enviar
+    observaciones: string;
+}
+
+const emptyForm = (): BombaFormState => ({
+    obra_id: '',
+    fecha: new Date().toISOString().slice(0, 10),
+    tipo_bomba: '',
+    es_externa: false,
+    proveedor: '',
+    costo: '',
+    observaciones: '',
+});
 
 const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmtDateShort = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 
-const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
+const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false }) => {
     // Gate financiero: usuarios sin `inventario.bombas.ver_costos` no ven
     // el StatCard "Costo Total" ni la columna costo por registro (el backend
     // ya sanitiza `r.costo` → undefined, aquí cubrimos la parte UI).
@@ -25,6 +50,12 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
     const [loading, setLoading] = useState(false);
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
+
+    // Modal de registro/edición
+    const [showModal, setShowModal] = useState(false);
+    const [editingId, setEditingId] = useState<number | null>(null);
+    const [form, setForm] = useState<BombaFormState>(emptyForm());
+    const [submitting, setSubmitting] = useState(false);
 
     const fetchData = async () => {
         setLoading(true);
@@ -37,6 +68,81 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
     };
 
     useEffect(() => { fetchData(); }, [filterObraId]);
+
+    // ── Abrir modal en modo crear ──
+    const openCreate = () => {
+        setEditingId(null);
+        setForm(emptyForm());
+        setShowModal(true);
+    };
+
+    // ── Abrir modal en modo editar ──
+    const openEdit = (r: RegistroBombaHormigon) => {
+        setEditingId(r.id);
+        setForm({
+            obra_id: r.obra_id,
+            fecha: r.fecha ? new Date(r.fecha).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+            tipo_bomba: r.tipo_bomba || '',
+            es_externa: !!r.es_externa,
+            proveedor: r.proveedor || '',
+            costo: r.costo != null ? String(r.costo) : '',
+            observaciones: r.observaciones || '',
+        });
+        setShowModal(true);
+    };
+
+    const closeModal = () => { setShowModal(false); setEditingId(null); };
+
+    // ── Guardar (crear o editar) ──
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!form.obra_id) { toast.error('Selecciona una obra'); return; }
+        if (!form.fecha) { toast.error('Indica la fecha'); return; }
+        if (!form.tipo_bomba.trim()) { toast.error('Indica el tipo de bomba'); return; }
+
+        // Payload: costo solo se envía si el usuario tiene permiso financiero y
+        // escribió un valor. El backend igual lo descarta si no tiene permiso.
+        const payload: Record<string, unknown> = {
+            obra_id: Number(form.obra_id),
+            fecha: form.fecha,
+            tipo_bomba: form.tipo_bomba.trim(),
+            es_externa: form.es_externa,
+            proveedor: form.proveedor.trim() || null,
+            observaciones: form.observaciones.trim() || null,
+        };
+        if (verCostos && form.costo.trim() !== '') {
+            payload.costo = Number(form.costo) || 0;
+        }
+
+        setSubmitting(true);
+        try {
+            if (editingId) {
+                await api.put(`/bombas-hormigon/${editingId}`, payload);
+                toast.success('Registro actualizado');
+            } else {
+                await api.post('/bombas-hormigon', payload);
+                toast.success('Uso de bomba registrado');
+            }
+            closeModal();
+            fetchData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al guardar el registro');
+        } finally {
+            setSubmitting(false);
+        }
+    };
+
+    // ── Eliminar ──
+    const handleDelete = async (r: RegistroBombaHormigon) => {
+        if (!window.confirm(`¿Eliminar el registro de bomba de "${r.obra_nombre}" del ${fmtDateShort(r.fecha)}?`)) return;
+        try {
+            await api.delete(`/bombas-hormigon/${r.id}`);
+            toast.success('Registro eliminado');
+            fetchData();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al eliminar');
+        }
+    };
 
     // Filter by search
     const filtered = useMemo(() => {
@@ -84,6 +190,15 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                     <h3 className="text-sm font-bold text-brand-dark">Bombas de Hormigón</h3>
                     <div className="flex items-center gap-2 flex-1">
+                        {canCreate && (
+                            <button
+                                onClick={openCreate}
+                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm shrink-0 order-last sm:order-none"
+                            >
+                                <Plus className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Registrar uso</span>
+                            </button>
+                        )}
                         {/* Search */}
                         <div className="relative flex-1 max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -177,7 +292,13 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
                                 {/* Cards grid */}
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
                                     {group.items.map(r => (
-                                        <BombaCard key={r.id} registro={r} />
+                                        <BombaCard
+                                            key={r.id}
+                                            registro={r}
+                                            canEdit={canEdit}
+                                            onEdit={() => openEdit(r)}
+                                            onDelete={() => handleDelete(r)}
+                                        />
                                     ))}
                                 </div>
                             </div>
@@ -185,6 +306,142 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate }) => {
                     </div>
                 )}
             </div>
+
+            {/* ═══ MODAL REGISTRAR / EDITAR ═══ */}
+            <Modal isOpen={showModal} onClose={closeModal} title={editingId ? 'Editar uso de bomba' : 'Registrar uso de bomba'} size="md">
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Obra + Fecha */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Obra <span className="text-red-500">*</span></label>
+                            <select
+                                value={form.obra_id}
+                                onChange={e => setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' }))}
+                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                required
+                            >
+                                <option value="">Seleccionar obra...</option>
+                                {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Fecha <span className="text-red-500">*</span></label>
+                            <input
+                                type="date"
+                                value={form.fecha}
+                                onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Tipo de bomba */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">Tipo de bomba <span className="text-red-500">*</span></label>
+                        <input
+                            type="text"
+                            value={form.tipo_bomba}
+                            onChange={e => setForm(f => ({ ...f, tipo_bomba: e.target.value }))}
+                            placeholder="Ej: Pluma 32m, Estacionaria, Telescópica..."
+                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            required
+                        />
+                    </div>
+
+                    {/* Propia / Externa toggle */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1.5 block">Origen de la bomba <span className="text-red-500">*</span></label>
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                onClick={() => setForm(f => ({ ...f, es_externa: false }))}
+                                className={cn(
+                                    "flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all",
+                                    !form.es_externa
+                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
+                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-emerald-300"
+                                )}
+                            >
+                                <Building2 className="h-3.5 w-3.5" />
+                                Empresa (propia)
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setForm(f => ({ ...f, es_externa: true }))}
+                                className={cn(
+                                    "flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all",
+                                    form.es_externa
+                                        ? "bg-amber-500 text-white border-amber-500 shadow-sm"
+                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-amber-300"
+                                )}
+                            >
+                                <Truck className="h-3.5 w-3.5" />
+                                Externa (arriendo)
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Proveedor (opcional) */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Proveedor <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.proveedor}
+                            onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
+                            placeholder="Nombre del proveedor / arrendador"
+                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
+                    {/* Costo (opcional, solo si tiene permiso financiero) */}
+                    {verCostos && (
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Costo <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+                                <input
+                                    type="number" min={0} step="any"
+                                    value={form.costo}
+                                    onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
+                                    placeholder="0"
+                                    className="w-full pl-7 pr-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Observaciones */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Observaciones <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <textarea
+                            value={form.observaciones}
+                            onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
+                            placeholder="Opcional..."
+                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end gap-3 pt-1">
+                        <button type="button" onClick={closeModal}
+                            className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                        <button type="submit" disabled={submitting}
+                            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
+                            <Droplets className="h-3.5 w-3.5" />
+                            {submitting ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Registrar')}
+                        </button>
+                    </div>
+                </form>
+            </Modal>
         </div>
     );
 };
@@ -203,30 +460,55 @@ const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string
 );
 
 /* ─── Bomba card ─── */
-const BombaCard: React.FC<{ registro: RegistroBombaHormigon }> = ({ registro: r }) => {
+const BombaCard: React.FC<{
+    registro: RegistroBombaHormigon;
+    canEdit?: boolean;
+    onEdit?: () => void;
+    onDelete?: () => void;
+}> = ({ registro: r, canEdit = false, onEdit, onDelete }) => {
     const isExterna = r.es_externa;
 
     return (
         <div className={cn(
-            "flex flex-col px-3.5 py-3 rounded-xl border transition-colors",
+            "group flex flex-col px-3.5 py-3 rounded-xl border transition-colors",
             isExterna
                 ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300"
                 : "border-[#E8E8ED] bg-white hover:border-brand-primary/20"
         )}>
-            {/* Top row: obra + badge */}
+            {/* Top row: obra + badge + acciones */}
             <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
                     <MapPin className="h-3 w-3 text-muted-foreground/50 shrink-0" />
                     <span className="text-[11px] font-bold text-brand-dark truncate">{r.obra_nombre}</span>
                 </div>
-                <span className={cn(
-                    "text-[9px] font-bold px-2 py-0.5 rounded-full border shrink-0 whitespace-nowrap",
-                    isExterna
-                        ? "bg-amber-100 text-amber-700 border-amber-200"
-                        : "bg-emerald-100 text-emerald-700 border-emerald-200"
-                )}>
-                    {isExterna ? 'ARRIENDO' : 'EMPRESA'}
-                </span>
+                <div className="flex items-center gap-1 shrink-0">
+                    <span className={cn(
+                        "text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap",
+                        isExterna
+                            ? "bg-amber-100 text-amber-700 border-amber-200"
+                            : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                    )}>
+                        {isExterna ? 'ARRIENDO' : 'EMPRESA'}
+                    </span>
+                    {canEdit && (
+                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                                onClick={onEdit}
+                                className="p-1 text-muted-foreground/60 hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
+                                title="Editar"
+                            >
+                                <Pencil className="h-3 w-3" />
+                            </button>
+                            <button
+                                onClick={onDelete}
+                                className="p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                                title="Eliminar"
+                            >
+                                <Trash2 className="h-3 w-3" />
+                            </button>
+                        </div>
+                    )}
+                </div>
             </div>
 
             {/* Type + date row */}
