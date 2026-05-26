@@ -99,7 +99,7 @@ try {
     useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
     allowedFilters: ['participa_inventario'],
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario']
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'encargado_nombre']
   }));
   app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', {
     searchFields: ['nombre'],

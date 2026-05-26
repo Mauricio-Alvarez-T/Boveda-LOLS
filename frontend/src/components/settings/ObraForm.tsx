@@ -14,12 +14,14 @@ import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 const schema = z.object({
     nombre: z.string().min(1, 'Nombre es requerido'),
     direccion: z.string().optional(),
+    encargado_nombre: z.string().optional(),
     participa_inventario: z.boolean().optional(),
 });
 
 type FormData = {
     nombre: string;
     direccion?: string;
+    encargado_nombre?: string;
     participa_inventario?: boolean;
 };
 
@@ -35,6 +37,7 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
         defaultValues: {
             nombre: initialData?.nombre || '',
             direccion: initialData?.direccion || '',
+            encargado_nombre: initialData?.encargado_nombre || '',
             // Default TRUE para obras nuevas (se comportan como antes).
             // En edición respetamos el valor actual.
             participa_inventario: initialData ? (initialData.participa_inventario ?? true) : true,
@@ -66,6 +69,12 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre" {...register('nombre')} error={errors.nombre?.message} placeholder="Edificio Los Olmos" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Providencia 456" />
+            <Input
+                label="Encargado de obra (solicita material)"
+                {...register('encargado_nombre')}
+                error={errors.encargado_nombre?.message}
+                placeholder="Ej: Leonardo Pérez"
+            />
 
             <div className="py-2">
                 <label className="flex items-start gap-3 cursor-pointer">

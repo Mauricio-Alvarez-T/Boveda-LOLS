@@ -16,6 +16,8 @@ export interface Obra {
     empresa_nombre?: string;
     activa: boolean;
     participa_inventario?: boolean;
+    /** Encargado que solicita material en obras de inventario (texto libre). */
+    encargado_nombre?: string | null;
 }
 
 export interface Cargo {
