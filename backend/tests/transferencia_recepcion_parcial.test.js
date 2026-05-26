@@ -155,6 +155,8 @@ describe('recibir() — modo parcial', () => {
         };
 
         // PARCIAL 1: enviada 10 (split A=6, split B=4), trae 7 → consume A=6 entero + B=1
+        // Fase 13 (kardex): cada decremento/incremento intercala un SELECT cantidad
+        // previa (_selCant) + un INSERT en stock_movimientos (_logMov).
         conn.query
             .mockResolvedValueOnce([[trfRow]])
             .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: 10, cantidad_recibida: null, origen_obra_id: null, origen_bodega_id: 2 }]])
@@ -164,12 +166,21 @@ describe('recibir() — modo parcial', () => {
                 { id: 700, origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 6, cantidad_decrementada: 0 },
                 { id: 701, origen_obra_id: 5, origen_bodega_id: null, cantidad_enviada: 4, cantidad_decrementada: 0 },
             ]])
+            // ── Split A ──
+            .mockResolvedValueOnce([[{ cantidad: 100 }]]) // _selCant origen split A
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // decremento split A (6)
+            .mockResolvedValueOnce([{ insertId: 9001 }])   // kardex salida split A
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE split A decremento=6
+            // ── Split B ──
+            .mockResolvedValueOnce([[{ cantidad: 50 }]])  // _selCant origen split B
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // decremento split B (1)
+            .mockResolvedValueOnce([{ insertId: 9002 }])   // kardex salida split B
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE split B decremento=1
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE cantidad_recibida
+            // ── Destino ──
+            .mockResolvedValueOnce([[{ cantidad: 0 }]])   // _selCant destino
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT destino
+            .mockResolvedValueOnce([{ insertId: 9003 }])   // kardex entrada destino
             .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT recepcion_items
             .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE estado
 

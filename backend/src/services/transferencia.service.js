@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionStock');
+const { registrarMovimiento } = require('./stockMovimiento.service');
 
 /**
  * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas
@@ -752,6 +753,25 @@ const transferenciaService = {
             );
             const recepcionId = recepHeader.insertId;
 
+            // Kardex (Fase 13): helpers para registrar movimientos sin alterar los
+            // UPDATE/INSERT de stock existentes (enfoque aditivo). Leen la cantidad
+            // previa, dejan correr el statement original y registran el delta.
+            const _selCant = async (itemId, obra, bodega) => {
+                const [rows] = await conn.query(
+                    'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
+                    [itemId, obra, bodega]
+                );
+                return rows.length ? Number(rows[0].cantidad) || 0 : 0;
+            };
+            const _logMov = async (itemId, obra, bodega, tipoMov, prev, nueva) => {
+                await registrarMovimiento(conn, {
+                    item_id: itemId, obra_id: obra, bodega_id: bodega,
+                    tipo: tipoMov, cantidad_anterior: prev, cantidad_nueva: nueva,
+                    referencia_tipo: 'transferencia', referencia_id: id,
+                    usuario_id: receptorId,
+                });
+            };
+
             // Procesar cada item del evento
             for (const item of items) {
                 if (!(item.item_id in enviadaMap)) {
@@ -782,11 +802,14 @@ const transferenciaService = {
                             if (splitDisponible <= 0) continue;
                             const take = Math.min(amountRemaining, splitDisponible);
                             const ubicSplit = _normalizeUbicacion(s.origen_obra_id, s.origen_bodega_id);
+                            const prevSplit = await _selCant(item.item_id, ubicSplit.obra, ubicSplit.bodega);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                                  WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
                                 [take, item.item_id, ubicSplit.obra, ubicSplit.bodega]
                             );
+                            await _logMov(item.item_id, ubicSplit.obra, ubicSplit.bodega,
+                                'transferencia_salida', prevSplit, Math.max(prevSplit - take, 0));
                             await conn.query(
                                 'UPDATE transferencia_item_origenes SET cantidad_decrementada = cantidad_decrementada + ? WHERE id = ?',
                                 [take, s.id]
@@ -800,11 +823,14 @@ const transferenciaService = {
                             const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                             const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
                             const ubicFb = _normalizeUbicacion(obraId, bodegaId);
+                            const prevFb = await _selCant(item.item_id, ubicFb.obra, ubicFb.bodega);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                                  WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
                                 [amountRemaining, item.item_id, ubicFb.obra, ubicFb.bodega]
                             );
+                            await _logMov(item.item_id, ubicFb.obra, ubicFb.bodega,
+                                'transferencia_salida', prevFb, Math.max(prevFb - amountRemaining, 0));
                         }
                     } else {
                         // Sin splits → fallback al origen de transferencia_items o cabecera
@@ -812,11 +838,14 @@ const transferenciaService = {
                         const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                         const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
                         const ubicFb = _normalizeUbicacion(obraId, bodegaId);
+                        const prevFb = await _selCant(item.item_id, ubicFb.obra, ubicFb.bodega);
                         await conn.query(
                             `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                              WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
                             [recibidaEnEvento, item.item_id, ubicFb.obra, ubicFb.bodega]
                         );
+                        await _logMov(item.item_id, ubicFb.obra, ubicFb.bodega,
+                            'transferencia_salida', prevFb, Math.max(prevFb - recibidaEnEvento, 0));
                     }
                 }
 
@@ -852,12 +881,15 @@ const transferenciaService = {
                             overrideOrigen = rows[0].valor_arriendo_override ?? null;
                         }
                     }
+                    const prevDest = await _selCant(item.item_id, ubicDest.obra, ubicDest.bodega);
                     await conn.query(
                         `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
                          VALUES (?, ?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
                         [item.item_id, ubicDest.obra, ubicDest.bodega, recibidaEnEvento, overrideOrigen]
                     );
+                    await _logMov(item.item_id, ubicDest.obra, ubicDest.bodega,
+                        'transferencia_entrada', prevDest, prevDest + recibidaEnEvento);
                 }
 
                 // Audit item del evento

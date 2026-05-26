@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets } from 'lucide-react';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets, History } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -14,13 +14,14 @@ import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
 import ResumenEjecutivoPanel from '../components/inventario/ResumenEjecutivoPanel';
 
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
+import MovimientosTab from '../components/inventario/MovimientosTab';
 import InventarioMaestroGrid from '../components/inventario/InventarioMaestroGrid';
 import StockMaestroGrid from '../components/inventario/StockMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 import { formatBodegaConResponsable } from '../utils/formatBodega';
 
-type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas';
+type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas' | 'movimientos';
 
 // Tabs del módulo Inventario. Cada uno gateado individualmente por su permiso
 // `inventario.tab.*`. El acceso al módulo entero ya está gateado un nivel
@@ -32,6 +33,7 @@ const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.Elemen
     { key: 'transferencias',    label: 'Transferencias',    shortLabel: 'Transf.',   icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
     { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
     { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: Droplets,        requiresPerm: 'inventario.tab.bombas' },
+    { key: 'movimientos',       label: 'Movimientos',       shortLabel: 'Movim.',    icon: History,         requiresPerm: 'inventario.movimientos.ver' },
 ];
 
 type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; key: string };
@@ -389,6 +391,10 @@ const InventarioPage: React.FC = () => {
                         obras={allObras as any}
                         canCreate={hasPermission('inventario.crear')}
                     />
+                )}
+
+                {activeTab === 'movimientos' && (
+                    <MovimientosTab />
                 )}
             </motion.div>
         </div>
