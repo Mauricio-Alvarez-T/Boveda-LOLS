@@ -192,11 +192,12 @@ const ItemDetailModal: React.FC<Props> = ({
                                 </div>
                             ) : (
                                 <div className="divide-y divide-[#F0F0F5]">
-                                    {/* Obras */}
-                                    {obras.map(loc => (
-                                        <div key={`obra_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/30 transition-colors">
-                                            <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                                                <MapPin className="h-3 w-3" />
+                                    {/* Bodegas primero — prioridad de visualización (requerimiento):
+                                        el stock en bodega se muestra arriba, luego lo que hay por obra. */}
+                                    {bodegas.map(loc => (
+                                        <div key={`bod_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-amber-50/30 transition-colors">
+                                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                                <Warehouse className="h-3 w-3" />
                                             </div>
                                             <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
                                             <span className={cn(
@@ -207,11 +208,11 @@ const ItemDetailModal: React.FC<Props> = ({
                                             </span>
                                         </div>
                                     ))}
-                                    {/* Bodegas */}
-                                    {bodegas.map(loc => (
-                                        <div key={`bod_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-amber-50/30 transition-colors">
-                                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                                                <Warehouse className="h-3 w-3" />
+                                    {/* Obras después */}
+                                    {obras.map(loc => (
+                                        <div key={`obra_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/30 transition-colors">
+                                            <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                                <MapPin className="h-3 w-3" />
                                             </div>
                                             <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
                                             <span className={cn(
