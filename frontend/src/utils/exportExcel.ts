@@ -70,22 +70,33 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
     });
 
     // ── Anchos de columna ──
-    ws.columns = [
-        { key: 'nro',     width: 7 },
-        { key: 'desc',    width: 45 },
-        { key: 'm2',      width: 10 },
-        { key: 'arriendo', width: 16 },
-        { key: 'unidad',  width: 8 },
-        { key: 'cantidad', width: 12 },
-        { key: 'total',   width: 18 },
-    ];
+    // Checklist: layout minimalista (solo Descripción + Cantidad vacía para conteo físico)
+    // Normal: layout completo con todos los campos.
+    if (isChecklist) {
+        ws.columns = [
+            { key: 'desc',     width: 60 },
+            { key: 'cantidad', width: 18 },
+        ];
+    } else {
+        ws.columns = [
+            { key: 'nro',     width: 7 },
+            { key: 'desc',    width: 45 },
+            { key: 'm2',      width: 10 },
+            { key: 'arriendo', width: 16 },
+            { key: 'unidad',  width: 8 },
+            { key: 'cantidad', width: 12 },
+            { key: 'total',   width: 18 },
+        ];
+    }
+    // Última columna usada en rangos de merge (todo el ancho de la planilla)
+    const lastCol = isChecklist ? 'B' : 'G';
 
     let row: ExcelJS.Row;
 
     // ══════════════════════════════════════════════
     //  TÍTULO — branding header
     // ══════════════════════════════════════════════
-    ws.mergeCells('A1:G1');
+    ws.mergeCells(`A1:${lastCol}1`);
     row = ws.getRow(1);
     row.height = 36;
     row.getCell(1).value = isChecklist
@@ -96,7 +107,7 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
     row.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 };
 
     // Subtítulo con fecha + instrucciones según modo
-    ws.mergeCells('A2:G2');
+    ws.mergeCells(`A2:${lastCol}2`);
     row = ws.getRow(2);
     row.height = 22;
     row.getCell(1).value = isChecklist
@@ -112,8 +123,12 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
     // ══════════════════════════════════════════════
     //  ENCABEZADO DE TABLA
     // ══════════════════════════════════════════════
-    const headerLabels = ['#', 'Descripción', 'M²', 'V. Arriendo', 'UN', 'Cantidad', 'Total'];
-    const headerAligns: ExcelJS.Alignment['horizontal'][] = ['center', 'left', 'center', 'right', 'center', 'right', 'right'];
+    const headerLabels = isChecklist
+        ? ['Descripción', 'Cantidad']
+        : ['#', 'Descripción', 'M²', 'V. Arriendo', 'UN', 'Cantidad', 'Total'];
+    const headerAligns: ExcelJS.Alignment['horizontal'][] = isChecklist
+        ? ['left', 'right']
+        : ['center', 'left', 'center', 'right', 'center', 'right', 'right'];
     row = ws.getRow(4);
     row.height = 24;
     headerLabels.forEach((label, i) => {
@@ -135,7 +150,7 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
     // ══════════════════════════════════════════════
     for (const cat of data.categorias) {
         // ── Fila de categoría ──
-        ws.mergeCells(`A${currentRow}:G${currentRow}`);
+        ws.mergeCells(`A${currentRow}:${lastCol}${currentRow}`);
         row = ws.getRow(currentRow);
         row.height = 22;
         const catCell = row.getCell(1);
@@ -149,26 +164,33 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
         // ── Ítems ──
         cat.items.forEach((item, idx) => {
             row = ws.getRow(currentRow);
-            row.height = 20;
+            // En checklist usamos filas más altas para que el operario tenga espacio cómodo
+            // para escribir a mano la cantidad contada.
+            row.height = isChecklist ? 24 : 20;
             const isZebra = idx % 2 !== 0;
             const bgColor = isZebra ? ZEBRA : WHITE;
 
-            // En modo checklist: vacío cantidad/valor/total para conteo físico
-            // y no expongo el arriendo (es un documento operativo, no contable).
-            const values = [
-                item.nro_item,
-                item.descripcion,
-                item.m2 ? item.m2.toFixed(2) : '',
-                isChecklist ? '' : fmtMoney(item.valor_arriendo),
-                item.unidad,
-                isChecklist ? '' : item.cantidad,
-                isChecklist ? '' : (item.total > 0 ? fmtMoney(item.total) : ''),
-            ];
+            // En modo checklist: sólo descripción + cantidad vacía (planilla de conteo físico).
+            // En modo normal: planilla completa con todos los campos.
+            const values = isChecklist
+                ? [item.descripcion, '']
+                : [
+                    item.nro_item,
+                    item.descripcion,
+                    item.m2 ? item.m2.toFixed(2) : '',
+                    fmtMoney(item.valor_arriendo),
+                    item.unidad,
+                    item.cantidad,
+                    item.total > 0 ? fmtMoney(item.total) : '',
+                ];
 
+            // Índice de la columna 'Descripción' (la que va en negro fuerte).
+            // En checklist es la 0, en normal es la 1.
+            const descIdx = isChecklist ? 0 : 1;
             values.forEach((val, i) => {
                 const cell = row.getCell(i + 1);
                 cell.value = val;
-                cell.font = i === 1 ? normalFont(10, '1a1a1a') : normalFont(10, '555555');
+                cell.font = i === descIdx ? normalFont(10, '1a1a1a') : normalFont(10, '555555');
                 cell.fill = fill(bgColor);
                 cell.border = thinBorder;
                 cell.alignment = {
@@ -177,8 +199,8 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
                 };
             });
 
-            // Negrita para el total
-            if (item.total > 0) {
+            // Negrita para el total (solo en modo normal)
+            if (!isChecklist && item.total > 0) {
                 row.getCell(7).font = boldFont(10, '1a1a1a');
             }
 
@@ -225,7 +247,7 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
     if (isChecklist) {
         // Fila de firma para conteo físico
         currentRow++;
-        ws.mergeCells(`A${currentRow}:G${currentRow}`);
+        ws.mergeCells(`A${currentRow}:${lastCol}${currentRow}`);
         row = ws.getRow(currentRow);
         row.height = 22;
         row.getCell(1).value = '   Realizado por: ________________________________     Fecha: ____________     Firma: ____________';
@@ -297,7 +319,7 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
 
     // ── Footer ──
     currentRow++;
-    ws.mergeCells(`A${currentRow}:G${currentRow}`);
+    ws.mergeCells(`A${currentRow}:${lastCol}${currentRow}`);
     row = ws.getRow(currentRow);
     row.getCell(1).value = 'Generado por Bóveda LOLS — www.boveda.lols.cl';
     row.getCell(1).font = normalFont(8, 'AAAAAA');

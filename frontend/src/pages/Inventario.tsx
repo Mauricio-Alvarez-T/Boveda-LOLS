@@ -373,7 +373,7 @@ const InventarioPage: React.FC = () => {
                                     ))}
                                 </optgroup>
                             </select>
-                            {currentStockData && !isBodega && (
+                            {currentStockData && !isBodega && hasPermission('inventario.editar') && (
                                 <ExportExcelDropdown stockData={currentStockData} />
                             )}
                         </div>
