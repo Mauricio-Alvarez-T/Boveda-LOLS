@@ -206,46 +206,54 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     <ChevronDown className="h-4 w-4 text-muted-foreground pointer-events-none" />
                 </div>
 
-                {/* Mobile Grand Totals — summary card at top.
-                    Gate financiero: si no verValores, mostrar sólo el conteo de unidades y items
-                    (sin montos $). */}
-                <div className="shrink-0 bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white">
-                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-2">Resumen General</p>
-                    <div className={cn("grid gap-3", verValores ? "grid-cols-1 sm:grid-cols-3" : "grid-cols-2")}>
-                        <div>
-                            <p className="text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
-                            <p className="text-[10px] opacity-80">Unidades</p>
-                        </div>
-                        {verValores && (
-                            <div>
-                                <p className="text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
-                                <p className="text-[10px] opacity-80">Arriendo</p>
-                            </div>
-                        )}
-                        {verValores && grandTotals.totalDescuento > 0 ? (
-                            <div>
-                                <p className="text-lg font-black">{fmtMoney(grandTotals.totalConDescuento)}</p>
-                                <p className="text-[10px] opacity-80 text-brand-primary line-through whitespace-nowrap overflow-hidden text-ellipsis">{fmtMoney(grandTotals.totalArriendo)}</p>
-                                <p className="text-[10px] opacity-80">Con Descuento</p>
-                            </div>
-                        ) : (
-                            <div>
-                                <p className="text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
-                                <p className="text-[10px] opacity-80">Items</p>
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        onClick={() => exportResumen(data)}
-                        className="mt-4 w-full flex items-center justify-center gap-1.5 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition-all shadow-sm"
-                    >
-                        <Download className="h-3.5 w-3.5" />
-                        Exportar a Excel
-                    </button>
-                </div>
-
-                {/* Mobile Categories & Items */}
+                {/* Mobile: card verde + lista en un único scroll para que el card se
+                    desplace hacia arriba al bajar y libere pantalla para los productos. */}
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+                    {/* Grand Totals — card compacto.
+                        En mobile (<sm) los valores se apilan en una columna con valor + label
+                        inline para reducir altura. Gate financiero: si no verValores, mostrar
+                        sólo el conteo de unidades y items (sin montos $). */}
+                    <div className="bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-3 text-white">
+                        <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-1.5">Resumen General</p>
+                        <div className={cn(
+                            "grid",
+                            verValores ? "grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-3" : "grid-cols-2 gap-3"
+                        )}>
+                            <div className="flex items-baseline gap-2 sm:block">
+                                <p className="text-base sm:text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
+                                <p className="text-[10px] opacity-80">Unidades</p>
+                            </div>
+                            {verValores && (
+                                <div className="flex items-baseline gap-2 sm:block">
+                                    <p className="text-base sm:text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
+                                    <p className="text-[10px] opacity-80">Arriendo</p>
+                                </div>
+                            )}
+                            {verValores && grandTotals.totalDescuento > 0 ? (
+                                <div className="flex items-baseline flex-wrap gap-x-2 sm:block">
+                                    <p className="text-base sm:text-lg font-black">{fmtMoney(grandTotals.totalConDescuento)}</p>
+                                    <p className="text-[10px] opacity-80">
+                                        Con Descuento
+                                        <span className="ml-1.5 line-through opacity-70">{fmtMoney(grandTotals.totalArriendo)}</span>
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex items-baseline gap-2 sm:block">
+                                    <p className="text-base sm:text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
+                                    <p className="text-[10px] opacity-80">Items</p>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => exportResumen(data)}
+                            className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition-all shadow-sm"
+                        >
+                            <Download className="h-3.5 w-3.5" />
+                            Exportar a Excel
+                        </button>
+                    </div>
+
+                    {/* Mobile Categories & Items */}
                     {filteredCategorias.map(cat => {
                         const collapsed = collapsedCats.has(cat.id);
                         const totals = catTotals[cat.id];
