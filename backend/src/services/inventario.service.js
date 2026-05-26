@@ -146,7 +146,9 @@ const inventarioService = {
 
         return {
             obras: obras.map(o => ({ id: o.id, nombre: o.nombre })),
-            bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre })),
+            // mig 060: incluir responsable_nombre para que la UI lo muestre en
+            // dropdowns y headers (formatBodegaConResponsable).
+            bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre, responsable_nombre: b.responsable_nombre })),
             categorias: Array.from(categorias.values()).sort((a, b) => a.orden - b.orden),
             descuentos: descuentoMap,
             totales: {
