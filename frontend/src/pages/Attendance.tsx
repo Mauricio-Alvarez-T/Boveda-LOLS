@@ -97,7 +97,7 @@ const AttendancePage: React.FC = () => {
                                         : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
                                 )}
                             >
-                                <TabIcon className="h-4 w-4 md:hidden shrink-0" />
+                                <TabIcon className="h-4 w-4 shrink-0" />
                                 <span className="md:hidden">{tab.shortLabel}</span>
                                 <span className="hidden md:inline">{tab.label}</span>
                             </button>
