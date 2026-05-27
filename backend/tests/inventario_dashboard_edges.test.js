@@ -49,7 +49,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             // 9. categorías valor
             .mockResolvedValueOnce([[]])
             // 10. bombas hormigón mes
-            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]]);
+            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
+            .mockResolvedValueOnce([[]]); // 11. faltantes sin decisión (commit 3d03b3b)
     }
 
     test('delta_pct es null si no hay snapshots', async () => {
@@ -92,7 +93,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
                 { kpi: 'pendientes', fecha: fechaStr, valor: 0 },
             ]])
             .mockResolvedValueOnce([[]])
-            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]]);
+            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
+            .mockResolvedValueOnce([[]]); // 11. faltantes sin decisión (commit 3d03b3b)
 
         const result = await inventarioService.getDashboardEjecutivo();
         expect(result.historico.pendientes.mes_anterior).toBe(0);
@@ -119,7 +121,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
                 { kpi: 'pendientes', fecha: fechaStr, valor: 10 },
             ]])
             .mockResolvedValueOnce([[]])
-            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]]);
+            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
+            .mockResolvedValueOnce([[]]); // 11. faltantes sin decisión (commit 3d03b3b)
 
         const result = await inventarioService.getDashboardEjecutivo();
         expect(result.historico.pendientes.mes_anterior).toBe(10);

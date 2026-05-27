@@ -268,8 +268,9 @@ describe('recibir() — modo parcial', () => {
             /INSERT INTO transferencia_discrepancias/.test(c[0])
         );
         expect(discrepCalls).toHaveLength(1);
-        // Args: [transferencia_id, item_id, cantidad_enviada, cantidad_recibida_acumulada, observacion]
-        expect(discrepCalls[0][1]).toEqual([100, 5, 10, 9, null]);
+        // Args: [transferencia_id, item_id, cantidad_enviada, cantidad_recibida_acumulada, observacion, reportado_por]
+        // (reportado_por = receptorId=77, agregado en mig 061 / commit 7f7a0a8)
+        expect(discrepCalls[0][1]).toEqual([100, 5, 10, 9, null, 77]);
 
         // UPDATE estado debe ser → recibida con recibido_por
         const updateTrf = conn.query.mock.calls.find(c =>

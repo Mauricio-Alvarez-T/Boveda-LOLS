@@ -531,7 +531,10 @@ describe('cancelar() desde en_transito — Fase 2', () => {
             // UPDATE transferencias → cancelada
             .mockResolvedValueOnce([{ affectedRows: 1 }]);
 
-        await transferenciaService.cancelar(600, 77);
+        // Punto 34 (commit 7745ecc): cancelar una transferencia en_transito requiere
+        // el permiso especial 'cancelar_en_transito' (o sod_bypass). Se pasa para que
+        // el test refleje la nueva autorización y verifique que NO toca stock.
+        await transferenciaService.cancelar(600, 77, ['inventario.transferencias.cancelar_en_transito']);
 
         const stockWrites = conn.query.mock.calls.filter(c =>
             /ubicaciones_stock/.test(c[0])

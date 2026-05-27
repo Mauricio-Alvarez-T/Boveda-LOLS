@@ -100,7 +100,9 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 { id: 4, nombre: 'MAQUINARIA', orden: 4, valor_neto: 6000000 },
             ]])
             // 10. bombas hormigón mes actual
-            .mockResolvedValueOnce([[{ eventos: 12, obras_distintas: 5, costo_externo: 3200000 }]]);
+            .mockResolvedValueOnce([[{ eventos: 12, obras_distintas: 5, costo_externo: 3200000 }]])
+            // 11. faltantes sin decisión (commit 3d03b3b) — sin faltantes en este mock
+            .mockResolvedValueOnce([[]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -119,11 +121,15 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.top_obras[0].obra_id).toBe(1);
         expect(result.top_obras[1].valor_mensual).toBeCloseTo(12100000 * 0.9, 0);
 
-        // Alertas: discrepancia primero (prioridad 0), luego pendiente (1), luego tránsito (2)
-        expect(result.alertas).toHaveLength(3);
+        // Alertas ordenadas por prioridad (commit 3d03b3b):
+        // discrepancia(0) > faltante(1) > pendiente(2) > rechazo(3) > transito(4).
+        // El mock trae 1 discrepancia, 1 pendiente, 1 rechazo y 1 tránsito (0 faltantes)
+        // → orden esperado: discrepancia, pendiente, rechazo, transito.
+        expect(result.alertas).toHaveLength(4);
         expect(result.alertas[0].tipo).toBe('discrepancia');
         expect(result.alertas[1].tipo).toBe('pendiente');
-        expect(result.alertas[2].tipo).toBe('transito');
+        expect(result.alertas[2].tipo).toBe('rechazo');
+        expect(result.alertas[3].tipo).toBe('transito');
         // Cada alerta trae transferencia_id para click → detalle
         result.alertas.forEach(a => expect(a.transferencia_id).toBeTruthy());
 
@@ -171,7 +177,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
-            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]]);
+            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
+            .mockResolvedValueOnce([[]]); // 11. faltantes sin decisión
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -207,7 +214,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[                                                          // 9 categoría (filtrada por obra)
                 { id: 3, nombre: 'MOLDAJES', orden: 3, valor_neto: 9000000 },
             ]])
-            .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]]); // 10 bombas
+            .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]])  // 10 bombas
+            .mockResolvedValueOnce([[]]);  // 11 faltantes (usa filtro con alias t → [obraId, obraId])
 
         const result = await inventarioService.getDashboardEjecutivo(5);
 
@@ -227,7 +235,9 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(calls[0][1]).toEqual([5, 5]);
         // Query 4 (valor obras) debe tener params [5]
         expect(calls[3][1]).toEqual([5]);
-        // Query 10 (bombas, último call) debe tener params [5]
-        expect(calls[calls.length - 1][1]).toEqual([5]);
+        // Faltantes (query 11) es ahora el último call y usa el filtro con alias t → [5, 5].
+        expect(calls[calls.length - 1][1]).toEqual([5, 5]);
+        // Bombas (penúltimo call) usa params directos [5].
+        expect(calls[calls.length - 2][1]).toEqual([5]);
     });
 });
