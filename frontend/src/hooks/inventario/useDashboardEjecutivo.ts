@@ -32,7 +32,7 @@ export interface TopObra {
 }
 
 export interface DashboardAlerta {
-    tipo: 'pendiente' | 'discrepancia' | 'transito';
+    tipo: 'pendiente' | 'discrepancia' | 'transito' | 'rechazo' | 'faltante';
     transferencia_id: number;
     codigo: string;
     dias: number;

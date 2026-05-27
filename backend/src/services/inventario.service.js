@@ -541,6 +541,7 @@ const inventarioService = {
             [snapshotsRows],
             [categoriaRows],
             [bombasRows],
+            [faltantesRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter}`, directParams),
@@ -703,6 +704,31 @@ const inventarioService = {
                   AND MONTH(fecha) = MONTH(CURDATE())
                   ${obraIdNum ? 'AND obra_id = ?' : ''}
             `, obraIdNum ? [obraIdNum] : []),
+            // 11. Faltantes sin decisión: transferencias aprobadas/en tránsito con
+            //     cantidad enviada < solicitada (parcial) que NO generaron una
+            //     solicitud de faltante (no existe hija con es_faltante_de_id).
+            //     El aprobador debe decidir: crear faltante o dejar así.
+            db.query(`
+                SELECT t.id, t.codigo, t.fecha_aprobacion,
+                       oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                       do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                       SUM(GREATEST(ti.cantidad_solicitada - COALESCE(ti.cantidad_enviada, 0), 0)) as unidades_faltantes,
+                       DATEDIFF(NOW(), t.fecha_aprobacion) as dias
+                FROM transferencias t
+                JOIN transferencia_items ti ON ti.transferencia_id = t.id
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                WHERE t.activo = 1 AND t.estado IN ('aprobada', 'en_transito')
+                  AND NOT EXISTS (SELECT 1 FROM transferencias f WHERE f.es_faltante_de_id = t.id)
+                  ${tFilter}
+                GROUP BY t.id, t.codigo, t.fecha_aprobacion,
+                         oo.nombre, ob.nombre, do2.nombre, db2.nombre
+                HAVING unidades_faltantes > 0
+                ORDER BY t.fecha_aprobacion ASC
+                LIMIT 5
+            `, tParams),
         ]);
 
         // Auditoría 6.1: el backend ya devuelve valor_neto y valor_bruto calculados en SQL.
@@ -764,10 +790,37 @@ const inventarioService = {
             });
         });
 
-        // Orden final: prioridad discrepancia > pendiente > tránsito, dentro por días desc. Máx 8.
-        const prio = { discrepancia: 0, pendiente: 1, transito: 2 };
+        // Faltantes sin decisión (aprobación parcial sin solicitud de faltante)
+        faltantesRows.forEach(r => {
+            alertas.push({
+                tipo: 'faltante',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} tiene un faltante sin decisión`,
+                detalle: `${Number(r.unidades_faltantes)} u. no enviadas · ${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)}`,
+            });
+        });
+
+        // Rechazos: integrados a "Requiere tu atención" (antes en sección aparte).
+        rechazosRows.forEach(r => {
+            alertas.push({
+                tipo: 'rechazo',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} fue rechazada`,
+                detalle: `${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)}${r.observaciones_rechazo ? ` · "${r.observaciones_rechazo}"` : ''}`,
+                solicitante: r.rechazado_por_nombre || null,
+            });
+        });
+
+        // Orden final por prioridad, dentro por días desc.
+        const prio = { discrepancia: 0, faltante: 1, pendiente: 2, rechazo: 3, transito: 4 };
         alertas.sort((a, b) => {
-            if (prio[a.tipo] !== prio[b.tipo]) return prio[a.tipo] - prio[b.tipo];
+            const pa = prio[a.tipo] ?? 9;
+            const pb = prio[b.tipo] ?? 9;
+            if (pa !== pb) return pa - pb;
             return (b.dias || 0) - (a.dias || 0);
         });
 

@@ -277,6 +277,20 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
             iconBg: 'bg-blue-200/70 text-blue-800',
             cta: 'Ver',
         },
+        faltante: {
+            bg: 'bg-orange-50/60',
+            border: 'border-orange-200',
+            icon: <Package className="h-4 w-4" />,
+            iconBg: 'bg-orange-200/70 text-orange-800',
+            cta: 'Decidir',
+        },
+        rechazo: {
+            bg: 'bg-red-50/60',
+            border: 'border-red-200',
+            icon: <XCircle className="h-4 w-4" />,
+            iconBg: 'bg-red-200/70 text-red-800',
+            cta: 'Ver',
+        },
     };
     const t = toneMap[alerta.tipo];
 
@@ -823,58 +837,40 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         </div>
                         <p className="text-sm font-bold text-brand-dark">Todo al día</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            No hay solicitudes pendientes, discrepancias ni envíos atascados.
+                            No hay pendientes, discrepancias, faltantes, rechazos ni envíos atascados.
                         </p>
                     </div>
                 ) : (
                     <div className="flex flex-col gap-2">
-                        {data.alertas.map((alerta) => (
-                            <AlertaItem
-                                key={`${alerta.tipo}-${alerta.transferencia_id}`}
-                                alerta={alerta}
-                                onClick={() => onNavigateTransferencias({
-                                    estado: alerta.tipo === 'discrepancia' ? 'discrepancias' : alerta.tipo === 'transito' ? 'en_transito' : 'pendiente',
-                                    transferenciaId: alerta.transferencia_id,
-                                })}
-                                onProrrogar={canAprobar ? () => handleProrrogar(alerta.transferencia_id) : undefined}
-                                onCancelar={canCancelar ? () => handleCancelarSolicitud(alerta.transferencia_id) : undefined}
-                                actionLoading={actionLoadingId === alerta.transferencia_id}
-                            />
-                        ))}
+                        {data.alertas.map((alerta) => {
+                            // Mapea el tipo de alerta al filtro de estado del listado de transferencias.
+                            const estadoPorTipo: Record<DashboardAlerta['tipo'], string> = {
+                                discrepancia: 'discrepancias',
+                                transito: 'en_transito',
+                                rechazo: 'rechazada',
+                                faltante: 'aprobada',
+                                pendiente: 'pendiente',
+                            };
+                            return (
+                                <AlertaItem
+                                    key={`${alerta.tipo}-${alerta.transferencia_id}`}
+                                    alerta={alerta}
+                                    onClick={() => onNavigateTransferencias({
+                                        estado: estadoPorTipo[alerta.tipo] || 'pendiente',
+                                        transferenciaId: alerta.transferencia_id,
+                                    })}
+                                    onProrrogar={canAprobar ? () => handleProrrogar(alerta.transferencia_id) : undefined}
+                                    onCancelar={canCancelar ? () => handleCancelarSolicitud(alerta.transferencia_id) : undefined}
+                                    actionLoading={actionLoadingId === alerta.transferencia_id}
+                                />
+                            );
+                        })}
                     </div>
                 )}
             </div>
 
-            {/* Rechazos recientes (últimos 7 días) */}
-            {(loading || (data?.rechazos_recientes?.length ?? 0) > 0) && (
-                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5">
-                    <div className="flex items-center gap-2 mb-3">
-                        <XCircle className="h-4 w-4 text-red-500" />
-                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
-                            Rechazos recientes
-                        </h3>
-                        <span className="ml-auto text-[11px] text-muted-foreground font-semibold">últimos 7 días</span>
-                    </div>
-                    {loading && !data ? (
-                        <div className="space-y-2">
-                            {[0, 1].map(i => <Skeleton key={i} className="h-[80px]" />)}
-                        </div>
-                    ) : (
-                        <div className="flex flex-col gap-2">
-                            {data!.rechazos_recientes.map((rechazo) => (
-                                <RechazoItem
-                                    key={rechazo.transferencia_id}
-                                    rechazo={rechazo}
-                                    onClick={() => onNavigateTransferencias({
-                                        estado: 'rechazada',
-                                        transferenciaId: rechazo.transferencia_id,
-                                    })}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            {/* Nota: los rechazos ahora se muestran integrados en "Requiere tu
+                atención" (alertas tipo 'rechazo'), no en una sección aparte. */}
         </div>
     );
 };
