@@ -358,6 +358,7 @@ const SettingsPage: React.FC = () => {
             <div className="hidden md:flex flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-2 items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
                 {tabGroups.map((group, idx) => {
                     const isActive = activeGroup.title === group.title;
+                    const GroupIcon = group.icon;
                     return (
                         <button
                             key={idx}
@@ -369,6 +370,7 @@ const SettingsPage: React.FC = () => {
                                     : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                             )}
                         >
+                            <GroupIcon className={cn("h-4 w-4 relative z-10", isActive ? "text-white" : "text-muted-foreground/60")} />
                             <span className="relative z-10">{group.title}</span>
                             {isActive && (
                                 <motion.div
