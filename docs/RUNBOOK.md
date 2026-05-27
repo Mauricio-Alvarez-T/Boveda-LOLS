@@ -195,6 +195,50 @@ Después del próximo deploy, aparece en el dropdown de cPanel.
 
 ---
 
+## 4.1 Tareas Programadas (Cron Jobs)
+
+Para scripts que deben correr **automáticamente en un horario** (no a mano), se usa
+**cPanel → Cron Jobs**, NO un scheduler dentro de Node.
+
+⚠️ **No usar `node-cron` / `setInterval` dentro del backend.** Passenger
+duerme/reinicia el proceso Node cuando no hay tráfico, así que un cron in-process
+no dispara confiable. El cron de cPanel corre a nivel sistema operativo,
+independiente del estado de la app.
+
+### Patrón general
+
+1. Exponer el script en `package.json` (ver § 4) y asegurarse que corre standalone
+   (`node scripts/foo.js`), abriendo y cerrando su propia conexión a DB.
+2. **cPanel → Cron Jobs → Add New Cron Job**:
+   - Definir el horario con los 5 campos (min hora día mes díaSemana).
+   - En "Command": `cd ~/<APP_DIR> && <RUTA_NODE> scripts/foo.js >> ~/foo.log 2>&1`
+3. La **ruta del binario node** se obtiene en **cPanel → Setup Node.js App** (cada
+   app tiene su virtualenv, ej. `/home/lolscl/nodevenv/test-boveda/20/bin/node`).
+4. Configurar **una entrada por entorno** (staging usa `~/test-boveda`, producción
+   `~/boveda`) — los cron jobs NO se deployan con el código, viven en cPanel.
+5. Verificar al día siguiente revisando el `>> ~/foo.log` y/o la tabla que escribe.
+
+### Caso concreto: snapshot diario del dashboard (00:05)
+
+El Resumen Ejecutivo muestra sparklines (tendencia 7 días) y comparativa "% vs mes
+anterior". Esos datos salen de la tabla `dashboard_kpi_snapshots`, que se llena con
+**un snapshot diario** de los 5 KPIs. El script es idempotente
+(`INSERT ... ON DUPLICATE KEY UPDATE`).
+
+- **Script:** `backend/scripts/snapshot_dashboard.js` · alias `npm run snapshot-dashboard`
+- **Horario:** `5 0 * * *` (todos los días a las 00:05)
+- **Command staging:**
+  ```
+  cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/snapshot_dashboard.js >> ~/snapshot.log 2>&1
+  ```
+- **Command producción:** igual pero con `~/boveda` y su ruta de node correspondiente.
+
+Sin este cron, los sparklines y la comparativa quedan vacíos/planos (no es un bug:
+es que no hay histórico que graficar). Se puede sembrar un punto corriendo el script
+a mano desde cPanel → Run JS script → `snapshot-dashboard`.
+
+---
+
 ## 5. Variables de Entorno
 
 ### Servidor (archivo `.env` en `/boveda/` y `/test-boveda/`)
