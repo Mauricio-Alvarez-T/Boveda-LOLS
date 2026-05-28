@@ -135,8 +135,8 @@ const TransferenciasList: React.FC<Props> = ({
                 })}
             </div>
 
-            {/* Status filter — Desktop: pill chips */}
-            <div className="hidden md:flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+            {/* Status filter — Desktop: icon + short label stacked (mismo formato que mobile) */}
+            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
@@ -145,27 +145,29 @@ const TransferenciasList: React.FC<Props> = ({
                         <button
                             key={chip.value}
                             onClick={() => onStatusFilterChange(chip.value)}
+                            title={chip.label}
                             className={cn(
-                                "flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
+                                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-2 flex-1 min-w-0 transition-all",
                                 isActive
                                     ? isDiscrep
-                                        ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                        : "bg-brand-primary text-white border-brand-primary shadow-sm"
+                                        ? "bg-red-500 text-white shadow-sm"
+                                        : "bg-brand-primary text-white shadow-sm"
                                     : isDiscrep && discrepanciasCount > 0
-                                        ? "bg-red-50 text-red-700 border-red-200 hover:border-red-300"
-                                        : "bg-card text-muted-foreground border-border hover:border-brand-primary/30"
+                                        ? "text-red-600 hover:bg-red-50"
+                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                             )}
                         >
-                            <ChipIcon className="h-3 w-3" />
-                            <span>{chip.label}</span>
-                            {isDiscrep && discrepanciasCount > 0 && (
-                                <span className={cn(
-                                    "ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none",
-                                    isActive ? "bg-white/25 text-white" : "bg-red-500 text-white"
-                                )}>
-                                    {discrepanciasCount}
-                                </span>
-                            )}
+                            <div className="relative flex items-center">
+                                <ChipIcon className="h-[18px] w-[18px]" />
+                                {isDiscrep && discrepanciasCount > 0 && !isActive && (
+                                    <span className="absolute -top-1.5 -right-2.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
+                                        {discrepanciasCount}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
+                                {chip.shortLabel}
+                            </span>
                         </button>
                     );
                 })}
