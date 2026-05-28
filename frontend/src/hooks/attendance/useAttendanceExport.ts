@@ -195,7 +195,13 @@ export function useAttendanceExport({
 
         if (excepciones.length > 0) {
             text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n`;
-            excepciones.forEach(w => {
+            excepciones.forEach((w, idx) => {
+                // Línea en blanco entre cada ausencia (excepto la primera) para
+                // que en WhatsApp mobile cada trabajador quede visualmente
+                // separado, sobre todo cuando la línea wrappea (V/LM/PSG con
+                // rango de fechas suelen ocupar 2 líneas en pantallas chicas).
+                if (idx > 0) text += '\n';
+
                 const state = currentAttendance[w.id];
                 const est = currentEstados.find(e => e.id === state?.estado_id);
                 let line = `- ${w.apellido_paterno} ${w.nombres} (${est ? est.codigo : '?'})`;
