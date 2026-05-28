@@ -156,7 +156,7 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockLMPeriods = [
-            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15' }
+            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15', codigo: 'LM', color: '#5856D6' }
         ];
 
         db.query.mockImplementation((sql) => {
@@ -338,6 +338,58 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         // Fallback default 9h → JI calc = 4.5, descuento = 9 - 4.5 = 4.5
         const cDesc = wsLols.getCell(9, 44);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
+    });
+
+    // ── Test extra: período V cubriendo sábado pinta V (no FDS) ──
+    test('período V cubriendo sábado pinta "V" con color, no FDS (mig periodos generalizada)', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 }
+        ];
+
+        // V propaga TODOS los días → fila V en sábado 14/03/2026
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-09', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-10', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-11', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-12', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-14', estado_id: 3 }, // sábado
+            { trabajador_id: 1, fecha: '2026-03-15', estado_id: 3 }  // domingo
+        ];
+
+        const mockVPeriods = [
+            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15', codigo: 'V', color: '#FFD60A' }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('FROM periodos_ausencia')) return Promise.resolve([mockVPeriods]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Día 14 = sábado dentro de V → debe pintar "V" amarillo (no FDS gris)
+        const sabV = wsLols.getCell(9, 22);
+        expect(sabV.value).toBe('V');
+        expect(sabV.fill?.fgColor?.argb).toBe('FFFFD60A');
+
+        // Día 15 = domingo dentro de V → también "V"
+        const domV = wsLols.getCell(9, 23);
+        expect(domV.value).toBe('V');
     });
 
     // ── Test 8: NAC/DF/MT individuales (no consolidan a PL) ──

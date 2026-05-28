@@ -566,6 +566,157 @@ const asistenciaService = {
     },
 
     /**
+     * Helper interno: completa rows con filas sintéticas para días cubiertos
+     * por periodos_ausencia activos pero SIN fila en `asistencias`.
+     *
+     * Caso típico: LM en weekend/feriado. `crearPeriodo` saltea esos días al
+     * propagar (skip-no-laborable, decisión RH abril 2026), pero el período
+     * sigue activo y daily/WhatsApp/Excel deben mostrarlo como LM continuo.
+     * También cubre cualquier período legacy creado antes de propagación.
+     *
+     * @param {Set<string>} existingKeys - "trabajador_id:YYYY-MM-DD" ya cubiertas.
+     * @param {string} fechaInicio - YYYY-MM-DD (inclusive).
+     * @param {string} fechaFin - YYYY-MM-DD (inclusive).
+     * @param {Object} filters - {obraId, trabajadorId, trabajadorIds[], empresaId,
+     *                            cargoId, categoriaReporte, activo, requireActivo}.
+     */
+    async _filasDePeriodos(existingKeys, fechaInicio, fechaFin, filters = {}) {
+        try {
+        const params = [fechaFin, fechaInicio];
+        let sql = `
+            SELECT p.id AS periodo_id, p.trabajador_id, p.obra_id, p.estado_id,
+                   p.tipo_ausencia_id, p.fecha_inicio AS periodo_inicio,
+                   p.fecha_fin AS periodo_fin, p.observacion,
+                   ea.nombre AS estado_nombre, ea.codigo AS estado_codigo,
+                   ea.color AS estado_color, ea.es_presente,
+                   t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
+                   t.cargo_id, t.categoria_reporte,
+                   c.nombre AS cargo_nombre,
+                   ta.nombre AS tipo_ausencia_nombre
+            FROM periodos_ausencia p
+            JOIN estados_asistencia ea ON ea.id = p.estado_id
+            JOIN trabajadores t ON t.id = p.trabajador_id
+            LEFT JOIN cargos c ON t.cargo_id = c.id
+            LEFT JOIN tipos_ausencia ta ON ta.id = p.tipo_ausencia_id
+            WHERE p.activo = TRUE
+              AND p.fecha_inicio <= ? AND p.fecha_fin >= ?
+        `;
+
+        if (filters.obraId && filters.obraId !== 'ALL' && filters.obraId !== 'null'
+            && filters.obraId !== 'undefined' && filters.obraId !== '') {
+            sql += ' AND p.obra_id = ?';
+            params.push(filters.obraId);
+        }
+        if (filters.trabajadorId) {
+            sql += ' AND p.trabajador_id = ?';
+            params.push(filters.trabajadorId);
+        }
+        if (filters.trabajadorIds && filters.trabajadorIds.length > 0) {
+            sql += ` AND p.trabajador_id IN (${filters.trabajadorIds.map(() => '?').join(',')})`;
+            params.push(...filters.trabajadorIds);
+        }
+        if (filters.empresaId && filters.empresaId !== 'null' && filters.empresaId !== 'undefined' && filters.empresaId !== '') {
+            sql += ' AND t.empresa_id = ?';
+            params.push(filters.empresaId);
+        }
+        if (filters.cargoId && filters.cargoId !== 'null' && filters.cargoId !== 'undefined' && filters.cargoId !== '') {
+            sql += ' AND t.cargo_id = ?';
+            params.push(filters.cargoId);
+        }
+        if (filters.categoriaReporte && filters.categoriaReporte !== 'null' && filters.categoriaReporte !== 'undefined' && filters.categoriaReporte !== '') {
+            sql += ' AND t.categoria_reporte = ?';
+            params.push(filters.categoriaReporte);
+        }
+        if (filters.activo !== undefined && filters.activo !== '' && filters.activo !== 'todos') {
+            sql += ' AND t.activo = ?';
+            params.push(filters.activo === 'true' || filters.activo === '1' ? 1 : 0);
+        } else if (filters.requireActivo) {
+            sql += ' AND t.activo = 1';
+        }
+
+        let periodos;
+        try {
+            [periodos] = await db.query(sql, params);
+        } catch (e) {
+            console.warn('[_filasDePeriodos] query falló:', e.message);
+            return [];
+        }
+        if (!Array.isArray(periodos) || periodos.length === 0) return [];
+
+        const fmt = (d) => d.toISOString().split('T')[0];
+        const toStr = (val) => {
+            if (val == null) return null;
+            if (typeof val === 'string') return val.split('T')[0];
+            if (val instanceof Date) {
+                if (isNaN(val.getTime())) return null;
+                return val.toISOString().split('T')[0];
+            }
+            return null;
+        };
+
+        const filas = [];
+        for (const p of periodos) {
+            // Skip rows incompletos (mocks de tests viejos, datos corruptos).
+            // estado_id es requerido para que la fila sintética sea utilizable.
+            if (!p.estado_id) continue;
+            // Aceptar tanto alias (periodo_inicio) como nombre directo (fecha_inicio)
+            // para que mocks de tests existentes sigan funcionando.
+            const piStr = toStr(p.periodo_inicio || p.fecha_inicio);
+            const pfStr = toStr(p.periodo_fin || p.fecha_fin);
+            if (!piStr || !pfStr) continue;
+            const dStart = piStr > fechaInicio ? piStr : fechaInicio;
+            const dEnd = pfStr < fechaFin ? pfStr : fechaFin;
+            if (dStart > dEnd) continue;
+
+            const cur = new Date(`${dStart}T00:00:00`);
+            const last = new Date(`${dEnd}T00:00:00`);
+            while (cur <= last) {
+                const fStr = fmt(cur);
+                const key = `${p.trabajador_id}:${fStr}`;
+                if (!existingKeys.has(key)) {
+                    filas.push({
+                        id: null,
+                        trabajador_id: p.trabajador_id,
+                        obra_id: p.obra_id,
+                        fecha: fStr,
+                        estado_id: p.estado_id,
+                        tipo_ausencia_id: p.tipo_ausencia_id,
+                        observacion: p.observacion || null,
+                        hora_entrada: null,
+                        hora_salida: null,
+                        hora_colacion_inicio: null,
+                        hora_colacion_fin: null,
+                        horas_extra: 0,
+                        registrado_por: null,
+                        estado_nombre: p.estado_nombre,
+                        estado_codigo: p.estado_codigo,
+                        estado_color: p.estado_color,
+                        es_presente: p.es_presente,
+                        rut: p.rut,
+                        nombres: p.nombres,
+                        apellido_paterno: p.apellido_paterno,
+                        apellido_materno: p.apellido_materno,
+                        cargo_id: p.cargo_id,
+                        cargo_nombre: p.cargo_nombre,
+                        tipo_ausencia_nombre: p.tipo_ausencia_nombre,
+                        registrado_por_nombre: null,
+                        _from_periodo: true,
+                        _periodo_id: p.periodo_id,
+                    });
+                    existingKeys.add(key);
+                }
+                cur.setDate(cur.getDate() + 1);
+            }
+        }
+
+        return filas;
+        } catch (e) {
+            console.warn('[_filasDePeriodos] error inesperado:', e.message);
+            return [];
+        }
+    },
+
+    /**
      * Obtener asistencia de una obra en una fecha
      */
     async getByObraAndFecha(obraId, fecha) {
@@ -576,7 +727,7 @@ const asistenciaService = {
         let queryParams = [fecha];
         let queryStr = `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
                     ea.es_presente,
-                    t.rut, t.nombres, t.apellido_paterno, t.cargo_id,
+                    t.rut, t.nombres, t.apellido_paterno, t.apellido_materno, t.cargo_id,
                     c.nombre as cargo_nombre,
                     ta.nombre as tipo_ausencia_nombre,
                     u.nombre as registrado_por_nombre
@@ -587,19 +738,49 @@ const asistenciaService = {
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              LEFT JOIN usuarios u ON a.registrado_por = u.id
              WHERE a.fecha = ? AND t.activo = 1`;
-             
+
         if (obraId !== 'ALL') {
             queryStr += ` AND a.obra_id = ?`;
             queryParams.push(obraId);
         }
-        
+
         queryStr += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
 
         const [rows] = await db.query(queryStr, queryParams);
-        return {
-            registros: rows,
-            feriado
+
+        // Completar con períodos activos no propagados (LM weekend, legacy data).
+        // Garantiza que daily/WhatsApp ven mismo estado que Excel/Calendar modal.
+        const existingKeys = new Set(
+            rows.map(r => {
+                if (!r.fecha) return null;
+                const f = typeof r.fecha === 'string'
+                    ? r.fecha.split('T')[0]
+                    : (r.fecha instanceof Date && !isNaN(r.fecha.getTime())
+                        ? r.fecha.toISOString().split('T')[0]
+                        : null);
+                if (!f) return null;
+                return `${r.trabajador_id}:${f}`;
+            }).filter(Boolean)
+        );
+        const filasPeriodo = await this._filasDePeriodos(existingKeys, fecha, fecha, {
+            obraId, requireActivo: true,
+        });
+
+        // Re-ordenar por apellidos + nombres tras merge.
+        const cmp = (a, b, field) => {
+            const av = (a[field] || '').toString().toLocaleLowerCase();
+            const bv = (b[field] || '').toString().toLocaleLowerCase();
+            if (av < bv) return -1;
+            if (av > bv) return 1;
+            return 0;
         };
+        const registros = [...rows, ...filasPeriodo].sort((a, b) => {
+            return cmp(a, b, 'apellido_paterno')
+                || cmp(a, b, 'apellido_materno')
+                || cmp(a, b, 'nombres');
+        });
+
+        return { registros, feriado };
     },
 
     /**
@@ -696,7 +877,8 @@ const asistenciaService = {
 
         const [rows] = await db.query(
             `SELECT a.*, ea.nombre as estado_nombre, ea.codigo as estado_codigo, ea.color as estado_color,
-                    t.rut, t.nombres, t.apellido_paterno,
+                    ea.es_presente,
+                    t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
                     ta.nombre as tipo_ausencia_nombre
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
@@ -707,6 +889,52 @@ const asistenciaService = {
             [...params]
         );
 
+        // Completar con períodos activos no propagados (LM weekend/feriado, etc.).
+        // Solo si hay rango definido — sin fechas, no podemos acotar periodos.
+        let registros = rows;
+        if (fecha_inicio && fecha_fin) {
+            const existingKeys = new Set(
+                rows.map(r => {
+                    if (!r.fecha) return null;
+                    const f = typeof r.fecha === 'string'
+                        ? r.fecha.split('T')[0]
+                        : (r.fecha instanceof Date && !isNaN(r.fecha.getTime())
+                            ? r.fecha.toISOString().split('T')[0]
+                            : null);
+                    if (!f) return null;
+                    return `${r.trabajador_id}:${f}`;
+                }).filter(Boolean)
+            );
+            const trabajadorIdsArr = trabajador_ids
+                ? (Array.isArray(trabajador_ids) ? trabajador_ids : trabajador_ids.split(',').filter(Boolean))
+                : null;
+            const filasPeriodo = await this._filasDePeriodos(existingKeys, fecha_inicio, fecha_fin, {
+                obraId: obra_id,
+                trabajadorId: trabajador_id,
+                trabajadorIds: trabajadorIdsArr,
+                empresaId: empresa_id,
+                cargoId: cargo_id,
+                categoriaReporte: categoria_reporte,
+                activo: activo,
+            });
+            if (filasPeriodo.length > 0) {
+                registros = [...rows, ...filasPeriodo].sort((a, b) => {
+                    const ap = (a.apellido_paterno || '').toLocaleLowerCase();
+                    const bp = (b.apellido_paterno || '').toLocaleLowerCase();
+                    if (ap !== bp) return ap < bp ? -1 : 1;
+                    const am = (a.apellido_materno || '').toLocaleLowerCase();
+                    const bm = (b.apellido_materno || '').toLocaleLowerCase();
+                    if (am !== bm) return am < bm ? -1 : 1;
+                    const an = (a.nombres || '').toLocaleLowerCase();
+                    const bn = (b.nombres || '').toLocaleLowerCase();
+                    if (an !== bn) return an < bn ? -1 : 1;
+                    const af = typeof a.fecha === 'string' ? a.fecha.split('T')[0] : a.fecha.toISOString().split('T')[0];
+                    const bf = typeof b.fecha === 'string' ? b.fecha.split('T')[0] : b.fecha.toISOString().split('T')[0];
+                    return af < bf ? 1 : af > bf ? -1 : 0;
+                });
+            }
+        }
+
         // También traer feriados para el reporte de Excel/Nómina si se solicita por rango
         const [feriados] = await db.query(
             'SELECT * FROM feriados WHERE fecha BETWEEN ? AND ? AND activo = 1',
@@ -714,7 +942,7 @@ const asistenciaService = {
         );
 
         return {
-            registros: rows,
+            registros,
             feriados
         };
     },
@@ -1022,34 +1250,39 @@ const asistenciaService = {
         const defaultHorario = { lun:9, mar:9, mie:9, jue:9, vie:9, sab:0, dom:0 };
         const jsDaysMap = ['dom', 'lun', 'mar', 'mie', 'jue', 'vie', 'sab'];
 
-        // ── Períodos de Licencia Médica (LM) activos en el rango ──
-        // Los fines de semana y feriados que caen dentro de un período LM no
-        // deben sumar al total mensual (los paga ISAPRE/Mutual). Como LM tiene
-        // es_presente=FALSE, no está en codigosSumanDia → COUNTIF de total no
-        // cuenta "LM". Renderizamos esas celdas con valor "LM" (igual que las
-        // celdas LM reales) para bloque continuo visual; total sigue correcto.
-        const lmDaysSet = new Set();
+        // ── Períodos de ausencia activos en el rango (LM, V, F, PSG, TO, NAC/DF/MT) ──
+        // Generaliza la lógica histórica de `lmDaysSet`: para CUALQUIER estado-período
+        // que cubra un día (incluso weekend/feriado), pintamos la celda con el código
+        // y color del estado para que el bloque luzca continuo en el reporte.
+        //
+        // Doble red de seguridad junto con `_filasDePeriodos` (que sintetiza filas en
+        // `getReporte`): si por algún motivo la fila no llegó al attendanceMap, este
+        // map permite pintar weekend/feriado correctamente como fallback.
+        const periodDaysMap = new Map(); // "workerId:YYYY-MM-DD" → { codigo, color }
+        const lmDaysSet = new Set();     // compat: usado por COUNTIF check legacy
         try {
-            const [lmPeriods] = await db.query(`
-                SELECT p.trabajador_id, p.fecha_inicio, p.fecha_fin
+            const [periodsRows] = await db.query(`
+                SELECT p.trabajador_id, p.fecha_inicio, p.fecha_fin, e.codigo, e.color
                 FROM periodos_ausencia p
                 JOIN estados_asistencia e ON e.id = p.estado_id
-                WHERE e.codigo = 'LM' AND p.activo = TRUE
+                WHERE p.activo = TRUE
                   AND p.fecha_inicio <= ? AND p.fecha_fin >= ?
             `, [fecha_fin, fecha_inicio]);
-            for (const p of lmPeriods) {
+            for (const p of periodsRows) {
                 const startStr = formatDate(p.fecha_inicio);
                 const endStr = formatDate(p.fecha_fin);
                 if (!startStr || !endStr) continue;
                 const cur = new Date(startStr + 'T00:00:00');
                 const last = new Date(endStr + 'T00:00:00');
                 while (cur <= last) {
-                    lmDaysSet.add(`${p.trabajador_id}:${cur.toISOString().split('T')[0]}`);
+                    const key = `${p.trabajador_id}:${cur.toISOString().split('T')[0]}`;
+                    periodDaysMap.set(key, { codigo: p.codigo, color: p.color });
+                    if (p.codigo === 'LM') lmDaysSet.add(key);
                     cur.setDate(cur.getDate() + 1);
                 }
             }
         } catch (e) {
-            console.warn('[asistencia.generarExcel] no se pudieron leer períodos LM:', e.message);
+            console.warn('[asistencia.generarExcel] no se pudieron leer períodos:', e.message);
         }
 
         let maxStrDateInRecords = '';
@@ -1373,19 +1606,17 @@ const asistenciaService = {
                         if (codigo === 'AT') codigo = 'JI';
 
                         // ── Ausencias propagadas a fin de semana / feriado ──
-                        // Cuando se asigna un período de ausencia el backend
-                        // `crearPeriodo` puede crear filas para weekends/feriados
-                        // dentro del rango. Si la celda cae dentro de un período
-                        // LM del trabajador → render igual a LM (bloque continuo,
-                        // no suma). Otros estados no-presentes en weekend → FDS.
+                        // Cuando se asigna un período de ausencia, si la fecha cae en
+                        // weekend/feriado y el trabajador tiene período activo cubriendo
+                        // ese día (cualquier estado: LM, V, F, PSG, TO, NAC, DF, MT),
+                        // se pinta con el código y color del estado para que el bloque
+                        // luzca continuo. Si no hay período → FDS gris.
                         if (est && !est.es_presente && (isWeekend || isFeriado)) {
-                            const inLM = lmDaysSet.has(`${worker.id}:${fStr}`);
-                            if (inLM) {
-                                // Visualmente idéntico a LM (bloque continuo).
-                                // Total NO suma porque LM es es_presente=FALSE
-                                // y por tanto no está en codigosSumanDia.
-                                cell.value = 'LM';
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lmColor } };
+                            const periodMatch = periodDaysMap.get(`${worker.id}:${fStr}`);
+                            if (periodMatch) {
+                                const periodArgb = toArgb(periodMatch.color);
+                                cell.value = periodMatch.codigo;
+                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: periodArgb } };
                                 cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
                             } else {
                                 cell.value = MARKER_FDS;
@@ -1492,13 +1723,14 @@ const asistenciaService = {
                             };
                         }
                     } else if (isFeriado || isWeekend) {
-                        // Weekend/feriado SIN registro. Si cae dentro de período
-                        // LM del trabajador → render igual a LM (bloque continuo,
-                        // no suma al total). Si no → FDS gris (suma normal).
-                        const inLM = lmDaysSet.has(`${worker.id}:${fStr}`);
-                        if (inLM) {
-                            cell.value = 'LM';
-                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: lmColor } };
+                        // Weekend/feriado SIN registro. Si cae dentro de período activo
+                        // del trabajador → render con código/color del estado (bloque
+                        // continuo). Si no → FDS gris.
+                        const periodMatch = periodDaysMap.get(`${worker.id}:${fStr}`);
+                        if (periodMatch) {
+                            const periodArgb = toArgb(periodMatch.color);
+                            cell.value = periodMatch.codigo;
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: periodArgb } };
                             cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
                         } else {
                             cell.value = MARKER_FDS;
