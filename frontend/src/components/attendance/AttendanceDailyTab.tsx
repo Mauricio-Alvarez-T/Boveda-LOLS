@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '../ui/Button';
 import { TimeStepperInput } from '../ui/TimeStepperInput';
 import { WorkerCalendarModal } from './WorkerCalendarModal';
+import { PeriodAssignModal } from './PeriodAssignModal';
 import { TrasladoObraModal } from './TrasladoObraModal';
 import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
@@ -68,6 +69,8 @@ const AttendanceDailyTab: React.FC = () => {
     const [selectedWorker, setSelectedWorker] = useState<Trabajador | null>(null);
     const [isUploading, setIsUploading] = useState(false);
     const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
+    const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
+    const [periodModalWorker, setPeriodModalWorker] = useState<Trabajador | null>(null);
     const [trasladoWorker, setTrasladoWorker] = useState<Trabajador | null>(null);
     const [showSearchBox, setShowSearchBox] = useState(false);
 
@@ -402,7 +405,8 @@ const AttendanceDailyTab: React.FC = () => {
                                                 </div>
                                                 <div className="flex items-center justify-end gap-2">
                                                     <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"} className={cn("text-[10px] text-brand-primary font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
-                                                    <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-4 w-4" /></button>
+                                                    <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario"><CalendarDays className="h-4 w-4" /></button>
+                                                    <button onClick={() => setPeriodModalWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 hover:text-[#027A3B] transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Asignar Período de Ausencia"><CalendarRange className="h-4 w-4" /></button>
                                                 </div>
                                                 {verHorasExtra && (
                                                     <div className="w-[56px]">
@@ -423,7 +427,8 @@ const AttendanceDailyTab: React.FC = () => {
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
                                                         <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("text-[9px] text-brand-primary font-bold px-2 py-1 rounded-md hover:bg-brand-primary/5 transition-colors", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button>
-                                                        <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1 rounded-md text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-3.5 w-3.5" /></button>
+                                                        <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1 rounded-md text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Calendario"><CalendarDays className="h-3.5 w-3.5" /></button>
+                                                        <button onClick={() => setPeriodModalWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1 rounded-md text-brand-primary border border-brand-primary/30 hover:bg-brand-primary/10 transition-colors", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Período"><CalendarRange className="h-3.5 w-3.5" /></button>
                                                     </div>
                                                 </div>
                                                 {/* Row 2: Status buttons + Horas extra */}
@@ -506,7 +511,26 @@ const AttendanceDailyTab: React.FC = () => {
                 worker={calendarWorker}
                 estados={estados}
                 obraId={selectedObra?.id}
-                onSuccess={fetchAttendanceInfo}
+                onAssignPeriod={() => {
+                    setCalendarWorker(null);
+                    setPeriodModalWorker(calendarWorker);
+                }}
+                onSelectRange={(start, end) => {
+                    setPeriodSelection({ start, end });
+                    setCalendarWorker(null);
+                    setPeriodModalWorker(calendarWorker);
+                }}
+                onPeriodDeleted={fetchAttendanceInfo}
+            />
+
+            <PeriodAssignModal
+                isOpen={!!periodModalWorker}
+                onClose={() => { setPeriodModalWorker(null); setPeriodSelection(null); }}
+                worker={periodModalWorker}
+                obraId={selectedObra?.id || null}
+                estados={estados}
+                initialDates={periodSelection}
+                onSuccess={() => fetchAttendanceInfo()}
             />
 
             <TrasladoObraModal
