@@ -133,7 +133,7 @@ try {
     searchFields: ['nombre', 'codigo'],
     useSoftDelete: true,
     orderBy: 'nombre ASC',
-    allowedFields: ['nombre', 'codigo', 'color', 'activo', 'es_presente']
+    allowedFields: ['nombre', 'codigo', 'color', 'activo', 'es_presente', 'cuenta_dia_trabajado']
   }));
   // ── Inventario CRUD ──
   const invPerms = { ver: 'inventario.ver', crear: 'inventario.crear', editar: 'inventario.editar', eliminar: 'inventario.eliminar' };

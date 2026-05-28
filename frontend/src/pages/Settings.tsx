@@ -273,6 +273,14 @@ const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
+    {
+        key: 'cuenta_dia_trabajado', label: 'Cuenta Día Trabajado', render: (v) => (
+            <span className={cn(
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted/10 text-muted"
+            )}>{v ? 'Sí' : 'No'}</span>
+        )
+    },
 ];
 
 const tipoAusenciaCols: ColumnDef<TipoAusencia>[] = [

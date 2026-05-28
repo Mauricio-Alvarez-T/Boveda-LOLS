@@ -104,7 +104,12 @@ export function useAttendanceExport({
         text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
 
         const total = currentWorkers.length;
-        const counts: Record<string, number> = { A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0, PL: 0 };
+        // Contadores fijos siempre visibles + dinámico para otros códigos
+        // (NAC/DF/MT mig 065 — RH pidió desglose individual, sin PL).
+        const counts: Record<string, number> = {
+            A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0,
+            NAC: 0, DF: 0, MT: 0, PSG: 0,
+        };
 
         currentWorkers.forEach(w => {
             const state = currentAttendance[w.id];
@@ -113,16 +118,22 @@ export function useAttendanceExport({
             if (!est) return;
 
             let code = est.codigo;
-            if (['NAC', 'DEF', 'MAT'].includes(code)) code = 'PL';
+            // AT (atraso legacy) absorbido por JI. NAC/DF/MT NO consolidan.
             if (code === 'AT') code = 'JI';
 
             if (counts[code] !== undefined) counts[code]++;
-            else if (!est.es_presente) counts.PL++; 
         });
 
         text += `Total: ${total}\n`;
-        ['A', 'F', 'JI', 'TO', 'V', 'LM', 'PL'].forEach(c => {
+        // Mostrar siempre fijos. Códigos opcionales (NAC/DF/MT/PSG) solo si >0
+        // para evitar contaminar mensaje con líneas en cero.
+        ['A', 'F', 'JI', 'TO', 'V', 'LM'].forEach(c => {
             text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
+        });
+        ['NAC', 'DF', 'MT', 'PSG'].forEach(c => {
+            if (counts[c] > 0) {
+                text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
+            }
         });
         text += `\n`;
 

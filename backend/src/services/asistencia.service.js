@@ -1100,14 +1100,14 @@ const asistenciaService = {
         // semántica "estuvo físicamente presente" (es_presente, usada por
         // dashboard/fiscalización) de "se paga este día" (cuenta_dia_trabajado,
         // usada acá para el Excel de nómina). Vacaciones (V) y permisos legales
-        // pagados (PL) tienen es_presente=FALSE pero cuenta_dia_trabajado=TRUE.
-        // Se aplican las mismas consolidaciones de código (NAC/DEF/MAT→PL, AT→JI).
+        // (NAC/DF/MT) tienen es_presente=FALSE pero cuenta_dia_trabajado=TRUE.
+        // Mig 065 canonizó NAC/DF/MT como estados separados (sin consolidar a
+        // PL). AT (legacy) sí se consolida a JI porque está inactivo en BD.
         const codigosSumanDia = [...new Set(
             estados
                 .filter(e => e.cuenta_dia_trabajado)
                 .map(e => {
                     let cod = e.codigo;
-                    if (['NAC', 'DEF', 'MAT'].includes(cod)) cod = 'PL';
                     if (cod === 'AT') cod = 'JI';
                     return cod;
                 })
@@ -1158,11 +1158,9 @@ const asistenciaService = {
                 ...estados.map(est => {
                     let codigo = est.codigo;
                     let nombre = est.nombre || est.codigo;
-                    // Consolidación para la leyenda si son códigos obsoletos
-                    if (['NAC', 'DEF', 'MAT'].includes(codigo)) {
-                        codigo = 'PL';
-                        nombre = 'Permisos Legales';
-                    }
+                    // NAC/DF/MT son estados canónicos separados desde mig 065:
+                    // RH pidió desglose individual (no consolidar a PL legacy).
+                    // Solo AT (inactivo) sigue consolidándose a JI por compat.
                     if (codigo === 'AT') {
                         codigo = 'JI';
                         nombre = 'Jornada Incompleta';
@@ -1370,8 +1368,8 @@ const asistenciaService = {
                         const est = estadoMap[reg.estado_id];
                         let codigo = est ? est.codigo : '-';
 
-                        // Consolidación dinámica para el Excel
-                        if (['NAC', 'DEF', 'MAT'].includes(codigo)) codigo = 'PL';
+                        // Mig 065: NAC/DF/MT son códigos canónicos separados
+                        // (no consolidar a PL). Solo AT legacy → JI.
                         if (codigo === 'AT') codigo = 'JI';
 
                         // ── Ausencias propagadas a fin de semana / feriado ──

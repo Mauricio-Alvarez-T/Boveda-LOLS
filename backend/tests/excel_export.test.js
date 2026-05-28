@@ -339,4 +339,62 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         const cDesc = wsLols.getCell(9, 44);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
+
+    // ── Test 8: NAC/DF/MT individuales (no consolidan a PL) ──
+    test('NAC/DF/MT renderizan códigos propios y suman al total (mig 065)', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan',  apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 },
+            { id: 2, rut: '2-2', nombres: 'Maria', apellido_paterno: 'Soto',  empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 },
+            { id: 3, rut: '3-3', nombres: 'Luis',  apellido_paterno: 'Vega',  empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A',   nombre: 'Asistencia',  color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 7, codigo: 'NAC', nombre: 'Nacimiento',  color: '#F1C40F', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 8, codigo: 'DF',  nombre: 'Defunción',   color: '#34495E', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 9, codigo: 'MT',  nombre: 'Matrimonio',  color: '#E67E22', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 }
+        ];
+
+        // Viernes 13 marzo 2026: Juan→NAC, Maria→DF, Luis→MT
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 7 },
+            { trabajador_id: 2, fecha: '2026-03-13', estado_id: 8 },
+            { trabajador_id: 3, fecha: '2026-03-13', estado_id: 9 }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Día 13 = col 21 (dayColStart=9, dIdx=12 → 9+12=21)
+        // Juan (row 9) → NAC, Maria (row 10) → DF, Luis (row 11) → MT
+        expect(wsLols.getCell(9, 21).value).toBe('NAC');
+        expect(wsLols.getCell(10, 21).value).toBe('DF');
+        expect(wsLols.getCell(11, 21).value).toBe('MT');
+
+        // NINGUNA celda debe decir "PL" (consolidación removida)
+        for (let r = 9; r <= 11; r++) {
+            expect(wsLols.getCell(r, 21).value).not.toBe('PL');
+        }
+
+        // Fórmula COUNTIF Q1 de Juan debe contener "NAC", "DF", "MT"
+        // (codigosSumanDia incluye los tres porque cuenta_dia_trabajado=1)
+        const q1Cell = wsLols.getCell(9, 24);
+        const formula = q1Cell.value.formula;
+        expect(formula).toContain('"NAC"');
+        expect(formula).toContain('"DF"');
+        expect(formula).toContain('"MT"');
+        expect(formula).not.toContain('"PL"');
+    });
 });

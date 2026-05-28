@@ -76,6 +76,7 @@ export interface EstadoAsistencia {
     codigo: string;
     color: string;
     es_presente: boolean;
+    cuenta_dia_trabajado: boolean;
     activo: boolean;
 }
 

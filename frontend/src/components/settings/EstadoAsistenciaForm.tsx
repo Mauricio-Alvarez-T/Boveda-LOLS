@@ -10,6 +10,7 @@ interface EstadoFormData {
     codigo: string;
     color: string;
     es_presente: boolean;
+    cuenta_dia_trabajado: boolean;
 }
 
 interface Props {
@@ -24,7 +25,8 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
             nombre: '',
             codigo: '',
             color: '#34C759',
-            es_presente: false
+            es_presente: false,
+            cuenta_dia_trabajado: false
         }
     });
 
@@ -34,7 +36,8 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
                 nombre: initialData.nombre || '',
                 codigo: initialData.codigo || '',
                 color: initialData.color || '#34C759',
-                es_presente: initialData.es_presente || false
+                es_presente: initialData.es_presente || false,
+                cuenta_dia_trabajado: initialData.cuenta_dia_trabajado || false
             });
         }
     }, [initialData, reset]);
@@ -86,9 +89,23 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
                     className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
                 />
                 <label htmlFor="es_presente" className="text-xs text-brand-dark font-medium">
-                    Cuenta como presente (asistencia)
+                    Cuenta como presente (asistencia física)
                 </label>
             </div>
+            <div className="flex items-center gap-2">
+                <input
+                    type="checkbox"
+                    id="cuenta_dia_trabajado"
+                    {...register('cuenta_dia_trabajado')}
+                    className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                />
+                <label htmlFor="cuenta_dia_trabajado" className="text-xs text-brand-dark font-medium">
+                    Cuenta como día trabajado (paga nómina)
+                </label>
+            </div>
+            <p className="text-[10px] text-muted-foreground -mt-2">
+                Tip: Vacaciones / Nacimiento / Defunción / Matrimonio tienen "presente=No" pero "día trabajado=Sí".
+            </p>
 
             <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <button
