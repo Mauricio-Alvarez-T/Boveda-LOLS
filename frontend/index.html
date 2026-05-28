@@ -4,6 +4,18 @@
 <head>
   <meta name="google" content="notranslate" />
   <meta charset="UTF-8" />
+  <script>
+    // Anti-FOUC: aplica el tema guardado antes del primer paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('sgdl_theme');
+        var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (t === 'dark' || ((t === 'system' || !t) && sysDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) { /* noop */ }
+    })();
+  </script>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
   <link rel="manifest" href="/manifest.json">

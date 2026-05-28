@@ -16,7 +16,7 @@ export const MainLayout: React.FC = () => {
     return (
         <div className="flex min-h-screen bg-background">
             {/* Mobile Orientation Lock Overlay */}
-            <div className="fixed inset-0 z-[9999] bg-brand-dark flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
+            <div className="fixed inset-0 z-[9999] bg-[#1D1D1F] flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
                 <motion.div 
                     initial={{ rotate: 0 }}
                     animate={{ rotate: 90 }}
@@ -48,7 +48,7 @@ export const MainLayout: React.FC = () => {
             {/* Main Content Area */}
             <main className="flex-1 flex flex-col min-w-0 h-screen">
                 {/* Top Navbar — fixed above scroll area */}
-                <header className="shrink-0 h-14 md:h-16 border-b border-border bg-white/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
+                <header className="shrink-0 h-14 md:h-16 border-b border-border bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}
                     <button
                         onClick={() => setMobileOpen(true)}
