@@ -1291,7 +1291,19 @@ const asistenciaService = {
             horasOrdHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
             horasOrdHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const horasExtCol = horasOrdCol + 1;
+            // Columna "HRS DESCONTADAS (JI)" — suma horas no trabajadas por
+            // Jornada Incompleta del mes. RH pidió desglose explícito para
+            // distinguir descuentos por JI vs faltas/atrasos generales.
+            const horasDescCol = horasOrdCol + 1;
+            ws.mergeCells(7, horasDescCol, 8, horasDescCol);
+            const horasDescHeader = ws.getCell(7, horasDescCol);
+            horasDescHeader.value = 'HRS DESCONTADAS (JI)';
+            horasDescHeader.font = { bold: true, size: 8 };
+            horasDescHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            horasDescHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+            horasDescHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const horasExtCol = horasDescCol + 1;
             ws.mergeCells(7, horasExtCol, 8, horasExtCol);
             const horasExtHeader = ws.getCell(7, horasExtCol);
             horasExtHeader.value = 'TOTAL HRS EXTRA';
@@ -1323,6 +1335,8 @@ const asistenciaService = {
                 let sumHorasExtra = 0;
                 let sumHorasOrd = 0;
                 let sumMetaOrd = 0; // Para el cálculo de deficit
+                let sumHorasDescontadas = 0; // Descuento por JI del mes
+                const horasDescPorDia = {}; // dIdx → descuento del día (para nota)
                 const obrHorario = horariosMap[worker.obra_id] || defaultHorario;
 
                 days.forEach((day, dIdx) => {
@@ -1416,11 +1430,27 @@ const asistenciaService = {
                                 }
                                 customSchedule = true;
                             } else if (codigo === 'JI') {
-                                calc = 4.5; // Jornada Incompleta
+                                // JI sin marcas de reloj: media jornada exigida del día.
+                                // Si la obra tiene horario configurado, usar jornada/2.
+                                // Fallback 4.5 (= 9/2) si día sin config — retrocompat.
+                                const dayKeyJI = jsDaysMap[day.getDay()];
+                                const jornadaDiaJI = obrHorario[dayKeyJI];
+                                calc = (jornadaDiaJI && jornadaDiaJI > 0) ? jornadaDiaJI / 2 : 4.5;
                             } else {
                                 calc = 9; // Jornada Completa por defecto
                             }
                             sumHorasOrd += calc;
+
+                            // Acumular descuento del día por JI: diferencia entre
+                            // jornada esperada y horas reales/calculadas. Solo
+                            // para JI (no para A, V, TO, etc. que ya pagaron full).
+                            if (codigo === 'JI') {
+                                const dayKeyDesc = jsDaysMap[day.getDay()];
+                                const expectedDia = obrHorario[dayKeyDesc] || 9;
+                                const descuentoDia = Math.max(0, expectedDia - calc);
+                                sumHorasDescontadas += descuentoDia;
+                                horasDescPorDia[dIdx] = descuentoDia;
+                            }
                         }
 
                         // ── Observación como comentario en la celda ──
@@ -1434,11 +1464,15 @@ const asistenciaService = {
                         // renderiza glyphs SMP como cuadrados, y la caja del comentario
                         // (incluso con monkey patch) es limitada — preferimos texto
                         // ASCII para garantizar legibilidad en Excel y Google Sheets.
-                        if (customSchedule || hsExtra > 0) {
+                        if (customSchedule || hsExtra > 0 || codigo === 'JI') {
                             // Normaliza horas "08:00:00" → "08:00" para compactar
                             const fmtHora = (h) => (h ? String(h).slice(0, 5) : '');
                             let dText = `Detalle Horas:\n  Ordinarias: ${calc.toFixed(2)}`;
                             if (hsExtra > 0) dText += `\n  Extras: ${hsExtra.toFixed(2)}`;
+                            // JI: mostrar explícitamente las horas descontadas del día
+                            if (codigo === 'JI' && horasDescPorDia[dIdx] !== undefined) {
+                                dText += `\n  Descontadas (JI): ${horasDescPorDia[dIdx].toFixed(2)}`;
+                            }
 
                             if (customSchedule) {
                                 dText += `\n\nMarcas de Reloj:\n  Ent: ${fmtHora(reg.hora_entrada)}   Sal: ${fmtHora(reg.hora_salida)}`;
@@ -1516,7 +1550,15 @@ const asistenciaService = {
                 const cOrd = ws.getCell(rowIdx, horasOrdCol);
                 cOrd.value = deficitBalance;
                 cOrd.numFmt = '0.00';
-                
+
+                // Horas descontadas SOLO por JI del mes (RH: desglose explícito)
+                const cDesc = ws.getCell(rowIdx, horasDescCol);
+                cDesc.value = sumHorasDescontadas;
+                cDesc.numFmt = '0.00';
+                cDesc.font = { bold: true, size: 9, color: sumHorasDescontadas > 0 ? { argb: 'FFCC6600' } : undefined };
+                cDesc.alignment = { horizontal: 'center', vertical: 'middle' };
+                cDesc.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
                 const cExt = ws.getCell(rowIdx, horasExtCol);
                 cExt.value = incluirHorasExtra ? sumHorasExtra : '';
                 cExt.numFmt = '0.00';
@@ -1579,6 +1621,7 @@ const asistenciaService = {
             ws.getColumn(q2Col).width = 10;
             ws.getColumn(totalCol).width = 10;
             ws.getColumn(horasOrdCol).width = 13;
+            ws.getColumn(horasDescCol).width = 13;
             ws.getColumn(horasExtCol).width = 13;
             ws.getColumn(obsCol).width = 20;
         }
