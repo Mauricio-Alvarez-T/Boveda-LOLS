@@ -197,8 +197,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         autoFocus
                                     />
                                     <span className="text-xs font-bold">%</span>
-                                    <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 rounded-md"><Check className="h-3 w-3" /></button>
-                                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 rounded-md"><X className="h-3 w-3" /></button>
+                                    <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-md"><Check className="h-3 w-3" /></button>
+                                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-md"><X className="h-3 w-3" /></button>
                                 </div>
                             ) : (
                                 <button
@@ -266,7 +266,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                         {/* Item row — tap to expand */}
                                                         <button
                                                             onClick={() => toggleItem(item.id)}
-                                                            className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 transition-colors text-left"
+                                                            className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 dark:active:bg-blue-950/30 transition-colors text-left"
                                                         >
                                                             <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
                                                                 <span className="text-[10px] font-bold text-muted-foreground">#{item.nro_item}</span>
@@ -327,8 +327,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-24 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-right font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button type="button" aria-label="Guardar valor de arriendo" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Guardar valor de arriendo" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <button
@@ -363,8 +363,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-20 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button type="button" aria-label="Guardar cantidad" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Guardar cantidad" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                         </div>
                                                                     ) : (
                                                                         <button
@@ -373,8 +373,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                             className={cn(
                                                                                 "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold",
                                                                                 item.cantidad > 0
-                                                                                    ? "bg-blue-50 text-blue-700 border border-blue-200"
-                                                                                    : "bg-gray-50 text-gray-400 border border-gray-200",
+                                                                                    ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
+                                                                                    : "bg-gray-50 text-gray-400 border border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border",
                                                                                 canEdit && "active:scale-95 transition-transform"
                                                                             )}
                                                                         >
@@ -444,7 +444,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     </td>
                                 </tr>
                                 {!collapsed && cat.items.map((item, idx) => (
-                                    <tr key={item.id} className={cn("hover:bg-blue-50/30 transition-colors", idx % 2 === 0 ? "bg-card" : "bg-muted")}>
+                                    <tr key={item.id} className={cn("hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors", idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-border">{item.nro_item}</td>
                                         <td className="px-2 py-1 font-medium text-brand-dark truncate max-w-[250px] border-r border-b border-border">
                                             <button
@@ -496,11 +496,11 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         {/* Grand total */}
                         <tr className="border-t-2 border-brand-primary/30">
                             <td colSpan={6} className="bg-muted px-3 py-2.5 text-right font-black text-xs text-brand-dark">TOTAL FACTURACIÓN</td>
-                            <td className="bg-success/10 px-2 py-2.5 text-right font-black text-xs text-brand-primary">{fmtMoney(data.total_facturacion)}</td>
+                            <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-primary">{fmtMoney(data.total_facturacion)}</td>
                         </tr>
                         {/* Discount row — always visible, editable */}
                         <tr>
-                            <td colSpan={6} className="bg-warning/10 px-3 py-2 text-right font-bold text-xs text-muted-foreground">
+                            <td colSpan={6} className="bg-amber-50 dark:bg-amber-950 px-3 py-2 text-right font-bold text-xs text-muted-foreground">
                                 {editingCell === 'descuento' ? (
                                     <div className="flex items-center justify-end gap-1">
                                         <span className="text-muted-foreground">Descuento</span>
@@ -522,7 +522,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     <span
                                         onClick={() => editarDescuento ? startEdit('descuento', data.descuento_porcentaje) : undefined}
                                         className={cn(
-                                            editarDescuento && "cursor-pointer hover:bg-amber-100 hover:ring-1 hover:ring-amber-300 rounded px-2 py-0.5 transition-all"
+                                            editarDescuento && "cursor-pointer hover:bg-amber-100 dark:hover:bg-amber-950/40 hover:ring-1 hover:ring-amber-300 dark:hover:ring-amber-800 rounded px-2 py-0.5 transition-all"
                                         )}
                                         title={editarDescuento ? 'Click para editar descuento' : undefined}
                                     >
@@ -530,14 +530,14 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     </span>
                                 )}
                             </td>
-                            <td className="bg-warning/10 px-2 py-2 text-right font-bold text-xs text-destructive">
+                            <td className="bg-amber-50 dark:bg-amber-950 px-2 py-2 text-right font-bold text-xs text-destructive">
                                 {data.descuento_monto > 0 ? `-${fmtMoney(data.descuento_monto)}` : '$0'}
                             </td>
                         </tr>
                         {data.descuento_porcentaje > 0 && (
                             <tr className="border-t-2 border-brand-accent/30">
                                 <td colSpan={6} className="bg-muted px-3 py-2.5 text-right font-black text-xs text-brand-dark">TOTAL CON DESCUENTO</td>
-                                <td className="bg-success/10 px-2 py-2.5 text-right font-black text-xs text-brand-accent">{fmtMoney(data.total_con_descuento)}</td>
+                                <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-accent">{fmtMoney(data.total_con_descuento)}</td>
                             </tr>
                         )}
                         </>)}
