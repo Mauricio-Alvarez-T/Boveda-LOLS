@@ -97,4 +97,25 @@ describe('asistenciaService.batchSave (P1.1)', () => {
         ).rejects.toThrow(/fines de semana/);
         expect(mockConn.rollback).toHaveBeenCalled();
     });
+
+    // Regla operativa (punto 12 del checklist jefatura): pasado sin tope,
+    // futuro máximo 30 días desde hoy. Se calcula la fecha de prueba sumándole
+    // 40 días a "hoy" para que el test sea determinista en cualquier fecha.
+    // Si cayera fin de semana, se ajusta al lunes siguiente para no chocar con
+    // la otra validación.
+    test('rechaza fechas más de 30 días en el futuro', async () => {
+        const d = new Date();
+        d.setDate(d.getDate() + 40);
+        while (d.getDay() === 0 || d.getDay() === 6) d.setDate(d.getDate() + 1);
+        const fechaLejana = d.toISOString().split('T')[0];
+
+        const registros = [{
+            trabajador_id: 1, obra_id: 10, fecha: fechaLejana,
+            estado_id: 1
+        }];
+        await expect(
+            asistenciaService.batchSave(registros, 1, {})
+        ).rejects.toThrow(/30 días en el futuro/);
+        expect(mockConn.rollback).toHaveBeenCalled();
+    });
 });

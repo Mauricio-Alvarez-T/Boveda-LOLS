@@ -166,6 +166,22 @@ const asistenciaService = {
                 }
             }
 
+            // Tope futuro: máximo 30 días desde hoy (regla operativa jefatura).
+            // Pasado no se limita — se puede registrar histórico sin restricción.
+            // Hoy se calcula en zona horaria local del servidor (cPanel = Chile).
+            const MAX_DIAS_FUTURO = 30;
+            const limiteFuturo = new Date();
+            limiteFuturo.setDate(limiteFuturo.getDate() + MAX_DIAS_FUTURO);
+            const limiteFuturoStr = limiteFuturo.toISOString().split('T')[0];
+            for (const fecha of fechasUnicas) {
+                if (fecha > limiteFuturoStr) {
+                    throw Object.assign(
+                        new Error(`No se puede registrar asistencia más de ${MAX_DIAS_FUTURO} días en el futuro (${fecha} excede ${limiteFuturoStr})`),
+                        { statusCode: 400 }
+                    );
+                }
+            }
+
             // Batch feriados: 1 query para todas las fechas
             const [feriadosRows] = await conn.query(
                 'SELECT fecha FROM feriados WHERE fecha IN (?) AND activo = 1',

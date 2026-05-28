@@ -32,6 +32,10 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     searchQuery,
     setSearchQuery
 }) => {
+    // Tope: máximo 30 días futuros para selección de fecha (regla operativa).
+    // Pasado no se limita. El navegador deshabilita días posteriores en el calendario.
+    const maxFecha = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+
     return (
         <>
             {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
@@ -45,6 +49,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                         <input
                             type="date"
                             value={date}
+                            max={maxFecha}
                             onChange={(e) => setDate(e.target.value)}
                             className="bg-transparent text-sm text-brand-dark font-black focus:outline-none text-center cursor-pointer uppercase tracking-tight"
                         />
@@ -105,6 +110,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     <input
                                         type="date"
                                         value={date}
+                                        max={maxFecha}
                                         onChange={(e) => setDate(e.target.value)}
                                         className="w-[105px] lg:w-[115px] bg-transparent text-[10px] lg:text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
                                     />
