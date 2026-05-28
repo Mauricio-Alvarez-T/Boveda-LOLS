@@ -133,7 +133,7 @@ const InventarioItemCard: React.FC<Props> = ({
             )}
 
             {/* ══════ IMAGE AREA ══════ */}
-            <div className="relative h-36 bg-gradient-to-br from-[#F8F9FC] to-[#F0F1F5] flex items-center justify-center overflow-hidden">
+            <div className="relative h-36 bg-muted flex items-center justify-center overflow-hidden">
                 {imageUrl ? (
                     <img
                         src={imageUrl}

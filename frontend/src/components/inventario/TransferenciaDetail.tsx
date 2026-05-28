@@ -1539,7 +1539,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
-                                <tr className="bg-white/60 border-b border-border">
+                                <tr className="bg-muted/40 border-b border-border">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Ítem</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Enviada</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Falta</th>
@@ -1664,7 +1664,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
 
                     {/* Sticky footer: checkbox + totales + botones */}
-                    <div className="border-t border-brand-primary/20 bg-white/60 px-4 py-3 space-y-3">
+                    <div className="border-t border-brand-primary/20 bg-muted/40 px-4 py-3 space-y-3">
                         {/* Checkbox "entrega final" — solo visible si hay faltantes */}
                         {hayFaltantes && (
                             <label className="flex items-start gap-2 cursor-pointer group">
