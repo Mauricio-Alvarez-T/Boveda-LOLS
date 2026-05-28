@@ -26,7 +26,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                     <input
                         type={type}
                         className={cn(
-                            "flex h-11 w-full rounded-xl border border-border bg-white py-2 text-base text-brand-dark ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[#B0B0B5]",
+                            "flex h-11 w-full rounded-xl border border-border bg-card py-2 text-base text-brand-dark ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[var(--border-hover)]",
                             leftIcon ? "pl-10 pr-4" : "px-4",
                             error && "border-destructive focus-visible:ring-destructive/30 focus-visible:border-destructive",
                             className

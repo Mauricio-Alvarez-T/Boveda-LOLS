@@ -81,7 +81,7 @@ const TransferenciasList: React.FC<Props> = ({
                     value={searchQuery}
                     onChange={e => onSearchChange(e.target.value)}
                     placeholder="Buscar por código..."
-                    className="w-full pl-8 pr-8 py-2 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                 />
                 {searchQuery && (
                     <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
@@ -91,7 +91,7 @@ const TransferenciasList: React.FC<Props> = ({
             </div>
 
             {/* Status filter — Mobile: icon + short label stacked */}
-            <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 mb-3 shadow-sm">
+            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
@@ -153,7 +153,7 @@ const TransferenciasList: React.FC<Props> = ({
                                         : "bg-brand-primary text-white border-brand-primary shadow-sm"
                                     : isDiscrep && discrepanciasCount > 0
                                         ? "bg-red-50 text-red-700 border-red-200 hover:border-red-300"
-                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
+                                        : "bg-card text-muted-foreground border-border hover:border-brand-primary/30"
                             )}
                         >
                             <ChipIcon className="h-3 w-3" />
@@ -208,7 +208,7 @@ const TransferenciasList: React.FC<Props> = ({
                                     borderLeft,
                                     isSelected
                                         ? "bg-brand-primary/[0.06] shadow-sm ring-1 ring-brand-primary/20"
-                                        : "bg-white hover:bg-[#F8F9FC]"
+                                        : "bg-card hover:bg-muted"
                                 )}
                             >
                                 {/* Icono estado */}

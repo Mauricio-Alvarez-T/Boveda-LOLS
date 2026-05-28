@@ -102,7 +102,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                 aria-label="Ampliar imagen del ítem"
                                 title="Ampliar imagen"
                                 onClick={() => setImageZoom(true)}
-                                className="w-full h-64 sm:h-72 flex items-center justify-center overflow-hidden rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] hover:border-brand-primary/30 transition-all group"
+                                className="w-full h-64 sm:h-72 flex items-center justify-center overflow-hidden rounded-xl border border-border bg-muted hover:border-brand-primary/30 transition-all group"
                             >
                                 <img
                                     src={imageUrl}
@@ -111,7 +111,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                 />
                             </button>
                         ) : (
-                            <div className="w-full h-64 sm:h-72 rounded-xl border border-[#E8E8ED] bg-[#F9F9FB] flex flex-col items-center justify-center gap-2">
+                            <div className="w-full h-64 sm:h-72 rounded-xl border border-border bg-muted flex flex-col items-center justify-center gap-2">
                                 <ImageOff className="h-10 w-10 text-muted-foreground/20" />
                                 <p className="text-[10px] text-muted-foreground/50">Sin imagen</p>
                             </div>
@@ -130,7 +130,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                     type="button"
                                     aria-label={`Copiar número de ítem ${item.nro_item}`}
                                     onClick={copyNroItem}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-[#F5F7FA] border border-[#E8E8ED] hover:border-brand-primary/30 text-[10px] font-bold text-muted-foreground transition-all"
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted border border-border hover:border-brand-primary/30 text-[10px] font-bold text-muted-foreground transition-all"
                                     title="Copiar número de ítem"
                                 >
                                     #{item.nro_item}
@@ -143,22 +143,22 @@ const ItemDetailModal: React.FC<Props> = ({
 
                             {/* Métricas */}
                             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <div className="rounded-xl border border-[#E8E8ED] bg-white px-3 py-2">
+                                <div className="rounded-xl border border-border bg-card px-3 py-2">
                                     <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
                                     <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_arriendo)}</p>
                                 </div>
                                 {item.valor_compra > 0 && (
-                                    <div className="rounded-xl border border-[#E8E8ED] bg-white px-3 py-2">
+                                    <div className="rounded-xl border border-border bg-card px-3 py-2">
                                         <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
                                         <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_compra)}</p>
                                     </div>
                                 )}
-                                <div className="rounded-xl border border-[#E8E8ED] bg-white px-3 py-2">
+                                <div className="rounded-xl border border-border bg-card px-3 py-2">
                                     <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">Unidad</p>
                                     <p className="text-sm font-black text-brand-dark">{item.unidad}</p>
                                 </div>
                                 {item.m2 && item.m2 > 0 && (
-                                    <div className="rounded-xl border border-[#E8E8ED] bg-white px-3 py-2">
+                                    <div className="rounded-xl border border-border bg-card px-3 py-2">
                                         <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">M²</p>
                                         <p className="text-sm font-black text-brand-dark">{item.m2.toFixed(2)}</p>
                                     </div>
@@ -167,8 +167,8 @@ const ItemDetailModal: React.FC<Props> = ({
                         </div>
 
                         {/* ═══ STOCK POR UBICACIÓN ═══ */}
-                        <div className="rounded-xl border border-[#E8E8ED] overflow-hidden">
-                            <div className="px-3 py-2 bg-[#F5F7FA] border-b border-[#E8E8ED] flex items-center justify-between">
+                        <div className="rounded-xl border border-border overflow-hidden">
+                            <div className="px-3 py-2 bg-muted border-b border-border flex items-center justify-between">
                                 <span className="text-[10px] font-black uppercase tracking-wider text-brand-dark">
                                     Ubicaciones
                                 </span>
@@ -191,7 +191,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                     <p className="text-xs text-muted-foreground">Sin stock registrado</p>
                                 </div>
                             ) : (
-                                <div className="divide-y divide-[#F0F0F5]">
+                                <div className="divide-y divide-border">
                                     {/* Bodegas primero — prioridad de visualización (requerimiento):
                                         el stock en bodega se muestra arriba, luego lo que hay por obra. */}
                                     {bodegas.map(loc => (

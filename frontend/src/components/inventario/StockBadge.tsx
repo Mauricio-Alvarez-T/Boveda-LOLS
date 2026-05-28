@@ -77,7 +77,7 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
             {hover && hasBreakdown && coords && createPortal(
                 <div
                     style={{ top: coords.top, left: coords.left, position: 'fixed', zIndex: 9999 }}
-                    className="bg-white border border-[#E8E8ED] rounded-xl shadow-lg px-3 py-2 text-[11px] min-w-[180px] pointer-events-none"
+                    className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-[11px] min-w-[180px] pointer-events-none"
                 >
                     <div className="font-bold text-brand-dark mb-1.5">Stock por ubicación</div>
                     <div className="space-y-0.5">
@@ -88,7 +88,7 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
                             </div>
                         ))}
                     </div>
-                    <div className="mt-1.5 pt-1.5 border-t border-[#E8E8ED] flex justify-between font-bold">
+                    <div className="mt-1.5 pt-1.5 border-t border-border flex justify-between font-bold">
                         <span>Total</span>
                         <span className="font-mono">{disponible} {unidad}</span>
                     </div>

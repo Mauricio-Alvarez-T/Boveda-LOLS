@@ -229,7 +229,7 @@ const AttendanceDailyTab: React.FC = () => {
                                 placeholder="Buscar trabajador..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full h-11 pl-11 pr-10 bg-white border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
+                                className="w-full h-11 pl-11 pr-10 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
                             />
                             {searchQuery && (
                                 <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all">
@@ -244,19 +244,19 @@ const AttendanceDailyTab: React.FC = () => {
             {loading ? (
                 <div className="flex flex-col gap-3 p-4">
                     {[1, 2, 3, 4, 5, 6].map((i) => (
-                        <div key={i} className="h-20 w-full bg-white rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse shadow-sm">
+                        <div key={i} className="h-20 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse shadow-sm">
                             <div className="h-10 w-10 rounded-xl bg-slate-100 shrink-0" />
                             <div className="flex-1 space-y-2"><div className="h-4 w-1/3 bg-slate-100 rounded" /><div className="h-3 w-1/4 bg-slate-50 rounded" /></div>
                         </div>
                     ))}
                 </div>
             ) : workers.length === 0 ? (
-                <div className="bg-white rounded-2xl border border-border py-20 text-center">
+                <div className="bg-card rounded-2xl border border-border py-20 text-center">
                     <Users className="h-10 w-10 text-muted mx-auto mb-4 opacity-40" />
                     <p className="text-muted-foreground text-sm">No hay trabajadores asignados a esta obra.</p>
                 </div>
             ) : (
-                <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
+                <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
 
                     <AttendanceSummaryRow
                         date={date}
@@ -270,7 +270,7 @@ const AttendanceDailyTab: React.FC = () => {
                         setSearchQuery={setSearchQuery}
                     />
 
-                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4 flex flex-col gap-2 relative">
+                    <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">
                         <AnimatePresence>
                             {(isSaturday || isSunday || !!feriadoActual) && (
                                 <motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-center gap-4 mb-2 shadow-sm shrink-0">
@@ -307,9 +307,9 @@ const AttendanceDailyTab: React.FC = () => {
                                         key={`${worker.id}-${date}`}
                                         title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
                                         className={cn(
-                                            "transition-all duration-200 bg-white rounded-2xl border border-[#E8E8ED] shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
+                                            "transition-all duration-200 bg-card rounded-2xl border border-border shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
                                             markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
-                                            (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-white/90",
+                                            (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-card/90",
                                             feriadoActual && "bg-destructive/[0.02]",
                                             workerAlerta && "bg-red-50/80 border-red-300/60 ring-1 ring-red-200/50 shadow-[0_4px_16px_rgb(239,68,68,0.10)]"
                                         )}
@@ -327,7 +327,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                         <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 border border-red-200/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 shrink-0" /><span className="text-[9px] font-bold text-red-600 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
                                                     )}
                                                 </div>
-                                                <button onClick={() => setCalendarWorker(worker)} className="h-10 w-10 rounded-xl bg-white flex items-center justify-center text-brand-primary border border-brand-primary/20 shadow-sm active:scale-90 transition-all shrink-0" title="Ver Calendario"><CalendarDays className="h-5 w-5" /></button>
+                                                <button onClick={() => setCalendarWorker(worker)} className="h-10 w-10 rounded-xl bg-card flex items-center justify-center text-brand-primary border border-brand-primary/20 shadow-sm active:scale-90 transition-all shrink-0" title="Ver Calendario"><CalendarDays className="h-5 w-5" /></button>
                                             </div>
 
                                             <div className="flex gap-1.5 items-stretch h-12">
@@ -336,7 +336,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                     if (!est) return null;
                                                     const isActive = state.estado_id === est.id;
                                                     return (
-                                                        <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
+                                                        <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
                                                     );
                                                 })}
                                                 <div className="relative flex-1">
@@ -344,7 +344,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                         const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
                                                         const activeSecondary = secondary.find(e => e.id === state.estado_id);
                                                         return (
-                                                            <select className={cn("w-full h-full rounded-xl text-[10px] font-black uppercase appearance-none text-center px-1 border transition-all truncate bg-white outline-none active:scale-95", activeSecondary ? "text-white border-transparent shadow-md" : "bg-white border-[#E8E8ED] text-muted-foreground/60")} style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
+                                                            <select className={cn("w-full h-full rounded-xl text-[10px] font-black uppercase appearance-none text-center px-1 border transition-all truncate bg-card outline-none active:scale-95", activeSecondary ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
                                                                     const estId = parseInt(e.target.value);
                                                                     const est = estados.find(x => x.id === estId);
                                                                     if (est) applyStatusChange(worker, est);
@@ -364,8 +364,8 @@ const AttendanceDailyTab: React.FC = () => {
                                         <div className={cn("hidden md:block px-4 lg:px-6 py-3 lg:py-4 group", markedRows.has(idx) && "bg-brand-primary/5 rounded-2xl")}>
                                             {/* ── lg+: original 5-column grid ── */}
                                             <div className="hidden lg:grid grid-cols-[50px_minmax(180px,280px)_1fr_140px_56px] gap-3 items-center">
-                                                <div className="flex justify-center"><button onClick={() => toggleMarkedRow(idx)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110" : "bg-slate-50 text-slate-500 border-slate-200 hover:border-brand-primary/30 hover:bg-white hover:text-brand-primary active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button></div>
-                                                <div className="flex items-center gap-3 min-w-0 border-l border-[#E8E8ED]/40 pl-3 group-hover:border-brand-primary/30 transition-colors">
+                                                <div className="flex justify-center"><button onClick={() => toggleMarkedRow(idx)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110" : "bg-slate-50 text-slate-500 border-slate-200 hover:border-brand-primary/30 hover:bg-card hover:text-brand-primary active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button></div>
+                                                <div className="flex items-center gap-3 min-w-0 border-l border-border/40 pl-3 group-hover:border-brand-primary/30 transition-colors">
                                                     <div className="min-w-0">
                                                         <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[12px] truncate block font-bold text-slate-700 hover:text-brand-primary transition-colors">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
                                                         <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><span className="bg-slate-100 px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 pl-1.5">{worker.cargo_nombre}</span>}</p>
@@ -378,7 +378,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                             const est = estados.find(e => e.codigo === code);
                                                             if (!est) return null;
                                                             const isActive2 = state.estado_id === est.id;
-                                                            return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                            return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                         })}
                                                         <div className="relative min-w-[80px] flex-shrink-0">
                                                             {(() => {
@@ -386,7 +386,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                                 const activeSecondary = secondary.find(e => e.id === state.estado_id);
                                                                 return (
                                                                     <div className="relative h-8 group/select">
-                                                                        <select className={cn("h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
+                                                                        <select className={cn("h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-card outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
                                                                                 const estId = parseInt(e.target.value);
                                                                                 const est = estados.find(x => x.id === estId);
                                                                                 if (est) applyStatusChange(worker, est);
@@ -433,7 +433,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                             const est = estados.find(e => e.codigo === code);
                                                             if (!est) return null;
                                                             const isActive2 = state.estado_id === est.id;
-                                                            return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-[9px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-white border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                            return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-[9px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 text-slate-400 hover:border-slate-300 hover:text-slate-600 active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                         })}
                                                         <div className="relative min-w-[60px] flex-shrink-0">
                                                             {(() => {
@@ -441,7 +441,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                                 const activeSecondary = secondary.find(e => e.id === state.estado_id);
                                                                 return (
                                                                     <div className="relative h-7 group/select">
-                                                                        <select className={cn("h-full w-full pl-2 pr-5 rounded-lg text-[9px] font-black uppercase appearance-none border transition-all truncate bg-white outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
+                                                                        <select className={cn("h-full w-full pl-2 pr-5 rounded-lg text-[9px] font-black uppercase appearance-none border transition-all truncate bg-card outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 text-slate-400 hover:border-slate-300")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
                                                                                 const estId = parseInt(e.target.value);
                                                                                 const est = estados.find(x => x.id === estId);
                                                                                 if (est) applyStatusChange(worker, est);
@@ -463,7 +463,7 @@ const AttendanceDailyTab: React.FC = () => {
 
                                         <AnimatePresence>
                                             {isExpanded && (
-                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-[#FAFAFA]">
+                                                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden bg-muted">
                                                     <div className="px-3 md:px-5 pb-4 pt-2 grid grid-cols-2 md:grid-cols-5 gap-3">
                                                         <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Entrada" value={state.hora_entrada || ''} onChange={(val) => updateAttendance(worker.id, { hora_entrada: val || null })} />
                                                         <TimeStepperInput disabled={!!feriadoActual || isSunday || isSaturday} label="Salida" value={state.hora_salida || ''} onChange={(val) => updateAttendance(worker.id, { hora_salida: val || null })} />
@@ -473,12 +473,12 @@ const AttendanceDailyTab: React.FC = () => {
                                                             {verHorasExtra && (
                                                                 <div>
                                                                     <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
-                                                                    <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                                    <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                                 </div>
                                                             )}
                                                             <div>
                                                                 <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
-                                                                <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
+                                                                <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
                                                             </div>
                                                         </div>
                                                     </div>
@@ -491,7 +491,7 @@ const AttendanceDailyTab: React.FC = () => {
                         </AnimatePresence>
                     </div>
 
-                    <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
+                    <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
                         <div className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
                             <span>{filteredWorkers.length} {filteredWorkers.length === 1 ? 'trabajador' : 'trabajadores'}</span>

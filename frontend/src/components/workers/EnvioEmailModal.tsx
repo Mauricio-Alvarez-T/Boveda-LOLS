@@ -144,7 +144,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                 "shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border",
                                 selectedId === p.id
                                     ? "bg-brand-primary text-white border-brand-primary"
-                                    : "bg-white text-brand-dark border-border"
+                                    : "bg-card text-brand-dark border-border"
                             )}
                         >
                             {p.nombre}
@@ -160,7 +160,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     value={emailDestino}
                     onChange={(e) => setEmailDestino(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
+                    className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
                 />
             </div>
 
@@ -185,12 +185,12 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 {editMode ? (
                     <textarea
                         rows={isMobile ? 6 : 10}
-                        className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
+                        className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
                         value={cuerpo}
                         onChange={(e) => setCuerpo(e.target.value)}
                     />
                 ) : (
-                    <div className="w-full min-h-[120px] md:min-h-[200px] rounded-xl border border-[#E8E8ED] bg-background px-4 py-3 text-sm text-brand-dark whitespace-pre-line">
+                    <div className="w-full min-h-[120px] md:min-h-[200px] rounded-xl border border-border bg-background px-4 py-3 text-sm text-brand-dark whitespace-pre-line">
                         {cuerpo || <span className="text-muted italic">Selecciona una plantilla o escribe un mensaje</span>}
                     </div>
                 )}
@@ -215,7 +215,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
     return (
         <AnimatePresence>
             {/* ── MOBILE: Fullscreen ── */}
-            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-white">
+            <div className="md:hidden fixed inset-0 z-50 flex flex-col bg-card">
                 <motion.div
                     initial={{ opacity: 0, x: 60 }}
                     animate={{ opacity: 1, x: 0 }}
@@ -224,7 +224,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     className="flex flex-col h-full"
                 >
                     {/* Nav bar */}
-                    <div className="flex items-center gap-3 px-4 py-3 border-b border-[#E8E8ED] bg-white/80 backdrop-blur-xl shrink-0">
+                    <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-xl shrink-0">
                         <button onClick={onClose} className="flex items-center gap-1 text-brand-primary text-sm font-medium">
                             <ChevronLeft className="h-5 w-5" />
                             <span>Volver</span>
@@ -237,7 +237,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                         </div>
                     </div>
 
-                    <div className="px-4 py-2 bg-background border-b border-[#E8E8ED] shrink-0">
+                    <div className="px-4 py-2 bg-background border-b border-border shrink-0">
                         <p className="text-xs text-muted-foreground italic">
                             El reporte se generará con los filtros aplicados en la tabla.
                         </p>
@@ -253,7 +253,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                         </div>
                     )}
 
-                    <div className="px-4 py-3 border-t border-[#E8E8ED] bg-background flex justify-end gap-3 shrink-0">
+                    <div className="px-4 py-3 border-t border-border bg-background flex justify-end gap-3 shrink-0">
                         <FooterButtons />
                     </div>
                 </motion.div>
@@ -273,10 +273,10 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.96, y: 8 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                    className="relative w-full max-w-2xl bg-white rounded-2xl shadow-2xl overflow-hidden"
+                    className="relative w-full max-w-2xl bg-card rounded-2xl shadow-2xl overflow-hidden"
                 >
                     {/* Header */}
-                    <div className="flex items-center justify-between px-6 py-4 border-b border-[#E8E8ED]">
+                    <div className="flex items-center justify-between px-6 py-4 border-b border-border">
                         <div className="flex items-center gap-3">
                             <div className="h-8 w-8 rounded-lg bg-brand-primary/10 flex items-center justify-center">
                                 <Mail className="h-4 w-4 text-brand-primary" />
@@ -301,7 +301,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                         <div className="flex max-h-[70vh] overflow-hidden">
                             {/* Left: Template List */}
                             {plantillas.length > 0 && (
-                                <div className="w-52 flex-shrink-0 border-r border-[#E8E8ED] overflow-y-auto bg-background">
+                                <div className="w-52 flex-shrink-0 border-r border-border overflow-y-auto bg-background">
                                     <p className="text-[10px] font-bold uppercase tracking-wider text-muted px-4 pt-4 pb-2">
                                         Plantillas
                                     </p>
@@ -311,7 +311,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                             onClick={() => handleSelectPlantilla(p)}
                                             className={cn(
                                                 "w-full flex items-start gap-2 px-4 py-3 text-left hover:bg-white/60 transition-colors",
-                                                selectedId === p.id ? "bg-white text-brand-primary" : "text-brand-dark"
+                                                selectedId === p.id ? "bg-card text-brand-primary" : "text-brand-dark"
                                             )}
                                         >
                                             <div className="flex-1 min-w-0">
@@ -335,7 +335,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     )}
 
                     {/* Footer */}
-                    <div className="flex justify-end gap-3 px-6 py-4 border-t border-[#E8E8ED] bg-background">
+                    <div className="flex justify-end gap-3 px-6 py-4 border-t border-border bg-background">
                         <FooterButtons />
                     </div>
                 </motion.div>

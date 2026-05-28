@@ -137,7 +137,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
         <>
             {/* Estado selector */}
             <div className="mb-5">
-                <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     Estado de ausencia
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -148,7 +148,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                             className={`p-3 rounded-xl border-2 text-left transition-all ${
                                 estadoId === est.id
                                     ? 'border-current shadow-lg scale-[1.02]'
-                                    : 'border-[#E8E8ED] hover:border-border'
+                                    : 'border-border hover:border-border'
                             }`}
                             style={estadoId === est.id ? { borderColor: est.color, backgroundColor: `${est.color}08` } : {}}
                         >
@@ -159,7 +159,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                 />
                                 <span className="text-sm font-semibold text-brand-dark">{est.nombre}</span>
                             </div>
-                            <span className="text-[10px] text-[#86868B] font-medium mt-0.5 block">{est.codigo}</span>
+                            <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">{est.codigo}</span>
                         </button>
                     ))}
                 </div>
@@ -168,18 +168,18 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             {/* Date range */}
             <div className="grid grid-cols-2 gap-3 mb-5">
                 <div>
-                    <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                         Fecha inicio
                     </label>
                     <input
                         type="date"
                         value={fechaInicio}
                         onChange={e => setFechaInicio(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                     />
                 </div>
                 <div>
-                    <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                         Fecha fin
                     </label>
                     <input
@@ -187,7 +187,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                         value={fechaFin}
                         onChange={e => setFechaFin(e.target.value)}
                         min={fechaInicio}
-                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                     />
                 </div>
             </div>
@@ -222,7 +222,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                         <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                         <div>
                             <p className="text-xs font-bold text-warning">Superposición detectada</p>
-                            <p className="text-xs text-[#86868B] mt-1">
+                            <p className="text-xs text-muted-foreground mt-1">
                                 {overlappingPeriods.length === 1 ? 'Un período existente' : `${overlappingPeriods.length} períodos existentes`} se
                                 superpone{overlappingPeriods.length > 1 ? 'n' : ''} con este rango y será{overlappingPeriods.length > 1 ? 'n' : ''} reemplazado{overlappingPeriods.length > 1 ? 's' : ''}:
                             </p>
@@ -238,7 +238,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
 
             {/* Observacion */}
             <div className="mb-5">
-                <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                     Observación <span className="font-normal">(opcional)</span>
                 </label>
                 <textarea
@@ -246,19 +246,19 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                     onChange={e => setObservacion(e.target.value)}
                     placeholder="Ej: Licencia médica presentada el día..."
                     rows={2}
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                 />
             </div>
 
             {/* Existing periods list */}
             {existingPeriods.length > 0 && (
                 <div className="mb-5">
-                    <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                         Períodos activos
                     </label>
                     <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
                         {existingPeriods.map(p => (
-                            <div key={p.id} className="flex flex-col gap-1 p-2 rounded-xl bg-white border border-[#E8E8ED] shadow-sm">
+                            <div key={p.id} className="flex flex-col gap-1 p-2 rounded-xl bg-card border border-border shadow-sm">
                                 <div className="flex items-center justify-between gap-2">
                                     <div className="flex items-center gap-2 overflow-hidden">
                                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: p.estado_color }} />
@@ -288,7 +288,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                         hasPermission('asistencia.periodo.eliminar') && (
                                             <button 
                                                 onClick={() => setDeletingPeriodId(p.id)}
-                                                className="p-1.5 rounded-lg hover:bg-destructive/5 text-[#86868B] hover:text-destructive transition-colors shrink-0"
+                                                className="p-1.5 rounded-lg hover:bg-destructive/5 text-muted-foreground hover:text-destructive transition-colors shrink-0"
                                                 title="Eliminar período"
                                             >
                                                 <Trash2 className="h-3.5 w-3.5" />
@@ -296,7 +296,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                         )
                                     )}
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] font-medium text-[#86868B] pl-4">
+                                <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground pl-4">
                                     <span>
                                         {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
                                     </span>

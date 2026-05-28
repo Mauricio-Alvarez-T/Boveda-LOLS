@@ -260,7 +260,7 @@ const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
     {
         key: 'color', label: 'Color', render: (v) => (
             <div className="flex items-center gap-2">
-                <div className="h-4 w-4 rounded-full border border-[#E8E8ED]" style={{ backgroundColor: v }} />
+                <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: v }} />
                 <span className="text-[10px] text-muted-foreground">{v}</span>
             </div>
         )
@@ -331,7 +331,7 @@ const SettingsPage: React.FC = () => {
     return (
         <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-3 md:gap-4 lg:gap-5 p-0 overflow-hidden w-full">
             {/* ── Mobile: Icon + Short Label Category Tabs (all 5 visible) ── */}
-            <div className="md:hidden flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-1 flex items-center gap-0.5 shadow-sm">
+            <div className="md:hidden flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-1 flex items-center gap-0.5 shadow-sm">
                 {tabGroups.map((group, idx) => {
                     const isActive = activeGroup.title === group.title;
                     const GroupIcon = group.icon;
@@ -363,7 +363,7 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* ── Desktop: Full Text Category Tabs ── */}
-            <div className="hidden md:flex flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-2 items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+            <div className="hidden md:flex flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-2 items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
                 {tabGroups.map((group, idx) => {
                     const isActive = activeGroup.title === group.title;
                     const GroupIcon = group.icon;
@@ -392,10 +392,10 @@ const SettingsPage: React.FC = () => {
             </div>
 
             {/* Main Content Area (Full Width) — mobile: full-bleed sin chrome; md+: card */}
-            <div className="flex-1 min-h-0 flex flex-col md:bg-white md:border md:border-[#E2E2E7] md:rounded-3xl md:shadow-[0_10px_40px_rgb(0,0,0,0.08)] md:overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col md:bg-card md:border md:border-border md:rounded-3xl md:shadow-[0_10px_40px_rgb(0,0,0,0.08)] md:overflow-hidden relative">
 
                 {/* ── Mobile Sub-Tabs: pill card flotante (sin wrapper blanco encima) ── */}
-                <div className="md:hidden bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shadow-sm px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
+                <div className="md:hidden bg-card/80 backdrop-blur-xl rounded-2xl border border-border shadow-sm px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
                     {activeGroup.items.map(tab => {
                         const isActive = activeTab === tab.key;
                         return (
@@ -426,7 +426,7 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
-                <div className="hidden md:flex h-[60px] border-b border-[#F0F0F5] bg-white/50 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
+                <div className="hidden md:flex h-[60px] border-b border-border bg-white/50 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
                     {activeGroup.items.map(tab => (
                         <button
                             key={tab.key}
@@ -434,8 +434,8 @@ const SettingsPage: React.FC = () => {
                             className={cn(
                                 "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
                                 activeTab === tab.key
-                                    ? "bg-white border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
-                                    : "bg-white/50 border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
+                                    ? "bg-card border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
+                                    : "bg-white/50 border-border text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
                             )}
                         >
                             <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />
@@ -445,7 +445,7 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 {/* Inner Content Area - Scrollable — mobile: pt-3 sin padding lateral; md+: p-6/p-8 con bg gris */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar md:bg-[#F9F9FB] pt-3 md:p-6 lg:p-8">
+                <div className="flex-1 overflow-y-auto custom-scrollbar md:bg-muted pt-3 md:p-6 lg:p-8">
                     <motion.div
                         key={activeTab}
                         initial={{ opacity: 0, y: 10 }}

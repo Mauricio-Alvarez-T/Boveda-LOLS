@@ -16,7 +16,7 @@ export function useStandardHeader({ title, icon: Icon, badgeCount, actions }: Pa
             <div className="flex flex-col md:flex-row md:items-center gap-0.5 md:gap-2 min-w-0">
                 <h1 className="text-sm md:text-lg font-bold text-brand-dark truncate">{title}</h1>
                 {badgeCount !== undefined && badgeCount > 0 && (
-                    <span className="bg-[#E8E8ED] text-muted-foreground text-xs font-semibold px-2 py-0.5 rounded-full w-fit">
+                    <span className="bg-muted text-muted-foreground text-xs font-semibold px-2 py-0.5 rounded-full w-fit">
                         {badgeCount}
                     </span>
                 )}

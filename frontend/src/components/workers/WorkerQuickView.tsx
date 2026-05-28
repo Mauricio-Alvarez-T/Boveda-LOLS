@@ -154,7 +154,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                             exit={isMobile ? { y: '100%', x: 0 } : { x: '100%', y: 0 }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
                             className={cn(
-                                "fixed z-[61] bg-white shadow-2xl flex flex-col",
+                                "fixed z-[61] bg-card shadow-2xl flex flex-col",
                                 isMobile 
                                     ? "bottom-0 left-0 right-0 w-full max-h-[92vh] rounded-t-[32px]" 
                                     : "inset-y-0 right-0 w-[420px] rounded-l-3xl"
@@ -163,13 +163,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                             {/* Mobile Drag Handle */}
                             {isMobile && (
                                 <div className="pt-3 pb-1 flex justify-center shrink-0" onClick={onClose}>
-                                    <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED] mb-1" />
+                                    <div className="w-12 h-1.5 rounded-full bg-muted mb-1" />
                                 </div>
                             )}
 
                             {/* Header */}
                             <div className={cn(
-                                "sticky top-0 bg-white/80 backdrop-blur-xl z-10 px-5 py-4 border-b border-[#E8E8ED] flex items-center justify-between shrink-0",
+                                "sticky top-0 bg-card/80 backdrop-blur-xl z-10 px-5 py-4 border-b border-border flex items-center justify-between shrink-0",
                                 isMobile && "rounded-t-[32px] border-none pt-2"
                             )}>
                                 <h2 className="text-lg font-bold text-brand-dark">Ficha Rápida</h2>
@@ -207,17 +207,17 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                         {/* Info chips */}
                                         <div className="mt-4 flex flex-wrap gap-2">
                                             {worker.cargo_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-brand-dark border border-[#E8E8ED]">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
                                                     <Briefcase className="h-3.5 w-3.5 text-brand-primary" /> {worker.cargo_nombre}
                                                 </span>
                                             )}
                                             {worker.empresa_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-brand-dark border border-[#E8E8ED]">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
                                                     <Building2 className="h-3.5 w-3.5 text-warning" /> {worker.empresa_nombre}
                                                 </span>
                                             )}
                                             {worker.obra_nombre && (
-                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-white rounded-xl text-xs font-medium text-brand-dark border border-[#E8E8ED]">
+                                                <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
                                                     <MapPin className="h-3.5 w-3.5 text-brand-accent" /> {worker.obra_nombre}
                                                 </span>
                                             )}
@@ -228,13 +228,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {(worker.telefono || worker.email) && (
                                         <div className="space-y-2">
                                             {worker.telefono && (
-                                                <a href={`tel:${worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-[#E8E8ED] transition-colors">
+                                                <a href={`tel:${worker.telefono}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-muted transition-colors">
                                                     <Phone className="h-4 w-4 text-brand-accent" />
                                                     <span className="text-sm text-brand-dark">{worker.telefono}</span>
                                                 </a>
                                             )}
                                             {worker.email && (
-                                                <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-[#E8E8ED] transition-colors">
+                                                <a href={`mailto:${worker.email}`} className="flex items-center gap-3 p-3 rounded-xl bg-background hover:bg-muted transition-colors">
                                                     <Mail className="h-4 w-4 text-brand-primary" />
                                                     <span className="text-sm text-brand-dark truncate">{worker.email}</span>
                                                 </a>
@@ -257,7 +257,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 {completedDocs}/{totalRequired}
                                             </span>
                                         </div>
-                                        <div className="h-2.5 bg-white rounded-full overflow-hidden">
+                                        <div className="h-2.5 bg-card rounded-full overflow-hidden">
                                             <motion.div
                                                 initial={{ width: 0 }}
                                                 animate={{ width: `${Math.min(docPct, 100)}%` }}
@@ -282,7 +282,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             </h4>
                                             <div className="space-y-2">
                                                 {docs.slice(0, 5).map((doc: any, i: number) => (
-                                                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-background hover:bg-[#E8E8ED]/70 transition-colors">
+                                                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-background hover:bg-muted/70 transition-colors">
                                                         <div className="min-w-0 flex-1">
                                                             <p className="text-xs font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
                                                             {doc.fecha_vencimiento && (

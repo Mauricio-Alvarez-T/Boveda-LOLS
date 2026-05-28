@@ -61,7 +61,7 @@ const PermisosRolPanel: React.FC<Props> = ({ rolId, rolNombre, onClose }) => {
             </div>
 
             {/* Footer sticky con contador + botones */}
-            <div className="border-t border-border bg-white px-4 py-3 shrink-0">
+            <div className="border-t border-border bg-card px-4 py-3 shrink-0">
                 <StickyFooter
                     pendingCount={state.pendingChangesCount}
                     saving={state.saving}
@@ -92,7 +92,7 @@ const RolCheckbox: React.FC<RolCheckboxProps> = ({ checked, onChange }) => (
             'w-9 h-9 rounded-md border-2 flex items-center justify-center transition-all',
             checked
                 ? 'bg-primary border-primary text-white shadow-sm'
-                : 'bg-white border-gray-300 hover:border-primary/50'
+                : 'bg-card border-gray-300 hover:border-primary/50'
         )}
     >
         {checked && <Check className="w-5 h-5" strokeWidth={3} />}

@@ -25,16 +25,16 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                 <div className="relative group">
                     <select
                         className={cn(
-                            "flex h-11 w-full items-center justify-between rounded-xl border border-input bg-white px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none transition-all duration-200",
+                            "flex h-11 w-full items-center justify-between rounded-xl border border-input bg-card px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 appearance-none transition-all duration-200",
                             error && "border-destructive focus-visible:ring-destructive/30 focus-visible:border-destructive",
                             className
                         )}
                         ref={ref}
                         {...props}
                     >
-                        <option value="" className="bg-white text-brand-dark">Seleccionar...</option>
+                        <option value="" className="bg-card text-brand-dark">Seleccionar...</option>
                         {options.map((opt) => (
-                            <option key={opt.value} value={opt.value} className="bg-white text-brand-dark">
+                            <option key={opt.value} value={opt.value} className="bg-card text-brand-dark">
                                 {opt.label}
                             </option>
                         ))}

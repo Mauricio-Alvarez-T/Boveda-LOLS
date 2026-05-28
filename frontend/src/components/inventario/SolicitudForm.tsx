@@ -261,7 +261,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                     'shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors',
                     categoriaFilter === 'todas'
                         ? 'bg-brand-primary text-white border-brand-primary'
-                        : 'bg-white text-brand-dark border-[#E8E8ED] hover:border-brand-primary/40'
+                        : 'bg-card text-brand-dark border-border hover:border-brand-primary/40'
                 )}
             >
                 Todas <span className="opacity-70 font-semibold">{countsByCategoria.todas || 0}</span>
@@ -278,7 +278,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                             'shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors',
                             active
                                 ? 'bg-brand-primary text-white border-brand-primary'
-                                : 'bg-white text-brand-dark border-[#E8E8ED] hover:border-brand-primary/40'
+                                : 'bg-card text-brand-dark border-border hover:border-brand-primary/40'
                         )}
                     >
                         {cat.nombre} <span className="opacity-70 font-semibold">{count}</span>
@@ -297,12 +297,12 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
         return (
             <div
                 className={cn(
-                    'rounded-xl border bg-white p-3 flex gap-3 transition-all',
+                    'rounded-xl border bg-card p-3 flex gap-3 transition-all',
                     enCarrito
                         ? excede
                             ? 'border-red-300 ring-1 ring-red-200'
                             : 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
-                        : 'border-[#E8E8ED] hover:border-[#D0D0D5]',
+                        : 'border-border hover:border-[var(--border-hover)]',
                     sinStock && 'opacity-60'
                 )}
             >
@@ -310,7 +310,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                 <button
                     type="button"
                     onClick={() => itemDetail.openItem(item.id, item)}
-                    className="shrink-0 w-[60px] h-[60px] rounded-lg overflow-hidden bg-[#F5F5F7] flex items-center justify-center hover:ring-2 hover:ring-brand-primary/30 transition-all"
+                    className="shrink-0 w-[60px] h-[60px] rounded-lg overflow-hidden bg-muted flex items-center justify-center hover:ring-2 hover:ring-brand-primary/30 transition-all"
                     title="Ver detalle"
                 >
                     <ItemThumb
@@ -365,7 +365,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                 <button
                                     type="button"
                                     onClick={() => updateCartQty(item.id, enCarrito - 1)}
-                                    className="w-6 h-6 rounded-md bg-[#F0F0F5] hover:bg-[#E5E5EA] flex items-center justify-center transition-colors"
+                                    className="w-6 h-6 rounded-md bg-muted hover:bg-muted flex items-center justify-center transition-colors"
                                 >
                                     <Minus className="h-3 w-3 text-muted-foreground" />
                                 </button>
@@ -376,7 +376,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                     onChange={e => updateCartQty(item.id, parseInt(e.target.value) || 0)}
                                     className={cn(
                                         'w-10 h-6 px-1 text-[11px] font-bold text-center border rounded-md',
-                                        excede ? 'border-red-400 text-red-700' : 'border-[#E8E8ED]'
+                                        excede ? 'border-red-400 text-red-700' : 'border-border'
                                     )}
                                 />
                                 <button
@@ -398,7 +398,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
     const CatalogColumn = (
         <div className="flex flex-col min-h-0 flex-1">
             {/* Sticky search + filters */}
-            <div className="shrink-0 space-y-2 pb-3 sticky top-0 bg-white z-10">
+            <div className="shrink-0 space-y-2 pb-3 sticky top-0 bg-card z-10">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/50" />
                     <input
@@ -406,7 +406,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                         value={search}
                         onChange={e => setSearch(e.target.value)}
                         placeholder="Buscar por nombre o número..."
-                        className="w-full h-10 pl-9 pr-3 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
+                        className="w-full h-10 pl-9 pr-3 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all"
                     />
                 </div>
                 <CategoriaChips />
@@ -416,7 +416,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                             type="checkbox"
                             checked={mostrarSinStock}
                             onChange={e => setMostrarSinStock(e.target.checked)}
-                            className="rounded border-[#E8E8ED] h-3.5 w-3.5"
+                            className="rounded border-border h-3.5 w-3.5"
                         />
                         Mostrar ítems sin stock
                     </label>
@@ -508,7 +508,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                 hideCatalog ? "hidden" : "flex-1 min-h-[80px]"
             )}>
                 {cart.length === 0 ? (
-                    <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6 border-2 border-dashed border-[#E8E8ED] rounded-xl">
+                    <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6 border-2 border-dashed border-border rounded-xl">
                         <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mb-2" />
                         <p className="text-xs text-muted-foreground">
                             Agrega ítems del catálogo para armar tu solicitud
@@ -520,12 +520,12 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                             <li
                                 key={d.item_id}
                                 className={cn(
-                                    'bg-white border rounded-xl p-2 flex gap-2 items-start',
-                                    d.excede ? 'border-red-300 bg-red-50/30' : 'border-[#E8E8ED]'
+                                    'bg-card border rounded-xl p-2 flex gap-2 items-start',
+                                    d.excede ? 'border-red-300 bg-red-50/30' : 'border-border'
                                 )}
                             >
                                 {/* Thumbnail */}
-                                <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-[#F5F5F7] flex items-center justify-center">
+                                <div className="shrink-0 w-8 h-8 rounded-md overflow-hidden bg-muted flex items-center justify-center">
                                     <ItemThumb
                                         src={resolveImageUrl(d.item?.imagen_url)}
                                         alt={d.item?.descripcion || ''}
@@ -548,7 +548,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                         <button
                                             type="button"
                                             onClick={() => updateCartQty(d.item_id, d.cantidad - 1)}
-                                            className="w-5 h-5 rounded-md bg-[#F0F0F5] hover:bg-[#E5E5EA] flex items-center justify-center"
+                                            className="w-5 h-5 rounded-md bg-muted hover:bg-muted flex items-center justify-center"
                                         >
                                             <Minus className="h-2.5 w-2.5 text-muted-foreground" />
                                         </button>
@@ -559,7 +559,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             onChange={e => updateCartQty(d.item_id, parseInt(e.target.value) || 0)}
                                             className={cn(
                                                 'w-10 h-5 px-1 text-[11px] font-bold text-center border rounded-md',
-                                                d.excede ? 'border-red-400 text-red-700' : 'border-[#E8E8ED]'
+                                                d.excede ? 'border-red-400 text-red-700' : 'border-border'
                                             )}
                                         />
                                         <button
@@ -594,7 +594,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
             </div>
 
             {/* Items personalizados (no en catálogo) */}
-            <div className="shrink-0 border-t border-[#E8E8ED] pt-2">
+            <div className="shrink-0 border-t border-border pt-2">
                 <div className="flex items-center justify-between mb-1.5">
                     <div className="text-[10px] font-bold text-brand-dark flex items-center gap-1">
                         <ShoppingBag className="h-3 w-3" />
@@ -647,7 +647,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             placeholder="Descripción del ítem*"
                                             maxLength={500}
                                             autoFocus={esNuevo}
-                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-[#E8E8ED] rounded-md bg-white focus:ring-1 focus:ring-brand-primary outline-none"
+                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-border rounded-md bg-card focus:ring-1 focus:ring-brand-primary outline-none"
                                         />
                                         <button
                                             type="button"
@@ -665,7 +665,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             value={c.cantidad}
                                             onChange={e => updateCustomItem(c._localId, { cantidad: parseInt(e.target.value) || 0 })}
                                             placeholder="Cant."
-                                            className="w-14 px-2 py-1 text-[11px] font-bold text-center border border-[#E8E8ED] rounded-md bg-white"
+                                            className="w-14 px-2 py-1 text-[11px] font-bold text-center border border-border rounded-md bg-card"
                                         />
                                         <input
                                             type="text"
@@ -673,7 +673,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             onChange={e => updateCustomItem(c._localId, { unidad: e.target.value })}
                                             placeholder="Unidad (kg, m, U...)"
                                             maxLength={50}
-                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-[#E8E8ED] rounded-md bg-white"
+                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-border rounded-md bg-card"
                                         />
                                     </div>
                                     <input
@@ -681,7 +681,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                         value={c.observacion}
                                         onChange={e => updateCustomItem(c._localId, { observacion: e.target.value })}
                                         placeholder="Observación opcional (marca, especificación...)"
-                                        className="mt-1 w-full px-2 py-1 text-[10px] border border-[#E8E8ED] rounded-md bg-white"
+                                        className="mt-1 w-full px-2 py-1 text-[10px] border border-border rounded-md bg-card"
                                     />
                                 </li>
                             );
@@ -698,7 +698,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                         value={observaciones}
                         onChange={e => setObservaciones(e.target.value)}
                         placeholder="Opcional..."
-                        className="w-full px-2.5 py-1.5 text-xs border border-[#E8E8ED] rounded-lg resize-none h-14 focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none"
+                        className="w-full px-2.5 py-1.5 text-xs border border-border rounded-lg resize-none h-14 focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none"
                     />
                 </div>
                 <div className="flex items-center gap-3">
@@ -707,7 +707,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                             type="checkbox"
                             checked={requierePionetas}
                             onChange={e => setRequierePionetas(e.target.checked)}
-                            className="rounded border-[#E8E8ED]"
+                            className="rounded border-border"
                         />
                         Requiere pionetas
                     </label>
@@ -717,7 +717,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                             min={1}
                             value={cantidadPionetas}
                             onChange={e => setCantidadPionetas(parseInt(e.target.value) || 0)}
-                            className="w-14 px-2 py-1 text-xs border border-[#E8E8ED] rounded-lg text-center"
+                            className="w-14 px-2 py-1 text-xs border border-border rounded-lg text-center"
                             placeholder="Cant."
                         />
                     )}
@@ -738,7 +738,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
             )}
 
             {/* CTA */}
-            <div className="shrink-0 pt-2 border-t border-[#E8E8ED] flex gap-2">
+            <div className="shrink-0 pt-2 border-t border-border flex gap-2">
                 {/* Cancelar oculto en mobile — la X del modal cumple esa función */}
                 <button
                     type="button"
@@ -771,13 +771,13 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
         <>
             {/* Mobile tabs — solo cuando hay catálogo */}
             {!hideCatalog && (
-                <div className="md:hidden mb-3 flex gap-1.5 p-1 bg-[#F5F5F7] rounded-xl">
+                <div className="md:hidden mb-3 flex gap-1.5 p-1 bg-muted rounded-xl">
                     <button
                         type="button"
                         onClick={() => setMobileTab('cat')}
                         className={cn(
                             'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
-                            mobileTab === 'cat' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
+                            mobileTab === 'cat' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground'
                         )}
                     >
                         Catálogo
@@ -787,7 +787,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                         onClick={() => setMobileTab('sol')}
                         className={cn(
                             'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
-                            mobileTab === 'sol' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
+                            mobileTab === 'sol' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground'
                         )}
                     >
                         Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
@@ -809,7 +809,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                     'flex flex-col min-h-0',
                     hideCatalog
                         ? 'flex w-full md:max-w-[480px]'
-                        : 'md:w-[360px] md:shrink-0 md:border-l md:border-[#E8E8ED] md:pl-4',
+                        : 'md:w-[360px] md:shrink-0 md:border-l md:border-border md:pl-4',
                     !hideCatalog && (mobileTab === 'sol' ? 'flex' : 'hidden md:flex')
                 )}>
                     {CartColumn}

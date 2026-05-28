@@ -191,13 +191,13 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             ) : (
                 <div className="grid grid-cols-7 gap-1 md:gap-1.5">
                     {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-                        <div key={day} className="text-center text-[10px] font-bold text-[#86868B] uppercase tracking-widest mb-2">
+                        <div key={day} className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                             {day}
                         </div>
                     ))}
 
                     {Array.from({ length: startingDay }).map((_, i) => (
-                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-background/30 rounded-xl border border-[#E8E8ED]/30" />
+                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-background/30 rounded-xl border border-border/30" />
                     ))}
 
                     {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -236,7 +236,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                         if (isOutOfRange) {
                             buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03)_5px,transparent_5px,transparent_10px)] border-border";
                         } else if (!periodo && !isSelected) {
-                            buttonClass += "border-[#E8E8ED] hover:shadow-md hover:border-brand-primary/30";
+                            buttonClass += "border-border hover:shadow-md hover:border-brand-primary/30";
                         } else if (isSelected) {
                             buttonClass += "border-transparent bg-transparent border-brand-primary/40 ring-2 ring-brand-primary/20";
                         } else {
@@ -265,7 +265,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     } : undefined}
                                     title={buttonTitle}
                                 >
-                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-brand-dark' : 'text-[#86868B]'} mb-auto z-20`}>
+                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-brand-dark' : 'text-muted-foreground'} mb-auto z-20`}>
                                         {day}
                                     </span>
                                     {estado && (
@@ -294,7 +294,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                     className="mt-4 p-3 bg-background rounded-2xl flex items-center justify-between border border-border"
                 >
                     <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-black text-[#86868B] tracking-widest">Rango Seleccionado</span>
+                        <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Rango Seleccionado</span>
                         <span className="text-xs font-bold text-brand-dark">
                             {selectionStart.split('-').reverse().join('/')} 
                             {selectionEnd && selectionEnd !== selectionStart && ` — ${selectionEnd.split('-').reverse().join('/')}`}
@@ -318,7 +318,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             )}
 
             {showLegend && (
-                <div className="mt-6 pt-6 border-t border-[#F1F1F4]">
+                <div className="mt-6 pt-6 border-t border-border">
                     <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-4 block text-center md:text-left">Nomenclaturas y Estados</span>
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {estados.map(est => {
@@ -327,7 +327,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                             return (
                                 <div 
                                     key={est.id} 
-                                    className="flex flex-col gap-1 p-3 rounded-2xl bg-white border border-[#E8E8ED] shadow-sm hover:border-brand-primary/20 transition-all group"
+                                    className="flex flex-col gap-1 p-3 rounded-2xl bg-card border border-border shadow-sm hover:border-brand-primary/20 transition-all group"
                                 >
                                     <div className="flex items-center gap-2">
                                         <span className="w-2.5 h-2.5 rounded-full shadow-inner shrink-0" style={{ backgroundColor: est.color }} />
@@ -341,7 +341,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                 </div>
                             );
                         })}
-                        <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white border border-[#E8E8ED] shadow-sm hover:border-brand-primary/20 transition-all">
+                        <div className="flex flex-col gap-1 p-3 rounded-2xl bg-card border border-border shadow-sm hover:border-brand-primary/20 transition-all">
                             <div className="flex items-center gap-2">
                                 <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40 shadow-inner shrink-0" />
                                 <span className="text-[13px] font-bold text-brand-dark">Feriado</span>
@@ -369,7 +369,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
+                                        <div className="px-2 py-0.5 rounded-lg bg-card border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
                                             ACTIVO
                                         </div>
                                         {!readOnly && hasPermission('asistencia.periodo.eliminar') && (
@@ -395,7 +395,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                             ) : (
                                                 <button
                                                     onClick={() => setDeletingPeriodId(p.id)}
-                                                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-[#86868B] hover:text-destructive transition-colors"
+                                                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                                     title="Eliminar período"
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
@@ -405,7 +405,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 text-[11px] font-semibold text-[#86868B]">
+                                <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
                                     <CalendarRange className="h-3 w-3" />
                                     <span>
                                         {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')}

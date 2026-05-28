@@ -92,12 +92,12 @@ export const Modal: React.FC<ModalProps> = ({
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative w-full max-h-[92vh] bg-white rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
+                            className="relative w-full max-h-[92vh] bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
                         >
                             {/* Handle & Header */}
                             <div className="shrink-0">
                                 <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
-                                    <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED]" />
+                                    <div className="w-12 h-1.5 rounded-full bg-muted" />
                                 </div>
                                 <div className="flex items-center justify-between px-5 pb-4 pt-1">
                                     <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
@@ -120,7 +120,7 @@ export const Modal: React.FC<ModalProps> = ({
 
                             {/* Footer */}
                             {footer && (
-                                <div className="px-5 py-4 border-t border-[#E8E8ED] bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
+                                <div className="px-5 py-4 border-t border-border bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
                                     {footer}
                                 </div>
                             )}
@@ -143,7 +143,7 @@ export const Modal: React.FC<ModalProps> = ({
                             animate={{ opacity: 1, scale: 1, y: 0 }}
                             exit={{ opacity: 0, scale: 0.95, y: 20 }}
                             className={cn(
-                                "relative bg-white rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] w-full",
+                                "relative bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] w-full",
                                 desktopSizes[size]
                             )}
                         >

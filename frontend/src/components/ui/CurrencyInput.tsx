@@ -46,7 +46,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
                     disabled={disabled}
                     aria-disabled={disabled}
                     className={cn(
-                        "flex h-11 w-full rounded-xl border border-border bg-white px-4 py-2 text-base text-brand-dark placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[#B0B0B5]",
+                        "flex h-11 w-full rounded-xl border border-border bg-card px-4 py-2 text-base text-brand-dark placeholder:text-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/30 focus-visible:border-brand-primary transition-all hover:border-[var(--border-hover)]",
                         error && "border-destructive focus-visible:ring-destructive/30 focus-visible:border-destructive",
                         disabled && "bg-gray-100 text-gray-500 cursor-not-allowed hover:border-border",
                         className

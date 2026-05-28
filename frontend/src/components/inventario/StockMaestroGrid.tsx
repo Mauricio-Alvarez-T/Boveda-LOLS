@@ -143,7 +143,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                     <select
                         value={ubiKey}
                         onChange={e => handleChangeUbi(e.target.value)}
-                        className="px-2 py-1.5 text-xs border border-[#E8E8ED] rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        className="px-2 py-1.5 text-xs border border-border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                     >
                         <option value="">— Elige ubicación —</option>
                         {ubiOptions.map(o => <option key={o.key} value={o.key}>{o.label}</option>)}
@@ -157,7 +157,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                             placeholder="Buscar ítem..."
                             value={search}
                             onChange={e => setSearch(e.target.value)}
-                            className="pl-8 pr-3 py-1.5 text-xs border border-[#E8E8ED] rounded-lg w-64 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg w-64 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
                     </div>
                 )}
@@ -169,7 +169,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                         <button
                             onClick={handleRevert}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-lg hover:bg-[#E5E5EA] disabled:opacity-50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-muted-foreground bg-muted rounded-lg hover:bg-muted disabled:opacity-50 transition-all"
                         >
                             <Undo2 className="h-3 w-3" /> Revertir
                         </button>
@@ -187,7 +187,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
             </div>
 
             {/* Grid */}
-            <div className="flex-1 min-h-0 overflow-auto border border-[#E8E8ED] rounded-xl bg-white">
+            <div className="flex-1 min-h-0 overflow-auto border border-border rounded-xl bg-card">
                 {!ubi ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">
                         Elige una bodega u obra en el selector superior para ajustar su stock.
@@ -200,7 +200,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                     <div className="py-12 text-center text-xs text-muted-foreground">Sin ítems que coincidan.</div>
                 ) : (
                     <table className="w-full text-[11px] border-collapse">
-                        <thead className="bg-[#F5F7FA] sticky top-0 z-10">
+                        <thead className="bg-muted sticky top-0 z-10">
                             <tr>
                                 <th className="text-left px-2 py-2 font-bold text-brand-dark w-12">Nº</th>
                                 <th className="text-left px-2 py-2 font-bold text-brand-dark min-w-[240px]">Descripción</th>
@@ -220,8 +220,8 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                     <tr
                                         key={r.id}
                                         className={cn(
-                                            "border-t border-[#F0F0F5]",
-                                            rowDirty ? "bg-amber-50/50" : idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]",
+                                            "border-t border-border",
+                                            rowDirty ? "bg-amber-50/50" : idx % 2 === 0 ? "bg-card" : "bg-muted",
                                         )}
                                     >
                                         <td className="px-2 py-1 font-mono text-muted-foreground">{r.nro_item}</td>
@@ -235,7 +235,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                                 min={0}
                                                 value={nueva}
                                                 onChange={e => setCantidad(r, Number(e.target.value))}
-                                                className="w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none font-bold"
+                                                className="w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none font-bold"
                                             />
                                         </td>
                                         <td className={cn(

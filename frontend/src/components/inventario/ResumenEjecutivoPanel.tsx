@@ -209,7 +209,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
             onClick={onClick}
             title={tooltipLines.join('\n')}
             aria-label={`${obra.nombre}: ${fmtCLPFull(obra.valor_mensual)} mensual. Click para ver detalle.`}
-            className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#F5F5F7] transition-all text-left"
+            className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted transition-all text-left"
         >
             <span className="shrink-0 w-7 h-7 rounded-lg bg-brand-primary/10 text-brand-primary text-xs font-black flex items-center justify-center">
                 {pos}
@@ -221,7 +221,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                         {fmtCLP(obra.valor_mensual)}
                     </span>
                 </div>
-                <div className="mt-1.5 h-2 rounded-full bg-[#EDEDF2] overflow-hidden">
+                <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                         className="h-full bg-brand-primary rounded-full transition-all"
                         style={{ width: `${pct}%` }}
@@ -332,7 +332,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                         </div>
                     )}
                 </div>
-                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold">
+                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold">
                     {isEstancada ? 'Modificar' : t.cta}
                     <ChevronRight className="h-3.5 w-3.5" />
                 </span>
@@ -346,7 +346,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                             type="button"
                             onClick={onProrrogar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-card border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors"
                         >
                             <Timer className="h-3 w-3" />
                             Extender 10 días
@@ -357,7 +357,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                             type="button"
                             onClick={onCancelar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-red-700 bg-card border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
                         >
                             <XCircle className="h-3 w-3" />
                             Cancelar
@@ -410,7 +410,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
                     </div>
                 )}
             </div>
-            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold text-red-700">
+            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold text-red-700">
                 Ver
                 <ChevronRight className="h-3.5 w-3.5" />
             </span>
@@ -422,7 +422,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
 // Skeleton (mantiene layout para no saltar)
 // ────────────────────────────────────────────────────────
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn('animate-pulse bg-[#EDEDF2] rounded-xl', className)} />
+    <div className={cn('animate-pulse bg-muted rounded-xl', className)} />
 );
 
 // ────────────────────────────────────────────────────────
@@ -527,7 +527,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 'border focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
                                 obraFilter
                                     ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary'
-                                    : 'bg-[#F5F5F7] border-transparent hover:bg-[#EDEDF2] text-brand-dark'
+                                    : 'bg-muted border-transparent hover:bg-muted text-brand-dark'
                             )}
                             aria-label="Filtrar por obra"
                             title={obraFilter ? `Filtrado por: ${obraSeleccionada?.nombre || ''}` : 'Ver todas las obras'}
@@ -553,7 +553,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         type="button"
                         onClick={refetch}
                         disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-[#F5F5F7] hover:bg-[#EDEDF2] rounded-xl transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-muted hover:bg-muted rounded-xl transition-colors disabled:opacity-50"
                         aria-label="Actualizar datos"
                     >
                         <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
@@ -669,7 +669,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 usuario no tiene permiso para ver valores monetarios. La
                 sección entera ranquea por $ — sin permiso $ no aporta. */}
             {!obraFilter && verValoresResumen && (
-            <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                         Obras por valor (arriendo mensual)
@@ -704,7 +704,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 Gate financiero: gateado por `inventario.resumen.ver_valores` porque
                 muestra montos $ totales por categoría y un total general $. */}
             {verValoresResumen && (loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
-                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-baseline justify-between mb-4">
                         <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                             Valor por categoría
@@ -759,7 +759,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="h-2.5 rounded-full bg-[#F0F0F5] overflow-hidden">
+                                                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
                                                     <div
                                                         className="h-full rounded-full transition-all duration-300 group-hover:opacity-90"
                                                         style={{ width: `${widthPct}%`, backgroundColor: color }}
@@ -777,7 +777,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
 
             {/* Bombas de hormigón — mes actual */}
             {(loading || (data?.bombas_hormigon_mes?.eventos ?? 0) > 0) && (
-                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-center gap-2 mb-3">
                         <Droplets className="h-4 w-4 text-cyan-600" />
                         <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
@@ -822,7 +822,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* Requiere tu atención */}
-            <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5">
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
                 <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Requiere tu atención
                 </h3>

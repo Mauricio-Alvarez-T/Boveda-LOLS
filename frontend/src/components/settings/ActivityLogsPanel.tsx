@@ -78,14 +78,14 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
     const keys = Object.keys(cambios);
     if (keys.length === 0) return (
         <div className="flex flex-col items-center justify-center p-8 text-center bg-background rounded-2xl border border-dashed border-border">
-            <History className="h-8 w-8 text-[#8E8E93] mb-2 opacity-50" />
+            <History className="h-8 w-8 text-muted-foreground mb-2 opacity-50" />
             <p className="text-sm text-muted-foreground font-medium italic">Sin cambios detectados en este registro</p>
         </div>
     );
 
     return (
         <div className="space-y-6">
-            <div className="bg-white p-4 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-brand-primary/5 rounded-full flex items-center justify-center">
                         <History className="h-5 w-5 text-brand-primary" />
@@ -120,7 +120,7 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
 
             <div className="space-y-3">
                 {keys.map(key => (
-                    <div key={key} className="bg-white rounded-2xl border border-border overflow-hidden">
+                    <div key={key} className="bg-card rounded-2xl border border-border overflow-hidden">
                         <div className="px-5 py-3 bg-background border-b border-border flex items-center justify-between">
                             <span className="text-xs font-black text-brand-dark uppercase tracking-widest opacity-80">{getLabel(key)}</span>
                             <div className="h-2 w-2 rounded-full bg-brand-primary opacity-50" />
@@ -177,10 +177,10 @@ const LegacyDiffViewer: React.FC<{ antes: any, nuevo: any, responsable?: string 
 const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ parsed, responsable }) => {
     return (
         <div className="space-y-6">
-            <div className="bg-white p-5 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="h-12 w-12 bg-[#8E8E93]/10 rounded-full flex items-center justify-center">
-                        <History className="h-6 w-6 text-[#8E8E93]" />
+                        <History className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
                         <h4 className="text-sm font-bold text-brand-dark uppercase tracking-tight">Datos del Registro</h4>
@@ -195,7 +195,7 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                 )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
                 <div className="grid grid-cols-1 md:grid-cols-2">
                     {Object.entries(parsed).map(([key, value], index) => {
                         if (typeof value === 'object' && value !== null && !Array.isArray(value)) return null;
@@ -205,7 +205,7 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                                 index % 2 === 0 ? "md:border-r" : "",
                                 index < Object.entries(parsed).length - 2 ? "border-b" : ""
                             )}>
-                                <span className="text-xs font-black text-[#8E8E93] uppercase tracking-widest leading-none mb-0.5">
+                                <span className="text-xs font-black text-muted-foreground uppercase tracking-widest leading-none mb-0.5">
                                     {getLabel(key)}
                                 </span>
                                 <span className="text-base text-brand-dark font-semibold tracking-tight">
@@ -244,7 +244,7 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
 
     return (
         <div className="space-y-5">
-            <div className="bg-white p-4 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div className="bg-card p-4 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                     <div className="h-10 w-10 bg-brand-primary/5 rounded-full flex items-center justify-center">
                         <Building2 className="h-5 w-5 text-brand-primary" />
@@ -279,7 +279,7 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
                 </div>
             </div>
 
-            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
                 <div className="px-4 py-2.5 bg-background border-b border-border">
                     <span className="text-[11px] font-black text-brand-dark uppercase tracking-widest opacity-80">Trabajadores</span>
                 </div>
@@ -520,7 +520,7 @@ export const ActivityLogsPanel: React.FC = () => {
     return (
         <div className="space-y-4">
             {/* ═══ Barra de filtros ═══ */}
-            <div className="bg-white rounded-2xl border border-border p-4 space-y-3">
+            <div className="bg-card rounded-2xl border border-border p-4 space-y-3">
                 {/* Línea 1: búsqueda + toggle filtros + export */}
                 <div className="flex flex-col md:flex-row gap-3 items-stretch md:items-center">
                     <div className="relative flex-1 min-w-0">
@@ -697,11 +697,11 @@ export const ActivityLogsPanel: React.FC = () => {
                 {loading && logs.length === 0 ? (
                     <div className="space-y-2">
                         {[1, 2, 3, 4, 5].map(i => (
-                            <div key={i} className="h-16 bg-white rounded-2xl border border-border animate-pulse" />
+                            <div key={i} className="h-16 bg-card rounded-2xl border border-border animate-pulse" />
                         ))}
                     </div>
                 ) : logs.length === 0 ? (
-                    <div className="h-40 flex flex-col items-center justify-center text-center p-8 bg-white rounded-2xl border border-border border-dashed">
+                    <div className="h-40 flex flex-col items-center justify-center text-center p-8 bg-card rounded-2xl border border-border border-dashed">
                         <History className="h-8 w-8 text-border mb-2" />
                         <p className="text-sm text-muted-foreground">No hay registros con estos filtros</p>
                         {(activeFilterCount > 0 || filters.q) && (
@@ -718,7 +718,7 @@ export const ActivityLogsPanel: React.FC = () => {
                         return (
                             <div
                                 key={log.id}
-                                className="bg-white rounded-2xl border border-border hover:shadow-md hover:border-brand-primary/30 transition-all p-3 flex items-center gap-3"
+                                className="bg-card rounded-2xl border border-border hover:shadow-md hover:border-brand-primary/30 transition-all p-3 flex items-center gap-3"
                             >
                                 <div
                                     className="h-9 w-9 rounded-full bg-background flex items-center justify-center shrink-0 border border-border/50"
@@ -767,7 +767,7 @@ export const ActivityLogsPanel: React.FC = () => {
 
             {/* ═══ Paginación ═══ */}
             {logs.length > 0 && (
-                <div className="bg-white rounded-2xl border border-border p-3 flex items-center justify-between">
+                <div className="bg-card rounded-2xl border border-border p-3 flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
                         {total} {total === 1 ? 'registro' : 'registros'} · Página {page} de {totalPages}
                     </span>

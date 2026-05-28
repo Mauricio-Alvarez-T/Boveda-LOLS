@@ -66,7 +66,7 @@ export const FeriadosPanel: React.FC = () => {
                         onClick={handleSync}
                         disabled={isSyncing}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-sm font-semibold transition-all shadow-sm",
+                            "flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-semibold transition-all shadow-sm",
                             isSyncing ? "opacity-50 cursor-not-allowed" : "hover:border-brand-primary hover:text-brand-primary"
                         )}
                     >

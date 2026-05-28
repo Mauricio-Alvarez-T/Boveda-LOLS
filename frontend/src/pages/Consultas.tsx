@@ -132,7 +132,7 @@ const ConsultasPage: React.FC = () => {
                     placeholder="Buscar por Nombre, RUT..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 h-10 bg-background/50 border-border focus:bg-white transition-all rounded-xl text-sm"
+                    className="pl-9 h-10 bg-background/50 border-border focus:bg-card transition-all rounded-xl text-sm"
                 />
             </div>
         </div>
@@ -154,7 +154,7 @@ const ConsultasPage: React.FC = () => {
                         "h-9 px-4 rounded-xl font-bold transition-all duration-300 shadow-sm border-border",
                         showCreatePanel 
                             ? "bg-brand-primary text-white border-transparent" 
-                            : "bg-white text-brand-dark hover:bg-background"
+                            : "bg-card text-brand-dark hover:bg-background"
                     )}
                 >
                     {showCreatePanel ? 'CERRAR' : 'CREAR'}
@@ -170,7 +170,7 @@ const ConsultasPage: React.FC = () => {
                         "h-9 px-4 rounded-xl font-semibold gap-2 border-border shadow-sm transition-all duration-300",
                         showMobileFilters 
                             ? "bg-brand-primary text-white border-transparent" 
-                            : "bg-white text-brand-dark hover:bg-background"
+                            : "bg-card text-brand-dark hover:bg-background"
                     )}
                 >
                     {showMobileFilters ? (
@@ -182,7 +182,7 @@ const ConsultasPage: React.FC = () => {
                     {activeFilterCount > 0 && (
                         <span className={cn(
                             "flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-colors duration-300",
-                            showMobileFilters ? "bg-white text-brand-primary" : "bg-brand-primary text-white"
+                            showMobileFilters ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
                         )}>
                             {activeFilterCount}
                         </span>
@@ -198,7 +198,7 @@ const ConsultasPage: React.FC = () => {
                     leftIcon={<FileDown className="h-3.5 w-3.5 text-brand-primary" />}
                     className={cn(
                         "h-9 px-4 rounded-xl shadow-sm border-border",
-                        hasPermission('reportes.exportar') ? "bg-white hover:bg-background" : "opacity-40 grayscale pointer-events-none"
+                        hasPermission('reportes.exportar') ? "bg-card hover:bg-background" : "opacity-40 grayscale pointer-events-none"
                     )}
                 >
                     <span>Exportar</span>
@@ -226,7 +226,7 @@ const ConsultasPage: React.FC = () => {
                     }}
                     className={cn(
                         "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
-                        showCreatePanel ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark active:bg-background"
+                        showCreatePanel ? "bg-brand-primary border-transparent text-white" : "bg-card border-border text-brand-dark active:bg-background"
                     )}
                     title="Crear"
                 >
@@ -238,7 +238,7 @@ const ConsultasPage: React.FC = () => {
                     disabled={workers.length === 0 || !hasPermission('reportes.exportar') || exporting}
                     className={cn(
                         "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
-                        "bg-white border-border text-brand-dark active:bg-background",
+                        "bg-card border-border text-brand-dark active:bg-background",
                         (workers.length === 0 || !hasPermission('reportes.exportar')) && "opacity-40 grayscale pointer-events-none",
                         exporting && "opacity-60"
                     )}
@@ -253,7 +253,7 @@ const ConsultasPage: React.FC = () => {
                     }}
                     className={cn(
                         "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm relative transition-all duration-300 ease-in-out",
-                        showMobileFilters ? "bg-brand-primary border-transparent text-white" : "bg-white border-border text-brand-dark active:bg-background"
+                        showMobileFilters ? "bg-brand-primary border-transparent text-white" : "bg-card border-border text-brand-dark active:bg-background"
                     )}
                     title="Filtros"
                 >
@@ -265,7 +265,7 @@ const ConsultasPage: React.FC = () => {
                     {activeFilterCount > 0 && (
                         <span className={cn(
                             "absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold transition-colors duration-300",
-                            showMobileFilters ? "bg-white text-brand-primary shadow-sm" : "bg-brand-primary text-white shadow-sm"
+                            showMobileFilters ? "bg-card text-brand-primary shadow-sm" : "bg-brand-primary text-white shadow-sm"
                         )}>
                             {activeFilterCount}
                         </span>
@@ -288,7 +288,7 @@ const ConsultasPage: React.FC = () => {
                     placeholder="Buscar por Nombre, RUT..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-10 h-11 bg-white rounded-2xl border-border shadow-sm"
+                    className="pl-10 h-11 bg-card rounded-2xl border-border shadow-sm"
                 />
             </div>
 
@@ -344,10 +344,10 @@ const ConsultasPage: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                 
                 {/* Header Acciones Múltiples */}
-                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-5 flex items-center justify-between shrink-0">
+                <div className="h-[60px] border-b border-border bg-white/50 px-5 flex items-center justify-between shrink-0">
                     <div className="flex items-center gap-4 hidden sm:flex">
                          <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
                             <SearchCheck className="h-4 w-4 text-brand-primary" />
@@ -362,7 +362,7 @@ const ConsultasPage: React.FC = () => {
                                     type="checkbox"
                                     checked={workers.length > 0 && selectedWorkers.size === workers.length}
                                     onChange={handleSelectAll}
-                                    className="peer h-[18px] w-[18px] appearance-none rounded border-2 border-[#D1D1D6] bg-white checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer disabled:opacity-50"
+                                    className="peer h-[18px] w-[18px] appearance-none rounded border-2 border-border bg-card checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer disabled:opacity-50"
                                 />
                                 <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
                             </div>
@@ -384,7 +384,7 @@ const ConsultasPage: React.FC = () => {
                                         size="sm"
                                         onClick={() => setEmailModalOpen(true)}
                                         leftIcon={<Mail className="h-4 w-4" />}
-                                        className="h-9 px-3 text-xs md:text-sm bg-white"
+                                        className="h-9 px-3 text-xs md:text-sm bg-card"
                                     >
                                         <span className="hidden sm:inline">Enviar</span>
                                     </Button>
@@ -393,7 +393,7 @@ const ConsultasPage: React.FC = () => {
                                         size="sm"
                                         onClick={() => handleExportExcel(Array.from(selectedWorkers))}
                                         leftIcon={<FileDown className="h-4 w-4" />}
-                                        className="h-9 px-3 text-xs md:text-sm bg-white"
+                                        className="h-9 px-3 text-xs md:text-sm bg-card"
                                     >
                                         <span className="hidden sm:inline">Exportar</span>
                                     </Button>
@@ -404,24 +404,24 @@ const ConsultasPage: React.FC = () => {
                 </div>
 
                 {/* Grilla / Resultados */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F1F1F4]/80 p-2 md:p-4">
+                <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4">
                     {loading ? (
                         <div className="flex flex-col gap-3">
                             {[1, 2, 3, 4, 5, 6].map((i) => (
-                                <div key={i} className="h-24 w-full bg-white rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse">
-                                    <div className="h-10 w-10 rounded-xl bg-[#F0F0F5] shrink-0" />
+                                <div key={i} className="h-24 w-full bg-card rounded-2xl border border-border flex items-center p-4 gap-4 animate-pulse">
+                                    <div className="h-10 w-10 rounded-xl bg-muted shrink-0" />
                                     <div className="flex-1 space-y-2">
-                                        <div className="h-4 w-1/3 bg-[#F0F0F5] rounded" />
-                                        <div className="h-3 w-1/4 bg-[#E2E2E7] rounded" />
+                                        <div className="h-4 w-1/3 bg-muted rounded" />
+                                        <div className="h-3 w-1/4 bg-muted rounded" />
                                     </div>
-                                    <div className="hidden sm:flex h-10 w-1/4 bg-[#F0F0F5] rounded ml-auto" />
+                                    <div className="hidden sm:flex h-10 w-1/4 bg-muted rounded ml-auto" />
                                 </div>
                             ))}
                         </div>
                     ) : workers.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-white shadow-sm flex items-center justify-center mb-4">
-                                <Search className="h-8 w-8 text-[#A1A1AA]" />
+                            <div className="w-16 h-16 rounded-2xl bg-card shadow-sm flex items-center justify-center mb-4">
+                                <Search className="h-8 w-8 text-muted-foreground" />
                             </div>
                             <h3 className="text-base font-bold text-brand-dark mb-1">Sin resultados</h3>
                             <p className="text-sm max-w-[250px]">No se encontraron trabajadores que coincidan con los filtros aplicados.</p>
@@ -449,7 +449,7 @@ const ConsultasPage: React.FC = () => {
                                     }}
                                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                                     className={cn(
-                                        "bg-white rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
+                                        "bg-card rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
                                         selectedWorkers.has(worker.id) 
                                             ? "bg-brand-primary/[0.03] border-brand-primary ring-1 ring-brand-primary/20 shadow-md" 
                                             : "border-border hover:border-brand-primary/30 shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg",
@@ -519,7 +519,7 @@ const ConsultasPage: React.FC = () => {
                                                             {worker.docs_porcentaje}%
                                                         </span>
                                                     </div>
-                                                    <div className="h-1.5 sm:h-2 w-full bg-[#E5E5EA] rounded-full overflow-hidden">
+                                                    <div className="h-1.5 sm:h-2 w-full bg-muted rounded-full overflow-hidden">
                                                         <div 
                                                             className={cn(
                                                                 "h-full rounded-full transition-all duration-500",
@@ -600,7 +600,7 @@ const ConsultasPage: React.FC = () => {
                 </div>
 
                 {/* Status Bar */}
-                <div className="h-9 bg-[#F8F8FA] border-t border-[#E8E8ED] flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
+                <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
                     <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
                         <span>{workers.length} {workers.length === 1 ? 'coincidencia' : 'coincidencias'}</span>
@@ -659,7 +659,7 @@ const ConsultasPage: React.FC = () => {
                                 type="date"
                                 id="fecha_finiquito_input_consultas"
                                 defaultValue={new Date().toISOString().split('T')[0]}
-                                className="w-full bg-background border-transparent hover:bg-[#E8E8ED] focus:bg-white focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
+                                className="w-full bg-background border-transparent hover:bg-muted focus:bg-card focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
                             />
                         </div>
                         <div className="flex justify-end gap-3 mt-8">
@@ -781,11 +781,11 @@ const ConsultasPage: React.FC = () => {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-h-[85vh] bg-white rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
+                            className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-h-[85vh] bg-card rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
                         >
                             {/* Drag Handle */}
                             <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowMobileFilters(false)}>
-                                <div className="w-12 h-1.5 rounded-full bg-[#E8E8ED]" />
+                                <div className="w-12 h-1.5 rounded-full bg-muted" />
                             </div>
 
                             {/* Header */}

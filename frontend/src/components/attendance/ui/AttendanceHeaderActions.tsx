@@ -99,7 +99,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
             {/* ═══════════════════════════════════════════ */}
             <div className="hidden lg:flex items-center gap-2 shrink-0">
                 {/* Filtro empresa — caja propia */}
-                <div className="bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl shadow-sm overflow-hidden shrink-0">
+                <div className="bg-white/50 backdrop-blur-sm border border-border rounded-xl shadow-sm overflow-hidden shrink-0">
                     <select
                         value={selectedEmpresaId || ""}
                         onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
@@ -126,7 +126,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     variant="glass"
                     disabled={!hasPermission('asistencia.enviar_whatsapp')}
                     className={cn(
-                        "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm",
+                        "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl bg-card border border-border text-brand-primary shadow-sm",
                         hasPermission('asistencia.enviar_whatsapp') ? "hover:bg-brand-primary/5" : "opacity-40 grayscale pointer-events-none"
                     )}
                     title="Compartir por WhatsApp"
@@ -138,7 +138,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     variant="glass"
                     disabled={!hasPermission('asistencia.exportar_excel')}
                     className={cn(
-                        "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl bg-white border border-[#E8E8ED] text-muted-foreground shadow-sm",
+                        "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl bg-card border border-border text-muted-foreground shadow-sm",
                         hasPermission('asistencia.exportar_excel') ? "hover:bg-background" : "opacity-40 grayscale pointer-events-none"
                     )}
                     title="Reporte Mensual"
@@ -152,7 +152,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                         variant="glass"
                         disabled={isRepeatDisabled}
                         className={cn(
-                            "hidden lg:flex h-9 px-3 items-center justify-center gap-1.5 rounded-xl bg-white border border-[#E8E8ED] text-brand-primary shadow-sm transition-all",
+                            "hidden lg:flex h-9 px-3 items-center justify-center gap-1.5 rounded-xl bg-card border border-border text-brand-primary shadow-sm transition-all",
                             isRepeatDisabled ? "opacity-40 grayscale pointer-events-none" : "hover:bg-brand-primary/5"
                         )}
                         title="Copiar el último día laboral registrado a este día (sin guardar)"
@@ -169,7 +169,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                             "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl transition-all shadow-sm border",
                             isFeriado 
                                 ? "bg-destructive text-white border-transparent" 
-                                : "bg-white border-[#E8E8ED] text-muted-foreground hover:text-brand-primary"
+                                : "bg-card border-border text-muted-foreground hover:text-brand-primary"
                         )}
                         title={isFeriado ? "Quitar Feriado" : "Marcar Feriado"}
                     >
@@ -251,16 +251,16 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                     "flex h-9 w-9 items-center justify-center rounded-xl border transition-all",
                     open
                         ? "bg-brand-primary text-white border-transparent shadow-lg"
-                        : "bg-white text-muted-foreground border-[#E8E8ED] shadow-sm hover:border-brand-primary/30"
+                        : "bg-card text-muted-foreground border-border shadow-sm hover:border-brand-primary/30"
                 )}
             >
                 <MoreHorizontal className="h-5 w-5" />
             </button>
 
             {open && (
-                <div className="absolute top-full right-0 mt-2 w-56 bg-white rounded-xl border border-[#E8E8ED] shadow-xl z-[200] py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
+                <div className="absolute top-full right-0 mt-2 w-56 bg-card rounded-xl border border-border shadow-xl z-[200] py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
                     {/* Empresa selector — only shown here below lg */}
-                    <div className="px-3 py-2 border-b border-[#E8E8ED]">
+                    <div className="px-3 py-2 border-b border-border">
                         <label className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-wider block mb-1">Empresa</label>
                         <select
                             value={selectedEmpresaId || ""}
@@ -380,7 +380,7 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                         ? "bg-brand-dark text-white border-transparent shadow-lg"
                         : hasActiveFilter
                             ? "bg-brand-primary text-white border-transparent shadow-md"
-                            : "bg-white text-brand-primary border-[#E8E8ED] shadow-sm hover:border-brand-primary/30"
+                            : "bg-card text-brand-primary border-border shadow-sm hover:border-brand-primary/30"
                 )}
                 title="Filtros"
             >
@@ -396,9 +396,9 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                     <div
                         ref={popoverRef}
                         style={{ top: popoverTop }}
-                        className="fixed left-3 right-3 bg-white rounded-2xl border border-[#E8E8ED] shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col"
+                        className="fixed left-3 right-3 bg-card rounded-2xl border border-border shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150 max-h-[70vh] flex flex-col"
                     >
-                        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-[#F0F0F5]">
+                        <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border">
                             <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
                             <label className="text-[10px] font-black uppercase text-muted-foreground/70 tracking-wider">Filtrar por empresa</label>
                         </div>

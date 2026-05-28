@@ -77,7 +77,7 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
                 <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
             </button>
             {open && (
-                <div className="absolute right-0 mt-1 w-72 bg-white border border-[#E8E8ED] rounded-xl shadow-lg z-30 overflow-hidden">
+                <div className="absolute right-0 mt-1 w-72 bg-card border border-border rounded-xl shadow-lg z-30 overflow-hidden">
                     <button
                         type="button"
                         onClick={() => handleExport('normal')}
@@ -89,7 +89,7 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
                             <div className="text-[10px] text-muted-foreground mt-0.5">Con cantidades y valores actuales</div>
                         </div>
                     </button>
-                    <div className="border-t border-[#F0F0F5]" />
+                    <div className="border-t border-border" />
                     <button
                         type="button"
                         onClick={() => handleExport('checklist')}
@@ -238,7 +238,7 @@ const InventarioPage: React.FC = () => {
             {/* Tab Navigation */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
                 {/* ── Mobile: icon + short label stacked ── */}
-                <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+                <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
                         const isActive = activeTab === tab.key;
@@ -275,7 +275,7 @@ const InventarioPage: React.FC = () => {
                     })}
                 </div>
                 {/* ── Desktop: text pills ── */}
-                <div className="hidden md:flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+                <div className="hidden md:flex items-center gap-1 p-1.5 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
                         return (
@@ -303,7 +303,7 @@ const InventarioPage: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6 flex-1 min-h-0 flex flex-col"
+                className="bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6 flex-1 min-h-0 flex flex-col"
             >
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (
@@ -356,7 +356,7 @@ const InventarioPage: React.FC = () => {
                             <select
                                 value={selectedUbicacionKey}
                                 onChange={e => setSelectedUbicacionKey(e.target.value)}
-                                className="w-full md:w-auto px-3 py-2.5 md:py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full md:w-auto px-3 py-2.5 md:py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             >
                                 {allBodegas.length > 0 && (
                                     <optgroup label="🏢 Bodegas">
@@ -418,7 +418,7 @@ const InventarioPage: React.FC = () => {
                 {activeTab === 'maestro' && (
                     <div className="flex-1 min-h-0 flex flex-col gap-3">
                         {/* Sub-tabs Ítems / Stock */}
-                        <div className="flex items-center gap-1 p-1 bg-[#F5F7FA] rounded-xl w-fit shrink-0">
+                        <div className="flex items-center gap-1 p-1 bg-muted rounded-xl w-fit shrink-0">
                             {([
                                 { key: 'items', label: 'Ítems' },
                                 { key: 'stock', label: 'Stock por ubicación' },
@@ -429,7 +429,7 @@ const InventarioPage: React.FC = () => {
                                     className={cn(
                                         "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
                                         maestroSubTab === st.key
-                                            ? "bg-white text-brand-primary shadow-sm"
+                                            ? "bg-card text-brand-primary shadow-sm"
                                             : "text-muted-foreground hover:text-brand-dark"
                                     )}
                                 >

@@ -84,7 +84,7 @@ const PermisosUsuarioPanel: React.FC<Props> = ({
             </div>
 
             {/* Footer sticky con contador + botones */}
-            <div className="border-t border-border bg-white px-4 py-3 shrink-0">
+            <div className="border-t border-border bg-card px-4 py-3 shrink-0">
                 <StickyFooter
                     pendingCount={state.pendingChangesCount}
                     saving={state.saving}
@@ -147,7 +147,7 @@ const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) 
                 className={cn(
                     'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
                     value === 'default'
-                        ? 'bg-white text-gray-800 shadow'
+                        ? 'bg-card text-gray-800 shadow'
                         : 'text-gray-600 hover:bg-gray-200'
                 )}
                 title={`Por defecto (rol ${rolDefault ? 'concede' : 'no concede'})`}

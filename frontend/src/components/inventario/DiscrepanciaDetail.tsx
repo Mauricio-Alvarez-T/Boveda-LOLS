@@ -128,7 +128,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                 </div>
 
                 {/* Metadata card */}
-                <div className="rounded-xl border border-[#E8E8ED] bg-white p-3 text-[11px] space-y-1.5">
+                <div className="rounded-xl border border-border bg-card p-3 text-[11px] space-y-1.5">
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-3 w-3 shrink-0" />
                         <span>Recibido:</span>
@@ -163,11 +163,11 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                         return (
                             <div
                                 key={item.id}
-                                className="rounded-xl border border-[#E8E8ED] bg-white p-3"
+                                className="rounded-xl border border-border bg-card p-3"
                             >
                                 {/* Header item */}
                                 <div className="flex items-start gap-2 mb-2">
-                                    <div className="w-8 h-8 rounded-lg bg-[#F5F7FA] border border-[#E8E8ED] flex items-center justify-center shrink-0">
+                                    <div className="w-8 h-8 rounded-lg bg-muted border border-border flex items-center justify-center shrink-0">
                                         <Package className="h-3.5 w-3.5 text-muted-foreground" />
                                     </div>
                                     <div className="flex-1 min-w-0">
@@ -229,7 +229,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
 
                                 {/* Observación al recibir (si existe) */}
                                 {item.observacion && (
-                                    <div className="flex items-start gap-1.5 bg-[#FAFBFC] rounded-lg px-2 py-1.5 mb-2 text-[10px]">
+                                    <div className="flex items-start gap-1.5 bg-muted rounded-lg px-2 py-1.5 mb-2 text-[10px]">
                                         <FileText className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
                                         <div>
                                             <p className="text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Nota al recibir</p>
@@ -329,7 +329,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
             >
                 {modalItem && (
                     <div className="space-y-3">
-                        <div className="bg-[#F9F9FB] rounded-lg p-3 text-xs">
+                        <div className="bg-muted rounded-lg p-3 text-xs">
                             <p className="font-bold text-brand-dark mb-1">#{modalItem.nro_item} · {modalItem.item_descripcion}</p>
                             <p className="text-muted-foreground">
                                 Enviado: <span className="font-semibold text-brand-dark">{Number(modalItem.cantidad_enviada)}</span>
@@ -352,7 +352,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 placeholder={modalAction === 'resuelta'
                                     ? 'Ej: Unidades encontradas en camión. Ajuste de inventario manual.'
                                     : 'Ej: Pérdida aceptada por desgaste de material. No requiere seguimiento.'}
-                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none resize-none"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none resize-none"
                                 autoFocus
                             />
                             <p className="text-[10px] text-muted-foreground mt-1">

@@ -286,7 +286,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                 </button>
             </div>
 
-            <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5">
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <h2 className="text-lg font-black text-brand-dark">Sábado {fechaStr}</h2>
@@ -318,7 +318,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             {!isCancelada && (
                 <>
                     {/* Controles globales: horas default + observación general */}
-                    <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5">
+                    <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
                                 <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
@@ -333,7 +333,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                         value={horasDefault}
                                         onChange={e => setHorasDefault(e.target.value)}
                                         disabled={!canRegistrar}
-                                        className="flex-1 h-10 px-3 bg-white border border-[#D0D0D5] rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
+                                        className="flex-1 h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
                                     />
                                     <button
                                         type="button"
@@ -355,7 +355,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                     onChange={e => setObservacionesGlobales(e.target.value)}
                                     disabled={!canRegistrar}
                                     placeholder="Comentario al final del mensaje WhatsApp..."
-                                    className="w-full h-10 px-3 bg-white border border-[#D0D0D5] rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
+                                    className="w-full h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
                                 />
                             </div>
                         </div>
@@ -380,13 +380,13 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                     {/* Lista filas por cargo */}
                     <div className="flex flex-col gap-3">
                         {grupos.map(({ cargo, items }) => (
-                            <div key={cargo} className="border border-[#E8E8ED] rounded-2xl overflow-hidden bg-white">
-                                <div className="bg-[#F5F5F7] px-4 py-2.5 flex items-center justify-between">
+                            <div key={cargo} className="border border-border rounded-2xl overflow-hidden bg-card">
+                                <div className="bg-muted px-4 py-2.5 flex items-center justify-between">
                                     <span className="text-[11px] font-black uppercase tracking-wider text-brand-dark">
                                         {cargo} ({items.length})
                                     </span>
                                 </div>
-                                <div className="divide-y divide-[#F0F0F5]">
+                                <div className="divide-y divide-border">
                                     {items.map(({ trabajadorId, row }) => {
                                         return (
                                             <div key={trabajadorId} className="px-4 py-3 flex flex-wrap items-center gap-3">
@@ -417,7 +417,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                             'px-3 h-9 text-[11px] font-bold rounded-lg transition-all',
                                                             row.asistio
                                                                 ? 'bg-emerald-500 text-white shadow'
-                                                                : 'bg-white border border-[#D0D0D5] text-muted-foreground'
+                                                                : 'bg-card border border-border text-muted-foreground'
                                                         )}
                                                     >
                                                         Asistió
@@ -431,7 +431,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                             'px-3 h-9 text-[11px] font-bold rounded-lg transition-all',
                                                             !row.asistio
                                                                 ? 'bg-red-500 text-white shadow'
-                                                                : 'bg-white border border-[#D0D0D5] text-muted-foreground'
+                                                                : 'bg-card border border-border text-muted-foreground'
                                                         )}
                                                     >
                                                         No
@@ -449,7 +449,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                     value={row.horas_trabajadas}
                                                     onChange={e => setHorasRow(trabajadorId, e.target.value)}
                                                     disabled={!canRegistrar || !row.asistio}
-                                                    className="w-20 h-9 px-2 bg-white border border-[#D0D0D5] rounded-lg text-sm text-center font-medium focus:outline-none focus:border-brand-primary disabled:opacity-50"
+                                                    className="w-20 h-9 px-2 bg-card border border-border rounded-lg text-sm text-center font-medium focus:outline-none focus:border-brand-primary disabled:opacity-50"
                                                 />
 
                                                 {/* Observación */}
@@ -460,7 +460,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                     value={row.observacion}
                                                     onChange={e => setObsRow(trabajadorId, e.target.value)}
                                                     disabled={!canRegistrar}
-                                                    className="flex-1 min-w-[120px] h-9 px-3 bg-white border border-[#D0D0D5] rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
+                                                    className="flex-1 min-w-[120px] h-9 px-3 bg-card border border-border rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
                                                 />
                                             </div>
                                         );
@@ -471,7 +471,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                     </div>
 
                     {/* Footer acciones */}
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-[#E8E8ED]">
+                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-border">
                         {canCrear && current.estado === 'citada' && (
                             <Button
                                 variant="ghost"

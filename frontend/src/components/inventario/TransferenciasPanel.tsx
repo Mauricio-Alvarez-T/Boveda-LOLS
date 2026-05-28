@@ -290,7 +290,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                         <>
                             {/* Top row: status chips — mobile icon+label / desktop pills */}
                             {/* Mobile */}
-                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 mb-3 shadow-sm">
+                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                                 {MAIN_STATUS_CHIPS
                                     .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
                                     .map(chip => {
@@ -350,7 +350,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                                         : "bg-brand-primary text-white border-brand-primary shadow-sm"
                                                     : isDisc && pendientesCount > 0
                                                         ? "bg-red-50 text-red-700 border-red-200 hover:border-red-300"
-                                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
+                                                        : "bg-card text-muted-foreground border-border hover:border-brand-primary/30"
                                             )}
                                         >
                                             <ChipIcon className="h-3 w-3" />

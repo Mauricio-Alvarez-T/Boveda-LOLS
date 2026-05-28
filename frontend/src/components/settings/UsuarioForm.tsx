@@ -141,9 +141,9 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-muted-foreground ml-1">Rol</label>
                     <select {...register('rol_id')} className={selectClass}>
-                        <option value={0} className="bg-white text-brand-dark">Seleccionar rol...</option>
+                        <option value={0} className="bg-card text-brand-dark">Seleccionar rol...</option>
                         {roles.map(r => (
-                            <option key={r.id} value={r.id} className="bg-white text-brand-dark">
+                            <option key={r.id} value={r.id} className="bg-card text-brand-dark">
                                 {r.nombre}{typeof r.permisos_count === 'number' ? ` (${r.permisos_count} permisos)` : ''}
                             </option>
                         ))}
@@ -168,9 +168,9 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                 <div className="space-y-1.5">
                     <label className="text-sm font-medium text-muted-foreground ml-1">Obra Asignada</label>
                     <select {...register('obra_id')} className={selectClass}>
-                        <option value={0} className="bg-white text-brand-dark">Oficina Central</option>
+                        <option value={0} className="bg-card text-brand-dark">Oficina Central</option>
                         {obras.map(o => (
-                            <option key={o.id} value={o.id} className="bg-white text-brand-dark">{o.nombre}</option>
+                            <option key={o.id} value={o.id} className="bg-card text-brand-dark">{o.nombre}</option>
                         ))}
                     </select>
                 </div>

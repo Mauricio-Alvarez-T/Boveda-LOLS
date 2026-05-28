@@ -39,7 +39,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                     value={searchQuery}
                     onChange={e => onSearchChange(e.target.value)}
                     placeholder="Buscar por código TRF..."
-                    className="w-full pl-8 pr-8 py-2 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
                 />
                 {searchQuery && (
                     <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
@@ -58,7 +58,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
                             subFilter === chip.value
                                 ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-red-300"
+                                : "bg-card text-muted-foreground border-border hover:border-red-300"
                         )}
                     >
                         <span className={cn("h-1.5 w-1.5 rounded-full", chip.color)} />
@@ -109,7 +109,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                                     "px-3 py-2.5 rounded-xl border transition-all cursor-pointer",
                                     isSelected
                                         ? "border-red-500 bg-red-50/60 shadow-sm"
-                                        : "border-[#E8E8ED] hover:border-red-300 hover:bg-red-50/30"
+                                        : "border-border hover:border-red-300 hover:bg-red-50/30"
                                 )}
                             >
                                 {/* Header: código + fecha */}

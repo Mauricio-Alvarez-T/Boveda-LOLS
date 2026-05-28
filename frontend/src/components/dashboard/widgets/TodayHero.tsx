@@ -79,7 +79,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.4 }}
             className={cn(
-                "relative overflow-hidden rounded-2xl border border-border bg-white p-5 md:p-6",
+                "relative overflow-hidden rounded-2xl border border-border bg-card p-5 md:p-6",
                 "shadow-[0_4px_24px_rgba(0,0,0,0.04)]"
             )}
         >
@@ -90,7 +90,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                 {/* Left: Greeting */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2">
-                        <div className={cn("p-2 rounded-xl bg-white shadow-sm border border-border/50", timeConfig.iconColor)}>
+                        <div className={cn("p-2 rounded-xl bg-card shadow-sm border border-border/50", timeConfig.iconColor)}>
                             <TimeIcon className="h-4 w-4" />
                         </div>
                         <div>

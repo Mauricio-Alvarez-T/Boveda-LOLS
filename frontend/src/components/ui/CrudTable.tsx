@@ -229,7 +229,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                 key={row.id}
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
-                                className="bg-white rounded-2xl border border-border/60 p-5 shadow-sm hover:shadow-md transition-shadow"
+                                className="bg-card rounded-2xl border border-border/60 p-5 shadow-sm hover:shadow-md transition-shadow"
                             >
                                 {/* Card title */}
                                 <div className="flex items-start justify-between gap-2 mb-2">
@@ -282,11 +282,11 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
             </div>
 
             {/* ─── DESKTOP: Table ─── */}
-            <div className="hidden md:block bg-white rounded-2xl border border-[#E8E8ED] shadow-sm overflow-hidden">
+            <div className="hidden md:block bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-[#F9F9FB] border-b border-[#E8E8ED] uppercase text-[10px] tracking-[0.1em] font-bold text-muted-foreground/70">
+                            <tr className="bg-muted border-b border-border uppercase text-[10px] tracking-[0.1em] font-bold text-muted-foreground/70">
                                 {columns.map(col => (
                                     <th key={String(col.key)} className={cn("px-6 py-4", col.className)}>
                                         {col.label}
@@ -295,7 +295,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                 <th className="px-6 py-4 text-right">Acciones</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-[#E8E8ED]">
+                        <tbody className="divide-y divide-border">
                             {loading ? (
                                 <tr>
                                     <td colSpan={columns.length + 1} className="px-5 py-16 text-center">

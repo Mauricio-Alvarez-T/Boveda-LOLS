@@ -517,14 +517,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                             return (
                                 <React.Fragment key={step.key}>
                                     {idx > 0 && (
-                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-[#E8E8ED]")} />
+                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
                                     )}
                                     <div className="flex flex-col items-center gap-1.5">
                                         <div className={cn(
                                             "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
                                             completed
                                                 ? "bg-brand-primary border-brand-primary text-white"
-                                                : "bg-white border-[#E8E8ED] text-muted-foreground/40",
+                                                : "bg-card border-border text-muted-foreground/40",
                                             isCurrent && "ring-4 ring-brand-primary/20 scale-110"
                                         )}>
                                             <StepIcon className="h-4.5 w-4.5" />
@@ -550,10 +550,10 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <Package className="h-3.5 w-3.5" />
                         Items ({items.length})
                     </h4>
-                    <div className="border border-[#E8E8ED] rounded-xl overflow-hidden">
+                    <div className="border border-border rounded-xl overflow-hidden">
                         <table className="w-full text-[11px]">
                             <thead>
-                                <tr className="bg-[#F5F7FA]">
+                                <tr className="bg-muted">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Solicit.</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Enviada</th>
@@ -562,7 +562,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             </thead>
                             <tbody>
                                 {items.map((item, idx) => (
-                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                         <td className="px-3 py-1.5 font-medium text-brand-dark">
                                             <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
                                                 {item.item_descripcion || `Item #${item.item_id}`}
@@ -666,7 +666,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             </thead>
                             <tbody>
                                 {itemsCustom.map((it, idx) => (
-                                    <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-amber-50/40")}>
+                                    <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-amber-50/40")}>
                                         <td className="px-3 py-1.5 font-medium text-brand-dark">
                                             <div>{it.descripcion}</div>
                                             {it.observacion && (
@@ -686,7 +686,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Info ── */}
             <div className="shrink-0 mb-5 space-y-2">
                 {t.observaciones && (
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground bg-[#F9F9FB] rounded-lg px-3 py-2">
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
                         <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                         <span>{t.observaciones}</span>
                     </div>
@@ -697,7 +697,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <span>Requiere {t.cantidad_pionetas || ''} pionetas</span>
                     </div>
                 )}
-                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-[#F9F9FB] rounded-lg px-3 py-2">
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
                     <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <div className="space-y-0.5">
                         <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
@@ -754,7 +754,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                     {canCancelar && (
                         <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-xl hover:bg-[#E5E5EA] disabled:opacity-50 transition-all">
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-muted rounded-xl hover:bg-muted disabled:opacity-50 transition-all">
                             <Ban className="h-3.5 w-3.5" /> Cancelar
                         </button>
                     )}
@@ -1027,7 +1027,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             type="button"
                             onClick={autoCompletar}
                             disabled={stockLoading}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-card border border-green-300 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-all"
                             title="Completa las cantidades solicitadas distribuyendo entre las ubicaciones con más stock"
                         >
                             <Zap className="h-3 w-3" />
@@ -1070,10 +1070,10 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 const borderColor = status.error
                                     ? "bg-red-50/30 border-red-200"
                                     : status.completo
-                                        ? "bg-white border-green-200"
+                                        ? "bg-card border-green-200"
                                         : status.parcial
                                             ? "bg-amber-50/30 border-amber-200"
-                                            : "bg-white border-green-100";
+                                            : "bg-card border-green-100";
 
                                 const currentOriginIds = new Set(
                                     ai.splits.map(s => `${s.origen_obra_id || 'n'}:${s.origen_bodega_id || 'n'}`)
@@ -1539,7 +1539,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
-                                <tr className="bg-white/60 border-b border-[#E8E8ED]">
+                                <tr className="bg-white/60 border-b border-border">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Ítem</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Enviada</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Falta</th>
@@ -1578,7 +1578,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
                                     const incompleto = ri.cantidad_recibida < falta;
                                     return (
-                                        <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                        <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                             <td className="px-3 py-1.5 text-brand-dark">
                                                 <button
                                                     type="button"
@@ -1606,7 +1606,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             setReceiveItems(updated);
                                                         }}
                                                         disabled={ri.cantidad_recibida <= 0}
-                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                                         aria-label={`Restar 1 a ${item.item_descripcion}`}
                                                     >
                                                         <Minus className="h-3 w-3" />
@@ -1622,7 +1622,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                         }}
                                                         className={cn(
                                                             "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
-                                                            sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#E8E8ED]"
+                                                            sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800" : "border-border"
                                                         )}
                                                         aria-label={`Cantidad recibida de ${item.item_descripcion}`}
                                                     />
@@ -1633,7 +1633,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
                                                             setReceiveItems(updated);
                                                         }}
-                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
                                                         aria-label={`Sumar 1 a ${item.item_descripcion}`}
                                                     >
                                                         <Plus className="h-3 w-3" />

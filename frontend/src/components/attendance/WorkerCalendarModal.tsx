@@ -174,7 +174,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
 
                         {/* Estado selector */}
                         <div className="mb-4">
-                            <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                 Estado de ausencia
                             </label>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
@@ -185,7 +185,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                         className={`p-3 rounded-xl border-2 text-left transition-all ${
                                             estadoId === est.id
                                                 ? 'border-current shadow-lg scale-[1.02]'
-                                                : 'border-[#E8E8ED] hover:border-border'
+                                                : 'border-border hover:border-border'
                                         }`}
                                         style={
                                             estadoId === est.id
@@ -202,7 +202,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                                 {est.nombre}
                                             </span>
                                         </div>
-                                        <span className="text-[10px] text-[#86868B] font-medium mt-0.5 block">
+                                        <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">
                                             {est.codigo}
                                         </span>
                                     </button>
@@ -213,18 +213,18 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                         {/* Date range */}
                         <div className="grid grid-cols-2 gap-3 mb-4">
                             <div>
-                                <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Fecha inicio
                                 </label>
                                 <input
                                     type="date"
                                     value={fechaInicio}
                                     onChange={e => setFechaInicio(e.target.value)}
-                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                                 />
                             </div>
                             <div>
-                                <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Fecha fin
                                 </label>
                                 <input
@@ -232,7 +232,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                     value={fechaFin}
                                     onChange={e => setFechaFin(e.target.value)}
                                     min={fechaInicio}
-                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                                 />
                             </div>
                         </div>
@@ -271,7 +271,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                     <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
                                     <div>
                                         <p className="text-xs font-bold text-warning">Superposición detectada</p>
-                                        <p className="text-xs text-[#86868B] mt-1">
+                                        <p className="text-xs text-muted-foreground mt-1">
                                             {overlappingPeriods.length === 1
                                                 ? 'Un período existente'
                                                 : `${overlappingPeriods.length} períodos existentes`}{' '}
@@ -293,7 +293,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
 
                         {/* Observación */}
                         <div className="mb-4">
-                            <label className="block text-xs font-bold text-[#86868B] uppercase tracking-wider mb-2">
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                 Observación <span className="font-normal">(opcional)</span>
                             </label>
                             <textarea
@@ -301,7 +301,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 onChange={e => setObservacion(e.target.value)}
                                 placeholder="Ej: Licencia médica presentada el día..."
                                 rows={2}
-                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-white text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                             />
                         </div>
 

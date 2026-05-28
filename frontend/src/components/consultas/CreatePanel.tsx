@@ -12,7 +12,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
     setModalType,
     setSelectedWorkerForAction
 }) => (
-    <div className="p-5 bg-white border border-[#E8E8ED] rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
+    <div className="p-5 bg-card border border-border rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
         {hasPermission('trabajadores.crear') && (
             <button
                 onClick={() => {

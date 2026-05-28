@@ -39,8 +39,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     return (
         <>
             {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
-            <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-white border-b border-[#E8E8ED] shrink-0">
-                <div className="flex items-center justify-between bg-white rounded-2xl p-1 border border-[#E8E8ED] shadow-sm">
+            <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-card border-b border-border shrink-0">
+                <div className="flex items-center justify-between bg-card rounded-2xl p-1 border border-border shadow-sm">
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
@@ -90,7 +90,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                 Izquierda (estática): icon + título + date picker + KPIs Total/Porcentaje.
                 Derecha (dinámica):   chips clickeables de estados.
                 Esto evita que la fecha cambie de posición según haya más o menos estados. */}
-            <div className="min-h-[48px] border-b border-[#F0F0F5] bg-white/50 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-h-[48px] border-b border-border bg-white/50 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3 shrink-0 flex-wrap">
                     <div className="flex items-center gap-3 shrink-0">
                         <div className="h-7 w-7 lg:h-8 lg:w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
@@ -102,7 +102,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                     {hasActiveContext && (
                         <>
                             {/* Date picker — siempre en posición fija junto al título */}
-                            <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm shrink-0">
+                            <div className="flex items-center bg-white/50 backdrop-blur-sm border border-border rounded-xl p-0.5 shadow-sm shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
@@ -141,7 +141,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     placeholder="Buscar..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
+                                    className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
                                 />
                                 {searchQuery && (
                                     <button

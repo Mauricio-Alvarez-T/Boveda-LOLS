@@ -71,7 +71,7 @@ export const PermissionsTree: React.FC<Props> = ({
                             'mt-2 w-full text-xs px-3 py-1.5 rounded border transition-colors',
                             diffOnly
                                 ? 'bg-amber-100 border-amber-300 text-amber-900'
-                                : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                : 'bg-card border-gray-200 text-gray-600 hover:bg-gray-50'
                         )}
                     >
                         {diffOnly ? '✓ Solo modificados' : 'Mostrar solo modificados'}
@@ -81,7 +81,7 @@ export const PermissionsTree: React.FC<Props> = ({
 
             {/* ─── Desktop: sidebar ─── */}
             <aside className="hidden md:flex md:flex-col md:w-64 border-r border-border bg-gray-50/50 shrink-0">
-                <div className="p-3 border-b border-border bg-white">
+                <div className="p-3 border-b border-border bg-card">
                     <PermissionsSearchBar value={search} onChange={onSearchChange} autoFocus />
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -92,7 +92,7 @@ export const PermissionsTree: React.FC<Props> = ({
                     />
                 </div>
                 {onToggleDiffOnly && (
-                    <div className="p-3 border-t border-border bg-white">
+                    <div className="p-3 border-t border-border bg-card">
                         <button
                             type="button"
                             onClick={onToggleDiffOnly}
@@ -100,7 +100,7 @@ export const PermissionsTree: React.FC<Props> = ({
                                 'w-full text-xs px-3 py-2 rounded border transition-colors text-left',
                                 diffOnly
                                     ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold'
-                                    : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    : 'bg-card border-gray-200 text-gray-600 hover:bg-gray-50'
                             )}
                             aria-pressed={diffOnly}
                         >
@@ -172,7 +172,7 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
 }) => {
     return (
         <section aria-labelledby={`sec-${sec.seccion}`}>
-            <header className="sticky top-0 z-10 bg-white/95 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
+            <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
                 <h2 id={`sec-${sec.seccion}`} className="text-base font-bold text-gray-900 flex items-center gap-2">
                     <span aria-hidden>{sec.icon}</span>
                     {sec.label}
@@ -200,7 +200,7 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
                                 />
                             )}
                         </div>
-                        <div className="bg-white">
+                        <div className="bg-card">
                             {sub.perms.map(perm => (
                                 <PermRow
                                     key={perm.def.clave}

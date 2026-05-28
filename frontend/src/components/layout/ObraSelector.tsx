@@ -51,7 +51,7 @@ export const ObraSelector: React.FC = () => {
                         <option key={o.id} value={o.id}>{o.nombre}</option>
                     ))}
                 </select>
-                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-white border border-border rounded-full text-[13px] font-medium text-brand-dark shadow-sm shrink min-w-[70px] max-w-[130px]">
+                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-full text-[13px] font-medium text-brand-dark shadow-sm shrink min-w-[70px] max-w-[130px]">
                     <Map className="h-4 w-4 shrink-0 text-brand-primary" />
                     <span className="truncate flex-1 text-left">{selectedObra?.nombre || 'Obra'}</span>
                 </div>
@@ -64,7 +64,7 @@ export const ObraSelector: React.FC = () => {
                     "hidden md:flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-medium w-fit min-w-[140px] max-w-[220px]",
                     isOpen
                         ? "bg-brand-primary/5 border-brand-primary/30 text-brand-primary"
-                        : "bg-white border-border text-brand-dark hover:border-[#B0B0B5] shadow-sm"
+                        : "bg-card border-border text-brand-dark hover:border-[var(--border-hover)] shadow-sm"
                 )}
             >
                 <HardHat className="h-4 w-4 shrink-0 text-brand-primary" />
@@ -84,7 +84,7 @@ export const ObraSelector: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: -4, scale: 0.97 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute top-full mt-2 right-0 w-[240px] z-[110] bg-white rounded-xl border border-border shadow-lg overflow-hidden"
+                        className="absolute top-full mt-2 right-0 w-[240px] z-[110] bg-card rounded-xl border border-border shadow-lg overflow-hidden"
                     >
                         <div className="p-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
                             {/* "All Obras" option */}
