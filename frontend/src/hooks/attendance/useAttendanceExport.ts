@@ -153,7 +153,9 @@ export function useAttendanceExport({
                 return est && est.es_presente;
             });
             if (presentWorkersInCat.length === 0) return;
-            text += `${cat.label}\n`;
+            // Línea en blanco después del título para separarlo del listado
+            // (mejora legibilidad en WhatsApp mobile).
+            text += `${cat.label}\n\n`;
             const cargoCounts: Record<string, number> = {};
             presentWorkersInCat.forEach(w => {
                 const cargo = w.cargo_nombre || 'Sin Cargo';
@@ -194,7 +196,9 @@ export function useAttendanceExport({
         }
 
         if (excepciones.length > 0) {
-            text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n`;
+            // Línea en blanco después del título para separarlo del listado
+            // (mejora legibilidad en WhatsApp mobile).
+            text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n\n`;
             excepciones.forEach((w, idx) => {
                 // Línea en blanco entre cada ausencia (excepto la primera) para
                 // que en WhatsApp mobile cada trabajador quede visualmente
