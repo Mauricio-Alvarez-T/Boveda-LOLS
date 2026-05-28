@@ -150,6 +150,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                     worker={worker}
                     estados={estados}
                     obraId={obraId}
+                    showLegend={false}
                     onSelectRange={(start, end) => {
                         setFechaInicio(start);
                         setFechaFin(end);
