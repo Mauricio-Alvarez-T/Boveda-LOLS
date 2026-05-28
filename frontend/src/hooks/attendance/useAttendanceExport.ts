@@ -172,6 +172,27 @@ export function useAttendanceExport({
             return est && !est.es_presente;
         });
 
+        // Enriquecimiento de líneas de ausencia con info de período: si el
+        // trabajador tiene un período activo para el día del reporte (vacaciones,
+        // licencia, permiso sin goce, etc.), se agrega "X días: DD/MM/YYYY →
+        // DD/MM/YYYY" para que RRHH vea de un vistazo el rango de la ausencia.
+        // Degrada sin enriquecer si el usuario no tiene permiso periodo.ver o
+        // si la llamada falla. Key del map = `${trabajadorId}_${estadoId}` para
+        // soportar el caso (raro) de varios períodos activos por trabajador.
+        const periodMap = new Map<string, { fecha_inicio: string; fecha_fin: string; estado_id: number }>();
+        if (currentObra) {
+            try {
+                const periodsRes = await api.get<{ data: Array<{ trabajador_id: number; estado_id: number; fecha_inicio: string; fecha_fin: string }> }>(
+                    `/asistencias/periodos?obra_id=${currentObra.id}&fecha_inicio=${currentDate}&fecha_fin=${currentDate}&activo=true`
+                );
+                for (const p of (periodsRes.data?.data || [])) {
+                    periodMap.set(`${p.trabajador_id}_${p.estado_id}`, p);
+                }
+            } catch {
+                // Permiso faltante o error de red → seguimos sin enriquecer.
+            }
+        }
+
         if (excepciones.length > 0) {
             text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n`;
             excepciones.forEach(w => {
@@ -180,6 +201,18 @@ export function useAttendanceExport({
                 let line = `- ${w.apellido_paterno} ${w.nombres} (${est ? est.codigo : '?'})`;
                 if (est?.codigo === 'TO' && state?.observacion) {
                     line += ` ${state.observacion}`;
+                }
+                // Anexar rango y días si hay un período activo que matchee el estado.
+                const periodo = est ? periodMap.get(`${w.id}_${est.id}`) : undefined;
+                if (periodo) {
+                    const fi = String(periodo.fecha_inicio).split('T')[0];
+                    const ff = String(periodo.fecha_fin).split('T')[0];
+                    const fiMs = new Date(fi + 'T00:00:00').getTime();
+                    const ffMs = new Date(ff + 'T00:00:00').getTime();
+                    const dias = Math.floor((ffMs - fiMs) / 86400000) + 1;
+                    const fiFmt = fi.split('-').reverse().join('/');
+                    const ffFmt = ff.split('-').reverse().join('/');
+                    line += ` ${dias} día${dias === 1 ? '' : 's'}: ${fiFmt} → ${ffFmt}`;
                 }
                 text += line + '\n';
             });
