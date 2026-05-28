@@ -213,6 +213,10 @@ export function useAttendanceExport({
                     line += ` ${state.observacion}`;
                 }
                 // Anexar rango y días si hay un período activo que matchee el estado.
+                // Aplica a V (vacaciones), LM (licencia médica), DF (defunción),
+                // NAC (nacimiento), MT (matrimonio) y PSG (permiso sin goce).
+                // Si el período es de 1 día se omite la flecha (queda "1 día: fecha"),
+                // si son varios se muestra el rango completo "N días: ini → fin".
                 const periodo = est ? periodMap.get(`${w.id}_${est.id}`) : undefined;
                 if (periodo) {
                     const fi = String(periodo.fecha_inicio).split('T')[0];
@@ -221,8 +225,12 @@ export function useAttendanceExport({
                     const ffMs = new Date(ff + 'T00:00:00').getTime();
                     const dias = Math.floor((ffMs - fiMs) / 86400000) + 1;
                     const fiFmt = fi.split('-').reverse().join('/');
-                    const ffFmt = ff.split('-').reverse().join('/');
-                    line += ` ${dias} día${dias === 1 ? '' : 's'}: ${fiFmt} → ${ffFmt}`;
+                    if (dias === 1) {
+                        line += ` 1 día: ${fiFmt}`;
+                    } else {
+                        const ffFmt = ff.split('-').reverse().join('/');
+                        line += ` ${dias} días: ${fiFmt} → ${ffFmt}`;
+                    }
                 }
                 text += line + '\n';
             });
