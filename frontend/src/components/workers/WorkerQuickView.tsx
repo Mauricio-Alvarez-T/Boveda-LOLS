@@ -350,7 +350,11 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                 onClose={() => setShowCalendar(false)}
                 worker={worker as any}
                 estados={estados}
-                onSelectRange={handleCalendarSelectRange}
+                obraId={(worker as any)?.obra_id ?? undefined}
+                onSuccess={() => {
+                    setRefreshKey(prev => prev + 1);
+                    if (onUpdate) onUpdate();
+                }}
             />
 
             {/* Period Assignment Modal */}
