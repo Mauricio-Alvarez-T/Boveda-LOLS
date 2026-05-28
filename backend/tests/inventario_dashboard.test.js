@@ -8,11 +8,28 @@ const db = require('../src/config/db');
 describe('Inventario Service — getDashboardEjecutivo', () => {
     beforeEach(() => {
         jest.clearAllMocks();
+        // Congelar fecha para que findMesAnterior sea determinista.
+        // Con 2026-05-01, target (hoy-30 = 2026-04-01) queda >3 días de
+        // todos los snapshots mock (2026-03-25 … 2026-04-23).
+        jest.useFakeTimers({ now: new Date('2026-05-01T12:00:00Z') });
+    });
+
+    afterEach(() => {
+        jest.useRealTimers();
     });
 
     test('retorna shape con kpis, top_obras, alertas y rechazos_recientes', async () => {
         // Las 9 queries del service corren en paralelo con Promise.all, así que
         // mockeamos cada invocación sucesiva en el orden declarado en el service.
+        //
+        // Snapshots usan fechas RELATIVAS a "hoy" para que el test sea
+        // determinista en cualquier fecha. Antes usaba fechas fijas (2026-04-XX)
+        // que con el paso del tiempo terminaron coincidiendo con el target
+        // de findMesAnterior (today - 30 días ±3) — el test fallaba en CI.
+        // Snapshots ahora todos fuera de ventana ±3 días para que mes_anterior=null.
+        const today = new Date();
+        const isoOffset = (daysAgo) =>
+            new Date(today.getTime() - daysAgo * 86400000).toISOString().split('T')[0];
         db.query
             // 1. transferencias pendientes count
             .mockResolvedValueOnce([[{ count: 7 }]])
@@ -22,9 +39,10 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ transferencias_afectadas: 3, unidades_totales: 42 }]])
             // 4. valor por obra
             .mockResolvedValueOnce([[
-                { id: 1, nombre: 'CERRILLOS', subtotal_bruto: 18200000, descuento_porcentaje: 0 },
-                { id: 2, nombre: 'DOMEYKO', subtotal_bruto: 12100000, descuento_porcentaje: 10 },
-                { id: 3, nombre: 'SIN STOCK', subtotal_bruto: 0, descuento_porcentaje: 0 },
+                // Auditoría 6.1: backend ahora calcula valor_neto en SQL (no se recalcula en JS).
+                { id: 1, nombre: 'CERRILLOS', valor_neto: 18200000, valor_bruto: 18200000, descuento_porcentaje: 0 },
+                { id: 2, nombre: 'DOMEYKO', valor_neto: 10890000, valor_bruto: 12100000, descuento_porcentaje: 10 },
+                { id: 3, nombre: 'SIN STOCK', valor_neto: 0, valor_bruto: 0, descuento_porcentaje: 0 },
             ]])
             // 5a. alertas pendientes
             .mockResolvedValueOnce([[{
@@ -62,15 +80,17 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 rechazado_por_nombre: 'María',
                 dias: 2,
             }]])
-            // 8. snapshots últimos 31 días (sparklines + comparativa)
+            // 8. snapshots últimos 31 días (sparklines + comparativa).
+            // Fechas relativas (hoy - N días). Todas fuera de ventana ±3 días
+            // alrededor de "hoy - 30 días" para garantizar mes_anterior=null.
             .mockResolvedValueOnce([[
-                { fecha: '2026-03-25', kpi: 'pendientes', valor: 10 },
-                { fecha: '2026-03-25', kpi: 'valor_obras', valor: 25000000 },
-                { fecha: '2026-04-20', kpi: 'pendientes', valor: 8 },
-                { fecha: '2026-04-21', kpi: 'pendientes', valor: 6 },
-                { fecha: '2026-04-22', kpi: 'pendientes', valor: 5 },
-                { fecha: '2026-04-23', kpi: 'pendientes', valor: 4 },
-                { fecha: '2026-04-23', kpi: 'valor_obras', valor: 28000000 },
+                { fecha: isoOffset(50), kpi: 'pendientes', valor: 10 },
+                { fecha: isoOffset(50), kpi: 'valor_obras', valor: 25000000 },
+                { fecha: isoOffset(5),  kpi: 'pendientes', valor: 8 },
+                { fecha: isoOffset(4),  kpi: 'pendientes', valor: 6 },
+                { fecha: isoOffset(3),  kpi: 'pendientes', valor: 5 },
+                { fecha: isoOffset(2),  kpi: 'pendientes', valor: 4 },
+                { fecha: isoOffset(2),  kpi: 'valor_obras', valor: 28000000 },
             ]])
             // 9. valor por categoría (donut)
             .mockResolvedValueOnce([[
@@ -80,7 +100,9 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 { id: 4, nombre: 'MAQUINARIA', orden: 4, valor_neto: 6000000 },
             ]])
             // 10. bombas hormigón mes actual
-            .mockResolvedValueOnce([[{ eventos: 12, obras_distintas: 5, costo_externo: 3200000 }]]);
+            .mockResolvedValueOnce([[{ eventos: 12, obras_distintas: 5, costo_externo: 3200000 }]])
+            // 11. faltantes sin decisión (commit 3d03b3b) — sin faltantes en este mock
+            .mockResolvedValueOnce([[]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -99,11 +121,15 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.top_obras[0].obra_id).toBe(1);
         expect(result.top_obras[1].valor_mensual).toBeCloseTo(12100000 * 0.9, 0);
 
-        // Alertas: discrepancia primero (prioridad 0), luego pendiente (1), luego tránsito (2)
-        expect(result.alertas).toHaveLength(3);
+        // Alertas ordenadas por prioridad (commit 3d03b3b):
+        // discrepancia(0) > faltante(1) > pendiente(2) > rechazo(3) > transito(4).
+        // El mock trae 1 discrepancia, 1 pendiente, 1 rechazo y 1 tránsito (0 faltantes)
+        // → orden esperado: discrepancia, pendiente, rechazo, transito.
+        expect(result.alertas).toHaveLength(4);
         expect(result.alertas[0].tipo).toBe('discrepancia');
         expect(result.alertas[1].tipo).toBe('pendiente');
-        expect(result.alertas[2].tipo).toBe('transito');
+        expect(result.alertas[2].tipo).toBe('rechazo');
+        expect(result.alertas[3].tipo).toBe('transito');
         // Cada alerta trae transferencia_id para click → detalle
         result.alertas.forEach(a => expect(a.transferencia_id).toBeTruthy());
 
@@ -120,7 +146,7 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.historico.pendientes).toBeDefined();
         // Sparkline pendientes: últimos 6 snapshots (incluye el del 25/03 + abril) + valor hoy (7)
         expect(result.historico.pendientes.sparkline[result.historico.pendientes.sparkline.length - 1]).toBe(7);
-        // mes_anterior solo se setea cuando hay ≥20 puntos en la serie. Con 5 puntos debe ser null.
+        // mes_anterior = null cuando no hay snapshot dentro de ±3 días de (hoy - 30). Con fecha congelada en 2026-05-01, target es 2026-04-01, lejos de los mocks.
         expect(result.historico.pendientes.mes_anterior).toBeNull();
         expect(result.historico.valor_obras.sparkline[result.historico.valor_obras.sparkline.length - 1])
             .toBeCloseTo(18200000 + 12100000 * 0.9, 0);
@@ -151,7 +177,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
-            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]]);
+            .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
+            .mockResolvedValueOnce([[]]); // 11. faltantes sin decisión
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -176,7 +203,7 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ count: 1 }]])  // 2 transito
             .mockResolvedValueOnce([[{ transferencias_afectadas: 0, unidades_totales: 0 }]])  // 3 discrep
             .mockResolvedValueOnce([[                                                          // 4 valor obras (1 sola)
-                { id: 5, nombre: 'CERRILLOS', subtotal_bruto: 9000000, descuento_porcentaje: 0 },
+                { id: 5, nombre: 'CERRILLOS', valor_neto: 9000000, valor_bruto: 9000000, descuento_porcentaje: 0 },
             ]])
             .mockResolvedValueOnce([[]])  // 5a alertas pendientes
             .mockResolvedValueOnce([[]])  // 5b alertas discrep
@@ -187,7 +214,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[                                                          // 9 categoría (filtrada por obra)
                 { id: 3, nombre: 'MOLDAJES', orden: 3, valor_neto: 9000000 },
             ]])
-            .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]]); // 10 bombas
+            .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]])  // 10 bombas
+            .mockResolvedValueOnce([[]]);  // 11 faltantes (usa filtro con alias t → [obraId, obraId])
 
         const result = await inventarioService.getDashboardEjecutivo(5);
 
@@ -207,7 +235,9 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(calls[0][1]).toEqual([5, 5]);
         // Query 4 (valor obras) debe tener params [5]
         expect(calls[3][1]).toEqual([5]);
-        // Query 10 (bombas, último call) debe tener params [5]
-        expect(calls[calls.length - 1][1]).toEqual([5]);
+        // Faltantes (query 11) es ahora el último call y usa el filtro con alias t → [5, 5].
+        expect(calls[calls.length - 1][1]).toEqual([5, 5]);
+        // Bombas (penúltimo call) usa params directos [5].
+        expect(calls[calls.length - 2][1]).toEqual([5]);
     });
 });

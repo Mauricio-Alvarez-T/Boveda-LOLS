@@ -31,6 +31,8 @@ interface ResumenCategoria {
 interface Ubicacion {
     id: number;
     nombre: string;
+    /** Solo aplica a bodegas (mig 060). Para obras siempre será undefined. */
+    responsable_nombre?: string | null;
 }
 
 export interface ResumenData {
@@ -38,6 +40,15 @@ export interface ResumenData {
     bodegas: Ubicacion[];
     categorias: ResumenCategoria[];
     descuentos: Record<number, number>;
+    // Auditoría 6.1: totales pre-calculados en backend para consistencia con dashboard.
+    // Opcional porque el endpoint puede omitirlos si el usuario no tiene
+    // `inventario.resumen.ver_valores` (sanitizeResumenInventario los borra).
+    totales?: {
+        valor_bruto: number;
+        valor_descuento: number;
+        valor_neto: number;
+        total_cantidad: number;
+    };
 }
 
 interface StockItem {
@@ -73,52 +84,61 @@ export interface StockObraData {
 export interface StockBodegaData {
     bodega: Ubicacion;
     categorias: StockCategoria[];
+    // Auditoría 6.2: backend ahora devuelve estos campos en 0 para mantener
+    // el shape homogéneo con StockObraData (bodegas no facturan arriendo).
+    total_facturacion: number;
+    descuento_porcentaje: number;
+    descuento_monto: number;
+    total_con_descuento: number;
 }
 
 export function useInventarioData() {
     const [resumen, setResumen] = useState<ResumenData | null>(null);
     const [stockObra, setStockObra] = useState<StockObraData | null>(null);
     const [stockBodega, setStockBodega] = useState<StockBodegaData | null>(null);
-    const [loading, setLoading] = useState(false);
+    const [resumenLoading, setResumenLoading] = useState(false);
+    const [stockObraLoading, setStockObraLoading] = useState(false);
+    const [stockBodegaLoading, setStockBodegaLoading] = useState(false);
 
     const fetchResumen = useCallback(async () => {
-        setLoading(true);
+        setResumenLoading(true);
         try {
             const res = await api.get<ApiResponse<ResumenData>>('/inventario/resumen');
             setResumen(res.data.data);
         } catch {
             setResumen(null);
         } finally {
-            setLoading(false);
+            setResumenLoading(false);
         }
     }, []);
 
     const fetchStockObra = useCallback(async (obraId: number) => {
-        setLoading(true);
+        setStockObraLoading(true);
         try {
             const res = await api.get<ApiResponse<StockObraData>>(`/inventario/stock/obra/${obraId}`);
             setStockObra(res.data.data);
         } catch {
             setStockObra(null);
         } finally {
-            setLoading(false);
+            setStockObraLoading(false);
         }
     }, []);
 
     const fetchStockBodega = useCallback(async (bodegaId: number) => {
-        setLoading(true);
+        setStockBodegaLoading(true);
         try {
             const res = await api.get<ApiResponse<StockBodegaData>>(`/inventario/stock/bodega/${bodegaId}`);
             setStockBodega(res.data.data);
         } catch {
             setStockBodega(null);
         } finally {
-            setLoading(false);
+            setStockBodegaLoading(false);
         }
     }, []);
 
     return {
-        resumen, stockObra, stockBodega, loading,
+        resumen, stockObra, stockBodega,
+        resumenLoading, stockObraLoading, stockBodegaLoading,
         fetchResumen, fetchStockObra, fetchStockBodega
     };
 }

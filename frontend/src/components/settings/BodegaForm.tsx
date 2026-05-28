@@ -14,6 +14,7 @@ import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 const schema = z.object({
     nombre: z.string().min(1, 'Nombre es requerido'),
     direccion: z.string().optional(),
+    responsable_nombre: z.string().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -30,6 +31,7 @@ export const BodegaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }
         defaultValues: {
             nombre: initialData?.nombre || '',
             direccion: initialData?.direccion || '',
+            responsable_nombre: initialData?.responsable_nombre || '',
         },
     });
 
@@ -54,6 +56,12 @@ export const BodegaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre" {...register('nombre')} error={errors.nombre?.message} placeholder="Bodega Central" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Los Andes 123" />
+            <Input
+                label="Responsable (nombre)"
+                {...register('responsable_nombre')}
+                error={errors.responsable_nombre?.message}
+                placeholder="Ej: Juan Pérez"
+            />
 
             <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                 <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">

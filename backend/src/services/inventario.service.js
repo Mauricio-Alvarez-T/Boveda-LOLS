@@ -1,4 +1,6 @@
 const db = require('../config/db');
+const { getDescuentoMap, getDescuentoForObra } = require('../utils/descuentoMap');
+const { registrarMovimiento } = require('./stockMovimiento.service');
 
 const inventarioService = {
     /**
@@ -24,10 +26,10 @@ const inventarioService = {
             [bodegas],
             [items],
             [stock],
-            [descuentos],
+            descuentoMapInstance,
         ] = await Promise.all([
             db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
-            db.query('SELECT id, nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
+            db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
             db.query(`
                 SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
                 FROM items_inventario i
@@ -36,13 +38,8 @@ const inventarioService = {
                 ORDER BY c.orden ASC, i.nro_item ASC
             `),
             db.query(stockQuery, stockParams),
-            // Solo descuentos de obras activas que participan en inventario (FK CASCADE protege contra obras eliminadas)
-            db.query(`
-                SELECT d.obra_id, d.porcentaje
-                FROM descuentos_obra d
-                JOIN obras o ON d.obra_id = o.id
-                WHERE o.activa = 1 AND o.participa_inventario = 1
-            `),
+            // Helper compartido (utils/descuentoMap) — antes inline query duplicada con getStockPorObra
+            getDescuentoMap(db),
         ]);
 
         // 4. Indexar stock por item_id en una sola pasada usando Map (lookup O(1) más eficiente que objeto plain)
@@ -54,13 +51,19 @@ const inventarioService = {
                 stockMap.set(s.item_id, inner);
             }
             const key = s.obra_id ? `obra_${s.obra_id}` : `bodega_${s.bodega_id}`;
-            inner.set(key, { cantidad: s.cantidad, override: s.valor_arriendo_override });
+            // Mig 052 cambió cantidad INT → DECIMAL(12,4). mysql2 retorna DECIMAL
+            // como string ("10.0000") por defecto → al sumar con `+` concatenaba
+            // en lugar de sumar (bug visible: header categoría mostraba
+            // "0010.00001.00001..." en vez de la suma).
+            inner.set(key, { cantidad: Number(s.cantidad) || 0, override: s.valor_arriendo_override });
         }
 
-        // Pre-construir descuentoMap
+        // Helper retorna Map; convertimos a objeto plain para mantener compat con:
+        // (a) acceso `descuentoMap[oid]` en loop de totales abajo
+        // (b) serialización JSON en `descuentos: descuentoMap` (Map → {} en JSON.stringify)
         const descuentoMap = {};
-        for (const d of descuentos) {
-            descuentoMap[d.obra_id] = parseFloat(d.porcentaje);
+        for (const [obraId, pct] of descuentoMapInstance) {
+            descuentoMap[obraId] = pct;
         }
 
         // Pre-extraer arrays planos de IDs para evitar acceso repetido en loops calientes
@@ -122,11 +125,39 @@ const inventarioService = {
             });
         }
 
+        // Auditoría 6.1: calcular totales en backend para que coincidan exactamente
+        // con los KPIs del dashboard. Antes el frontend hacía
+        // `totalDescuento += (obraArriendo * desc / 100)` con floats JS, y eso podía
+        // diferir del cálculo NETO del dashboard en algunos pesos.
+        // Calculamos por-obra primero (necesario porque descuento es por obra).
+        let valorBruto = 0;
+        let valorDescuento = 0;
+        let totalCantidad = 0;
+        for (const cat of categorias.values()) {
+            for (const item of cat.items) {
+                totalCantidad += item.total_cantidad;
+                for (const oid of obraIds) {
+                    const cellTotal = item.ubicaciones[`obra_${oid}`]?.total || 0;
+                    valorBruto += cellTotal;
+                    const desc = descuentoMap[oid] || 0;
+                    valorDescuento += cellTotal * desc / 100;
+                }
+            }
+        }
+
         return {
             obras: obras.map(o => ({ id: o.id, nombre: o.nombre })),
-            bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre })),
+            // mig 060: incluir responsable_nombre para que la UI lo muestre en
+            // dropdowns y headers (formatBodegaConResponsable).
+            bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre, responsable_nombre: b.responsable_nombre })),
             categorias: Array.from(categorias.values()).sort((a, b) => a.orden - b.orden),
             descuentos: descuentoMap,
+            totales: {
+                valor_bruto: valorBruto,
+                valor_descuento: valorDescuento,
+                valor_neto: valorBruto - valorDescuento,
+                total_cantidad: totalCantidad,
+            },
         };
     },
 
@@ -134,8 +165,17 @@ const inventarioService = {
      * Stock detallado de una obra específica (vista tipo hoja Excel por obra).
      */
     async getStockPorObra(obraId) {
-        const [obraRows] = await db.query('SELECT id, nombre FROM obras WHERE id = ?', [obraId]);
-        if (!obraRows.length) throw new Error('Obra no encontrada');
+        // Auditoría 6.3.A: rechazar obras inactivas — antes seguían visibles y
+        // sus descuentos persistían sin que la UI lo advirtiera.
+        const [obraRows] = await db.query(
+            'SELECT id, nombre FROM obras WHERE id = ? AND activa = 1',
+            [obraId]
+        );
+        if (!obraRows.length) {
+            const err = new Error('Obra no encontrada o inactiva');
+            err.statusCode = 404;
+            throw err;
+        }
         const obra = obraRows[0];
 
         const [items] = await db.query(`
@@ -151,9 +191,8 @@ const inventarioService = {
             ORDER BY c.orden ASC, i.nro_item ASC
         `, [obraId]);
 
-        // Descuento
-        const [descRows] = await db.query('SELECT porcentaje FROM descuentos_obra WHERE obra_id = ?', [obraId]);
-        const descuento = descRows.length ? parseFloat(descRows[0].porcentaje) : 0;
+        // Descuento (helper compartido — antes inline duplicado con getResumen)
+        const descuento = await getDescuentoForObra(db, obraId);
 
         // Agrupar por categoría
         const categorias = {};
@@ -172,10 +211,13 @@ const inventarioService = {
                 };
             }
 
+            // Mig 052: cantidad ahora es DECIMAL → mysql2 retorna string.
+            // Convertir a Number explícitamente para evitar concatenación en `+=`.
+            const cantidad = Number(item.cantidad) || 0;
             const arriendo = item.valor_arriendo_override != null
                 ? parseFloat(item.valor_arriendo_override)
                 : parseFloat(item.valor_arriendo);
-            const total = item.cantidad * arriendo;
+            const total = cantidad * arriendo;
 
             categorias[catKey].items.push({
                 id: item.id,
@@ -184,12 +226,12 @@ const inventarioService = {
                 m2: item.m2 ? parseFloat(item.m2) : null,
                 valor_arriendo: arriendo,
                 unidad: item.unidad,
-                cantidad: item.cantidad,
+                cantidad,
                 total,
                 ubicacion_stock_id: item.ubicacion_stock_id
             });
 
-            categorias[catKey].subtotal_cantidad += item.cantidad;
+            categorias[catKey].subtotal_cantidad += cantidad;
             categorias[catKey].subtotal_arriendo += total;
             totalFacturacion += total;
         });
@@ -238,6 +280,8 @@ const inventarioService = {
                     subtotal_cantidad: 0
                 };
             }
+            // Mig 052: cantidad DECIMAL → string; convertir antes de sumar.
+            const cantidad = Number(item.cantidad) || 0;
             categorias[catKey].items.push({
                 id: item.id,
                 nro_item: item.nro_item,
@@ -245,11 +289,11 @@ const inventarioService = {
                 m2: item.m2 ? parseFloat(item.m2) : null,
                 valor_arriendo: parseFloat(item.valor_arriendo),
                 unidad: item.unidad,
-                cantidad: item.cantidad,
+                cantidad,
                 total: 0, // bodegas no facturan arriendo — campo presente para consistencia con getStockPorObra
                 ubicacion_stock_id: item.ubicacion_stock_id
             });
-            categorias[catKey].subtotal_cantidad += item.cantidad;
+            categorias[catKey].subtotal_cantidad += cantidad;
         });
 
         // Agregar subtotal_arriendo = 0 a cada categoría para consistencia de shape
@@ -257,17 +301,33 @@ const inventarioService = {
             .map(c => ({ ...c, subtotal_arriendo: 0 }))
             .sort((a, b) => a.orden - b.orden);
 
+        // Auditoría 6.2: homologar shape con getStockPorObra. Bodegas no facturan
+        // arriendo (no aplican descuento), pero devolver los campos en 0 evita
+        // que el frontend tenga que hardcodear defaults dispersos.
         return {
             bodega,
-            categorias: categoriasFinal
+            categorias: categoriasFinal,
+            total_facturacion: 0,
+            descuento_porcentaje: 0,
+            descuento_monto: 0,
+            total_con_descuento: 0
         };
     },
 
     /**
      * Actualizar stock de una ubicación (edición inline).
      * Upsert: si no existe la fila en ubicaciones_stock, la crea.
+     *
+     * Fase 13 (kardex): cuando cambia `cantidad`, registra un movimiento
+     * `ajuste_manual` en stock_movimientos con el delta antes→después. Todo
+     * dentro de una transacción para que stock + kardex sean atómicos.
+     *
+     * @param {number} itemId
+     * @param {number|null} obraId
+     * @param {number|null} bodegaId
+     * @param {object} payload  { cantidad, valorArriendoOverride, usuarioId, motivo }
      */
-    async actualizarStock(itemId, obraId, bodegaId, { cantidad, valorArriendoOverride }) {
+    async actualizarStock(itemId, obraId, bodegaId, { cantidad, valorArriendoOverride, usuarioId = null, motivo = null }) {
         // ── XOR check: ubicación = obra XOR bodega (mig 050) ──
         // Schema acepta cualquier combinación pero semánticamente es exclusivo.
         // Sin esta validación los flujos podían crear rows huérfanas (ambos NULL)
@@ -280,11 +340,14 @@ const inventarioService = {
             throw err;
         }
 
-        // Auditoría 3.2: validar rangos antes del UPSERT (antes el UPSERT aceptaba negativos sin error).
+        // Auditoría 3.2 + Fase 11: validar rangos antes del UPSERT.
+        // Acepta DECIMAL (mig 052 cambió cantidad a DECIMAL(12,4) para soportar
+        // unidades como kg/ton/m³). Tope subido a 9999999 (7 dígitos) para casos
+        // de inventario en peso/volumen donde 999999 quedaba corto.
         if (cantidad !== undefined && cantidad !== null) {
             const num = Number(cantidad);
-            if (!Number.isFinite(num) || num < 0 || num > 999999) {
-                const err = new Error('cantidad debe ser un entero entre 0 y 999999');
+            if (!Number.isFinite(num) || num < 0 || num > 9999999) {
+                const err = new Error('cantidad debe ser un número entre 0 y 9999999');
                 err.statusCode = 400;
                 throw err;
             }
@@ -304,28 +367,61 @@ const inventarioService = {
 
         if (Object.keys(updates).length === 0) throw new Error('Nada que actualizar');
 
-        // Upsert
         const setClauses = Object.keys(updates).map(k => `${k} = ?`).join(', ');
         const values = Object.values(updates);
 
-        const [existing] = await db.query(
-            'SELECT id FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
-            [itemId, obraId || null, bodegaId || null]
-        );
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
 
-        if (existing.length) {
-            await db.query(
-                `UPDATE ubicaciones_stock SET ${setClauses} WHERE id = ?`,
-                [...values, existing[0].id]
+            // FOR UPDATE: lockea la fila para leer cantidad previa y evitar
+            // races con otros ajustes/transferencias sobre el mismo stock.
+            const [existing] = await conn.query(
+                'SELECT id, cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ? FOR UPDATE',
+                [itemId, obraId || null, bodegaId || null]
             );
-            return { id: existing[0].id, ...updates };
-        } else {
-            const [result] = await db.query(
-                `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
-                 VALUES (?, ?, ?, ?, ?)`,
-                [itemId, obraId || null, bodegaId || null, cantidad || 0, valorArriendoOverride || null]
-            );
-            return { id: result.insertId, ...updates };
+
+            let stockId;
+            let cantidadAnterior;
+            if (existing.length) {
+                cantidadAnterior = Number(existing[0].cantidad) || 0;
+                await conn.query(
+                    `UPDATE ubicaciones_stock SET ${setClauses} WHERE id = ?`,
+                    [...values, existing[0].id]
+                );
+                stockId = existing[0].id;
+            } else {
+                cantidadAnterior = 0;
+                const [result] = await conn.query(
+                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
+                     VALUES (?, ?, ?, ?, ?)`,
+                    [itemId, obraId || null, bodegaId || null, cantidad || 0, valorArriendoOverride || null]
+                );
+                stockId = result.insertId;
+            }
+
+            // Kardex: solo si cambió la cantidad (override no genera movimiento).
+            if (cantidad !== undefined && cantidad !== null) {
+                const cantidadNueva = Number(cantidad) || 0;
+                await registrarMovimiento(conn, {
+                    item_id: itemId,
+                    obra_id: obraId || null,
+                    bodega_id: bodegaId || null,
+                    tipo: 'ajuste_manual',
+                    cantidad_anterior: cantidadAnterior,
+                    cantidad_nueva: cantidadNueva,
+                    motivo,
+                    usuario_id: usuarioId,
+                });
+            }
+
+            await conn.commit();
+            return { id: stockId, ...updates };
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
         }
     },
 
@@ -333,12 +429,76 @@ const inventarioService = {
      * Actualizar descuento de una obra.
      */
     async actualizarDescuento(obraId, porcentaje) {
+        // Auditoría 6.3.B: validar rango [0, 100]. Antes solo bloqueaba negativos
+        // por validateBody en routes, pero >100 pasaba al backend y producía
+        // monto_descuento > total_facturacion (descuento absurdo).
+        const num = Number(porcentaje);
+        if (!Number.isFinite(num) || num < 0 || num > 100) {
+            const err = new Error('porcentaje debe estar entre 0 y 100');
+            err.statusCode = 400;
+            throw err;
+        }
         await db.query(
             `INSERT INTO descuentos_obra (obra_id, porcentaje) VALUES (?, ?)
              ON DUPLICATE KEY UPDATE porcentaje = VALUES(porcentaje)`,
-            [obraId, porcentaje]
+            [obraId, num]
         );
-        return { obra_id: obraId, porcentaje };
+        return { obra_id: obraId, porcentaje: num };
+    },
+
+    /**
+     * Kardex: historial de movimientos de stock (Fase 13).
+     * Filtros opcionales: obra_id, bodega_id, item_id, tipo, desde, hasta.
+     * Paginado. Devuelve filas enriquecidas con nombres de item/ubicación/usuario.
+     */
+    async getMovimientos(query = {}) {
+        const { obra_id, bodega_id, item_id, tipo, desde, hasta } = query;
+        const page = Math.max(1, Number(query.page) || 1);
+        const limit = Math.min(200, Math.max(1, Number(query.limit) || 50));
+        const offset = (page - 1) * limit;
+
+        const where = [];
+        const params = [];
+        if (obra_id) { where.push('m.obra_id = ?'); params.push(Number(obra_id)); }
+        if (bodega_id) { where.push('m.bodega_id = ?'); params.push(Number(bodega_id)); }
+        if (item_id) { where.push('m.item_id = ?'); params.push(Number(item_id)); }
+        if (tipo) { where.push('m.tipo = ?'); params.push(tipo); }
+        if (desde) { where.push('m.created_at >= ?'); params.push(`${desde} 00:00:00`); }
+        if (hasta) { where.push('m.created_at <= ?'); params.push(`${hasta} 23:59:59`); }
+        const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
+
+        const [rows] = await db.query(`
+            SELECT m.id, m.item_id, m.obra_id, m.bodega_id, m.tipo,
+                   m.cantidad_anterior, m.cantidad_nueva, m.delta,
+                   m.referencia_tipo, m.referencia_id, m.motivo,
+                   m.usuario_id, m.created_at,
+                   i.nro_item, i.descripcion AS item_descripcion, i.unidad,
+                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre,
+                   u.nombre AS usuario_nombre
+            FROM stock_movimientos m
+            JOIN items_inventario i ON i.id = m.item_id
+            LEFT JOIN obras o ON o.id = m.obra_id
+            LEFT JOIN bodegas b ON b.id = m.bodega_id
+            LEFT JOIN usuarios u ON u.id = m.usuario_id
+            ${whereClause}
+            ORDER BY m.created_at DESC, m.id DESC
+            LIMIT ? OFFSET ?
+        `, [...params, limit, offset]);
+
+        const [countRows] = await db.query(
+            `SELECT COUNT(*) AS total FROM stock_movimientos m ${whereClause}`,
+            params
+        );
+
+        return {
+            data: rows,
+            pagination: {
+                page,
+                limit,
+                total: countRows[0].total,
+                pages: Math.ceil(countRows[0].total / limit),
+            },
+        };
     },
 
     /**
@@ -381,6 +541,7 @@ const inventarioService = {
             [snapshotsRows],
             [categoriaRows],
             [bombasRows],
+            [faltantesRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter}`, directParams),
@@ -395,34 +556,50 @@ const inventarioService = {
                 WHERE t.activo = 1 AND d.estado = 'pendiente' ${tFilter}
             `, tParams),
             // 4. Valor total de arriendo por obra (usando override si existe, caso contrario valor_arriendo)
-            //    Aplica descuento por obra si existe. Cuando hay obraId, solo esa obra.
+            //    Auditoría 6.1: el cálculo NETO se hace en SQL (igual que query 9 del donut)
+            //    para que ambos caminos den el mismo total al peso. Antes calculaba BRUTO
+            //    y el frontend restaba descuento en JS con precisión float distinta a SQL.
+            //    GROUP BY simplificado (d.porcentaje era redundante: descuentos_obra UNIQUE(obra_id)).
             db.query(`
                 SELECT o.id, o.nombre,
-                       COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as subtotal_bruto,
+                       COALESCE(SUM(
+                           us.cantidad
+                           * COALESCE(us.valor_arriendo_override, i.valor_arriendo)
+                           * (1 - COALESCE(d.porcentaje, 0) / 100)
+                       ), 0) as valor_neto,
+                       COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as valor_bruto,
                        COALESCE(d.porcentaje, 0) as descuento_porcentaje
                 FROM obras o
                 LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
                 LEFT JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
                 WHERE o.activa = 1 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
-                GROUP BY o.id, o.nombre, d.porcentaje
-                ORDER BY subtotal_bruto DESC
+                GROUP BY o.id, o.nombre
+                ORDER BY valor_neto DESC
             `, obraIdNum ? [obraIdNum] : []),
-            // 5a. Alertas: transferencias pendientes más antiguas (top 5)
+            // 5a. Alertas: transferencias pendientes más antiguas (top 5).
+            // Auditoría perf: items_count via COUNT(ti.id) agregado en lugar de
+            // subquery correlacionada (antes ejecutaba 1 subquery por fila).
             db.query(`
-                SELECT t.id, t.codigo, t.fecha_solicitud,
+                SELECT t.id, t.codigo, t.fecha_solicitud, t.prorroga_hasta,
                        oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
                        do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
                        us.nombre as solicitante_nombre,
-                       (SELECT COUNT(*) FROM transferencia_items ti WHERE ti.transferencia_id = t.id) as items_count,
-                       DATEDIFF(NOW(), t.fecha_solicitud) as dias
+                       COUNT(ti.id) as items_count,
+                       DATEDIFF(NOW(), t.fecha_solicitud) as dias,
+                       -- Días que faltan hasta el límite (10 desde solicitud, o prórroga).
+                       -- Si es negativo o 0, la solicitud está estancada.
+                       DATEDIFF(COALESCE(t.prorroga_hasta, DATE_ADD(DATE(t.fecha_solicitud), INTERVAL 10 DAY)), CURDATE()) as dias_hasta_limite
                 FROM transferencias t
                 LEFT JOIN obras oo ON t.origen_obra_id = oo.id
                 LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 LEFT JOIN usuarios us ON t.solicitante_id = us.id
+                LEFT JOIN transferencia_items ti ON ti.transferencia_id = t.id
                 WHERE t.activo = 1 AND t.estado = 'pendiente' ${tFilter}
+                GROUP BY t.id, t.codigo, t.fecha_solicitud, t.prorroga_hasta,
+                         oo.nombre, ob.nombre, do2.nombre, db2.nombre, us.nombre
                 ORDER BY t.fecha_solicitud ASC
                 LIMIT 5
             `, tParams),
@@ -461,12 +638,12 @@ const inventarioService = {
                 ORDER BY t.fecha_despacho ASC
                 LIMIT 5
             `, tParams),
-            // 6. KPI: en tránsito estancados ≥7 días
+            // 6. KPI: en tránsito estancados ≥10 días (umbral definido por jefatura)
             db.query(`
                 SELECT COUNT(*) as count
                 FROM transferencias
                 WHERE activo = 1 AND estado = 'en_transito'
-                  AND DATEDIFF(NOW(), fecha_despacho) >= 7 ${directFilter}
+                  AND DATEDIFF(NOW(), fecha_despacho) >= 10 ${directFilter}
             `, directParams),
             // 7. Rechazos recientes (últimos 7 días, máx 8)
             db.query(`
@@ -527,13 +704,39 @@ const inventarioService = {
                   AND MONTH(fecha) = MONTH(CURDATE())
                   ${obraIdNum ? 'AND obra_id = ?' : ''}
             `, obraIdNum ? [obraIdNum] : []),
+            // 11. Faltantes sin decisión: transferencias aprobadas/en tránsito con
+            //     cantidad enviada < solicitada (parcial) que NO generaron una
+            //     solicitud de faltante (no existe hija con es_faltante_de_id).
+            //     El aprobador debe decidir: crear faltante o dejar así.
+            db.query(`
+                SELECT t.id, t.codigo, t.fecha_aprobacion,
+                       oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                       do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                       SUM(GREATEST(ti.cantidad_solicitada - COALESCE(ti.cantidad_enviada, 0), 0)) as unidades_faltantes,
+                       DATEDIFF(NOW(), t.fecha_aprobacion) as dias
+                FROM transferencias t
+                JOIN transferencia_items ti ON ti.transferencia_id = t.id
+                LEFT JOIN obras oo ON t.origen_obra_id = oo.id
+                LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
+                LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
+                LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
+                WHERE t.activo = 1 AND t.estado IN ('aprobada', 'en_transito')
+                  AND NOT EXISTS (SELECT 1 FROM transferencias f WHERE f.es_faltante_de_id = t.id)
+                  ${tFilter}
+                GROUP BY t.id, t.codigo, t.fecha_aprobacion,
+                         oo.nombre, ob.nombre, do2.nombre, db2.nombre
+                HAVING unidades_faltantes > 0
+                ORDER BY t.fecha_aprobacion ASC
+                LIMIT 5
+            `, tParams),
         ]);
 
-        // Normalizar valor por obra aplicando descuento
+        // Auditoría 6.1: el backend ya devuelve valor_neto y valor_bruto calculados en SQL.
+        // No recalculamos en JS para que coincida exactamente con la query 9 (donut por categoría).
         const obrasConValor = valorObrasRows.map(r => {
-            const bruto = Number(r.subtotal_bruto) || 0;
+            const neto = Number(r.valor_neto) || 0;
+            const bruto = Number(r.valor_bruto) || 0;
             const desc = Number(r.descuento_porcentaje) || 0;
-            const neto = bruto * (1 - desc / 100);
             return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc };
         });
         const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);
@@ -547,12 +750,19 @@ const inventarioService = {
         const alertas = [];
 
         alertasPendientesRows.forEach(r => {
+            // Estancada: superó el límite (10 días desde solicitud, o la prórroga).
+            const diasHastaLimite = Number(r.dias_hasta_limite);
+            const estancada = Number.isFinite(diasHastaLimite) && diasHastaLimite <= 0;
             alertas.push({
                 tipo: 'pendiente',
                 transferencia_id: r.id,
                 codigo: r.codigo,
                 dias: Number(r.dias) || 0,
-                titulo: `${r.codigo} espera tu aprobación`,
+                estancada,
+                prorroga_hasta: r.prorroga_hasta || null,
+                titulo: estancada
+                    ? `${r.codigo} estancada (${Number(r.dias)} días pendiente)`
+                    : `${r.codigo} espera tu aprobación`,
                 detalle: `${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)} · ${r.items_count} ítems`,
                 solicitante: r.solicitante_nombre || null,
             });
@@ -580,10 +790,37 @@ const inventarioService = {
             });
         });
 
-        // Orden final: prioridad discrepancia > pendiente > tránsito, dentro por días desc. Máx 8.
-        const prio = { discrepancia: 0, pendiente: 1, transito: 2 };
+        // Faltantes sin decisión (aprobación parcial sin solicitud de faltante)
+        faltantesRows.forEach(r => {
+            alertas.push({
+                tipo: 'faltante',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} tiene un faltante sin decisión`,
+                detalle: `${Number(r.unidades_faltantes)} u. no enviadas · ${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)}`,
+            });
+        });
+
+        // Rechazos: integrados a "Requiere tu atención" (antes en sección aparte).
+        rechazosRows.forEach(r => {
+            alertas.push({
+                tipo: 'rechazo',
+                transferencia_id: r.id,
+                codigo: r.codigo,
+                dias: Number(r.dias) || 0,
+                titulo: `${r.codigo} fue rechazada`,
+                detalle: `${formatUbic(r.origen_obra_nombre, r.origen_bodega_nombre)} → ${formatUbic(r.destino_obra_nombre, r.destino_bodega_nombre)}${r.observaciones_rechazo ? ` · "${r.observaciones_rechazo}"` : ''}`,
+                solicitante: r.rechazado_por_nombre || null,
+            });
+        });
+
+        // Orden final por prioridad, dentro por días desc.
+        const prio = { discrepancia: 0, faltante: 1, pendiente: 2, rechazo: 3, transito: 4 };
         alertas.sort((a, b) => {
-            if (prio[a.tipo] !== prio[b.tipo]) return prio[a.tipo] - prio[b.tipo];
+            const pa = prio[a.tipo] ?? 9;
+            const pb = prio[b.tipo] ?? 9;
+            if (pa !== pb) return pa - pb;
             return (b.dias || 0) - (a.dias || 0);
         });
 
@@ -608,7 +845,7 @@ const inventarioService = {
         // Si no hay punto exacto, tomar el más cercano dentro de ventana ±3 días para
         // evitar comparar contra un día arbitrario lejano (ej. cron que faltó 5 días).
         const findMesAnterior = (series) => {
-            if (!series.length) return null;
+            if (!series || !series.length) return null;
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const targetMs = today.getTime() - 30 * 86400000;
@@ -697,7 +934,8 @@ const inventarioService = {
 
         const [rows] = await db.query(`
             SELECT us.item_id, us.obra_id, us.bodega_id, us.cantidad,
-                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre
+                   o.nombre AS obra_nombre, b.nombre AS bodega_nombre,
+                   b.responsable_nombre AS bodega_responsable_nombre
             FROM ubicaciones_stock us
             LEFT JOIN obras o ON us.obra_id = o.id
             LEFT JOIN bodegas b ON us.bodega_id = b.id
@@ -708,11 +946,14 @@ const inventarioService = {
         const result = {};
         for (const row of rows) {
             if (!result[row.item_id]) result[row.item_id] = [];
+            const isObra = !!row.obra_id;
             result[row.item_id].push({
-                type: row.obra_id ? 'obra' : 'bodega',
+                type: isObra ? 'obra' : 'bodega',
                 id: row.obra_id || row.bodega_id,
                 nombre: row.obra_nombre || row.bodega_nombre,
-                cantidad: row.cantidad,
+                cantidad: Number(row.cantidad) || 0,
+                // Solo aplica a bodegas (mig 060). Para obras siempre null.
+                responsable_nombre: isObra ? null : row.bodega_responsable_nombre,
             });
         }
         return result;

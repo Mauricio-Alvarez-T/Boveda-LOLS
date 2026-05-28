@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, ArrowLeftRight, AlertTriangle } from 'lucide-react';
+import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import { useAuth } from '../../context/AuthContext';
@@ -29,12 +30,12 @@ interface Props {
 
 // Mirror of STATUS_CHIPS inside TransferenciasList — kept here so the panel
 // can render the same row in discrepancias mode (where the nested list is skipped).
-const MAIN_STATUS_CHIPS: { value: string; label: string }[] = [
-    { value: 'todas', label: 'Todas' },
-    { value: 'pendiente', label: 'Pendientes' },
-    { value: 'aprobada', label: 'Aprobadas' },
-    { value: 'recibida', label: 'Recibidas' },
-    { value: 'discrepancias', label: 'Discrepancias' },
+const MAIN_STATUS_CHIPS: { value: string; label: string; shortLabel: string; icon: React.ElementType }[] = [
+    { value: 'todas',         label: 'Todas',         shortLabel: 'Todas',    icon: LayoutGrid },
+    { value: 'pendiente',     label: 'Pendientes',    shortLabel: 'Pend.',    icon: Clock },
+    { value: 'aprobada',      label: 'Aprobadas',     shortLabel: 'Aprob.',   icon: CheckCircle2 },
+    { value: 'recibida',      label: 'Recibidas',     shortLabel: 'Recib.',   icon: PackageCheck },
+    { value: 'discrepancias', label: 'Discrepancias', shortLabel: 'Discrep.', icon: AlertTriangle },
 ];
 
 const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
@@ -156,6 +157,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return result;
     }, [trfHook.crear, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
 
+    const handleSolicitudMateriales = useCallback(async (data: any) => {
+        const result = await trfHook.solicitudMateriales(data);
+        if (result) {
+            await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+            setSelectedId(result.id);
+            await trfHook.fetchById(result.id);
+        }
+        return result;
+    }, [trfHook.solicitudMateriales, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
+
     const handlePushDirecto = useCallback(async (data: any) => {
         const result = await trfHook.pushDirecto(data);
         if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
@@ -267,25 +278,66 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}
             </div>
 
-            {/* Master-Detail body */}
+            {/* Master-Detail body — siempre split en desktop (lista sidebar + detail);
+                en mobile alterna entre lista y detalle */}
             <div className="flex flex-1 min-h-0 gap-4">
-                {/* LEFT: List */}
+                {/* LEFT: List sidebar — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0",
-                    detailPaneActive ? "hidden md:flex" : "flex",
-                    "w-full md:w-[360px] md:shrink-0"
+                    "flex flex-col min-h-0 md:w-[340px] lg:w-[380px] md:shrink-0",
+                    detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
-                            {/* Top row: status chips (same as regular list, so user can switch back) */}
-                            {/* Filtra "Discrepancias" si el user no es aprobador — auditoría
-                                de discrepancias es competencia del rol aprobador/jefatura. */}
-                            <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+                            {/* Top row: status chips — mobile icon+label / desktop pills */}
+                            {/* Mobile */}
+                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 mb-3 shadow-sm">
                                 {MAIN_STATUS_CHIPS
                                     .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
                                     .map(chip => {
                                     const isActive = statusFilter === chip.value;
                                     const isDisc = chip.value === 'discrepancias';
+                                    const ChipIcon = chip.icon;
+                                    return (
+                                        <button
+                                            key={chip.value}
+                                            onClick={() => setStatusFilter(chip.value)}
+                                            className={cn(
+                                                "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
+                                                isActive ? "text-white"
+                                                    : isDisc && pendientesCount > 0 ? "text-red-600"
+                                                    : "text-muted-foreground"
+                                            )}
+                                        >
+                                            {isActive && (
+                                                <motion.div
+                                                    layoutId="activeDiscChipMobile"
+                                                    className={cn("absolute inset-0 rounded-xl shadow-sm", isDisc ? "bg-red-500" : "bg-brand-primary")}
+                                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                                />
+                                            )}
+                                            <div className="relative z-10 flex items-center">
+                                                <ChipIcon className="h-[15px] w-[15px]" />
+                                                {isDisc && pendientesCount > 0 && !isActive && (
+                                                    <span className="absolute -top-1 -right-2 px-1 py-[1px] rounded-full text-[7px] font-black leading-none bg-red-500 text-white">
+                                                        {pendientesCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center">
+                                                {chip.shortLabel}
+                                            </span>
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                            {/* Desktop */}
+                            <div className="hidden md:flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+                                {MAIN_STATUS_CHIPS
+                                    .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
+                                    .map(chip => {
+                                    const isActive = statusFilter === chip.value;
+                                    const isDisc = chip.value === 'discrepancias';
+                                    const ChipIcon = chip.icon;
                                     return (
                                         <button
                                             key={chip.value}
@@ -301,7 +353,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                                         : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
                                             )}
                                         >
-                                            {isDisc && <AlertTriangle className="h-2.5 w-2.5" />}
+                                            <ChipIcon className="h-3 w-3" />
                                             <span>{chip.label}</span>
                                             {isDisc && pendientesCount > 0 && (
                                                 <span className={cn(
@@ -343,7 +395,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     )}
                 </div>
 
-                {/* RIGHT: Detail */}
+                {/* RIGHT: Detail — siempre visible en desktop, en mobile solo con selección */}
                 <div className={cn(
                     "flex-1 min-h-0",
                     detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
@@ -410,6 +462,21 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     obras={obras}
                     onCrear={handleCrear}
                     onClose={closeActiveFlow}
+                />
+            </Modal>
+
+            {/* Solicitud de materiales (reusa SolicitudForm sin catálogo) */}
+            <Modal
+                isOpen={activeFlow === 'solicitud_materiales'}
+                onClose={closeActiveFlow}
+                title="Solicitud de Materiales de Construcción"
+                size="lg"
+            >
+                <SolicitudForm
+                    obras={obras}
+                    onCrear={handleSolicitudMateriales}
+                    onClose={closeActiveFlow}
+                    hideCatalog
                 />
             </Modal>
 

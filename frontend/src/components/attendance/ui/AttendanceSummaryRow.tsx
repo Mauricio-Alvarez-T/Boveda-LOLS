@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import type { EstadoAsistencia } from '../../../types/entities';
@@ -17,6 +17,8 @@ interface AttendanceSummaryRowProps {
     hasActiveContext: boolean;
     statusFilter: number | null;
     onStatusFilter: (estadoId: number | null) => void;
+    searchQuery: string;
+    setSearchQuery: (val: string) => void;
 }
 
 export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
@@ -26,8 +28,14 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     summary,
     hasActiveContext,
     statusFilter,
-    onStatusFilter
+    onStatusFilter,
+    searchQuery,
+    setSearchQuery
 }) => {
+    // Tope: máximo 30 días futuros para selección de fecha (regla operativa).
+    // Pasado no se limita. El navegador deshabilita días posteriores en el calendario.
+    const maxFecha = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
+
     return (
         <>
             {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
@@ -41,6 +49,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                         <input
                             type="date"
                             value={date}
+                            max={maxFecha}
                             onChange={(e) => setDate(e.target.value)}
                             className="bg-transparent text-sm text-brand-dark font-black focus:outline-none text-center cursor-pointer uppercase tracking-tight"
                         />
@@ -101,6 +110,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     <input
                                         type="date"
                                         value={date}
+                                        max={maxFecha}
                                         onChange={(e) => setDate(e.target.value)}
                                         className="w-[105px] lg:w-[115px] bg-transparent text-[10px] lg:text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
                                     />
@@ -121,6 +131,27 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     <BarChart3 className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-accent/60" />
                                     <span className="text-[11px] lg:text-[13px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
                                 </div>
+                            </div>
+
+                            {/* Buscador — vive junto a la fecha y los KPIs */}
+                            <div className="relative shrink-0 group">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-focus-within:text-brand-primary pointer-events-none" />
+                                <input
+                                    type="text"
+                                    placeholder="Buscar..."
+                                    value={searchQuery}
+                                    onChange={(e) => setSearchQuery(e.target.value)}
+                                    className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
+                                />
+                                {searchQuery && (
+                                    <button
+                                        onClick={() => setSearchQuery('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all"
+                                        title="Limpiar búsqueda"
+                                    >
+                                        <X className="h-2.5 w-2.5" />
+                                    </button>
+                                )}
                             </div>
                         </>
                     )}

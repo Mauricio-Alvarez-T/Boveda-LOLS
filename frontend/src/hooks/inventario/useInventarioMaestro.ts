@@ -14,6 +14,8 @@ export interface StockLocation {
     id: number;
     nombre: string;
     cantidad: number;
+    /** Solo aplica cuando type === 'bodega' (mig 060). Para obras es null. */
+    responsable_nombre?: string | null;
 }
 
 /** Mapa: item_id → array de ubicaciones con stock */

@@ -43,6 +43,12 @@ interface Props {
     obras: { id: number; nombre: string }[];
     onCrear: (data: any) => Promise<any>;
     onClose: () => void;
+    /**
+     * Si true: oculta la columna de catálogo y muestra solo el panel de la solicitud
+     * (destino, items personalizados, observaciones, pionetas, CTA). Usado para el
+     * flujo "Solicitud de Materiales" donde el aprobador compra los items.
+     */
+    hideCatalog?: boolean;
 }
 
 interface CartLine {
@@ -59,7 +65,7 @@ interface CustomItem {
     observacion: string;
 }
 
-const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
+const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog = false }) => {
     const { fetchStockPorItems } = useTransferencias();
     const itemDetail = useItemDetail();
 
@@ -183,14 +189,17 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
     };
 
     // ── Custom items ops ──
+    // Prepend: el nuevo item vacío aparece arriba y los ya completados bajan.
+    // Esto permite "agregar uno a uno" sin tener que hacer scroll buscando el
+    // input vacío al final de la lista. UX optimizado para jefes de obra.
     const addCustomItem = () => {
-        setCustomItems(prev => [...prev, {
+        setCustomItems(prev => [{
             _localId: Date.now() + Math.random(),
             descripcion: '',
             cantidad: 1,
             unidad: '',
             observacion: '',
-        }]);
+        }, ...prev]);
     };
     const updateCustomItem = (localId: number, patch: Partial<Omit<CustomItem, '_localId'>>) => {
         setCustomItems(prev => prev.map(c => c._localId === localId ? { ...c, ...patch } : c));
@@ -462,35 +471,42 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
     // ── Columna: Solicitud / Carrito ──
     const CartColumn = (
         <div className="flex flex-col min-h-0 gap-3">
-            {/* Destino */}
-            <div className="shrink-0">
-                <SearchableSelect
-                    label="Destino"
-                    options={obras.map(o => ({ value: o.id, label: o.nombre }))}
-                    value={destinoObraId}
-                    onChange={(val) => setDestinoObraId(val as number | null)}
-                    placeholder="Seleccionar obra destino..."
-                />
-            </div>
-
-            {/* Cart header */}
-            <div className="shrink-0 flex items-center justify-between">
-                <div className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
-                    <ShoppingCart className="h-3.5 w-3.5" />
-                    Tu solicitud
-                    <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/10 text-brand-primary">
-                        {cart.length + customItems.length}
-                    </span>
+            {/* Destino arriba — solo cuando hay catálogo. En hideCatalog se renderiza al final. */}
+            {!hideCatalog && (
+                <div className="shrink-0">
+                    <SearchableSelect
+                        label="Destino"
+                        options={obras.map(o => ({ value: o.id, label: o.nombre }))}
+                        value={destinoObraId}
+                        onChange={(val) => setDestinoObraId(val as number | null)}
+                        placeholder="Seleccionar obra destino..."
+                    />
                 </div>
-                {(totalItemsCart > 0 || customItems.length > 0) && (
-                    <span className="text-[10px] text-muted-foreground font-medium">
-                        {cart.length} catálogo · {customItems.length} personalizado(s)
-                    </span>
-                )}
-            </div>
+            )}
 
-            {/* Cart items */}
-            <div className="flex-1 overflow-y-auto min-h-[80px] -mr-1 pr-1">
+            {/* Cart header — solo cuando hay catálogo */}
+            {!hideCatalog && (
+                <div className="shrink-0 flex items-center justify-between">
+                    <div className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                        <ShoppingCart className="h-3.5 w-3.5" />
+                        Tu solicitud
+                        <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/10 text-brand-primary">
+                            {cart.length + customItems.length}
+                        </span>
+                    </div>
+                    {(totalItemsCart > 0 || customItems.length > 0) && (
+                        <span className="text-[10px] text-muted-foreground font-medium">
+                            {cart.length} catálogo · {customItems.length} personalizado(s)
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Cart items — hideCatalog oculta esto, ya que no hay catálogo del que armar carrito */}
+            <div className={cn(
+                "overflow-y-auto -mr-1 pr-1",
+                hideCatalog ? "hidden" : "flex-1 min-h-[80px]"
+            )}>
                 {cart.length === 0 ? (
                     <div className="h-full flex flex-col items-center justify-center text-center px-4 py-6 border-2 border-dashed border-[#E8E8ED] rounded-xl">
                         <ShoppingCart className="h-8 w-8 text-muted-foreground/30 mb-2" />
@@ -592,9 +608,14 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                     <button
                         type="button"
                         onClick={addCustomItem}
-                        className="flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-md transition-colors"
+                        className={cn(
+                            // Mobile: verde grande, fácil de tocar para jefe de obra
+                            "flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 border border-brand-primary rounded-lg shadow-sm transition-colors",
+                            // Desktop: chico ámbar (look discreto integrado al panel)
+                            "md:gap-1 md:px-2 md:py-0.5 md:text-[10px] md:text-amber-800 md:bg-amber-50 md:hover:bg-amber-100 md:border-amber-200 md:rounded-md md:shadow-none"
+                        )}
                     >
-                        <Plus className="h-2.5 w-2.5" strokeWidth={3} />
+                        <Plus className="h-4 w-4 md:h-2.5 md:w-2.5" strokeWidth={3} />
                         Agregar
                     </button>
                 </div>
@@ -603,9 +624,13 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                         Items que no están en el catálogo (ej. cosas a comprar). El aprobador los verá.
                     </p>
                 ) : (
-                    <ul className="space-y-1.5 max-h-[180px] overflow-y-auto -mr-1 pr-1">
-                        {customItems.map(c => {
+                    <ul className="space-y-1.5 md:max-h-[180px] md:overflow-y-auto md:-mr-1 md:pr-1">
+                        {customItems.map((c, idx) => {
                             const invalido = !c.descripcion.trim() || Number(c.cantidad) < 1;
+                            // El primer item es siempre el más reciente (prepend).
+                            // Autofocus en su descripción facilita "agregar uno a uno"
+                            // sin necesidad de buscar el input nuevo.
+                            const esNuevo = idx === 0 && !c.descripcion.trim();
                             return (
                                 <li
                                     key={c._localId}
@@ -621,6 +646,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                                             onChange={e => updateCustomItem(c._localId, { descripcion: e.target.value })}
                                             placeholder="Descripción del ítem*"
                                             maxLength={500}
+                                            autoFocus={esNuevo}
                                             className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-[#E8E8ED] rounded-md bg-white focus:ring-1 focus:ring-brand-primary outline-none"
                                         />
                                         <button
@@ -698,12 +724,26 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
                 </div>
             </div>
 
+            {/* Destino abajo — solo en hideCatalog (debajo de pionetas, antes del CTA) */}
+            {hideCatalog && (
+                <div className="shrink-0">
+                    <SearchableSelect
+                        label="Destino"
+                        options={obras.map(o => ({ value: o.id, label: o.nombre }))}
+                        value={destinoObraId}
+                        onChange={(val) => setDestinoObraId(val as number | null)}
+                        placeholder="Seleccionar obra destino..."
+                    />
+                </div>
+            )}
+
             {/* CTA */}
             <div className="shrink-0 pt-2 border-t border-[#E8E8ED] flex gap-2">
+                {/* Cancelar oculto en mobile — la X del modal cumple esa función */}
                 <button
                     type="button"
                     onClick={onClose}
-                    className="px-3 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
+                    className="hidden md:inline-flex px-3 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
                 >
                     Cancelar
                 </button>
@@ -729,38 +769,48 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose }) => {
 
     return (
         <>
-            {/* Mobile tabs */}
-            <div className="md:hidden mb-3 flex gap-1.5 p-1 bg-[#F5F5F7] rounded-xl">
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('cat')}
-                    className={cn(
-                        'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
-                        mobileTab === 'cat' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
-                    )}
-                >
-                    Catálogo
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('sol')}
-                    className={cn(
-                        'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
-                        mobileTab === 'sol' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
-                    )}
-                >
-                    Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
-                </button>
-            </div>
-
-            {/* Layout: desktop two columns, mobile tabs */}
-            <div className="flex flex-col md:flex-row gap-4 min-h-0 md:h-[calc(85vh-120px)]">
-                <div className={cn('flex flex-col min-h-0 flex-1', mobileTab === 'cat' ? 'flex' : 'hidden md:flex')}>
-                    {CatalogColumn}
+            {/* Mobile tabs — solo cuando hay catálogo */}
+            {!hideCatalog && (
+                <div className="md:hidden mb-3 flex gap-1.5 p-1 bg-[#F5F5F7] rounded-xl">
+                    <button
+                        type="button"
+                        onClick={() => setMobileTab('cat')}
+                        className={cn(
+                            'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
+                            mobileTab === 'cat' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
+                        )}
+                    >
+                        Catálogo
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setMobileTab('sol')}
+                        className={cn(
+                            'flex-1 py-1.5 text-xs font-bold rounded-lg transition-all',
+                            mobileTab === 'sol' ? 'bg-white text-brand-dark shadow-sm' : 'text-muted-foreground'
+                        )}
+                    >
+                        Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
+                    </button>
                 </div>
+            )}
+
+            {/* Layout: desktop two columns, mobile tabs. En hideCatalog: solo sidebar centrado. */}
+            <div className={cn(
+                "flex flex-col md:flex-row gap-4 min-h-0 md:h-[calc(85vh-120px)]",
+                hideCatalog && "md:justify-center"
+            )}>
+                {!hideCatalog && (
+                    <div className={cn('flex flex-col min-h-0 flex-1', mobileTab === 'cat' ? 'flex' : 'hidden md:flex')}>
+                        {CatalogColumn}
+                    </div>
+                )}
                 <div className={cn(
-                    'flex flex-col min-h-0 md:w-[360px] md:shrink-0 md:border-l md:border-[#E8E8ED] md:pl-4',
-                    mobileTab === 'sol' ? 'flex' : 'hidden md:flex'
+                    'flex flex-col min-h-0',
+                    hideCatalog
+                        ? 'flex w-full md:max-w-[480px]'
+                        : 'md:w-[360px] md:shrink-0 md:border-l md:border-[#E8E8ED] md:pl-4',
+                    !hideCatalog && (mobileTab === 'sol' ? 'flex' : 'hidden md:flex')
                 )}>
                     {CartColumn}
                 </div>

@@ -195,6 +195,50 @@ Después del próximo deploy, aparece en el dropdown de cPanel.
 
 ---
 
+## 4.1 Tareas Programadas (Cron Jobs)
+
+Para scripts que deben correr **automáticamente en un horario** (no a mano), se usa
+**cPanel → Cron Jobs**, NO un scheduler dentro de Node.
+
+⚠️ **No usar `node-cron` / `setInterval` dentro del backend.** Passenger
+duerme/reinicia el proceso Node cuando no hay tráfico, así que un cron in-process
+no dispara confiable. El cron de cPanel corre a nivel sistema operativo,
+independiente del estado de la app.
+
+### Patrón general
+
+1. Exponer el script en `package.json` (ver § 4) y asegurarse que corre standalone
+   (`node scripts/foo.js`), abriendo y cerrando su propia conexión a DB.
+2. **cPanel → Cron Jobs → Add New Cron Job**:
+   - Definir el horario con los 5 campos (min hora día mes díaSemana).
+   - En "Command": `cd ~/<APP_DIR> && <RUTA_NODE> scripts/foo.js >> ~/foo.log 2>&1`
+3. La **ruta del binario node** se obtiene en **cPanel → Setup Node.js App** (cada
+   app tiene su virtualenv, ej. `/home/lolscl/nodevenv/test-boveda/20/bin/node`).
+4. Configurar **una entrada por entorno** (staging usa `~/test-boveda`, producción
+   `~/boveda`) — los cron jobs NO se deployan con el código, viven en cPanel.
+5. Verificar al día siguiente revisando el `>> ~/foo.log` y/o la tabla que escribe.
+
+### Caso concreto: snapshot diario del dashboard (00:05)
+
+El Resumen Ejecutivo muestra sparklines (tendencia 7 días) y comparativa "% vs mes
+anterior". Esos datos salen de la tabla `dashboard_kpi_snapshots`, que se llena con
+**un snapshot diario** de los 5 KPIs. El script es idempotente
+(`INSERT ... ON DUPLICATE KEY UPDATE`).
+
+- **Script:** `backend/scripts/snapshot_dashboard.js` · alias `npm run snapshot-dashboard`
+- **Horario:** `5 0 * * *` (todos los días a las 00:05)
+- **Command staging:**
+  ```
+  cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/snapshot_dashboard.js >> ~/snapshot.log 2>&1
+  ```
+- **Command producción:** igual pero con `~/boveda` y su ruta de node correspondiente.
+
+Sin este cron, los sparklines y la comparativa quedan vacíos/planos (no es un bug:
+es que no hay histórico que graficar). Se puede sembrar un punto corriendo el script
+a mano desde cPanel → Run JS script → `snapshot-dashboard`.
+
+---
+
 ## 5. Variables de Entorno
 
 ### Servidor (archivo `.env` en `/boveda/` y `/test-boveda/`)
@@ -239,6 +283,8 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | `errno 1061 — Duplicate key name` | Índice ya creado previamente. | Usar `CREATE INDEX IF NOT EXISTS` o tolerar en fix script. |
 | `Timeout (control socket)` en deploy | FTP-Deploy-Action escaneó directorio grande (logs/tmp/uploads). | Solución ya aplicada: usar `lftp mirror --only-newer` con excludes. Si reaparece: verificar que `tmp/` y `uploads/` sigan en la lista de exclusión del workflow. |
 | Tests fallan con `row.fecha.toISOString is not a function` | Mock de DB no incluye `obra_id` o `fecha`, lookup key del batch pre-fetch no matchea. | Agregar `obra_id` y `fecha` al objeto del mock para que la key `"workerId_obraId_fecha"` funcione. |
+| `Backend Tests CI` rojo en commits que **no tocan backend**, después de agregar un caso a un feature existente | `toThrow(/...literal.../)` en algún test quedó acoplado al mensaje exacto. Cuando se suma un 2.º caso al feature (ej: nuevo `tipo_flujo` válido), el mensaje pluraliza ("flujo" → "flujos") y el regex literal ya no matchea. El CI corre `npm test` completo en **cada** push a `develop`/`main` sin importar qué se tocó → frontends quedan en rojo por culpa ajena. | Hacer regex tolerante a las variaciones razonables del mensaje: `flujos?` (opcional `s`), `[^.]*` para frases descriptivas, anclar solo en el sustantivo único. Ejemplo real (`3f90a39`): `/solo permitidos en flujo de solicitud/` → `/solo permitidos en flujos? de solicitud/`. Regla: al escribir `toThrow(...)`, asumir que el mensaje **va a cambiar** y matchear solo lo distintivo. |
+| `npm run migrate` reporta **"No hay migraciones pendientes"** pero la API tira `Unknown column 'X' in 'SET'` justo en la columna que la última migración debía agregar | El runner confía en `schema_migrations`. Si esa tabla quedó con la migración nueva pre-registrada (snapshot de DB, import desde otra env, fix-prod corrido en exceso, o ejecución parcial anterior), el SQL nunca se ejecuta pero el archivo se considera "aplicado". Es una variante moderna del bootstrap-skip ya documentado en § 3.3 — la diferencia es que aquí afecta una migración nueva, no las históricas. | Crear un fix script idempotente para esa migración (patrón: `scripts/fix_<scope>.js`), que (a) ejecute el SQL tolerando `errno 1060 — Duplicate column name` o `errno 1050 — Table exists`, (b) verifique vía `information_schema` que el cambio quedó aplicado, (c) actualice `schema_migrations` con el `duration_ms` real. Exponerlo en `package.json` como `migrate:fix-<scope>`. Ejemplo real: `migrate:fix-bodega-responsable` (mig 060). |
 | App da 500 al arrancar | Passenger crasheó al iniciar `index.js`. | Revisar `/boveda/logs/app_YYYY-MM-DD.log` o `/boveda/startup_debug.log`. |
 | `env-validator: variable faltante` al arrancar | Falta alguna variable en el `.env` del servidor. | SSH/FTP al servidor, editar `/boveda/.env`, añadir la variable faltante, reiniciar. |
 | JWT inválido / login loop | Token de versión de rol desactualizado. | El usuario debe cerrar sesión, borrar `localStorage` (`sgdl_token`, `sgdl_user`), y volver a entrar. |
@@ -859,4 +905,4 @@ Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada ev
 
 ---
 
-*Última actualización: Mayo 2026 — Agregado § 17 Recepción Parcial (migración 048).*
+*Última actualización: Mayo 2026 — § 6 entrada nueva: "migrate dice no-pending pero la columna no existe" — fix script idempotente con tolerancia a errno 1060 (patrón replicado de `fix_prod_migrations.js`).*

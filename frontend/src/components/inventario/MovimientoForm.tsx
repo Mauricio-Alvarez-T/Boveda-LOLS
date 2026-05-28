@@ -8,6 +8,7 @@ import { SearchableSelect } from '../ui/SearchableSelect';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import type { StockUbicacion } from './StockBadge';
 import { cn } from '../../utils/cn';
+import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
 type Flujo = 'push_directo' | 'intra_bodega' | 'devolucion' | 'intra_obra' | 'orden_gerencia';
 
@@ -41,10 +42,10 @@ const FLUJO_LABELS: Record<Flujo, { title: string; origenLabel: string; destinoL
         cta: 'Registrar despacho',
     },
     intra_bodega: {
-        title: 'Movimiento intra-bodega (Bodega → Bodega)',
+        title: 'Movimiento intra-bodega (Bodega → Bodega, con aprobación)',
         origenLabel: 'Bodega origen',
         destinoLabel: 'Bodega destino',
-        cta: 'Registrar movimiento',
+        cta: 'Crear solicitud',
     },
     devolucion: {
         title: 'Devolución (Obra → Bodega)',
@@ -104,16 +105,24 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
     // Available origin options depending on flow
     const origenOptions = useMemo(() => {
         const src = shape.origenTipo === 'obra' ? obras : bodegas;
-        return src.map((o: any) => ({ value: o.id, label: o.nombre }));
+        const isBodega = shape.origenTipo === 'bodega';
+        return src.map((o: any) => ({
+            value: o.id,
+            label: isBodega ? formatBodegaConResponsable(o) : o.nombre,
+        }));
     }, [shape.origenTipo, obras, bodegas]);
 
     const destinoOptions = useMemo(() => {
         const src = shape.destinoTipo === 'obra' ? obras : bodegas;
         // Excluir la misma ubicación como destino cuando origen y destino son del mismo tipo.
         const mismoTipo = shape.origenTipo === shape.destinoTipo;
+        const isBodega = shape.destinoTipo === 'bodega';
         return src
             .filter((o: any) => !(mismoTipo && o.id === origenId))
-            .map((o: any) => ({ value: o.id, label: o.nombre }));
+            .map((o: any) => ({
+                value: o.id,
+                label: isBodega ? formatBodegaConResponsable(o) : o.nombre,
+            }));
     }, [shape.origenTipo, shape.destinoTipo, obras, bodegas, origenId]);
 
     // Stock disponible por ítem en la ubicación origen

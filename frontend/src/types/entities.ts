@@ -16,6 +16,8 @@ export interface Obra {
     empresa_nombre?: string;
     activa: boolean;
     participa_inventario?: boolean;
+    /** Encargado que solicita material en obras de inventario (texto libre). */
+    encargado_nombre?: string | null;
 }
 
 export interface Cargo {
@@ -74,6 +76,7 @@ export interface EstadoAsistencia {
     codigo: string;
     color: string;
     es_presente: boolean;
+    cuenta_dia_trabajado: boolean;
     activo: boolean;
 }
 
@@ -165,8 +168,10 @@ export interface Bodega {
     id: number;
     nombre: string;
     direccion: string | null;
+    /** Legacy FK — sin uso desde mig 060. Reservado por compatibilidad. */
     responsable_id: number | null;
-    responsable_nombre?: string;
+    /** Texto libre editable desde BodegaForm (mig 060). */
+    responsable_nombre?: string | null;
     activa: boolean;
 }
 
@@ -211,8 +216,12 @@ export interface Transferencia {
     // no todos los endpoints los traen.
     origen_obra_nombre?: string | null;
     origen_bodega_nombre?: string | null;
+    /** Responsable de la bodega origen (mig 060). Solo si origen es bodega. */
+    origen_bodega_responsable_nombre?: string | null;
     destino_obra_nombre?: string | null;
     destino_bodega_nombre?: string | null;
+    /** Responsable de la bodega destino (mig 060). Solo si destino es bodega. */
+    destino_bodega_responsable_nombre?: string | null;
     aprobador_nombre?: string | null;
     receptor_nombre?: string | null;
     transportista_nombre?: string | null;
@@ -237,7 +246,7 @@ export interface Transferencia {
     requiere_pionetas: boolean;
     cantidad_pionetas: number | null;
     observaciones: string | null;
-    tipo_flujo: 'solicitud' | 'push_directo' | 'intra_bodega' | 'intra_obra' | 'orden_gerencia' | 'devolucion';
+    tipo_flujo: 'solicitud' | 'solicitud_materiales' | 'push_directo' | 'intra_bodega' | 'intra_obra' | 'orden_gerencia' | 'devolucion';
     motivo: string | null;
     items?: TransferenciaItem[];
     activo: boolean;
@@ -374,6 +383,8 @@ export interface TransferenciaDiscrepanciaItem {
     resuelto_por: number | null;
     resuelto_por_nombre: string | null;
     fecha_resolucion: string | null;
+    reportado_por: number | null;
+    reportado_por_nombre: string | null;
     created_at: string;
 }
 
@@ -386,8 +397,12 @@ export interface TransferenciaConDiscrepancias {
     fecha_recepcion: string | null;
     origen_obra_nombre: string | null;
     origen_bodega_nombre: string | null;
+    /** Responsable de la bodega origen (mig 060). */
+    origen_bodega_responsable_nombre?: string | null;
     destino_obra_nombre: string | null;
     destino_bodega_nombre: string | null;
+    /** Responsable de la bodega destino (mig 060). */
+    destino_bodega_responsable_nombre?: string | null;
     solicitante_id: number | null;
     solicitante_nombre: string | null;
     aprobador_id: number | null;

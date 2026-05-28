@@ -2,8 +2,9 @@ import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { Save, Undo2, Search, Loader2, MapPin, AlertTriangle } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useStockMaestro, type StockRow, type UbicacionRef } from '../../hooks/inventario/useStockMaestro';
+import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
-interface Bodega { id: number; nombre: string }
+interface Bodega { id: number; nombre: string; responsable_nombre?: string | null }
 interface Obra { id: number; nombre: string }
 
 interface Props {
@@ -42,7 +43,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
 
     const ubiOptions = useMemo(() => {
         return [
-            ...bodegas.map(b => ({ key: `bodega_${b.id}`, label: `🏭 ${b.nombre}`, ref: { type: 'bodega' as const, id: b.id } })),
+            ...bodegas.map(b => ({ key: `bodega_${b.id}`, label: `🏭 ${formatBodegaConResponsable(b)}`, ref: { type: 'bodega' as const, id: b.id } })),
             ...obras.map(o => ({ key: `obra_${o.id}`, label: `🏗 ${o.nombre}`, ref: { type: 'obra' as const, id: o.id } })),
         ];
     }, [obras, bodegas]);

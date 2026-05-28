@@ -2,6 +2,7 @@ import React from 'react';
 import { AlertTriangle, ArrowRight, PackageX, Search, X, MapPin, Warehouse } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { TransferenciaConDiscrepancias } from '../../types/entities';
+import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
 interface Props {
     discrepancias: TransferenciaConDiscrepancias[];
@@ -86,8 +87,16 @@ const DiscrepanciasList: React.FC<Props> = ({
                     </div>
                 ) : (
                     filtered.map(d => {
-                        const origenLabel = d.origen_obra_nombre || d.origen_bodega_nombre || '—';
-                        const destinoLabel = d.destino_obra_nombre || d.destino_bodega_nombre || '—';
+                        const origenLabel = d.origen_obra_nombre
+                            || (d.origen_bodega_nombre
+                                ? formatBodegaNombreResponsable(d.origen_bodega_nombre, d.origen_bodega_responsable_nombre)
+                                : null)
+                            || '—';
+                        const destinoLabel = d.destino_obra_nombre
+                            || (d.destino_bodega_nombre
+                                ? formatBodegaNombreResponsable(d.destino_bodega_nombre, d.destino_bodega_responsable_nombre)
+                                : null)
+                            || '—';
                         const origenIsObra = !!d.origen_obra_nombre;
                         const destinoIsObra = !!d.destino_obra_nombre;
                         const isSelected = d.id === selectedId;

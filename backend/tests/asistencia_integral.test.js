@@ -381,6 +381,7 @@ describe('Consultas de Asistencia', () => {
     test('GET /api/asistencias/reporte → reporte con filtros', async () => {
         db.query
             .mockResolvedValueOnce([[{ id: 1, estado_nombre: 'Presente' }]])  // registros
+            .mockResolvedValueOnce([[]])  // periodos_ausencia (helper _filasDePeriodos)
             .mockResolvedValueOnce([[]]);  // feriados
 
         const res = await request(app)

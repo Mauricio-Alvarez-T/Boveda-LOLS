@@ -66,14 +66,19 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
         const q = search.trim().toLowerCase();
         return items.filter(it => {
             if (filtroCategoria !== 'todas' && it.categoria_id !== filtroCategoria) return false;
-            if (soloActivos && !it.activo) return false;
+            // Estado efectivo de "activo": prioriza el cambio pendiente (dirty) sobre
+            // el valor guardado. Así, al marcar un ítem inactivo (aún sin guardar) el
+            // filtro "Solo activos" lo oculta de inmediato, consistente con el badge.
+            const d = dirty[it.id];
+            const activoEfectivo = (d && 'activo' in d) ? d.activo : it.activo;
+            if (soloActivos && !activoEfectivo) return false;
             if (q) {
                 const hay = `${it.nro_item} ${it.descripcion} ${it.categoria_nombre || ''}`.toLowerCase();
                 if (!hay.includes(q)) return false;
             }
             return true;
         });
-    }, [items, search, filtroCategoria, soloActivos]);
+    }, [items, search, filtroCategoria, soloActivos, dirty]);
 
     // Agrupar ítems por categoría (para vista cards)
     const groupedItems = useMemo(() => {

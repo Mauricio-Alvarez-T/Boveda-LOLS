@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import ItemDetailModal from './ItemDetailModal';
 import { ResumenToolbar } from './ResumenToolbar';
 import { exportResumen } from '../../utils/exportExcel';
+import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
 interface Props {
     data: ResumenData;
@@ -67,41 +68,46 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     }, [categorias]);
 
     // ── Grand totals ──
+    // Auditoría 6.1: priorizar totales pre-calculados por el backend para que coincidan
+    // exactamente con los KPIs del dashboard (donut + valor obras). El cálculo JS se
+    // mantiene como fallback por si el backend omite `data.totales` (rol sin permiso de
+    // ver_valores o respuesta antigua).
     const grandTotals = useMemo(() => {
+        if (data.totales) {
+            return {
+                totalArriendo: data.totales.valor_bruto,
+                totalCantidad: data.totales.total_cantidad,
+                totalDescuento: data.totales.valor_descuento,
+                totalConDescuento: data.totales.valor_neto,
+            };
+        }
+
+        // Fallback (sin permisos de valores o respuesta sin totales)
         let totalArriendo = 0;
         let totalCantidad = 0;
         let totalDescuento = 0;
-
-        // 1. Calcular totales por ítem
         for (const cat of categorias) {
             for (const item of cat.items) {
                 totalArriendo += item.total_arriendo;
                 totalCantidad += item.total_cantidad;
             }
         }
-
-        // 2. Calcular descuento total (por obra).
-        //    `data.descuentos` puede estar omitido por el backend cuando el
-        //    usuario no tiene `inventario.resumen.ver_valores` — optional chaining
-        //    para evitar TypeError leyendo prop de undefined.
         obras.forEach(o => {
             const descPorcentaje = data.descuentos?.[o.id] || 0;
             if (descPorcentaje > 0) {
-                // Calcular el total de arriendo de esta obra
                 const obraArriendo = categorias.reduce((sum, cat) =>
                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
                 );
                 totalDescuento += (obraArriendo * descPorcentaje) / 100;
             }
         });
-
-        return { 
-            totalArriendo, 
-            totalCantidad, 
+        return {
+            totalArriendo,
+            totalCantidad,
             totalDescuento,
-            totalConDescuento: totalArriendo - totalDescuento
+            totalConDescuento: totalArriendo - totalDescuento,
         };
-    }, [categorias, obras, data.descuentos]);
+    }, [categorias, obras, data.descuentos, data.totales]);
 
 
 
@@ -201,46 +207,54 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     <ChevronDown className="h-4 w-4 text-muted-foreground pointer-events-none" />
                 </div>
 
-                {/* Mobile Grand Totals — summary card at top.
-                    Gate financiero: si no verValores, mostrar sólo el conteo de unidades y items
-                    (sin montos $). */}
-                <div className="shrink-0 bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white">
-                    <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-2">Resumen General</p>
-                    <div className={cn("grid gap-3", verValores ? "grid-cols-3" : "grid-cols-2")}>
-                        <div>
-                            <p className="text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
-                            <p className="text-[10px] opacity-80">Unidades</p>
-                        </div>
-                        {verValores && (
-                            <div>
-                                <p className="text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
-                                <p className="text-[10px] opacity-80">Arriendo</p>
-                            </div>
-                        )}
-                        {verValores && grandTotals.totalDescuento > 0 ? (
-                            <div>
-                                <p className="text-lg font-black">{fmtMoney(grandTotals.totalConDescuento)}</p>
-                                <p className="text-[10px] opacity-80 text-brand-primary line-through whitespace-nowrap overflow-hidden text-ellipsis">{fmtMoney(grandTotals.totalArriendo)}</p>
-                                <p className="text-[10px] opacity-80">Con Descuento</p>
-                            </div>
-                        ) : (
-                            <div>
-                                <p className="text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
-                                <p className="text-[10px] opacity-80">Items</p>
-                            </div>
-                        )}
-                    </div>
-                    <button
-                        onClick={() => exportResumen(data)}
-                        className="mt-4 w-full flex items-center justify-center gap-1.5 py-2 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition-all shadow-sm"
-                    >
-                        <Download className="h-3.5 w-3.5" />
-                        Exportar a Excel
-                    </button>
-                </div>
-
-                {/* Mobile Categories & Items */}
+                {/* Mobile: card verde + lista en un único scroll para que el card se
+                    desplace hacia arriba al bajar y libere pantalla para los productos. */}
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-3">
+                    {/* Grand Totals — card compacto.
+                        En mobile (<sm) los valores se apilan en una columna con valor + label
+                        inline para reducir altura. Gate financiero: si no verValores, mostrar
+                        sólo el conteo de unidades y items (sin montos $). */}
+                    <div className="bg-gradient-to-r from-brand-primary to-brand-primary/80 rounded-2xl p-3 text-white">
+                        <p className="text-[10px] font-medium uppercase tracking-wider opacity-80 mb-1.5">Resumen General</p>
+                        <div className={cn(
+                            "grid",
+                            verValores ? "grid-cols-1 gap-1.5 sm:grid-cols-3 sm:gap-3" : "grid-cols-2 gap-3"
+                        )}>
+                            <div className="flex items-baseline gap-2 sm:block">
+                                <p className="text-base sm:text-lg font-black">{fmt(grandTotals.totalCantidad)}</p>
+                                <p className="text-[10px] opacity-80">Unidades</p>
+                            </div>
+                            {verValores && (
+                                <div className="flex items-baseline gap-2 sm:block">
+                                    <p className="text-base sm:text-lg font-black">{fmtMoney(grandTotals.totalArriendo)}</p>
+                                    <p className="text-[10px] opacity-80">Arriendo</p>
+                                </div>
+                            )}
+                            {verValores && grandTotals.totalDescuento > 0 ? (
+                                <div className="flex items-baseline flex-wrap gap-x-2 sm:block">
+                                    <p className="text-base sm:text-lg font-black">{fmtMoney(grandTotals.totalConDescuento)}</p>
+                                    <p className="text-[10px] opacity-80">
+                                        Con Descuento
+                                        <span className="ml-1.5 line-through opacity-70">{fmtMoney(grandTotals.totalArriendo)}</span>
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="flex items-baseline gap-2 sm:block">
+                                    <p className="text-base sm:text-lg font-black">{filteredCategorias.reduce((s, c) => s + c.items.length, 0)}</p>
+                                    <p className="text-[10px] opacity-80">Items</p>
+                                </div>
+                            )}
+                        </div>
+                        <button
+                            onClick={() => exportResumen(data)}
+                            className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 bg-white/20 hover:bg-white/30 rounded-xl text-xs font-bold text-white transition-all shadow-sm"
+                        >
+                            <Download className="h-3.5 w-3.5" />
+                            Exportar a Excel
+                        </button>
+                    </div>
+
+                    {/* Mobile Categories & Items */}
                     {filteredCategorias.map(cat => {
                         const collapsed = collapsedCats.has(cat.id);
                         const totals = catTotals[cat.id];
@@ -393,7 +407,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                             <div className="w-6 h-6 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
                                                                                 <Warehouse className="h-3 w-3 text-amber-600" />
                                                                             </div>
-                                                                            <span className="text-xs font-medium text-brand-dark truncate">{b.nombre}</span>
+                                                                            <span className="text-xs font-medium text-brand-dark truncate" title={formatBodegaConResponsable(b)}>{formatBodegaConResponsable(b)}</span>
                                                                         </div>
                                                                         <div className="flex items-center gap-3 shrink-0">
                                                                             {mobileEdit.editingCell === cellKey ? (
@@ -503,20 +517,23 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </div>
                                 </th>
                             ))}
-                            {visibleBodegas.map((b, bIdx) => (
-                                <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-[#FDF6E8]" : "bg-[#F9EDD5]")}>
-                                    <div className="flex items-center justify-center gap-1">
-                                        <span className="truncate">{b.nombre}</span>
-                                        <button
-                                            onClick={() => toggleCol(`bodega_${b.id}`)}
-                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
-                                            title={`Ocultar ${b.nombre}`}
-                                        >
-                                            <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                        </button>
-                                    </div>
-                                </th>
-                            ))}
+                            {visibleBodegas.map((b, bIdx) => {
+                                const bodegaLabel = formatBodegaConResponsable(b);
+                                return (
+                                    <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-[#E8E8ED] border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-[#FDF6E8]" : "bg-[#F9EDD5]")}>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span className="truncate" title={bodegaLabel}>{bodegaLabel}</span>
+                                            <button
+                                                onClick={() => toggleCol(`bodega_${b.id}`)}
+                                                className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
+                                                title={`Ocultar ${b.nombre}`}
+                                            >
+                                                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                                            </button>
+                                        </div>
+                                    </th>
+                                );
+                            })}
                             {verValores && (
                                 <th className="bg-[#ECFAF0] px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-[#E8E8ED]">Total Arriendo</th>
                             )}

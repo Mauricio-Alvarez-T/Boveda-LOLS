@@ -14,12 +14,15 @@ import ItemDetailModal from './ItemDetailModal';
 import FaltanteDecisionModal from './FaltanteDecisionModal';
 import { Modal } from '../ui/Modal';
 import { fmtFecha } from '../../utils/fechas';
+import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
 interface StockLocation {
     type: string;
     id: number;
     nombre: string;
     cantidad: number;
+    /** Solo aplica cuando type === 'bodega' (mig 060). */
+    responsable_nombre?: string | null;
 }
 
 interface Props {
@@ -91,8 +94,16 @@ const TransferenciaDetail: React.FC<Props> = ({
     const itemDetail = useItemDetail();
     const Icon = cfg.icon;
 
-    const origen = t.origen_obra_nombre || t.origen_bodega_nombre || '—';
-    const destino = t.destino_obra_nombre || t.destino_bodega_nombre || '—';
+    const origen = t.origen_obra_nombre
+        || (t.origen_bodega_nombre
+            ? formatBodegaNombreResponsable(t.origen_bodega_nombre, t.origen_bodega_responsable_nombre)
+            : null)
+        || '—';
+    const destino = t.destino_obra_nombre
+        || (t.destino_bodega_nombre
+            ? formatBodegaNombreResponsable(t.destino_bodega_nombre, t.destino_bodega_responsable_nombre)
+            : null)
+        || '—';
 
     // ── Action permissions + SoD identity checks ──
     // SoD: solicitante ≠ aprobador ≠ transportista ≠ receptor. UI oculta el
@@ -129,11 +140,15 @@ const TransferenciaDetail: React.FC<Props> = ({
         hasPermission('inventario.transferencias.recibir') &&
         (!isTransportista || hasBypass) &&
         !!onRechazarRecepcion;
-    // Cancelar: el solicitante siempre puede cancelar su propia TRF (caso de
-    // usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
+    // Cancelar: el solicitante siempre puede cancelar su propia TRF pendiente/aprobada
+    // (caso de usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
+    // Punto 34: una transferencia DESPACHADA (en_transito) solo se cancela con el
+    // permiso especial "Cancelar en Tránsito" (o sod_bypass) — su stock ya viaja.
+    const puedeCancelarBase = hasPermission('inventario.transferencias.cancelar') || isSolicitante;
+    const puedeCancelarEnTransito = hasPermission('inventario.transferencias.cancelar_en_transito') || hasBypass;
     const canCancelar =
-        ['pendiente', 'aprobada', 'en_transito'].includes(t.estado) &&
-        (hasPermission('inventario.transferencias.cancelar') || isSolicitante);
+        (['pendiente', 'aprobada'].includes(t.estado) && puedeCancelarBase) ||
+        (t.estado === 'en_transito' && puedeCancelarEnTransito);
 
     // Banners SoD: alertar visualmente cuando el user actual no puede avanzar
     // la TRF por su rol previo. Educa al usuario sobre por qué la acción no
@@ -230,13 +245,13 @@ const TransferenciaDetail: React.FC<Props> = ({
             items.forEach((it) => {
                 let cant: number;
                 if (t.estado === 'recibida') {
-                    cant = it.cantidad_recibida ?? it.cantidad_enviada ?? it.cantidad_solicitada;
+                    cant = Number(it.cantidad_recibida) || Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
                 } else if (t.estado === 'recepcion_parcial') {
-                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                    cant = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
                 } else if (t.estado === 'aprobada' || t.estado === 'en_transito') {
-                    cant = it.cantidad_enviada ?? it.cantidad_solicitada;
+                    cant = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
                 } else {
-                    cant = it.cantidad_solicitada;
+                    cant = Number(it.cantidad_solicitada);
                 }
                 const unidad = it.unidad ? ` ${it.unidad}` : '';
                 const desc = it.item_descripcion || `Item #${it.item_id}`;
@@ -247,8 +262,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                     t.estado === 'recepcion_parcial' &&
                     it.cantidad_enviada != null
                 ) {
-                    const recibida = it.cantidad_recibida ?? 0;
-                    const pendiente = it.cantidad_enviada - recibida;
+                    const recibida = Number(it.cantidad_recibida) || 0;
+                    const pendiente = Number(it.cantidad_enviada) - recibida;
                     lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
                 }
                 // Si en recepción hubo discrepancia con lo enviado, anótala bajo el item
@@ -257,11 +272,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                     t.estado === 'recibida' &&
                     it.cantidad_enviada != null &&
                     it.cantidad_recibida != null &&
-                    it.cantidad_enviada !== it.cantidad_recibida
+                    Number(it.cantidad_enviada) !== Number(it.cantidad_recibida)
                 ) {
-                    const diff = it.cantidad_recibida - it.cantidad_enviada;
+                    const diff = Number(it.cantidad_recibida) - Number(it.cantidad_enviada);
                     const signo = diff > 0 ? '+' : '';
-                    lines.push(`   _Enviadas: ${it.cantidad_enviada} (${signo}${diff})_`);
+                    lines.push(`   _Enviadas: ${Number(it.cantidad_enviada)} (${signo}${diff})_`);
                 }
                 if (it.observacion) lines.push(`   _${it.observacion}_`);
             });
@@ -373,9 +388,10 @@ const TransferenciaDetail: React.FC<Props> = ({
 
     // Helper: cantidad ya recibida acumulada por item (de transferencia_items).
     // Usada para calcular "pendiente" en cada viaje sucesivo.
-    const recibidaPrevia = (item: TransferenciaItem) => item.cantidad_recibida ?? 0;
+    // Number() defensivo: mysql2 puede devolver DECIMAL como string.
+    const recibidaPrevia = (item: TransferenciaItem) => Number(item.cantidad_recibida) || 0;
     const pendientePorItem = (item: TransferenciaItem) =>
-        (item.cantidad_enviada ?? item.cantidad_solicitada) - recibidaPrevia(item);
+        (Number(item.cantidad_enviada) || Number(item.cantidad_solicitada)) - recibidaPrevia(item);
 
     // Reset forms when transferencia changes.
     // useEffect (no useMemo): los useMemo no garantizan ejecutar side effects
@@ -552,9 +568,9 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 {item.item_descripcion || `Item #${item.item_id}`}
                                             </button>
                                         </td>
-                                        <td className="px-2 py-1.5 text-center font-semibold">{item.cantidad_solicitada}</td>
-                                        <td className="px-2 py-1.5 text-center">{item.cantidad_enviada ?? '—'}</td>
-                                        <td className="px-2 py-1.5 text-center">{item.cantidad_recibida ?? '—'}</td>
+                                        <td className="px-2 py-1.5 text-center font-semibold">{Number(item.cantidad_solicitada)}</td>
+                                        <td className="px-2 py-1.5 text-center">{item.cantidad_enviada != null ? Number(item.cantidad_enviada) : '—'}</td>
+                                        <td className="px-2 py-1.5 text-center">{item.cantidad_recibida != null ? Number(item.cantidad_recibida) : '—'}</td>
                                     </tr>
                                 ))}
                             </tbody>
@@ -615,7 +631,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         {rec.items.map(ri => (
                                             <li key={ri.id} className="text-[11px] flex justify-between">
                                                 <span className="text-brand-dark">
-                                                    <span className="font-semibold">{ri.cantidad_recibida}</span>
+                                                    <span className="font-semibold">{Number(ri.cantidad_recibida)}</span>
                                                     {ri.unidad ? <span className="text-muted-foreground"> {ri.unidad}</span> : null}
                                                     <span className="text-muted-foreground"> · {ri.item_descripcion || `Item #${ri.item_id}`}</span>
                                                 </span>
@@ -657,7 +673,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
                                             )}
                                         </td>
-                                        <td className="px-2 py-1.5 text-center font-semibold">{it.cantidad}</td>
+                                        <td className="px-2 py-1.5 text-center font-semibold">{Number(it.cantidad)}</td>
                                         <td className="px-2 py-1.5 text-left text-muted-foreground">{it.unidad || '—'}</td>
                                     </tr>
                                 ))}
@@ -760,7 +776,35 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ════════════════════════════════════════════════
                 ── APPROVAL FORM — splits multi-origen + quick-fix ──
                ════════════════════════════════════════════════ */}
-            {activeForm === 'aprobar' && (() => {
+            {activeForm === 'aprobar' && items.length === 0 && (
+                // Branch simplificado: transferencia sin items de catálogo (ej.
+                // solicitud_materiales). No hay stock que asignar — sólo aprobar la compra.
+                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-green-700" />
+                        <h4 className="text-sm font-bold text-green-800">Aprobar Solicitud de Materiales</h4>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Esta solicitud contiene <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} a comprar. Al aprobar, el solicitante podrá continuar con el flujo de recepción una vez que el material llegue a obra.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={async () => {
+                                const ok = await onAprobar({ items: [] });
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading}
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobación'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+            {activeForm === 'aprobar' && items.length > 0 && (() => {
                 // Helpers locales ---------------------------------------------------
                 const totalOfItem = (ai: ApprovalItemState) =>
                     ai.splits.reduce((s, sp) => s + (sp.cantidad || 0), 0);
@@ -894,7 +938,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 const itemStatus = approvalItems.map(ai => {
                     const total = totalOfItem(ai);
                     const locs = stockData[ai.item_id] || [];
-                    const stockTotal = locs.reduce((s, l) => s + l.cantidad, 0);
+                    const stockTotal = locs.reduce((s, l) => s + Number(l.cantidad), 0);
 
                     // Validar cada split: ubicación existente con suficiente stock.
                     let errorPorSplit = false;
@@ -1013,7 +1057,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 const hasStock = locations.length > 0;
                                 const totalSplits = status.total;
                                 const solicitada = ai.cantidad_solicitada;
-                                const sumAvailable = locations.reduce((s, l) => s + l.cantidad, 0);
+                                const sumAvailable = locations.reduce((s, l) => s + Number(l.cantidad), 0);
 
                                 // ¿Mostrar chip "Enviar solo N (lo que hay)"?
                                 const mostrarSoloLoQueHay =
@@ -1075,13 +1119,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                         ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
                                                                         : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
                                                             )}
-                                                            title={`${isBodega ? 'Bodega' : 'Obra'}: ${loc.nombre} — ${disponible} disponibles`}
+                                                            title={`${isBodega ? 'Bodega' : 'Obra'}: ${isBodega ? formatBodegaNombreResponsable(loc.nombre, loc.responsable_nombre) : loc.nombre} — ${disponible} disponibles`}
                                                         >
                                                             {isBodega
                                                                 ? <Warehouse className="h-2.5 w-2.5" />
                                                                 : <MapPin className="h-2.5 w-2.5" />
                                                             }
-                                                            {loc.nombre}: <span className="font-bold">{disponible}</span>
+                                                            {isBodega ? formatBodegaNombreResponsable(loc.nombre, loc.responsable_nombre) : loc.nombre}: <span className="font-bold">{disponible}</span>
                                                             {isActive && <Check className="h-2.5 w-2.5" />}
                                                         </button>
                                                     );
@@ -1379,7 +1423,35 @@ const TransferenciaDetail: React.FC<Props> = ({
                   · Recepción Total   → estado recibida, cierra el flujo, gaps =
                     discrepancia.
                ════════════════════════════════════════════ */}
-            {activeForm === 'recibir' && (() => {
+            {activeForm === 'recibir' && items.length === 0 && (
+                // Branch simplificado: transferencia sin items de catálogo (solicitud_materiales).
+                // No hay stock que actualizar — sólo confirmar recepción del material comprado.
+                <div className="shrink-0 border border-blue-200 bg-blue-50/30 rounded-xl p-4 mb-4 space-y-4">
+                    <div className="flex items-center gap-2">
+                        <PackageCheck className="h-4 w-4 text-blue-700" />
+                        <h4 className="text-sm font-bold text-blue-800">Confirmar Recepción de Materiales</h4>
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                        Confirma que recibiste los <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} solicitados. La transferencia quedará cerrada como recibida.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={async () => {
+                                const ok = await onRecibir([], 'total');
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading}
+                            className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        >
+                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepción'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            )}
+            {activeForm === 'recibir' && items.length > 0 && (() => {
                 // Cálculos derivados para la UI:
                 // - totalRecibidoEsteViaje = suma de inputs (info en footer)
                 // - totalFaltaGlobal = suma de pendientes (lo que el camión debería traer)
@@ -1501,7 +1573,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 {items.map((item, idx) => {
                                     const ri = receiveItems[idx];
                                     if (!ri) return null;
-                                    const enviada = item.cantidad_enviada ?? item.cantidad_solicitada;
+                                    const enviada = Number(item.cantidad_enviada) || Number(item.cantidad_solicitada);
                                     const falta = pendientePorItem(item);
                                     const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
                                     const incompleto = ri.cantidad_recibida < falta;

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { normalizeUbicacion } = require('../utils/ubicacionStock');
+const { registrarMovimiento } = require('./stockMovimiento.service');
 
 const discrepanciaService = {
     async reportar(data, userId) {
@@ -39,12 +40,30 @@ const discrepanciaService = {
             if (ajustar_stock) {
                 // Defensa: registros legacy de discrepancias pueden tener obra+bodega ambos seteados.
                 const ubic = normalizeUbicacion(d.obra_id, d.bodega_id);
+                // Kardex (Fase 13): leer cantidad previa para el movimiento.
+                const [prevRows] = await conn.query(
+                    'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
+                    [d.item_id, ubic.obra, ubic.bodega]
+                );
+                const cantidadAnterior = prevRows.length ? Number(prevRows[0].cantidad) || 0 : 0;
                 await conn.query(
                     `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
                      VALUES (?, ?, ?, ?)
                      ON DUPLICATE KEY UPDATE cantidad = VALUES(cantidad)`,
                     [d.item_id, ubic.obra, ubic.bodega, d.cantidad_reportada]
                 );
+                await registrarMovimiento(conn, {
+                    item_id: d.item_id,
+                    obra_id: ubic.obra,
+                    bodega_id: ubic.bodega,
+                    tipo: 'discrepancia',
+                    cantidad_anterior: cantidadAnterior,
+                    cantidad_nueva: Number(d.cantidad_reportada) || 0,
+                    referencia_tipo: 'discrepancia',
+                    referencia_id: Number(id),
+                    motivo: resolucion ? String(resolucion).slice(0, 255) : 'Ajuste por discrepancia',
+                    usuario_id: userId,
+                });
             }
 
             await conn.query(
@@ -74,7 +93,7 @@ const discrepanciaService = {
                    o.nombre as obra_nombre, b.nombre as bodega_nombre,
                    u.nombre as reportado_por_nombre
             FROM discrepancias_inventario d
-            JOIN items_inventario i ON d.item_id = i.id
+            JOIN items_inventario i ON d.item_id = i.id AND i.activo = 1
             LEFT JOIN obras o ON d.obra_id = o.id
             LEFT JOIN bodegas b ON d.bodega_id = b.id
             LEFT JOIN usuarios u ON d.reportado_por = u.id

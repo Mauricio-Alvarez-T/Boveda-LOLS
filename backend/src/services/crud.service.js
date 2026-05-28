@@ -48,31 +48,41 @@ const createCrudService = (tableName, options = {}) => {
             if (q && searchFields.length > 0) {
                 const words = q.trim().split(/\s+/).filter(w => w.length > 0);
                 if (words.length > 0) {
+                    // Performance (mig 053): la tabla `trabajadores` tiene una columna
+                    // GENERATED `rut_normalized` (rut sin puntos ni guiones) + índice
+                    // `idx_trab_rut_norm`. Usar la columna en vez de REPLACE(...) en el
+                    // WHERE permite que el motor use el índice (antes era full table scan).
+                    // Para tablas con menor volumen (empresas, etc.) seguimos con REPLACE.
+                    const useRutNorm = tableName === 'trabajadores';
+                    const rutClause = (f) => useRutNorm
+                        ? `${tableName}.rut_normalized LIKE ?`
+                        : `REPLACE(REPLACE(${tableName}.${f}, '.', ''), '-', '') LIKE ?`;
+
                     const blockConditions = [];
                     words.forEach(word => {
                         const searchConditions = searchFields.map(f => {
-                            if (f === 'rut') return `REPLACE(REPLACE(${tableName}.${f}, '.', ''), '-', '') LIKE ?`;
+                            if (f === 'rut') return rutClause(f);
                             return `${tableName}.${f} LIKE ?`;
                         }).join(' OR ');
                         blockConditions.push(`(${searchConditions})`);
-                        
+
                         searchFields.forEach(f => {
                             if (f === 'rut') params.push(`%${word.replace(/[.-]/g, '')}%`);
                             else params.push(`%${word}%`);
                         });
                     });
-                    
+
                     let finalCondition = `(${blockConditions.join(' AND ')})`;
-                    
+
                     // Si hay múltiples palabras (ej. "17 611 988-8") intentamos buscar el string completo sin separadores
                     if (searchFields.includes('rut') && words.length > 1) {
                         const collapsedQuery = q.replace(/[\s.-]/g, '');
                         if (collapsedQuery.length > 0) {
-                            finalCondition = `(${finalCondition} OR REPLACE(REPLACE(${tableName}.rut, '.', ''), '-', '') LIKE ?)`;
+                            finalCondition = `(${finalCondition} OR ${rutClause('rut')})`;
                             params.push(`%${collapsedQuery}%`);
                         }
                     }
-                    
+
                     where.push(finalCondition);
                 }
             }

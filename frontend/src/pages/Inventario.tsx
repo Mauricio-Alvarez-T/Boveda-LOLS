@@ -1,43 +1,124 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
 import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
+import { useInventarioCache } from '../hooks/inventario/useInventarioCache';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
 import StockUbicacionTable from '../components/inventario/StockUbicacionTable';
 import TransferenciasPanel from '../components/inventario/TransferenciasPanel';
 import ResumenEjecutivoPanel from '../components/inventario/ResumenEjecutivoPanel';
 
 import BombasHormigonTab from '../components/inventario/BombasHormigonTab';
+import MovimientosTab from '../components/inventario/MovimientosTab';
+import FacturasTab from '../components/inventario/FacturasTab';
 import InventarioMaestroGrid from '../components/inventario/InventarioMaestroGrid';
 import StockMaestroGrid from '../components/inventario/StockMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
+import { formatBodegaConResponsable } from '../utils/formatBodega';
 
-type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas';
+type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas' | 'movimientos' | 'facturas';
 
 // Tabs del módulo Inventario. Cada uno gateado individualmente por su permiso
 // `inventario.tab.*`. El acceso al módulo entero ya está gateado un nivel
 // arriba por `inventario.ver` (ruta protegida en el router).
-const tabs: { key: TabKey; label: string; requiresPerm?: string }[] = [
-    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', requiresPerm: 'inventario.tab.resumen_ejecutivo' },
-    { key: 'resumen',           label: 'Resumen',           requiresPerm: 'inventario.tab.resumen' },
-    { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   requiresPerm: 'inventario.tab.por_ubicacion' },
-    { key: 'transferencias',    label: 'Transferencias',    requiresPerm: 'inventario.tab.transferencias' },
-    { key: 'maestro',           label: 'Maestro',           requiresPerm: 'inventario.tab.maestro' },
-    { key: 'bombas',            label: 'Bombas Hormigón',   requiresPerm: 'inventario.tab.bombas' },
+const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.ElementType; requiresPerm?: string }[] = [
+    { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', shortLabel: 'Ejecutivo', icon: BarChart3,       requiresPerm: 'inventario.tab.resumen_ejecutivo' },
+    { key: 'resumen',           label: 'Resumen',           shortLabel: 'Resumen',   icon: ClipboardList,   requiresPerm: 'inventario.tab.resumen' },
+    { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   shortLabel: 'Obra/Bod.', icon: Building2,       requiresPerm: 'inventario.tab.por_ubicacion' },
+    { key: 'transferencias',    label: 'Transferencias',    shortLabel: 'Transf.',   icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
+    { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
+    { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: Droplets,        requiresPerm: 'inventario.tab.bombas' },
+    { key: 'facturas',          label: 'Facturas',          shortLabel: 'Facturas',  icon: Receipt,         requiresPerm: 'inventario.facturas.ver' },
+    { key: 'movimientos',       label: 'Movimientos',       shortLabel: 'Movim.',    icon: History,         requiresPerm: 'inventario.movimientos.ver' },
 ];
 
 type UbicacionOption = { id: number; nombre: string; type: 'obra' | 'bodega'; key: string };
 
+/**
+ * Dropdown con dos modos de exportación a Excel:
+ *  - "Inventario actual": planilla con cantidades y valores actuales.
+ *  - "Planilla en blanco": columna cantidad vacía para conteo físico en obra.
+ *
+ * El click outside cierra el menú. Pattern simple sin libs externas — el módulo
+ * Inventario ya carga ExcelJS, así que evitamos agregar dependencias de UI.
+ */
+const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData }) => {
+    const [open, setOpen] = useState(false);
+    const containerRef = React.useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        if (!open) return;
+        const onClick = (e: MouseEvent) => {
+            if (!containerRef.current?.contains(e.target as Node)) setOpen(false);
+        };
+        document.addEventListener('mousedown', onClick);
+        return () => document.removeEventListener('mousedown', onClick);
+    }, [open]);
+
+    const handleExport = (modo: 'normal' | 'checklist') => {
+        exportStockObra(stockData, modo);
+        setOpen(false);
+    };
+
+    return (
+        <div className="relative" ref={containerRef}>
+            <button
+                onClick={() => setOpen(v => !v)}
+                className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
+            >
+                <Download className="h-3.5 w-3.5" />
+                <span>Exportar Excel</span>
+                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
+            </button>
+            {open && (
+                <div className="absolute right-0 mt-1 w-72 bg-white border border-[#E8E8ED] rounded-xl shadow-lg z-30 overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => handleExport('normal')}
+                        className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-brand-primary/5 transition-colors"
+                    >
+                        <FileSpreadsheet className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                            <div className="text-xs font-bold text-brand-dark">Inventario actual</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">Con cantidades y valores actuales</div>
+                        </div>
+                    </button>
+                    <div className="border-t border-[#F0F0F5]" />
+                    <button
+                        type="button"
+                        onClick={() => handleExport('checklist')}
+                        className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-brand-primary/5 transition-colors"
+                    >
+                        <ClipboardCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
+                        <div className="min-w-0">
+                            <div className="text-xs font-bold text-brand-dark">Planilla para conteo físico</div>
+                            <div className="text-[10px] text-muted-foreground mt-0.5">Cantidades en blanco para inventariar en obra</div>
+                        </div>
+                    </button>
+                </div>
+            )}
+        </div>
+    );
+};
+
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const { obras, selectedObra } = useObra();
-    const { resumen, stockObra, stockBodega, loading, fetchResumen, fetchStockObra, fetchStockBodega } = useInventarioData();
+    const {
+        resumen, stockObra, stockBodega,
+        resumenLoading, stockObraLoading, stockBodegaLoading,
+        fetchResumen, fetchStockObra, fetchStockBodega,
+    } = useInventarioData();
+    // Loading combinado: solo una sección se monta a la vez, alcanza con un OR.
+    // El hook expone flags granulares por endpoint para casos futuros (spinner
+    // independiente por tab), pero la UI actual usa un único spinner.
+    const loading = resumenLoading || stockObraLoading || stockBodegaLoading;
     const { updateStock, updateDescuento } = useInventarioActions();
     // Lazy init: arrancar en el PRIMER tab al que el usuario tenga acceso.
     // Si arrancamos siempre en 'resumen_ejecutivo', un usuario sin ese permiso
@@ -98,6 +179,16 @@ const InventarioPage: React.FC = () => {
 
     const selectedUbicacion = allUbicaciones.find(u => u.key === selectedUbicacionKey) || null;
 
+    // Cache cross-tab: tras cualquier mutación de stock, refetch en paralelo de
+    // Resumen + Por Obra/Bodega activa. Evita "stale al cambiar de tab".
+    const { invalidateStockAll } = useInventarioCache({
+        fetchResumen,
+        fetchStockObra,
+        fetchStockBodega,
+        activeObraId: selectedUbicacion?.type === 'obra' ? selectedUbicacion.id : null,
+        activeBodegaId: selectedUbicacion?.type === 'bodega' ? selectedUbicacion.id : null,
+    });
+
     // ── Default selection: user's obra context, or first available ──
     useEffect(() => {
         if (!selectedUbicacionKey && allUbicaciones.length > 0) {
@@ -124,16 +215,19 @@ const InventarioPage: React.FC = () => {
     }, [activeTab, selectedUbicacionKey, fetchStockObra, fetchStockBodega]);
 
     // ── Normalize stock data for StockUbicacionTable ──
+    // Auditoría 6.2: el backend ya devuelve total_facturacion/descuento_* en
+    // getStockPorBodega (en 0, porque bodegas no facturan), así que aquí solo
+    // remapeamos `bodega` → `obra` para reusar StockObraData.
     const isBodega = selectedUbicacion?.type === 'bodega';
     const currentStockData: StockObraData | null = useMemo(() => {
         if (isBodega && stockBodega) {
             return {
                 obra: stockBodega.bodega,
                 categorias: stockBodega.categorias,
-                total_facturacion: 0,
-                descuento_porcentaje: 0,
-                descuento_monto: 0,
-                total_con_descuento: 0,
+                total_facturacion: stockBodega.total_facturacion ?? 0,
+                descuento_porcentaje: stockBodega.descuento_porcentaje ?? 0,
+                descuento_monto: stockBodega.descuento_monto ?? 0,
+                total_con_descuento: stockBodega.total_con_descuento ?? 0,
             };
         }
         return stockObra;
@@ -143,21 +237,63 @@ const InventarioPage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-4">
             {/* Tab Navigation */}
             <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
-                <div className="flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
-                {visibleTabs.map(tab => (
-                    <button
-                        key={tab.key}
-                        onClick={() => setActiveTab(tab.key)}
-                        className={cn(
-                            "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0",
-                            activeTab === tab.key
-                                ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
-                                : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                        )}
-                    >
-                        {tab.label}
-                    </button>
-                ))}
+                {/* ── Mobile: icon + short label stacked ── */}
+                <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+                    {visibleTabs.map(tab => {
+                        const TabIcon = tab.icon;
+                        const isActive = activeTab === tab.key;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 px-1 flex-1 min-w-0 transition-all",
+                                    isActive
+                                        ? "text-white"
+                                        : "text-muted-foreground"
+                                )}
+                            >
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="activeInventarioTab"
+                                        className="absolute inset-0 bg-brand-primary rounded-xl shadow-lg shadow-brand-primary/25"
+                                        transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                                    />
+                                )}
+                                <TabIcon className={cn(
+                                    "h-[18px] w-[18px] relative z-10 transition-colors",
+                                    isActive ? "text-white" : "text-muted-foreground"
+                                )} />
+                                <span className={cn(
+                                    "text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center",
+                                    isActive ? "text-white" : "text-muted-foreground"
+                                )}>
+                                    {tab.shortLabel}
+                                </span>
+                            </button>
+                        );
+                    })}
+                </div>
+                {/* ── Desktop: text pills ── */}
+                <div className="hidden md:flex items-center gap-1 p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] overflow-x-auto scrollbar-none shadow-sm">
+                    {visibleTabs.map(tab => {
+                        const TabIcon = tab.icon;
+                        return (
+                            <button
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
+                                className={cn(
+                                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                                    activeTab === tab.key
+                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
+                                )}
+                            >
+                                <TabIcon className="h-4 w-4" />
+                                {tab.label}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -195,7 +331,7 @@ const InventarioPage: React.FC = () => {
                             data={resumen}
                             canEdit={hasPermission('inventario.editar')}
                             onUpdateStock={updateStock}
-                            onRefresh={fetchResumen}
+                            onRefresh={invalidateStockAll}
                         />
                     ) : (
                         <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -226,7 +362,7 @@ const InventarioPage: React.FC = () => {
                                     <optgroup label="🏢 Bodegas">
                                         {allBodegas.map(b => (
                                             <option key={`bodega_${b.id}`} value={`bodega_${b.id}`}>
-                                                🏢 {b.nombre}
+                                                🏢 {formatBodegaConResponsable(b)}
                                             </option>
                                         ))}
                                     </optgroup>
@@ -239,14 +375,8 @@ const InventarioPage: React.FC = () => {
                                     ))}
                                 </optgroup>
                             </select>
-                            {currentStockData && !isBodega && (
-                                <button
-                                    onClick={() => { exportStockObra(currentStockData); }}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
-                                >
-                                    <Download className="h-3.5 w-3.5" />
-                                    Exportar Excel
-                                </button>
+                            {currentStockData && !isBodega && hasPermission('inventario.editar') && (
+                                <ExportExcelDropdown stockData={currentStockData} />
                             )}
                         </div>
 
@@ -262,10 +392,7 @@ const InventarioPage: React.FC = () => {
                                 isBodega={isBodega}
                                 onUpdateStock={(itemId, ubicId, data) => updateStock(itemId, isBodega ? null : ubicId, isBodega ? ubicId : null, data)}
                                 onUpdateDescuento={updateDescuento}
-                                onRefresh={() => {
-                                    if (selectedUbicacion?.type === 'bodega') fetchStockBodega(selectedUbicacion.id);
-                                    else if (selectedUbicacion) fetchStockObra(selectedUbicacion.id);
-                                }}
+                                onRefresh={invalidateStockAll}
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -326,7 +453,19 @@ const InventarioPage: React.FC = () => {
                     <BombasHormigonTab
                         obras={allObras as any}
                         canCreate={hasPermission('inventario.crear')}
+                        canEdit={hasPermission('inventario.editar')}
                     />
+                )}
+
+                {activeTab === 'facturas' && (
+                    <FacturasTab
+                        canCreate={hasPermission('inventario.facturas.gestionar')}
+                        canDelete={hasPermission('inventario.facturas.gestionar')}
+                    />
+                )}
+
+                {activeTab === 'movimientos' && (
+                    <MovimientosTab />
                 )}
             </motion.div>
         </div>

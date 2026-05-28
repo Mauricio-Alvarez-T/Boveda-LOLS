@@ -69,8 +69,13 @@ function sanitizeItem(raw, idx) {
             if (v === '' || v === null) v = null;
             else {
                 const n = Number(v);
-                if (Number.isNaN(n)) {
+                if (!Number.isFinite(n)) {
                     throw new Error(`Ítem #${idx} (id=${id}): ${key} no es numérico`);
+                }
+                // Auditoría 6.3.D: bulk service no rechazaba negativos.
+                // valor_compra: -1000 distorsionaba costos. m2 negativo no tiene sentido físico.
+                if (n < 0) {
+                    throw new Error(`Ítem #${idx} (id=${id}): ${key} no puede ser negativo`);
                 }
                 v = n;
             }

@@ -13,8 +13,11 @@ const crearTransferenciaSchema = {
     items: { type: 'array' },
     items_custom: { type: 'array' },
 };
+// `items` no es required: una transferencia puede contener sólo items_custom
+// (ej. solicitud_materiales) — el servicio detecta ese caso y bypasea el flujo
+// de splits/stock, sólo transiciona el estado.
 const aprobarTransferenciaSchema = {
-    items: { required: true, type: 'array', minLength: 1 },
+    items: { type: 'array' },
 };
 
 // GET /api/transferencias
@@ -91,6 +94,17 @@ router.post('/', auth, checkPermission('inventario.transferencias.solicitar'), v
     } catch (err) { next(err); }
 });
 
+// POST /api/transferencias/solicitud-materiales — obra pide materiales de construcción.
+// Misma lógica que solicitud estándar (flujo con aprobación, SoD aplica) pero con
+// permiso independiente para gating granular por rol.
+router.post('/solicitud-materiales', auth, checkPermission('inventario.transferencias.solicitud_materiales'), validateBody(crearTransferenciaSchema), async (req, res, next) => {
+    try {
+        req.body.tipo_flujo = 'solicitud_materiales';
+        const result = await transferenciaService.crear(req.body, req.user.id);
+        res.status(201).json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // POST /api/transferencias/push-directo — bodega → obra sin aprobación.
 // Por diseño consolida solicitante + aprobador + transportista en 1 user; SoD no aplica.
 router.post('/push-directo', auth, checkPermission('inventario.transferencias.push_directo'), async (req, res, next) => {
@@ -100,8 +114,9 @@ router.post('/push-directo', auth, checkPermission('inventario.transferencias.pu
     } catch (err) { next(err); }
 });
 
-// POST /api/transferencias/intra-bodega — bodega → bodega, instantáneo.
-// Por diseño consolida los 4 roles en 1 user; SoD no aplica.
+// POST /api/transferencias/intra-bodega — bodega → bodega CON aprobación.
+// Nace 'pendiente'; sigue el flujo normal (aprobar → despachar → recibir).
+// El stock se mueve recién en la recepción (decisión jefatura mayo 2026).
 router.post('/intra-bodega', auth, checkPermission('inventario.transferencias.intra_bodega'), async (req, res, next) => {
     try {
         const result = await transferenciaService.intraBodega(req.body, req.user.id);
@@ -201,7 +216,16 @@ router.post('/:id/crear-faltante', auth, checkPermission('inventario.transferenc
 // PUT /api/transferencias/:id/cancelar
 router.put('/:id/cancelar', auth, checkPermission('inventario.transferencias.cancelar'), async (req, res, next) => {
     try {
-        const result = await transferenciaService.cancelar(req.params.id, req.user.id);
+        const result = await transferenciaService.cancelar(req.params.id, req.user.id, req.user.p);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// PUT /api/transferencias/:id/prorrogar — extiende 10 días una solicitud pendiente estancada.
+// Requiere permiso de aprobar (quien gestiona el flujo decide extender el plazo).
+router.put('/:id/prorrogar', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.prorrogar(req.params.id, req.user.id);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

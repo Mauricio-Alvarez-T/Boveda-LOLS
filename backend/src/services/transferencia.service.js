@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionStock');
+const { registrarMovimiento } = require('./stockMovimiento.service');
 
 /**
  * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas
@@ -10,6 +11,11 @@ const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionS
  */
 function _hasBypass(userPermisos) {
     return Array.isArray(userPermisos) && userPermisos.includes('inventario.transferencias.sod_bypass');
+}
+
+/** ¿El usuario tiene un permiso específico? */
+function _hasPerm(userPermisos, permiso) {
+    return Array.isArray(userPermisos) && userPermisos.includes(permiso);
 }
 
 /**
@@ -89,9 +95,12 @@ const transferenciaService = {
         if (!itemsArr.length && !customArr.length) {
             throw new Error('Debe incluir al menos un ítem (catálogo o personalizado)');
         }
-        // Items custom solo válidos en flujo 'solicitud' (obra pide a bodega cosas a comprar).
-        if (customArr.length && tipo_flujo && tipo_flujo !== 'solicitud') {
-            throw new Error('Items personalizados solo permitidos en flujo de solicitud');
+        // Items custom solo válidos en flujos donde la obra pide cosas a comprar
+        // (solicitud estándar y solicitud de materiales). En devolucion/intra_obra
+        // no aplica porque ya son items existentes que se trasladan.
+        const flujosConItemsCustom = ['solicitud', 'solicitud_materiales'];
+        if (customArr.length && tipo_flujo && !flujosConItemsCustom.includes(tipo_flujo)) {
+            throw new Error('Items personalizados solo permitidos en flujos de solicitud');
         }
         // Validar shape de items custom
         for (const c of customArr) {
@@ -105,7 +114,7 @@ const transferenciaService = {
         }
         if (!destino_obra_id && !destino_bodega_id) throw new Error('Debe especificar un destino');
         const flujo = tipo_flujo || 'solicitud';
-        const flujosPermitidos = ['solicitud', 'devolucion', 'intra_obra'];
+        const flujosPermitidos = ['solicitud', 'solicitud_materiales', 'devolucion', 'intra_obra', 'intra_bodega'];
         if (!flujosPermitidos.includes(flujo)) {
             throw new Error(`tipo_flujo inválido para crear(): ${flujo}`);
         }
@@ -122,8 +131,20 @@ const transferenciaService = {
                 throw new Error('Intra-obra: origen y destino deben ser obras distintas');
             }
         }
-        // Stock relevante para validación: por obra (devolucion, intra_obra) o global (solicitud).
+        // Intra-bodega: origen y destino son bodegas distintas. Antes era un flujo
+        // instantáneo aparte (nacía 'recibida'); ahora pasa por el flujo normal con
+        // aprobación (decisión jefatura: bodeguero no mueve stock sin visto bueno).
+        if (flujo === 'intra_bodega') {
+            if (!origen_bodega_id) throw new Error('Intra-bodega requiere origen_bodega_id');
+            if (!destino_bodega_id) throw new Error('Intra-bodega requiere destino_bodega_id');
+            if (origen_bodega_id === destino_bodega_id) {
+                throw new Error('Intra-bodega: origen y destino deben ser bodegas distintas');
+            }
+        }
+        // Stock relevante para validación: por obra (devolucion, intra_obra),
+        // por bodega (intra_bodega) o global (solicitud).
         const validarStockPorObra = flujo === 'devolucion' || flujo === 'intra_obra';
+        const validarStockPorBodega = flujo === 'intra_bodega';
 
         const conn = await db.getConnection();
         try {
@@ -143,6 +164,16 @@ const transferenciaService = {
                          FROM ubicaciones_stock
                          WHERE item_id = ? AND obra_id = ? AND bodega_id IS NULL`,
                         [item.item_id, item.item_id, origen_obra_id]
+                    );
+                    disponible = stockRows.length ? Number(stockRows[0].total) || 0 : 0;
+                    desc = stockRows.length ? stockRows[0].descripcion : `ítem ${item.item_id}`;
+                } else if (validarStockPorBodega) {
+                    const [stockRows] = await conn.query(
+                        `SELECT COALESCE(cantidad, 0) as total,
+                                (SELECT descripcion FROM items_inventario WHERE id = ?) as descripcion
+                         FROM ubicaciones_stock
+                         WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?`,
+                        [item.item_id, item.item_id, origen_bodega_id]
                     );
                     disponible = stockRows.length ? Number(stockRows[0].total) || 0 : 0;
                     desc = stockRows.length ? stockRows[0].descripcion : `ítem ${item.item_id}`;
@@ -172,8 +203,12 @@ const transferenciaService = {
                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
                 [
                     codigo,
-                    validarStockPorObra ? origen_obra_id : (origen_obra_id || null),
-                    validarStockPorObra ? null : (origen_bodega_id || null),
+                    // origen_obra_id: flujos por obra (devolucion, intra_obra) o solicitud con obra.
+                    //   intra_bodega nunca tiene obra origen.
+                    validarStockPorBodega ? null : (validarStockPorObra ? origen_obra_id : (origen_obra_id || null)),
+                    // origen_bodega_id: intra_bodega (siempre) o solicitud con bodega.
+                    //   devolucion/intra_obra nunca tienen bodega origen.
+                    validarStockPorBodega ? origen_bodega_id : (validarStockPorObra ? null : (origen_bodega_id || null)),
                     destino_obra_id || null,
                     destino_bodega_id || null,
                     solicitanteId,
@@ -187,10 +222,14 @@ const transferenciaService = {
             );
             const trfId = result.insertId;
 
-            for (const item of itemsArr) {
+            // Auditoría perf: batch INSERT en vez de loop async (N round-trips → 1).
+            // Antes: 20 ítems = 20 queries serializadas dentro de transacción.
+            if (itemsArr.length > 0) {
+                const placeholders = itemsArr.map(() => '(?, ?, ?)').join(', ');
+                const values = itemsArr.flatMap(item => [trfId, item.item_id, item.cantidad]);
                 await conn.query(
-                    `INSERT INTO transferencia_items (transferencia_id, item_id, cantidad_solicitada) VALUES (?, ?, ?)`,
-                    [trfId, item.item_id, item.cantidad]
+                    `INSERT INTO transferencia_items (transferencia_id, item_id, cantidad_solicitada) VALUES ${placeholders}`,
+                    values
                 );
             }
 
@@ -294,8 +333,7 @@ const transferenciaService = {
      *   (validación no reserva). La segunda recepción lo notará como discrepancia.
      */
     async aprobar(id, aprobadorId, data, userPermisos) {
-        const { items } = data;
-        if (!items || !items.length) throw new Error('Debe incluir ítems');
+        const items = (data && data.items) || [];
 
         const defaultObraId = data.origen_obra_id || null;
         const defaultBodegaId = data.origen_bodega_id || null;
@@ -308,13 +346,13 @@ const transferenciaService = {
                     .map(s => ({
                         obraId: s.origen_obra_id ?? null,
                         bodegaId: s.origen_bodega_id ?? null,
-                        cantidad: parseInt(s.cantidad, 10) || 0,
+                        cantidad: parseFloat(s.cantidad) || 0,
                     }))
                     .filter(s => s.cantidad > 0);
                 return { item_id: item.item_id, splits };
             }
             // Legacy shape
-            const enviada = parseInt(item.cantidad_enviada, 10) || 0;
+            const enviada = parseFloat(item.cantidad_enviada) || 0;
             if (enviada <= 0) return { item_id: item.item_id, splits: [] };
             return {
                 item_id: item.item_id,
@@ -345,6 +383,30 @@ const transferenciaService = {
                 'SELECT id, item_id, cantidad_solicitada FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
             );
+
+            // ── Early branch: transferencia sin items de catálogo ──
+            // Caso típico: solicitud_materiales (sólo items_custom, materiales a comprar).
+            // No hay stock que reservar ni splits que crear — sólo transición de estado.
+            if (dbItems.length === 0) {
+                const [customCnt] = await conn.query(
+                    'SELECT COUNT(*) AS c FROM transferencia_items_custom WHERE transferencia_id = ?',
+                    [id]
+                );
+                if (Number(customCnt[0].c) === 0) {
+                    throw new Error('La transferencia no tiene items para aprobar');
+                }
+                await conn.query(
+                    `UPDATE transferencias
+                     SET estado = 'aprobada', aprobador_id = ?, aprobado_por = ?, fecha_aprobacion = NOW()
+                     WHERE id = ?`,
+                    [aprobadorId, aprobadorId, id]
+                );
+                await conn.commit();
+                return { id, estado: 'aprobada' };
+            }
+
+            // ── Caso normal: requiere items en payload ──
+            if (!items.length) throw new Error('Debe incluir ítems');
             const itemInfo = {}; // item_id → { id, cantidad_solicitada }
             dbItems.forEach(r => { itemInfo[r.item_id] = { id: r.id, cantidad_solicitada: r.cantidad_solicitada }; });
 
@@ -372,13 +434,16 @@ const transferenciaService = {
                 }
             }
 
-            // Validar stock por origen (check de sanity; NO reserva bajo Ola 2).
-            // Si el aprobador selecciona un origen con stock insuficiente, lo
-            // avisamos — previene aprobar hacia ubicaciones vacías por error.
+            // Validar stock por origen + lock pesimista para evitar race condition.
+            // Auditoría 6.5: antes era un SELECT sin lock, y dos aprobaciones
+            // concurrentes del mismo ítem desde la misma obra pasaban ambas
+            // validación → decrementaban origen dos veces. Ahora SELECT ... FOR UPDATE
+            // dentro de la transacción ya abierta serializa las aprobaciones que
+            // tocan la misma fila de stock.
             for (const c of canonicales) {
                 for (const s of c.splits) {
                     const [stock] = await conn.query(
-                        'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
+                        'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ? FOR UPDATE',
                         [c.item_id, s.obraId, s.bodegaId]
                     );
                     const disponible = stock.length ? stock[0].cantidad : 0;
@@ -400,7 +465,10 @@ const transferenciaService = {
                 [aprobadorId, aprobadorId, primario?.obraId || null, primario?.bodegaId || null, id]
             );
 
-            // Actualizar cada transferencia_item + persistir splits + decrementar stock
+            // Actualizar cada transferencia_item + persistir splits.
+            // Auditoría perf: acumular splits en un solo INSERT batch al final
+            // (antes era 1 INSERT por split dentro del loop anidado).
+            const origenRows = [];
             for (const c of canonicales) {
                 const info = itemInfo[c.item_id];
                 const total = c.splits.reduce((a, s) => a + s.cantidad, 0);
@@ -420,14 +488,21 @@ const transferenciaService = {
                 );
 
                 for (const s of c.splits) {
-                    await conn.query(
-                        `INSERT INTO transferencia_item_origenes
-                         (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
-                         VALUES (?, ?, ?, ?)`,
-                        [info.id, s.obraId, s.bodegaId, s.cantidad]
-                    );
-                    // Ola 2: no se decrementa stock acá — el decremento ocurre al recibir.
+                    origenRows.push([info.id, s.obraId, s.bodegaId, s.cantidad]);
                 }
+            }
+
+            // Batch INSERT de todos los splits acumulados. Ola 2: no se decrementa
+            // stock acá — el decremento ocurre al recibir.
+            if (origenRows.length > 0) {
+                const placeholders = origenRows.map(() => '(?, ?, ?, ?)').join(', ');
+                const values = origenRows.flatMap(r => r);
+                await conn.query(
+                    `INSERT INTO transferencia_item_origenes
+                     (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
+                     VALUES ${placeholders}`,
+                    values
+                );
             }
 
             await conn.commit();
@@ -573,7 +648,9 @@ const transferenciaService = {
      * CADA evento.
      */
     async recibir(id, receptorId, items, userPermisos, tipo = 'total') {
-        if (!items || !items.length) throw new Error('Debe incluir ítems');
+        // items vacío es válido en transferencias de sólo items_custom (ej. solicitud_materiales).
+        // Se valida después: si hay items de catálogo en BD, exigimos items en el payload.
+        items = Array.isArray(items) ? items : [];
         if (tipo !== 'parcial' && tipo !== 'total') {
             throw new Error('tipo debe ser "parcial" o "total"');
         }
@@ -609,6 +686,35 @@ const transferenciaService = {
                 'SELECT id, item_id, cantidad_enviada, cantidad_recibida, origen_obra_id, origen_bodega_id FROM transferencia_items WHERE transferencia_id = ?',
                 [id]
             );
+
+            // ── Early branch: transferencia sin items de catálogo ──
+            // Caso típico: solicitud_materiales (sólo items_custom). No hay stock
+            // que decrementar/incrementar — sólo transición de estado a 'recibida'.
+            if (dbItems.length === 0) {
+                const [customCnt] = await conn.query(
+                    'SELECT COUNT(*) AS c FROM transferencia_items_custom WHERE transferencia_id = ?',
+                    [id]
+                );
+                if (Number(customCnt[0].c) === 0) {
+                    throw new Error('La transferencia no tiene items para recibir');
+                }
+                // Audit: registrar evento de recepción aunque sin items específicos
+                const [recRes] = await conn.query(
+                    `INSERT INTO transferencia_recepciones (transferencia_id, receptor_id, tipo, observacion)
+                     VALUES (?, ?, 'total', NULL)`,
+                    [id, receptorId]
+                );
+                await conn.query(
+                    "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
+                    [receptorId, receptorId, id]
+                );
+                await conn.commit();
+                return { id, estado: 'recibida', recepcion_id: recRes.insertId };
+            }
+
+            // ── Caso normal: requiere items en payload ──
+            if (!items.length) throw new Error('Debe incluir ítems');
+
             const enviadaMap = {};
             const acumuladoMap = {};
             const trfItemIdMap = {};
@@ -627,7 +733,7 @@ const transferenciaService = {
                     if (!(item.item_id in enviadaMap)) {
                         throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
                     }
-                    const recibidaEnEvento = parseInt(item.cantidad_recibida, 10) || 0;
+                    const recibidaEnEvento = parseFloat(item.cantidad_recibida) || 0;
                     if (recibidaEnEvento < 0) {
                         throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
                     }
@@ -652,12 +758,31 @@ const transferenciaService = {
             );
             const recepcionId = recepHeader.insertId;
 
+            // Kardex (Fase 13): helpers para registrar movimientos sin alterar los
+            // UPDATE/INSERT de stock existentes (enfoque aditivo). Leen la cantidad
+            // previa, dejan correr el statement original y registran el delta.
+            const _selCant = async (itemId, obra, bodega) => {
+                const [rows] = await conn.query(
+                    'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?',
+                    [itemId, obra, bodega]
+                );
+                return rows.length ? Number(rows[0].cantidad) || 0 : 0;
+            };
+            const _logMov = async (itemId, obra, bodega, tipoMov, prev, nueva) => {
+                await registrarMovimiento(conn, {
+                    item_id: itemId, obra_id: obra, bodega_id: bodega,
+                    tipo: tipoMov, cantidad_anterior: prev, cantidad_nueva: nueva,
+                    referencia_tipo: 'transferencia', referencia_id: id,
+                    usuario_id: receptorId,
+                });
+            };
+
             // Procesar cada item del evento
             for (const item of items) {
                 if (!(item.item_id in enviadaMap)) {
                     throw new Error(`Ítem ${item.item_id} no pertenece a esta transferencia`);
                 }
-                const recibidaEnEvento = parseInt(item.cantidad_recibida, 10) || 0;
+                const recibidaEnEvento = parseFloat(item.cantidad_recibida) || 0;
                 if (recibidaEnEvento < 0) {
                     throw new Error(`Cantidad recibida inválida para ítem ${item.item_id}`);
                 }
@@ -682,11 +807,14 @@ const transferenciaService = {
                             if (splitDisponible <= 0) continue;
                             const take = Math.min(amountRemaining, splitDisponible);
                             const ubicSplit = _normalizeUbicacion(s.origen_obra_id, s.origen_bodega_id);
+                            const prevSplit = await _selCant(item.item_id, ubicSplit.obra, ubicSplit.bodega);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                                  WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
                                 [take, item.item_id, ubicSplit.obra, ubicSplit.bodega]
                             );
+                            await _logMov(item.item_id, ubicSplit.obra, ubicSplit.bodega,
+                                'transferencia_salida', prevSplit, Math.max(prevSplit - take, 0));
                             await conn.query(
                                 'UPDATE transferencia_item_origenes SET cantidad_decrementada = cantidad_decrementada + ? WHERE id = ?',
                                 [take, s.id]
@@ -700,11 +828,14 @@ const transferenciaService = {
                             const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                             const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
                             const ubicFb = _normalizeUbicacion(obraId, bodegaId);
+                            const prevFb = await _selCant(item.item_id, ubicFb.obra, ubicFb.bodega);
                             await conn.query(
                                 `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                                  WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
                                 [amountRemaining, item.item_id, ubicFb.obra, ubicFb.bodega]
                             );
+                            await _logMov(item.item_id, ubicFb.obra, ubicFb.bodega,
+                                'transferencia_salida', prevFb, Math.max(prevFb - amountRemaining, 0));
                         }
                     } else {
                         // Sin splits → fallback al origen de transferencia_items o cabecera
@@ -712,11 +843,14 @@ const transferenciaService = {
                         const obraId = itemRow.origen_obra_id ?? trf.origen_obra_id;
                         const bodegaId = itemRow.origen_bodega_id ?? trf.origen_bodega_id;
                         const ubicFb = _normalizeUbicacion(obraId, bodegaId);
+                        const prevFb = await _selCant(item.item_id, ubicFb.obra, ubicFb.bodega);
                         await conn.query(
                             `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
                              WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
                             [recibidaEnEvento, item.item_id, ubicFb.obra, ubicFb.bodega]
                         );
+                        await _logMov(item.item_id, ubicFb.obra, ubicFb.bodega,
+                            'transferencia_salida', prevFb, Math.max(prevFb - recibidaEnEvento, 0));
                     }
                 }
 
@@ -727,14 +861,40 @@ const transferenciaService = {
                 );
 
                 // Incrementar stock en destino (upsert)
+                // Auditoría 6.6: copiar valor_arriendo_override del origen al destino si
+                // el destino aún no existe. Antes el INSERT no incluía el override y la
+                // facturación destino caía al valor base, perdiendo el precio especial
+                // que tenía el ítem en la obra de origen.
+                // Usamos el origen registrado en transferencia_items (itemRowMap) en vez
+                // del trf.origen_* del header, porque el header puede ser NULL en flujos
+                // legacy o multi-origen. Si tampoco está, omitimos la búsqueda (override
+                // queda NULL en destino — comportamiento previo, sin regresión).
+                // Si el destino YA tiene una fila, mantenemos su override (no
+                // sobrescribir — el destino pudo haber sido configurado a propósito).
                 if (recibidaEnEvento > 0) {
                     const ubicDest = _normalizeUbicacion(trf.destino_obra_id, trf.destino_bodega_id);
+                    const rowItem = itemRowMap[item.item_id];
+                    let overrideOrigen = null;
+                    if (rowItem && (rowItem.origen_obra_id || rowItem.origen_bodega_id)) {
+                        const origenResult = await conn.query(
+                            `SELECT valor_arriendo_override FROM ubicaciones_stock
+                             WHERE item_id = ? AND obra_id <=> ? AND bodega_id <=> ?`,
+                            [item.item_id, rowItem.origen_obra_id ?? null, rowItem.origen_bodega_id ?? null]
+                        );
+                        const rows = Array.isArray(origenResult) ? origenResult[0] : null;
+                        if (Array.isArray(rows) && rows.length > 0) {
+                            overrideOrigen = rows[0].valor_arriendo_override ?? null;
+                        }
+                    }
+                    const prevDest = await _selCant(item.item_id, ubicDest.obra, ubicDest.bodega);
                     await conn.query(
-                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                         VALUES (?, ?, ?, ?)
+                        `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad, valor_arriendo_override)
+                         VALUES (?, ?, ?, ?, ?)
                          ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                        [item.item_id, ubicDest.obra, ubicDest.bodega, recibidaEnEvento]
+                        [item.item_id, ubicDest.obra, ubicDest.bodega, recibidaEnEvento, overrideOrigen]
                     );
+                    await _logMov(item.item_id, ubicDest.obra, ubicDest.bodega,
+                        'transferencia_entrada', prevDest, prevDest + recibidaEnEvento);
                 }
 
                 // Audit item del evento
@@ -752,9 +912,9 @@ const transferenciaService = {
                     if (totalRecibidoFinal !== enviadaMap[item.item_id]) {
                         await conn.query(
                             `INSERT INTO transferencia_discrepancias
-                             (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion)
-                             VALUES (?, ?, ?, ?, ?)`,
-                            [id, item.item_id, enviadaMap[item.item_id], totalRecibidoFinal, item.observacion || null]
+                             (transferencia_id, item_id, cantidad_enviada, cantidad_recibida, observacion, reportado_por)
+                             VALUES (?, ?, ?, ?, ?, ?)`,
+                            [id, item.item_id, enviadaMap[item.item_id], totalRecibidoFinal, item.observacion || null, receptorId]
                         );
                     }
                 }
@@ -823,7 +983,7 @@ const transferenciaService = {
                 item_id: r.item_id,
                 item_descripcion: r.item_descripcion,
                 unidad: r.unidad,
-                cantidad_recibida: r.cantidad_recibida,
+                cantidad_recibida: Number(r.cantidad_recibida) || 0,
                 observacion: r.observacion,
             });
         });
@@ -896,7 +1056,7 @@ const transferenciaService = {
      * Soporta cancelación post-despacho (estado='en_transito'): el solicitante
      * o el aprobador aborta la transferencia aunque ya está físicamente viajando.
      */
-    async cancelar(id, userId) {
+    async cancelar(id, userId, userPermisos) {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
@@ -909,6 +1069,16 @@ const transferenciaService = {
             if (!trf) throw new Error('Transferencia no encontrada');
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden cancelar transferencias pendientes, aprobadas o en tránsito');
+            }
+
+            // Punto 34: una transferencia YA DESPACHADA (en_transito) tiene stock
+            // físicamente viajando al destino. No se cancela en el flujo normal —
+            // si llega con problema, el receptor usa "Rechazar Recepción". Solo un
+            // rol con permiso especial (o sod_bypass) puede cancelarla post-despacho.
+            if (trf.estado === 'en_transito'
+                && !_hasPerm(userPermisos, 'inventario.transferencias.cancelar_en_transito')
+                && !_hasBypass(userPermisos)) {
+                throw _sodError('No puedes cancelar una transferencia ya despachada. Si llegó con problemas, recházala al recibir. Requiere permiso especial "Cancelar en Tránsito".');
             }
 
             // Legacy (stock_reconciliado=FALSE) + aprobada|en_transito → revertir stock.
@@ -928,6 +1098,26 @@ const transferenciaService = {
         } finally {
             conn.release();
         }
+    },
+
+    /**
+     * Otorga 10 días más de plazo a una solicitud PENDIENTE estancada.
+     * Resetea el "reloj" de estancamiento: prorroga_hasta = hoy + 10 días.
+     * Solo aplica a transferencias en estado 'pendiente'.
+     * Punto 55 del checklist: alerta accionable de solicitudes estancadas.
+     */
+    async prorrogar(id, userId) {
+        const [rows] = await db.query('SELECT estado FROM transferencias WHERE id = ? AND activo = 1', [id]);
+        if (!rows.length) throw new Error('Transferencia no encontrada');
+        if (rows[0].estado !== 'pendiente') {
+            throw new Error('Solo se pueden prorrogar transferencias pendientes');
+        }
+        await db.query(
+            'UPDATE transferencias SET prorroga_hasta = DATE_ADD(CURDATE(), INTERVAL 10 DAY) WHERE id = ?',
+            [id]
+        );
+        const [updated] = await db.query('SELECT prorroga_hasta FROM transferencias WHERE id = ?', [id]);
+        return { id, prorroga_hasta: updated[0]?.prorroga_hasta || null };
     },
 
     /**
@@ -953,7 +1143,7 @@ const transferenciaService = {
 
             // Validar stock en bodega origen por cada ítem
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
                 const [stock] = await conn.query(
                     'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?',
@@ -979,7 +1169,7 @@ const transferenciaService = {
 
             // Persistir items + splits (único origen = bodega)
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 const [itemRes] = await conn.query(
                     `INSERT INTO transferencia_items
                      (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, origen_bodega_id)
@@ -1005,8 +1195,16 @@ const transferenciaService = {
     },
 
     /**
-     * Intra-bodega: bodega → bodega, instantáneo (estado 'recibida' en la misma tx).
-     * No hay tránsito — mismo dueño, mismo edificio logísticamente hablando.
+     * Intra-bodega: bodega → bodega CON aprobación.
+     *
+     * Decisión jefatura (mayo 2026): antes era instantáneo (nacía 'recibida' y
+     * movía stock en la misma tx). Ahora pasa por el flujo normal
+     * pendiente → aprobada → en_transito → recibida, igual que intra_obra y
+     * devolucion. El stock se mueve recién en la recepción. El bodeguero no
+     * mueve stock sin visto bueno de Leonardo (o su reemplazo).
+     *
+     * Delega en crear() con tipo_flujo='intra_bodega'. aprobar() y recibir()
+     * ya soportan splits/destinos de bodega vía _normalizeUbicacion.
      *
      * payload: {
      *   origen_bodega_id, destino_bodega_id,
@@ -1015,80 +1213,7 @@ const transferenciaService = {
      * }
      */
     async intraBodega(data, userId) {
-        const { origen_bodega_id, destino_bodega_id, items, observaciones, motivo } = data;
-        if (!origen_bodega_id) throw new Error('Debe especificar bodega origen');
-        if (!destino_bodega_id) throw new Error('Debe especificar bodega destino');
-        if (origen_bodega_id === destino_bodega_id) throw new Error('Origen y destino deben ser bodegas distintas');
-        if (!items || !items.length) throw new Error('Debe incluir al menos un ítem');
-
-        const conn = await db.getConnection();
-        try {
-            await conn.beginTransaction();
-
-            // Validar stock
-            for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
-                if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
-                const [stock] = await conn.query(
-                    'SELECT cantidad FROM ubicaciones_stock WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?',
-                    [item.item_id, origen_bodega_id]
-                );
-                const disponible = stock.length ? Number(stock[0].cantidad) || 0 : 0;
-                if (cantidad > disponible) {
-                    throw new Error(`Stock insuficiente para ítem ${item.item_id} en bodega origen. Disponible: ${disponible}, requerido: ${cantidad}`);
-                }
-            }
-
-            const codigo = await this._generarCodigo();
-            const [result] = await conn.query(
-                `INSERT INTO transferencias
-                 (codigo, origen_bodega_id, destino_bodega_id, solicitante_id, aprobador_id, receptor_id,
-                  observaciones, tipo_flujo, motivo, estado,
-                  fecha_aprobacion, fecha_despacho, fecha_recepcion,
-                  creado_por, aprobado_por, despachado_por, recibido_por)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, 'intra_bodega', ?, 'recibida', NOW(), NOW(), NOW(), ?, ?, ?, ?)`,
-                [codigo, origen_bodega_id, destino_bodega_id, userId, userId, userId, observaciones || null, motivo || null, userId, userId, userId, userId]
-            );
-            const trfId = result.insertId;
-
-            // Mover stock atómicamente + persistir items con recibida=enviada=solicitada
-            for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
-                const [itemRes] = await conn.query(
-                    `INSERT INTO transferencia_items
-                     (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, cantidad_recibida, origen_bodega_id)
-                     VALUES (?, ?, ?, ?, ?, ?)`,
-                    [trfId, item.item_id, cantidad, cantidad, cantidad, origen_bodega_id]
-                );
-                await conn.query(
-                    `INSERT INTO transferencia_item_origenes
-                     (transferencia_item_id, origen_obra_id, origen_bodega_id, cantidad_enviada)
-                     VALUES (?, NULL, ?, ?)`,
-                    [itemRes.insertId, origen_bodega_id, cantidad]
-                );
-                // Decrementar origen
-                await conn.query(
-                    `UPDATE ubicaciones_stock SET cantidad = GREATEST(cantidad - ?, 0)
-                     WHERE item_id = ? AND obra_id IS NULL AND bodega_id = ?`,
-                    [cantidad, item.item_id, origen_bodega_id]
-                );
-                // Incrementar destino (upsert)
-                await conn.query(
-                    `INSERT INTO ubicaciones_stock (item_id, obra_id, bodega_id, cantidad)
-                     VALUES (?, NULL, ?, ?)
-                     ON DUPLICATE KEY UPDATE cantidad = cantidad + VALUES(cantidad)`,
-                    [item.item_id, destino_bodega_id, cantidad]
-                );
-            }
-
-            await conn.commit();
-            return { id: trfId, codigo, estado: 'recibida' };
-        } catch (err) {
-            await conn.rollback();
-            throw err;
-        } finally {
-            conn.release();
-        }
+        return this.crear({ ...data, tipo_flujo: 'intra_bodega' }, userId);
     },
 
     /**
@@ -1176,7 +1301,7 @@ const transferenciaService = {
 
             // Validar stock en el origen (obra o bodega).
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 if (cantidad <= 0) throw new Error(`Cantidad inválida para ítem ${item.item_id}`);
                 let disponible = 0;
                 if (origen_obra_id) {
@@ -1224,7 +1349,7 @@ const transferenciaService = {
 
             // Persistir items + splits (único origen)
             for (const item of items) {
-                const cantidad = parseInt(item.cantidad, 10) || 0;
+                const cantidad = parseFloat(item.cantidad) || 0;
                 const [itemRes] = await conn.query(
                     `INSERT INTO transferencia_items
                      (transferencia_id, item_id, cantidad_solicitada, cantidad_enviada, origen_obra_id, origen_bodega_id)
@@ -1267,7 +1392,9 @@ const transferenciaService = {
         const [rows] = await db.query(`
             SELECT t.*,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                   ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, ua.nombre as aprobador_nombre
             FROM transferencias t
             LEFT JOIN obras oo ON t.origen_obra_id = oo.id
@@ -1290,7 +1417,9 @@ const transferenciaService = {
         const [rows] = await db.query(`
             SELECT t.*,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                   ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, ua.nombre as aprobador_nombre,
                    ut.nombre as transportista_nombre, ur.nombre as receptor_nombre
             FROM transferencias t
@@ -1316,6 +1445,13 @@ const transferenciaService = {
             WHERE ti.transferencia_id = ?
         `, [id]);
 
+        // Normalizar DECIMAL → Number (mysql2 devuelve DECIMAL como string).
+        items.forEach(i => {
+            i.cantidad_solicitada = Number(i.cantidad_solicitada) || 0;
+            i.cantidad_enviada = i.cantidad_enviada != null ? Number(i.cantidad_enviada) : null;
+            i.cantidad_recibida = i.cantidad_recibida != null ? Number(i.cantidad_recibida) : null;
+        });
+
         // Adjuntar splits (múltiples orígenes por ítem) si existen.
         // Un ítem aprobado normalmente tiene 1 split; si fue aprobado con
         // multi-origen tendrá N. Ítems pendientes (no aprobados aún) no tienen
@@ -1334,6 +1470,7 @@ const transferenciaService = {
 
             const splitsByItem = {};
             splits.forEach(s => {
+                s.cantidad_enviada = Number(s.cantidad_enviada) || 0;
                 if (!splitsByItem[s.transferencia_item_id]) splitsByItem[s.transferencia_item_id] = [];
                 splitsByItem[s.transferencia_item_id].push(s);
             });
@@ -1350,6 +1487,11 @@ const transferenciaService = {
             [id]
         );
 
+        // Normalizar DECIMAL → Number en items personalizados
+        itemsCustom.forEach(i => {
+            i.cantidad = Number(i.cantidad) || 0;
+        });
+
         return { ...rows[0], items, items_custom: itemsCustom };
     },
 
@@ -1361,7 +1503,8 @@ const transferenciaService = {
         const { page = 1, limit = 20 } = query;
         const offset = (page - 1) * limit;
         const [rows] = await db.query(`
-            SELECT t.*, do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre
+            SELECT t.*, do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre
             FROM transferencias t
             LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
             LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
@@ -1397,7 +1540,9 @@ const transferenciaService = {
             SELECT DISTINCT t.id, t.codigo, t.fecha_solicitud, t.fecha_aprobacion,
                    t.fecha_despacho, t.fecha_recepcion,
                    oo.nombre as origen_obra_nombre, ob.nombre as origen_bodega_nombre,
+                   ob.responsable_nombre as origen_bodega_responsable_nombre,
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
+                   db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, us.id as solicitante_id,
                    ua.nombre as aprobador_nombre, ua.id as aprobador_id,
                    ut.nombre as transportista_nombre, ut.id as transportista_id,
@@ -1423,10 +1568,12 @@ const transferenciaService = {
         const trfIds = trfRows.map(r => r.id);
         const [discRows] = await db.query(`
             SELECT d.*, i.descripcion as item_descripcion, i.nro_item, i.unidad,
-                   ru.nombre as resuelto_por_nombre
+                   ru.nombre as resuelto_por_nombre,
+                   rp.nombre as reportado_por_nombre
             FROM transferencia_discrepancias d
             JOIN items_inventario i ON d.item_id = i.id
             LEFT JOIN usuarios ru ON d.resuelto_por = ru.id
+            LEFT JOIN usuarios rp ON d.reportado_por = rp.id
             WHERE d.transferencia_id IN (?)
             ORDER BY d.transferencia_id, d.id
         `, [trfIds]);
@@ -1448,7 +1595,13 @@ const transferenciaService = {
 
         const data = trfRows.map(t => {
             const discrepancias = byTrf[t.id] || [];
-            const total_unidades_perdidas = discrepancias.reduce((s, d) => s + (d.diferencia || 0), 0);
+            // Normalizar DECIMAL → Number (mysql2 devuelve DECIMAL como string)
+            discrepancias.forEach(d => {
+                d.cantidad_enviada = Number(d.cantidad_enviada) || 0;
+                d.cantidad_recibida = Number(d.cantidad_recibida) || 0;
+                d.diferencia = Number(d.diferencia) || 0;
+            });
+            const total_unidades_perdidas = discrepancias.reduce((s, d) => s + d.diferencia, 0);
             return {
                 ...t,
                 discrepancias,

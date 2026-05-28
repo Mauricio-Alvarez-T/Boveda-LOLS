@@ -32,13 +32,17 @@ export interface TopObra {
 }
 
 export interface DashboardAlerta {
-    tipo: 'pendiente' | 'discrepancia' | 'transito';
+    tipo: 'pendiente' | 'discrepancia' | 'transito' | 'rechazo' | 'faltante';
     transferencia_id: number;
     codigo: string;
     dias: number;
     titulo: string;
     detalle: string;
     solicitante?: string | null;
+    /** Solo en alertas tipo 'pendiente': true si superó el plazo (10 días o prórroga). */
+    estancada?: boolean;
+    /** Fecha hasta la que se extendió el plazo (si se prorrogó). */
+    prorroga_hasta?: string | null;
 }
 
 export interface KpiHistorico {

@@ -156,7 +156,7 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         ];
 
         const mockLMPeriods = [
-            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15' }
+            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15', codigo: 'LM', color: '#5856D6' }
         ];
 
         db.query.mockImplementation((sql) => {
@@ -252,5 +252,201 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         // Row 4 debe estar vacía
         expect(wsLols.getCell(4, 1).value).toBeNull();
+    });
+
+    // ── Test 6: JI usa jornada/2 dinámica (no hardcoded 4.5) ──
+    test('JI sin marcas de reloj usa jornada/2 de configuracion_horarios', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1, obra_id: 10 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 }
+        ];
+
+        // JI el viernes 13 marzo 2026 SIN marcas de reloj
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 5, hora_entrada: null, hora_salida: null }
+        ];
+
+        // Obra 10: jornada lun-vie 08:00-18:00 con colación 13:00-14:00 = 9h
+        const mockHorarios = [
+            { obra_id: 10, dia_semana: 'lun', hora_entrada: '08:00', hora_salida: '18:00', hora_colacion_inicio: '13:00', hora_colacion_fin: '14:00', activo: 1 },
+            { obra_id: 10, dia_semana: 'mar', hora_entrada: '08:00', hora_salida: '18:00', hora_colacion_inicio: '13:00', hora_colacion_fin: '14:00', activo: 1 },
+            { obra_id: 10, dia_semana: 'mie', hora_entrada: '08:00', hora_salida: '18:00', hora_colacion_inicio: '13:00', hora_colacion_fin: '14:00', activo: 1 },
+            { obra_id: 10, dia_semana: 'jue', hora_entrada: '08:00', hora_salida: '18:00', hora_colacion_inicio: '13:00', hora_colacion_fin: '14:00', activo: 1 },
+            { obra_id: 10, dia_semana: 'vie', hora_entrada: '08:00', hora_salida: '18:00', hora_colacion_inicio: '13:00', hora_colacion_fin: '14:00', activo: 1 }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('FROM configuracion_horarios')) return Promise.resolve([mockHorarios]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Header "HRS DESCONTADAS (JI)" debe existir
+        // totalCol = q2Col + 1 = 41 + 1 = 42. horasOrd = 43. horasDesc = 44.
+        // dayColStart = 9. Q1 = 9+15 = 24. Q2 = 9+32 = 41. total = 42. ord = 43. desc = 44.
+        const descHeader = wsLols.getCell(7, 44);
+        expect(descHeader.value).toBe('HRS DESCONTADAS (JI)');
+
+        // Trabajador con 1 día JI (jornada 9h): descuento = 9 - 4.5 = 4.5
+        const cDesc = wsLols.getCell(9, 44);
+        expect(cDesc.value).toBeCloseTo(4.5, 1);
+    });
+
+    // ── Test 7: JI sin horario configurado fallback 4.5 ──
+    test('JI sin configuracion_horarios usa fallback 4.5h (jornada 9h default)', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1, obra_id: 99 }
+        ];
+
+        const mockEstados = [
+            { id: 5, codigo: 'JI', nombre: 'Jornada Incompleta', color: '#FF9500', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 }
+        ];
+
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 5, hora_entrada: null, hora_salida: null }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('FROM configuracion_horarios')) return Promise.resolve([[]]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+        // Fallback default 9h → JI calc = 4.5, descuento = 9 - 4.5 = 4.5
+        const cDesc = wsLols.getCell(9, 44);
+        expect(cDesc.value).toBeCloseTo(4.5, 1);
+    });
+
+    // ── Test extra: período V cubriendo sábado pinta V (no FDS) ──
+    test('período V cubriendo sábado pinta "V" con color, no FDS (mig periodos generalizada)', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A', nombre: 'Asistencia', color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 3, codigo: 'V', nombre: 'Vacaciones', color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 }
+        ];
+
+        // V propaga TODOS los días → fila V en sábado 14/03/2026
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-09', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-10', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-11', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-12', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 3 },
+            { trabajador_id: 1, fecha: '2026-03-14', estado_id: 3 }, // sábado
+            { trabajador_id: 1, fecha: '2026-03-15', estado_id: 3 }  // domingo
+        ];
+
+        const mockVPeriods = [
+            { trabajador_id: 1, fecha_inicio: '2026-03-09', fecha_fin: '2026-03-15', codigo: 'V', color: '#FFD60A' }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            if (sql.includes('FROM periodos_ausencia')) return Promise.resolve([mockVPeriods]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Día 14 = sábado dentro de V → debe pintar "V" amarillo (no FDS gris)
+        const sabV = wsLols.getCell(9, 22);
+        expect(sabV.value).toBe('V');
+        expect(sabV.fill?.fgColor?.argb).toBe('FFFFD60A');
+
+        // Día 15 = domingo dentro de V → también "V"
+        const domV = wsLols.getCell(9, 23);
+        expect(domV.value).toBe('V');
+    });
+
+    // ── Test 8: NAC/DF/MT individuales (no consolidan a PL) ──
+    test('NAC/DF/MT renderizan códigos propios y suman al total (mig 065)', async () => {
+        const mockWorkers = [
+            { id: 1, rut: '1-1', nombres: 'Juan',  apellido_paterno: 'Perez', empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 },
+            { id: 2, rut: '2-2', nombres: 'Maria', apellido_paterno: 'Soto',  empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 },
+            { id: 3, rut: '3-3', nombres: 'Luis',  apellido_paterno: 'Vega',  empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1 }
+        ];
+
+        const mockEstados = [
+            { id: 1, codigo: 'A',   nombre: 'Asistencia',  color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+            { id: 7, codigo: 'NAC', nombre: 'Nacimiento',  color: '#F1C40F', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 8, codigo: 'DF',  nombre: 'Defunción',   color: '#34495E', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+            { id: 9, codigo: 'MT',  nombre: 'Matrimonio',  color: '#E67E22', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 }
+        ];
+
+        // Viernes 13 marzo 2026: Juan→NAC, Maria→DF, Luis→MT
+        const mockRegistros = [
+            { trabajador_id: 1, fecha: '2026-03-13', estado_id: 7 },
+            { trabajador_id: 2, fecha: '2026-03-13', estado_id: 8 },
+            { trabajador_id: 3, fecha: '2026-03-13', estado_id: 9 }
+        ];
+
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([mockWorkers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([mockEstados]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([mockRegistros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([[]]);
+            return Promise.resolve([[]]);
+        });
+
+        const query = { fecha_inicio: '2026-03-01', fecha_fin: '2026-03-31' };
+        const buffer = await asistenciaService.generarExcel(query);
+        const workbook = new ExcelJS.Workbook();
+        await workbook.xlsx.load(buffer);
+
+        const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+
+        // Día 13 = col 21 (dayColStart=9, dIdx=12 → 9+12=21)
+        // Juan (row 9) → NAC, Maria (row 10) → DF, Luis (row 11) → MT
+        expect(wsLols.getCell(9, 21).value).toBe('NAC');
+        expect(wsLols.getCell(10, 21).value).toBe('DF');
+        expect(wsLols.getCell(11, 21).value).toBe('MT');
+
+        // NINGUNA celda debe decir "PL" (consolidación removida)
+        for (let r = 9; r <= 11; r++) {
+            expect(wsLols.getCell(r, 21).value).not.toBe('PL');
+        }
+
+        // Fórmula COUNTIF Q1 de Juan debe contener "NAC", "DF", "MT"
+        // (codigosSumanDia incluye los tres porque cuenta_dia_trabajado=1)
+        const q1Cell = wsLols.getCell(9, 24);
+        const formula = q1Cell.value.formula;
+        expect(formula).toContain('"NAC"');
+        expect(formula).toContain('"DF"');
+        expect(formula).toContain('"MT"');
+        expect(formula).not.toContain('"PL"');
     });
 });

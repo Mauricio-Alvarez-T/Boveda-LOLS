@@ -1,14 +1,28 @@
 jest.mock('../src/config/db', () => ({
     query: jest.fn(),
+    getConnection: jest.fn(),
 }));
 
 const inventarioService = require('../src/services/inventario.service');
 const { normalizeUbicacion } = require('../src/utils/ubicacionStock');
 const db = require('../src/config/db');
 
+function makeConn() {
+    return {
+        query: jest.fn(),
+        beginTransaction: jest.fn().mockResolvedValue(undefined),
+        commit: jest.fn().mockResolvedValue(undefined),
+        rollback: jest.fn().mockResolvedValue(undefined),
+        release: jest.fn(),
+    };
+}
+
 describe('Inventario XOR — ubicación obra | bodega', () => {
     beforeEach(() => {
-        jest.clearAllMocks();
+        // resetAllMocks (no clearAllMocks): limpia también la cola de
+        // mockResolvedValueOnce para que un test que lanza antes de consumir
+        // sus mocks no contamine al siguiente.
+        jest.resetAllMocks();
     });
 
     // ── normalizeUbicacion ─────────────────────────────────────────
@@ -52,23 +66,31 @@ describe('Inventario XOR — ubicación obra | bodega', () => {
         });
 
         test('obra=1 + bodega=null → UPSERT con bodega=NULL', async () => {
-            db.query
-                .mockResolvedValueOnce([[]]) // SELECT existing → empty
-                .mockResolvedValueOnce([{ insertId: 99 }]); // INSERT
+            // Fase 13: actualizarStock ahora usa transacción (getConnection) +
+            // registra movimiento en kardex.
+            const conn = makeConn();
+            db.getConnection.mockResolvedValue(conn);
+            conn.query
+                .mockResolvedValueOnce([[]])             // SELECT existing FOR UPDATE → empty
+                .mockResolvedValueOnce([{ insertId: 99 }]) // INSERT ubicaciones_stock
+                .mockResolvedValueOnce([{ insertId: 500 }]); // INSERT kardex
             const res = await inventarioService.actualizarStock(1, 5, null, { cantidad: 10 });
             expect(res.id).toBe(99);
-            // Confirmar que el INSERT usó bodega=null
-            const insertCall = db.query.mock.calls[1];
+            // Confirmar que el INSERT de stock usó bodega=null
+            const insertCall = conn.query.mock.calls[1];
             expect(insertCall[1]).toEqual([1, 5, null, 10, null]);
         });
 
         test('obra=null + bodega=7 → UPSERT con obra=NULL', async () => {
-            db.query
-                .mockResolvedValueOnce([[]]) // SELECT existing → empty
-                .mockResolvedValueOnce([{ insertId: 100 }]); // INSERT
+            const conn = makeConn();
+            db.getConnection.mockResolvedValue(conn);
+            conn.query
+                .mockResolvedValueOnce([[]])              // SELECT existing FOR UPDATE → empty
+                .mockResolvedValueOnce([{ insertId: 100 }]) // INSERT ubicaciones_stock
+                .mockResolvedValueOnce([{ insertId: 501 }]); // INSERT kardex
             const res = await inventarioService.actualizarStock(1, null, 7, { cantidad: 10 });
             expect(res.id).toBe(100);
-            const insertCall = db.query.mock.calls[1];
+            const insertCall = conn.query.mock.calls[1];
             expect(insertCall[1]).toEqual([1, null, 7, 10, null]);
         });
     });

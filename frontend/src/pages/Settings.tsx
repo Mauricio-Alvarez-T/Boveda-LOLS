@@ -68,54 +68,67 @@ type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'role
 interface TabDef {
     key: TabKey;
     label: string;
+    shortLabel?: string;
     icon: React.ElementType;
 }
 
 interface TabGroup {
     title: string;
+    shortTitle: string;
+    icon: React.ElementType;
     items: TabDef[];
 }
 
 const tabGroups: TabGroup[] = [
     {
         title: "Organización",
+        shortTitle: "Org.",
+        icon: Building2,
         items: [
-            { key: 'empresas', label: 'Empresas', icon: Building2 },
-            { key: 'obras', label: 'Obras', icon: HardHat },
-            { key: 'cargos', label: 'Cargos', icon: Briefcase },
+            { key: 'empresas', label: 'Empresas', shortLabel: 'Empresas', icon: Building2 },
+            { key: 'obras', label: 'Obras', shortLabel: 'Obras', icon: HardHat },
+            { key: 'cargos', label: 'Cargos', shortLabel: 'Cargos', icon: Briefcase },
         ]
     },
     {
         title: "Personal & Documentos",
+        shortTitle: "Personal",
+        icon: Users,
         items: [
-            { key: 'usuarios', label: 'Usuarios', icon: Users },
-            { key: 'roles', label: 'Roles', icon: Shield },
-            { key: 'tipos_doc', label: 'Tipos de Documento', icon: FileText },
+            { key: 'usuarios', label: 'Usuarios', shortLabel: 'Usuarios', icon: Users },
+            { key: 'roles', label: 'Roles', shortLabel: 'Roles', icon: Shield },
+            { key: 'tipos_doc', label: 'Tipos de Documento', shortLabel: 'Tipos Doc.', icon: FileText },
         ]
     },
     {
         title: "Asistencia",
+        shortTitle: "Asist.",
+        icon: CheckSquare,
         items: [
-            { key: 'estados_asistencia', label: 'Estados Asist.', icon: CheckSquare },
-            { key: 'tipos_ausencia', label: 'Tipos Ausencia', icon: AlertTriangle },
-            { key: 'horarios', label: 'Horarios Laborales', icon: Clock },
-            { key: 'feriados', label: 'Feriados', icon: CheckSquare }, // Reusing an icon for simplicity
+            { key: 'estados_asistencia', label: 'Estados Asist.', shortLabel: 'Estados', icon: CheckSquare },
+            { key: 'tipos_ausencia', label: 'Tipos Ausencia', shortLabel: 'Ausencia', icon: AlertTriangle },
+            { key: 'horarios', label: 'Horarios Laborales', shortLabel: 'Horarios', icon: Clock },
+            { key: 'feriados', label: 'Feriados', shortLabel: 'Feriados', icon: CheckSquare },
         ]
     },
     {
         title: "Inventario",
+        shortTitle: "Invent.",
+        icon: Package,
         items: [
-            { key: 'cat_inventario', label: 'Categorías', icon: Package },
-            { key: 'bodegas', label: 'Bodegas', icon: Warehouse },
-            { key: 'items_inventario', label: 'Ítems', icon: Wrench },
+            { key: 'cat_inventario', label: 'Categorías', shortLabel: 'Categ.', icon: Package },
+            { key: 'bodegas', label: 'Bodegas', shortLabel: 'Bodegas', icon: Warehouse },
+            { key: 'items_inventario', label: 'Ítems', shortLabel: 'Ítems', icon: Wrench },
         ]
     },
     {
         title: "Sistema & Correo",
+        shortTitle: "Sistema",
+        icon: Settings,
         items: [
-            { key: 'mi_correo', label: 'Mi Correo', icon: Mail },
-            { key: 'plantillas', label: 'Plantillas Email', icon: FileText },
-            { key: 'logs', label: 'Historial de Actividad', icon: Clock },
+            { key: 'mi_correo', label: 'Mi Correo', shortLabel: 'Correo', icon: Mail },
+            { key: 'plantillas', label: 'Plantillas Email', shortLabel: 'Plantillas', icon: FileText },
+            { key: 'logs', label: 'Historial de Actividad', shortLabel: 'Historial', icon: Clock },
             { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
     }
@@ -260,6 +273,14 @@ const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
+    {
+        key: 'cuenta_dia_trabajado', label: 'Cuenta Día Trabajado', render: (v) => (
+            <span className={cn(
+                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted/10 text-muted"
+            )}>{v ? 'Sí' : 'No'}</span>
+        )
+    },
 ];
 
 const tipoAusenciaCols: ColumnDef<TipoAusencia>[] = [
@@ -309,26 +330,94 @@ const SettingsPage: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-3 md:gap-4 lg:gap-5 p-0 overflow-hidden w-full">
-            {/* Top Navigation - Category Tabs */}
-            <div className="flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-1.5 md:p-2 flex items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
-                    {tabGroups.map((group, idx) => {
-                        const isActive = activeGroup.title === group.title;
+            {/* ── Mobile: Icon + Short Label Category Tabs (all 5 visible) ── */}
+            <div className="md:hidden flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-1 flex items-center gap-0.5 shadow-sm">
+                {tabGroups.map((group, idx) => {
+                    const isActive = activeGroup.title === group.title;
+                    const GroupIcon = group.icon;
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => setActiveTab(group.items[0].key)}
+                            className={cn(
+                                "flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all relative overflow-hidden",
+                                isActive
+                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                                    : "text-muted-foreground active:bg-background"
+                            )}
+                        >
+                            <GroupIcon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
+                            <span className="text-[7px] font-black uppercase tracking-tight leading-none relative z-10">
+                                {group.shortTitle}
+                            </span>
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeCategoryMobile"
+                                    className="absolute inset-0 bg-white/10 rounded-xl"
+                                    transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
+                                />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* ── Desktop: Full Text Category Tabs ── */}
+            <div className="hidden md:flex flex-none bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] p-2 items-center gap-1 overflow-x-auto scrollbar-none shadow-sm">
+                {tabGroups.map((group, idx) => {
+                    const isActive = activeGroup.title === group.title;
+                    const GroupIcon = group.icon;
+                    return (
+                        <button
+                            key={idx}
+                            onClick={() => setActiveTab(group.items[0].key)}
+                            className={cn(
+                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
+                                isActive
+                                    ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
+                                    : "text-muted-foreground hover:bg-background hover:text-brand-dark"
+                            )}
+                        >
+                            <GroupIcon className={cn("h-4 w-4 relative z-10", isActive ? "text-white" : "text-muted-foreground/60")} />
+                            <span className="relative z-10">{group.title}</span>
+                            {isActive && (
+                                <motion.div
+                                    layoutId="activeCategoryGlow"
+                                    className="absolute inset-0 bg-white/10"
+                                />
+                            )}
+                        </button>
+                    );
+                })}
+            </div>
+
+            {/* Main Content Area (Full Width) — mobile: full-bleed sin chrome; md+: card */}
+            <div className="flex-1 min-h-0 flex flex-col md:bg-white md:border md:border-[#E2E2E7] md:rounded-3xl md:shadow-[0_10px_40px_rgb(0,0,0,0.08)] md:overflow-hidden relative">
+
+                {/* ── Mobile Sub-Tabs: pill card flotante (sin wrapper blanco encima) ── */}
+                <div className="md:hidden bg-white/80 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shadow-sm px-1.5 py-1.5 flex items-center shrink-0 gap-0.5">
+                    {activeGroup.items.map(tab => {
+                        const isActive = activeTab === tab.key;
                         return (
                             <button
-                                key={idx}
-                                onClick={() => setActiveTab(group.items[0].key)}
+                                key={tab.key}
+                                onClick={() => setActiveTab(tab.key)}
                                 className={cn(
-                                    "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
+                                    "flex flex-col items-center gap-0.5 flex-1 py-2 rounded-xl transition-all relative overflow-hidden",
                                     isActive
-                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
-                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
+                                        ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
+                                        : "text-muted-foreground active:bg-background"
                                 )}
                             >
-                                <span className="relative z-10">{group.title}</span>
+                                <tab.icon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
+                                <span className="text-[7px] font-black uppercase tracking-tight leading-none relative z-10">
+                                    {tab.shortLabel || tab.label}
+                                </span>
                                 {isActive && (
                                     <motion.div
-                                        layoutId="activeCategoryGlow"
-                                        className="absolute inset-0 bg-white/10"
+                                        layoutId="activeSubTabMobile"
+                                        className="absolute inset-0 bg-white/10 rounded-xl"
+                                        transition={{ type: 'spring', bounce: 0.2, duration: 0.4 }}
                                     />
                                 )}
                             </button>
@@ -336,11 +425,8 @@ const SettingsPage: React.FC = () => {
                     })}
                 </div>
 
-            {/* Main Content Area (Full Width) */}
-            <div className="flex-1 min-h-0 flex flex-col bg-white border border-[#E2E2E7] rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
-                
-                {/* Internal Header: Sub-Tabs */}
-                <div className="h-[60px] border-b border-[#F0F0F5] bg-white/50 px-3 lg:px-5 flex items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
+                {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
+                <div className="hidden md:flex h-[60px] border-b border-[#F0F0F5] bg-white/50 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
                     {activeGroup.items.map(tab => (
                         <button
                             key={tab.key}
@@ -358,8 +444,8 @@ const SettingsPage: React.FC = () => {
                     ))}
                 </div>
 
-                {/* Inner Content Area - Scrollable */}
-                <div className="flex-1 overflow-y-auto custom-scrollbar bg-[#F9F9FB] p-4 md:p-6 lg:p-8">
+                {/* Inner Content Area - Scrollable — mobile: pt-3 sin padding lateral; md+: p-6/p-8 con bg gris */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar md:bg-[#F9F9FB] pt-3 md:p-6 lg:p-8">
                     <motion.div
                         key={activeTab}
                         initial={{ opacity: 0, y: 10 }}

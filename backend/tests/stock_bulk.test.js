@@ -39,14 +39,19 @@ describe('stockBulk.bulkAdjust', () => {
         db.getConnection.mockResolvedValue(conn);
 
         conn.query
-            // Ajuste 1: SELECT existente (item=5, bodega=2) → encontrado
-            .mockResolvedValueOnce([[{ id: 77, cantidad: 10, valor_arriendo_override: null }]])
-            // UPDATE
+            // BATCH SELECT (mig 056 + Sprint 1.4): 1 sola query con WHERE item_id IN (5,6).
+            // Solo item=5 existe (con bodega_id=2). Item=6 no existe → ausente del resultado.
+            .mockResolvedValueOnce([[
+                { id: 77, item_id: 5, obra_id: null, bodega_id: 2, cantidad: 10, valor_arriendo_override: null },
+            ]])
+            // UPDATE item=5
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // Ajuste 2: SELECT (item=6, obra=9) → no existe
-            .mockResolvedValueOnce([[]])
-            // INSERT
-            .mockResolvedValueOnce([{ insertId: 201, affectedRows: 1 }]);
+            // Kardex INSERT item=5 (Fase 13: ajuste_manual 10→25)
+            .mockResolvedValueOnce([{ insertId: 901 }])
+            // INSERT item=6
+            .mockResolvedValueOnce([{ insertId: 201, affectedRows: 1 }])
+            // Kardex INSERT item=6 (Fase 13: ajuste_manual 0→3)
+            .mockResolvedValueOnce([{ insertId: 902 }]);
 
         const result = await svc.bulkAdjust([
             { item_id: 5, bodega_id: 2, cantidad: 25 },
@@ -93,11 +98,16 @@ describe('stockBulk.bulkAdjust', () => {
         db.getConnection.mockResolvedValue(conn);
 
         conn.query
-            // Ajuste 1: OK
-            .mockResolvedValueOnce([[{ id: 1, cantidad: 5, valor_arriendo_override: null }]])
+            // BATCH SELECT: ambos items existen
+            .mockResolvedValueOnce([[
+                { id: 1, item_id: 10, obra_id: null, bodega_id: 1, cantidad: 5, valor_arriendo_override: null },
+                { id: 2, item_id: 11, obra_id: null, bodega_id: 1, cantidad: 8, valor_arriendo_override: null },
+            ]])
+            // UPDATE item=10 OK
             .mockResolvedValueOnce([{ affectedRows: 1 }])
-            // Ajuste 2: SELECT existe pero UPDATE falla
-            .mockResolvedValueOnce([[{ id: 2, cantidad: 8, valor_arriendo_override: null }]])
+            // Kardex INSERT item=10 (Fase 13: 5→100)
+            .mockResolvedValueOnce([{ insertId: 910 }])
+            // UPDATE item=11 falla
             .mockResolvedValueOnce([{ affectedRows: 0 }]);
 
         await expect(svc.bulkAdjust([
@@ -113,5 +123,37 @@ describe('stockBulk.bulkAdjust', () => {
         await expect(svc.bulkAdjust([
             { item_id: 1, obra_id: 2, bodega_id: 3, cantidad: 1 },
         ], 1)).rejects.toThrow(/no puede tener obra_id y bodega_id/);
+    });
+
+    // ── Fase 13: kardex de movimientos ──
+    test('kardex: ajuste registra movimiento con delta antes→después', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+
+        conn.query
+            // BATCH SELECT: item=5 existe con cantidad 10
+            .mockResolvedValueOnce([[
+                { id: 77, item_id: 5, obra_id: null, bodega_id: 2, cantidad: 10, valor_arriendo_override: null },
+            ]])
+            // UPDATE item=5
+            .mockResolvedValueOnce([{ affectedRows: 1 }])
+            // Kardex INSERT
+            .mockResolvedValueOnce([{ insertId: 901 }]);
+
+        await svc.bulkAdjust([{ item_id: 5, bodega_id: 2, cantidad: 8 }], 42);
+
+        // Buscar la llamada INSERT a stock_movimientos
+        const kardexCall = conn.query.mock.calls.find(c =>
+            /INSERT INTO stock_movimientos/.test(c[0])
+        );
+        expect(kardexCall).toBeDefined();
+        const params = kardexCall[1];
+        // [item_id, obra_id, bodega_id, tipo, cantidad_anterior, cantidad_nueva, ref_tipo, ref_id, motivo, usuario_id]
+        expect(params[0]).toBe(5);            // item_id
+        expect(params[2]).toBe(2);            // bodega_id
+        expect(params[3]).toBe('ajuste_manual'); // tipo
+        expect(params[4]).toBe(10);           // cantidad_anterior
+        expect(params[5]).toBe(8);            // cantidad_nueva
+        expect(params[9]).toBe(42);           // usuario_id
     });
 });

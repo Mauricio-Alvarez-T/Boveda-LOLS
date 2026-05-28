@@ -104,7 +104,12 @@ export function useAttendanceExport({
         text += `Adjunto asistencia de ${currentObra.nombre} del día ${dateStr}.\n\n`;
 
         const total = currentWorkers.length;
-        const counts: Record<string, number> = { A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0, PL: 0 };
+        // Contadores fijos siempre visibles + dinámico para otros códigos
+        // (NAC/DF/MT mig 065 — RH pidió desglose individual, sin PL).
+        const counts: Record<string, number> = {
+            A: 0, F: 0, JI: 0, TO: 0, V: 0, LM: 0,
+            NAC: 0, DF: 0, MT: 0, PSG: 0,
+        };
 
         currentWorkers.forEach(w => {
             const state = currentAttendance[w.id];
@@ -113,16 +118,22 @@ export function useAttendanceExport({
             if (!est) return;
 
             let code = est.codigo;
-            if (['NAC', 'DEF', 'MAT'].includes(code)) code = 'PL';
+            // AT (atraso legacy) absorbido por JI. NAC/DF/MT NO consolidan.
             if (code === 'AT') code = 'JI';
 
             if (counts[code] !== undefined) counts[code]++;
-            else if (!est.es_presente) counts.PL++; 
         });
 
         text += `Total: ${total}\n`;
-        ['A', 'F', 'JI', 'TO', 'V', 'LM', 'PL'].forEach(c => {
+        // Mostrar siempre fijos. Códigos opcionales (NAC/DF/MT/PSG) solo si >0
+        // para evitar contaminar mensaje con líneas en cero.
+        ['A', 'F', 'JI', 'TO', 'V', 'LM'].forEach(c => {
             text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
+        });
+        ['NAC', 'DF', 'MT', 'PSG'].forEach(c => {
+            if (counts[c] > 0) {
+                text += `${c}: ${counts[c].toString().padStart(2, '0')}\n`;
+            }
         });
         text += `\n`;
 
@@ -142,7 +153,9 @@ export function useAttendanceExport({
                 return est && est.es_presente;
             });
             if (presentWorkersInCat.length === 0) return;
-            text += `${cat.label}\n`;
+            // Línea en blanco después del título para separarlo del listado
+            // (mejora legibilidad en WhatsApp mobile).
+            text += `${cat.label}\n\n`;
             const cargoCounts: Record<string, number> = {};
             presentWorkersInCat.forEach(w => {
                 const cargo = w.cargo_nombre || 'Sin Cargo';
@@ -161,14 +174,71 @@ export function useAttendanceExport({
             return est && !est.es_presente;
         });
 
+        // Enriquecimiento de líneas de ausencia con info de período: si el
+        // trabajador tiene un período activo para el día del reporte (vacaciones,
+        // licencia, permiso sin goce, etc.), se agrega "X días: DD/MM/YYYY →
+        // DD/MM/YYYY" para que RRHH vea de un vistazo el rango de la ausencia.
+        // Degrada sin enriquecer si el usuario no tiene permiso periodo.ver o
+        // si la llamada falla. Key del map = `${trabajadorId}_${estadoId}` para
+        // soportar el caso (raro) de varios períodos activos por trabajador.
+        const periodMap = new Map<string, { fecha_inicio: string; fecha_fin: string; estado_id: number }>();
+        if (currentObra) {
+            try {
+                const periodsRes = await api.get<{ data: Array<{ trabajador_id: number; estado_id: number; fecha_inicio: string; fecha_fin: string }> }>(
+                    `/asistencias/periodos?obra_id=${currentObra.id}&fecha_inicio=${currentDate}&fecha_fin=${currentDate}&activo=true`
+                );
+                for (const p of (periodsRes.data?.data || [])) {
+                    periodMap.set(`${p.trabajador_id}_${p.estado_id}`, p);
+                }
+            } catch {
+                // Permiso faltante o error de red → seguimos sin enriquecer.
+            }
+        }
+
         if (excepciones.length > 0) {
-            text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n`;
-            excepciones.forEach(w => {
+            // Línea en blanco después del título para separarlo del listado
+            // (mejora legibilidad en WhatsApp mobile).
+            text += `AUSENCIAS Y MOVIMIENTOS: ${excepciones.length.toString().padStart(2, '0')}\n\n`;
+            excepciones.forEach((w, idx) => {
+                // Línea en blanco entre cada ausencia (excepto la primera) para
+                // que en WhatsApp mobile cada trabajador quede visualmente
+                // separado, sobre todo cuando la línea wrappea (V/LM/PSG con
+                // rango de fechas suelen ocupar 2 líneas en pantallas chicas).
+                if (idx > 0) text += '\n';
+
                 const state = currentAttendance[w.id];
                 const est = currentEstados.find(e => e.id === state?.estado_id);
                 let line = `- ${w.apellido_paterno} ${w.nombres} (${est ? est.codigo : '?'})`;
                 if (est?.codigo === 'TO' && state?.observacion) {
                     line += ` ${state.observacion}`;
+                }
+                // Anexar rango y días si hay un período activo que matchee el estado.
+                // Aplica a V (vacaciones), LM (licencia médica), DF (defunción),
+                // NAC (nacimiento), MT (matrimonio) y PSG (permiso sin goce).
+                // Si el período es de 1 día se omite la flecha (queda "1 día: fecha"),
+                // si son varios se muestra el rango completo "N días: ini → fin".
+                // Fallback: si el estado es de tipo período pero NO hay período
+                // registrado (caso típico: se asignó vía el dropdown "OTRO" de la
+                // fila, no por PeriodAssignModal), igual mostramos "1 día: fecha
+                // del reporte" para que RRHH no quede sin contexto del día.
+                const PERIOD_CODES = ['V', 'LM', 'DF', 'NAC', 'MT', 'PSG'];
+                const periodo = est ? periodMap.get(`${w.id}_${est.id}`) : undefined;
+                if (periodo) {
+                    const fi = String(periodo.fecha_inicio).split('T')[0];
+                    const ff = String(periodo.fecha_fin).split('T')[0];
+                    const fiMs = new Date(fi + 'T00:00:00').getTime();
+                    const ffMs = new Date(ff + 'T00:00:00').getTime();
+                    const dias = Math.floor((ffMs - fiMs) / 86400000) + 1;
+                    const fiFmt = fi.split('-').reverse().join('/');
+                    if (dias === 1) {
+                        line += ` 1 día: ${fiFmt}`;
+                    } else {
+                        const ffFmt = ff.split('-').reverse().join('/');
+                        line += ` ${dias} días: ${fiFmt} → ${ffFmt}`;
+                    }
+                } else if (est && PERIOD_CODES.includes(est.codigo)) {
+                    const fiFmt = currentDate.split('-').reverse().join('/');
+                    line += ` 1 día: ${fiFmt}`;
                 }
                 text += line + '\n';
             });
