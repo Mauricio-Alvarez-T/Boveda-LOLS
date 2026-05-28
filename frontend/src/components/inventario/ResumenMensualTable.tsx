@@ -296,7 +296,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                     {/* Item Row — tap to expand */}
                                                     <button
                                                         onClick={() => setMobileExpandedItem(isExpanded ? null : item.id)}
-                                                        className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 transition-colors text-left"
+                                                        className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 dark:active:bg-blue-950/30 transition-colors text-left"
                                                     >
                                                         {/* Image or number */}
                                                         <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0 overflow-hidden">
@@ -352,8 +352,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                 return (
                                                                     <div key={o.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
                                                                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                            <div className="w-6 h-6 rounded-lg bg-blue-50 border border-blue-200 flex items-center justify-center shrink-0">
-                                                                                <MapPin className="h-3 w-3 text-blue-600" />
+                                                                            <div className="w-6 h-6 rounded-lg bg-blue-50 dark:bg-blue-950/40 border border-blue-200 dark:border-blue-900 flex items-center justify-center shrink-0">
+                                                                                <MapPin className="h-3 w-3 text-blue-600 dark:text-blue-300" />
                                                                             </div>
                                                                             <span className="text-xs font-medium text-brand-dark truncate">{o.nombre}</span>
                                                                         </div>
@@ -372,15 +372,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                                         className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                         autoFocus
                                                                                     />
-                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, o.id, null)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, o.id, null)} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                                 </div>
                                                                             ) : (
                                                                                 <button
                                                                                     onClick={() => canEdit && mobileEdit.startEdit(cellKey, qty)}
                                                                                     className={cn(
                                                                                         "min-w-[3rem] px-3 py-1.5 rounded-xl text-xs font-bold text-center",
-                                                                                        qty > 0 ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-400 border border-gray-200",
+                                                                                        qty > 0 ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900" : "bg-gray-50 text-gray-400 border border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border",
                                                                                         canEdit && "active:scale-95 transition-transform"
                                                                                     )}
                                                                                 >
@@ -404,8 +404,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                 return (
                                                                     <div key={b.id} className="flex items-center justify-between py-2.5 border-b border-border last:border-0">
                                                                         <div className="flex items-center gap-2 flex-1 min-w-0">
-                                                                            <div className="w-6 h-6 rounded-lg bg-amber-50 border border-amber-200 flex items-center justify-center shrink-0">
-                                                                                <Warehouse className="h-3 w-3 text-amber-600" />
+                                                                            <div className="w-6 h-6 rounded-lg bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 flex items-center justify-center shrink-0">
+                                                                                <Warehouse className="h-3 w-3 text-amber-600 dark:text-amber-300" />
                                                                             </div>
                                                                             <span className="text-xs font-medium text-brand-dark truncate" title={formatBodegaConResponsable(b)}>{formatBodegaConResponsable(b)}</span>
                                                                         </div>
@@ -423,15 +423,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                                         className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                         autoFocus
                                                                                     />
-                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, null, b.id)} className="p-1.5 bg-green-100 text-green-700 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, null, b.id)} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
+                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
                                                                                 </div>
                                                                             ) : (
                                                                                 <button
                                                                                     onClick={() => canEdit && mobileEdit.startEdit(cellKey, qty)}
                                                                                     className={cn(
                                                                                         "min-w-[3rem] px-3 py-1.5 rounded-xl text-xs font-bold text-center",
-                                                                                        qty > 0 ? "bg-amber-50 text-amber-700 border border-amber-200" : "bg-gray-50 text-gray-400 border border-gray-200",
+                                                                                        qty > 0 ? "bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-900" : "bg-gray-50 text-gray-400 border border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border",
                                                                                         canEdit && "active:scale-95 transition-transform"
                                                                                     )}
                                                                                 >
@@ -504,12 +504,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Arriendo</th>
                             )}
                             {visibleObras.map((o, oIdx) => (
-                                <th key={`obra_${o.id}`} colSpan={verValores ? 2 : 1} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border border-r-[#BBBBCC] group/col", oIdx % 2 === 0 ? "bg-info/10" : "bg-info/10")}>
+                                <th key={`obra_${o.id}`} colSpan={verValores ? 2 : 1} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border group/col", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>
                                     <div className="flex items-center justify-center gap-1">
                                         <span className="truncate">{o.nombre}</span>
                                         <button
                                             onClick={() => toggleCol(`obra_${o.id}`)}
-                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
+                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 transition-all shrink-0"
                                             title={`Ocultar ${o.nombre}`}
                                         >
                                             <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
@@ -520,12 +520,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             {visibleBodegas.map((b, bIdx) => {
                                 const bodegaLabel = formatBodegaConResponsable(b);
                                 return (
-                                    <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border border-r-[#BBBBCC] group/col", bIdx % 2 === 0 ? "bg-warning/10" : "bg-warning/10")}>
+                                    <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border group/col", bIdx % 2 === 0 ? "bg-amber-50 dark:bg-amber-950" : "bg-amber-50 dark:bg-amber-950")}>
                                         <div className="flex items-center justify-center gap-1">
                                             <span className="truncate" title={bodegaLabel}>{bodegaLabel}</span>
                                             <button
                                                 onClick={() => toggleCol(`bodega_${b.id}`)}
-                                                className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 transition-all shrink-0"
+                                                className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 transition-all shrink-0"
                                                 title={`Ocultar ${b.nombre}`}
                                             >
                                                 <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
@@ -535,9 +535,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 );
                             })}
                             {verValores && (
-                                <th className="bg-success/10 px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border">Total Arriendo</th>
+                                <th className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border">Total Arriendo</th>
                             )}
-                            <th className="bg-success/10 px-2 py-2 text-right font-bold text-brand-dark border-b border-border">Total Unid.</th>
+                            <th className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2 text-right font-bold text-brand-dark border-b border-border">Total Unid.</th>
                         </tr>
                         {/* Header row 2 — sub-headers with solid bg */}
                         <tr>
@@ -547,17 +547,17 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             {verValores && <th className="bg-muted border-b border-r border-border" />}
                             {visibleObras.map((o, oIdx) => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
-                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-border uppercase tracking-wider", oIdx % 2 === 0 ? "bg-info/10" : "bg-info/10")}>Cant</th>
+                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-border uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>Cant</th>
                                     {verValores && (
-                                        <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border border-r-[#BBBBCC] uppercase tracking-wider", oIdx % 2 === 0 ? "bg-info/10" : "bg-info/10")}>Total</th>
+                                        <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>Total</th>
                                     )}
                                 </React.Fragment>
                             ))}
                             {visibleBodegas.map((b, bIdx) => (
-                                <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border border-r-[#BBBBCC] uppercase tracking-wider", bIdx % 2 === 0 ? "bg-warning/10" : "bg-warning/10")}>Cant</th>
+                                <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border uppercase tracking-wider", bIdx % 2 === 0 ? "bg-amber-50 dark:bg-amber-950" : "bg-amber-50 dark:bg-amber-950")}>Cant</th>
                             ))}
-                            {verValores && <th className="bg-success/10 border-b border-r border-border" />}
-                            <th className="bg-success/10 border-b border-border" />
+                            {verValores && <th className="bg-emerald-50 dark:bg-emerald-950 border-b border-r border-border" />}
+                            <th className="bg-emerald-50 dark:bg-emerald-950 border-b border-border" />
                         </tr>
                     </thead>
                     <tbody>
@@ -590,7 +590,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     {!collapsed && cat.items.map((item, idx) => {
                                         const rowBg = idx % 2 === 0 ? 'bg-card' : 'bg-muted';
                                         return (
-                                        <tr key={item.id} className={cn("hover:bg-blue-50/40 transition-colors", rowBg)}>
+                                        <tr key={item.id} className={cn("hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-colors", rowBg)}>
                                             <td className={cn("sticky left-0 z-10 px-2 py-1.5 text-right text-muted-foreground border-r border-b border-border", rowBg)}>{item.nro_item}</td>
                                             <td className={cn("px-1 py-1.5 text-center border-r border-b border-border", rowBg)}>
                                                 {showImages && (
@@ -609,19 +609,19 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                 </button>
                                             </td>
                                             {verValores && (
-                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border border-r-[#BBBBCC]")}>{fmtMoney(item.valor_arriendo)}</td>
+                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border")}>{fmtMoney(item.valor_arriendo)}</td>
                                             )}
                                             {visibleObras.map((o, oIdx) => {
                                                 const ub = item.ubicaciones[`obra_${o.id}`];
                                                 const cellKey = `obra_${o.id}_item_${item.id}`;
-                                                const colBg = oIdx % 2 === 1 ? 'bg-blue-50/30' : '';
+                                                const colBg = oIdx % 2 === 1 ? 'bg-blue-50/30 dark:bg-blue-950/20' : '';
                                                 return (
                                                     <React.Fragment key={cellKey}>
                                                         <td className={cn("px-2 py-1.5 text-center border-r border-b border-border", colBg)}>
                                                             {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, o.id, null, !!(ub && ub.cantidad > 0))}
                                                         </td>
                                                         {verValores && (
-                                                            <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-border border-r-[#BBBBCC]", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
+                                                            <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-border", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
                                                                 {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
                                                             </td>
                                                         )}
@@ -631,9 +631,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                             {visibleBodegas.map((b, bIdx) => {
                                                 const ub = item.ubicaciones[`bodega_${b.id}`];
                                                 const cellKey = `bodega_${b.id}_item_${item.id}`;
-                                                const colBg = bIdx % 2 === 1 ? 'bg-amber-50/30' : '';
+                                                const colBg = bIdx % 2 === 1 ? 'bg-amber-50/30 dark:bg-amber-950/20' : '';
                                                 return (
-                                                    <td key={cellKey} className={cn("px-2 py-1.5 text-center border-r-2 border-b border-border border-r-[#BBBBCC]", colBg)}>
+                                                    <td key={cellKey} className={cn("px-2 py-1.5 text-center border-r-2 border-b border-border", colBg)}>
                                                         {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, null, b.id, !!(ub && ub.cantidad > 0))}
                                                     </td>
                                                 );
@@ -670,7 +670,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     <React.Fragment key={`total_obra_${o.id}`}>
                                         <td className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
                                         {verValores && (
-                                            <td className="bg-muted px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-r-[#BBBBCC]">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
+                                            <td className="bg-muted px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-border">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
                                         )}
                                     </React.Fragment>
                                 );
@@ -679,39 +679,39 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 const bodCant = categorias.reduce((sum, cat) =>
                                     sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`bodega_${b.id}`]?.cantidad || 0), 0), 0);
                                 return (
-                                    <td key={`total_bod_${b.id}`} className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px] border-r-2 border-r-[#BBBBCC]">
+                                    <td key={`total_bod_${b.id}`} className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px] border-r-2 border-border">
                                         {bodCant > 0 ? fmt(bodCant) : ''}
                                     </td>
                                 );
                             })}
                             {verValores && (
-                                <td className="bg-success/10 px-2 py-2.5 text-right font-black text-xs text-brand-primary border-r-2 border-border">
+                                <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-primary border-r-2 border-border">
                                     {fmtMoney(grandTotals.totalArriendo)}
                                 </td>
                             )}
-                            <td className="bg-success/10 px-2 py-2.5 text-right font-black text-xs text-brand-dark">
+                            <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 {fmt(grandTotals.totalCantidad)}
                             </td>
                         </tr>
                         {verValores && grandTotals.totalDescuento > 0 && (
                             <>
                                 <tr className="border-t border-border">
-                                    <td colSpan={totalColSpan - 2} className="bg-warning/10 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground border-r-2 border-border">
+                                    <td colSpan={totalColSpan - 2} className="bg-amber-50 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground border-r-2 border-border">
                                         DESCUENTOS APLICADOS
                                     </td>
-                                    <td className="bg-warning/10 px-2 py-1.5 text-right font-bold text-[11px] text-red-600 border-r-2 border-border">
+                                    <td className="bg-amber-50 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[11px] text-red-600 dark:text-red-300 border-r-2 border-border">
                                         -{fmtMoney(grandTotals.totalDescuento)}
                                     </td>
-                                    <td className="bg-warning/10" />
+                                    <td className="bg-amber-50 dark:bg-amber-950" />
                                 </tr>
                                 <tr className="border-t-2 border-brand-primary/20">
-                                    <td colSpan={totalColSpan - 2} className="bg-success/10 px-2 py-2.5 text-right font-black text-xs text-brand-dark border-r-2 border-border">
+                                    <td colSpan={totalColSpan - 2} className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-dark border-r-2 border-border">
                                         TOTAL CON DESCUENTOS
                                     </td>
-                                    <td className="bg-success/10 px-2 py-2.5 text-right font-black text-[13px] text-brand-primary border-r-2 border-border">
+                                    <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-[13px] text-brand-primary border-r-2 border-border">
                                         {fmtMoney(grandTotals.totalConDescuento)}
                                     </td>
-                                    <td className="bg-success/10" />
+                                    <td className="bg-emerald-50 dark:bg-emerald-950" />
                                 </tr>
                             </>
                         )}

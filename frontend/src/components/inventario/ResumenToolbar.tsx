@@ -87,7 +87,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             {hiddenCount > 0 && (
                 <button
                     onClick={restoreCols}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40 transition-all"
                 >
                     <RotateCcw className="h-3 w-3" />
                     Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}
