@@ -274,7 +274,7 @@ const InventarioPage: React.FC = () => {
                         );
                     })}
                 </div>
-                {/* ── Desktop: text pills ── */}
+                {/* ── Desktop: icon + short label stacked (mismo formato que mobile) ── */}
                 <div className="hidden md:flex items-center gap-1 p-1.5 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
@@ -282,15 +282,18 @@ const InventarioPage: React.FC = () => {
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
+                                title={tab.label}
                                 className={cn(
-                                    "flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap shrink-0",
+                                    "flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 flex-1 min-w-0 transition-all",
                                     activeTab === tab.key
                                         ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
                                         : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                                 )}
                             >
-                                <TabIcon className="h-4 w-4" />
-                                {tab.label}
+                                <TabIcon className="h-5 w-5 shrink-0" />
+                                <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
+                                    {tab.shortLabel}
+                                </span>
                             </button>
                         );
                     })}
