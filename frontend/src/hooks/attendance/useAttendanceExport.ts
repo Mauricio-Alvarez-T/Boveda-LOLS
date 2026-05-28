@@ -217,6 +217,11 @@ export function useAttendanceExport({
                 // NAC (nacimiento), MT (matrimonio) y PSG (permiso sin goce).
                 // Si el período es de 1 día se omite la flecha (queda "1 día: fecha"),
                 // si son varios se muestra el rango completo "N días: ini → fin".
+                // Fallback: si el estado es de tipo período pero NO hay período
+                // registrado (caso típico: se asignó vía el dropdown "OTRO" de la
+                // fila, no por PeriodAssignModal), igual mostramos "1 día: fecha
+                // del reporte" para que RRHH no quede sin contexto del día.
+                const PERIOD_CODES = ['V', 'LM', 'DF', 'NAC', 'MT', 'PSG'];
                 const periodo = est ? periodMap.get(`${w.id}_${est.id}`) : undefined;
                 if (periodo) {
                     const fi = String(periodo.fecha_inicio).split('T')[0];
@@ -231,6 +236,9 @@ export function useAttendanceExport({
                         const ffFmt = ff.split('-').reverse().join('/');
                         line += ` ${dias} días: ${fiFmt} → ${ffFmt}`;
                     }
+                } else if (est && PERIOD_CODES.includes(est.codigo)) {
+                    const fiFmt = currentDate.split('-').reverse().join('/');
+                    line += ` 1 día: ${fiFmt}`;
                 }
                 text += line + '\n';
             });
