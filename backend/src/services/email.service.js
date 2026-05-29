@@ -52,6 +52,55 @@ const emailService = {
         });
 
         return { messageId: info.messageId, accepted: info.accepted };
+    },
+
+    /**
+     * Envía un correo desde la cuenta de SISTEMA (no de un usuario logueado).
+     * Usado por automatizaciones/cron (ej. reporte semanal). Las credenciales
+     * vienen del entorno: MAIL_HOST / MAIL_PORT / MAIL_SECURE / MAIL_USER / MAIL_PASS.
+     *
+     * @param {object} options
+     * @param {string|string[]} options.to - Destinatario(s).
+     * @param {string} options.subject
+     * @param {string} [options.html] - Cuerpo HTML.
+     * @param {string} [options.text] - Cuerpo texto plano (fallback).
+     * @param {Array} [options.attachments] - Adjuntos nodemailer (incl. logo CID).
+     * @param {string} [options.fromName] - Nombre visible del remitente.
+     */
+    async sendSystemEmail({ to, subject, html, text, attachments = [], fromName = 'Bóveda LOLS — Reportes' }) {
+        const host = process.env.MAIL_HOST;
+        const user = process.env.MAIL_USER;
+        const pass = process.env.MAIL_PASS;
+        if (!host || !user || !pass) {
+            throw new Error('Faltan variables de entorno MAIL_HOST / MAIL_USER / MAIL_PASS para el envío de sistema.');
+        }
+        const port = Number(process.env.MAIL_PORT) || 465;
+        // Si MAIL_SECURE no está definido, inferir: 465 → SSL directo (true), otro → STARTTLS (false).
+        const secure = process.env.MAIL_SECURE != null
+            ? String(process.env.MAIL_SECURE) === 'true'
+            : port === 465;
+
+        const recipients = Array.isArray(to) ? to.filter(Boolean).join(', ') : to;
+        if (!recipients) throw new Error('sendSystemEmail: lista de destinatarios vacía.');
+
+        const transporter = nodemailer.createTransport({
+            host,
+            port,
+            secure,
+            auth: { user, pass },
+            tls: { rejectUnauthorized: false }
+        });
+
+        const info = await transporter.sendMail({
+            from: `"${fromName}" <${user}>`,
+            to: recipients,
+            subject: subject || 'Reporte — Bóveda LOLS',
+            text: text || undefined,
+            html: html || undefined,
+            attachments
+        });
+
+        return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected };
     }
 };
 

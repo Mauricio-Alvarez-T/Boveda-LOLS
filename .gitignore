@@ -5,6 +5,7 @@ build/
 .DS_Store
 *.log
 coverage/
+tmp/
 
 # Specific Boveda LOLS sensitive files
 backend/update_test_email.*
