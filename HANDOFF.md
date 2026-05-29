@@ -65,6 +65,20 @@ cd backend && npm test              # tests
 - `hover:border-[#…]` → `hover:border-[var(--border-hover)]`
 - tints pastel: verdes → `bg-success/10`, amarillos → `bg-warning/10`, azules → `bg-info/10`
 
+### Progreso QA visual por pestaña (Inventario) — Fase B
+Cadencia: arreglar pestaña → `tsc` + `build` → commit+push a `develop` → usuario confirma en staging → siguiente.
+
+| # | Pestaña | Componentes | Estado |
+|---|---|---|---|
+| 1 | Resumen Ejecutivo | `ResumenEjecutivoPanel` | ✅ confirmado |
+| 2 | Resumen | `ResumenMensualTable` | ✅ confirmado |
+| 3 | Por Ubicación (OBRA/BOD) | `StockUbicacionTable` | ✅ confirmado |
+| 4 | Transferencias | `TransferenciasList`, `DiscrepanciasList`, `TransferenciasPanel`, `TransferenciaDetail`, `DiscrepanciaDetail` | 🟡 código en staging (`24a44fc`), esperando confirmación visual |
+| 5 | Maestro | `InventarioMaestroGrid`, `StockMaestroGrid`, `StockBadge`, `ItemDetailModal` | ⬜ pendiente |
+| 6 | Bombas | `BombasHormigonTab` | ⬜ pendiente |
+| 7 | Facturas | `FacturasTab` | ⬜ pendiente |
+| 8 | Movimientos | `MovimientosTab`, `MovimientoForm`, `NewMovimientoModal`, `SolicitudForm`, `FaltanteDecisionModal` | ⬜ pendiente |
+
 ### PENDIENTE — QA fino (NO empezado; esperar review visual del usuario)
 1. **Overlays `bg-white/≤60`** — se dejaron como están; algunos pueden ser superficies que deberían oscurecerse.
 2. **Parches de degradado claro** (`to-[#F0F1F5]`, `from-[#F8F9FC]`) que se vean como manchas claras en oscuro.
