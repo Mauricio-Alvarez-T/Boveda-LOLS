@@ -1,10 +1,22 @@
-# HANDOFF — Reporte Semanal RRHH (Slice A completo, B/C pendientes)
+# HANDOFF — Reporte Semanal RRHH (Slice A + C en PRODUCCIÓN, B pendiente)
 
-Fecha: 2026-05-29. Commit: `97331e7` en `develop`.
+Fecha: 2026-05-29. Release a producción: merge `0410ff4` en `main` (deploy verde).
+Doc/runbook al día en `develop` (`aa03df3`).
 
 ## Estado actual
 
-**Slice A COMPLETO y desplegado en staging (`test.boveda.lols.cl`).**
+**Slice A + C EN PRODUCCIÓN y staging. Slice B (CRUD suscriptores) sin iniciar.**
+
+| Slice | Staging (`test-boveda` / develop) | Producción (`boveda` / main) |
+|---|---|---|
+| **A — Reporte (script/servicio/email)** | ✅ Desplegado y validado (envío real OK) | ✅ Desplegado (`0410ff4`, CI verde) |
+| **B — CRUD suscriptores** | 🔲 No iniciado | 🔲 No iniciado |
+| **C — Cron + migración + env** | ✅ `migrate` 066 ✅ · `.env` MAIL_* ✅ · cron `0 8 * * 1` ✅ validado con cron temporal | ⏳ `migrate` 066 ✅ corrido · **falta**: `.env` MAIL_*+REPORTE_TO, prueba `reporte-semanal`, cron `0 8 * * 1` (pasos manuales del usuario en cPanel) |
+
+> **Dato de infra (prod):** el `.env` de producción tiene solo ~5 vars (credenciales DB); el resto de la config de la app viene del panel "Environment variables" de Passenger. **El cron corre fuera de Passenger**, así que `MAIL_*` y `REPORTE_TO` deben ir SÍ o SÍ en `/home/lolscl/boveda/.env` (no basta el panel). Documentado en RUNBOOK § 4.1.
+
+### Archivos nuevos/modificados (Slice A)
+| Archivo | Qué hace |
 
 ### Archivos nuevos/modificados (Slice A)
 | Archivo | Qué hace |
@@ -27,17 +39,25 @@ Fecha: 2026-05-29. Commit: `97331e7` en `develop`.
 - **Destinatarios**: `--to` > tabla `reportes_suscriptores` (Slice B, no existe aún) > env `REPORTE_TO`. Fallback graceful si tabla no existe (ER_NO_SUCH_TABLE).
 - **Cron**: cPanel cron, NO node-cron (Passenger duerme proceso). Patrón: `0 8 * * 1`.
 
-### Pasos pendientes del usuario (staging)
-1. Agregar a `.env` de staging:
+### Staging — COMPLETADO ✅
+`.env` final en `/home/lolscl/test-boveda/.env` (`MAIL_HOST=localhost`, `MAIL_PORT=465`,
+`MAIL_SECURE=true`, `MAIL_USER=reportes@lols.cl`, `MAIL_PASS=***`, `REPORTE_TO=mauricioalvarez@lols.cl`).
+Migración 066 aplicada. Cron `0 8 * * 1` puesto y validado (cron temporal "+2 min" → log con `messageId` nuevo → borrado).
+
+### Producción — pasos pendientes del usuario (en cPanel, app `boveda`)
+1. ✅ `migrate` (066 aplicada — hecho).
+2. ⏳ Agregar a `/home/lolscl/boveda/.env` (el archivo, no el panel Passenger — ver nota de infra arriba):
    ```
-   MAIL_HOST=mail.lols.cl
+   MAIL_HOST=localhost
    MAIL_PORT=465
    MAIL_SECURE=true
    MAIL_USER=reportes@lols.cl
    MAIL_PASS=<password>
+   REPORTE_TO=<lista real de destinatarios, CSV>
    ```
-2. Test real: `npm run reporte-semanal -- --to suCorreo@lols.cl`
-3. Rotar password de reportes@lols.cl (fue expuesta en chat previo).
+3. ⏳ Test real: Run JS script `reporte-semanal` (o Terminal `--to suCorreo@lols.cl`).
+4. ⏳ Cron `0 8 * * 1`: `cd ~/boveda && /home/lolscl/nodevenv/boveda/20/bin/node scripts/reporte_semanal.js >> ~/reporte.log 2>&1`.
+5. 🔐 Rotar password de `reportes@lols.cl` (expuesta en chat) y actualizar `MAIL_PASS` en AMBOS `.env`.
 
 ## Slice B — CRUD suscriptores (NO iniciado)
 
@@ -59,25 +79,24 @@ Fecha: 2026-05-29. Commit: `97331e7` en `develop`.
 - Formulario agregar suscriptor
 - Botón "Enviar reporte de prueba" (llama endpoint con `--dry` o `--to`)
 
-## Slice C — Cron + producción (NO iniciado)
+## Slice C — Cron + producción
 
-### Staging
-- cPanel → Cron Jobs → `0 8 * * 1` →
+### Staging ✅ COMPLETADO
+- Cron `0 8 * * 1` puesto y validado:
   ```
   cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/reporte_semanal.js >> ~/reporte-test.log 2>&1
   ```
 
-### Producción
-- Merge develop → main (tras validación completa en staging)
-- cPanel prod → Cron Jobs → `0 8 * * 1` →
+### Producción — merge ✅ / cPanel ⏳
+- ✅ Merge `develop → main` (`0410ff4`), deploy verde, `migrate` 066 aplicada en prod.
+- ⏳ Falta (pasos manuales del usuario, ver "Producción — pasos pendientes" arriba): `.env` MAIL_*+REPORTE_TO, prueba `reporte-semanal`, cron:
   ```
   cd ~/boveda && /home/lolscl/nodevenv/boveda/20/bin/node scripts/reporte_semanal.js >> ~/reporte.log 2>&1
   ```
-- Agregar MAIL_* vars al `.env` de prod
 
-### RUNBOOK
-- Actualizar `docs/RUNBOOK.md` §4.1 con entrada del reporte semanal (patrón cron, logs, troubleshooting)
-- Agregar §5 "Automatizaciones" si no existe
+### RUNBOOK ✅ COMPLETADO
+- `docs/RUNBOOK.md` § 4.1 → caso "Reporte Semanal RRHH" (cron, flags `--dry`/`--to`/`--fecha`, vars, prueba con cron temporal).
+- `docs/RUNBOOK.md` § 6 → fila "deploy de código acoplado a migración" (`Unknown column` post-deploy → orden deploy→migrate→verificar).
 
 ## Dark mode — tabs pendientes
 
