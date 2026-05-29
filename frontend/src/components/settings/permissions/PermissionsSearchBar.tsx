@@ -51,7 +51,7 @@ export const PermissionsSearchBar: React.FC<Props> = ({
             {local && (
                 <button
                     onClick={() => setLocal('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 text-muted-foreground"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 text-muted-foreground"
                     aria-label="Limpiar búsqueda"
                     type="button"
                 >

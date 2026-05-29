@@ -27,7 +27,7 @@ const feriadosCols: ColumnDef<any>[] = [
         key: 'irrenunciable', label: 'Irrenunciable', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-destructive/10 text-destructive" : "bg-muted/10 text-muted"
+                v ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },

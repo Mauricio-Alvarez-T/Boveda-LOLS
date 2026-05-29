@@ -199,7 +199,7 @@ const tipoDocCols: ColumnDef<TipoDocumento>[] = [
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
                 v ? "bg-warning/10 text-warning"
-                    : "bg-muted/10 text-muted"
+                    : "bg-muted text-muted-foreground"
             )}>
                 {v ? 'Sí' : 'No'}
             </span>
@@ -236,7 +236,7 @@ const rolCols: ColumnDef<RoleData>[] = [
             const count = typeof v === 'number' ? v : 0;
             if (count === 0) {
                 return (
-                    <span className="inline-flex items-center gap-1 text-amber-700 text-xs font-semibold">
+                    <span className="inline-flex items-center gap-1 text-amber-700 dark:text-amber-400 text-xs font-semibold">
                         <AlertTriangle className="h-3 w-3" /> Sin permisos
                     </span>
                 );
@@ -269,7 +269,7 @@ const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
         key: 'es_presente', label: 'Cuenta como Presente', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted/10 text-muted"
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted text-muted-foreground"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
@@ -277,7 +277,7 @@ const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
         key: 'cuenta_dia_trabajado', label: 'Cuenta Día Trabajado', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted/10 text-muted"
+                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted text-muted-foreground"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
@@ -426,7 +426,7 @@ const SettingsPage: React.FC = () => {
                 </div>
 
                 {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
-                <div className="hidden md:flex h-[60px] border-b border-border bg-white/50 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
+                <div className="hidden md:flex h-[60px] border-b border-border bg-white/50 dark:bg-white/5 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
                     {activeGroup.items.map(tab => (
                         <button
                             key={tab.key}
@@ -435,7 +435,7 @@ const SettingsPage: React.FC = () => {
                                 "flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold transition-all border whitespace-nowrap shrink-0",
                                 activeTab === tab.key
                                     ? "bg-card border-brand-primary text-brand-primary shadow-sm ring-4 ring-brand-primary/5"
-                                    : "bg-white/50 border-border text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
+                                    : "bg-white/50 dark:bg-white/5 border-border text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary"
                             )}
                         >
                             <tab.icon className={cn("h-4 w-4", activeTab === tab.key ? "text-brand-primary" : "text-muted-foreground/60")} />

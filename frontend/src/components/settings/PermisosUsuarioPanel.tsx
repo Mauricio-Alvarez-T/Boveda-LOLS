@@ -48,11 +48,11 @@ const PermisosUsuarioPanel: React.FC<Props> = ({
     return (
         <div className="flex flex-col h-full min-h-0">
             {/* Subtítulo con usuario + rol */}
-            <div className="px-4 py-2 bg-gray-50 border-b border-border text-sm text-muted-foreground flex items-center justify-between flex-wrap gap-2">
+            <div className="px-4 py-2 bg-gray-50 dark:bg-white/5 border-b border-border text-sm text-muted-foreground flex items-center justify-between flex-wrap gap-2">
                 <div>
-                    Editando: <span className="font-semibold text-gray-800">{usuarioNombre}</span>
+                    Editando: <span className="font-semibold text-gray-800 dark:text-foreground">{usuarioNombre}</span>
                     {' · '}
-                    Rol base: <span className="font-semibold text-gray-800">{rolNombre}</span>
+                    Rol base: <span className="font-semibold text-gray-800 dark:text-foreground">{rolNombre}</span>
                 </div>
                 <div className="text-xs text-muted-foreground italic">
                     Los overrides forzan/bloquean permisos sin importar el rol.
@@ -124,7 +124,7 @@ interface TristateProps {
 
 const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) => {
     return (
-        <div className="inline-flex items-center bg-gray-100 p-0.5 rounded-lg" role="radiogroup">
+        <div className="inline-flex items-center bg-gray-100 dark:bg-white/10 p-0.5 rounded-lg" role="radiogroup">
             <button
                 type="button"
                 role="radio"
@@ -134,7 +134,7 @@ const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) 
                     'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
                     value === 'grant'
                         ? 'bg-green-500 text-white shadow'
-                        : 'text-gray-600 hover:bg-gray-200'
+                        : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-white/15'
                 )}
             >
                 Conceder
@@ -147,8 +147,8 @@ const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) 
                 className={cn(
                     'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
                     value === 'default'
-                        ? 'bg-card text-gray-800 shadow'
-                        : 'text-gray-600 hover:bg-gray-200'
+                        ? 'bg-card text-gray-800 dark:text-foreground shadow'
+                        : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-white/15'
                 )}
                 title={`Por defecto (rol ${rolDefault ? 'concede' : 'no concede'})`}
             >
@@ -163,7 +163,7 @@ const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) 
                     'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
                     value === 'deny'
                         ? 'bg-red-500 text-white shadow'
-                        : 'text-gray-600 hover:bg-gray-200'
+                        : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-white/15'
                 )}
             >
                 Denegar

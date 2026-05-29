@@ -13,14 +13,14 @@ import type { Verbo } from '../../../config/permisosHierarchy';
  */
 
 const verboColors: Record<Verbo, string> = {
-    ver:      'bg-blue-100 text-blue-800',
-    crear:    'bg-emerald-100 text-emerald-800',
-    editar:   'bg-amber-100 text-amber-800',
-    eliminar: 'bg-red-100 text-red-800',
-    aprobar:  'bg-purple-100 text-purple-800',
-    enviar:   'bg-indigo-100 text-indigo-800',
-    exportar: 'bg-teal-100 text-teal-800',
-    otro:     'bg-gray-100 text-gray-700',
+    ver:      'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
+    crear:    'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
+    editar:   'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
+    eliminar: 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300',
+    aprobar:  'bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300',
+    enviar:   'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300',
+    exportar: 'bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300',
+    otro:     'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-muted-foreground',
 };
 
 const verboLabels: Record<Verbo, string> = {
@@ -48,15 +48,15 @@ export const PermRow: React.FC<Props> = ({ perm, renderControl, renderMeta, modi
     const { def, entry } = perm;
     const sensibleBg =
         entry.sensible === 'financiero'
-            ? 'bg-amber-50/40'
+            ? 'bg-amber-50/40 dark:bg-amber-950/20'
             : entry.sensible === 'critico'
-            ? 'bg-red-50/30'
+            ? 'bg-red-50/30 dark:bg-red-950/20'
             : '';
 
     return (
         <div
             className={cn(
-                'group flex items-center gap-3 px-3 py-2 border-b border-gray-100 hover:bg-gray-50 transition-colors',
+                'group flex items-center gap-3 px-3 py-2 border-b border-gray-100 dark:border-border hover:bg-gray-50 dark:hover:bg-white/5 transition-colors',
                 sensibleBg,
                 modified && 'border-l-2 border-l-amber-400'
             )}
@@ -69,7 +69,7 @@ export const PermRow: React.FC<Props> = ({ perm, renderControl, renderMeta, modi
             {/* Nombre + verbo + sensible badge */}
             <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-sm font-medium text-gray-900 truncate">{def.nombre}</span>
+                    <span className="text-sm font-medium text-gray-900 dark:text-foreground truncate">{def.nombre}</span>
                     <span
                         className={cn(
                             'text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0',

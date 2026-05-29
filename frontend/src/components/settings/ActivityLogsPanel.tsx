@@ -843,6 +843,6 @@ const getActionDisplay = (accion: string) => {
         case 'LOGIN': return { label: 'ACCESO', color: 'bg-brand-primary/10 text-brand-primary' };
         case 'UPLOAD': return { label: 'SUBIDA', color: 'bg-[#AF52DE]/10 text-[#AF52DE]' };
         case 'EMAIL': return { label: 'CORREO', color: 'bg-[#5856D6]/10 text-[#5856D6]' };
-        default: return { label: accion, color: 'bg-gray-100 text-gray-500' };
+        default: return { label: accion, color: 'bg-muted text-muted-foreground' };
     }
 };

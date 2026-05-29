@@ -70,8 +70,8 @@ export const PermissionsTree: React.FC<Props> = ({
                         className={cn(
                             'mt-2 w-full text-xs px-3 py-1.5 rounded border transition-colors',
                             diffOnly
-                                ? 'bg-amber-100 border-amber-300 text-amber-900'
-                                : 'bg-card border-gray-200 text-gray-600 hover:bg-gray-50'
+                                ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-300 dark:border-amber-900 text-amber-900 dark:text-amber-300'
+                                : 'bg-card border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground hover:bg-gray-50 dark:hover:bg-white/5'
                         )}
                     >
                         {diffOnly ? '✓ Solo modificados' : 'Mostrar solo modificados'}
@@ -80,7 +80,7 @@ export const PermissionsTree: React.FC<Props> = ({
             </div>
 
             {/* ─── Desktop: sidebar ─── */}
-            <aside className="hidden md:flex md:flex-col md:w-64 border-r border-border bg-gray-50/50 shrink-0">
+            <aside className="hidden md:flex md:flex-col md:w-64 border-r border-border bg-gray-50/50 dark:bg-white/5 shrink-0">
                 <div className="p-3 border-b border-border bg-card">
                     <PermissionsSearchBar value={search} onChange={onSearchChange} autoFocus />
                 </div>
@@ -99,8 +99,8 @@ export const PermissionsTree: React.FC<Props> = ({
                             className={cn(
                                 'w-full text-xs px-3 py-2 rounded border transition-colors text-left',
                                 diffOnly
-                                    ? 'bg-amber-100 border-amber-300 text-amber-900 font-semibold'
-                                    : 'bg-card border-gray-200 text-gray-600 hover:bg-gray-50'
+                                    ? 'bg-amber-100 dark:bg-amber-950/40 border-amber-300 dark:border-amber-900 text-amber-900 dark:text-amber-300 font-semibold'
+                                    : 'bg-card border-gray-200 dark:border-border text-gray-600 dark:text-muted-foreground hover:bg-gray-50 dark:hover:bg-white/5'
                             )}
                             aria-pressed={diffOnly}
                         >
@@ -173,7 +173,7 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
     return (
         <section aria-labelledby={`sec-${sec.seccion}`}>
             <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
-                <h2 id={`sec-${sec.seccion}`} className="text-base font-bold text-gray-900 flex items-center gap-2">
+                <h2 id={`sec-${sec.seccion}`} className="text-base font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
                     <span aria-hidden>{sec.icon}</span>
                     {sec.label}
                 </h2>
@@ -183,11 +183,11 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
             </header>
             <div>
                 {sec.subsecciones.map(sub => (
-                    <div key={sub.nombre} className="border-b border-gray-200 last:border-b-0">
-                        <div className="px-4 py-2 bg-gray-50/70 flex items-center justify-between gap-3 border-y border-gray-200">
-                            <h3 className="text-xs font-bold text-gray-600 uppercase tracking-wider">
+                    <div key={sub.nombre} className="border-b border-gray-200 dark:border-border last:border-b-0">
+                        <div className="px-4 py-2 bg-gray-50/70 dark:bg-white/5 flex items-center justify-between gap-3 border-y border-gray-200 dark:border-border">
+                            <h3 className="text-xs font-bold text-gray-600 dark:text-muted-foreground uppercase tracking-wider">
                                 {sub.nombre}
-                                <span className="ml-2 text-[10px] font-mono text-gray-400">
+                                <span className="ml-2 text-[10px] font-mono text-gray-400 dark:text-muted-foreground/60">
                                     {sub.activeCount}/{sub.perms.length}
                                 </span>
                             </h3>
