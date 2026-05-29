@@ -723,15 +723,6 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </td>
                                     <td className="bg-amber-50/70 dark:bg-amber-950/70" />
                                 </tr>
-                                <tr className="border-t border-border">
-                                    <td colSpan={totalColSpan - 2} className="bg-amber-50 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground border-r-2 border-border">
-                                        DESCUENTOS APLICADOS
-                                    </td>
-                                    <td className="bg-amber-50 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[11px] text-red-600 dark:text-red-300 border-r-2 border-border">
-                                        -{fmtMoney(grandTotals.totalDescuento)}
-                                    </td>
-                                    <td className="bg-amber-50 dark:bg-amber-950" />
-                                </tr>
                                 <tr className="border-t-2 border-brand-primary/20">
                                     <td colSpan={totalColSpan - 2} className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-dark border-r-2 border-border">
                                         TOTAL CON DESCUENTOS
