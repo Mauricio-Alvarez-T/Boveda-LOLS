@@ -410,7 +410,9 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 titulo: '10 Meses de Contrato',
                 mensaje: `${workers10m.length} trabajador(es) cumplen 10 meses de contratado en ${nextMonthStr}/${nextYear}.`,
                 count: workers10m.length,
-                ruta: '/consultas',
+                // Abre Consultas filtrado a esos trabajadores (mismo cálculo en
+                // fiscalizacion.service searchTrabajadores → filtro aniversario10m).
+                ruta: `/consultas?aniversario10m=${nextYear}-${nextMonthStr}`,
                 detalle10meses: workers10m.map(w => ({
                     id: w.id,
                     rut: w.rut,

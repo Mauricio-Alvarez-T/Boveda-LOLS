@@ -18,7 +18,8 @@ import {
     UserPen,
     Plus,
     Eraser,
-    PlusCircle
+    PlusCircle,
+    CalendarClock
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -67,6 +68,7 @@ const ConsultasPage: React.FC = () => {
         filterActivo, setFilterActivo,
         filterCompletitud, setFilterCompletitud,
         filterAusentes, setFilterAusentes,
+        filterAniversario10m, clearAniversario10m,
         handleClearFilters,
         activeFilterCount
     } = useConsultasFilters();
@@ -76,8 +78,14 @@ const ConsultasPage: React.FC = () => {
         empresas, obras, cargos, fetchCatalogs,
         workers, loading, performSearch
     } = useConsultasData({
-        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes
+        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m
     });
+
+    // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
+    const aniversario10mLabel = useMemo(() => {
+        const m = /^(\d{4})-(\d{1,2})$/.exec(filterAniversario10m);
+        return m ? `${m[2].padStart(2, '0')}/${m[1]}` : '';
+    }, [filterAniversario10m]);
 
     // 3. Selección
     const {
@@ -342,6 +350,30 @@ const ConsultasPage: React.FC = () => {
                     )}
                 </AnimatePresence>
             </div>
+
+            {/* Chip de filtro activo "10 meses de contrato" (viene de la alerta del dashboard).
+                No tiene control en el FilterPanel, así que se expone acá como banner removible. */}
+            {filterAniversario10m && (
+                <div className="shrink-0 flex items-center justify-between gap-3 px-3 sm:px-4 py-2.5 rounded-2xl border border-brand-primary/20 bg-brand-primary/5">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0">
+                            <CalendarClock className="h-4 w-4 text-brand-primary" />
+                        </div>
+                        <p className="text-xs sm:text-sm font-semibold text-brand-dark truncate">
+                            Trabajadores que cumplen <span className="text-brand-primary">10 meses de contrato</span>
+                            {aniversario10mLabel && <> en {aniversario10mLabel}</>}
+                        </p>
+                    </div>
+                    <button
+                        onClick={clearAniversario10m}
+                        className="flex items-center gap-1 text-[11px] font-bold text-brand-primary hover:underline shrink-0"
+                        title="Quitar filtro"
+                    >
+                        <X className="h-3.5 w-3.5" />
+                        Quitar
+                    </button>
+                </div>
+            )}
 
             {/* Main Content Area */}
             <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">

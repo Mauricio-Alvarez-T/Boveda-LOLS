@@ -108,12 +108,28 @@ class FiscalizacionService {
         if (filters.ausentes === 'true') {
             const today = new Date().toISOString().split('T')[0];
             query += ` AND t.id IN (
-                SELECT a.trabajador_id 
-                FROM asistencias a 
+                SELECT a.trabajador_id
+                FROM asistencias a
                 JOIN estados_asistencia ea ON a.estado_id = ea.id
                 WHERE a.fecha = ? AND ea.es_presente = FALSE
             )`;
             params.push(today);
+        }
+
+        // Filtro "cumplen 10 meses de contrato" en un mes objetivo (formato YYYY-MM).
+        // Mismo cálculo que la alerta del dashboard (dashboard.service § 5 "ALERTA 10
+        // MESES DE CONTRATO"): fecha_ingreso + 10 meses cae en ese mes/año. Lo usa el
+        // botón "Ver detalle" de esa alerta para abrir Consultas ya filtrado.
+        if (filters.aniversario10m) {
+            const m = /^(\d{4})-(\d{1,2})$/.exec(String(filters.aniversario10m));
+            if (m) {
+                const year = parseInt(m[1], 10);
+                const month = parseInt(m[2], 10);
+                query += ` AND t.fecha_ingreso IS NOT NULL
+                           AND MONTH(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
+                           AND YEAR(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?`;
+                params.push(month, year);
+            }
         }
 
         query += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
