@@ -7,6 +7,7 @@ import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado
 import { CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 interface WorkerCalendarProps {
     worker: Trabajador;
@@ -40,6 +41,8 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [hoverDate, setHoverDate] = useState<string | null>(null);
     const [deletingPeriodId, setDeletingPeriodId] = useState<number | null>(null);
     const { hasPermission } = useAuth();
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
 
     useEffect(() => {
         if (!worker) return;
@@ -275,8 +278,14 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     onMouseEnter={() => { if (!isOutOfRange && selectionStart && !selectionEnd) setHoverDate(dateStr); }}
                                     disabled={isOutOfRange || readOnly}
                                     className={buttonClass}
-                                    style={!isOutOfRange && !periodo && !isSelected ? { 
-                                        backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? 'var(--muted)' : 'var(--card)'))
+                                    style={!isOutOfRange && !periodo && !isSelected ? {
+                                        backgroundColor: estado
+                                            ? (isDark ? `color-mix(in srgb, ${estado.color} 22%, #2E2E30)` : `${estado.color}05`)
+                                            : (holiday
+                                                ? (isDark ? 'color-mix(in srgb, #FF3B30 20%, #2E2E30)' : '#FF3B3010')
+                                                : (isWeekend
+                                                    ? (isDark ? '#242426' : 'var(--muted)')
+                                                    : (isDark ? '#2E2E30' : 'var(--card)')))
                                     } : undefined}
                                     title={buttonTitle}
                                 >
