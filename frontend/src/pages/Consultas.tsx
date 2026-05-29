@@ -526,7 +526,7 @@ const ConsultasPage: React.FC = () => {
                                                             Finiquitado
                                                         </span>
                                                     )}
-                                                    {worker.es_prueba && (
+                                                    {!!worker.es_prueba && (
                                                         <span className="px-1 py-0.5 rounded-[4px] bg-amber-500/15 text-amber-600 border border-amber-500/30 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">
                                                             Prueba
                                                         </span>

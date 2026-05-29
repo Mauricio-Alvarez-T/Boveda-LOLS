@@ -160,7 +160,7 @@ const obraCols: ColumnDef<Obra>[] = [
         render: (v, row) => (
             <span className="inline-flex items-center gap-2">
                 {v}
-                {row.es_prueba && (
+                {!!row.es_prueba && (
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-500/15 text-amber-600 border border-amber-500/30">
                         Prueba
                     </span>
