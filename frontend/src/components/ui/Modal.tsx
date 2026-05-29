@@ -18,6 +18,12 @@ interface ModalProps {
      * layouts complejos (sidebar+main) que necesitan ocupar el ancho completo.
      */
     noBodyPadding?: boolean;
+    /**
+     * Acción opcional renderizada en la cabecera, justo a la izquierda del botón
+     * de cerrar (ej. un botón de "Confirmar"). El consumidor controla su propia
+     * visibilidad responsive si quiere mostrarlo solo en desktop/móvil.
+     */
+    headerAction?: React.ReactNode;
 }
 
 export const Modal: React.FC<ModalProps> = ({
@@ -27,7 +33,8 @@ export const Modal: React.FC<ModalProps> = ({
     children,
     footer,
     size = 'md',
-    noBodyPadding = false
+    noBodyPadding = false,
+    headerAction
 }) => {
     // Desktop-only max-widths
     const desktopSizes: Record<string, string> = {
@@ -101,12 +108,15 @@ export const Modal: React.FC<ModalProps> = ({
                                 </div>
                                 <div className="flex items-center justify-between px-5 pb-4 pt-1">
                                     <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
-                                    <button 
-                                        onClick={handleClose}
-                                        className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
-                                    >
-                                        <X className="h-5 w-5" />
-                                    </button>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                        {headerAction}
+                                        <button
+                                            onClick={handleClose}
+                                            className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
+                                        >
+                                            <X className="h-5 w-5" />
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
 
@@ -148,11 +158,14 @@ export const Modal: React.FC<ModalProps> = ({
                             )}
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-border">
-                                <h3 className="text-lg font-semibold text-brand-dark truncate pr-8">{title}</h3>
-                                <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-muted-foreground hover:text-brand-dark shrink-0">
-                                    <X className="h-4 w-4" />
-                                </Button>
+                            <div className="flex items-center justify-between px-6 py-5 border-b border-border gap-3">
+                                <h3 className="text-lg font-semibold text-brand-dark truncate pr-2">{title}</h3>
+                                <div className="flex items-center gap-3 shrink-0">
+                                    {headerAction}
+                                    <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-muted-foreground hover:text-brand-dark shrink-0">
+                                        <X className="h-4 w-4" />
+                                    </Button>
+                                </div>
                             </div>
                             {/* Body */}
                             <div className={cn(

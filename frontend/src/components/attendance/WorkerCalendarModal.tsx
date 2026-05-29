@@ -163,7 +163,31 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="2xl">
+        <Modal
+            isOpen={isOpen}
+            onClose={onClose}
+            title={modalTitle}
+            size="2xl"
+            headerAction={
+                obraId ? (
+                    <Button
+                        onClick={handleSubmit}
+                        disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
+                        size="sm"
+                        className="hidden md:inline-flex"
+                    >
+                        {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                            <>
+                                <Check className="h-4 w-4 mr-1.5" />
+                                Confirmar Período
+                            </>
+                        )}
+                    </Button>
+                ) : undefined
+            }
+        >
             {/* Móvil: apilado (calendario arriba, formulario abajo).
                 Desktop: dos columnas — calendario a la izquierda, formulario a la derecha. */}
             <div className="flex flex-col md:flex-row">
@@ -204,8 +228,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Estado de ausencia
                                 </label>
-                                {/* Móvil: grilla 2-3 col (original). Desktop: lista vertical 1 col */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-1 gap-2">
+                                {/* Móvil: grilla 2-3 col. Desktop: 2 columnas (Falta | Licencia, etc.) */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2">
                                     {estadosAusencia.map(est => (
                                         <button
                                             key={est.id}
@@ -333,11 +357,11 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                     />
                                 </div>
 
-                                {/* Confirmar */}
+                                {/* Confirmar (solo móvil; en desktop está en la cabecera) */}
                                 <Button
                                     onClick={handleSubmit}
                                     disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
-                                    className="w-full"
+                                    className="w-full md:hidden"
                                 >
                                     {loading ? (
                                         <Loader2 className="h-4 w-4 animate-spin" />
