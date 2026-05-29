@@ -61,8 +61,8 @@ const ItemDetailModal: React.FC<Props> = ({
     }, [copied]);
 
     const qtyColor = (n: number) =>
-        n > 10 ? 'text-green-700 bg-green-50' :
-        n > 0  ? 'text-amber-700 bg-amber-50' :
+        n > 10 ? 'text-green-700 bg-green-50 dark:text-green-300 dark:bg-green-500/15' :
+        n > 0  ? 'text-amber-700 bg-amber-50 dark:text-amber-300 dark:bg-amber-500/15' :
                   'text-muted-foreground bg-muted/30';
 
     return (
@@ -135,7 +135,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                 >
                                     #{item.nro_item}
                                     {copied
-                                        ? <Check className="h-3 w-3 text-green-600" />
+                                        ? <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
                                         : <Copy className="h-3 w-3" />
                                     }
                                 </button>
@@ -195,8 +195,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                     {/* Bodegas primero — prioridad de visualización (requerimiento):
                                         el stock en bodega se muestra arriba, luego lo que hay por obra. */}
                                     {bodegas.map(loc => (
-                                        <div key={`bod_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-amber-50/30 transition-colors">
-                                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+                                        <div key={`bod_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-amber-50/30 dark:hover:bg-amber-950/20 transition-colors">
+                                            <div className="w-6 h-6 rounded-lg bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300 flex items-center justify-center shrink-0">
                                                 <Warehouse className="h-3 w-3" />
                                             </div>
                                             <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
@@ -210,8 +210,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                     ))}
                                     {/* Obras después */}
                                     {obras.map(loc => (
-                                        <div key={`obra_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/30 transition-colors">
-                                            <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
+                                        <div key={`obra_${loc.id}`} className="flex items-center gap-2.5 px-3 py-2 hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors">
+                                            <div className="w-6 h-6 rounded-lg bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300 flex items-center justify-center shrink-0">
                                                 <MapPin className="h-3 w-3" />
                                             </div>
                                             <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>

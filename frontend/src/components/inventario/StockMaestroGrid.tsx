@@ -221,7 +221,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                         key={r.id}
                                         className={cn(
                                             "border-t border-border",
-                                            rowDirty ? "bg-amber-50/50" : idx % 2 === 0 ? "bg-card" : "bg-muted",
+                                            rowDirty ? "bg-amber-50/50 dark:bg-amber-950/30" : idx % 2 === 0 ? "bg-card" : "bg-muted",
                                         )}
                                     >
                                         <td className="px-2 py-1 font-mono text-muted-foreground">{r.nro_item}</td>
@@ -229,7 +229,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                         <td className="px-2 py-1 text-muted-foreground">{r.categoria_nombre}</td>
                                         <td className="px-2 py-1 text-muted-foreground">{r.unidad}</td>
                                         <td className="px-2 py-1 text-right font-mono text-muted-foreground">{r.cantidad}</td>
-                                        <td className={cn("px-1 py-0.5", rowDirty && "ring-1 ring-amber-300 rounded")}>
+                                        <td className={cn("px-1 py-0.5", rowDirty && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                             <input
                                                 type="number"
                                                 min={0}
@@ -240,7 +240,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                         </td>
                                         <td className={cn(
                                             "px-2 py-1 text-right font-mono font-bold",
-                                            delta > 0 ? "text-green-600" : delta < 0 ? "text-red-600" : "text-muted-foreground/50"
+                                            delta > 0 ? "text-green-600 dark:text-green-400" : delta < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground/50"
                                         )}>
                                             {rowDirty ? (delta > 0 ? `+${delta}` : delta) : '—'}
                                         </td>
@@ -253,8 +253,8 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
             </div>
 
             {dirtyCount > 0 && (
-                <p className="text-[10px] text-amber-700 shrink-0">
-                    {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar.
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 shrink-0">
+                    {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar.
                 </p>
             )}
         </div>

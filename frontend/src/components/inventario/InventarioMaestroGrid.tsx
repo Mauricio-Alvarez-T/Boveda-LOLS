@@ -422,11 +422,11 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                             key={it.id}
                                             className={cn(
                                                 "border-t border-border",
-                                                rowDirty ? "bg-amber-50/50" : idx % 2 === 0 ? "bg-card" : "bg-muted",
+                                                rowDirty ? "bg-amber-50/50 dark:bg-amber-950/30" : idx % 2 === 0 ? "bg-card" : "bg-muted",
                                             )}
                                         >
                                             <td className="px-2 py-1 font-mono text-muted-foreground">{it.nro_item}</td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'descripcion') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'descripcion') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <input
                                                     type="text"
                                                     value={String(getVal(it, 'descripcion'))}
@@ -434,7 +434,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 />
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'categoria_id') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'categoria_id') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <select
                                                     value={getVal(it, 'categoria_id')}
                                                     onChange={e => setField(it, 'categoria_id', Number(e.target.value))}
@@ -449,7 +449,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     )}
                                                 </select>
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'unidad') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'unidad') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <input
                                                     type="text"
                                                     value={String(getVal(it, 'unidad') ?? '')}
@@ -458,7 +458,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                 />
                                             </td>
                                             {verCostos && (
-                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 rounded")}>
+                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                     <input
                                                         type="number"
                                                         value={Number(getVal(it, 'valor_compra') ?? 0)}
@@ -466,14 +466,14 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                         disabled={!editarCostos}
                                                         className={cn(
                                                             "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
-                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
                                                         )}
                                                         title={fmtCLP(Number(getVal(it, 'valor_compra')))}
                                                     />
                                                 </td>
                                             )}
                                             {verCostos && (
-                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 rounded")}>
+                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                     <input
                                                         type="number"
                                                         value={Number(getVal(it, 'valor_arriendo') ?? 0)}
@@ -481,20 +481,20 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                         disabled={!editarCostos}
                                                         className={cn(
                                                             "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
-                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
                                                         )}
                                                         title={fmtCLP(Number(getVal(it, 'valor_arriendo')))}
                                                     />
                                                 </td>
                                             )}
-                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'es_consumible') && "bg-amber-100/60")}>
+                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'es_consumible') && "bg-amber-100/60 dark:bg-amber-500/15")}>
                                                 <input
                                                     type="checkbox"
                                                     checked={!!getVal(it, 'es_consumible')}
                                                     onChange={e => setField(it, 'es_consumible', e.target.checked)}
                                                 />
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'propietario') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'propietario') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <select
                                                     value={getVal(it, 'propietario')}
                                                     onChange={e => setField(it, 'propietario', e.target.value as ItemInventario['propietario'])}
@@ -503,7 +503,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
                                                 </select>
                                             </td>
-                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'activo') && "bg-amber-100/60")}>
+                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'activo') && "bg-amber-100/60 dark:bg-amber-500/15")}>
                                                 <input
                                                     type="checkbox"
                                                     checked={!!getVal(it, 'activo')}
@@ -521,8 +521,8 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
 
             {/* ── Dirty indicator footer ── */}
             {dirtyCount > 0 && (
-                <p className="text-[10px] text-amber-700 shrink-0">
-                    Hay {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar todo.
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 shrink-0">
+                    Hay {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar todo.
                 </p>
             )}
         </div>

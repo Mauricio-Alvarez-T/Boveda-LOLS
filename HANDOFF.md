@@ -73,8 +73,8 @@ Cadencia: arreglar pestaña → `tsc` + `build` → commit+push a `develop` → 
 | 1 | Resumen Ejecutivo | `ResumenEjecutivoPanel` | ✅ confirmado |
 | 2 | Resumen | `ResumenMensualTable` | ✅ confirmado |
 | 3 | Por Ubicación (OBRA/BOD) | `StockUbicacionTable` | ✅ confirmado |
-| 4 | Transferencias | `TransferenciasList`, `DiscrepanciasList`, `TransferenciasPanel`, `TransferenciaDetail`, `DiscrepanciaDetail` | 🟡 código en staging (`24a44fc`), esperando confirmación visual |
-| 5 | Maestro | `InventarioMaestroGrid`, `StockMaestroGrid`, `StockBadge`, `ItemDetailModal` | ⬜ pendiente |
+| 4 | Transferencias | `TransferenciasList`, `DiscrepanciasList`, `TransferenciasPanel`, `TransferenciaDetail`, `DiscrepanciaDetail` | ✅ confirmado |
+| 5 | Maestro | `InventarioMaestroGrid`, `InventarioItemCard`, `StockMaestroGrid`, `StockBadge`, `ItemDetailModal` | 🟡 código en staging, esperando confirmación visual |
 | 6 | Bombas | `BombasHormigonTab` | ⬜ pendiente |
 | 7 | Facturas | `FacturasTab` | ⬜ pendiente |
 | 8 | Movimientos | `MovimientosTab`, `MovimientoForm`, `NewMovimientoModal`, `SolicitudForm`, `FaltanteDecisionModal` | ⬜ pendiente |

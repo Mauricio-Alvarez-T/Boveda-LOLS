@@ -55,10 +55,10 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
     }
 
     const colors: Record<StockEstado, string> = {
-        ok: 'bg-green-50 text-green-700 border-green-200',
-        justo: 'bg-amber-50 text-amber-700 border-amber-200',
-        insuficiente: 'bg-red-50 text-red-700 border-red-200',
-        vacio: 'bg-red-50 text-red-700 border-red-200',
+        ok: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60',
+        justo: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60',
+        insuficiente: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60',
+        vacio: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60',
     };
 
     const hasBreakdown = ubicaciones.length > 0 && disponible > 0;
