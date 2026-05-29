@@ -142,29 +142,33 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="dynamic">
-            <div className="flex flex-col">
-                {/* ── Calendario ── */}
-                <WorkerCalendar
-                    key={calendarKey}
-                    worker={worker}
-                    estados={estados}
-                    obraId={obraId}
-                    showLegend={false}
-                    onSelectRange={(start, end) => {
-                        setFechaInicio(start);
-                        setFechaFin(end);
-                    }}
-                    onPeriodDeleted={() => {
-                        refreshPeriods();
-                        setCalendarKey(k => k + 1);
-                        onSuccess?.();
-                    }}
-                />
+        <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="2xl">
+            {/* Móvil: apilado (calendario arriba, formulario abajo).
+                Desktop: dos columnas — formulario a la izquierda, calendario a la derecha. */}
+            <div className="flex flex-col md:flex-row-reverse">
+                {/* ── Calendario + períodos activos (derecha en desktop) ── */}
+                <div className="md:flex-1 md:min-w-0 md:pl-6">
+                    <WorkerCalendar
+                        key={calendarKey}
+                        worker={worker}
+                        estados={estados}
+                        obraId={obraId}
+                        showLegend={false}
+                        onSelectRange={(start, end) => {
+                            setFechaInicio(start);
+                            setFechaFin(end);
+                        }}
+                        onPeriodDeleted={() => {
+                            refreshPeriods();
+                            setCalendarKey(k => k + 1);
+                            onSuccess?.();
+                        }}
+                    />
+                </div>
 
-                {/* ── Formulario de asignación de período ── */}
+                {/* ── Formulario de asignación (izquierda en desktop, abajo en móvil) ── */}
                 {obraId && (
-                    <div className="border-t border-border mt-4 pt-5">
+                    <div className="border-t border-border mt-4 pt-5 md:border-t-0 md:border-r md:border-border md:mt-0 md:pt-0 md:pr-6 md:w-[360px] md:shrink-0">
                         <div className="flex items-center gap-2 mb-4">
                             <CalendarRange className="h-4 w-4 text-brand-primary" />
                             <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">
@@ -172,9 +176,9 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                             </span>
                         </div>
 
-                        {/* Layout: en móvil apilado (como antes); en desktop dos columnas */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:items-start">
-                            {/* ── Columna izquierda: Estado de ausencia ── */}
+                        {/* Formulario en una sola columna */}
+                        <div className="flex flex-col gap-4">
+                            {/* ── Estado de ausencia ── */}
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Estado de ausencia
@@ -213,10 +217,8 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 </div>
                             </div>
 
-                            {/* ── Columna derecha: fechas + preview + observación + confirmar ── */}
-                            <div className="flex flex-col gap-4">
-                                {/* Date range */}
-                                <div className="grid grid-cols-2 gap-3">
+                            {/* Date range */}
+                            <div className="grid grid-cols-2 gap-3">
                                     <div>
                                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                             Fecha inicio
@@ -325,7 +327,6 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                         </>
                                     )}
                                 </Button>
-                            </div>
                         </div>
                     </div>
                 )}
