@@ -18,6 +18,7 @@ export interface FetchWorkersParams {
     filterActivo: string;
     filterCompletitud: string;
     filterAusentes: boolean;
+    filterAniversario10m: string;
 }
 
 export const useConsultasData = (filters: FetchWorkersParams) => {
@@ -76,6 +77,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             if (filters.filterActivo) urlParams.append('activo', filters.filterActivo);
             if (filters.filterCompletitud) urlParams.append('completitud', filters.filterCompletitud);
             if (filters.filterAusentes) urlParams.append('ausentes', 'true');
+            if (filters.filterAniversario10m) urlParams.append('aniversario10m', filters.filterAniversario10m);
             // Consultas es superficie de administración: incluir trabajadores de
             // prueba (se muestran con badge) para poder gestionarlos/revertirlos.
             urlParams.append('incluir_prueba', 'true');
@@ -116,7 +118,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             performSearch(true);
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes]);
+    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m]);
 
     // Carga inicial de catálogos
     useEffect(() => {

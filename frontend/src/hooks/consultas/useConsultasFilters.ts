@@ -14,6 +14,10 @@ export const useConsultasFilters = () => {
     const [filterActivo, setFilterActivo] = useState<string>(searchParams.get('activo') || 'true');
     const [filterCompletitud, setFilterCompletitud] = useState<string>(searchParams.get('completitud') || '');
     const [filterAusentes, setFilterAusentes] = useState<boolean>(searchParams.get('ausentes') === 'true');
+    // Filtro "cumplen 10 meses de contrato" en un mes objetivo (YYYY-MM). No tiene
+    // control en el FilterPanel: lo activa el botón "Ver detalle" de la alerta del
+    // dashboard. Se muestra como chip removible en Consultas.
+    const [filterAniversario10m, setFilterAniversario10m] = useState<string>(searchParams.get('aniversario10m') || '');
 
     // Aplicar filtro de obra contextual solo si no viene de la URL
     useEffect(() => {
@@ -31,8 +35,19 @@ export const useConsultasFilters = () => {
         setFilterActivo('true');
         setFilterCompletitud('');
         setFilterAusentes(false);
+        setFilterAniversario10m('');
         setSearchParams({}); // Clear URL params too
     }, [selectedObra, setSearchParams]);
+
+    // Quita solo el filtro de aniversario (chip removible), limpiando también la URL.
+    const clearAniversario10m = useCallback(() => {
+        setFilterAniversario10m('');
+        setSearchParams(prev => {
+            const next = new URLSearchParams(prev);
+            next.delete('aniversario10m');
+            return next;
+        });
+    }, [setSearchParams]);
 
     const activeFilterCount = useMemo(() => {
         return [
@@ -43,9 +58,10 @@ export const useConsultasFilters = () => {
             !!filterCategoria,
             filterActivo !== 'true',
             !!filterCompletitud,
-            filterAusentes
+            filterAusentes,
+            !!filterAniversario10m
         ].filter(Boolean).length;
-    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, selectedObra]);
+    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, selectedObra]);
 
     return {
         search, setSearch,
@@ -56,6 +72,8 @@ export const useConsultasFilters = () => {
         filterActivo, setFilterActivo,
         filterCompletitud, setFilterCompletitud,
         filterAusentes, setFilterAusentes,
+        filterAniversario10m, setFilterAniversario10m,
+        clearAniversario10m,
         handleClearFilters,
         activeFilterCount
     };

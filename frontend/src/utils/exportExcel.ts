@@ -526,6 +526,53 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     c.alignment = { vertical: 'middle', horizontal: 'right' };
     c.border = thinBorder;
 
+    // ── Fila: Descuento por Obra ──
+    // Muestra el monto de descuento individual en cada columna de obra
+    // para que sea visible cuánto le corresponde a cada una.
+    // La suma total queda en la fila "DESCUENTOS APLICADOS" de abajo.
+    const obraDescuentos = data.obras.map(o => {
+        const descPorcentaje = data.descuentos[o.id] || 0;
+        if (descPorcentaje <= 0) return 0;
+        const obraArriendo = data.categorias.reduce((sum, cat) =>
+            sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
+        );
+        return (obraArriendo * descPorcentaje) / 100;
+    });
+    const hayDescuentoPorObra = obraDescuentos.some(d => d > 0);
+
+    if (hayDescuentoPorObra) {
+        currentRow++;
+        row = ws.getRow(currentRow);
+        row.height = 20;
+        ws.mergeCells(`A${currentRow}:F${currentRow}`);
+        c = row.getCell(1);
+        c.value = 'DESCUENTO POR OBRA';
+        c.font = boldFont(9, '999999');
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+
+        // Una columna por obra a partir de la col 7 (= col F+1 = primera obra)
+        obraDescuentos.forEach((descMonto, i) => {
+            const obraCol = 7 + i;
+            c = row.getCell(obraCol);
+            c.fill = fill(DISCOUNT_BG);
+            c.border = thinBorder;
+            c.alignment = { vertical: 'middle', horizontal: 'center' };
+            if (descMonto > 0) {
+                c.value = `-${fmtMoney(descMonto)}`;
+                c.font = boldFont(9, RED_TEXT);
+            }
+        });
+
+        // Rellenar columnas de bodegas con fondo (sin valor)
+        data.bodegas.forEach((_, i) => {
+            c = row.getCell(7 + data.obras.length + i);
+            c.fill = fill(DISCOUNT_BG);
+            c.border = thinBorder;
+        });
+    }
+
     // Descuentos
     if (totalDescuento > 0) {
         currentRow++;
