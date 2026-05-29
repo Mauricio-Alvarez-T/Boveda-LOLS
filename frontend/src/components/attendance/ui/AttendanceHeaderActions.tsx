@@ -99,7 +99,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
             {/* ═══════════════════════════════════════════ */}
             <div className="hidden lg:flex items-center gap-2 shrink-0">
                 {/* Filtro empresa — caja propia */}
-                <div className="bg-white/50 backdrop-blur-sm border border-border rounded-xl shadow-sm overflow-hidden shrink-0">
+                <div className="bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-xl shadow-sm overflow-hidden shrink-0">
                     <select
                         value={selectedEmpresaId || ""}
                         onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}

@@ -69,7 +69,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
             </div>
 
             {!selectedObra && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300">
                     Mostrando todas las obras del mes. Para crear una nueva citación selecciona una obra en el header.
                 </div>
             )}
@@ -107,8 +107,8 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                                         </span>
                                         <span className={cn(
                                             'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border',
-                                            s.estado === 'citada' && 'bg-amber-50 border-amber-200 text-amber-800',
-                                            s.estado === 'realizada' && 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                                            s.estado === 'citada' && 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300',
+                                            s.estado === 'realizada' && 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300',
                                             s.estado === 'cancelada' && 'bg-gray-50 border-gray-200 text-gray-600',
                                         )}>
                                             {s.estado === 'citada' && <Clock className="h-2.5 w-2.5" />}
@@ -131,7 +131,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                                     </div>
                                     {s.estado !== 'citada' && (
                                         <div className="text-center">
-                                            <div className="text-xs font-bold text-emerald-700">
+                                            <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                                                 {s.total_asistio}
                                             </div>
                                             <div className="text-[9px] text-muted-foreground uppercase font-bold">Asistió</div>

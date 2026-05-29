@@ -234,7 +234,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
                         let buttonClass = "absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 transition-all group ";
                         if (isOutOfRange) {
-                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03)_5px,transparent_5px,transparent_10px)] border-border";
+                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(128,128,128,0.08),rgba(128,128,128,0.08)_5px,transparent_5px,transparent_10px)] border-border";
                         } else if (!periodo && !isSelected) {
                             buttonClass += "border-border hover:shadow-md hover:border-brand-primary/30";
                         } else if (isSelected) {
@@ -261,7 +261,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     disabled={isOutOfRange || readOnly}
                                     className={buttonClass}
                                     style={!isOutOfRange && !periodo && !isSelected ? { 
-                                        backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? '#E8ECEF' : '#FFFFFF')) 
+                                        backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? 'var(--muted)' : 'var(--card)'))
                                     } : undefined}
                                     title={buttonTitle}
                                 >
@@ -415,7 +415,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                 </div>
 
                                 {p.observacion && (
-                                    <div className="mt-1 p-2 rounded-xl bg-white/50 border border-border/50 text-[11px] text-muted-foreground italic flex items-start gap-1.5">
+                                    <div className="mt-1 p-2 rounded-xl bg-card/60 border border-border/50 text-[11px] text-muted-foreground italic flex items-start gap-1.5">
                                         <span className="shrink-0 leading-none mt-0.5 text-xs">📝</span>
                                         <p className="leading-relaxed">{p.observacion}</p>
                                     </div>

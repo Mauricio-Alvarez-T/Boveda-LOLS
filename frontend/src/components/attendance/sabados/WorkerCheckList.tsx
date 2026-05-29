@@ -91,7 +91,7 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                                                     {w.apellido_paterno}{w.apellido_materno ? ` ${w.apellido_materno}` : ''} {w.nombres}
                                                 </span>
                                                 {isExterno && (
-                                                    <span className="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                                                    <span className="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
                                                         Otra obra
                                                     </span>
                                                 )}

@@ -41,16 +41,16 @@ export class SabadosErrorBoundary extends React.Component<Props, State> {
     render() {
         if (this.state.hasError) {
             return (
-                <div className="bg-red-50 border-2 border-red-200 rounded-2xl p-6 m-4 flex flex-col items-center text-center gap-3">
-                    <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center">
-                        <AlertTriangle className="h-6 w-6 text-red-600" />
+                <div className="bg-red-50 dark:bg-red-950/30 border-2 border-red-200 dark:border-red-900/60 rounded-2xl p-6 m-4 flex flex-col items-center text-center gap-3">
+                    <div className="h-12 w-12 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center">
+                        <AlertTriangle className="h-6 w-6 text-red-600 dark:text-red-400" />
                     </div>
                     <div>
-                        <h3 className="text-sm font-black text-red-900 uppercase">Error en Sábados Extra</h3>
-                        <p className="text-xs text-red-800 mt-1 font-medium">
+                        <h3 className="text-sm font-black text-red-900 dark:text-red-300 uppercase">Error en Sábados Extra</h3>
+                        <p className="text-xs text-red-800 dark:text-red-300 mt-1 font-medium">
                             {this.state.error?.message || 'Ocurrió un error inesperado.'}
                         </p>
-                        <p className="text-[10px] text-red-700 mt-2">
+                        <p className="text-[10px] text-red-700 dark:text-red-400 mt-2">
                             Detalles en la consola del navegador (F12). El resto de la app sigue funcionando.
                         </p>
                     </div>

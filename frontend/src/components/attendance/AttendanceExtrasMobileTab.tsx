@@ -128,7 +128,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                         onClick={triggerRepeat}
                         disabled={isRepeatDisabled || !repetirDiaAnterior}
                         className={cn(
-                            "w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 transition-colors",
+                            "w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors",
                             (isRepeatDisabled || !repetirDiaAnterior) && "opacity-40 grayscale pointer-events-none"
                         )}
                     >
@@ -144,7 +144,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                     <RequirePermission permiso="asistencia.feriado.gestionar">
                         <button
                             onClick={toggleFeriado}
-                            className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 transition-colors"
+                            className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors"
                         >
                             <div className={cn(
                                 "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",

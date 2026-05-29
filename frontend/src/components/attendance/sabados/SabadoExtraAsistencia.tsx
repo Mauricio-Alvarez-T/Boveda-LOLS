@@ -296,8 +296,8 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                     </div>
                     <span className={cn(
                         'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase border',
-                        current.estado === 'citada' && 'bg-amber-50 border-amber-200 text-amber-800',
-                        current.estado === 'realizada' && 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                        current.estado === 'citada' && 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300',
+                        current.estado === 'realizada' && 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300',
                         current.estado === 'cancelada' && 'bg-gray-50 border-gray-200 text-gray-600',
                     )}>
                         {current.estado === 'citada' && <Clock className="h-3 w-3" />}
@@ -396,7 +396,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                             {row.apellido_paterno}{row.apellido_materno ? ` ${row.apellido_materno}` : ''} {row.nombres}
                                                         </span>
                                                         {!row.citado && (
-                                                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-100 text-blue-700 border border-blue-200">
+                                                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
                                                                 No citado
                                                             </span>
                                                         )}
