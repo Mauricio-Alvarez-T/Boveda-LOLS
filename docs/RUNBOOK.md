@@ -291,6 +291,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | Deploy falla con `mirror: Fatal error: max-retries exceeded (Connection refused)` | Error transitorio de conexión FTP al servidor cPanel. El código está bien (Backend Tests CI pasó). | Re-ejecutar solo los jobs fallidos: `gh run rerun RUN_ID --failed`. NO re-commitear ni cambiar código. |
 | Imágenes 404 en producción (pero OK en local) | URLs de imagen sin prefijo `/api/`. cPanel proxy solo routea `/api/*` al Node.js. | Asegurarse de servir imagen URL como `/api/uploads/inventario/...`, no `/uploads/...` |
 | Sticky header no se pega al scroll | Contenedor intermedio con `overflow-x-hidden` crea un scroll context incorrecto. | El scroll container **real** debe tener `flex-1 min-h-0 overflow-y-auto`. Sticky es relativo a su contenedor scroll más cercano. |
+| `main` aparece **adelante** de `develop` tras un release (`git rev-list develop..main` > 0), o un merge develop→main parece "perder" un fix de producción | Hotfix aplicado **directo a `main`** (urgencia de prod, ej: `fix_prod_migrations.js` — commits `e77b263` / `aaed9a5`). El fix vive solo en `main`; `develop` nunca lo vio. Al mergear develop→main para el próximo release, el árbol de develop no contiene ese cambio, pero el merge **conserva** la versión de main (no la pierde). Lo que queda mal es `develop`, que sigue sin el hotfix. | **Re-sincronizar main→develop después de todo hotfix directo.** Verificar el alcance real (ignorando merges): `git rev-list --no-merges main ^develop` lista los commits que solo están en main. Antes de mergear, dry-run de conflictos: `git merge-tree --write-tree origin/develop origin/main` (exit 0 y sin la palabra `conflict` = limpio). Luego `git checkout develop && git merge origin/main`, push. Confirmación final: `git diff origin/main..develop` **vacío** = ambas ramas alineadas. Regla CLAUDE.md: nunca mergear a main sin pasar por develop+staging; el hotfix directo es la excepción de emergencia que **obliga** a este paso de re-sync. |
 
 ---
 
@@ -905,4 +906,56 @@ Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada ev
 
 ---
 
-*Última actualización: Mayo 2026 — § 6 entrada nueva: "migrate dice no-pending pero la columna no existe" — fix script idempotente con tolerancia a errno 1060 (patrón replicado de `fix_prod_migrations.js`).*
+## 18. Aislamiento de Datos de Prueba (`es_prueba`) — migración 066
+
+**Qué es:** una bandera booleana `es_prueba` en `obras` y `trabajadores` para marcar
+datos creados con fines de prueba/depuración. Cuando `es_prueba = TRUE`, la entidad
+queda **excluida de todo lo operativo**: reportes (diario + Excel mensual + reporte
+semanal RRHH), inventario (stock, transferencias, discrepancias, movimientos, resumen
+ejecutivo, bombas), dashboard/KPIs, asistencia y todos los selectores/dropdowns. Solo
+permanece visible en superficies de **administración** para poder revertir el aislamiento.
+
+**Default `FALSE`** → los datos existentes no cambian de comportamiento.
+
+### 18.1 Cómo se usa (UI)
+- **Obras:** Configuración → Organización → Obras → editar → checkbox "🧪 Obra de prueba".
+  Aislar una obra **arrastra en cascada** a todos sus trabajadores (`es_prueba=1`);
+  des-aislarla los revierte.
+- **Trabajadores:** formulario de trabajador (módulo Asistencia / Consultas) → checkbox
+  "🧪 Trabajador de prueba". También se pueden aislar individualmente.
+
+### 18.2 Arquitectura del filtro
+- **Default-exclude + opt-in:** el CRUD genérico (`crud.service.js`) recibe la opción
+  `testFlagColumn: 'es_prueba'` (solo en rutas obras y trabajadores). `getAll` excluye
+  por defecto; las superficies de gestión pasan `?incluir_prueba=true` para verlos
+  (tabla Obras en Settings, búsqueda de Consultas, selector de obra en WorkerForm).
+- **Queries raw:** ~60 sitios en services llevan el filtro **co-locado junto al
+  `activa=1`/`activo=1` existente**. Regla: INNER JOIN/FROM → `AND alias.es_prueba = 0`;
+  LEFT JOIN con FK nullable (obra puede ser bodega) → forma **NULL-safe**
+  `AND (alias.es_prueba = 0 OR alias.id IS NULL)` o el predicado en el `ON`. Lookups
+  por id / batches `IN(...)` post-selección **NO** se filtran (para poder abrir una
+  entidad de prueba y revertirla).
+- **Transferencias:** se excluyen las que tocan una obra de prueba en origen O destino
+  vía subconsulta NULL-safe sobre las columnas base (`origen_obra_id`/`destino_obra_id`),
+  para que funcione también en los `COUNT` que no hacen JOIN a obras. Ver constantes
+  `EXCLUIR_OBRAS_PRUEBA` (transferencia.service.js) y `_exclTransfPrueba()`
+  (inventario.service.js).
+- **Cascada obra→trabajadores:** PUT `/obras/:id` tiene un router custom montado **antes**
+  del CRUD genérico en `index.js` que, si el body trae `es_prueba`, hace
+  `UPDATE trabajadores SET es_prueba=? WHERE obra_id=?`. Herencia al crear trabajador via
+  hook `beforeCreate`.
+
+### 18.3 Operación en producción (al mergear a `main`)
+1. cPanel → Setup Node.js App → Run JS script → `migrate`. La migración 066 es
+   idempotente (`ADD COLUMN IF NOT EXISTS`). Segura de re-ejecutar.
+2. No requiere reasignar permisos ni backfill — todo arranca en `FALSE`.
+
+### 18.4 Gotcha al agregar queries nuevas
+Cualquier query **nueva** que liste/agregue obras o trabajadores debe recordar el filtro
+`es_prueba`. Auditar con: `grep -rn "activa = 1\|activo = 1" backend/src/services` y
+confirmar que cada LIST/AGGREGATE tenga el `es_prueba` co-locado. Omitirlo = fuga de
+datos de prueba a un reporte.
+
+---
+
+*Última actualización: Mayo 2026 — § 18 nueva: aislamiento de datos de prueba (`es_prueba`, migración 066). Default-exclude + opt-in `incluir_prueba`, cascada obra→trabajadores, filtro NULL-safe en LEFT JOINs.*

@@ -2,6 +2,14 @@ const db = require('../config/db');
 const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionStock');
 const { registrarMovimiento } = require('./stockMovimiento.service');
 
+// Aislamiento de datos de prueba: excluye transferencias cuyo origen o destino
+// sea una obra marcada es_prueba. NULL-safe (origen/destino puede ser bodega →
+// obra_id NULL). Se concatena al WHERE de los listados; funciona también en el
+// COUNT (no depende de los alias de JOIN, sólo de las columnas base de `t`).
+const EXCLUIR_OBRAS_PRUEBA =
+    ' AND (t.origen_obra_id IS NULL OR t.origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))' +
+    ' AND (t.destino_obra_id IS NULL OR t.destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))';
+
 /**
  * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas
  * de Segregation of Duties (solicitante ≠ aprobador ≠ transportista ≠ receptor)?
@@ -1382,7 +1390,7 @@ const transferenciaService = {
         // del usuario (caller decide; típicamente cuando NO tiene
         // `inventario.transferencias.ver_todas`). null = sin filtro = ver todas.
         const { estado, page = 1, limit = 20 } = query;
-        let where = 'WHERE t.activo = 1';
+        let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
         const params = [];
 
         if (solicitanteId != null) { where += ' AND t.solicitante_id = ?'; params.push(solicitanteId); }
@@ -1508,7 +1516,7 @@ const transferenciaService = {
             FROM transferencias t
             LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
             LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
-            WHERE t.solicitante_id = ? AND t.activo = 1
+            WHERE t.solicitante_id = ? AND t.activo = 1 ${EXCLUIR_OBRAS_PRUEBA}
             ORDER BY t.fecha_solicitud DESC
             LIMIT ? OFFSET ?
         `, [userId, limit, offset]);
@@ -1532,7 +1540,7 @@ const transferenciaService = {
         const offset = (page - 1) * limit;
 
         const params = [];
-        let where = 'WHERE t.activo = 1';
+        let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
         if (estado) { where += ' AND d.estado = ?'; params.push(estado); }
 
         // 1. Traer transferencias distintas que tienen al menos una discrepancia

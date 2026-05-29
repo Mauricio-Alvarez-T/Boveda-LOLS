@@ -112,7 +112,7 @@ const sabadosExtraService = {
      * MONTH/YEAR para que el índice idx_fecha sea utilizable.
      */
     async listar({ obra_id, mes, anio }) {
-        const conds = [];
+        const conds = ['o.es_prueba = 0']; // excluir obras de prueba
         const params = [];
         if (obra_id) { conds.push('s.obra_id = ?'); params.push(obra_id); }
         if (mes && anio) {

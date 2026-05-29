@@ -76,7 +76,7 @@ const documentoService = {
        FROM documentos d
        JOIN trabajadores t ON d.trabajador_id = t.id
        JOIN tipos_documento td ON d.tipo_documento_id = td.id
-       WHERE d.activo = TRUE 
+       WHERE d.activo = TRUE AND t.es_prueba = 0
          AND d.fecha_vencimiento IS NOT NULL
          AND d.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
        ORDER BY d.fecha_vencimiento ASC`,
@@ -91,7 +91,7 @@ const documentoService = {
        FROM trabajadores t
        CROSS JOIN tipos_documento td
        LEFT JOIN documentos d ON d.trabajador_id = t.id AND d.tipo_documento_id = td.id AND d.activo = TRUE
-       WHERE t.activo = TRUE AND td.obligatorio = TRUE AND td.activo = TRUE AND d.id IS NULL
+       WHERE t.activo = TRUE AND t.es_prueba = 0 AND td.obligatorio = TRUE AND td.activo = TRUE AND d.id IS NULL
        ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC, td.nombre ASC`
         );
         return rows;

@@ -2,6 +2,13 @@ const db = require('../config/db');
 const { getDescuentoMap, getDescuentoForObra } = require('../utils/descuentoMap');
 const { registrarMovimiento } = require('./stockMovimiento.service');
 
+// Excluye transferencias que toquen una obra de prueba (origen o destino).
+// NULL-safe (origen/destino puede ser bodega → obra_id NULL). `pre` = prefijo
+// del alias de la tabla transferencias ('' si no hay alias, 't.' si lo hay).
+const _exclTransfPrueba = (pre = '') =>
+    ` AND (${pre}origen_obra_id IS NULL OR ${pre}origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))` +
+    ` AND (${pre}destino_obra_id IS NULL OR ${pre}destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))`;
+
 const inventarioService = {
     /**
      * Resumen mensual: todos los ítems con cantidades por ubicación.
@@ -28,7 +35,7 @@ const inventarioService = {
             [stock],
             descuentoMapInstance,
         ] = await Promise.all([
-            db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
+            db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND es_prueba = 0 AND participa_inventario = 1 ORDER BY nombre'),
             db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
             db.query(`
                 SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
@@ -465,6 +472,10 @@ const inventarioService = {
         if (tipo) { where.push('m.tipo = ?'); params.push(tipo); }
         if (desde) { where.push('m.created_at >= ?'); params.push(`${desde} 00:00:00`); }
         if (hasta) { where.push('m.created_at <= ?'); params.push(`${hasta} 23:59:59`); }
+        // Aislamiento: excluir movimientos de obras de prueba (NULL-safe: obra_id
+        // puede ser NULL si el movimiento es de bodega). Subconsulta sobre la
+        // columna base para que funcione también en el COUNT (sin join a obras).
+        where.push('(m.obra_id IS NULL OR m.obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))');
         const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
         const [rows] = await db.query(`
@@ -544,16 +555,16 @@ const inventarioService = {
             [faltantesRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
-            db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter}`, directParams),
+            db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter} ${_exclTransfPrueba()}`, directParams),
             // 2. Count transferencias en tránsito
-            db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito' ${directFilter}`, directParams),
+            db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'en_transito' ${directFilter} ${_exclTransfPrueba()}`, directParams),
             // 3. Discrepancias pendientes: count transferencias afectadas + unidades totales
             db.query(`
                 SELECT COUNT(DISTINCT d.transferencia_id) as transferencias_afectadas,
                        COALESCE(SUM(ABS(d.diferencia)), 0) as unidades_totales
                 FROM transferencia_discrepancias d
                 JOIN transferencias t ON t.id = d.transferencia_id
-                WHERE t.activo = 1 AND d.estado = 'pendiente' ${tFilter}
+                WHERE t.activo = 1 AND d.estado = 'pendiente' ${tFilter} ${_exclTransfPrueba('t.')}
             `, tParams),
             // 4. Valor total de arriendo por obra (usando override si existe, caso contrario valor_arriendo)
             //    Auditoría 6.1: el cálculo NETO se hace en SQL (igual que query 9 del donut)
@@ -573,7 +584,7 @@ const inventarioService = {
                 LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
                 LEFT JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
-                WHERE o.activa = 1 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
+                WHERE o.activa = 1 AND o.es_prueba = 0 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
                 GROUP BY o.id, o.nombre
                 ORDER BY valor_neto DESC
             `, obraIdNum ? [obraIdNum] : []),
@@ -597,7 +608,7 @@ const inventarioService = {
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 LEFT JOIN usuarios us ON t.solicitante_id = us.id
                 LEFT JOIN transferencia_items ti ON ti.transferencia_id = t.id
-                WHERE t.activo = 1 AND t.estado = 'pendiente' ${tFilter}
+                WHERE t.activo = 1 AND t.estado = 'pendiente' ${tFilter} ${_exclTransfPrueba('t.')}
                 GROUP BY t.id, t.codigo, t.fecha_solicitud, t.prorroga_hasta,
                          oo.nombre, ob.nombre, do2.nombre, db2.nombre, us.nombre
                 ORDER BY t.fecha_solicitud ASC
@@ -617,7 +628,7 @@ const inventarioService = {
                 LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
-                WHERE t.activo = 1 ${tFilter}
+                WHERE t.activo = 1 ${tFilter} ${_exclTransfPrueba('t.')}
                 GROUP BY t.id, t.codigo, t.fecha_recepcion, oo.nombre, ob.nombre, do2.nombre, db2.nombre
                 ORDER BY t.fecha_recepcion ASC
                 LIMIT 5
@@ -634,7 +645,7 @@ const inventarioService = {
                 LEFT JOIN obras do2 ON t.destino_obra_id = do2.id
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 WHERE t.activo = 1 AND t.estado = 'en_transito'
-                  AND DATEDIFF(NOW(), t.fecha_despacho) >= 2 ${tFilter}
+                  AND DATEDIFF(NOW(), t.fecha_despacho) >= 2 ${tFilter} ${_exclTransfPrueba('t.')}
                 ORDER BY t.fecha_despacho ASC
                 LIMIT 5
             `, tParams),
@@ -643,7 +654,7 @@ const inventarioService = {
                 SELECT COUNT(*) as count
                 FROM transferencias
                 WHERE activo = 1 AND estado = 'en_transito'
-                  AND DATEDIFF(NOW(), fecha_despacho) >= 10 ${directFilter}
+                  AND DATEDIFF(NOW(), fecha_despacho) >= 10 ${directFilter} ${_exclTransfPrueba()}
             `, directParams),
             // 7. Rechazos recientes (últimos 7 días, máx 8)
             db.query(`
@@ -660,7 +671,7 @@ const inventarioService = {
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 LEFT JOIN usuarios us ON t.aprobador_id = us.id
                 WHERE t.activo = 1 AND t.estado = 'rechazada'
-                  AND t.fecha_aprobacion >= NOW() - INTERVAL 7 DAY ${tFilter}
+                  AND t.fecha_aprobacion >= NOW() - INTERVAL 7 DAY ${tFilter} ${_exclTransfPrueba('t.')}
                 ORDER BY t.fecha_aprobacion DESC
                 LIMIT 8
             `, tParams),
@@ -687,7 +698,7 @@ const inventarioService = {
                 LEFT JOIN items_inventario i ON i.categoria_id = c.id AND i.activo = 1
                 LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id IS NOT NULL
                     ${obraIdNum ? 'AND us.obra_id = ?' : ''}
-                LEFT JOIN obras o ON us.obra_id = o.id AND o.activa = 1 AND o.participa_inventario = 1
+                LEFT JOIN obras o ON us.obra_id = o.id AND o.activa = 1 AND o.es_prueba = 0 AND o.participa_inventario = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
                 GROUP BY c.id, c.nombre, c.orden
                 ORDER BY c.orden ASC
@@ -722,7 +733,7 @@ const inventarioService = {
                 LEFT JOIN bodegas db2 ON t.destino_bodega_id = db2.id
                 WHERE t.activo = 1 AND t.estado IN ('aprobada', 'en_transito')
                   AND NOT EXISTS (SELECT 1 FROM transferencias f WHERE f.es_faltante_de_id = t.id)
-                  ${tFilter}
+                  ${tFilter} ${_exclTransfPrueba('t.')}
                 GROUP BY t.id, t.codigo, t.fecha_aprobacion,
                          oo.nombre, ob.nombre, do2.nombre, db2.nombre
                 HAVING unidades_faltantes > 0

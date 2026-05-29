@@ -91,16 +91,43 @@ try {
     orderBy: 'razon_social ASC',
     allowedFields: ['rut', 'razon_social', 'direccion', 'telefono', 'email', 'activo']
   }));
-  app.use('/api/obras', createCrudRoutes('obras', 'obras', {
+  // ── Obras: opciones extraídas para reusar el service en el PUT con cascada ──
+  const createCrudService = require('./src/services/crud.service');
+  const authMw = require('./src/middleware/auth');
+  const { checkPermission } = require('./src/middleware/rbac');
+
+  const obrasOptions = {
     searchFields: ['nombre', 'direccion'],
     joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
     selectFields: 'obras.*, e.razon_social as empresa_nombre',
     activeColumn: 'activa',
     useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
-    allowedFilters: ['participa_inventario'],
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'encargado_nombre']
-  }));
+    allowedFilters: ['participa_inventario', 'es_prueba'],
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'encargado_nombre', 'es_prueba'],
+    testFlagColumn: 'es_prueba'
+  };
+
+  // Custom PUT /obras/:id: aplica cascada es_prueba a los trabajadores de la obra.
+  // Se monta ANTES del router CRUD genérico para interceptar SOLO el update;
+  // GET/POST/DELETE caen al router genérico de abajo.
+  const obrasService = createCrudService('obras', obrasOptions);
+  const obrasCascadeRouter = express.Router();
+  obrasCascadeRouter.put('/:id', authMw, checkPermission('obras.editar'), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const updated = await obrasService.update(id, req.body);
+      // Cascada solo si el body trae es_prueba (no toca el resto de updates).
+      if (req.body.es_prueba !== undefined) {
+        const flag = (req.body.es_prueba === true || req.body.es_prueba === 1 || req.body.es_prueba === '1') ? 1 : 0;
+        await db.query('UPDATE trabajadores SET es_prueba = ? WHERE obra_id = ?', [flag, id]);
+      }
+      res.json(updated);
+    } catch (err) { next(err); }
+  });
+  app.use('/api/obras', obrasCascadeRouter);
+  app.use('/api/obras', createCrudRoutes('obras', 'obras', obrasOptions));
+
   app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', {
     searchFields: ['nombre'],
     useSoftDelete: true,
@@ -111,14 +138,25 @@ try {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
     selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as celebrity_nombre, c.nombre as cargo_nombre', // Wait, celebrity_nombre? That looks like a typo in original code but I'll fix it if it's obra_nombre
-    allowedFilters: ['obra_id', 'empresa_id', 'cargo_id'],
+    allowedFilters: ['obra_id', 'empresa_id', 'cargo_id', 'es_prueba'],
     useSoftDelete: true,
     orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC',
     allowedFields: [
-      'rut', 'nombres', 'apellido_paterno', 'apellido_materno', 
-      'fecha_ingreso', 'fecha_desvinculacion', 'email', 'telefono', 
-      'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte'
-    ]
+      'rut', 'nombres', 'apellido_paterno', 'apellido_materno',
+      'fecha_ingreso', 'fecha_desvinculacion', 'email', 'telefono',
+      'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte', 'es_prueba'
+    ],
+    testFlagColumn: 'es_prueba',
+    // Herencia: un trabajador nuevo asignado a una obra de prueba hereda el flag
+    // (salvo que el body ya traiga es_prueba explícito).
+    beforeCreate: async (safeData, dbConn) => {
+      if (safeData.es_prueba === undefined && safeData.obra_id) {
+        const [rows] = await dbConn.query('SELECT es_prueba FROM obras WHERE id = ?', [safeData.obra_id]);
+        if (rows.length && (rows[0].es_prueba === 1 || rows[0].es_prueba === true)) {
+          safeData.es_prueba = 1;
+        }
+      }
+    }
   }));
   const asAusenciaPerms = { ver: 'sistema.tipos_ausencia.gestionar', crear: 'sistema.tipos_ausencia.gestionar', editar: 'sistema.tipos_ausencia.gestionar', eliminar: 'sistema.tipos_ausencia.gestionar' };
   app.use('/api/tipos-ausencia', createCrudRoutes(asAusenciaPerms, 'tipos_ausencia', {

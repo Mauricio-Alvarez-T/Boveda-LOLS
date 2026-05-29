@@ -16,6 +16,7 @@ const schema = z.object({
     direccion: z.string().optional(),
     encargado_nombre: z.string().optional(),
     participa_inventario: z.boolean().optional(),
+    es_prueba: z.boolean().optional(),
 });
 
 type FormData = {
@@ -23,6 +24,7 @@ type FormData = {
     direccion?: string;
     encargado_nombre?: string;
     participa_inventario?: boolean;
+    es_prueba?: boolean;
 };
 
 interface Props {
@@ -41,6 +43,7 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
             // Default TRUE para obras nuevas (se comportan como antes).
             // En edición respetamos el valor actual.
             participa_inventario: initialData ? (initialData.participa_inventario ?? true) : true,
+            es_prueba: initialData?.es_prueba ?? false,
         },
     });
 
@@ -51,6 +54,7 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
             const payload = {
                 ...data,
                 participa_inventario: data.participa_inventario ?? true,
+                es_prueba: data.es_prueba ?? false,
             };
             if (initialData) {
                 await api.put(`/obras/${initialData.id}`, payload);
@@ -93,6 +97,29 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
                         <span className="text-xs text-muted-foreground mt-0.5">
                             Si está marcado, esta obra aparecerá en los listados y selectores del módulo de inventario (transferencias, stock, facturación).
                             Desmárcalo para obras que solo se usan en asistencia (ej. "Oficina") y evitar que generen ruido en inventario.
+                        </span>
+                    </div>
+                </label>
+            </div>
+
+            <div className="py-2">
+                <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">
+                    <div className="pt-0.5">
+                        <input
+                            type="checkbox"
+                            id="es_prueba"
+                            {...register('es_prueba')}
+                            className="h-5 w-5 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+                            🧪 Obra de prueba (aislar)
+                        </span>
+                        <span className="text-xs text-amber-800/80 dark:text-amber-400/80 mt-0.5">
+                            Si está marcado, esta obra <strong>y todos sus trabajadores</strong> quedan EXCLUIDOS de reportes,
+                            inventario, dashboard, KPIs, asistencia y selectores. Solo serán visibles aquí (y en Consultas) para
+                            poder revertir el aislamiento. Úsalo para datos de prueba.
                         </span>
                     </div>
                 </label>

@@ -38,15 +38,15 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
     // ── 1. TRABAJADORES (si tiene permiso) ──
     if (canSee(permisos, 'trabajadores')) {
         const [workers] = await pool.query(
-            `SELECT COUNT(*) as count FROM trabajadores t WHERE t.activo = 1 ${obraFilter}`,
+            `SELECT COUNT(*) as count FROM trabajadores t WHERE t.activo = 1 AND t.es_prueba = 0 ${obraFilter}`,
             params
         );
         result.counters.trabajadores = workers[0].count;
 
         // Delta: trabajadores nuevos esta semana
         const [workersLastWeek] = await pool.query(
-            `SELECT COUNT(*) as count FROM trabajadores t 
-             WHERE t.activo = 1 AND t.fecha_ingreso >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ${obraFilter}`,
+            `SELECT COUNT(*) as count FROM trabajadores t
+             WHERE t.activo = 1 AND t.es_prueba = 0 AND t.fecha_ingreso >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) ${obraFilter}`,
             params
         );
         result.deltas.trabajadores_nuevos_semana = workersLastWeek[0].count;
@@ -57,16 +57,16 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const [docs] = await pool.query(
             `SELECT COUNT(d.id) as count 
              FROM documentos d 
-             JOIN trabajadores tr ON d.trabajador_id = tr.id 
-             WHERE d.activo = 1 ${docObraFilter}`,
+             JOIN trabajadores tr ON d.trabajador_id = tr.id
+             WHERE d.activo = 1 AND tr.es_prueba = 0 ${docObraFilter}`,
             params
         );
 
         const [expired] = await pool.query(
             `SELECT COUNT(d.id) as count 
              FROM documentos d 
-             JOIN trabajadores tr ON d.trabajador_id = tr.id 
-             WHERE d.activo = 1 AND d.fecha_vencimiento < CURDATE() ${docObraFilter}`,
+             JOIN trabajadores tr ON d.trabajador_id = tr.id
+             WHERE d.activo = 1 AND tr.es_prueba = 0 AND d.fecha_vencimiento < CURDATE() ${docObraFilter}`,
             params
         );
 
@@ -74,8 +74,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const [expiringSoon] = await pool.query(
             `SELECT COUNT(d.id) as count 
              FROM documentos d 
-             JOIN trabajadores tr ON d.trabajador_id = tr.id 
-             WHERE d.activo = 1 
+             JOIN trabajadores tr ON d.trabajador_id = tr.id
+             WHERE d.activo = 1 AND tr.es_prueba = 0
              AND d.fecha_vencimiento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 7 DAY)
              ${docObraFilter}`,
             params
@@ -86,7 +86,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             `SELECT COUNT(t.id) as count 
              FROM trabajadores t 
              LEFT JOIN documentos d ON t.id = d.trabajador_id AND d.activo = 1
-             WHERE t.activo = 1 AND d.id IS NULL ${obraFilter}`,
+             WHERE t.activo = 1 AND t.es_prueba = 0 AND d.id IS NULL ${obraFilter}`,
             params
         );
 
@@ -99,8 +99,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const [expiredToday] = await pool.query(
             `SELECT COUNT(d.id) as count 
              FROM documentos d 
-             JOIN trabajadores tr ON d.trabajador_id = tr.id 
-             WHERE d.activo = 1 AND d.fecha_vencimiento = CURDATE() ${docObraFilter}`,
+             JOIN trabajadores tr ON d.trabajador_id = tr.id
+             WHERE d.activo = 1 AND tr.es_prueba = 0 AND d.fecha_vencimiento = CURDATE() ${docObraFilter}`,
             params
         );
         result.deltas.docs_vencidos_hoy = expiredToday[0].count;
@@ -146,8 +146,9 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             JOIN tipos_documento td ON d.tipo_documento_id = td.id
             JOIN trabajadores tr ON d.trabajador_id = tr.id
             LEFT JOIN obras o ON tr.obra_id = o.id
-            WHERE d.activo = 1 
+            WHERE d.activo = 1
               AND tr.activo = 1
+              AND tr.es_prueba = 0
               AND d.fecha_vencimiento BETWEEN CURDATE() AND DATE_ADD(CURDATE(), INTERVAL 14 DAY)
               ${docObraFilter}
             ORDER BY d.fecha_vencimiento ASC
@@ -197,7 +198,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             `SELECT ea.nombre as estado, ea.es_presente, COUNT(*) as count
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
-             WHERE a.fecha = ? ${asistFilter}
+             JOIN trabajadores t ON a.trabajador_id = t.id
+             WHERE a.fecha = ? AND t.es_prueba = 0 ${asistFilter}
              GROUP BY ea.id, ea.nombre, ea.es_presente`,
             [today, ...params]
         );
@@ -225,7 +227,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             `SELECT ea.es_presente, COUNT(*) as count
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
-             WHERE a.fecha = ? ${asistFilter}
+             JOIN trabajadores t ON a.trabajador_id = t.id
+             WHERE a.fecha = ? AND t.es_prueba = 0 ${asistFilter}
              GROUP BY ea.es_presente`,
             [yesterday, ...params]
         );
@@ -244,7 +247,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             JOIN trabajadores t ON a.trabajador_id = t.id
             JOIN estados_asistencia ea ON a.estado_id = ea.id
             LEFT JOIN obras o ON a.obra_id = o.id
-            WHERE a.fecha = ? AND ea.es_presente = 0 ${asistFilter}
+            WHERE a.fecha = ? AND t.es_prueba = 0 AND ea.es_presente = 0 ${asistFilter}
             ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
             LIMIT 20
         `, [today, ...params]);
@@ -257,7 +260,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                    COUNT(a.id) as total
             FROM asistencias a
             JOIN estados_asistencia ea ON a.estado_id = ea.id
-            WHERE a.fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)
+            JOIN trabajadores t ON a.trabajador_id = t.id
+            WHERE a.fecha >= DATE_SUB(CURDATE(), INTERVAL 7 DAY) AND t.es_prueba = 0
             ${asistFilter ? 'AND a.obra_id = ?' : ''}
             GROUP BY a.fecha
             ORDER BY a.fecha ASC
@@ -285,7 +289,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                    COUNT(a.id) as registros
             FROM obras o
             LEFT JOIN asistencias a ON a.obra_id = o.id AND a.fecha = ?
-            WHERE o.activa = 1
+            WHERE o.activa = 1 AND o.es_prueba = 0
             GROUP BY o.id, o.nombre
         `, [today]);
 
@@ -325,12 +329,12 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                     SELECT COUNT(DISTINCT d2.trabajador_id)
                     FROM documentos d2
                     JOIN trabajadores t2 ON d2.trabajador_id = t2.id
-                    WHERE t2.obra_id = o.id AND t2.activo = 1 AND d2.activo = 1
+                    WHERE t2.obra_id = o.id AND t2.activo = 1 AND t2.es_prueba = 0 AND d2.activo = 1
                       AND (d2.fecha_vencimiento IS NULL OR d2.fecha_vencimiento >= CURDATE())
                 ) as trabajadores_docs_ok
             FROM obras o
-            LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1
-            WHERE o.activa = 1
+            LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1 AND t.es_prueba = 0
+            WHERE o.activa = 1 AND o.es_prueba = 0
             GROUP BY o.id, o.nombre
             HAVING total_trabajadores > 0
             ORDER BY total_trabajadores DESC
@@ -343,7 +347,8 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                    COUNT(a.id) as total
             FROM asistencias a
             JOIN estados_asistencia ea ON a.estado_id = ea.id
-            WHERE a.fecha = ?
+            JOIN trabajadores t ON a.trabajador_id = t.id
+            WHERE a.fecha = ? AND t.es_prueba = 0
             GROUP BY a.obra_id
         `, [today]);
 
@@ -392,6 +397,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             FROM trabajadores t
             LEFT JOIN empresas e ON t.empresa_id = e.id
             WHERE t.activo = 1
+              AND t.es_prueba = 0
               AND t.fecha_ingreso IS NOT NULL
               AND MONTH(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
               AND YEAR(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?

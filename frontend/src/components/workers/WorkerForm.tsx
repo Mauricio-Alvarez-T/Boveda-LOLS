@@ -29,6 +29,7 @@ const workerSchema = z.object({
     cargo_id: z.coerce.number().min(1, 'Selecciona un cargo'),
     categoria_reporte: z.enum(['obra', 'operaciones', 'rotativo']),
     fecha_ingreso: z.string().optional(),
+    es_prueba: z.boolean().optional(),
 });
 
 type WorkerFormData = z.infer<typeof workerSchema>;
@@ -66,6 +67,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             cargo_id: initialData.cargo_id || 0,
             categoria_reporte: initialData.categoria_reporte || 'obra',
             fecha_ingreso: initialData.fecha_ingreso ? initialData.fecha_ingreso.split('T')[0] : '',
+            es_prueba: initialData.es_prueba ?? false,
         } : {},
     });
 
@@ -76,7 +78,10 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             try {
                 const [empRes, obraRes, cargoRes] = await Promise.all([
                     api.get<ApiResponse<Empresa[]>>('/empresas?activo=true'),
-                    api.get<ApiResponse<Obra[]>>('/obras?activo=true'),
+                    // incluir_prueba: WorkerForm es superficie de gestión — debe poder
+                    // mostrar/asignar obras de prueba (p. ej. al editar o revertir un
+                    // trabajador de prueba, su obra debe aparecer en el selector).
+                    api.get<ApiResponse<Obra[]>>('/obras?activo=true&incluir_prueba=true'),
                     api.get<ApiResponse<Cargo[]>>('/cargos?activo=true'),
                 ]);
 
@@ -248,6 +253,28 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     error={errors.fecha_ingreso?.message}
                     {...register('fecha_ingreso')}
                 />
+            </div>
+
+            <div className="py-1">
+                <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">
+                    <div className="pt-0.5">
+                        <input
+                            type="checkbox"
+                            id="es_prueba"
+                            {...register('es_prueba')}
+                            className="h-5 w-5 rounded border-amber-400 text-amber-600 focus:ring-amber-500 cursor-pointer"
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <span className="text-sm font-semibold text-amber-900 dark:text-amber-300">
+                            🧪 Trabajador de prueba (aislar)
+                        </span>
+                        <span className="text-xs text-amber-800/80 dark:text-amber-400/80 mt-0.5">
+                            Si está marcado, este trabajador queda EXCLUIDO de reportes, dashboard, KPIs, asistencia y
+                            consultas operativas. Solo visible en administración para revertirlo. Úsalo para datos de prueba.
+                        </span>
+                    </div>
+                </label>
             </div>
 
             <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-8 z-10">
