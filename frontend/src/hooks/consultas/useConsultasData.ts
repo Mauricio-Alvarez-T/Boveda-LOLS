@@ -76,6 +76,9 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             if (filters.filterActivo) urlParams.append('activo', filters.filterActivo);
             if (filters.filterCompletitud) urlParams.append('completitud', filters.filterCompletitud);
             if (filters.filterAusentes) urlParams.append('ausentes', 'true');
+            // Consultas es superficie de administración: incluir trabajadores de
+            // prueba (se muestran con badge) para poder gestionarlos/revertirlos.
+            urlParams.append('incluir_prueba', 'true');
             urlParams.append('page', isInitial ? '1' : page.toString());
             urlParams.append('limit', '50');
 

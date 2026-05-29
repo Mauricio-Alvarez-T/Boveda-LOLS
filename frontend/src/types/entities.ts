@@ -18,6 +18,8 @@ export interface Obra {
     participa_inventario?: boolean;
     /** Encargado que solicita material en obras de inventario (texto libre). */
     encargado_nombre?: string | null;
+    /** Si TRUE, obra de prueba: aislada de reportes/inventario/dashboard/asistencia/selectores. */
+    es_prueba?: boolean;
 }
 
 export interface Cargo {
@@ -46,6 +48,8 @@ export interface Trabajador {
     fecha_desvinculacion: string | null;
     categoria_reporte: 'obra' | 'operaciones' | 'rotativo';
     activo: boolean;
+    /** Si TRUE, trabajador de prueba: aislado de reportes/dashboard/asistencia/consultas operativas. */
+    es_prueba?: boolean;
 }
 
 export interface TipoDocumento {

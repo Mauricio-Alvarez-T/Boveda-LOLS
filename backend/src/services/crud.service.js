@@ -17,7 +17,8 @@ const createCrudService = (tableName, options = {}) => {
         activeColumn = 'activo',
         allowedFilters = [],
         allowedFields = [], // Whitelist for create/update
-        beforeCreate = null // async (safeData, db) => void — mutate safeData before INSERT
+        beforeCreate = null, // async (safeData, db) => void — mutate safeData before INSERT
+        testFlagColumn = null // Columna de aislamiento (ej. 'es_prueba'); si está, getAll excluye por defecto las filas marcadas salvo ?incluir_prueba=true
     } = options;
 
     return {
@@ -43,6 +44,15 @@ const createCrudService = (tableName, options = {}) => {
                         params.push(query[field]);
                     }
                 });
+            }
+
+            // Aislamiento de datos de prueba: por defecto se EXCLUYEN las filas
+            // marcadas (es_prueba=1). Las superficies de administración piden
+            // ?incluir_prueba=true para verlas. Si se pasa ?es_prueba explícito
+            // (vía allowedFilters), ese filtro manda y no lo pisamos.
+            if (testFlagColumn && query[testFlagColumn] === undefined) {
+                const incluir = query.incluir_prueba === 'true' || query.incluir_prueba === true;
+                if (!incluir) where.push(`${tableName}.${testFlagColumn} = 0`);
             }
 
             if (q && searchFields.length > 0) {
@@ -275,6 +285,12 @@ const createCrudService = (tableName, options = {}) => {
                         params.push(query[field]);
                     }
                 });
+            }
+
+            // Aislamiento de datos de prueba (mismo criterio que getAll).
+            if (testFlagColumn && query[testFlagColumn] === undefined) {
+                const incluir = query.incluir_prueba === 'true' || query.incluir_prueba === true;
+                if (!incluir) where.push(`${tableName}.${testFlagColumn} = 0`);
             }
 
             if (q && searchFields.length > 0) {

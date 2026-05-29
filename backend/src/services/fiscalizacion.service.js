@@ -51,6 +51,12 @@ class FiscalizacionService {
 
         const params = [totalObligatorios];
 
+        // Aislamiento de prueba: por defecto se excluyen los trabajadores marcados.
+        // Consultas (gestión) pasa incluir_prueba=true para verlos (con badge).
+        if (filters.incluir_prueba !== 'true' && filters.incluir_prueba !== true) {
+            query += ` AND t.es_prueba = 0`;
+        }
+
         if (activo !== undefined && activo !== '') {
             query += ` AND t.activo = ?`;
             params.push(activo === 'true' || activo === true ? 1 : 0);

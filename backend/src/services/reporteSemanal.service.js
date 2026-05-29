@@ -131,7 +131,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
            LEFT JOIN empresas e ON e.id = t.empresa_id
            LEFT JOIN obras    o ON o.id = t.obra_id
            LEFT JOIN cargos   c ON c.id = t.cargo_id
-          WHERE t.fecha_ingreso BETWEEN ? AND ?
+          WHERE t.es_prueba = 0 AND t.fecha_ingreso BETWEEN ? AND ?
           ORDER BY t.fecha_ingreso ASC, t.apellido_paterno ASC, t.nombres ASC`,
         [desde, hasta]
     );
@@ -143,7 +143,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
            LEFT JOIN empresas e ON e.id = t.empresa_id
            LEFT JOIN obras    o ON o.id = t.obra_id
            LEFT JOIN cargos   c ON c.id = t.cargo_id
-          WHERE t.fecha_desvinculacion BETWEEN ? AND ?
+          WHERE t.es_prueba = 0 AND t.fecha_desvinculacion BETWEEN ? AND ?
           ORDER BY t.fecha_desvinculacion ASC, t.apellido_paterno ASC, t.nombres ASC`,
         [desde, hasta]
     );
@@ -157,7 +157,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
            JOIN trabajadores t       ON t.id = a.trabajador_id
            JOIN estados_asistencia es ON es.id = a.estado_id
            LEFT JOIN obras o         ON o.id = a.obra_id
-          WHERE es.codigo = 'A' AND a.fecha BETWEEN ? AND ?
+          WHERE es.codigo = 'A' AND t.es_prueba = 0 AND a.fecha BETWEEN ? AND ?
           ORDER BY t.apellido_paterno ASC, t.nombres ASC, a.fecha ASC`,
         [desde, hasta]
     );
@@ -172,6 +172,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
            LEFT JOIN obras    o ON o.id = t.obra_id
            LEFT JOIN cargos   c ON c.id = t.cargo_id
           WHERE t.activo = 1
+            AND t.es_prueba = 0
             AND t.fecha_desvinculacion IS NULL
             AND t.fecha_ingreso IS NOT NULL
             AND PERIOD_DIFF(DATE_FORMAT(?, '%Y%m'), DATE_FORMAT(t.fecha_ingreso, '%Y%m')) = 10
@@ -185,21 +186,22 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         `SELECT DATE_FORMAT(a.fecha, '%Y-%m') AS ym, COUNT(*) AS total
            FROM asistencias a
            JOIN estados_asistencia es ON es.id = a.estado_id
-          WHERE es.codigo = 'A' AND a.fecha >= ? AND a.fecha < ?
+           JOIN trabajadores t ON t.id = a.trabajador_id
+          WHERE es.codigo = 'A' AND t.es_prueba = 0 AND a.fecha >= ? AND a.fecha < ?
           GROUP BY ym`,
         [mesInicio, mesFin]
     );
     const [contratacionesMesRows] = await db.query(
         `SELECT DATE_FORMAT(fecha_ingreso, '%Y-%m') AS ym, COUNT(*) AS total
            FROM trabajadores
-          WHERE fecha_ingreso >= ? AND fecha_ingreso < ?
+          WHERE es_prueba = 0 AND fecha_ingreso >= ? AND fecha_ingreso < ?
           GROUP BY ym`,
         [mesInicio, mesFin]
     );
     const [desvinculacionesMesRows] = await db.query(
         `SELECT DATE_FORMAT(fecha_desvinculacion, '%Y-%m') AS ym, COUNT(*) AS total
            FROM trabajadores
-          WHERE fecha_desvinculacion >= ? AND fecha_desvinculacion < ?
+          WHERE es_prueba = 0 AND fecha_desvinculacion >= ? AND fecha_desvinculacion < ?
           GROUP BY ym`,
         [mesInicio, mesFin]
     );

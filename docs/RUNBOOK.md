@@ -906,4 +906,56 @@ Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada ev
 
 ---
 
-*Última actualización: Mayo 2026 — § 6 entrada nueva: patrón de divergencia main↔develop por hotfix directo a producción — re-sincronizar main→develop tras todo hotfix (`git merge origin/main`), verificando con `git rev-list --no-merges`, `git merge-tree` (dry-run de conflictos) y `git diff origin/main..develop` vacío.*
+## 18. Aislamiento de Datos de Prueba (`es_prueba`) — migración 066
+
+**Qué es:** una bandera booleana `es_prueba` en `obras` y `trabajadores` para marcar
+datos creados con fines de prueba/depuración. Cuando `es_prueba = TRUE`, la entidad
+queda **excluida de todo lo operativo**: reportes (diario + Excel mensual + reporte
+semanal RRHH), inventario (stock, transferencias, discrepancias, movimientos, resumen
+ejecutivo, bombas), dashboard/KPIs, asistencia y todos los selectores/dropdowns. Solo
+permanece visible en superficies de **administración** para poder revertir el aislamiento.
+
+**Default `FALSE`** → los datos existentes no cambian de comportamiento.
+
+### 18.1 Cómo se usa (UI)
+- **Obras:** Configuración → Organización → Obras → editar → checkbox "🧪 Obra de prueba".
+  Aislar una obra **arrastra en cascada** a todos sus trabajadores (`es_prueba=1`);
+  des-aislarla los revierte.
+- **Trabajadores:** formulario de trabajador (módulo Asistencia / Consultas) → checkbox
+  "🧪 Trabajador de prueba". También se pueden aislar individualmente.
+
+### 18.2 Arquitectura del filtro
+- **Default-exclude + opt-in:** el CRUD genérico (`crud.service.js`) recibe la opción
+  `testFlagColumn: 'es_prueba'` (solo en rutas obras y trabajadores). `getAll` excluye
+  por defecto; las superficies de gestión pasan `?incluir_prueba=true` para verlos
+  (tabla Obras en Settings, búsqueda de Consultas, selector de obra en WorkerForm).
+- **Queries raw:** ~60 sitios en services llevan el filtro **co-locado junto al
+  `activa=1`/`activo=1` existente**. Regla: INNER JOIN/FROM → `AND alias.es_prueba = 0`;
+  LEFT JOIN con FK nullable (obra puede ser bodega) → forma **NULL-safe**
+  `AND (alias.es_prueba = 0 OR alias.id IS NULL)` o el predicado en el `ON`. Lookups
+  por id / batches `IN(...)` post-selección **NO** se filtran (para poder abrir una
+  entidad de prueba y revertirla).
+- **Transferencias:** se excluyen las que tocan una obra de prueba en origen O destino
+  vía subconsulta NULL-safe sobre las columnas base (`origen_obra_id`/`destino_obra_id`),
+  para que funcione también en los `COUNT` que no hacen JOIN a obras. Ver constantes
+  `EXCLUIR_OBRAS_PRUEBA` (transferencia.service.js) y `_exclTransfPrueba()`
+  (inventario.service.js).
+- **Cascada obra→trabajadores:** PUT `/obras/:id` tiene un router custom montado **antes**
+  del CRUD genérico en `index.js` que, si el body trae `es_prueba`, hace
+  `UPDATE trabajadores SET es_prueba=? WHERE obra_id=?`. Herencia al crear trabajador via
+  hook `beforeCreate`.
+
+### 18.3 Operación en producción (al mergear a `main`)
+1. cPanel → Setup Node.js App → Run JS script → `migrate`. La migración 066 es
+   idempotente (`ADD COLUMN IF NOT EXISTS`). Segura de re-ejecutar.
+2. No requiere reasignar permisos ni backfill — todo arranca en `FALSE`.
+
+### 18.4 Gotcha al agregar queries nuevas
+Cualquier query **nueva** que liste/agregue obras o trabajadores debe recordar el filtro
+`es_prueba`. Auditar con: `grep -rn "activa = 1\|activo = 1" backend/src/services` y
+confirmar que cada LIST/AGGREGATE tenga el `es_prueba` co-locado. Omitirlo = fuga de
+datos de prueba a un reporte.
+
+---
+
+*Última actualización: Mayo 2026 — § 18 nueva: aislamiento de datos de prueba (`es_prueba`, migración 066). Default-exclude + opt-in `incluir_prueba`, cascada obra→trabajadores, filtro NULL-safe en LEFT JOINs.*

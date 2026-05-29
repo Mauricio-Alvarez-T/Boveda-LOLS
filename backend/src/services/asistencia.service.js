@@ -737,7 +737,7 @@ const asistenciaService = {
              LEFT JOIN cargos c ON t.cargo_id = c.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              LEFT JOIN usuarios u ON a.registrado_por = u.id
-             WHERE a.fecha = ? AND t.activo = 1`;
+             WHERE a.fecha = ? AND t.activo = 1 AND t.es_prueba = 0`;
 
         if (obraId !== 'ALL') {
             queryStr += ` AND a.obra_id = ?`;
@@ -864,9 +864,16 @@ const asistenciaService = {
         if (empresa_id && empresa_id !== 'null' && empresa_id !== 'undefined' && empresa_id !== '') { where.push('t.empresa_id = ?'); params.push(empresa_id); }
         if (cargo_id && cargo_id !== 'null' && cargo_id !== 'undefined' && cargo_id !== '') { where.push('t.cargo_id = ?'); params.push(cargo_id); }
         if (categoria_reporte && categoria_reporte !== 'null' && categoria_reporte !== 'undefined' && categoria_reporte !== '') { where.push('t.categoria_reporte = ?'); params.push(categoria_reporte); }
-        if (activo !== undefined && activo !== '' && activo !== 'todos') { 
-            where.push('t.activo = ?'); 
-            params.push(activo === 'true' || activo === '1' ? 1 : 0); 
+        if (activo !== undefined && activo !== '' && activo !== 'todos') {
+            where.push('t.activo = ?');
+            params.push(activo === 'true' || activo === '1' ? 1 : 0);
+        }
+
+        // Aislamiento de prueba: en modo reporte/agregado (sin un trabajador
+        // puntual) excluir trabajadores de prueba. Si se consulta un trabajador
+        // específico (ej. calendario en administración) NO filtramos.
+        if (!trabajador_id && !trabajador_ids) {
+            where.push('t.es_prueba = 0');
         }
 
         // NOTA: No filtramos por t.activo globalmente aquí para que los finiquitados
@@ -960,7 +967,7 @@ const asistenciaService = {
              FROM asistencias a
              JOIN estados_asistencia ea ON a.estado_id = ea.id
              JOIN trabajadores t ON a.trabajador_id = t.id
-             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1
+             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1 AND t.es_prueba = 0
              GROUP BY ea.id, ea.nombre, ea.codigo, ea.color, ea.es_presente`,
             [obraId, fecha]
         );
@@ -973,7 +980,7 @@ const asistenciaService = {
             `SELECT COALESCE(SUM(horas_extra), 0) as total_horas_extra
              FROM asistencias a
              JOIN trabajadores t ON a.trabajador_id = t.id
-             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1`,
+             WHERE a.obra_id = ? AND a.fecha = ? AND t.activo = 1 AND t.es_prueba = 0`,
             [obraId, fecha]
         );
 
@@ -1099,7 +1106,7 @@ const asistenciaService = {
             LEFT JOIN cargos c ON t.cargo_id = c.id
             LEFT JOIN obras o ON t.obra_id = o.id
             LEFT JOIN empresas e ON t.empresa_id = e.id
-            WHERE 1=1
+            WHERE 1=1 AND t.es_prueba = 0
         `;
 
         if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') {
@@ -1186,7 +1193,7 @@ const asistenciaService = {
                 LEFT JOIN cargos c ON t.cargo_id = c.id
                 LEFT JOIN obras o ON t.obra_id = o.id
                 LEFT JOIN empresas e ON t.empresa_id = e.id
-                WHERE t.id IN (${missingWorkerIds.map(() => '?').join(',')})
+                WHERE t.es_prueba = 0 AND t.id IN (${missingWorkerIds.map(() => '?').join(',')})
                 ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
             `, missingWorkerIds);
             workers.push(...extraWorkers);
@@ -2319,7 +2326,7 @@ const asistenciaService = {
                    t.nombres, t.apellido_paterno, t.rut
             FROM asistencias a
             JOIN trabajadores t ON a.trabajador_id = t.id
-            WHERE a.estado_id = ? AND a.fecha BETWEEN ? AND ? AND t.activo = 1
+            WHERE a.estado_id = ? AND a.fecha BETWEEN ? AND ? AND t.activo = 1 AND t.es_prueba = 0
         `;
         const params = [faltaId, startDate, endDate];
 

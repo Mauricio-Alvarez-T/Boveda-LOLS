@@ -25,7 +25,7 @@ async function getDescuentoMap(db) {
         SELECT d.obra_id, d.porcentaje
         FROM descuentos_obra d
         JOIN obras o ON d.obra_id = o.id
-        WHERE o.activa = 1 AND o.participa_inventario = 1
+        WHERE o.activa = 1 AND o.es_prueba = 0 AND o.participa_inventario = 1
     `);
     const map = new Map();
     for (const r of rows) {

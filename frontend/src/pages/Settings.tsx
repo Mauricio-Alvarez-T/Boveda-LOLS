@@ -155,7 +155,19 @@ const empresaCols: ColumnDef<Empresa>[] = [
 ];
 
 const obraCols: ColumnDef<Obra>[] = [
-    { key: 'nombre', label: 'Nombre' },
+    {
+        key: 'nombre', label: 'Nombre',
+        render: (v, row) => (
+            <span className="inline-flex items-center gap-2">
+                {v}
+                {row.es_prueba && (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-500/15 text-amber-600 border border-amber-500/30">
+                        Prueba
+                    </span>
+                )}
+            </span>
+        ),
+    },
     { key: 'direccion', label: 'Dirección', render: (v) => v || '—' },
     {
         key: 'activa', label: 'Estado',
@@ -474,7 +486,7 @@ const SettingsPage: React.FC = () => {
                             entityName="Obra"
                             entityNamePlural="Obras"
                             FormComponent={ObraForm}
-                            queryParams={{ activo: true }}
+                            queryParams={{ activo: true, incluir_prueba: true }}
                             canCreate={hasPermission('obras.crear')}
                             canEdit={hasPermission('obras.editar')}
                             canDelete={hasPermission('obras.eliminar')}
