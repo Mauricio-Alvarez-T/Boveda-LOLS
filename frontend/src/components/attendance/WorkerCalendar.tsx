@@ -36,6 +36,8 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [holidays, setHolidays] = useState<Feriado[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+    // Día bajo el cursor mientras se está eligiendo el rango (preview al arrastrar)
+    const [hoverDate, setHoverDate] = useState<string | null>(null);
     const [deletingPeriodId, setDeletingPeriodId] = useState<number | null>(null);
     const { hasPermission } = useAuth();
 
@@ -75,6 +77,13 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+    // Rango a resaltar: si aún no hay fin definido, se usa el día bajo el cursor
+    // (preview mientras el usuario mueve el mouse hacia el último día).
+    const previewEnd = selectionEnd || (selectionStart && hoverDate ? hoverDate : null);
+    let rangeLo = selectionStart;
+    let rangeHi = previewEnd;
+    if (rangeLo && rangeHi && rangeHi < rangeLo) { const t = rangeLo; rangeLo = rangeHi; rangeHi = t; }
+
     const navigateMonth = (offset: number) => {
         setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
     };
@@ -111,15 +120,20 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const handleDateClick = (dateStr: string) => {
         if (readOnly) return;
         if (!selectionStart || (selectionStart && selectionEnd)) {
+            // Primer clic: inicia un nuevo rango
             setSelectionStart(dateStr);
             setSelectionEnd(null);
+            setHoverDate(null);
         } else {
-            if (dateStr < selectionStart) {
-                setSelectionEnd(selectionStart);
-                setSelectionStart(dateStr);
-            } else {
-                setSelectionEnd(dateStr);
-            }
+            // Segundo clic: cierra el rango (ordenándolo si se eligió hacia atrás)
+            let lo = selectionStart;
+            let hi = dateStr;
+            if (hi < lo) { const tmp = lo; lo = hi; hi = tmp; }
+            setSelectionStart(lo);
+            setSelectionEnd(hi);
+            setHoverDate(null);
+            // Rellena automáticamente las fechas del formulario con el rango elegido
+            if (onSelectRange) onSelectRange(lo, hi);
         }
     };
 
@@ -189,7 +203,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                     <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                 </div>
             ) : (
-                <div className="grid grid-cols-7 gap-1 md:gap-1.5">
+                <div className="grid grid-cols-7 gap-1 md:gap-1.5" onMouseLeave={() => setHoverDate(null)}>
                     {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
                         <div key={day} className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                             {day}
@@ -209,9 +223,9 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                         const isWeekend = (startingDay + i) % 7 >= 5;
                         const holiday = getHolidayForDay(day);
 
-                        const isSelected = (selectionStart && selectionEnd) && (dateStr >= selectionStart && dateStr <= selectionEnd);
-                        const isStart = selectionStart === dateStr;
-                        const isEnd = selectionEnd === dateStr;
+                        const isStart = rangeLo === dateStr;
+                        const isEnd = rangeHi === dateStr;
+                        const isSelected = !!(rangeLo && rangeHi && dateStr >= rangeLo && dateStr <= rangeHi) || isStart;
 
                         const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
                         const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
@@ -258,6 +272,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                 )}
                                 <button
                                     onClick={() => !isOutOfRange && handleDateClick(dateStr)}
+                                    onMouseEnter={() => { if (!isOutOfRange && selectionStart && !selectionEnd) setHoverDate(dateStr); }}
                                     disabled={isOutOfRange || readOnly}
                                     className={buttonClass}
                                     style={!isOutOfRange && !periodo && !isSelected ? { 

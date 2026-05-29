@@ -39,6 +39,19 @@ export const WorkerCalendarModal: React.FC<Props> = ({
 
     const estadosAusencia = useMemo(() => estados.filter(e => !e.es_presente), [estados]);
 
+    // Sigla de la empresa a la que pertenece el trabajador (L=LOLS, M=MAUA,
+    // D=Dedalius, P=Provisorio). Mapea desde empresa_nombre (razon_social).
+    const empresaInfo = useMemo(() => {
+        const raw = (worker?.empresa_nombre || '').toUpperCase().trim();
+        if (!raw) return { sigla: 'P', nombre: 'Provisorio', color: '#86868B' };
+        if (raw.includes('LOLS')) return { sigla: 'L', nombre: 'LOLS', color: '#16A34A' };
+        if (raw.includes('URRUTIA') || raw.includes('MAUA') || raw.includes('MIGUEL ANGEL'))
+            return { sigla: 'M', nombre: 'MAUA', color: '#2563EB' };
+        if (raw.includes('DEDALIUS')) return { sigla: 'D', nombre: 'Dedalius', color: '#9333EA' };
+        if (raw.includes('PROVIS')) return { sigla: 'P', nombre: 'Provisorio', color: '#86868B' };
+        return { sigla: raw[0], nombre: worker?.empresa_nombre || '', color: '#86868B' };
+    }, [worker]);
+
     const diasAfectados = useMemo(() => {
         if (!fechaInicio || !fechaFin) return 0;
         const start = new Date(fechaInicio + 'T12:00:00');
@@ -137,6 +150,14 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                 <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-dark text-[10px] font-bold">
                     {worker.rut}
                 </span>
+                <span
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black text-white shrink-0"
+                    style={{ backgroundColor: empresaInfo.color }}
+                    title={`Empresa: ${empresaInfo.nombre}`}
+                >
+                    {empresaInfo.sigla}
+                    <span className="hidden md:inline font-bold opacity-90">{empresaInfo.nombre}</span>
+                </span>
             </div>
         </div>
     );
@@ -144,10 +165,10 @@ export const WorkerCalendarModal: React.FC<Props> = ({
     return (
         <Modal isOpen={isOpen} onClose={onClose} title={modalTitle} size="2xl">
             {/* Móvil: apilado (calendario arriba, formulario abajo).
-                Desktop: dos columnas — formulario a la izquierda, calendario a la derecha. */}
-            <div className="flex flex-col md:flex-row-reverse">
-                {/* ── Calendario + períodos activos (derecha en desktop) ── */}
-                <div className="md:flex-1 md:min-w-0 md:pl-6">
+                Desktop: dos columnas — calendario a la izquierda, formulario a la derecha. */}
+            <div className="flex flex-col md:flex-row">
+                {/* ── Calendario + períodos activos (izquierda en desktop) ── */}
+                <div className="md:flex-1 md:min-w-0 md:pr-6">
                     <WorkerCalendar
                         key={calendarKey}
                         worker={worker}
@@ -166,9 +187,9 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                     />
                 </div>
 
-                {/* ── Formulario de asignación (izquierda en desktop, abajo en móvil) ── */}
+                {/* ── Formulario de asignación (derecha en desktop, abajo en móvil) ── */}
                 {obraId && (
-                    <div className="border-t border-border mt-4 pt-5 md:border-t-0 md:border-r md:border-border md:mt-0 md:pt-0 md:pr-6 md:w-[360px] md:shrink-0">
+                    <div className="border-t border-border mt-4 pt-5 md:border-t-0 md:border-l md:border-border md:mt-0 md:pt-0 md:pl-6 md:w-[360px] md:shrink-0">
                         <div className="flex items-center gap-2 mb-4">
                             <CalendarRange className="h-4 w-4 text-brand-primary" />
                             <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">
