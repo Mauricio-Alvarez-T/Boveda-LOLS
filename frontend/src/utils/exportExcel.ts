@@ -363,8 +363,12 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     // Columnas por obra y bodega
     data.obras.forEach(o => cols.push({ key: `obra_${o.id}`, width: 10 }));
     data.bodegas.forEach(b => cols.push({ key: `bodega_${b.id}`, width: 10 }));
+    // Columna resumen al final: Total Arriendo por fila / por obra en el footer
+    cols.push({ key: 'total_arriendo', width: 16 });
 
     ws.columns = cols;
+    // Índice (1-based) de la columna "Total Arriendo" — siempre la última
+    const totalArriendoCol = cols.length;
 
     let row: ExcelJS.Row;
 
@@ -397,6 +401,7 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     const headerLabels = ['#', 'Descripción', 'M²', 'V. Arriendo', 'UN', 'Total Cant.'];
     data.obras.forEach(o => headerLabels.push(o.nombre));
     data.bodegas.forEach(b => headerLabels.push(b.nombre));
+    headerLabels.push('Total Arriendo');
 
     row = ws.getRow(4);
     row.height = 24;
@@ -446,6 +451,8 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
             // Cantidades por ubicación
             data.obras.forEach(o => values.push(item.ubicaciones[`obra_${o.id}`]?.cantidad || 0));
             data.bodegas.forEach(b => values.push(item.ubicaciones[`bodega_${b.id}`]?.cantidad || 0));
+            // Columna "Total Arriendo" al final: valor total del ítem (qty × precio)
+            values.push(item.total_arriendo > 0 ? fmtMoney(item.total_arriendo) : '');
 
             values.forEach((val, i) => {
                 const cell = row.getCell(i + 1);
@@ -486,18 +493,21 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
         }
     }
 
-    data.obras.forEach(o => {
+    // Arriendo y descuento por obra — calculados una sola vez para reusarlos
+    // tanto en TOTAL GENERAL como en DESCUENTO POR OBRA.
+    const obraArriendoAmounts = data.obras.map(o =>
+        data.categorias.reduce((sum, cat) =>
+            sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
+        )
+    );
+    const obraDescuentos = data.obras.map((o, i) => {
         const descPorcentaje = data.descuentos[o.id] || 0;
-        if (descPorcentaje > 0) {
-            const obraArriendo = data.categorias.reduce((sum, cat) =>
-                sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
-            );
-            totalDescuento += (obraArriendo * descPorcentaje) / 100;
-        }
+        if (descPorcentaje <= 0) return 0;
+        return (obraArriendoAmounts[i] * descPorcentaje) / 100;
     });
+    obraDescuentos.forEach(d => { totalDescuento += d; });
 
-    // ── Resumen de Totales ──
-    // Fila Total General
+    // ── TOTAL GENERAL ──
     currentRow++;
     row = ws.getRow(currentRow);
     row.height = 24;
@@ -509,16 +519,32 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     c.alignment = { vertical: 'middle', horizontal: 'right' };
     c.border = thinBorder;
 
+    // Col 6: total cantidad
     c = row.getCell(6);
     c.value = totalCantidad;
     c.font = boldFont(11, '1a1a1a');
     c.fill = fill(BRAND_BG);
     c.alignment = { vertical: 'middle', horizontal: 'right' };
     c.border = thinBorder;
-    
-    // Blank the rest except Total Arriendo? We don't have a single column for it easily.
-    // Let's add it right after Total Cantidad
-    const totalArriendoCol = 7;
+
+    // Arriendo por obra en cada columna de obra (cols 7, 8, 9…)
+    obraArriendoAmounts.forEach((monto, i) => {
+        c = row.getCell(7 + i);
+        c.fill = fill(BRAND_BG);
+        c.border = thinBorder;
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        if (monto > 0) {
+            c.value = fmtMoney(monto);
+            c.font = boldFont(10, BRAND_PRIMARY);
+        }
+    });
+    // Bodegas: solo fondo
+    data.bodegas.forEach((_, i) => {
+        c = row.getCell(7 + data.obras.length + i);
+        c.fill = fill(BRAND_BG);
+        c.border = thinBorder;
+    });
+    // Columna "Total Arriendo" (última): total global
     c = row.getCell(totalArriendoCol);
     c.value = fmtMoney(totalArriendo);
     c.font = boldFont(11, BRAND_PRIMARY);
@@ -526,25 +552,13 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     c.alignment = { vertical: 'middle', horizontal: 'right' };
     c.border = thinBorder;
 
-    // ── Fila: Descuento por Obra ──
-    // Muestra el monto de descuento individual en cada columna de obra
-    // para que sea visible cuánto le corresponde a cada una.
-    // La suma total queda en la fila "DESCUENTOS APLICADOS" de abajo.
-    const obraDescuentos = data.obras.map(o => {
-        const descPorcentaje = data.descuentos[o.id] || 0;
-        if (descPorcentaje <= 0) return 0;
-        const obraArriendo = data.categorias.reduce((sum, cat) =>
-            sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
-        );
-        return (obraArriendo * descPorcentaje) / 100;
-    });
+    // ── DESCUENTO POR OBRA ──
     const hayDescuentoPorObra = obraDescuentos.some(d => d > 0);
-
     if (hayDescuentoPorObra) {
         currentRow++;
         row = ws.getRow(currentRow);
         row.height = 20;
-        ws.mergeCells(`A${currentRow}:F${currentRow}`);
+        ws.mergeCells(`A${currentRow}:E${currentRow}`);
         c = row.getCell(1);
         c.value = 'DESCUENTO POR OBRA';
         c.font = boldFont(9, '999999');
@@ -552,25 +566,35 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
         c.alignment = { vertical: 'middle', horizontal: 'right' };
         c.border = thinBorder;
 
-        // Una columna por obra a partir de la col 7 (= col F+1 = primera obra)
+        // Col 6: fondo sin valor
+        c = row.getCell(6);
+        c.fill = fill(DISCOUNT_BG);
+        c.border = thinBorder;
+
+        // Descuento por obra en cada columna de obra
         obraDescuentos.forEach((descMonto, i) => {
-            const obraCol = 7 + i;
-            c = row.getCell(obraCol);
+            c = row.getCell(7 + i);
             c.fill = fill(DISCOUNT_BG);
             c.border = thinBorder;
-            c.alignment = { vertical: 'middle', horizontal: 'center' };
+            c.alignment = { vertical: 'middle', horizontal: 'right' };
             if (descMonto > 0) {
                 c.value = `-${fmtMoney(descMonto)}`;
-                c.font = boldFont(9, RED_TEXT);
+                c.font = boldFont(10, RED_TEXT);
             }
         });
-
-        // Rellenar columnas de bodegas con fondo (sin valor)
+        // Bodegas: solo fondo
         data.bodegas.forEach((_, i) => {
             c = row.getCell(7 + data.obras.length + i);
             c.fill = fill(DISCOUNT_BG);
             c.border = thinBorder;
         });
+        // Columna "Total Arriendo" (última): total descuento global
+        c = row.getCell(totalArriendoCol);
+        c.value = `-${fmtMoney(totalDescuento)}`;
+        c.font = boldFont(10, RED_TEXT);
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
     }
 
     // Descuentos
