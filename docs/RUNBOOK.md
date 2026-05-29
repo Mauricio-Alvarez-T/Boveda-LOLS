@@ -291,6 +291,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | Deploy falla con `mirror: Fatal error: max-retries exceeded (Connection refused)` | Error transitorio de conexión FTP al servidor cPanel. El código está bien (Backend Tests CI pasó). | Re-ejecutar solo los jobs fallidos: `gh run rerun RUN_ID --failed`. NO re-commitear ni cambiar código. |
 | Imágenes 404 en producción (pero OK en local) | URLs de imagen sin prefijo `/api/`. cPanel proxy solo routea `/api/*` al Node.js. | Asegurarse de servir imagen URL como `/api/uploads/inventario/...`, no `/uploads/...` |
 | Sticky header no se pega al scroll | Contenedor intermedio con `overflow-x-hidden` crea un scroll context incorrecto. | El scroll container **real** debe tener `flex-1 min-h-0 overflow-y-auto`. Sticky es relativo a su contenedor scroll más cercano. |
+| `main` aparece **adelante** de `develop` tras un release (`git rev-list develop..main` > 0), o un merge develop→main parece "perder" un fix de producción | Hotfix aplicado **directo a `main`** (urgencia de prod, ej: `fix_prod_migrations.js` — commits `e77b263` / `aaed9a5`). El fix vive solo en `main`; `develop` nunca lo vio. Al mergear develop→main para el próximo release, el árbol de develop no contiene ese cambio, pero el merge **conserva** la versión de main (no la pierde). Lo que queda mal es `develop`, que sigue sin el hotfix. | **Re-sincronizar main→develop después de todo hotfix directo.** Verificar el alcance real (ignorando merges): `git rev-list --no-merges main ^develop` lista los commits que solo están en main. Antes de mergear, dry-run de conflictos: `git merge-tree --write-tree origin/develop origin/main` (exit 0 y sin la palabra `conflict` = limpio). Luego `git checkout develop && git merge origin/main`, push. Confirmación final: `git diff origin/main..develop` **vacío** = ambas ramas alineadas. Regla CLAUDE.md: nunca mergear a main sin pasar por develop+staging; el hotfix directo es la excepción de emergencia que **obliga** a este paso de re-sync. |
 
 ---
 
@@ -905,4 +906,4 @@ Solo se setea en la recepción TOTAL (el cierre). En parciales sucesivos cada ev
 
 ---
 
-*Última actualización: Mayo 2026 — § 6 entrada nueva: "migrate dice no-pending pero la columna no existe" — fix script idempotente con tolerancia a errno 1060 (patrón replicado de `fix_prod_migrations.js`).*
+*Última actualización: Mayo 2026 — § 6 entrada nueva: patrón de divergencia main↔develop por hotfix directo a producción — re-sincronizar main→develop tras todo hotfix (`git merge origin/main`), verificando con `git rev-list --no-merges`, `git merge-tree` (dry-run de conflictos) y `git diff origin/main..develop` vacío.*
