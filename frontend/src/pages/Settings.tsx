@@ -547,7 +547,7 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'roles' && (
                         <CrudTable
-                            endpoint="/usuarios/roles/list"
+                            endpoint="/usuarios/roles"
                             columns={rolCols}
                             entityName="Rol"
                             entityNamePlural="Roles"

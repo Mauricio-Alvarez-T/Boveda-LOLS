@@ -24,7 +24,10 @@ const usuariosService = createCrudService('usuarios', {
 const rolesService = createCrudService('roles', {
     searchFields: ['nombre'],
     selectFields: 'roles.*, (SELECT COUNT(*) FROM permisos_rol_v2 WHERE rol_id = roles.id) AS permisos_count',
-    orderBy: 'nombre ASC'
+    orderBy: 'nombre ASC',
+    // El borrado de rol es soft-delete (activo=0). Sin esto el listado mostraría
+    // también los roles dados de baja y "no se eliminarían" a ojos del usuario.
+    useSoftDelete: true
 });
 const rolesController = createCrudController(rolesService);
 
