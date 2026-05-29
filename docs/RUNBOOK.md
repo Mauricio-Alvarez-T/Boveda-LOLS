@@ -237,6 +237,38 @@ Sin este cron, los sparklines y la comparativa quedan vacíos/planos (no es un b
 es que no hay histórico que graficar). Se puede sembrar un punto corriendo el script
 a mano desde cPanel → Run JS script → `snapshot-dashboard`.
 
+### Caso concreto: Reporte Semanal RRHH (lunes 08:00)
+
+Correo HTML con KPIs de la semana anterior (contrataciones, desvinculaciones,
+faltas injustificadas código `A`, aniversarios de 10 meses) + tendencias mensuales.
+Gráficos en HTML puro (compatibles con Gmail/Outlook/móvil), logo LOLS embebido por CID.
+
+- **Script:** `backend/scripts/reporte_semanal.js` · alias `npm run reporte-semanal`
+- **Horario:** `0 8 * * 1` (lunes 08:00)
+- **Command staging:**
+  ```
+  cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/reporte_semanal.js >> ~/reporte-test.log 2>&1
+  ```
+- **Command producción:** igual con `~/boveda` y su ruta de node.
+- **Flags útiles (para probar a mano vía Terminal):**
+  - `--dry` → arma el HTML y lo escribe en `tmp/reporte_preview.html`, **no envía**.
+  - `--to a@b.cl,c@d.cl` → fuerza destinatarios (prioridad máxima), ignora `REPORTE_TO`.
+  - `--fecha YYYY-MM-DD` → usa esa fecha como "hoy" (la ventana = su semana previa).
+- **Destinatarios** (orden de prioridad): flag `--to` → tabla `reportes_suscriptores`
+  (activos; aún no existe → Slice B pendiente) → env `REPORTE_TO` (lista CSV). Fallback
+  graceful si la tabla no existe (`errno 1146`).
+- **Variables `.env` requeridas:** `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_USER`,
+  `MAIL_PASS`, `REPORTE_TO`. La contraseña SMTP va **solo** en el `.env` del servidor,
+  nunca en el repo ni en el chat.
+- **Probar el cron sin esperar al lunes:** crear un cron temporal "+2 min" con el mismo
+  command, verificar `~/reporte-test.log` (debe mostrar `✅ Enviado ... messageId=...`),
+  y luego **borrar** el temporal dejando solo el definitivo.
+
+> ⚠️ **Este script depende de la migración `066_es_prueba_isolation.sql`** (columna
+> `es_prueba`). El servicio filtra obras/trabajadores de prueba. Si se despliega el
+> código a un entorno donde la migración no corrió, falla con
+> `Unknown column 't.es_prueba'`. Ver § 6 — "deploy de código acoplado a migración".
+
 ---
 
 ## 5. Variables de Entorno
@@ -292,6 +324,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | Imágenes 404 en producción (pero OK en local) | URLs de imagen sin prefijo `/api/`. cPanel proxy solo routea `/api/*` al Node.js. | Asegurarse de servir imagen URL como `/api/uploads/inventario/...`, no `/uploads/...` |
 | Sticky header no se pega al scroll | Contenedor intermedio con `overflow-x-hidden` crea un scroll context incorrecto. | El scroll container **real** debe tener `flex-1 min-h-0 overflow-y-auto`. Sticky es relativo a su contenedor scroll más cercano. |
 | `main` aparece **adelante** de `develop` tras un release (`git rev-list develop..main` > 0), o un merge develop→main parece "perder" un fix de producción | Hotfix aplicado **directo a `main`** (urgencia de prod, ej: `fix_prod_migrations.js` — commits `e77b263` / `aaed9a5`). El fix vive solo en `main`; `develop` nunca lo vio. Al mergear develop→main para el próximo release, el árbol de develop no contiene ese cambio, pero el merge **conserva** la versión de main (no la pierde). Lo que queda mal es `develop`, que sigue sin el hotfix. | **Re-sincronizar main→develop después de todo hotfix directo.** Verificar el alcance real (ignorando merges): `git rev-list --no-merges main ^develop` lista los commits que solo están en main. Antes de mergear, dry-run de conflictos: `git merge-tree --write-tree origin/develop origin/main` (exit 0 y sin la palabra `conflict` = limpio). Luego `git checkout develop && git merge origin/main`, push. Confirmación final: `git diff origin/main..develop` **vacío** = ambas ramas alineadas. Regla CLAUDE.md: nunca mergear a main sin pasar por develop+staging; el hotfix directo es la excepción de emergencia que **obliga** a este paso de re-sync. |
+| `Unknown column 'X' in 'WHERE'` (u otro `Unknown column`) en runtime, justo después de un deploy — pero **local funciona** y el SQL "se ve bien" | **Deploy de código acoplado a una migración que no corrió en ese entorno.** Un commit agrega una columna (vía migración `NNN_*.sql`) y a la vez modifica servicios para filtrar/leer esa columna. El deploy sincroniza el **código** (lftp), pero **NO ejecuta migraciones** — son pasos separados. El entorno destino (staging o prod) queda con código nuevo contra esquema viejo. Caso real: `066_es_prueba_isolation.sql` añade `es_prueba`; varios servicios ya filtran por ella → `Unknown column 't.es_prueba'` hasta correr `migrate`. | **Orden obligatorio al desplegar código que trae migración: (1) deploy → (2) `migrate` → (3) verificar.** Correr `migrate` en el entorno afectado: cPanel → Setup Node.js App → Run JS script → `migrate`. La salida debe listar la migración pendiente y aplicarla. Si dice "no hay migraciones pendientes" pero la columna sigue sin existir → es el bootstrap-skip (§ 3.3 / fila de abajo): usar un fix-script idempotente. Regla: **toda migración debe correrse en CADA entorno por separado** (no se propaga sola con el merge ni con el deploy). |
 
 ---
 
@@ -958,4 +991,4 @@ datos de prueba a un reporte.
 
 ---
 
-*Última actualización: Mayo 2026 — § 18 nueva: aislamiento de datos de prueba (`es_prueba`, migración 066). Default-exclude + opt-in `incluir_prueba`, cascada obra→trabajadores, filtro NULL-safe en LEFT JOINs.*
+*Última actualización: Mayo 2026 — § 4.1: caso "Reporte Semanal RRHH" (cron `0 8 * * 1`, flags `--dry`/`--to`/`--fecha`, vars `MAIL_*`/`REPORTE_TO`). § 6: nueva fila "deploy de código acoplado a migración" (`Unknown column` post-deploy → orden deploy→migrate→verificar).*
