@@ -4,10 +4,10 @@ import { cn } from '../../utils/cn';
 import { useTheme } from '../../context/ThemeContext';
 import type { ThemeMode } from '../../context/ThemeContext';
 
-const OPTIONS: { mode: ThemeMode; label: string; Icon: React.ComponentType<{ className?: string }> }[] = [
-    { mode: 'light', label: 'Claro', Icon: Sun },
-    { mode: 'dark', label: 'Oscuro', Icon: Moon },
-    { mode: 'system', label: 'Sistema', Icon: Monitor },
+const OPTIONS: { mode: ThemeMode; label: string; hint: string; Icon: React.ComponentType<{ className?: string }> }[] = [
+    { mode: 'light', label: 'Claro', hint: 'Tema claro', Icon: Sun },
+    { mode: 'dark', label: 'Oscuro', hint: 'Tema oscuro', Icon: Moon },
+    { mode: 'system', label: 'Sistema', hint: 'Sistema — usa el tema configurado en tu equipo', Icon: Monitor },
 ];
 
 /**
@@ -27,7 +27,7 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className }) => 
                 className
             )}
         >
-            {OPTIONS.map(({ mode, label, Icon }) => {
+            {OPTIONS.map(({ mode, label, hint, Icon }) => {
                 const active = theme === mode;
                 return (
                     <button
@@ -36,7 +36,7 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className }) => 
                         role="radio"
                         aria-checked={active}
                         aria-label={label}
-                        title={label}
+                        title={hint}
                         onClick={() => setTheme(mode)}
                         className={cn(
                             'flex items-center justify-center h-8 w-8 rounded-lg transition-all duration-200',

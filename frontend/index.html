@@ -10,7 +10,9 @@
       try {
         var t = localStorage.getItem('sgdl_theme');
         var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        if (t === 'dark' || ((t === 'system' || !t) && sysDark)) {
+        // Default = claro. Sólo aplicamos oscuro si el usuario eligió 'dark',
+        // o eligió 'system' y su SO está en oscuro. Sin preferencia → claro.
+        if (t === 'dark' || (t === 'system' && sysDark)) {
           document.documentElement.classList.add('dark');
         }
       } catch (e) { /* noop */ }

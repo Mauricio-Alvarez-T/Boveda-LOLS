@@ -27,7 +27,9 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         } catch (error) {
             console.error('Error loading theme preference:', error);
         }
-        return 'system';
+        // Sin preferencia guardada → claro por defecto. El usuario puede
+        // optar por 'dark' o 'system' (seguir el SO) desde el ThemeToggle.
+        return 'light';
     });
 
     // El script anti-FOUC de index.html ya aplicó la clase antes del primer
