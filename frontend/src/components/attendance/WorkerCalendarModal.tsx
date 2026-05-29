@@ -172,154 +172,160 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                             </span>
                         </div>
 
-                        {/* Estado selector */}
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                Estado de ausencia
-                            </label>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                                {estadosAusencia.map(est => (
-                                    <button
-                                        key={est.id}
-                                        onClick={() => setEstadoId(est.id)}
-                                        className={`p-3 rounded-xl border-2 text-left transition-all ${
-                                            estadoId === est.id
-                                                ? 'border-current shadow-lg scale-[1.02]'
-                                                : 'border-border hover:border-border'
-                                        }`}
-                                        style={
-                                            estadoId === est.id
-                                                ? { borderColor: est.color, backgroundColor: `${est.color}08` }
-                                                : {}
-                                        }
-                                    >
-                                        <div className="flex items-center gap-2">
-                                            <span
-                                                className="w-3 h-3 rounded-full shrink-0"
-                                                style={{ backgroundColor: est.color }}
-                                            />
-                                            <span className="text-sm font-semibold text-brand-dark">
-                                                {est.nombre}
-                                            </span>
-                                        </div>
-                                        <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">
-                                            {est.codigo}
-                                        </span>
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Date range */}
-                        <div className="grid grid-cols-2 gap-3 mb-4">
+                        {/* Layout de dos columnas: estados a la izquierda, formulario a la derecha */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+                            {/* ── Columna izquierda: Estado de ausencia (lista vertical) ── */}
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                    Fecha inicio
+                                    Estado de ausencia
                                 </label>
-                                <input
-                                    type="date"
-                                    value={fechaInicio}
-                                    onChange={e => setFechaInicio(e.target.value)}
-                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-                                />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                    Fecha fin
-                                </label>
-                                <input
-                                    type="date"
-                                    value={fechaFin}
-                                    onChange={e => setFechaFin(e.target.value)}
-                                    min={fechaInicio}
-                                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-                                />
-                            </div>
-                        </div>
-
-                        {/* Preview badge */}
-                        {diasAfectados > 0 && selectedEstado && (
-                            <div
-                                className="mb-4 p-3 rounded-xl border flex items-center gap-3"
-                                style={{
-                                    borderColor: `${selectedEstado.color}40`,
-                                    backgroundColor: `${selectedEstado.color}08`,
-                                }}
-                            >
-                                <div
-                                    className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
-                                    style={{ backgroundColor: selectedEstado.color }}
-                                >
-                                    {diasAfectados}
-                                </div>
-                                <div>
-                                    <p className="text-sm font-semibold text-brand-dark">
-                                        {diasAfectados} día{diasAfectados > 1 ? 's' : ''} de {selectedEstado.nombre}
-                                    </p>
-                                    <p className="text-xs text-muted-foreground">
-                                        {fechaInicio.split('-').reverse().join('/')} →{' '}
-                                        {fechaFin.split('-').reverse().join('/')}
-                                    </p>
+                                <div className="grid grid-cols-1 gap-2">
+                                    {estadosAusencia.map(est => (
+                                        <button
+                                            key={est.id}
+                                            onClick={() => setEstadoId(est.id)}
+                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                                estadoId === est.id
+                                                    ? 'border-current shadow-lg scale-[1.02]'
+                                                    : 'border-border hover:border-border'
+                                            }`}
+                                            style={
+                                                estadoId === est.id
+                                                    ? { borderColor: est.color, backgroundColor: `${est.color}08` }
+                                                    : {}
+                                            }
+                                        >
+                                            <div className="flex items-center gap-2">
+                                                <span
+                                                    className="w-3 h-3 rounded-full shrink-0"
+                                                    style={{ backgroundColor: est.color }}
+                                                />
+                                                <span className="text-sm font-semibold text-brand-dark">
+                                                    {est.nombre}
+                                                </span>
+                                                <span className="text-[10px] text-muted-foreground font-medium ml-auto">
+                                                    {est.codigo}
+                                                </span>
+                                            </div>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
-                        )}
 
-                        {/* Overlap warning */}
-                        {overlappingPeriods.length > 0 && (
-                            <div className="mb-4 p-3 rounded-xl bg-warning/10 border border-warning/30">
-                                <div className="flex items-start gap-2">
-                                    <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                            {/* ── Columna derecha: fechas + preview + observación + confirmar ── */}
+                            <div className="flex flex-col gap-4">
+                                {/* Date range */}
+                                <div className="grid grid-cols-2 gap-3">
                                     <div>
-                                        <p className="text-xs font-bold text-warning">Superposición detectada</p>
-                                        <p className="text-xs text-muted-foreground mt-1">
-                                            {overlappingPeriods.length === 1
-                                                ? 'Un período existente'
-                                                : `${overlappingPeriods.length} períodos existentes`}{' '}
-                                            se superpone{overlappingPeriods.length > 1 ? 'n' : ''} con este rango y será
-                                            {overlappingPeriods.length > 1 ? 'n' : ''} reemplazado
-                                            {overlappingPeriods.length > 1 ? 's' : ''}:
-                                        </p>
-                                        {overlappingPeriods.map(p => (
-                                            <p key={p.id} className="text-xs text-muted-foreground mt-0.5">
-                                                • {p.estado_nombre} (
-                                                {String(p.fecha_inicio).split('T')[0].split('-').reverse().join('/')} al{' '}
-                                                {String(p.fecha_fin).split('T')[0].split('-').reverse().join('/')})
-                                            </p>
-                                        ))}
+                                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                                            Fecha inicio
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={fechaInicio}
+                                            onChange={e => setFechaInicio(e.target.value)}
+                                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                                            Fecha fin
+                                        </label>
+                                        <input
+                                            type="date"
+                                            value={fechaFin}
+                                            onChange={e => setFechaFin(e.target.value)}
+                                            min={fechaInicio}
+                                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm font-medium text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                        />
                                     </div>
                                 </div>
+
+                                {/* Preview badge */}
+                                {diasAfectados > 0 && selectedEstado && (
+                                    <div
+                                        className="p-3 rounded-xl border flex items-center gap-3"
+                                        style={{
+                                            borderColor: `${selectedEstado.color}40`,
+                                            backgroundColor: `${selectedEstado.color}08`,
+                                        }}
+                                    >
+                                        <div
+                                            className="w-10 h-10 rounded-xl flex items-center justify-center text-white text-sm font-bold shrink-0"
+                                            style={{ backgroundColor: selectedEstado.color }}
+                                        >
+                                            {diasAfectados}
+                                        </div>
+                                        <div>
+                                            <p className="text-sm font-semibold text-brand-dark">
+                                                {diasAfectados} día{diasAfectados > 1 ? 's' : ''} de {selectedEstado.nombre}
+                                            </p>
+                                            <p className="text-xs text-muted-foreground">
+                                                {fechaInicio.split('-').reverse().join('/')} →{' '}
+                                                {fechaFin.split('-').reverse().join('/')}
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Overlap warning */}
+                                {overlappingPeriods.length > 0 && (
+                                    <div className="p-3 rounded-xl bg-warning/10 border border-warning/30">
+                                        <div className="flex items-start gap-2">
+                                            <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                                            <div>
+                                                <p className="text-xs font-bold text-warning">Superposición detectada</p>
+                                                <p className="text-xs text-muted-foreground mt-1">
+                                                    {overlappingPeriods.length === 1
+                                                        ? 'Un período existente'
+                                                        : `${overlappingPeriods.length} períodos existentes`}{' '}
+                                                    se superpone{overlappingPeriods.length > 1 ? 'n' : ''} con este rango y será
+                                                    {overlappingPeriods.length > 1 ? 'n' : ''} reemplazado
+                                                    {overlappingPeriods.length > 1 ? 's' : ''}:
+                                                </p>
+                                                {overlappingPeriods.map(p => (
+                                                    <p key={p.id} className="text-xs text-muted-foreground mt-0.5">
+                                                        • {p.estado_nombre} (
+                                                        {String(p.fecha_inicio).split('T')[0].split('-').reverse().join('/')} al{' '}
+                                                        {String(p.fecha_fin).split('T')[0].split('-').reverse().join('/')})
+                                                    </p>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Observación */}
+                                <div>
+                                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                                        Observación <span className="font-normal">(opcional)</span>
+                                    </label>
+                                    <textarea
+                                        value={observacion}
+                                        onChange={e => setObservacion(e.target.value)}
+                                        placeholder="Ej: Licencia médica presentada el día..."
+                                        rows={2}
+                                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                    />
+                                </div>
+
+                                {/* Confirmar */}
+                                <Button
+                                    onClick={handleSubmit}
+                                    disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
+                                    className="w-full"
+                                >
+                                    {loading ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    ) : (
+                                        <>
+                                            <Check className="h-4 w-4 mr-2" />
+                                            Confirmar Período
+                                        </>
+                                    )}
+                                </Button>
                             </div>
-                        )}
-
-                        {/* Observación */}
-                        <div className="mb-4">
-                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
-                                Observación <span className="font-normal">(opcional)</span>
-                            </label>
-                            <textarea
-                                value={observacion}
-                                onChange={e => setObservacion(e.target.value)}
-                                placeholder="Ej: Licencia médica presentada el día..."
-                                rows={2}
-                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-                            />
                         </div>
-
-                        {/* Confirmar */}
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
-                            className="w-full"
-                        >
-                            {loading ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                                <>
-                                    <Check className="h-4 w-4 mr-2" />
-                                    Confirmar Período
-                                </>
-                            )}
-                        </Button>
                     </div>
                 )}
             </div>
