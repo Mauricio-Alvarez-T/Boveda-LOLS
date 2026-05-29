@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck } from 'lucide-react';
+import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
@@ -288,6 +288,22 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
+                            {/* Search — arriba de los chips (consistente con el resto de modos) */}
+                            <div className="relative shrink-0 mb-2">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    value={discSearchQuery}
+                                    onChange={e => setDiscSearchQuery(e.target.value)}
+                                    placeholder="Buscar por código TRF..."
+                                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+                                />
+                                {discSearchQuery && (
+                                    <button onClick={() => setDiscSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
+                                        <X className="h-3 w-3 text-muted-foreground" />
+                                    </button>
+                                )}
+                            </div>
                             {/* Top row: status chips — mobile icon+label / desktop pills */}
                             {/* Mobile */}
                             <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
@@ -379,6 +395,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                 onSubFilterChange={setDiscSubFilter}
                                 searchQuery={discSearchQuery}
                                 onSearchChange={setDiscSearchQuery}
+                                hideSearch
                             />
                         </>
                     ) : (

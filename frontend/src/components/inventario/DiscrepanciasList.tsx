@@ -13,6 +13,8 @@ interface Props {
     onSubFilterChange: (f: 'pendiente' | 'resuelta' | 'descartada') => void;
     searchQuery: string;
     onSearchChange: (q: string) => void;
+    /** Si `true`, no renderiza su propio buscador (lo provee el panel padre arriba). */
+    hideSearch?: boolean;
 }
 
 const SUB_CHIPS: { value: 'pendiente' | 'resuelta' | 'descartada'; label: string; color: string }[] = [
@@ -24,6 +26,7 @@ const SUB_CHIPS: { value: 'pendiente' | 'resuelta' | 'descartada'; label: string
 const DiscrepanciasList: React.FC<Props> = ({
     discrepancias, loading, selectedId, onSelect,
     subFilter, onSubFilterChange, searchQuery, onSearchChange,
+    hideSearch = false,
 }) => {
     const filtered = discrepancias.filter(d =>
         !searchQuery || d.codigo.toLowerCase().includes(searchQuery.toLowerCase())
@@ -31,22 +34,24 @@ const DiscrepanciasList: React.FC<Props> = ({
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Search */}
-            <div className="relative shrink-0 mb-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => onSearchChange(e.target.value)}
-                    placeholder="Buscar por código TRF..."
-                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
-                />
-                {searchQuery && (
-                    <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                        <X className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                )}
-            </div>
+            {/* Search (se oculta si el panel padre ya lo renderiza arriba) */}
+            {!hideSearch && (
+                <div className="relative shrink-0 mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => onSearchChange(e.target.value)}
+                        placeholder="Buscar por código TRF..."
+                        className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
+                            <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Sub-filter chips */}
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
