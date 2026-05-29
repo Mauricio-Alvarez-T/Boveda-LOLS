@@ -236,26 +236,26 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                         icon={Droplets}
                         label="Total Bombeos"
                         value={String(stats.total)}
-                        color="bg-blue-50 text-blue-600"
+                        color="bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
                     />
                     <StatCard
                         icon={Building2}
                         label="Empresa"
                         value={String(stats.propias)}
-                        color="bg-emerald-50 text-emerald-600"
+                        color="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
                     />
                     <StatCard
                         icon={Truck}
                         label="Arriendo Ext."
                         value={String(stats.externas)}
-                        color="bg-amber-50 text-amber-600"
+                        color="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
                     />
                     {verCostos && (
                         <StatCard
                             icon={DollarSign}
                             label="Costo Total"
                             value={stats.costoTotal > 0 ? fmtMoney(stats.costoTotal) : '—'}
-                            color="bg-violet-50 text-violet-600"
+                            color="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
                         />
                     )}
                 </div>
@@ -472,7 +472,7 @@ const BombaCard: React.FC<{
         <div className={cn(
             "group flex flex-col px-3.5 py-3 rounded-xl border transition-colors",
             isExterna
-                ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300"
+                ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/20 dark:hover:border-amber-700"
                 : "border-border bg-card hover:border-brand-primary/20"
         )}>
             {/* Top row: obra + badge + acciones */}
@@ -485,8 +485,8 @@ const BombaCard: React.FC<{
                     <span className={cn(
                         "text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap",
                         isExterna
-                            ? "bg-amber-100 text-amber-700 border-amber-200"
-                            : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                            ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60"
+                            : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60"
                     )}>
                         {isExterna ? 'ARRIENDO' : 'EMPRESA'}
                     </span>
