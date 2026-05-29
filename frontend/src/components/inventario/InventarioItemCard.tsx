@@ -11,14 +11,14 @@ const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 // Map categoría nombre → color palette
 const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string }> = {
-    ALZAPRIMAS:     { bg: 'bg-sky-50',    text: 'text-sky-700',    border: 'border-sky-200' },
-    ANDAMIOS:       { bg: 'bg-blue-50',   text: 'text-blue-700',   border: 'border-blue-200' },
-    MOLDAJES:       { bg: 'bg-violet-50', text: 'text-violet-700', border: 'border-violet-200' },
-    MAQUINARIA:     { bg: 'bg-orange-50', text: 'text-orange-700', border: 'border-orange-200' },
-    VIGAS:          { bg: 'bg-emerald-50',text: 'text-emerald-700',border: 'border-emerald-200' },
-    INSTALACIONES:  { bg: 'bg-rose-50',   text: 'text-rose-700',   border: 'border-rose-200' },
+    ALZAPRIMAS:     { bg: 'bg-sky-50 dark:bg-sky-500/15',       text: 'text-sky-700 dark:text-sky-300',       border: 'border-sky-200 dark:border-sky-800/60' },
+    ANDAMIOS:       { bg: 'bg-blue-50 dark:bg-blue-500/15',     text: 'text-blue-700 dark:text-blue-300',     border: 'border-blue-200 dark:border-blue-800/60' },
+    MOLDAJES:       { bg: 'bg-violet-50 dark:bg-violet-500/15', text: 'text-violet-700 dark:text-violet-300', border: 'border-violet-200 dark:border-violet-800/60' },
+    MAQUINARIA:     { bg: 'bg-orange-50 dark:bg-orange-500/15', text: 'text-orange-700 dark:text-orange-300', border: 'border-orange-200 dark:border-orange-800/60' },
+    VIGAS:          { bg: 'bg-emerald-50 dark:bg-emerald-500/15',text: 'text-emerald-700 dark:text-emerald-300',border: 'border-emerald-200 dark:border-emerald-800/60' },
+    INSTALACIONES:  { bg: 'bg-rose-50 dark:bg-rose-500/15',     text: 'text-rose-700 dark:text-rose-300',     border: 'border-rose-200 dark:border-rose-800/60' },
 };
-const DEFAULT_CAT_COLOR = { bg: 'bg-gray-50', text: 'text-gray-700', border: 'border-gray-200' };
+const DEFAULT_CAT_COLOR = { bg: 'bg-gray-50 dark:bg-muted', text: 'text-gray-700 dark:text-muted-foreground', border: 'border-gray-200 dark:border-border' };
 
 const getCatColor = (catName?: string) => {
     if (!catName) return DEFAULT_CAT_COLOR;
@@ -28,7 +28,7 @@ const getCatColor = (catName?: string) => {
 
 const PROPIETARIO_BADGE: Record<string, { bg: string; text: string }> = {
     lols:     { bg: 'bg-brand-primary/10', text: 'text-brand-primary' },
-    dedalius: { bg: 'bg-blue-100',          text: 'text-blue-700' },
+    dedalius: { bg: 'bg-blue-100 dark:bg-blue-500/15',          text: 'text-blue-700 dark:text-blue-300' },
 };
 
 interface CategoriaMinimal { id: number; nombre: string; }
@@ -56,16 +56,16 @@ interface Props {
 }
 
 const qtyColor = (n: number) =>
-    n > 10 ? 'text-green-700 bg-green-50 border-green-200'
-    : n > 0  ? 'text-amber-700 bg-amber-50 border-amber-200'
-    :          'text-muted-foreground bg-muted/30 border-[#E8E8ED]';
+    n > 10 ? 'text-green-700 bg-green-50 border-green-200 dark:text-green-300 dark:bg-green-500/15 dark:border-green-800/60'
+    : n > 0  ? 'text-amber-700 bg-amber-50 border-amber-200 dark:text-amber-300 dark:bg-amber-500/15 dark:border-amber-800/60'
+    :          'text-muted-foreground bg-muted/30 border-border';
 
 /** Fila de ubicación reutilizable */
 const LocationRow: React.FC<{ loc: StockLocation }> = ({ loc }) => (
-    <div className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-[#F8F9FC] transition-colors">
+    <div className="flex items-center gap-2 py-1 px-2 rounded-lg hover:bg-muted transition-colors">
         <div className={cn(
             "w-5 h-5 rounded-md flex items-center justify-center shrink-0",
-            loc.type === 'bodega' ? "bg-amber-100 text-amber-600" : "bg-blue-100 text-blue-600"
+            loc.type === 'bodega' ? "bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-300" : "bg-blue-100 text-blue-600 dark:bg-blue-500/20 dark:text-blue-300"
         )}>
             {loc.type === 'bodega'
                 ? <Warehouse className="h-2.5 w-2.5" />
@@ -119,21 +119,21 @@ const InventarioItemCard: React.FC<Props> = ({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.5) }}
             className={cn(
-                "group relative flex flex-col rounded-2xl border bg-white overflow-hidden transition-all duration-300",
-                "hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:border-[#C0C0C8]",
+                "group relative flex flex-col rounded-2xl border bg-card overflow-hidden transition-all duration-300",
+                "hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:border-[var(--border-hover)]",
                 isDirty
-                    ? "border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.3)] ring-1 ring-amber-200"
-                    : "border-[#E8E8ED] shadow-sm",
+                    ? "border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.3)] ring-1 ring-amber-200 dark:border-amber-500/50 dark:ring-amber-500/20"
+                    : "border-border shadow-sm",
                 !activo && "opacity-60"
             )}
         >
             {/* Dirty indicator dot */}
             {isDirty && (
-                <div className="absolute top-2.5 right-2.5 z-10 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white animate-pulse" />
+                <div className="absolute top-2.5 right-2.5 z-10 w-2.5 h-2.5 rounded-full bg-amber-400 ring-2 ring-white dark:ring-card animate-pulse" />
             )}
 
             {/* ══════ IMAGE AREA ══════ */}
-            <div className="relative h-36 bg-gradient-to-br from-[#F8F9FC] to-[#F0F1F5] flex items-center justify-center overflow-hidden">
+            <div className="relative h-36 bg-muted flex items-center justify-center overflow-hidden">
                 {imageUrl ? (
                     <img
                         src={imageUrl}
@@ -200,7 +200,7 @@ const InventarioItemCard: React.FC<Props> = ({
                 {/* ══════ STOCK POR UBICACIÓN ══════ */}
                 <div className="flex-1">
                     {ubicacionesConStock === 0 ? (
-                        <div className="flex items-center gap-2 py-2 px-2.5 rounded-xl bg-[#FAFBFC] border border-[#F0F0F5]">
+                        <div className="flex items-center gap-2 py-2 px-2.5 rounded-xl bg-muted border border-border">
                             <Package className="h-3.5 w-3.5 text-muted-foreground/30" />
                             <span className="text-[10px] text-muted-foreground">Sin stock registrado</span>
                         </div>
@@ -249,7 +249,7 @@ const InventarioItemCard: React.FC<Props> = ({
                         "flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-bold transition-all",
                         isExpanded
                             ? "bg-brand-primary/10 text-brand-primary"
-                            : "bg-[#F5F7FA] text-muted-foreground hover:bg-[#EDEEF2] hover:text-brand-dark"
+                            : "bg-muted text-muted-foreground hover:bg-muted hover:text-brand-dark"
                     )}
                 >
                     <Pencil className="h-3 w-3" />
@@ -263,7 +263,7 @@ const InventarioItemCard: React.FC<Props> = ({
                         animate={{ height: 'auto', opacity: 1 }}
                         exit={{ height: 0, opacity: 0 }}
                         transition={{ duration: 0.2 }}
-                        className="flex flex-col gap-2 pt-1 border-t border-[#F0F0F5]"
+                        className="flex flex-col gap-2 pt-1 border-t border-border"
                     >
                         {/* Descripción editable */}
                         <div>
@@ -273,8 +273,8 @@ const InventarioItemCard: React.FC<Props> = ({
                                 value={String(getVal('descripcion'))}
                                 onChange={e => setField('descripcion', e.target.value)}
                                 className={cn(
-                                    "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all",
-                                    isFieldDirty('descripcion') ? "border-amber-300" : "border-[#E8E8ED]"
+                                    "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all",
+                                    isFieldDirty('descripcion') ? "border-amber-300" : "border-border"
                                 )}
                             />
                         </div>
@@ -287,8 +287,8 @@ const InventarioItemCard: React.FC<Props> = ({
                                     value={getVal('categoria_id')}
                                     onChange={e => setField('categoria_id', Number(e.target.value))}
                                     className={cn(
-                                        "w-full px-2 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none",
-                                        isFieldDirty('categoria_id') ? "border-amber-300" : "border-[#E8E8ED]"
+                                        "w-full px-2 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                        isFieldDirty('categoria_id') ? "border-amber-300" : "border-border"
                                     )}
                                 >
                                     {categorias.map(c => (
@@ -303,8 +303,8 @@ const InventarioItemCard: React.FC<Props> = ({
                                     value={String(getVal('unidad') ?? '')}
                                     onChange={e => setField('unidad', e.target.value)}
                                     className={cn(
-                                        "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none",
-                                        isFieldDirty('unidad') ? "border-amber-300" : "border-[#E8E8ED]"
+                                        "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                        isFieldDirty('unidad') ? "border-amber-300" : "border-border"
                                     )}
                                 />
                             </div>
@@ -322,9 +322,9 @@ const InventarioItemCard: React.FC<Props> = ({
                                         onChange={e => setField('valor_compra', Number(e.target.value))}
                                         disabled={!editarCostos}
                                         className={cn(
-                                            "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
-                                            isFieldDirty('valor_compra') ? "border-amber-300" : "border-[#E8E8ED]",
-                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                            "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
+                                            isFieldDirty('valor_compra') ? "border-amber-300" : "border-border",
+                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
                                         )}
                                     />
                                 </div>
@@ -336,9 +336,9 @@ const InventarioItemCard: React.FC<Props> = ({
                                         onChange={e => setField('valor_arriendo', Number(e.target.value))}
                                         disabled={!editarCostos}
                                         className={cn(
-                                            "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
-                                            isFieldDirty('valor_arriendo') ? "border-amber-300" : "border-[#E8E8ED]",
-                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                            "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
+                                            isFieldDirty('valor_arriendo') ? "border-amber-300" : "border-border",
+                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
                                         )}
                                     />
                                 </div>
@@ -353,8 +353,8 @@ const InventarioItemCard: React.FC<Props> = ({
                                     value={String(getVal('propietario'))}
                                     onChange={e => setField('propietario', e.target.value as ItemInventario['propietario'])}
                                     className={cn(
-                                        "w-full px-2 py-1.5 text-xs border rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none",
-                                        isFieldDirty('propietario') ? "border-amber-300" : "border-[#E8E8ED]"
+                                        "w-full px-2 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                        isFieldDirty('propietario') ? "border-amber-300" : "border-border"
                                     )}
                                 >
                                     <option value="lols">lols</option>

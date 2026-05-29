@@ -24,7 +24,7 @@ export const BulkActions: React.FC<Props> = ({ perms, onBulk, activeCount, total
                 type="button"
                 disabled={allOn}
                 onClick={() => onBulk(claves, true)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:bg-green-50 hover:border-green-300 hover:text-green-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-gray-200 disabled:hover:text-current transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 dark:border-border hover:bg-green-50 dark:hover:bg-green-950/30 hover:border-green-300 dark:hover:border-green-800 hover:text-green-700 dark:hover:text-green-400 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-gray-200 dark:disabled:hover:border-border disabled:hover:text-current transition-colors"
             >
                 <Check className="h-3 w-3" /> Marcar todos
             </button>
@@ -32,7 +32,7 @@ export const BulkActions: React.FC<Props> = ({ perms, onBulk, activeCount, total
                 type="button"
                 disabled={allOff}
                 onClick={() => onBulk(claves, false)}
-                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 hover:bg-red-50 hover:border-red-300 hover:text-red-700 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-gray-200 disabled:hover:text-current transition-colors"
+                className="inline-flex items-center gap-1 px-2 py-1 rounded border border-gray-200 dark:border-border hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-300 dark:hover:border-red-800 hover:text-red-700 dark:hover:text-red-400 disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:border-gray-200 dark:disabled:hover:border-border disabled:hover:text-current transition-colors"
             >
                 <XIcon className="h-3 w-3" /> Desmarcar todos
             </button>

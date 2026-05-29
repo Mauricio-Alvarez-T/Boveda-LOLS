@@ -114,7 +114,7 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
                     </button>
                 </div>
 
-                <p className="text-xs text-muted bg-background rounded-xl p-3 leading-relaxed">
+                <p className="text-xs text-muted-foreground bg-background rounded-xl p-3 leading-relaxed">
                     🔒 Tu contraseña se encripta con AES-256 antes de guardarse. Nadie en el sistema, ni siquiera los administradores, pueden leerla.
                 </p>
 

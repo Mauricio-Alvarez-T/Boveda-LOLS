@@ -86,7 +86,7 @@ export const HorariosConfigPanel: React.FC = () => {
 
     if (!selectedObra) {
         return (
-            <div className="bg-white rounded-2xl border border-border p-12 text-center">
+            <div className="bg-card rounded-2xl border border-border p-12 text-center">
                 <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
                 <h3 className="text-xl font-bold text-brand-dark">Selecciona una obra</h3>
                 <p className="text-muted-foreground mt-2">
@@ -101,7 +101,7 @@ export const HorariosConfigPanel: React.FC = () => {
     }
 
     return (
-        <div className="bg-white rounded-2xl border border-border overflow-hidden">
+        <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="p-4 md:p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
                     <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
@@ -139,7 +139,7 @@ export const HorariosConfigPanel: React.FC = () => {
                             if (!horario) return null;
 
                             return (
-                                <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl bg-white border border-[#E8E8ED] hover:border-border transition-colors shadow-sm">
+                                <div key={dia.key} className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 items-center px-4 py-3 rounded-xl bg-card border border-border hover:border-border transition-colors shadow-sm">
                                     <div className="font-semibold text-brand-dark capitalize">
                                         {dia.label}
                                     </div>
@@ -160,7 +160,7 @@ export const HorariosConfigPanel: React.FC = () => {
                         if (!horario) return null;
 
                         return (
-                            <div key={dia.key} className="bg-white p-4 rounded-xl border border-border shadow-sm space-y-3">
+                            <div key={dia.key} className="bg-card p-4 rounded-xl border border-border shadow-sm space-y-3">
                                 <h3 className="font-bold text-brand-dark capitalize border-b border-background pb-2 mb-3">
                                     {dia.label}
                                 </h3>

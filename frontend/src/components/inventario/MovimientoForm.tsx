@@ -247,10 +247,10 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
                         onChange={e => setSearch(e.target.value)}
                         placeholder={origenId ? 'Buscar ítem...' : 'Selecciona origen primero'}
                         disabled={!origenId}
-                        className="w-full h-9 pl-9 pr-3 text-sm border border-[#E8E8ED] rounded-lg focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all disabled:bg-[#F5F5F7]"
+                        className="w-full h-9 pl-9 pr-3 text-sm border border-border rounded-lg focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary outline-none transition-all disabled:bg-muted"
                     />
                 </div>
-                <div className="flex-1 min-h-[140px] overflow-y-auto border border-[#E8E8ED] rounded-xl">
+                <div className="flex-1 min-h-[140px] overflow-y-auto border border-border rounded-xl">
                     {!origenId ? (
                         <div className="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
                             Selecciona el {labels.origenLabel.toLowerCase()} para ver su stock disponible.
@@ -265,7 +265,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
                             <p className="text-xs text-muted-foreground">Sin stock en esta ubicación</p>
                         </div>
                     ) : (
-                        <ul className="divide-y divide-[#E8E8ED]">
+                        <ul className="divide-y divide-border">
                             {filteredCatalog.map(item => {
                                 const disponible = stockEnOrigen[item.id] || 0;
                                 const enCarrito = cartMap[item.id];
@@ -290,7 +290,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
                                                 <button
                                                     type="button"
                                                     onClick={() => updateQty(item.id, enCarrito - 1)}
-                                                    className="w-5 h-5 rounded-md bg-[#F0F0F5] flex items-center justify-center"
+                                                    className="w-5 h-5 rounded-md bg-muted flex items-center justify-center"
                                                 >
                                                     <Minus className="h-2.5 w-2.5" />
                                                 </button>
@@ -301,7 +301,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
                                                     onChange={e => updateQty(item.id, parseInt(e.target.value) || 0)}
                                                     className={cn(
                                                         'w-10 h-5 px-1 text-[11px] font-bold text-center border rounded-md',
-                                                        enCarrito > disponible ? 'border-red-400 text-red-700' : 'border-[#E8E8ED]'
+                                                        enCarrito > disponible ? 'border-red-400 text-red-700' : 'border-border'
                                                     )}
                                                 />
                                                 <button
@@ -323,7 +323,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
 
             {/* Cart summary */}
             {cart.length > 0 && (
-                <div className="shrink-0 border border-[#E8E8ED] rounded-xl bg-[#F9F9FB] p-2 max-h-40 overflow-y-auto">
+                <div className="shrink-0 border border-border rounded-xl bg-muted p-2 max-h-40 overflow-y-auto">
                     <ul className="space-y-1">
                         {cartDetails.map(d => (
                             <li
@@ -368,7 +368,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
                         placeholder={shape.motivoRequerido ? 'Justificación de la orden (obligatorio)' : 'Ej: cierre de obra, reubicación...'}
                         className={cn(
                             'w-full px-2.5 py-1.5 text-xs border rounded-lg',
-                            shape.motivoRequerido && !motivo.trim() ? 'border-red-300' : 'border-[#E8E8ED]'
+                            shape.motivoRequerido && !motivo.trim() ? 'border-red-300' : 'border-border'
                         )}
                     />
                 </div>
@@ -379,13 +379,13 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
                         value={observaciones}
                         onChange={e => setObservaciones(e.target.value)}
                         placeholder="Opcional..."
-                        className="w-full px-2.5 py-1.5 text-xs border border-[#E8E8ED] rounded-lg"
+                        className="w-full px-2.5 py-1.5 text-xs border border-border rounded-lg"
                     />
                 </div>
             </div>
 
             {/* CTAs */}
-            <div className="shrink-0 pt-2 border-t border-[#E8E8ED] flex gap-2">
+            <div className="shrink-0 pt-2 border-t border-border flex gap-2">
                 <button
                     type="button"
                     onClick={onClose}

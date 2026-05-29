@@ -55,10 +55,10 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
     }
 
     const colors: Record<StockEstado, string> = {
-        ok: 'bg-green-50 text-green-700 border-green-200',
-        justo: 'bg-amber-50 text-amber-700 border-amber-200',
-        insuficiente: 'bg-red-50 text-red-700 border-red-200',
-        vacio: 'bg-red-50 text-red-700 border-red-200',
+        ok: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60',
+        justo: 'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60',
+        insuficiente: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60',
+        vacio: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60',
     };
 
     const hasBreakdown = ubicaciones.length > 0 && disponible > 0;
@@ -77,7 +77,7 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
             {hover && hasBreakdown && coords && createPortal(
                 <div
                     style={{ top: coords.top, left: coords.left, position: 'fixed', zIndex: 9999 }}
-                    className="bg-white border border-[#E8E8ED] rounded-xl shadow-lg px-3 py-2 text-[11px] min-w-[180px] pointer-events-none"
+                    className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-[11px] min-w-[180px] pointer-events-none"
                 >
                     <div className="font-bold text-brand-dark mb-1.5">Stock por ubicación</div>
                     <div className="space-y-0.5">
@@ -88,7 +88,7 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
                             </div>
                         ))}
                     </div>
-                    <div className="mt-1.5 pt-1.5 border-t border-[#E8E8ED] flex justify-between font-bold">
+                    <div className="mt-1.5 pt-1.5 border-t border-border flex justify-between font-bold">
                         <span>Total</span>
                         <span className="font-mono">{disponible} {unidad}</span>
                     </div>

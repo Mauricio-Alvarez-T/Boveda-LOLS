@@ -125,7 +125,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                         Ubicación Actual
                     </label>
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-white shadow-sm flex items-center justify-center border border-brand-primary/20">
+                        <div className="h-10 w-10 rounded-xl bg-card shadow-sm flex items-center justify-center border border-brand-primary/20">
                             <Building2 className="h-5 w-5 text-brand-primary" />
                         </div>
                         <div className="text-left">
@@ -137,7 +137,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
 
                 {/* Arrow Divider */}
                 <div className="flex justify-center -my-3 relative z-10">
-                    <div className="h-8 w-8 rounded-full bg-white border-2 border-brand-primary/20 flex items-center justify-center shadow-lg">
+                    <div className="h-8 w-8 rounded-full bg-card border-2 border-brand-primary/20 flex items-center justify-center shadow-lg">
                         <ArrowRightLeft className="h-4 w-4 text-brand-primary" />
                     </div>
                 </div>
@@ -158,7 +158,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                             Comentario / Nota (Opcional)
                         </label>
                         <textarea
-                            className="w-full min-h-[100px] rounded-xl border border-input bg-white px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all resize-none"
+                            className="w-full min-h-[100px] rounded-xl border border-input bg-card px-4 py-3 text-sm ring-offset-background placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-all resize-none"
                             placeholder="Ej: Se requiere apoyo en enfierradura..."
                             value={comentario}
                             onChange={(e) => setComentario(e.target.value)}
@@ -166,8 +166,8 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                     </div>
                 </div>
 
-                <div className="bg-yellow-50/50 border border-yellow-200/50 p-3 rounded-xl border-dashed">
-                    <p className="text-[11px] text-yellow-700 leading-relaxed font-medium">
+                <div className="bg-yellow-50/50 dark:bg-yellow-950/20 border border-yellow-200/50 dark:border-yellow-900/40 p-3 rounded-xl border-dashed">
+                    <p className="text-[11px] text-yellow-700 dark:text-yellow-300 leading-relaxed font-medium">
                         <span className="font-bold">Aviso:</span> Al completar el traslado, se generará un registro de asistencia tipo <span className="font-bold">TO</span> en la obra actual y el trabajador se asignará permanentemente a la nueva obra.
                     </p>
                 </div>

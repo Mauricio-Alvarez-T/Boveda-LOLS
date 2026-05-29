@@ -45,7 +45,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder="Buscar ítem..."
-                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                    className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                 />
                 {search && (
                     <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
@@ -55,7 +55,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             </div>
 
             {/* Category Filter */}
-            <div className="shrink-0 relative flex items-center border border-[#E8E8ED] bg-white rounded-xl focus-within:ring-2 focus-within:ring-brand-primary/20 transition-all">
+            <div className="shrink-0 relative flex items-center border border-border bg-card rounded-xl focus-within:ring-2 focus-within:ring-brand-primary/20 transition-all">
                 <select
                     value={selectedCategoryId ?? ''}
                     onChange={e => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
@@ -76,7 +76,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                     "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
                     hideEmpty
                         ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
-                        : "bg-white border-[#E8E8ED] text-muted-foreground hover:border-brand-primary/30"
+                        : "bg-card border-border text-muted-foreground hover:border-brand-primary/30"
                 )}
             >
                 {hideEmpty ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
@@ -87,7 +87,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             {hiddenCount > 0 && (
                 <button
                     onClick={restoreCols}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40 transition-all"
                 >
                     <RotateCcw className="h-3 w-3" />
                     Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}

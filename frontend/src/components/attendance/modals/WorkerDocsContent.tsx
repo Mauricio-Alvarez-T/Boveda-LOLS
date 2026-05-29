@@ -26,7 +26,7 @@ export const WorkerDocsContent: React.FC<WorkerDocsContentProps> = ({
 }) => {
     return (
         <div className="flex flex-col gap-4">
-            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-[#F9F9FB] p-5 rounded-2xl border border-[#E8E8ED]">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-muted p-5 rounded-2xl border border-border">
                 <div>
                     <h4 className="text-base font-bold text-brand-dark tracking-tight">Bóveda de Documentos</h4>
                     <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider opacity-70">

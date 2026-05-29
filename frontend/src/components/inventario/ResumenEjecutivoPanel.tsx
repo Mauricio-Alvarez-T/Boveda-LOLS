@@ -84,10 +84,10 @@ const ComparativaChipImpl: React.FC<{ delta_pct: number | null; invertColor?: bo
     const isFlat = delta_pct === 0;
     const good = invertColor ? !isUp : isUp;
     const toneClass = isFlat
-        ? 'bg-white/60 text-muted-foreground'
+        ? 'bg-muted/60 text-muted-foreground'
         : good
-            ? 'bg-emerald-200/60 text-emerald-800'
-            : 'bg-red-200/60 text-red-800';
+            ? 'bg-emerald-200/60 text-emerald-800 dark:bg-emerald-500/20 dark:text-emerald-300'
+            : 'bg-red-200/60 text-red-800 dark:bg-red-500/20 dark:text-red-300';
     const arrow = isFlat ? '→' : isUp ? '↑' : '↓';
     return (
         <span
@@ -120,16 +120,16 @@ interface KpiCardProps {
 
 const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline, onClick, disabled, tooltip, historico, invertDelta }) => {
     const toneClasses: Record<KpiCardProps['tone'], string> = {
-        amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900',
-        red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900',
-        blue:   'bg-blue-50   border-blue-200   hover:border-blue-400   text-blue-900',
-        green:  'bg-emerald-50 border-emerald-200 hover:border-emerald-400 text-emerald-900',
+        amber:  'bg-amber-50  border-amber-200  hover:border-amber-400  text-amber-900 dark:bg-amber-950/40 dark:border-amber-900 dark:hover:border-amber-700 dark:text-amber-200',
+        red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900 dark:bg-red-950/40 dark:border-red-900 dark:hover:border-red-700 dark:text-red-200',
+        blue:   'bg-blue-50   border-blue-200   hover:border-blue-400   text-blue-900 dark:bg-blue-950/40 dark:border-blue-900 dark:hover:border-blue-700 dark:text-blue-200',
+        green:  'bg-emerald-50 border-emerald-200 hover:border-emerald-400 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:hover:border-emerald-700 dark:text-emerald-200',
     };
     const iconClasses: Record<KpiCardProps['tone'], string> = {
-        amber:  'bg-amber-200/60  text-amber-700',
-        red:    'bg-red-200/60    text-red-700',
-        blue:   'bg-blue-200/60   text-blue-700',
-        green:  'bg-emerald-200/60 text-emerald-700',
+        amber:  'bg-amber-200/60  text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
+        red:    'bg-red-200/60    text-red-700 dark:bg-red-500/20 dark:text-red-300',
+        blue:   'bg-blue-200/60   text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
+        green:  'bg-emerald-200/60 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
     };
 
     const Wrapper: any = onClick && !disabled ? 'button' : 'div';
@@ -209,7 +209,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
             onClick={onClick}
             title={tooltipLines.join('\n')}
             aria-label={`${obra.nombre}: ${fmtCLPFull(obra.valor_mensual)} mensual. Click para ver detalle.`}
-            className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-[#F5F5F7] transition-all text-left"
+            className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted transition-all text-left"
         >
             <span className="shrink-0 w-7 h-7 rounded-lg bg-brand-primary/10 text-brand-primary text-xs font-black flex items-center justify-center">
                 {pos}
@@ -221,7 +221,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                         {fmtCLP(obra.valor_mensual)}
                     </span>
                 </div>
-                <div className="mt-1.5 h-2 rounded-full bg-[#EDEDF2] overflow-hidden">
+                <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
                     <div
                         className="h-full bg-brand-primary rounded-full transition-all"
                         style={{ width: `${pct}%` }}
@@ -257,38 +257,38 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
     const isEstancada = alerta.tipo === 'pendiente' && !!alerta.estancada;
     const toneMap: Record<DashboardAlerta['tipo'], { bg: string; border: string; icon: React.ReactNode; iconBg: string; cta: string }> = {
         pendiente: {
-            bg: 'bg-amber-50/60',
-            border: 'border-amber-200',
+            bg: 'bg-amber-50/60 dark:bg-amber-950/30',
+            border: 'border-amber-200 dark:border-amber-900',
             icon: <FileClock className="h-4 w-4" />,
-            iconBg: 'bg-amber-200/70 text-amber-800',
+            iconBg: 'bg-amber-200/70 text-amber-800 dark:bg-amber-500/20 dark:text-amber-300',
             cta: 'Aprobar',
         },
         discrepancia: {
-            bg: 'bg-red-50/60',
-            border: 'border-red-200',
+            bg: 'bg-red-50/60 dark:bg-red-950/30',
+            border: 'border-red-200 dark:border-red-900',
             icon: <AlertTriangle className="h-4 w-4" />,
-            iconBg: 'bg-red-200/70 text-red-800',
+            iconBg: 'bg-red-200/70 text-red-800 dark:bg-red-500/20 dark:text-red-300',
             cta: 'Revisar',
         },
         transito: {
-            bg: 'bg-blue-50/60',
-            border: 'border-blue-200',
+            bg: 'bg-blue-50/60 dark:bg-blue-950/30',
+            border: 'border-blue-200 dark:border-blue-900',
             icon: <Truck className="h-4 w-4" />,
-            iconBg: 'bg-blue-200/70 text-blue-800',
+            iconBg: 'bg-blue-200/70 text-blue-800 dark:bg-blue-500/20 dark:text-blue-300',
             cta: 'Ver',
         },
         faltante: {
-            bg: 'bg-orange-50/60',
-            border: 'border-orange-200',
+            bg: 'bg-orange-50/60 dark:bg-orange-950/30',
+            border: 'border-orange-200 dark:border-orange-900',
             icon: <Package className="h-4 w-4" />,
-            iconBg: 'bg-orange-200/70 text-orange-800',
+            iconBg: 'bg-orange-200/70 text-orange-800 dark:bg-orange-500/20 dark:text-orange-300',
             cta: 'Decidir',
         },
         rechazo: {
-            bg: 'bg-red-50/60',
-            border: 'border-red-200',
+            bg: 'bg-red-50/60 dark:bg-red-950/30',
+            border: 'border-red-200 dark:border-red-900',
             icon: <XCircle className="h-4 w-4" />,
-            iconBg: 'bg-red-200/70 text-red-800',
+            iconBg: 'bg-red-200/70 text-red-800 dark:bg-red-500/20 dark:text-red-300',
             cta: 'Ver',
         },
     };
@@ -296,9 +296,9 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
 
     const diasLabel = alerta.dias === 0 ? 'hoy' : alerta.dias === 1 ? 'hace 1 día' : `hace ${alerta.dias} días`;
     // Las estancadas usan tono rojo para destacar que requieren decisión.
-    const bg = isEstancada ? 'bg-red-50/70' : t.bg;
-    const border = isEstancada ? 'border-red-300' : t.border;
-    const iconBg = isEstancada ? 'bg-red-200/80 text-red-800' : t.iconBg;
+    const bg = isEstancada ? 'bg-red-50/70 dark:bg-red-950/40' : t.bg;
+    const border = isEstancada ? 'border-red-300 dark:border-red-800' : t.border;
+    const iconBg = isEstancada ? 'bg-red-200/80 text-red-800 dark:bg-red-500/25 dark:text-red-300' : t.iconBg;
     const showActions = isEstancada && (onProrrogar || onCancelar);
 
     return (
@@ -332,7 +332,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                         </div>
                     )}
                 </div>
-                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold">
+                <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold">
                     {isEstancada ? 'Modificar' : t.cta}
                     <ChevronRight className="h-3.5 w-3.5" />
                 </span>
@@ -346,7 +346,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                             type="button"
                             onClick={onProrrogar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-white border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-card border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-950/40"
                         >
                             <Timer className="h-3 w-3" />
                             Extender 10 días
@@ -357,7 +357,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                             type="button"
                             onClick={onCancelar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-red-700 bg-white border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-red-700 bg-card border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950/40"
                         >
                             <XCircle className="h-3 w-3" />
                             Cancelar
@@ -385,9 +385,9 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
             type="button"
             onClick={onClick}
             aria-label={`${rechazo.codigo} rechazado ${diasLabel}. Click para ver.`}
-            className="flex items-start gap-3 w-full p-3.5 rounded-xl border-2 border-red-100 bg-red-50/40 transition-all text-left hover:border-red-300 hover:shadow-md active:scale-[0.995]"
+            className="flex items-start gap-3 w-full p-3.5 rounded-xl border-2 border-red-100 bg-red-50/40 transition-all text-left hover:border-red-300 hover:shadow-md active:scale-[0.995] dark:border-red-900 dark:bg-red-950/30 dark:hover:border-red-700"
         >
-            <div className="shrink-0 p-2 rounded-lg bg-red-200/70 text-red-800 mt-0.5">
+            <div className="shrink-0 p-2 rounded-lg bg-red-200/70 text-red-800 mt-0.5 dark:bg-red-500/20 dark:text-red-300">
                 <XCircle className="h-4 w-4" />
             </div>
             <div className="flex-1 min-w-0">
@@ -399,7 +399,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
                     {rechazo.origen} → {rechazo.destino}
                 </div>
                 {rechazo.observaciones_rechazo && (
-                    <div className="text-xs text-red-700 font-semibold mt-1 line-clamp-2">
+                    <div className="text-xs text-red-700 font-semibold mt-1 line-clamp-2 dark:text-red-300">
                         "{rechazo.observaciones_rechazo}"
                     </div>
                 )}
@@ -410,7 +410,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
                     </div>
                 )}
             </div>
-            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white/80 border border-current/10 text-xs font-bold text-red-700">
+            <span className="shrink-0 flex items-center gap-1 px-3 py-1.5 rounded-lg bg-card/80 border border-current/10 text-xs font-bold text-red-700 dark:text-red-300">
                 Ver
                 <ChevronRight className="h-3.5 w-3.5" />
             </span>
@@ -422,7 +422,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
 // Skeleton (mantiene layout para no saltar)
 // ────────────────────────────────────────────────────────
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
-    <div className={cn('animate-pulse bg-[#EDEDF2] rounded-xl', className)} />
+    <div className={cn('animate-pulse bg-muted rounded-xl', className)} />
 );
 
 // ────────────────────────────────────────────────────────
@@ -527,7 +527,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 'border focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
                                 obraFilter
                                     ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary'
-                                    : 'bg-[#F5F5F7] border-transparent hover:bg-[#EDEDF2] text-brand-dark'
+                                    : 'bg-muted border-transparent hover:bg-muted text-brand-dark'
                             )}
                             aria-label="Filtrar por obra"
                             title={obraFilter ? `Filtrado por: ${obraSeleccionada?.nombre || ''}` : 'Ver todas las obras'}
@@ -553,7 +553,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         type="button"
                         onClick={refetch}
                         disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-[#F5F5F7] hover:bg-[#EDEDF2] rounded-xl transition-colors disabled:opacity-50"
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-muted hover:bg-muted rounded-xl transition-colors disabled:opacity-50"
                         aria-label="Actualizar datos"
                     >
                         <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
@@ -563,7 +563,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             </div>
 
             {error && (
-                <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200 text-sm text-red-800 font-semibold">
+                <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200 text-sm text-red-800 font-semibold dark:bg-red-950/40 dark:border-red-900 dark:text-red-200">
                     {error}
                 </div>
             )}
@@ -669,7 +669,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 usuario no tiene permiso para ver valores monetarios. La
                 sección entera ranquea por $ — sin permiso $ no aporta. */}
             {!obraFilter && verValoresResumen && (
-            <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                 <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                         Obras por valor (arriendo mensual)
@@ -704,7 +704,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 Gate financiero: gateado por `inventario.resumen.ver_valores` porque
                 muestra montos $ totales por categoría y un total general $. */}
             {verValoresResumen && (loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
-                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-baseline justify-between mb-4">
                         <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                             Valor por categoría
@@ -759,7 +759,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                                         </span>
                                                     </div>
                                                 </div>
-                                                <div className="h-2.5 rounded-full bg-[#F0F0F5] overflow-hidden">
+                                                <div className="h-2.5 rounded-full bg-muted overflow-hidden">
                                                     <div
                                                         className="h-full rounded-full transition-all duration-300 group-hover:opacity-90"
                                                         style={{ width: `${widthPct}%`, backgroundColor: color }}
@@ -777,7 +777,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
 
             {/* Bombas de hormigón — mes actual */}
             {(loading || (data?.bombas_hormigon_mes?.eventos ?? 0) > 0) && (
-                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5 shrink-0">
+                <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-center gap-2 mb-3">
                         <Droplets className="h-4 w-4 text-cyan-600" />
                         <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
@@ -793,25 +793,25 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         // Sin permiso de ver costos de bombas: layout pasa a 2
                         // columnas (Bombeos + Obras), oculta "Costo ext.".
                         <div className={`grid gap-3 ${verCostosBombas ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Bombeos</span>
-                                <span className="text-2xl font-black text-cyan-900 mt-1">
+                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Bombeos</span>
+                                <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
                                     {data!.bombas_hormigon_mes.eventos}
                                 </span>
                             </div>
-                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Obras</span>
-                                <span className="text-2xl font-black text-cyan-900 mt-1">
+                            <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Obras</span>
+                                <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
                                     {data!.bombas_hormigon_mes.obras_distintas}
                                 </span>
                             </div>
                             {verCostosBombas && (
                                 <div
-                                    className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100"
+                                    className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900"
                                     title={`Costo externo total del mes: ${fmtCLPFull(data!.bombas_hormigon_mes.costo_externo ?? 0)}`}
                                 >
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80">Costo ext.</span>
-                                    <span className="text-2xl font-black text-cyan-900 mt-1">
+                                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Costo ext.</span>
+                                    <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
                                         {fmtCLP(data!.bombas_hormigon_mes.costo_externo ?? 0)}
                                     </span>
                                 </div>
@@ -822,7 +822,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* Requiere tu atención */}
-            <div className="bg-white border border-[#E8E8ED] rounded-2xl p-4 md:p-5">
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
                 <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Requiere tu atención
                 </h3>
@@ -832,8 +832,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     </div>
                 ) : !data?.alertas.length ? (
                     <div className="py-10 flex flex-col items-center text-center">
-                        <div className="p-3 rounded-full bg-emerald-100 mb-3">
-                            <CheckCircle2 className="h-8 w-8 text-emerald-600" />
+                        <div className="p-3 rounded-full bg-emerald-100 mb-3 dark:bg-emerald-500/20">
+                            <CheckCircle2 className="h-8 w-8 text-emerald-600 dark:text-emerald-300" />
                         </div>
                         <p className="text-sm font-bold text-brand-dark">Todo al día</p>
                         <p className="text-xs text-muted-foreground mt-1">

@@ -17,6 +17,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../ui/Logo';
+import { ThemeToggle } from '../ui/ThemeToggle';
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -111,8 +112,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                 ))}
             </nav>
 
-            {/* User Section */}
-            <div className="p-3 border-t border-[#E8E8ED]">
+            {/* Footer: tema + usuario */}
+            <div className="p-3 border-t border-border space-y-3">
+                {(isMobile || !isCollapsed) && (
+                    <div className="flex justify-center">
+                        <ThemeToggle />
+                    </div>
+                )}
                 <div className={cn(
                     "flex items-center rounded-xl bg-background transition-all whitespace-nowrap overflow-hidden h-[52px]",
                     (!isMobile && isCollapsed) ? "justify-center px-0 w-12 mx-auto" : "justify-start pl-[10px] pr-3 w-full gap-[6px]"
@@ -123,11 +129,11 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     {(isMobile || !isCollapsed) && (
                         <div className="flex-1 min-w-0 pr-1">
                             <p className="text-sm font-bold text-brand-dark truncate leading-tight">{user?.nombre}</p>
-                            <p className="text-[11px] font-medium text-[#86868B] truncate leading-tight tracking-wide">{user?.rol}</p>
+                            <p className="text-[11px] font-medium text-muted-foreground truncate leading-tight tracking-wide">{user?.rol}</p>
                         </div>
                     )}
                     {(isMobile || !isCollapsed) && (
-                        <button onClick={logout} className="p-1.5 hover:bg-[#E8E8ED] rounded-lg text-destructive transition-colors shrink-0">
+                        <button onClick={logout} className="p-1.5 hover:bg-muted rounded-lg text-destructive transition-colors shrink-0">
                             <LogOut className="h-4 w-4" />
                         </button>
                     )}
@@ -141,14 +147,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* Desktop Sidebar */}
             <motion.aside
                 animate={{ width: isCollapsed ? '72px' : '260px' }}
-                className="hidden md:flex h-screen sticky top-0 bg-white/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
+                className="hidden md:flex h-screen sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
             >
                 {sidebarContent(false)}
 
                 {/* Collapse Toggle */}
                 <button
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute right-[-14px] top-20 h-7 w-7 bg-white border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-dark hover:border-[#B0B0B5] transition-colors z-50 shadow-sm"
+                    className="absolute right-[-14px] top-20 h-7 w-7 bg-card border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-dark hover:border-[var(--border-hover)] transition-colors z-50 shadow-sm"
                 >
                     {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
                 </button>
@@ -173,7 +179,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             animate={{ x: 0 }}
                             exit={{ x: '-100%' }}
                             transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-                            className="md:hidden fixed inset-y-0 left-0 w-[280px] bg-white flex flex-col z-[100] shadow-2xl"
+                            className="md:hidden fixed inset-y-0 left-0 w-[280px] bg-card flex flex-col z-[100] shadow-2xl"
                         >
                             {sidebarContent(true)}
                         </motion.aside>

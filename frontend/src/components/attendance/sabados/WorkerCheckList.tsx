@@ -51,8 +51,8 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
             {grupos.map(({ cargo, workers: ws }) => {
                 const selectedInGroup = ws.filter(w => selected.has(w.id)).length;
                 return (
-                    <div key={cargo} className="border border-[#E8E8ED] rounded-xl overflow-hidden">
-                        <div className="bg-[#F5F5F7] px-3 py-2 flex items-center justify-between">
+                    <div key={cargo} className="border border-border rounded-xl overflow-hidden">
+                        <div className="bg-muted px-3 py-2 flex items-center justify-between">
                             <span className="text-[11px] font-black uppercase tracking-wider text-brand-dark">
                                 {cargo}
                             </span>
@@ -60,7 +60,7 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                                 {selectedInGroup} / {ws.length}
                             </span>
                         </div>
-                        <div className="divide-y divide-[#F0F0F5]">
+                        <div className="divide-y divide-border">
                             {ws.map(w => {
                                 const isSelected = selected.has(w.id);
                                 const isExterno = obraAnfitrionaId !== undefined &&
@@ -74,14 +74,14 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                                         onClick={() => onToggle(w.id)}
                                         className={cn(
                                             'w-full flex items-center gap-3 px-3 py-2 text-left transition-colors',
-                                            isSelected ? 'bg-brand-primary/5' : 'hover:bg-[#F9F9FB]'
+                                            isSelected ? 'bg-brand-primary/5' : 'hover:bg-muted'
                                         )}
                                     >
                                         <div className={cn(
                                             'h-5 w-5 rounded-md border-2 flex items-center justify-center shrink-0 transition-all',
                                             isSelected
                                                 ? 'bg-brand-primary border-brand-primary'
-                                                : 'bg-white border-[#D0D0D5]'
+                                                : 'bg-card border-border'
                                         )}>
                                             {isSelected && <Check className="h-3.5 w-3.5 text-white" strokeWidth={3} />}
                                         </div>
@@ -91,7 +91,7 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                                                     {w.apellido_paterno}{w.apellido_materno ? ` ${w.apellido_materno}` : ''} {w.nombres}
                                                 </span>
                                                 {isExterno && (
-                                                    <span className="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">
+                                                    <span className="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
                                                         Otra obra
                                                     </span>
                                                 )}

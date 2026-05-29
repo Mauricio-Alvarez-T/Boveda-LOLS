@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck } from 'lucide-react';
+import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../../utils/cn';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
@@ -288,9 +288,25 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
+                            {/* Search — arriba de los chips (consistente con el resto de modos) */}
+                            <div className="relative shrink-0 mb-2">
+                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <input
+                                    type="text"
+                                    value={discSearchQuery}
+                                    onChange={e => setDiscSearchQuery(e.target.value)}
+                                    placeholder="Buscar por código TRF..."
+                                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+                                />
+                                {discSearchQuery && (
+                                    <button onClick={() => setDiscSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
+                                        <X className="h-3 w-3 text-muted-foreground" />
+                                    </button>
+                                )}
+                            </div>
                             {/* Top row: status chips — mobile icon+label / desktop pills */}
                             {/* Mobile */}
-                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 mb-3 shadow-sm">
+                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                                 {MAIN_STATUS_CHIPS
                                     .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
                                     .map(chip => {
@@ -304,7 +320,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                             className={cn(
                                                 "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
                                                 isActive ? "text-white"
-                                                    : isDisc && pendientesCount > 0 ? "text-red-600"
+                                                    : isDisc && pendientesCount > 0 ? "text-red-600 dark:text-red-400"
                                                     : "text-muted-foreground"
                                             )}
                                         >
@@ -330,8 +346,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                     );
                                 })}
                             </div>
-                            {/* Desktop */}
-                            <div className="hidden md:flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+                            {/* Desktop: icon + short label stacked (mismo formato que mobile) */}
+                            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                                 {MAIN_STATUS_CHIPS
                                     .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
                                     .map(chip => {
@@ -342,27 +358,29 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                         <button
                                             key={chip.value}
                                             onClick={() => setStatusFilter(chip.value)}
+                                            title={chip.label}
                                             className={cn(
-                                                "flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
+                                                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-2 flex-1 min-w-0 transition-all",
                                                 isActive
                                                     ? isDisc
-                                                        ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                                        : "bg-brand-primary text-white border-brand-primary shadow-sm"
+                                                        ? "bg-red-500 text-white shadow-sm"
+                                                        : "bg-brand-primary text-white shadow-sm"
                                                     : isDisc && pendientesCount > 0
-                                                        ? "bg-red-50 text-red-700 border-red-200 hover:border-red-300"
-                                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
+                                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                                             )}
                                         >
-                                            <ChipIcon className="h-3 w-3" />
-                                            <span>{chip.label}</span>
-                                            {isDisc && pendientesCount > 0 && (
-                                                <span className={cn(
-                                                    "ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none",
-                                                    isActive ? "bg-white/25 text-white" : "bg-red-500 text-white"
-                                                )}>
-                                                    {pendientesCount}
-                                                </span>
-                                            )}
+                                            <div className="relative flex items-center">
+                                                <ChipIcon className="h-[18px] w-[18px]" />
+                                                {isDisc && pendientesCount > 0 && !isActive && (
+                                                    <span className="absolute -top-1.5 -right-2.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
+                                                        {pendientesCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
+                                                {chip.shortLabel}
+                                            </span>
                                         </button>
                                     );
                                 })}
@@ -377,6 +395,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                 onSubFilterChange={setDiscSubFilter}
                                 searchQuery={discSearchQuery}
                                 onSearchChange={setDiscSearchQuery}
+                                hideSearch
                             />
                         </>
                     ) : (

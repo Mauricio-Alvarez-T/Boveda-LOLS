@@ -139,7 +139,7 @@ const Dashboard: React.FC = () => {
         <div className="flex items-center gap-2 md:gap-3">
             {/* Date Display — hidden on mobile to save space */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-border pr-4 mr-1">
-                <Calendar className="h-4 w-4 text-[#86868B]" />
+                <Calendar className="h-4 w-4 text-muted-foreground" />
                 <span className="text-[13px] font-medium text-brand-dark capitalize">
                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </span>
@@ -148,7 +148,7 @@ const Dashboard: React.FC = () => {
             {/* Reset Button — hidden on mobile */}
             <button
                 onClick={resetLayout}
-                className="hidden md:flex px-4 py-1.5 rounded-full bg-white border border-border items-center gap-2 shadow-sm hover:bg-background hover:border-[#B0B0B5] transition-all text-xs font-semibold text-muted-foreground group"
+                className="hidden md:flex px-4 py-1.5 rounded-full bg-card border border-border items-center gap-2 shadow-sm hover:bg-background hover:border-[var(--border-hover)] transition-all text-xs font-semibold text-muted-foreground group"
                 title="Vuelve a poner todos los cuadros en su posición original"
             >
                 <LayoutGrid className="h-3.5 w-3.5 text-brand-primary group-hover:scale-110 transition-transform" />
@@ -158,7 +158,7 @@ const Dashboard: React.FC = () => {
             {/* Mobile: compact reset icon only */}
             <button
                 onClick={resetLayout}
-                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-white text-muted-foreground shadow-sm"
+                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-sm"
                 title="Restaurar Diseño"
             >
                 <LayoutGrid className="h-4 w-4 text-brand-primary" />
@@ -176,7 +176,7 @@ const Dashboard: React.FC = () => {
                         <div
                             key={idx}
                             onClick={() => navigate(alert.ruta)}
-                            className="p-3 bg-background rounded-xl flex items-start gap-3 hover:bg-[#E8E8ED] transition-colors cursor-pointer"
+                            className="p-3 bg-background rounded-xl flex items-start gap-3 hover:bg-muted transition-colors cursor-pointer"
                         >
                             <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' :
                                 alert.tipo === 'warning' ? 'text-warning' : 'text-brand-primary'

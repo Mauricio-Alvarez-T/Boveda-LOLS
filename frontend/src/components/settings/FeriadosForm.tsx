@@ -89,7 +89,7 @@ export const FeriadosForm: React.FC<Props> = ({
                     <div className="relative">
                         <select
                             {...register('tipo')}
-                            className="w-full px-3 py-2 bg-white border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-colors appearance-none"
+                            className="w-full px-3 py-2 bg-card border border-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary transition-colors appearance-none"
                         >
                             <option value="nacional">Nacional</option>
                             <option value="obra">Obra (Específico)</option>
@@ -109,7 +109,7 @@ export const FeriadosForm: React.FC<Props> = ({
                         <input
                             type="checkbox"
                             {...register('irrenunciable')}
-                            className="w-4 h-4 text-brand-primary bg-white border-border rounded focus:ring-brand-primary focus:ring-2"
+                            className="w-4 h-4 text-brand-primary bg-card border-border rounded focus:ring-brand-primary focus:ring-2"
                         />
                         <span className="text-sm text-brand-dark font-medium">Es Irrenunciable</span>
                     </label>

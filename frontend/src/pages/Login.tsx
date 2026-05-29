@@ -64,7 +64,7 @@ const LoginPage: React.FC = () => {
     }, []);
 
     return (
-        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-[#F8F9FA]"
+        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-muted"
             style={{
                 backgroundImage: `linear-gradient(to right, #E5E7EB 1px, transparent 1px), linear-gradient(to bottom, #E5E7EB 1px, transparent 1px)`,
                 backgroundSize: '40px 40px'
@@ -86,7 +86,7 @@ const LoginPage: React.FC = () => {
                 transition={{ duration: 0.6, ease: "easeOut" }}
                 className="relative z-10 w-full max-w-[440px] px-6"
             >
-                <div className="bg-white border border-gray-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden">
+                <div className="bg-card border border-gray-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden">
 
                     {/* Top Green Accent Bar */}
                     <div className="h-2 w-full bg-brand-primary" />
@@ -100,7 +100,7 @@ const LoginPage: React.FC = () => {
                                 <Logo variant="green" className="w-full h-auto" />
                             </motion.div>
                             <div className="h-px w-16 bg-brand-primary/20 mb-4" />
-                            <p className="text-[#64748B] text-xs text-center font-bold uppercase tracking-[0.2em]">
+                            <p className="text-muted-foreground text-xs text-center font-bold uppercase tracking-[0.2em]">
                                 Gestión Documental & Asistencia
                             </p>
                         </div>
@@ -114,9 +114,9 @@ const LoginPage: React.FC = () => {
                                         type="email"
                                         error={errors.email?.message}
                                         {...register('email')}
-                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
+                                        className="pl-11 bg-card border-gray-200 focus:bg-card focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
                                     />
-                                    <Mail className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-brand-primary transition-colors" />
+                                    <Mail className="absolute left-4 top-[38px] h-4 w-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors" />
                                 </div>
 
                                 <div className="relative group">
@@ -126,9 +126,9 @@ const LoginPage: React.FC = () => {
                                         type="password"
                                         error={errors.password?.message}
                                         {...register('password')}
-                                        className="pl-11 bg-white border-gray-200 focus:bg-white focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
+                                        className="pl-11 bg-card border-gray-200 focus:bg-card focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
                                     />
-                                    <Lock className="absolute left-4 top-[38px] h-4 w-4 text-[#94A3B8] group-focus-within:text-brand-primary transition-colors" />
+                                    <Lock className="absolute left-4 top-[38px] h-4 w-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors" />
                                 </div>
                             </div>
 
@@ -146,8 +146,8 @@ const LoginPage: React.FC = () => {
 
                         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
                             <div className="flex items-center justify-center gap-2">
-                                <Fingerprint className="h-3.5 w-3.5 text-[#94A3B8]" />
-                                <p className="text-[10px] text-[#64748B] font-bold tracking-widest uppercase">
+                                <Fingerprint className="h-3.5 w-3.5 text-muted-foreground" />
+                                <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
                                     Acceso Seguro Verificado
                                 </p>
                             </div>
@@ -158,7 +158,7 @@ const LoginPage: React.FC = () => {
 
             {/* Subtle bottom brand text */}
             <div className="absolute bottom-6 w-full text-center pointer-events-none">
-                <p className="text-[#94A3B8] text-[10px] font-medium tracking-widest uppercase opacity-70">
+                <p className="text-muted-foreground text-[10px] font-medium tracking-widest uppercase opacity-70">
                     LOLS Ingeniería © {new Date().getFullYear()}
                 </p>
             </div>

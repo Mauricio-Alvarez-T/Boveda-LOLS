@@ -46,12 +46,12 @@ export const PermissionsSearchBar: React.FC<Props> = ({
                 placeholder={placeholder}
                 autoFocus={autoFocus}
                 aria-label="Buscar permiso"
-                className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-border bg-white focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
             {local && (
                 <button
                     onClick={() => setLocal('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 text-muted-foreground"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 text-muted-foreground"
                     aria-label="Limpiar búsqueda"
                     type="button"
                 >

@@ -219,7 +219,7 @@ const PlantillasEmailPanel: React.FC = () => {
                             <textarea
                                 rows={6}
                                 placeholder="Escribe el cuerpo del correo..."
-                                className="w-full rounded-xl border border-border bg-white px-4 py-3 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
+                                className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-brand-dark placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
                                 value={form.cuerpo}
                                 onChange={(e) => setForm(f => ({ ...f, cuerpo: e.target.value }))}
                             />
@@ -247,7 +247,7 @@ const PlantillasEmailPanel: React.FC = () => {
                         <div
                             key={p.id}
                             className={cn(
-                                "bg-white rounded-2xl border p-5 transition-all",
+                                "bg-card rounded-2xl border p-5 transition-all",
                                 p.es_predeterminada ? "border-brand-primary/40 shadow-sm shadow-brand-primary/10" : "border-border"
                             )}
                         >
@@ -262,7 +262,7 @@ const PlantillasEmailPanel: React.FC = () => {
                                         )}
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-1 truncate">Asunto: {p.asunto}</p>
-                                    <p className="text-xs text-muted mt-1 line-clamp-2 whitespace-pre-line">{p.cuerpo}</p>
+                                    <p className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-line">{p.cuerpo}</p>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
                                     <button

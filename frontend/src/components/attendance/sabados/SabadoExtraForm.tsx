@@ -176,11 +176,11 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
 
     if (!selectedObra) {
         return (
-            <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex items-start gap-3">
-                <AlertCircle className="h-5 w-5 text-amber-600 shrink-0 mt-0.5" />
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-2xl p-6 flex items-start gap-3">
+                <AlertCircle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
                 <div>
-                    <h3 className="text-sm font-bold text-amber-900">Selecciona una obra</h3>
-                    <p className="text-xs text-amber-800 mt-1">
+                    <h3 className="text-sm font-bold text-amber-900 dark:text-amber-200">Selecciona una obra</h3>
+                    <p className="text-xs text-amber-800 dark:text-amber-300 mt-1">
                         Para crear una citación de trabajo extraordinario debes tener una obra seleccionada en el header.
                     </p>
                 </div>
@@ -201,17 +201,17 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                         value={fecha}
                         onChange={e => setFecha(e.target.value)}
                         className={cn(
-                            'w-full h-10 px-3 bg-white border rounded-xl text-sm font-medium focus:outline-none',
-                            fechaError ? 'border-red-400 focus:border-red-500' : 'border-[#D0D0D5] focus:border-brand-primary'
+                            'w-full h-10 px-3 bg-card border rounded-xl text-sm font-medium focus:outline-none',
+                            fechaError ? 'border-red-400 focus:border-red-500' : 'border-border focus:border-brand-primary'
                         )}
                     />
-                    {fechaError && <p className="text-[10px] text-red-600 font-semibold mt-1">{fechaError}</p>}
+                    {fechaError && <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold mt-1">{fechaError}</p>}
                 </div>
                 <div>
                     <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                         Obra anfitriona
                     </label>
-                    <div className="h-10 px-3 bg-[#F5F5F7] border border-[#E8E8ED] rounded-xl text-sm font-bold text-brand-dark flex items-center">
+                    <div className="h-10 px-3 bg-muted border border-border rounded-xl text-sm font-bold text-brand-dark flex items-center">
                         {selectedObra.nombre}
                     </div>
                 </div>
@@ -226,7 +226,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                         step="0.5"
                         value={horasDefault}
                         onChange={e => setHorasDefault(e.target.value)}
-                        className="w-full h-10 px-3 bg-white border border-[#D0D0D5] rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary"
+                        className="w-full h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary"
                     />
                 </div>
             </div>
@@ -245,13 +245,13 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     obraAnfitrionaId={selectedObra.id}
                 />
                 {externalWorkers.length > 0 && (
-                    <div className="mt-3 p-3 bg-amber-50/50 border border-amber-200 rounded-xl">
-                        <p className="text-[10px] font-bold uppercase text-amber-800 mb-2">Externos agregados</p>
+                    <div className="mt-3 p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 rounded-xl">
+                        <p className="text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300 mb-2">Externos agregados</p>
                         <div className="flex flex-wrap gap-1.5">
                             {externalWorkers.map(w => (
-                                <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-amber-300 rounded-lg text-[11px] font-semibold">
+                                <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-card border border-amber-300 dark:border-amber-900/60 rounded-lg text-[11px] font-semibold">
                                     {w.apellido_paterno} {w.nombres}
-                                    <button onClick={() => removeExternal(w.id)} className="ml-0.5 hover:text-red-600">
+                                    <button onClick={() => removeExternal(w.id)} className="ml-0.5 hover:text-red-600 dark:hover:text-red-400">
                                         <X className="h-3 w-3" />
                                     </button>
                                 </span>
@@ -262,7 +262,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 <button
                     type="button"
                     onClick={() => setShowAddOther(true)}
-                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 border-2 border-dashed border-[#D0D0D5] rounded-xl text-sm font-semibold text-muted-foreground hover:border-brand-primary hover:text-brand-primary transition-colors"
+                    className="mt-3 w-full flex items-center justify-center gap-2 py-2.5 px-4 border-2 border-dashed border-border rounded-xl text-sm font-semibold text-muted-foreground hover:border-brand-primary hover:text-brand-primary transition-colors"
                 >
                     <Plus className="h-4 w-4" />
                     Agregar trabajadores de otra obra
@@ -289,7 +289,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                                     placeholder={`Trabajos para ${c.nombre.toLowerCase()}...`}
                                     value={observacionesPorCargo[String(c.id)] || ''}
                                     onChange={e => setObservacionesPorCargo(prev => ({ ...prev, [String(c.id)]: e.target.value }))}
-                                    className="w-full h-9 px-3 bg-white border border-[#D0D0D5] rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary"
+                                    className="w-full h-9 px-3 bg-card border border-border rounded-lg text-sm font-medium focus:outline-none focus:border-brand-primary"
                                 />
                             </div>
                         ))}
@@ -307,12 +307,12 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     onChange={e => setObservacionesGlobales(e.target.value)}
                     rows={2}
                     placeholder="Comentario adicional que aparecerá al final del mensaje..."
-                    className="w-full px-3 py-2 bg-white border border-[#D0D0D5] rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary resize-none"
+                    className="w-full px-3 py-2 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary resize-none"
                 />
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#E8E8ED]">
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-border">
                 <Button variant="secondary" onClick={onCancel} disabled={saving}>
                     Cancelar
                 </Button>

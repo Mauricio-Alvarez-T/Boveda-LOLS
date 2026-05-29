@@ -207,7 +207,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 placeholder="Buscar obra, tipo, proveedor..."
-                                className="w-full pl-8 pr-8 py-2 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                                className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                             />
                             {searchQuery && (
                                 <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
@@ -220,7 +220,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             <select
                                 value={filterObraId}
                                 onChange={e => setFilterObraId(e.target.value ? Number(e.target.value) : '')}
-                                className="appearance-none pl-3 pr-8 py-2 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none cursor-pointer"
+                                className="appearance-none pl-3 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none cursor-pointer"
                             >
                                 <option value="">Todas las obras</option>
                                 {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
@@ -236,26 +236,26 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                         icon={Droplets}
                         label="Total Bombeos"
                         value={String(stats.total)}
-                        color="bg-blue-50 text-blue-600"
+                        color="bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
                     />
                     <StatCard
                         icon={Building2}
                         label="Empresa"
                         value={String(stats.propias)}
-                        color="bg-emerald-50 text-emerald-600"
+                        color="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
                     />
                     <StatCard
                         icon={Truck}
                         label="Arriendo Ext."
                         value={String(stats.externas)}
-                        color="bg-amber-50 text-amber-600"
+                        color="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
                     />
                     {verCostos && (
                         <StatCard
                             icon={DollarSign}
                             label="Costo Total"
                             value={stats.costoTotal > 0 ? fmtMoney(stats.costoTotal) : '—'}
-                            color="bg-violet-50 text-violet-600"
+                            color="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
                         />
                     )}
                 </div>
@@ -286,7 +286,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                                     <span className="text-[10px] text-muted-foreground/40">
                                         ({group.items.length})
                                     </span>
-                                    <div className="flex-1 border-t border-[#E8E8ED]/60" />
+                                    <div className="flex-1 border-t border-border/60" />
                                 </div>
 
                                 {/* Cards grid */}
@@ -317,7 +317,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             <select
                                 value={form.obra_id}
                                 onChange={e => setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' }))}
-                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 required
                             >
                                 <option value="">Seleccionar obra...</option>
@@ -330,7 +330,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                                 type="date"
                                 value={form.fecha}
                                 onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 required
                             />
                         </div>
@@ -344,7 +344,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             value={form.tipo_bomba}
                             onChange={e => setForm(f => ({ ...f, tipo_bomba: e.target.value }))}
                             placeholder="Ej: Pluma 32m, Estacionaria, Telescópica..."
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             required
                         />
                     </div>
@@ -360,7 +360,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                                     "flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all",
                                     !form.es_externa
                                         ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
-                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-emerald-300"
+                                        : "bg-card text-muted-foreground border-border hover:border-emerald-300"
                                 )}
                             >
                                 <Building2 className="h-3.5 w-3.5" />
@@ -373,7 +373,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                                     "flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all",
                                     form.es_externa
                                         ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-amber-300"
+                                        : "bg-card text-muted-foreground border-border hover:border-amber-300"
                                 )}
                             >
                                 <Truck className="h-3.5 w-3.5" />
@@ -392,7 +392,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             value={form.proveedor}
                             onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
                             placeholder="Nombre del proveedor / arrendador"
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
                     </div>
 
@@ -409,7 +409,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                                     value={form.costo}
                                     onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
                                     placeholder="0"
-                                    className="w-full pl-7 pr-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                    className="w-full pl-7 pr-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 />
                             </div>
                         </div>
@@ -424,7 +424,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             value={form.observaciones}
                             onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
                             placeholder="Opcional..."
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
                     </div>
 
@@ -448,7 +448,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
 
 /* ─── Stat card ─── */
 const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string; color: string }> = ({ icon: Icon, label, value, color }) => (
-    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-[#E8E8ED] bg-white">
+    <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border bg-card">
         <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", color)}>
             <Icon className="h-3.5 w-3.5" />
         </div>
@@ -472,8 +472,8 @@ const BombaCard: React.FC<{
         <div className={cn(
             "group flex flex-col px-3.5 py-3 rounded-xl border transition-colors",
             isExterna
-                ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300"
-                : "border-[#E8E8ED] bg-white hover:border-brand-primary/20"
+                ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/20 dark:hover:border-amber-700"
+                : "border-border bg-card hover:border-brand-primary/20"
         )}>
             {/* Top row: obra + badge + acciones */}
             <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -485,8 +485,8 @@ const BombaCard: React.FC<{
                     <span className={cn(
                         "text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap",
                         isExterna
-                            ? "bg-amber-100 text-amber-700 border-amber-200"
-                            : "bg-emerald-100 text-emerald-700 border-emerald-200"
+                            ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60"
+                            : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60"
                     )}>
                         {isExterna ? 'ARRIENDO' : 'EMPRESA'}
                     </span>
@@ -521,7 +521,7 @@ const BombaCard: React.FC<{
 
             {/* Bottom row: proveedor + costo */}
             {(r.proveedor || r.costo) && (
-                <div className="flex items-center justify-between gap-2 mt-0.5 pt-1.5 border-t border-[#E8E8ED]/50">
+                <div className="flex items-center justify-between gap-2 mt-0.5 pt-1.5 border-t border-border/50">
                     {r.proveedor && (
                         <span className="text-[10px] text-muted-foreground truncate">{r.proveedor}</span>
                     )}

@@ -13,6 +13,8 @@ interface Props {
     onSubFilterChange: (f: 'pendiente' | 'resuelta' | 'descartada') => void;
     searchQuery: string;
     onSearchChange: (q: string) => void;
+    /** Si `true`, no renderiza su propio buscador (lo provee el panel padre arriba). */
+    hideSearch?: boolean;
 }
 
 const SUB_CHIPS: { value: 'pendiente' | 'resuelta' | 'descartada'; label: string; color: string }[] = [
@@ -24,6 +26,7 @@ const SUB_CHIPS: { value: 'pendiente' | 'resuelta' | 'descartada'; label: string
 const DiscrepanciasList: React.FC<Props> = ({
     discrepancias, loading, selectedId, onSelect,
     subFilter, onSubFilterChange, searchQuery, onSearchChange,
+    hideSearch = false,
 }) => {
     const filtered = discrepancias.filter(d =>
         !searchQuery || d.codigo.toLowerCase().includes(searchQuery.toLowerCase())
@@ -31,22 +34,24 @@ const DiscrepanciasList: React.FC<Props> = ({
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Search */}
-            <div className="relative shrink-0 mb-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => onSearchChange(e.target.value)}
-                    placeholder="Buscar por código TRF..."
-                    className="w-full pl-8 pr-8 py-2 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
-                />
-                {searchQuery && (
-                    <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                        <X className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                )}
-            </div>
+            {/* Search (se oculta si el panel padre ya lo renderiza arriba) */}
+            {!hideSearch && (
+                <div className="relative shrink-0 mb-2">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => onSearchChange(e.target.value)}
+                        placeholder="Buscar por código TRF..."
+                        className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
+                            <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Sub-filter chips */}
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
@@ -58,7 +63,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
                             subFilter === chip.value
                                 ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-red-300"
+                                : "bg-card text-muted-foreground border-border hover:border-red-300 dark:hover:border-red-700"
                         )}
                     >
                         <span className={cn("h-1.5 w-1.5 rounded-full", chip.color)} />
@@ -108,14 +113,14 @@ const DiscrepanciasList: React.FC<Props> = ({
                                 className={cn(
                                     "px-3 py-2.5 rounded-xl border transition-all cursor-pointer",
                                     isSelected
-                                        ? "border-red-500 bg-red-50/60 shadow-sm"
-                                        : "border-[#E8E8ED] hover:border-red-300 hover:bg-red-50/30"
+                                        ? "border-red-500 bg-red-50/60 shadow-sm dark:bg-red-950/40"
+                                        : "border-border hover:border-red-300 hover:bg-red-50/30 dark:hover:border-red-700 dark:hover:bg-red-950/20"
                                 )}
                             >
                                 {/* Header: código + fecha */}
                                 <div className="flex items-center justify-between mb-1.5">
                                     <div className="flex items-center gap-1.5">
-                                        <div className="w-6 h-6 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                                        <div className="w-6 h-6 rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 flex items-center justify-center shrink-0">
                                             <AlertTriangle className="h-3 w-3" />
                                         </div>
                                         <span className="text-[11px] font-bold text-brand-dark">{d.codigo}</span>
@@ -142,15 +147,15 @@ const DiscrepanciasList: React.FC<Props> = ({
 
                                 {/* Métricas */}
                                 <div className="flex items-center gap-2">
-                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100">
-                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Ítems</p>
-                                        <p className="text-[11px] font-black text-red-700 leading-none">
+                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
+                                        <p className="text-[8px] text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Ítems</p>
+                                        <p className="text-[11px] font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_items_afectados}
                                         </p>
                                     </div>
-                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100">
-                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Diferencia</p>
-                                        <p className="text-[11px] font-black text-red-700 leading-none">
+                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
+                                        <p className="text-[8px] text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Diferencia</p>
+                                        <p className="text-[11px] font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_unidades_perdidas > 0 ? '-' : d.total_unidades_perdidas < 0 ? '+' : ''}
                                             {Math.abs(d.total_unidades_perdidas)} u.
                                         </p>

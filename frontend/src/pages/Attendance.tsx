@@ -79,7 +79,7 @@ const AttendancePage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-3">
             {/* Tab bar — solo si hay más de 1 tab visible */}
             {visibleTabs.length > 1 && (
-                <div className="flex items-center gap-0.5 md:gap-1 p-1 md:p-1.5 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 overflow-x-auto scrollbar-none">
+                <div className="flex items-center gap-0.5 md:gap-1 p-1 md:p-1.5 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
                         const isActive = effectiveTab === tab.key;

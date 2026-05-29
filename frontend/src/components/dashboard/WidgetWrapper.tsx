@@ -30,9 +30,9 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children }) => {
             ref={setNodeRef}
             style={style}
             className={cn(
-                "bg-white rounded-2xl border border-border p-5 relative group transition-shadow",
+                "bg-card rounded-2xl border border-border p-5 relative group transition-shadow",
                 isDragging && "shadow-xl ring-2 ring-brand-primary/20 z-50 opacity-90",
-                !isDragging && "hover:shadow-md hover:border-[#B0B0B5]"
+                !isDragging && "hover:shadow-md hover:border-[var(--border-hover)]"
             )}
         >
             {/* Drag Handle */}

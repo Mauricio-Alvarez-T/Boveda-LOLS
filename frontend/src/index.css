@@ -1,38 +1,157 @@
 @import "tailwindcss";
 
-@theme {
-  /* Apple-Inspired Color System */
-  --color-brand-primary: #029E4D;
-  --color-brand-secondary: #147CE5;
-  --color-brand-dark: #1D1D1F;
-  --color-brand-accent: #34C759;
+/* ──────────────────────────────────────────────────────────────────
+   Dark mode — Tailwind v4 custom variant
+   Activa utilidades `dark:` y permite que la clase .dark en <html>
+   reescriba los tokens de color de toda la app.
+   ────────────────────────────────────────────────────────────────── */
+@custom-variant dark (&:where(.dark, .dark *));
 
-  /* Semantic UI Colors */
-  --color-background: #F5F5F7;
-  --color-foreground: #1D1D1F;
-  --color-primary: #029E4D;
-  --color-primary-foreground: #FFFFFF;
-  --color-secondary: #F5F5F7;
-  --color-secondary-foreground: #1D1D1F;
-  --color-muted: #E8E8ED;
-  --color-muted-foreground: #5E5E62;
-  --color-accent: #F5F5F7;
-  --color-accent-foreground: #1D1D1F;
-  --color-destructive: #FF3B30;
-  --color-destructive-foreground: #FFFFFF;
-  --color-border: #D2D2D7;
-  --color-input: #D2D2D7;
-  --color-ring: #029E4D;
-  --color-card: #FFFFFF;
-  --color-card-foreground: #1D1D1F;
-  --color-popover: #FFFFFF;
-  --color-popover-foreground: #1D1D1F;
+/* ──────────────────────────────────────────────────────────────────
+   Design tokens
+   Los tokens que generan las utilidades (bg-card, text-foreground,
+   border-border, …) apuntan a variables CSS. Los valores crudos viven
+   en :root (claro) y .dark (oscuro), de modo que TODO lo que ya usa
+   tokens cambia de tema automáticamente, sin tocar JSX.
+   ────────────────────────────────────────────────────────────────── */
+@theme inline {
+  --color-brand-primary: var(--brand-primary);
+  --color-brand-secondary: var(--brand-secondary);
+  --color-brand-dark: var(--brand-dark);
+  --color-brand-accent: var(--brand-accent);
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+
+  /* Tokens de estado (centralizan colores antes hardcodeados) */
+  --color-success: var(--success);
+  --color-success-foreground: var(--success-foreground);
+  --color-warning: var(--warning);
+  --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
+}
+
+/* ── Modo claro (default) ─────────────────────────────────────────── */
+:root {
+  color-scheme: light;
+
+  --brand-primary: #029E4D;
+  --brand-secondary: #147CE5;
+  --brand-dark: #1D1D1F;
+  --brand-accent: #34C759;
+
+  --background: #F5F5F7;
+  --foreground: #1D1D1F;
+  --primary: #029E4D;
+  --primary-foreground: #FFFFFF;
+  --secondary: #F5F5F7;
+  --secondary-foreground: #1D1D1F;
+  --muted: #E8E8ED;
+  --muted-foreground: #5E5E62;
+  --accent: #F5F5F7;
+  --accent-foreground: #1D1D1F;
+  --destructive: #FF3B30;
+  --destructive-foreground: #FFFFFF;
+  --border: #D2D2D7;
+  --input: #D2D2D7;
+  --ring: #029E4D;
+  --card: #FFFFFF;
+  --card-foreground: #1D1D1F;
+  --popover: #FFFFFF;
+  --popover-foreground: #1D1D1F;
+
+  --success: #029E4D;
+  --success-foreground: #FFFFFF;
+  --warning: #FF9F0A;
+  --warning-foreground: #1D1D1F;
+  --info: #147CE5;
+  --info-foreground: #FFFFFF;
+
+  /* Superficies / efectos para clases custom */
+  --border-hover: #B0B0B5;
+  --glass-bg: rgba(255, 255, 255, 0.72);
+  --glass-border: rgba(0, 0, 0, 0.08);
+  --scrollbar-thumb: #C7C7CC;
+  --scrollbar-thumb-hover: #A1A1A6;
+  --selection-bg: rgba(0, 113, 227, 0.15);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.10);
+  --shadow-dense: 0 4px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Modo oscuro ──────────────────────────────────────────────────── */
+.dark {
+  color-scheme: dark;
+
+  /* El verde corporativo se mantiene: white-on-green conserva el mismo
+     contraste que en claro, y como texto sobre fondo oscuro da ~6:1 (AA). */
+  --brand-primary: #029E4D;
+  --brand-secondary: #0A84FF;
+  --brand-dark: #F5F5F7;       /* "brand-dark" = texto de titulares → se invierte a claro */
+  --brand-accent: #34C759;
+
+  --background: #000000;
+  --foreground: #F5F5F7;
+  --primary: #029E4D;
+  --primary-foreground: #FFFFFF;
+  --secondary: #1C1C1E;
+  --secondary-foreground: #F5F5F7;
+  --muted: #2C2C2E;
+  --muted-foreground: #98989D;
+  --accent: #1C1C1E;
+  --accent-foreground: #F5F5F7;
+  --destructive: #FF453A;
+  --destructive-foreground: #FFFFFF;
+  --border: #38383A;
+  --input: #38383A;
+  --ring: #34C759;
+  --card: #1C1C1E;
+  --card-foreground: #F5F5F7;
+  --popover: #1C1C1E;
+  --popover-foreground: #F5F5F7;
+
+  --success: #30D158;
+  --success-foreground: #06250F;
+  --warning: #FF9F0A;
+  --warning-foreground: #1D1D1F;
+  --info: #0A84FF;
+  --info-foreground: #FFFFFF;
+
+  --border-hover: #48484A;
+  --glass-bg: rgba(28, 28, 30, 0.72);
+  --glass-border: rgba(255, 255, 255, 0.10);
+  --scrollbar-thumb: #48484A;
+  --scrollbar-thumb-hover: #5E5E62;
+  --selection-bg: rgba(10, 132, 255, 0.30);
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.40), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.50), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shadow-dense: 0 8px 28px rgba(0, 0, 0, 0.60), 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 @layer base {
   body {
-    background-color: #F5F5F7;
-    color: #1D1D1F;
+    background-color: var(--background);
+    color: var(--foreground);
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -41,52 +160,52 @@
   }
 
   ::selection {
-    background-color: rgba(0, 113, 227, 0.15);
-    color: #029E4D;
+    background-color: var(--selection-bg);
+    color: var(--primary);
   }
 }
 
 /* Apple-Style Component Classes */
 .apple-card {
-  background-color: #FFFFFF;
+  background-color: var(--card);
   border-radius: 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--shadow-sm);
   transition: all 0.3s ease;
 }
 
 .apple-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+  box-shadow: var(--shadow-md);
 }
 
 .premium-gradient {
-  background: #029E4D;
+  background: var(--primary);
 }
 
 .premium-card {
-  background-color: #FFFFFF;
-  border: 1px solid #D2D2D7;
+  background-color: var(--card);
+  border: 1px solid var(--border);
   border-radius: 1.25rem;
   padding: 1.5rem;
   transition: all 0.3s ease;
 }
 
 .premium-card:hover {
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.08);
-  border-color: #B0B0B5;
+  box-shadow: var(--shadow-md);
+  border-color: var(--border-hover);
 }
 
-/* Glass morphism — now Apple frosted glass */
+/* Glass morphism — Apple frosted glass (adapta a tema) */
 .glass-morphism {
-  background-color: rgba(255, 255, 255, 0.72);
+  background-color: var(--glass-bg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(0, 0, 0, 0.08);
+  border: 1px solid var(--glass-border);
 }
 
 .glass-morphism-dense {
-  background-color: #FFFFFF;
-  border: 1px solid #D2D2D7;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+  background-color: var(--card);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-dense);
 }
 
 /* Custom scrollbar — subtle Apple style */
@@ -105,12 +224,12 @@
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb {
-  background: #C7C7CC;
+  background: var(--scrollbar-thumb);
   border-radius: 3px;
 }
 
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #A1A1A6;
+  background: var(--scrollbar-thumb-hover);
 }
 
 /* ──────────────────────────────────────────────────────────────────
@@ -120,6 +239,8 @@
    - Tipografía: system / SF Pro, peso 600 título / 500 descripción
    - Forma: radius 16px, padding generoso, sombra coloreada que "tiñe" la base
    - Glass: backdrop-filter blur + saturate, borde inner-highlight blanco translúcido
+   Nota: los toasts son superficies de color con texto blanco → legibles en
+   modo claro y oscuro por igual, por eso no dependen de los tokens de tema.
    ────────────────────────────────────────────────────────────────── */
 [data-sonner-toast][data-styled="true"] {
   font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text', 'Inter', 'Segoe UI', system-ui, sans-serif !important;

@@ -30,7 +30,7 @@ export const PermissionsSidebar: React.FC<Props> = ({ tree, activeSeccion, onSel
                             'group flex items-center justify-between gap-2 px-3 py-2.5 text-sm text-left transition-all border-l-4',
                             isActive
                                 ? 'border-primary bg-primary/5 text-primary font-semibold'
-                                : 'border-transparent text-gray-700 hover:bg-gray-50 hover:border-gray-300'
+                                : 'border-transparent text-gray-700 dark:text-muted-foreground hover:bg-gray-50 dark:hover:bg-white/5 hover:border-gray-300 dark:hover:border-border'
                         )}
                     >
                         <div className="flex items-center gap-2 min-w-0">
@@ -48,7 +48,7 @@ export const PermissionsSidebar: React.FC<Props> = ({ tree, activeSeccion, onSel
                                 'shrink-0 text-[11px] px-1.5 py-0.5 rounded font-mono',
                                 isActive
                                     ? 'bg-primary/10 text-primary'
-                                    : 'bg-gray-100 text-gray-600 group-hover:bg-gray-200'
+                                    : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-muted-foreground group-hover:bg-gray-200 dark:group-hover:bg-white/15'
                             )}
                         >
                             {sec.active}/{sec.total}

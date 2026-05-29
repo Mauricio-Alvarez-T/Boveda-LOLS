@@ -68,7 +68,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                         }}
                         className={cn(
                             "w-full border rounded-xl p-2.5 text-sm transition-all appearance-none outline-none cursor-pointer",
-                            "bg-white border-border hover:border-brand-primary/40 text-brand-dark",
+                            "bg-card border-border hover:border-brand-primary/40 text-brand-dark",
                             isFilterActive && "bg-brand-primary/[0.03] border-brand-primary shadow-[0_0_0_1px_rgba(var(--brand-primary-rgb),0.1)] ring-1 ring-brand-primary/20 text-brand-primary font-semibold",
                             className
                         )}
@@ -94,7 +94,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                         onClick={() => setIsOpen(!isOpen)}
                         className={cn(
                             "w-full border rounded-xl p-2.5 text-sm transition-all text-left flex items-center justify-between",
-                            "bg-white border-border hover:border-brand-primary/40",
+                            "bg-card border-border hover:border-brand-primary/40",
                             isFilterActive && "bg-brand-primary/[0.03] border-brand-primary shadow-[0_0_0_1px_rgba(var(--brand-primary-rgb),0.1)] ring-1 ring-brand-primary/20 text-brand-primary font-semibold",
                             isOpen && "ring-4 ring-brand-primary/10 border-brand-primary",
                             className
@@ -109,12 +109,12 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
                     </button>
 
                     {isOpen && (
-                        <div className="absolute z-40 w-full min-w-[200px] mt-1 bg-white/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
+                        <div className="absolute z-40 w-full min-w-[200px] mt-1 bg-card/95 backdrop-blur-md border border-border rounded-xl shadow-[0_12px_40px_rgb(0,0,0,0.15)] overflow-hidden">
                             <div className="p-2 border-b border-border relative bg-background/50">
                                 <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
                                 <input 
                                     type="text"
-                                    className="w-full bg-white border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
+                                    className="w-full bg-card border border-border rounded-lg py-1.5 pl-9 pr-3 text-sm focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all placeholder:text-muted-foreground/40"
                                     placeholder="Buscar..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
@@ -182,7 +182,7 @@ export const FilterToggle: React.FC<FilterToggleProps> = ({ label, checked, onCh
                     )}
                 >
                     <div className={cn(
-                        "absolute top-1 left-1 w-3 h-3 bg-white rounded-full transition-transform",
+                        "absolute top-1 left-1 w-3 h-3 bg-card rounded-full transition-transform",
                         checked ? "translate-x-5" : "translate-x-0"
                     )} />
                 </div>

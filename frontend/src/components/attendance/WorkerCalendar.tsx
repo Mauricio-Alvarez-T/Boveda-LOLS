@@ -7,6 +7,7 @@ import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado
 import { CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
+import { useTheme } from '../../context/ThemeContext';
 
 interface WorkerCalendarProps {
     worker: Trabajador;
@@ -36,8 +37,12 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const [holidays, setHolidays] = useState<Feriado[]>([]);
     const [selectionStart, setSelectionStart] = useState<string | null>(null);
     const [selectionEnd, setSelectionEnd] = useState<string | null>(null);
+    // Día bajo el cursor mientras se está eligiendo el rango (preview al arrastrar)
+    const [hoverDate, setHoverDate] = useState<string | null>(null);
     const [deletingPeriodId, setDeletingPeriodId] = useState<number | null>(null);
     const { hasPermission } = useAuth();
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
 
     useEffect(() => {
         if (!worker) return;
@@ -75,6 +80,13 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
     const monthNames = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
+    // Rango a resaltar: si aún no hay fin definido, se usa el día bajo el cursor
+    // (preview mientras el usuario mueve el mouse hacia el último día).
+    const previewEnd = selectionEnd || (selectionStart && hoverDate ? hoverDate : null);
+    let rangeLo = selectionStart;
+    let rangeHi = previewEnd;
+    if (rangeLo && rangeHi && rangeHi < rangeLo) { const t = rangeLo; rangeLo = rangeHi; rangeHi = t; }
+
     const navigateMonth = (offset: number) => {
         setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + offset, 1));
     };
@@ -111,15 +123,20 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
     const handleDateClick = (dateStr: string) => {
         if (readOnly) return;
         if (!selectionStart || (selectionStart && selectionEnd)) {
+            // Primer clic: inicia un nuevo rango
             setSelectionStart(dateStr);
             setSelectionEnd(null);
+            setHoverDate(null);
         } else {
-            if (dateStr < selectionStart) {
-                setSelectionEnd(selectionStart);
-                setSelectionStart(dateStr);
-            } else {
-                setSelectionEnd(dateStr);
-            }
+            // Segundo clic: cierra el rango (ordenándolo si se eligió hacia atrás)
+            let lo = selectionStart;
+            let hi = dateStr;
+            if (hi < lo) { const tmp = lo; lo = hi; hi = tmp; }
+            setSelectionStart(lo);
+            setSelectionEnd(hi);
+            setHoverDate(null);
+            // Rellena automáticamente las fechas del formulario con el rango elegido
+            if (onSelectRange) onSelectRange(lo, hi);
         }
     };
 
@@ -189,15 +206,15 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                     <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
                 </div>
             ) : (
-                <div className="grid grid-cols-7 gap-1 md:gap-1.5">
+                <div className="grid grid-cols-7 gap-1 md:gap-1.5" onMouseLeave={() => setHoverDate(null)}>
                     {['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'].map(day => (
-                        <div key={day} className="text-center text-[10px] font-bold text-[#86868B] uppercase tracking-widest mb-2">
+                        <div key={day} className="text-center text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                             {day}
                         </div>
                     ))}
 
                     {Array.from({ length: startingDay }).map((_, i) => (
-                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-background/30 rounded-xl border border-[#E8E8ED]/30" />
+                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-background/30 rounded-xl border border-border/30" />
                     ))}
 
                     {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -209,9 +226,9 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                         const isWeekend = (startingDay + i) % 7 >= 5;
                         const holiday = getHolidayForDay(day);
 
-                        const isSelected = (selectionStart && selectionEnd) && (dateStr >= selectionStart && dateStr <= selectionEnd);
-                        const isStart = selectionStart === dateStr;
-                        const isEnd = selectionEnd === dateStr;
+                        const isStart = rangeLo === dateStr;
+                        const isEnd = rangeHi === dateStr;
+                        const isSelected = !!(rangeLo && rangeHi && dateStr >= rangeLo && dateStr <= rangeHi) || isStart;
 
                         const fIngreso = worker.fecha_ingreso ? String(worker.fecha_ingreso).split('T')[0] : null;
                         const fDesvinc = worker.fecha_desvinculacion ? String(worker.fecha_desvinculacion).split('T')[0] : null;
@@ -234,9 +251,9 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
                         let buttonClass = "absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 transition-all group ";
                         if (isOutOfRange) {
-                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(0,0,0,0.03),rgba(0,0,0,0.03)_5px,transparent_5px,transparent_10px)] border-border";
+                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(128,128,128,0.08),rgba(128,128,128,0.08)_5px,transparent_5px,transparent_10px)] border-border";
                         } else if (!periodo && !isSelected) {
-                            buttonClass += "border-[#E8E8ED] hover:shadow-md hover:border-brand-primary/30";
+                            buttonClass += "border-border hover:shadow-md hover:border-brand-primary/30";
                         } else if (isSelected) {
                             buttonClass += "border-transparent bg-transparent border-brand-primary/40 ring-2 ring-brand-primary/20";
                         } else {
@@ -258,14 +275,21 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                 )}
                                 <button
                                     onClick={() => !isOutOfRange && handleDateClick(dateStr)}
+                                    onMouseEnter={() => { if (!isOutOfRange && selectionStart && !selectionEnd) setHoverDate(dateStr); }}
                                     disabled={isOutOfRange || readOnly}
                                     className={buttonClass}
-                                    style={!isOutOfRange && !periodo && !isSelected ? { 
-                                        backgroundColor: estado ? `${estado.color}05` : (holiday ? '#FF3B3010' : (isWeekend ? '#E8ECEF' : '#FFFFFF')) 
+                                    style={!isOutOfRange && !periodo && !isSelected ? {
+                                        backgroundColor: estado
+                                            ? (isDark ? `color-mix(in srgb, ${estado.color} 22%, #2E2E30)` : `${estado.color}05`)
+                                            : (holiday
+                                                ? (isDark ? 'color-mix(in srgb, #FF3B30 20%, #2E2E30)' : '#FF3B3010')
+                                                : (isWeekend
+                                                    ? (isDark ? '#242426' : 'var(--muted)')
+                                                    : (isDark ? '#2E2E30' : 'var(--card)')))
                                     } : undefined}
                                     title={buttonTitle}
                                 >
-                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-brand-dark' : 'text-[#86868B]'} mb-auto z-20`}>
+                                    <span className={`text-[10px] font-medium ${estado || periodo || holiday || isSelected ? 'text-brand-dark' : 'text-muted-foreground'} mb-auto z-20`}>
                                         {day}
                                     </span>
                                     {estado && (
@@ -294,7 +318,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                     className="mt-4 p-3 bg-background rounded-2xl flex items-center justify-between border border-border"
                 >
                     <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-black text-[#86868B] tracking-widest">Rango Seleccionado</span>
+                        <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Rango Seleccionado</span>
                         <span className="text-xs font-bold text-brand-dark">
                             {selectionStart.split('-').reverse().join('/')} 
                             {selectionEnd && selectionEnd !== selectionStart && ` — ${selectionEnd.split('-').reverse().join('/')}`}
@@ -318,7 +342,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             )}
 
             {showLegend && (
-                <div className="mt-6 pt-6 border-t border-[#F1F1F4]">
+                <div className="mt-6 pt-6 border-t border-border">
                     <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-4 block text-center md:text-left">Nomenclaturas y Estados</span>
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {estados.map(est => {
@@ -327,7 +351,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                             return (
                                 <div 
                                     key={est.id} 
-                                    className="flex flex-col gap-1 p-3 rounded-2xl bg-white border border-[#E8E8ED] shadow-sm hover:border-brand-primary/20 transition-all group"
+                                    className="flex flex-col gap-1 p-3 rounded-2xl bg-card border border-border shadow-sm hover:border-brand-primary/20 transition-all group"
                                 >
                                     <div className="flex items-center gap-2">
                                         <span className="w-2.5 h-2.5 rounded-full shadow-inner shrink-0" style={{ backgroundColor: est.color }} />
@@ -341,7 +365,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                 </div>
                             );
                         })}
-                        <div className="flex flex-col gap-1 p-3 rounded-2xl bg-white border border-[#E8E8ED] shadow-sm hover:border-brand-primary/20 transition-all">
+                        <div className="flex flex-col gap-1 p-3 rounded-2xl bg-card border border-border shadow-sm hover:border-brand-primary/20 transition-all">
                             <div className="flex items-center gap-2">
                                 <span className="w-2.5 h-2.5 rounded-full bg-destructive/20 border border-destructive/40 shadow-inner shrink-0" />
                                 <span className="text-[13px] font-bold text-brand-dark">Feriado</span>
@@ -369,7 +393,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="px-2 py-0.5 rounded-lg bg-white border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
+                                        <div className="px-2 py-0.5 rounded-lg bg-card border border-brand-primary/10 text-[10px] font-black text-brand-dark tracking-tight">
                                             ACTIVO
                                         </div>
                                         {!readOnly && hasPermission('asistencia.periodo.eliminar') && (
@@ -395,7 +419,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                             ) : (
                                                 <button
                                                     onClick={() => setDeletingPeriodId(p.id)}
-                                                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-[#86868B] hover:text-destructive transition-colors"
+                                                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
                                                     title="Eliminar período"
                                                 >
                                                     <Trash2 className="h-3.5 w-3.5" />
@@ -405,7 +429,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="flex items-center gap-2 text-[11px] font-semibold text-[#86868B]">
+                                <div className="flex items-center gap-2 text-[11px] font-semibold text-muted-foreground">
                                     <CalendarRange className="h-3 w-3" />
                                     <span>
                                         {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')}
@@ -415,7 +439,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                 </div>
 
                                 {p.observacion && (
-                                    <div className="mt-1 p-2 rounded-xl bg-white/50 border border-border/50 text-[11px] text-muted-foreground italic flex items-start gap-1.5">
+                                    <div className="mt-1 p-2 rounded-xl bg-card/60 border border-border/50 text-[11px] text-muted-foreground italic flex items-start gap-1.5">
                                         <span className="shrink-0 leading-none mt-0.5 text-xs">📝</span>
                                         <p className="leading-relaxed">{p.observacion}</p>
                                     </div>

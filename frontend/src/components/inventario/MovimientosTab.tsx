@@ -75,13 +75,13 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-3">
             {/* Barra de filtros */}
-            <div className="flex flex-wrap items-end gap-3 shrink-0 bg-white border border-[#E8E8ED] rounded-2xl p-3">
+            <div className="flex flex-wrap items-end gap-3 shrink-0 bg-card border border-border rounded-2xl p-3">
                 <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Tipo</label>
                     <select
                         value={tipo}
                         onChange={(e) => setTipo(e.target.value as TipoMovimiento | '')}
-                        className="h-9 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     >
                         <option value="">Todos</option>
                         {TIPOS.map(t => (
@@ -93,14 +93,14 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Desde</label>
                     <input
                         type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
-                        className="h-9 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     />
                 </div>
                 <div className="flex flex-col gap-1">
                     <label className="text-[10px] font-semibold text-muted-foreground uppercase">Hasta</label>
                     <input
                         type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
-                        className="h-9 bg-white border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     />
                 </div>
                 <button
@@ -112,7 +112,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
             </div>
 
             {/* Contenido */}
-            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar bg-white border border-[#E8E8ED] rounded-2xl">
+            <div className="flex-1 min-h-0 overflow-auto custom-scrollbar bg-card border border-border rounded-2xl">
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-16">
                         <Loader2 className="h-8 w-8 animate-spin text-brand-primary" />
@@ -131,7 +131,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                     </div>
                 ) : (
                     <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-[#F8F8FA] border-b border-[#E8E8ED] z-10">
+                        <thead className="sticky top-0 bg-muted border-b border-border z-10">
                             <tr className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
                                 <th className="text-left px-3 py-2.5">Fecha</th>
                                 <th className="text-left px-3 py-2.5">Tipo</th>
@@ -150,7 +150,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                                 const delta = Number(m.delta);
                                 const ubic = m.obra_nombre || m.bodega_nombre || '—';
                                 return (
-                                    <tr key={m.id} className="border-b border-[#F0F0F2] hover:bg-[#FAFBFC] transition-colors">
+                                    <tr key={m.id} className="border-b border-border hover:bg-muted transition-colors">
                                         <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{fmtFecha(m.created_at)}</td>
                                         <td className="px-3 py-2">
                                             <span className={cn('inline-block px-2 py-0.5 rounded-md text-[10px] font-bold border', meta.badge)}>
@@ -194,12 +194,12 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                         <button
                             disabled={page <= 1}
                             onClick={() => irPagina(page - 1)}
-                            className="px-3 py-1.5 rounded-lg border border-[#E8E8ED] font-bold disabled:opacity-40 hover:bg-[#F5F7FA] transition-all"
+                            className="px-3 py-1.5 rounded-lg border border-border font-bold disabled:opacity-40 hover:bg-muted transition-all"
                         >Anterior</button>
                         <button
                             disabled={page >= pagination.pages}
                             onClick={() => irPagina(page + 1)}
-                            className="px-3 py-1.5 rounded-lg border border-[#E8E8ED] font-bold disabled:opacity-40 hover:bg-[#F5F7FA] transition-all"
+                            className="px-3 py-1.5 rounded-lg border border-border font-bold disabled:opacity-40 hover:bg-muted transition-all"
                         >Siguiente</button>
                     </div>
                 </div>

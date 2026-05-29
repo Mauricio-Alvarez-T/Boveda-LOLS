@@ -497,10 +497,10 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Timeline Stepper (3 steps) ── */}
             <div className="shrink-0 mb-5">
                 {isTerminated ? (
-                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200" : "bg-gray-50 border-gray-200")}>
+                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-gray-50 border-gray-200 dark:bg-muted dark:border-border")}>
                         {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-gray-400" />}
                         <div>
-                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700" : "text-gray-600")}>
+                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-gray-600 dark:text-muted-foreground")}>
                                 {t.estado === 'rechazada' ? 'Transferencia Rechazada' : 'Transferencia Cancelada'}
                             </p>
                             {t.observaciones_rechazo && (
@@ -517,14 +517,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                             return (
                                 <React.Fragment key={step.key}>
                                     {idx > 0 && (
-                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-[#E8E8ED]")} />
+                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
                                     )}
                                     <div className="flex flex-col items-center gap-1.5">
                                         <div className={cn(
                                             "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
                                             completed
                                                 ? "bg-brand-primary border-brand-primary text-white"
-                                                : "bg-white border-[#E8E8ED] text-muted-foreground/40",
+                                                : "bg-card border-border text-muted-foreground/40",
                                             isCurrent && "ring-4 ring-brand-primary/20 scale-110"
                                         )}>
                                             <StepIcon className="h-4.5 w-4.5" />
@@ -550,10 +550,10 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <Package className="h-3.5 w-3.5" />
                         Items ({items.length})
                     </h4>
-                    <div className="border border-[#E8E8ED] rounded-xl overflow-hidden">
+                    <div className="border border-border rounded-xl overflow-hidden">
                         <table className="w-full text-[11px]">
                             <thead>
-                                <tr className="bg-[#F5F7FA]">
+                                <tr className="bg-muted">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Solicit.</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Enviada</th>
@@ -562,7 +562,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             </thead>
                             <tbody>
                                 {items.map((item, idx) => (
-                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                         <td className="px-3 py-1.5 font-medium text-brand-dark">
                                             <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
                                                 {item.item_descripcion || `Item #${item.item_id}`}
@@ -588,13 +588,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={() => setHistorialOpen(o => !o)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-purple-50/60 hover:bg-purple-50 border border-purple-200 rounded-xl transition-all"
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-purple-50/60 hover:bg-purple-50 border border-purple-200 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 dark:border-purple-900 rounded-xl transition-all"
                     >
-                        <h4 className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
                             <History className="h-3.5 w-3.5" />
                             Historial de recepciones ({recepciones.length})
                         </h4>
-                        {historialOpen ? <ChevronUp className="h-4 w-4 text-purple-700" /> : <ChevronDown className="h-4 w-4 text-purple-700" />}
+                        {historialOpen ? <ChevronUp className="h-4 w-4 text-purple-700 dark:text-purple-400" /> : <ChevronDown className="h-4 w-4 text-purple-700 dark:text-purple-400" />}
                     </button>
                     {historialOpen && (
                         <div className="mt-2 space-y-2">
@@ -604,8 +604,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     className={cn(
                                         "border rounded-xl p-3",
                                         rec.tipo === 'total'
-                                            ? "bg-green-50/40 border-green-200"
-                                            : "bg-purple-50/40 border-purple-200"
+                                            ? "bg-green-50/40 border-green-200 dark:bg-green-950/30 dark:border-green-900"
+                                            : "bg-purple-50/40 border-purple-200 dark:bg-purple-950/30 dark:border-purple-900"
                                     )}
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
@@ -615,8 +615,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 className={cn(
                                                     "text-[10px] font-bold px-2 py-0.5 rounded-full border",
                                                     rec.tipo === 'total'
-                                                        ? "bg-green-100 text-green-800 border-green-300"
-                                                        : "bg-purple-100 text-purple-800 border-purple-300"
+                                                        ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800"
+                                                        : "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800"
                                                 )}
                                             >
                                                 {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
@@ -651,22 +651,22 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
                 <div className="shrink-0 mb-5">
-                    <h4 className="text-xs font-bold text-amber-800 mb-2 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1.5">
                         <ShoppingBag className="h-3.5 w-3.5" />
                         Items personalizados — a comprar ({itemsCustom.length})
                     </h4>
-                    <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30">
+                    <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20">
                         <table className="w-full text-[11px]">
                             <thead>
-                                <tr className="bg-amber-50">
-                                    <th className="text-left px-3 py-2 font-bold text-amber-900">Descripción</th>
-                                    <th className="text-center px-2 py-2 font-bold text-amber-900 w-20">Cantidad</th>
-                                    <th className="text-left px-2 py-2 font-bold text-amber-900 w-24">Unidad</th>
+                                <tr className="bg-amber-50 dark:bg-amber-950/40">
+                                    <th className="text-left px-3 py-2 font-bold text-amber-900 dark:text-amber-300">Descripción</th>
+                                    <th className="text-center px-2 py-2 font-bold text-amber-900 dark:text-amber-300 w-20">Cantidad</th>
+                                    <th className="text-left px-2 py-2 font-bold text-amber-900 dark:text-amber-300 w-24">Unidad</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {itemsCustom.map((it, idx) => (
-                                    <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-amber-50/40")}>
+                                    <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-amber-50/40 dark:bg-amber-950/20")}>
                                         <td className="px-3 py-1.5 font-medium text-brand-dark">
                                             <div>{it.descripcion}</div>
                                             {it.observacion && (
@@ -686,18 +686,18 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Info ── */}
             <div className="shrink-0 mb-5 space-y-2">
                 {t.observaciones && (
-                    <div className="flex items-start gap-2 text-xs text-muted-foreground bg-[#F9F9FB] rounded-lg px-3 py-2">
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
                         <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                         <span>{t.observaciones}</span>
                     </div>
                 )}
                 {Boolean(t.requiere_pionetas) && (
-                    <div className="flex items-center gap-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2">
+                    <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/40 rounded-lg px-3 py-2">
                         <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
                         <span>Requiere {t.cantidad_pionetas || ''} pionetas</span>
                     </div>
                 )}
-                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-[#F9F9FB] rounded-lg px-3 py-2">
+                <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
                     <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <div className="space-y-0.5">
                         <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
@@ -709,11 +709,11 @@ const TransferenciaDetail: React.FC<Props> = ({
 
             {/* ── SoD Banner: explica por qué el botón de acción no aparece ── */}
             {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && !activeForm && (
-                <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2.5 text-sm">
-                    <Info className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
+                    <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
                     <div>
-                        <strong className="text-amber-900">SoD activo:</strong>
-                        <span className="text-amber-800">
+                        <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
+                        <span className="text-amber-800 dark:text-amber-300">
                             {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
                             {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
                             {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
@@ -754,7 +754,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                     {canCancelar && (
                         <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
-                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-xl hover:bg-[#E5E5EA] disabled:opacity-50 transition-all">
+                            className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-muted rounded-xl hover:bg-muted disabled:opacity-50 transition-all">
                             <Ban className="h-3.5 w-3.5" /> Cancelar
                         </button>
                     )}
@@ -779,10 +779,10 @@ const TransferenciaDetail: React.FC<Props> = ({
             {activeForm === 'aprobar' && items.length === 0 && (
                 // Branch simplificado: transferencia sin items de catálogo (ej.
                 // solicitud_materiales). No hay stock que asignar — sólo aprobar la compra.
-                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
+                <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-4">
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-700" />
-                        <h4 className="text-sm font-bold text-green-800">Aprobar Solicitud de Materiales</h4>
+                        <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
+                        <h4 className="text-sm font-bold text-green-800 dark:text-green-300">Aprobar Solicitud de Materiales</h4>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                         Esta solicitud contiene <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} a comprar. Al aprobar, el solicitante podrá continuar con el flujo de recepción una vez que el material llegue a obra.
@@ -1018,16 +1018,16 @@ const TransferenciaDetail: React.FC<Props> = ({
                 };
 
                 return (
-                <div className="shrink-0 border border-green-200 bg-green-50/30 rounded-xl p-4 mb-4 space-y-4">
+                <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                        <h4 className="text-sm font-bold text-green-800 flex items-center gap-1.5">
+                        <h4 className="text-sm font-bold text-green-800 dark:text-green-300 flex items-center gap-1.5">
                             <CheckCircle2 className="h-4 w-4" /> Aprobar Transferencia
                         </h4>
                         <button
                             type="button"
                             onClick={autoCompletar}
                             disabled={stockLoading}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-white border border-green-300 rounded-lg hover:bg-green-50 disabled:opacity-50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-card border border-green-300 rounded-lg hover:bg-green-50 dark:text-green-300 dark:border-green-800 dark:hover:bg-green-950/40 disabled:opacity-50 transition-all"
                             title="Completa las cantidades solicitadas distribuyendo entre las ubicaciones con más stock"
                         >
                             <Zap className="h-3 w-3" />
@@ -1068,12 +1068,12 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     !locations.some(l => l.cantidad >= solicitada);
 
                                 const borderColor = status.error
-                                    ? "bg-red-50/30 border-red-200"
+                                    ? "bg-red-50/30 border-red-200 dark:bg-red-950/20 dark:border-red-900"
                                     : status.completo
-                                        ? "bg-white border-green-200"
+                                        ? "bg-card border-green-200 dark:border-green-900"
                                         : status.parcial
-                                            ? "bg-amber-50/30 border-amber-200"
-                                            : "bg-white border-green-100";
+                                            ? "bg-amber-50/30 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900"
+                                            : "bg-card border-green-100 dark:border-green-900/50";
 
                                 const currentOriginIds = new Set(
                                     ai.splits.map(s => `${s.origen_obra_id || 'n'}:${s.origen_bodega_id || 'n'}`)
@@ -1089,7 +1089,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             <span className="text-[10px] font-semibold text-muted-foreground">
                                                 Solicitada: <span className="text-brand-dark">{solicitada}</span>
                                                 {totalSplits > 0 && (
-                                                    <> · Enviando: <span className={cn("font-bold", status.completo ? "text-green-700" : "text-amber-700")}>{totalSplits}</span></>
+                                                    <> · Enviando: <span className={cn("font-bold", status.completo ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300")}>{totalSplits}</span></>
                                                 )}
                                             </span>
                                         </div>
@@ -1113,11 +1113,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                 "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
                                                                 isActive
                                                                     ? isBodega
-                                                                        ? "bg-amber-100 border-amber-400 text-amber-800 font-bold ring-2 ring-amber-300/50"
-                                                                        : "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50"
+                                                                        ? "bg-amber-100 border-amber-400 text-amber-800 font-bold ring-2 ring-amber-300/50 dark:bg-amber-500/20 dark:border-amber-700 dark:text-amber-200 dark:ring-amber-700/40"
+                                                                        : "bg-green-100 border-green-400 text-green-800 font-bold ring-2 ring-green-300/50 dark:bg-green-500/20 dark:border-green-700 dark:text-green-200 dark:ring-green-700/40"
                                                                     : isBodega
-                                                                        ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100"
-                                                                        : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
+                                                                        ? "bg-amber-50 border-amber-200 text-amber-700 hover:bg-amber-100 dark:bg-amber-950/30 dark:border-amber-900 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                                                                        : "bg-green-50 border-green-200 text-green-700 hover:bg-green-100 dark:bg-green-950/30 dark:border-green-900 dark:text-green-300 dark:hover:bg-green-900/40"
                                                             )}
                                                             title={`${isBodega ? 'Bodega' : 'Obra'}: ${isBodega ? formatBodegaNombreResponsable(loc.nombre, loc.responsable_nombre) : loc.nombre} — ${disponible} disponibles`}
                                                         >
@@ -1132,7 +1132,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 })}
                                             </div>
                                         ) : (
-                                            <p className="text-[10px] text-red-600 mb-2 flex items-center gap-1">
+                                            <p className="text-[10px] text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
                                                 <AlertTriangle className="h-3 w-3" /> Sin stock disponible
                                             </p>
                                         )}
@@ -1152,8 +1152,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     return (
                                                         <div key={sIdx} className="flex items-center gap-2 text-[10px]">
                                                             {loc?.type === 'bodega'
-                                                                ? <Warehouse className="h-3 w-3 text-amber-600 shrink-0" />
-                                                                : <MapPin className="h-3 w-3 text-green-700 shrink-0" />
+                                                                ? <Warehouse className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                                : <MapPin className="h-3 w-3 text-green-700 dark:text-green-400 shrink-0" />
                                                             }
                                                             <span className="font-medium text-brand-dark truncate flex-1">
                                                                 {loc?.nombre || 'Ubicación inválida'}
@@ -1172,7 +1172,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                 }}
                                                                 className={cn(
                                                                     "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
-                                                                    splitErr && "border-red-400 text-red-700"
+                                                                    splitErr && "border-red-400 text-red-700 dark:border-red-700 dark:text-red-300"
                                                                 )}
                                                             />
                                                             <button
@@ -1181,7 +1181,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                     const newSplits = ai.splits.filter((_, i) => i !== sIdx);
                                                                     updateSplits(idx, newSplits);
                                                                 }}
-                                                                className="text-muted-foreground hover:text-red-600 p-1 transition"
+                                                                className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400 p-1 transition"
                                                                 title="Quitar esta ubicación"
                                                             >
                                                                 <Trash2 className="h-3 w-3" />
@@ -1212,7 +1212,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                 },
                                                             ]);
                                                         }}
-                                                        className="flex items-center gap-1 text-[10px] text-green-700 hover:text-green-800 font-medium"
+                                                        className="flex items-center gap-1 text-[10px] text-green-700 hover:text-green-800 dark:text-green-300 dark:hover:text-green-200 font-medium"
                                                     >
                                                         <Plus className="h-3 w-3" /> Agregar otra ubicación
                                                     </button>
@@ -1222,7 +1222,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                                         {/* Quick-fix chips (sólo si no hay splits aún) */}
                                         {(mostrarSoloLoQueHay || mostrarDividir) && (
-                                            <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-amber-200">
+                                            <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-amber-200 dark:border-amber-900">
                                                 <span className="text-[10px] text-muted-foreground w-full mb-0.5">💡 ¿Qué hacer?</span>
                                                 {mostrarSoloLoQueHay && (
                                                     <button
@@ -1246,7 +1246,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             }
                                                             updateSplits(idx, splits);
                                                         }}
-                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 font-medium hover:bg-amber-200 transition"
+                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 font-medium hover:bg-amber-200 dark:bg-amber-500/15 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-500/25 transition"
                                                     >
                                                         <Zap className="h-3 w-3" />
                                                         Enviar solo {sumAvailable} (lo que hay)
@@ -1256,7 +1256,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     <button
                                                         type="button"
                                                         onClick={autoCompletar}
-                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 font-medium hover:bg-blue-200 transition"
+                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 font-medium hover:bg-blue-200 dark:bg-blue-500/15 dark:border-blue-800 dark:text-blue-200 dark:hover:bg-blue-500/25 transition"
                                                     >
                                                         <Split className="h-3 w-3" />
                                                         Dividir entre {Math.min(locations.filter(l => l.cantidad > 0).length, 3)} lugares
@@ -1267,7 +1267,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                                         {/* Mensaje de error de split */}
                                         {status.error && (
-                                            <p className="mt-1 text-[9px] text-red-600 font-medium flex items-center gap-0.5">
+                                            <p className="mt-1 text-[9px] text-red-600 dark:text-red-400 font-medium flex items-center gap-0.5">
                                                 <AlertTriangle className="h-2.5 w-2.5" /> Revisa las cantidades: exceden el stock o lo solicitado.
                                             </p>
                                         )}
@@ -1279,8 +1279,8 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                     {/* Resumen + mega-botón --------------------------------------- */}
                     {!stockLoading && (totalParcial > 0 || totalVacio > 0) && (
-                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-200 flex-wrap">
-                            <div className="text-[11px] font-medium text-amber-900 flex items-center gap-1.5">
+                        <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900 flex-wrap">
+                            <div className="text-[11px] font-medium text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
                                 🎯 {totalCompleto} {totalCompleto === 1 ? 'ítem listo' : 'ítems listos'}
                                 {totalParcial > 0 && <> · {totalParcial} con stock parcial</>}
                                 {totalVacio > 0 && <> · {totalVacio} sin asignar</>}
@@ -1347,15 +1347,15 @@ const TransferenciaDetail: React.FC<Props> = ({
                 ── REJECT FORM ──
                ════════════════════════════════════ */}
             {activeForm === 'rechazar' && (
-                <div className="shrink-0 border border-red-200 bg-red-50/30 rounded-xl p-4 mb-4 space-y-3">
-                    <h4 className="text-sm font-bold text-red-800 flex items-center gap-1.5">
+                <div className="shrink-0 border border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/20 rounded-xl p-4 mb-4 space-y-3">
+                    <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
                         <XCircle className="h-4 w-4" /> Rechazar Transferencia
                     </h4>
                     <textarea
                         value={rejectMotivo}
                         onChange={e => setRejectMotivo(e.target.value)}
                         placeholder="Motivo del rechazo..."
-                        className="w-full px-3 py-2 text-xs border border-red-200 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 outline-none"
+                        className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
                         required
                     />
                     <div className="flex gap-2">
@@ -1381,8 +1381,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                 ── REJECT RECEPTION FORM ──
                ════════════════════════════════════ */}
             {activeForm === 'rechazar_recepcion' && (
-                <div className="shrink-0 border border-red-200 bg-red-50/30 rounded-xl p-4 mb-4 space-y-3">
-                    <h4 className="text-sm font-bold text-red-800 flex items-center gap-1.5">
+                <div className="shrink-0 border border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/20 rounded-xl p-4 mb-4 space-y-3">
+                    <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
                         <XCircle className="h-4 w-4" /> Rechazar Recepción
                     </h4>
                     <p className="text-[11px] text-muted-foreground">
@@ -1392,7 +1392,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         value={rejectMotivo}
                         onChange={e => setRejectMotivo(e.target.value)}
                         placeholder="Motivo del rechazo de recepción..."
-                        className="w-full px-3 py-2 text-xs border border-red-200 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 outline-none"
+                        className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
                         required
                     />
                     <div className="flex gap-2">
@@ -1426,10 +1426,10 @@ const TransferenciaDetail: React.FC<Props> = ({
             {activeForm === 'recibir' && items.length === 0 && (
                 // Branch simplificado: transferencia sin items de catálogo (solicitud_materiales).
                 // No hay stock que actualizar — sólo confirmar recepción del material comprado.
-                <div className="shrink-0 border border-blue-200 bg-blue-50/30 rounded-xl p-4 mb-4 space-y-4">
+                <div className="shrink-0 border border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 rounded-xl p-4 mb-4 space-y-4">
                     <div className="flex items-center gap-2">
-                        <PackageCheck className="h-4 w-4 text-blue-700" />
-                        <h4 className="text-sm font-bold text-blue-800">Confirmar Recepción de Materiales</h4>
+                        <PackageCheck className="h-4 w-4 text-blue-700 dark:text-blue-400" />
+                        <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Confirmar Recepción de Materiales</h4>
                     </div>
                     <p className="text-[11px] text-muted-foreground">
                         Confirma que recibiste los <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} solicitados. La transferencia quedará cerrada como recibida.
@@ -1539,7 +1539,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="overflow-x-auto">
                         <table className="w-full text-xs">
                             <thead>
-                                <tr className="bg-white/60 border-b border-[#E8E8ED]">
+                                <tr className="bg-muted/40 border-b border-border">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Ítem</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Enviada</th>
                                     <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Falta</th>
@@ -1578,7 +1578,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
                                     const incompleto = ri.cantidad_recibida < falta;
                                     return (
-                                        <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]")}>
+                                        <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                             <td className="px-3 py-1.5 text-brand-dark">
                                                 <button
                                                     type="button"
@@ -1592,7 +1592,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             <td className="text-center text-muted-foreground">{enviada}</td>
                                             <td className={cn(
                                                 "text-center font-bold",
-                                                falta === 0 ? "text-green-600" : "text-amber-700"
+                                                falta === 0 ? "text-green-600 dark:text-green-400" : "text-amber-700 dark:text-amber-300"
                                             )}>
                                                 {falta}
                                             </td>
@@ -1606,7 +1606,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             setReceiveItems(updated);
                                                         }}
                                                         disabled={ri.cantidad_recibida <= 0}
-                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                                         aria-label={`Restar 1 a ${item.item_descripcion}`}
                                                     >
                                                         <Minus className="h-3 w-3" />
@@ -1622,7 +1622,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                         }}
                                                         className={cn(
                                                             "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
-                                                            sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800" : "border-[#E8E8ED]"
+                                                            sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "border-border"
                                                         )}
                                                         aria-label={`Cantidad recibida de ${item.item_descripcion}`}
                                                     />
@@ -1633,14 +1633,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
                                                             setReceiveItems(updated);
                                                         }}
-                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-[#E8E8ED] bg-white text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                                        className="h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
                                                         aria-label={`Sumar 1 a ${item.item_descripcion}`}
                                                     >
                                                         <Plus className="h-3 w-3" />
                                                     </button>
                                                     {sobrante > 0 && (
                                                         <span
-                                                            className="ml-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 px-1.5 py-0.5 rounded-full"
+                                                            className="ml-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
                                                             title="Vino más de lo enviado — se registrará como sobrante al cerrar"
                                                         >
                                                             +{sobrante} sobrante
@@ -1664,7 +1664,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
 
                     {/* Sticky footer: checkbox + totales + botones */}
-                    <div className="border-t border-brand-primary/20 bg-white/60 px-4 py-3 space-y-3">
+                    <div className="border-t border-brand-primary/20 bg-muted/40 px-4 py-3 space-y-3">
                         {/* Checkbox "entrega final" — solo visible si hay faltantes */}
                         {hayFaltantes && (
                             <label className="flex items-start gap-2 cursor-pointer group">
@@ -1686,7 +1686,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                         {/* Banner amber resumen — solo si checkbox marcado */}
                         {cierreFinal && faltantesAlCerrar.length > 0 && (
-                            <div className="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-[11px] text-amber-900">
+                            <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200">
                                 <div className="font-bold mb-1 flex items-center gap-1.5">
                                     <AlertTriangle className="h-3.5 w-3.5" /> Se registrarán como merma:
                                 </div>
@@ -1706,7 +1706,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             <span>
                                 Total este viaje: <span className="font-bold text-brand-dark">{totalRecibidoEsteViaje}</span>
                                 {totalFaltaGlobal > 0 && (
-                                    <> · Pendiente global: <span className="font-bold text-amber-700">{totalFaltaGlobal}</span></>
+                                    <> · Pendiente global: <span className="font-bold text-amber-700 dark:text-amber-300">{totalFaltaGlobal}</span></>
                                 )}
                             </span>
                             <span>{items.length} ítem{items.length === 1 ? '' : 's'}</span>
@@ -1783,7 +1783,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     </li>
                                 ))}
                             </ul>
-                            <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                            <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2">
                                 Se registrarán como discrepancia/merma. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
                             </p>
                         </div>

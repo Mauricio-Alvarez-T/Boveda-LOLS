@@ -20,23 +20,23 @@ interface Props {
 }
 
 export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
-    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200', bgSolid: 'bg-amber-500', icon: Clock },
-    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
-    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200', bgSolid: 'bg-indigo-500', icon: Truck },
-    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200', bgSolid: 'bg-purple-500', icon: PackageOpen },
-    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200', bgSolid: 'bg-green-500', icon: PackageCheck },
-    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200', bgSolid: 'bg-red-500', icon: XCircle },
-    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200', bgSolid: 'bg-gray-400', icon: Ban },
+    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60', bgSolid: 'bg-amber-500', icon: Clock },
+    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
+    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60', bgSolid: 'bg-indigo-500', icon: Truck },
+    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60', bgSolid: 'bg-purple-500', icon: PackageOpen },
+    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', bgSolid: 'bg-green-500', icon: PackageCheck },
+    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60', bgSolid: 'bg-red-500', icon: XCircle },
+    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border', bgSolid: 'bg-gray-400', icon: Ban },
 };
 
 export const tipoFlujoConfig: Record<string, { label: string; color: string }> = {
-    solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-    solicitud_materiales: { label: 'Mat. construcción', color: 'bg-teal-100 text-teal-700 border-teal-200' },
-    push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-    orden_gerencia: { label: 'Orden gerencia', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-    devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-700/60' },
+    solicitud_materiales: { label: 'Mat. construcción', color: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-800/60' },
+    push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60' },
+    intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60' },
+    intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60' },
+    orden_gerencia: { label: 'Orden gerencia', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60' },
+    devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60' },
 };
 
 /** Color sólido del borde izquierdo por estado */
@@ -81,7 +81,7 @@ const TransferenciasList: React.FC<Props> = ({
                     value={searchQuery}
                     onChange={e => onSearchChange(e.target.value)}
                     placeholder="Buscar por código..."
-                    className="w-full pl-8 pr-8 py-2 text-xs border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                 />
                 {searchQuery && (
                     <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
@@ -91,7 +91,7 @@ const TransferenciasList: React.FC<Props> = ({
             </div>
 
             {/* Status filter — Mobile: icon + short label stacked */}
-            <div className="flex md:hidden items-center gap-0.5 p-1 bg-white/95 backdrop-blur-xl rounded-2xl border border-[#E8E8ED] shrink-0 mb-3 shadow-sm">
+            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
@@ -105,7 +105,7 @@ const TransferenciasList: React.FC<Props> = ({
                                 isActive
                                     ? "text-white"
                                     : isDiscrep && discrepanciasCount > 0
-                                        ? "text-red-600"
+                                        ? "text-red-600 dark:text-red-400"
                                         : "text-muted-foreground"
                             )}
                         >
@@ -135,8 +135,8 @@ const TransferenciasList: React.FC<Props> = ({
                 })}
             </div>
 
-            {/* Status filter — Desktop: pill chips */}
-            <div className="hidden md:flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
+            {/* Status filter — Desktop: icon + short label stacked (mismo formato que mobile) */}
+            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
@@ -145,27 +145,29 @@ const TransferenciasList: React.FC<Props> = ({
                         <button
                             key={chip.value}
                             onClick={() => onStatusFilterChange(chip.value)}
+                            title={chip.label}
                             className={cn(
-                                "flex items-center gap-1 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
+                                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-2 flex-1 min-w-0 transition-all",
                                 isActive
                                     ? isDiscrep
-                                        ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                        : "bg-brand-primary text-white border-brand-primary shadow-sm"
+                                        ? "bg-red-500 text-white shadow-sm"
+                                        : "bg-brand-primary text-white shadow-sm"
                                     : isDiscrep && discrepanciasCount > 0
-                                        ? "bg-red-50 text-red-700 border-red-200 hover:border-red-300"
-                                        : "bg-white text-muted-foreground border-[#E8E8ED] hover:border-brand-primary/30"
+                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
+                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                             )}
                         >
-                            <ChipIcon className="h-3 w-3" />
-                            <span>{chip.label}</span>
-                            {isDiscrep && discrepanciasCount > 0 && (
-                                <span className={cn(
-                                    "ml-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-black leading-none",
-                                    isActive ? "bg-white/25 text-white" : "bg-red-500 text-white"
-                                )}>
-                                    {discrepanciasCount}
-                                </span>
-                            )}
+                            <div className="relative flex items-center">
+                                <ChipIcon className="h-[18px] w-[18px]" />
+                                {isDiscrep && discrepanciasCount > 0 && !isActive && (
+                                    <span className="absolute -top-1.5 -right-2.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
+                                        {discrepanciasCount}
+                                    </span>
+                                )}
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
+                                {chip.shortLabel}
+                            </span>
                         </button>
                     );
                 })}
@@ -208,7 +210,7 @@ const TransferenciasList: React.FC<Props> = ({
                                     borderLeft,
                                     isSelected
                                         ? "bg-brand-primary/[0.06] shadow-sm ring-1 ring-brand-primary/20"
-                                        : "bg-white hover:bg-[#F8F9FC]"
+                                        : "bg-card hover:bg-muted"
                                 )}
                             >
                                 {/* Icono estado */}

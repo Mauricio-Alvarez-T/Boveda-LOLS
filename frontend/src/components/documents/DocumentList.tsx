@@ -120,10 +120,10 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
     return (
         <div className="space-y-4">
             {/* The table container */}
-            <div className="bg-white rounded-2xl border border-border overflow-hidden">
+            <div className="bg-card rounded-2xl border border-border overflow-hidden">
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
-                        <tbody className="divide-y divide-[#E8E8ED]">
+                        <tbody className="divide-y divide-border">
                             <AnimatePresence>
                                 {documents.map((doc, i) => (
                                     <motion.tr
@@ -159,7 +159,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="flex items-center justify-end gap-3">
-                                                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 bg-background px-2 py-1 rounded-md border border-[#E8E8ED]">
+                                                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 bg-background px-2 py-1 rounded-md border border-border">
                                                     <Calendar className="h-3 w-3" />
                                                     {new Date(doc.fecha_subida).toLocaleDateString()}
                                                 </span>
@@ -175,7 +175,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                         {isExpired(doc.fecha_vencimiento) ? 'Vencido' : 'Vigente'}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[10px] font-bold text-muted-foreground bg-background px-2 py-1 rounded-md border border-[#E8E8ED] uppercase tracking-wider">
+                                                    <span className="text-[10px] font-bold text-muted-foreground bg-background px-2 py-1 rounded-md border border-border uppercase tracking-wider">
                                                         Indefinido
                                                     </span>
                                                 )}

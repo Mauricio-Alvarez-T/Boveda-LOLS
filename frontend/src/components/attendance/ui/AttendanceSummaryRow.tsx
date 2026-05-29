@@ -2,7 +2,17 @@ import React from 'react';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
+import { useTheme } from '../../../context/ThemeContext';
 import type { EstadoAsistencia } from '../../../types/entities';
+
+// Estilo de los chips de estado. En claro el texto se oscurece sobre tinte pálido;
+// en oscuro el tinte se hace más opaco y el texto se aclara para mantener contraste.
+const chipStyle = (color: string, isActive: boolean, isDark: boolean): React.CSSProperties => ({
+    backgroundColor: `color-mix(in srgb, ${color}, transparent ${isActive ? (isDark ? '60%' : '80%') : (isDark ? '80%' : '90%')})`,
+    borderColor: `color-mix(in srgb, ${color}, transparent ${isActive ? (isDark ? '15%' : '30%') : (isDark ? '45%' : '60%')})`,
+    color: isDark ? `color-mix(in srgb, ${color}, white 32%)` : `color-mix(in srgb, ${color}, black 45%)`,
+    '--tw-ring-color': color,
+} as React.CSSProperties);
 
 interface AttendanceSummaryRowProps {
     date: string;
@@ -32,6 +42,9 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     searchQuery,
     setSearchQuery
 }) => {
+    const { resolvedTheme } = useTheme();
+    const isDark = resolvedTheme === 'dark';
+
     // Tope: máximo 30 días futuros para selección de fecha (regla operativa).
     // Pasado no se limita. El navegador deshabilita días posteriores en el calendario.
     const maxFecha = new Date(Date.now() + 30 * 86400000).toISOString().split('T')[0];
@@ -39,8 +52,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     return (
         <>
             {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
-            <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-white border-b border-[#E8E8ED] shrink-0">
-                <div className="flex items-center justify-between bg-white rounded-2xl p-1 border border-[#E8E8ED] shadow-sm">
+            <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-card border-b border-border shrink-0">
+                <div className="flex items-center justify-between bg-card rounded-2xl p-1 border border-border shadow-sm">
                     <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
@@ -70,13 +83,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             <div
                                 key={estado.id}
                                 onClick={() => onStatusFilter(isActive ? null : estado.id)}
-                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 shadow-md' : ''}`}
-                                style={{
-                                    backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '92%'})`,
-                                    borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '70%'})`,
-                                    color: `color-mix(in srgb, ${estado.color}, black 40%)`,
-                                    '--tw-ring-color': estado.color
-                                } as React.CSSProperties}
+                                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
+                                style={chipStyle(estado.color, isActive, isDark)}
                             >
                                 <span className="text-[9px] font-black opacity-60 uppercase">{estado.codigo}</span>
                                 <span className="text-[12px] font-black tabular-nums">{count}</span>
@@ -90,7 +98,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                 Izquierda (estática): icon + título + date picker + KPIs Total/Porcentaje.
                 Derecha (dinámica):   chips clickeables de estados.
                 Esto evita que la fecha cambie de posición según haya más o menos estados. */}
-            <div className="min-h-[48px] border-b border-[#F0F0F5] bg-white/50 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-h-[48px] border-b border-border bg-white/50 dark:bg-white/5 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3 shrink-0 flex-wrap">
                     <div className="flex items-center gap-3 shrink-0">
                         <div className="h-7 w-7 lg:h-8 lg:w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
@@ -102,7 +110,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                     {hasActiveContext && (
                         <>
                             {/* Date picker — siempre en posición fija junto al título */}
-                            <div className="flex items-center bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-xl p-0.5 shadow-sm shrink-0">
+                            <div className="flex items-center bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-xl p-0.5 shadow-sm shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
@@ -141,7 +149,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     placeholder="Buscar..."
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 backdrop-blur-sm border border-[#E8E8ED] rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
+                                    className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
                                 />
                                 {searchQuery && (
                                     <button
@@ -168,13 +176,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     initial={{ opacity: 0, scale: 0.9 }}
                                     animate={{ opacity: 1, scale: 1 }}
                                     onClick={() => onStatusFilter(isActive ? null : estado.id)}
-                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg lg:rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 shadow-md' : ''}`}
-                                    style={{
-                                        backgroundColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '80%' : '90%'})`,
-                                        borderColor: `color-mix(in srgb, ${estado.color}, transparent ${isActive ? '30%' : '60%'})`,
-                                        color: `color-mix(in srgb, ${estado.color}, black 45%)`,
-                                        '--tw-ring-color': estado.color
-                                    } as React.CSSProperties}
+                                    className={`flex items-center gap-1 px-2 py-1 rounded-lg lg:rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
+                                    style={chipStyle(estado.color, isActive, isDark)}
                                 >
                                     <span className="text-[9px] lg:text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
                                     <span className="text-[11px] lg:text-[13px] font-black tabular-nums">{count}</span>

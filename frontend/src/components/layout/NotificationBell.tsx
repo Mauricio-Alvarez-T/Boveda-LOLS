@@ -103,10 +103,10 @@ export const NotificationBell: React.FC = () => {
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         exit={{ opacity: 0, y: 8, scale: 0.95 }}
                         transition={{ duration: 0.15 }}
-                        className="absolute right-0 top-full mt-2 w-[340px] md:w-[380px] bg-white rounded-2xl shadow-2xl border border-[#E8E8ED] overflow-hidden z-50 origin-top-right"
+                        className="absolute right-0 top-full mt-2 w-[340px] md:w-[380px] bg-card rounded-2xl shadow-2xl border border-border overflow-hidden z-50 origin-top-right"
                     >
                         {/* Header */}
-                        <div className="px-4 py-3 border-b border-[#E8E8ED] flex items-center justify-between bg-gradient-to-r from-white to-background">
+                        <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-gradient-to-r from-white to-background">
                             <h3 className="font-bold text-brand-dark text-sm flex items-center gap-2">
                                 <Bell className="h-4 w-4 text-brand-primary" />
                                 Notificaciones
@@ -117,7 +117,7 @@ export const NotificationBell: React.FC = () => {
                                         {totalCount}
                                     </span>
                                 )}
-                                <button onClick={() => { setOpen(false); setExpanded10m(false); }} className="text-[#86868B] hover:text-brand-dark">
+                                <button onClick={() => { setOpen(false); setExpanded10m(false); }} className="text-muted-foreground hover:text-brand-dark">
                                     <X className="h-4 w-4" />
                                 </button>
                             </div>
@@ -126,13 +126,13 @@ export const NotificationBell: React.FC = () => {
                         {/* Body */}
                         <div className="max-h-[70vh] overflow-y-auto">
                             {alerts.length === 0 ? (
-                                <div className="p-6 text-center text-sm text-[#86868B]">
+                                <div className="p-6 text-center text-sm text-muted-foreground">
                                     No hay notificaciones pendientes 🎉
                                 </div>
                             ) : (
                                 <div className="divide-y divide-background">
                                     {alerts.map((alert, i) => (
-                                        <div key={i} className="px-4 py-3 hover:bg-[#FAFAFA] transition-colors">
+                                        <div key={i} className="px-4 py-3 hover:bg-muted transition-colors">
                                             {/* Alert header row */}
                                             <div className="flex items-start gap-3">
                                                 <div
@@ -180,7 +180,7 @@ export const NotificationBell: React.FC = () => {
                                                         transition={{ duration: 0.2 }}
                                                         className="overflow-hidden"
                                                     >
-                                                        <div className="mt-2 ml-11 rounded-xl border border-[#E8E8ED] overflow-hidden">
+                                                        <div className="mt-2 ml-11 rounded-xl border border-border overflow-hidden">
                                                             <table className="w-full text-[10px]">
                                                                 <thead>
                                                                     <tr className="bg-background text-muted-foreground">
@@ -192,7 +192,7 @@ export const NotificationBell: React.FC = () => {
                                                                 </thead>
                                                                 <tbody className="divide-y divide-background">
                                                                     {alert.detalle10meses.map((w) => (
-                                                                        <tr key={w.id} className="hover:bg-[#FAFAFA]">
+                                                                        <tr key={w.id} className="hover:bg-muted">
                                                                             <td className="px-2 py-1.5 text-brand-dark font-medium truncate max-w-[100px]">{w.nombre}</td>
                                                                             <td className="px-2 py-1.5 text-muted-foreground whitespace-nowrap">{w.rut}</td>
                                                                             <td className="px-2 py-1.5 text-muted-foreground truncate max-w-[80px]">{w.empresa}</td>

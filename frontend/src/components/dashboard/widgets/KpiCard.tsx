@@ -43,7 +43,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.08 }}
             onClick={onClick}
-            className="bg-white rounded-2xl border border-border p-5 relative overflow-hidden group hover:shadow-md hover:border-[#B0B0B5] transition-all cursor-pointer h-[150px] flex flex-col justify-between"
+            className="bg-card rounded-2xl border border-border p-5 relative overflow-hidden group hover:shadow-md hover:border-[var(--border-hover)] transition-all cursor-pointer h-[150px] flex flex-col justify-between"
         >
             <div className="flex items-center gap-4 relative z-10">
                 <div className={cn("p-3 rounded-2xl", bg, color)}>

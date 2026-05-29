@@ -45,17 +45,17 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => navigateMonth(-1)}
-                        className="h-9 w-9 rounded-xl bg-white border border-[#E8E8ED] flex items-center justify-center hover:bg-[#F5F5F7]"
+                        className="h-9 w-9 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-muted"
                     >
                         <ChevronLeft className="h-4 w-4" />
                     </button>
-                    <div className="px-4 h-9 bg-white border border-[#E8E8ED] rounded-xl flex items-center gap-2 text-sm font-bold text-brand-dark min-w-[180px] justify-center">
+                    <div className="px-4 h-9 bg-card border border-border rounded-xl flex items-center gap-2 text-sm font-bold text-brand-dark min-w-[180px] justify-center">
                         <Calendar className="h-4 w-4 text-brand-primary" />
                         {MESES_ES[month - 1]} {year}
                     </div>
                     <button
                         onClick={() => navigateMonth(1)}
-                        className="h-9 w-9 rounded-xl bg-white border border-[#E8E8ED] flex items-center justify-center hover:bg-[#F5F5F7]"
+                        className="h-9 w-9 rounded-xl bg-card border border-border flex items-center justify-center hover:bg-muted"
                     >
                         <ChevronRight className="h-4 w-4" />
                     </button>
@@ -69,7 +69,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
             </div>
 
             {!selectedObra && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-xs text-amber-800">
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300">
                     Mostrando todas las obras del mes. Para crear una nueva citación selecciona una obra en el header.
                 </div>
             )}
@@ -77,7 +77,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
             {loading ? (
                 <div className="py-12 text-center text-sm text-muted-foreground">Cargando...</div>
             ) : list.length === 0 ? (
-                <div className="bg-white border border-[#E8E8ED] rounded-2xl p-12 text-center">
+                <div className="bg-card border border-border rounded-2xl p-12 text-center">
                     <Calendar className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
                     <p className="text-sm font-bold text-brand-dark">No hay citaciones este mes</p>
                     <p className="text-xs text-muted-foreground mt-1">
@@ -94,7 +94,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                             <button
                                 key={s.id}
                                 onClick={() => onSelect(s.id)}
-                                className="text-left bg-white border border-[#E8E8ED] rounded-2xl p-4 hover:border-brand-primary/40 hover:shadow-md transition-all flex flex-wrap items-center gap-4"
+                                className="text-left bg-card border border-border rounded-2xl p-4 hover:border-brand-primary/40 hover:shadow-md transition-all flex flex-wrap items-center gap-4"
                             >
                                 <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-brand-primary/10 text-brand-primary shrink-0">
                                     <span className="text-[9px] font-bold uppercase">SÁB</span>
@@ -107,8 +107,8 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                                         </span>
                                         <span className={cn(
                                             'inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase border',
-                                            s.estado === 'citada' && 'bg-amber-50 border-amber-200 text-amber-800',
-                                            s.estado === 'realizada' && 'bg-emerald-50 border-emerald-200 text-emerald-800',
+                                            s.estado === 'citada' && 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300',
+                                            s.estado === 'realizada' && 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300',
                                             s.estado === 'cancelada' && 'bg-gray-50 border-gray-200 text-gray-600',
                                         )}>
                                             {s.estado === 'citada' && <Clock className="h-2.5 w-2.5" />}
@@ -131,7 +131,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                                     </div>
                                     {s.estado !== 'citada' && (
                                         <div className="text-center">
-                                            <div className="text-xs font-bold text-emerald-700">
+                                            <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
                                                 {s.total_asistio}
                                             </div>
                                             <div className="text-[9px] text-muted-foreground uppercase font-bold">Asistió</div>

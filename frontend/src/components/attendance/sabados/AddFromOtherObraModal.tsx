@@ -78,7 +78,7 @@ const AddFromOtherObraModal: React.FC<Props> = ({
     };
 
     const footer = (
-        <div className="flex justify-end gap-2 p-4 border-t border-[#E8E8ED] bg-white">
+        <div className="flex justify-end gap-2 p-4 border-t border-border bg-card">
             <Button variant="secondary" onClick={onClose}>Cancelar</Button>
             <Button
                 variant="primary"
@@ -106,7 +106,7 @@ const AddFromOtherObraModal: React.FC<Props> = ({
                     <select
                         value={selectedObraId ?? ''}
                         onChange={e => setSelectedObraId(e.target.value ? Number(e.target.value) : null)}
-                        className="w-full h-10 px-3 bg-white border border-[#D0D0D5] rounded-xl text-sm font-medium text-brand-dark focus:outline-none focus:border-brand-primary"
+                        className="w-full h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium text-brand-dark focus:outline-none focus:border-brand-primary"
                     >
                         <option value="">— Seleccionar obra —</option>
                         {obrasDisponibles.map(o => (

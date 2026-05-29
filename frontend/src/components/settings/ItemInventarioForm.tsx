@@ -194,7 +194,7 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                             <img
                                 src={imagePreview}
                                 alt="Preview"
-                                className="w-24 h-24 object-cover rounded-xl border border-[#E8E8ED]"
+                                className="w-24 h-24 object-cover rounded-xl border border-border"
                             />
                             <button
                                 type="button"
@@ -207,7 +207,7 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                     ) : (
                         <div
                             onClick={() => fileInputRef.current?.click()}
-                            className="w-24 h-24 border-2 border-dashed border-[#E8E8ED] rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all"
+                            className="w-24 h-24 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all"
                         >
                             <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
                             <span className="text-[9px] text-muted-foreground/60 font-medium">Subir foto</span>
@@ -224,7 +224,7 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                         <button
                             type="button"
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-[#E8E8ED] rounded-xl hover:bg-muted/50 transition-all w-fit"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border rounded-xl hover:bg-muted/50 transition-all w-fit"
                         >
                             <Upload className="h-3.5 w-3.5" />
                             {imagePreview ? 'Cambiar imagen' : 'Seleccionar imagen'}

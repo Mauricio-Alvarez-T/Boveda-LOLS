@@ -263,7 +263,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             ) : (
                 <div className="space-y-2">
                     {facturas.map(f => (
-                        <div key={f.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-[#E8E8ED] hover:border-brand-primary/20 transition-colors">
+                        <div key={f.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-brand-primary/20 transition-colors">
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <span className="text-xs font-bold text-brand-dark">#{f.numero_factura}</span>
@@ -300,7 +300,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 value={numFactura}
                                 onChange={e => setNumFactura(e.target.value)}
                                 placeholder="Ej: 001234"
-                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 required
                             />
                         </div>
@@ -311,7 +311,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 value={proveedor}
                                 onChange={e => setProveedor(e.target.value)}
                                 placeholder="Nombre del proveedor"
-                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 required
                             />
                         </div>
@@ -324,7 +324,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             type="date"
                             value={fechaFactura}
                             onChange={e => setFechaFactura(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             required
                         />
                     </div>
@@ -334,7 +334,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                         <label className="text-xs font-bold text-brand-dark mb-2 block">Items de la factura</label>
                         <div className="space-y-2">
                             {items.map((item, idx) => (
-                                <div key={idx} className="bg-[#F9F9FB] rounded-xl border border-[#E8E8ED] p-3 space-y-3">
+                                <div key={idx} className="bg-muted rounded-xl border border-border p-3 space-y-3">
                                     {/* Item selector + crear nuevo */}
                                     <div className="flex items-center gap-2">
                                         <div className="flex-1 min-w-0">
@@ -378,17 +378,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[10px] text-muted-foreground font-medium">Cant:</span>
                                                 <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, item.cantidad - 1) })}
-                                                    className="w-7 h-7 rounded-lg bg-white border border-[#E8E8ED] flex items-center justify-center hover:bg-muted transition-colors">
+                                                    className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Minus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
                                                 <input
                                                     type="number" min={1}
                                                     value={item.cantidad}
                                                     onChange={e => updateItem(idx, { cantidad: Math.max(1, parseInt(e.target.value) || 1) })}
-                                                    className="w-14 px-2 py-1 text-xs border border-[#E8E8ED] rounded-lg text-center font-bold"
+                                                    className="w-14 px-2 py-1 text-xs border border-border rounded-lg text-center font-bold"
                                                 />
                                                 <button type="button" onClick={() => updateItem(idx, { cantidad: item.cantidad + 1 })}
-                                                    className="w-7 h-7 rounded-lg bg-white border border-[#E8E8ED] flex items-center justify-center hover:bg-muted transition-colors">
+                                                    className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Plus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
                                                 {item.unidad && <span className="text-[10px] text-muted-foreground">{item.unidad}</span>}
@@ -403,7 +403,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                                         type="number" min={0} step="any"
                                                         value={item.precio_unitario}
                                                         onChange={e => updateItem(idx, { precio_unitario: parseFloat(e.target.value) || 0 })}
-                                                        className="w-24 pl-5 pr-2 py-1 text-xs border border-[#E8E8ED] rounded-lg text-right font-bold"
+                                                        className="w-24 pl-5 pr-2 py-1 text-xs border border-border rounded-lg text-right font-bold"
                                                     />
                                                 </div>
                                             </div>
@@ -425,7 +425,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             ))}
 
                             <button type="button" onClick={addItem}
-                                className="w-full border-2 border-dashed border-[#E8E8ED] rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors">
+                                className="w-full border-2 border-dashed border-border rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors">
                                 <Plus className="h-4 w-4 inline-block mr-1 -mt-0.5" />
                                 Agregar item
                             </button>
@@ -434,7 +434,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
                     {/* Monto total */}
                     {items.length > 0 && (
-                        <div className="flex items-center justify-between bg-[#F5F7FA] rounded-xl px-4 py-3 border border-[#E8E8ED]">
+                        <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3 border border-border">
                             <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
                                 <Receipt className="h-3.5 w-3.5 text-brand-primary" />
                                 Total Neto
@@ -449,7 +449,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                         <textarea
                             value={observaciones}
                             onChange={e => setObservaciones(e.target.value)}
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             placeholder="Opcional..."
                         />
                     </div>
@@ -482,7 +482,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                         <select
                             value={newItem.categoria_id}
                             onChange={e => setNewItem(n => ({ ...n, categoria_id: e.target.value ? Number(e.target.value) : '' }))}
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             required
                         >
                             <option value="">Seleccionar categoría...</option>
@@ -498,7 +498,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             value={newItem.descripcion}
                             onChange={e => setNewItem(n => ({ ...n, descripcion: e.target.value }))}
                             placeholder="Ej: Saco de cemento especial"
-                            className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             required
                         />
                     </div>
@@ -512,7 +512,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 value={newItem.unidad}
                                 onChange={e => setNewItem(n => ({ ...n, unidad: e.target.value }))}
                                 placeholder="U, kg, m, m²..."
-                                className="w-full px-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 required
                             />
                         </div>
@@ -527,7 +527,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     value={newItem.valor_compra}
                                     onChange={e => setNewItem(n => ({ ...n, valor_compra: e.target.value }))}
                                     placeholder="0"
-                                    className="w-full pl-7 pr-3 py-2 text-sm border border-[#E8E8ED] rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                    className="w-full pl-7 pr-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 />
                             </div>
                         </div>

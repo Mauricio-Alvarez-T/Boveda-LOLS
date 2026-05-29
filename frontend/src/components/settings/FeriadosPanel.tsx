@@ -27,7 +27,7 @@ const feriadosCols: ColumnDef<any>[] = [
         key: 'irrenunciable', label: 'Irrenunciable', render: (v) => (
             <span className={cn(
                 "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-destructive/10 text-destructive" : "bg-muted/10 text-muted"
+                v ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
             )}>{v ? 'Sí' : 'No'}</span>
         )
     },
@@ -66,7 +66,7 @@ export const FeriadosPanel: React.FC = () => {
                         onClick={handleSync}
                         disabled={isSyncing}
                         className={cn(
-                            "flex items-center gap-2 px-4 py-2 bg-white border border-border rounded-xl text-sm font-semibold transition-all shadow-sm",
+                            "flex items-center gap-2 px-4 py-2 bg-card border border-border rounded-xl text-sm font-semibold transition-all shadow-sm",
                             isSyncing ? "opacity-50 cursor-not-allowed" : "hover:border-brand-primary hover:text-brand-primary"
                         )}
                     >

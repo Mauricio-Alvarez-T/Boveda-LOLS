@@ -94,8 +94,8 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
             </button>
 
             {/* ═══ Filtros ═══ */}
-            <section className="bg-white rounded-2xl border border-[#E8E8ED] shadow-sm overflow-hidden">
-                <header className="px-4 py-3 border-b border-[#F0F0F5] bg-[#FAFAFA]">
+            <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                <header className="px-4 py-3 border-b border-border bg-muted">
                     <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Filtros</p>
                 </header>
                 <div className="p-4 space-y-3">
@@ -118,17 +118,17 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
             </section>
 
             {/* ═══ Acciones del día ═══ */}
-            <section className="bg-white rounded-2xl border border-[#E8E8ED] shadow-sm overflow-hidden">
-                <header className="px-4 py-3 border-b border-[#F0F0F5] bg-[#FAFAFA]">
+            <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                <header className="px-4 py-3 border-b border-border bg-muted">
                     <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Acciones del día</p>
                 </header>
 
-                <div className="divide-y divide-[#F0F0F5]">
+                <div className="divide-y divide-border">
                     <button
                         onClick={triggerRepeat}
                         disabled={isRepeatDisabled || !repetirDiaAnterior}
                         className={cn(
-                            "w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 transition-colors",
+                            "w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors",
                             (isRepeatDisabled || !repetirDiaAnterior) && "opacity-40 grayscale pointer-events-none"
                         )}
                     >
@@ -144,7 +144,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                     <RequirePermission permiso="asistencia.feriado.gestionar">
                         <button
                             onClick={toggleFeriado}
-                            className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 transition-colors"
+                            className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors"
                         >
                             <div className={cn(
                                 "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",
@@ -164,8 +164,8 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
             </section>
 
             {/* ═══ Reporte mensual ═══ */}
-            <section className="bg-white rounded-2xl border border-[#E8E8ED] shadow-sm overflow-hidden">
-                <header className="px-4 py-3 border-b border-[#F0F0F5] bg-[#FAFAFA]">
+            <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
+                <header className="px-4 py-3 border-b border-border bg-muted">
                     <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Reporte mensual</p>
                 </header>
                 <div className="p-4 space-y-3">

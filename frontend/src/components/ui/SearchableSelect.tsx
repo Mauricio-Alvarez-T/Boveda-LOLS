@@ -41,9 +41,9 @@ export const SearchableSelect = forwardRef<any, SearchableSelectProps>(
                                 onChange?.(val === '' ? null : (isNaN(Number(val)) ? val : Number(val)));
                             }}
                             className={cn(
-                                "flex h-11 w-full items-center justify-between rounded-xl border border-input bg-white px-3 py-2 text-base appearance-none transition-all duration-200 outline-none focus:ring-2 focus:ring-brand-primary/20",
-                                error ? "border-destructive focus:ring-destructive/20" : "border-[#D2D2D7] focus:border-brand-primary",
-                                disabled && "opacity-50 cursor-not-allowed bg-[#F5F5F7]",
+                                "flex h-11 w-full items-center justify-between rounded-xl border border-input bg-card px-3 py-2 text-base appearance-none transition-all duration-200 outline-none focus:ring-2 focus:ring-brand-primary/20",
+                                error ? "border-destructive focus:ring-destructive/20" : "border-border focus:border-brand-primary",
+                                disabled && "opacity-50 cursor-not-allowed bg-muted",
                                 className
                             )}
                         >

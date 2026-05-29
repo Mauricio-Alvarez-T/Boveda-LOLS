@@ -215,7 +215,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                         placeholder="Buscar por descripción, nº item..."
                         value={search}
                         onChange={e => setSearch(e.target.value)}
-                        className="pl-8 pr-3 py-1.5 text-xs border border-[#E8E8ED] rounded-lg w-64 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        className="pl-8 pr-3 py-1.5 text-xs border border-border rounded-lg w-64 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                     />
                 </div>
 
@@ -223,7 +223,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 <select
                     value={filtroCategoria}
                     onChange={e => setFiltroCategoria(e.target.value === 'todas' ? 'todas' : Number(e.target.value))}
-                    className="px-2 py-1.5 text-xs border border-[#E8E8ED] rounded-lg bg-white focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                    className="px-2 py-1.5 text-xs border border-border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                 >
                     <option value="todas">Todas las categorías</option>
                     {categorias.map(c => (
@@ -246,13 +246,13 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 </span>
 
                 {/* View Toggle */}
-                <div className="flex items-center p-0.5 bg-[#F0F0F5] rounded-lg">
+                <div className="flex items-center p-0.5 bg-muted rounded-lg">
                     <button
                         onClick={() => setViewMode('cards')}
                         className={cn(
                             "flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all",
                             viewMode === 'cards'
-                                ? "bg-white text-brand-primary shadow-sm"
+                                ? "bg-card text-brand-primary shadow-sm"
                                 : "text-muted-foreground hover:text-brand-dark"
                         )}
                         title="Vista Cards"
@@ -265,7 +265,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                         className={cn(
                             "flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all",
                             viewMode === 'table'
-                                ? "bg-white text-brand-primary shadow-sm"
+                                ? "bg-card text-brand-primary shadow-sm"
                                 : "text-muted-foreground hover:text-brand-dark"
                         )}
                         title="Vista Tabla"
@@ -281,7 +281,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                         <button
                             onClick={handleRevert}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-muted-foreground bg-[#F0F0F5] rounded-lg hover:bg-[#E5E5EA] disabled:opacity-50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-muted-foreground bg-muted rounded-lg hover:bg-muted disabled:opacity-50 transition-all"
                         >
                             <Undo2 className="h-3 w-3" /> Revertir
                         </button>
@@ -374,9 +374,9 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                     /* ═══════════════════════════════
                        ── TABLE VIEW (original) ──
                        ═══════════════════════════════ */
-                    <div className="border border-[#E8E8ED] rounded-xl bg-white">
+                    <div className="border border-border rounded-xl bg-card">
                         <table className="w-full text-[11px] border-collapse">
-                            <thead className="bg-[#F5F7FA] sticky top-0 z-10">
+                            <thead className="bg-muted sticky top-0 z-10">
                                 <tr>
                                     <th className="text-left px-2 py-2 font-bold text-brand-dark w-12">Nº</th>
                                     <th className="text-left px-2 py-2 font-bold text-brand-dark min-w-[220px]">Descripción</th>
@@ -421,24 +421,24 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                         <tr
                                             key={it.id}
                                             className={cn(
-                                                "border-t border-[#F0F0F5]",
-                                                rowDirty ? "bg-amber-50/50" : idx % 2 === 0 ? "bg-white" : "bg-[#FAFAFA]",
+                                                "border-t border-border",
+                                                rowDirty ? "bg-amber-50/50 dark:bg-amber-950/30" : idx % 2 === 0 ? "bg-card" : "bg-muted",
                                             )}
                                         >
                                             <td className="px-2 py-1 font-mono text-muted-foreground">{it.nro_item}</td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'descripcion') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'descripcion') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <input
                                                     type="text"
                                                     value={String(getVal(it, 'descripcion'))}
                                                     onChange={e => setField(it, 'descripcion', e.target.value)}
-                                                    className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 />
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'categoria_id') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'categoria_id') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <select
                                                     value={getVal(it, 'categoria_id')}
                                                     onChange={e => setField(it, 'categoria_id', Number(e.target.value))}
-                                                    className="w-full px-1 py-1 text-[11px] bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 >
                                                     {categorias.map(c => (
                                                         <option key={c.id} value={c.id}>{c.nombre}</option>
@@ -449,61 +449,61 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     )}
                                                 </select>
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'unidad') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'unidad') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <input
                                                     type="text"
                                                     value={String(getVal(it, 'unidad') ?? '')}
                                                     onChange={e => setField(it, 'unidad', e.target.value)}
-                                                    className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 />
                                             </td>
                                             {verCostos && (
-                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 rounded")}>
+                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_compra') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                     <input
                                                         type="number"
                                                         value={Number(getVal(it, 'valor_compra') ?? 0)}
                                                         onChange={e => setField(it, 'valor_compra', Number(e.target.value))}
                                                         disabled={!editarCostos}
                                                         className={cn(
-                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
-                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
+                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
                                                         )}
                                                         title={fmtCLP(Number(getVal(it, 'valor_compra')))}
                                                     />
                                                 </td>
                                             )}
                                             {verCostos && (
-                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 rounded")}>
+                                                <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'valor_arriendo') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                     <input
                                                         type="number"
                                                         value={Number(getVal(it, 'valor_arriendo') ?? 0)}
                                                         onChange={e => setField(it, 'valor_arriendo', Number(e.target.value))}
                                                         disabled={!editarCostos}
                                                         className={cn(
-                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
-                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed"
+                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
+                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
                                                         )}
                                                         title={fmtCLP(Number(getVal(it, 'valor_arriendo')))}
                                                     />
                                                 </td>
                                             )}
-                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'es_consumible') && "bg-amber-100/60")}>
+                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'es_consumible') && "bg-amber-100/60 dark:bg-amber-500/15")}>
                                                 <input
                                                     type="checkbox"
                                                     checked={!!getVal(it, 'es_consumible')}
                                                     onChange={e => setField(it, 'es_consumible', e.target.checked)}
                                                 />
                                             </td>
-                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'propietario') && "ring-1 ring-amber-300 rounded")}>
+                                            <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'propietario') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <select
                                                     value={getVal(it, 'propietario')}
                                                     onChange={e => setField(it, 'propietario', e.target.value as ItemInventario['propietario'])}
-                                                    className="w-full px-1 py-1 text-[11px] bg-transparent border-0 focus:bg-white focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 >
                                                     {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
                                                 </select>
                                             </td>
-                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'activo') && "bg-amber-100/60")}>
+                                            <td className={cn("px-1 py-1 text-center", isFieldDirty(it.id, 'activo') && "bg-amber-100/60 dark:bg-amber-500/15")}>
                                                 <input
                                                     type="checkbox"
                                                     checked={!!getVal(it, 'activo')}
@@ -521,8 +521,8 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
 
             {/* ── Dirty indicator footer ── */}
             {dirtyCount > 0 && (
-                <p className="text-[10px] text-amber-700 shrink-0">
-                    Hay {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar todo.
+                <p className="text-[10px] text-amber-700 dark:text-amber-400 shrink-0">
+                    Hay {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar todo.
                 </p>
             )}
         </div>

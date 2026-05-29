@@ -30,7 +30,7 @@ export const StickyFooter: React.FC<Props> = ({
                 aria-live="polite"
                 className={cn(
                     'text-sm transition-all',
-                    hasChanges ? 'text-amber-700 font-semibold' : 'text-muted-foreground'
+                    hasChanges ? 'text-amber-700 dark:text-amber-400 font-semibold' : 'text-muted-foreground'
                 )}
             >
                 {hasChanges ? (
@@ -47,7 +47,7 @@ export const StickyFooter: React.FC<Props> = ({
                     type="button"
                     onClick={onCancel}
                     disabled={saving}
-                    className="px-5 py-2 text-sm border border-gray-300 rounded-lg hover:bg-gray-50 text-gray-700 transition-colors disabled:opacity-50"
+                    className="px-5 py-2 text-sm border border-gray-300 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-muted-foreground transition-colors disabled:opacity-50"
                 >
                     Cancelar
                 </button>
