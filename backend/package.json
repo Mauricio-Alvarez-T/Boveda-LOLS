@@ -14,7 +14,8 @@
     "migrate:fix-bodega-responsable": "node scripts/fix_bodega_responsable_nombre.js",
     "fix-stock-reconciliar": "node scripts/fix_stock_transferencias_aprobadas.js",
     "snapshot-dashboard": "node scripts/snapshot_dashboard.js",
-    "reporte-semanal": "node scripts/reporte_semanal.js"
+    "reporte-semanal": "node scripts/reporte_semanal.js",
+    "diag-estados": "node scripts/diag_estados.js"
   },
   "keywords": [],
   "author": "",
