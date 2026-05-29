@@ -172,14 +172,15 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                             </span>
                         </div>
 
-                        {/* Layout de dos columnas: estados a la izquierda, formulario a la derecha */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
-                            {/* ── Columna izquierda: Estado de ausencia (lista vertical) ── */}
+                        {/* Layout: en móvil apilado (como antes); en desktop dos columnas */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 md:items-start">
+                            {/* ── Columna izquierda: Estado de ausencia ── */}
                             <div>
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Estado de ausencia
                                 </label>
-                                <div className="grid grid-cols-1 gap-2">
+                                {/* Móvil: grilla 2-3 col (original). Desktop: lista vertical 1 col */}
+                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-1 gap-2">
                                     {estadosAusencia.map(est => (
                                         <button
                                             key={est.id}
@@ -203,10 +204,10 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                                 <span className="text-sm font-semibold text-brand-dark">
                                                     {est.nombre}
                                                 </span>
-                                                <span className="text-[10px] text-muted-foreground font-medium ml-auto">
-                                                    {est.codigo}
-                                                </span>
                                             </div>
+                                            <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">
+                                                {est.codigo}
+                                            </span>
                                         </button>
                                     ))}
                                 </div>
