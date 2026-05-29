@@ -304,7 +304,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                             className={cn(
                                                 "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
                                                 isActive ? "text-white"
-                                                    : isDisc && pendientesCount > 0 ? "text-red-600"
+                                                    : isDisc && pendientesCount > 0 ? "text-red-600 dark:text-red-400"
                                                     : "text-muted-foreground"
                                             )}
                                         >
@@ -350,7 +350,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                                         ? "bg-red-500 text-white shadow-sm"
                                                         : "bg-brand-primary text-white shadow-sm"
                                                     : isDisc && pendientesCount > 0
-                                                        ? "text-red-600 hover:bg-red-50"
+                                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
                                                         : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                                             )}
                                         >

@@ -58,7 +58,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                             "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
                             subFilter === chip.value
                                 ? "bg-red-500 text-white border-red-500 shadow-sm"
-                                : "bg-card text-muted-foreground border-border hover:border-red-300"
+                                : "bg-card text-muted-foreground border-border hover:border-red-300 dark:hover:border-red-700"
                         )}
                     >
                         <span className={cn("h-1.5 w-1.5 rounded-full", chip.color)} />
@@ -108,14 +108,14 @@ const DiscrepanciasList: React.FC<Props> = ({
                                 className={cn(
                                     "px-3 py-2.5 rounded-xl border transition-all cursor-pointer",
                                     isSelected
-                                        ? "border-red-500 bg-red-50/60 shadow-sm"
-                                        : "border-border hover:border-red-300 hover:bg-red-50/30"
+                                        ? "border-red-500 bg-red-50/60 shadow-sm dark:bg-red-950/40"
+                                        : "border-border hover:border-red-300 hover:bg-red-50/30 dark:hover:border-red-700 dark:hover:bg-red-950/20"
                                 )}
                             >
                                 {/* Header: código + fecha */}
                                 <div className="flex items-center justify-between mb-1.5">
                                     <div className="flex items-center gap-1.5">
-                                        <div className="w-6 h-6 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                                        <div className="w-6 h-6 rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 flex items-center justify-center shrink-0">
                                             <AlertTriangle className="h-3 w-3" />
                                         </div>
                                         <span className="text-[11px] font-bold text-brand-dark">{d.codigo}</span>
@@ -142,15 +142,15 @@ const DiscrepanciasList: React.FC<Props> = ({
 
                                 {/* Métricas */}
                                 <div className="flex items-center gap-2">
-                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100">
-                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Ítems</p>
-                                        <p className="text-[11px] font-black text-red-700 leading-none">
+                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
+                                        <p className="text-[8px] text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Ítems</p>
+                                        <p className="text-[11px] font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_items_afectados}
                                         </p>
                                     </div>
-                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100">
-                                        <p className="text-[8px] text-red-600 uppercase font-bold leading-none mb-0.5">Diferencia</p>
-                                        <p className="text-[11px] font-black text-red-700 leading-none">
+                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
+                                        <p className="text-[8px] text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Diferencia</p>
+                                        <p className="text-[11px] font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_unidades_perdidas > 0 ? '-' : d.total_unidades_perdidas < 0 ? '+' : ''}
                                             {Math.abs(d.total_unidades_perdidas)} u.
                                         </p>

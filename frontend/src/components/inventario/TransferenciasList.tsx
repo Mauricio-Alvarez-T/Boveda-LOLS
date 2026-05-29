@@ -20,23 +20,23 @@ interface Props {
 }
 
 export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
-    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200', bgSolid: 'bg-amber-500', icon: Clock },
-    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
-    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200', bgSolid: 'bg-indigo-500', icon: Truck },
-    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200', bgSolid: 'bg-purple-500', icon: PackageOpen },
-    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200', bgSolid: 'bg-green-500', icon: PackageCheck },
-    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200', bgSolid: 'bg-red-500', icon: XCircle },
-    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200', bgSolid: 'bg-gray-400', icon: Ban },
+    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60', bgSolid: 'bg-amber-500', icon: Clock },
+    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
+    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60', bgSolid: 'bg-indigo-500', icon: Truck },
+    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60', bgSolid: 'bg-purple-500', icon: PackageOpen },
+    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', bgSolid: 'bg-green-500', icon: PackageCheck },
+    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60', bgSolid: 'bg-red-500', icon: XCircle },
+    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border', bgSolid: 'bg-gray-400', icon: Ban },
 };
 
 export const tipoFlujoConfig: Record<string, { label: string; color: string }> = {
-    solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200' },
-    solicitud_materiales: { label: 'Mat. construcción', color: 'bg-teal-100 text-teal-700 border-teal-200' },
-    push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
-    intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200' },
-    intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200' },
-    orden_gerencia: { label: 'Orden gerencia', color: 'bg-purple-100 text-purple-700 border-purple-200' },
-    devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200' },
+    solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-700/60' },
+    solicitud_materiales: { label: 'Mat. construcción', color: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-800/60' },
+    push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60' },
+    intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60' },
+    intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60' },
+    orden_gerencia: { label: 'Orden gerencia', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60' },
+    devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60' },
 };
 
 /** Color sólido del borde izquierdo por estado */
@@ -105,7 +105,7 @@ const TransferenciasList: React.FC<Props> = ({
                                 isActive
                                     ? "text-white"
                                     : isDiscrep && discrepanciasCount > 0
-                                        ? "text-red-600"
+                                        ? "text-red-600 dark:text-red-400"
                                         : "text-muted-foreground"
                             )}
                         >
@@ -153,7 +153,7 @@ const TransferenciasList: React.FC<Props> = ({
                                         ? "bg-red-500 text-white shadow-sm"
                                         : "bg-brand-primary text-white shadow-sm"
                                     : isDiscrep && discrepanciasCount > 0
-                                        ? "text-red-600 hover:bg-red-50"
+                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
                                         : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                             )}
                         >

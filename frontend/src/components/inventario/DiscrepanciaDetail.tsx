@@ -20,9 +20,9 @@ interface Props {
 }
 
 const estadoItemConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-    pendiente:  { label: 'Pendiente',  color: 'bg-amber-100 text-amber-700 border-amber-200',  icon: Clock },
-    resuelta:   { label: 'Resuelta',   color: 'bg-green-100 text-green-700 border-green-200', icon: CheckCircle2 },
-    descartada: { label: 'Descartada', color: 'bg-gray-100 text-gray-500 border-gray-200',    icon: Ban },
+    pendiente:  { label: 'Pendiente',  color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60',  icon: Clock },
+    resuelta:   { label: 'Resuelta',   color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', icon: CheckCircle2 },
+    descartada: { label: 'Descartada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border',    icon: Ban },
 };
 
 const fmtFecha = (s: string | null) => s
@@ -87,7 +87,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                 </button>
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                        <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 flex items-center justify-center shrink-0">
                             <AlertTriangle className="h-3.5 w-3.5" />
                         </div>
                         <h3 className="text-sm font-black text-brand-dark">{discrepancia.codigo}</h3>
@@ -193,33 +193,33 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
 
                                 {/* Métricas cant. enviada vs recibida */}
                                 <div className="grid grid-cols-3 gap-1.5 mb-2">
-                                    <div className="rounded-lg bg-blue-50 border border-blue-100 px-2 py-1.5">
-                                        <p className="text-[8px] text-blue-600 uppercase font-bold leading-none mb-0.5">Enviado</p>
-                                        <p className="text-xs font-black text-blue-700 leading-none">
+                                    <div className="rounded-lg bg-blue-50 border border-blue-100 dark:bg-blue-950/30 dark:border-blue-900 px-2 py-1.5">
+                                        <p className="text-[8px] text-blue-600 dark:text-blue-400 uppercase font-bold leading-none mb-0.5">Enviado</p>
+                                        <p className="text-xs font-black text-blue-700 dark:text-blue-300 leading-none">
                                             {Number(item.cantidad_enviada)} <span className="font-normal text-[9px]">{item.unidad}</span>
                                         </p>
                                     </div>
-                                    <div className="rounded-lg bg-green-50 border border-green-100 px-2 py-1.5">
-                                        <p className="text-[8px] text-green-600 uppercase font-bold leading-none mb-0.5">Recibido</p>
-                                        <p className="text-xs font-black text-green-700 leading-none">
+                                    <div className="rounded-lg bg-green-50 border border-green-100 dark:bg-green-950/30 dark:border-green-900 px-2 py-1.5">
+                                        <p className="text-[8px] text-green-600 dark:text-green-400 uppercase font-bold leading-none mb-0.5">Recibido</p>
+                                        <p className="text-xs font-black text-green-700 dark:text-green-300 leading-none">
                                             {Number(item.cantidad_recibida)} <span className="font-normal text-[9px]">{item.unidad}</span>
                                         </p>
                                     </div>
                                     <div className={cn(
                                         "rounded-lg px-2 py-1.5 border",
                                         item.diferencia > 0
-                                            ? "bg-red-50 border-red-100"
-                                            : "bg-amber-50 border-amber-100"
+                                            ? "bg-red-50 border-red-100 dark:bg-red-950/30 dark:border-red-900"
+                                            : "bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900"
                                     )}>
                                         <p className={cn(
                                             "text-[8px] uppercase font-bold leading-none mb-0.5",
-                                            item.diferencia > 0 ? "text-red-600" : "text-amber-600"
+                                            item.diferencia > 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
                                         )}>
                                             {item.diferencia > 0 ? 'Merma' : 'Sobrante'}
                                         </p>
                                         <p className={cn(
                                             "text-xs font-black leading-none",
-                                            item.diferencia > 0 ? "text-red-700" : "text-amber-700"
+                                            item.diferencia > 0 ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300"
                                         )}>
                                             {item.diferencia > 0 ? '-' : '+'}{Math.abs(item.diferencia)}{' '}
                                             <span className="font-normal text-[9px]">{item.unidad}</span>
@@ -270,7 +270,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {!isPendiente && item.resolucion && (
                                     <div className={cn(
                                         "rounded-lg px-2.5 py-2 text-[10px]",
-                                        item.estado === 'resuelta' ? "bg-green-50 border border-green-100" : "bg-gray-50 border border-gray-100"
+                                        item.estado === 'resuelta' ? "bg-green-50 border border-green-100 dark:bg-green-950/30 dark:border-green-900" : "bg-gray-50 border border-gray-100 dark:bg-muted dark:border-border"
                                     )}>
                                         <p className="font-bold text-[9px] uppercase tracking-wider mb-0.5 text-muted-foreground">
                                             Resolución
@@ -302,7 +302,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                 title={
                     <div className="flex items-center gap-2">
                         {modalAction === 'resuelta'
-                            ? <Check className="h-4 w-4 text-green-600" />
+                            ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
                             : <XCircle className="h-4 w-4 text-gray-500" />}
                         <span>{modalAction === 'resuelta' ? 'Resolver discrepancia' : 'Descartar discrepancia'}</span>
                     </div>
@@ -336,7 +336,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {' · '}
                                 Recibido: <span className="font-semibold text-brand-dark">{Number(modalItem.cantidad_recibida)}</span>
                                 {' · '}
-                                Diferencia: <span className="font-semibold text-red-600">
+                                Diferencia: <span className="font-semibold text-red-600 dark:text-red-400">
                                     {modalItem.diferencia > 0 ? '-' : '+'}{Math.abs(modalItem.diferencia)}
                                 </span>
                             </p>
