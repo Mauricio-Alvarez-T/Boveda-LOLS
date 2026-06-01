@@ -19,6 +19,10 @@
  * barras email-safe (HTML puro, sin imágenes) con la evolución mensual.
  */
 
+const fs = require('fs');
+const path = require('path');
+const emailService = require('./email.service');
+
 // ── Helpers de fecha (timezone-safe: opera en hora local del server = Chile) ──
 
 /** Formatea un Date a 'YYYY-MM-DD' en hora local (sin shift UTC). */
@@ -652,11 +656,100 @@ function renderText(data) {
     return lines.join('\n');
 }
 
+// ════════════════════════════════════════════════════════════════════════════
+//  Orquestación de envío (compartida por el script de cron y el endpoint API)
+// ════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Resuelve destinatarios: `to` explícito > tabla `reportes_suscriptores` (activo=1)
+ * > env `REPORTE_TO` (CSV). Si la tabla no existe (errno 1146) o está vacía, cae a env.
+ * @param {import('mysql2/promise').Pool} db
+ * @param {string|string[]|null} [cliTo] lista explícita (CSV o array).
+ * @returns {Promise<string[]>}
+ */
+async function resolveRecipients(db, cliTo) {
+    if (cliTo) {
+        const arr = Array.isArray(cliTo) ? cliTo : String(cliTo).split(',');
+        return arr.map(s => String(s).trim()).filter(Boolean);
+    }
+    try {
+        const [rows] = await db.query(
+            'SELECT email FROM reportes_suscriptores WHERE activo = 1 ORDER BY email'
+        );
+        const emails = rows.map(r => r.email).filter(Boolean);
+        if (emails.length) return emails;
+    } catch (err) {
+        // ER_NO_SUCH_TABLE (1146): tabla aún no creada. Cae a env REPORTE_TO.
+        if (err && err.errno !== 1146) throw err;
+        console.warn('⚠️  Tabla reportes_suscriptores no existe todavía — usando REPORTE_TO.');
+    }
+    return (process.env.REPORTE_TO || '').split(',').map(s => s.trim()).filter(Boolean);
+}
+
+/** Logo CID si existe el PNG; si no, el render usa header de texto. */
+function resolveLogo() {
+    const candidate = process.env.REPORTE_LOGO_PATH
+        || path.join(__dirname, '..', '..', 'assets', 'logo-lols-green.png');
+    if (fs.existsSync(candidate)) {
+        return {
+            attachments: [{ filename: 'logo-lols.png', path: candidate, cid: 'logoLols' }],
+            logoCid: 'logoLols',
+        };
+    }
+    return { attachments: [], logoCid: null };
+}
+
+/**
+ * Orquesta el reporte completo: arma datos → renderiza → (envía | dry-run).
+ * Usado por el script de cron (con su propio pool) y por el endpoint "enviar prueba"
+ * (con el pool de la app). NO crea ni cierra conexiones: recibe `db` inyectado.
+ *
+ * @param {object} opts
+ * @param {import('mysql2/promise').Pool} opts.db
+ * @param {string|string[]|null} [opts.to] destinatario(s) explícito(s); si falta, resuelve por suscriptores/env.
+ * @param {string} [opts.fecha] 'YYYY-MM-DD' usada como "hoy" (ventana = su semana previa).
+ * @param {boolean} [opts.dry] si true, NO envía: retorna el preview.
+ * @returns {Promise<object>} dry → { dry:true, html, text, subject, rango, totales };
+ *   envío → { dry:false, subject, recipients, messageId, accepted, rejected }.
+ */
+async function enviarReporteSemanal({ db, to = null, fecha, dry = false } = {}) {
+    const rango = getSemanaPrevia(fecha || undefined);
+    const data = await buildReportData(db, { desde: rango.desde, hasta: rango.hasta, ref: fecha || undefined });
+
+    const { attachments, logoCid } = resolveLogo();
+    const html = renderHtml(data, { logoCid });
+    const text = renderText(data);
+    const subject = `Reporte Semanal RRHH — ${fmtFecha(rango.desde)} al ${fmtFecha(rango.hasta)}`;
+
+    if (dry) {
+        return { dry: true, html, text, subject, rango, totales: data.totales };
+    }
+
+    const recipients = await resolveRecipients(db, to);
+    if (!recipients.length) {
+        throw Object.assign(new Error('Sin destinatarios: define suscriptores activos, REPORTE_TO en .env, o pasa "to".'), { statusCode: 400 });
+    }
+
+    const res = await emailService.sendSystemEmail({ to: recipients, subject, html, text, attachments });
+    return {
+        dry: false,
+        subject,
+        recipients,
+        totales: data.totales,
+        messageId: res.messageId,
+        accepted: res.accepted || [],
+        rejected: res.rejected || [],
+    };
+}
+
 module.exports = {
     getSemanaPrevia,
     buildReportData,
     renderHtml,
     renderText,
+    enviarReporteSemanal,
+    resolveRecipients,
+    resolveLogo,
     // exportados para test
     _internals: { ymd, parseRef, nombreCompleto, fmtFecha, fmtFechaHora, esc, bar, barChart, esPrimerLunesDelMes, spineMeses },
 };

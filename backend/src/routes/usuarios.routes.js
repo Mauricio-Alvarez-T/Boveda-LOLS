@@ -24,7 +24,10 @@ const usuariosService = createCrudService('usuarios', {
 const rolesService = createCrudService('roles', {
     searchFields: ['nombre'],
     selectFields: 'roles.*, (SELECT COUNT(*) FROM permisos_rol_v2 WHERE rol_id = roles.id) AS permisos_count',
-    orderBy: 'nombre ASC'
+    orderBy: 'nombre ASC',
+    // El borrado de rol es soft-delete (activo=0). Sin esto el listado mostraría
+    // también los roles dados de baja y "no se eliminarían" a ojos del usuario.
+    useSoftDelete: true
 });
 const rolesController = createCrudController(rolesService);
 
@@ -32,6 +35,29 @@ const rolesController = createCrudController(rolesService);
 router.get('/roles/list', auth, checkPermission('usuarios.roles.ver'), async (req, res, next) => {
     try {
         const result = await rolesService.getAll(req.query);
+        res.json(result);
+    } catch (err) { next(err); }
+});
+
+// Guard de borrado: no permitir eliminar un rol con usuarios ACTIVOS asignados
+// (quedarían apuntando a un rol inactivo). Va ANTES del mount CRUD para
+// interceptar el DELETE /roles/:id; si pasa la validación, hace el mismo
+// soft-delete que haría el CRUD genérico. El mensaje 400 lo muestra el toast
+// del frontend (showDeleteToast surfacea response.data.message).
+router.delete('/roles/:id', auth, checkPermission('usuarios.roles.eliminar'), async (req, res, next) => {
+    try {
+        const rolId = req.params.id;
+        const [rows] = await db.query(
+            'SELECT COUNT(*) AS total FROM usuarios WHERE rol_id = ? AND activo = 1',
+            [rolId]
+        );
+        const enUso = rows[0].total;
+        if (enUso > 0) {
+            return res.status(400).json({
+                message: `No se puede eliminar: el rol tiene ${enUso} usuario(s) activo(s) asignado(s). Reasígnalos a otro rol antes de eliminarlo.`
+            });
+        }
+        const result = await rolesService.softDelete(rolId);
         res.json(result);
     } catch (err) { next(err); }
 });

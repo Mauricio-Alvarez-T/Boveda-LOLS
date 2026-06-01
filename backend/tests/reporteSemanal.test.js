@@ -1,7 +1,11 @@
 /**
- * Tests del Reporte Semanal RRHH (data-building + date math + render).
- * Sin DB real: db.query mockeado. Render verificado por presencia de marcadores.
+ * Tests del Reporte Semanal RRHH (data-building + date math + render + envío).
+ * Sin DB real: db.query mockeado. email.service mockeado (no envía de verdad).
  */
+jest.mock('../src/services/email.service', () => ({
+    sendSystemEmail: jest.fn().mockResolvedValue({ messageId: 'test-msg-id', accepted: ['ok'], rejected: [] }),
+}));
+const emailService = require('../src/services/email.service');
 const svc = require('../src/services/reporteSemanal.service');
 
 describe('getSemanaPrevia — ventana lunes a domingo de la semana anterior', () => {
@@ -214,5 +218,91 @@ describe('renderHtml / renderText — puro, sin DB', () => {
         const html = svc.renderHtml({ ...sampleData, aniversariosVigentes: false });
         expect(html).toContain('se informan en el primer reporte de cada mes');
         expect(html).toContain('se informa 1er lunes');
+    });
+});
+
+describe('resolveRecipients — precedencia to > tabla > env', () => {
+    const OLD_ENV = process.env.REPORTE_TO;
+    afterEach(() => { process.env.REPORTE_TO = OLD_ENV; });
+
+    test('--to / array explícito tiene prioridad (no consulta DB)', async () => {
+        const db = { query: jest.fn() };
+        expect(await svc.resolveRecipients(db, 'a@b.cl, c@d.cl')).toEqual(['a@b.cl', 'c@d.cl']);
+        expect(await svc.resolveRecipients(db, ['x@y.cl'])).toEqual(['x@y.cl']);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('sin to → usa suscriptores activos de la tabla', async () => {
+        const db = { query: jest.fn().mockResolvedValueOnce([[{ email: 'uno@lols.cl' }, { email: 'dos@lols.cl' }]]) };
+        expect(await svc.resolveRecipients(db)).toEqual(['uno@lols.cl', 'dos@lols.cl']);
+    });
+
+    test('tabla vacía → cae a env REPORTE_TO', async () => {
+        process.env.REPORTE_TO = 'env1@lols.cl, env2@lols.cl';
+        const db = { query: jest.fn().mockResolvedValueOnce([[]]) };
+        expect(await svc.resolveRecipients(db)).toEqual(['env1@lols.cl', 'env2@lols.cl']);
+    });
+
+    test('tabla inexistente (errno 1146) → cae a env REPORTE_TO', async () => {
+        process.env.REPORTE_TO = 'fallback@lols.cl';
+        const err = Object.assign(new Error('no such table'), { errno: 1146 });
+        const db = { query: jest.fn().mockRejectedValueOnce(err) };
+        expect(await svc.resolveRecipients(db)).toEqual(['fallback@lols.cl']);
+    });
+
+    test('error de DB distinto a 1146 se propaga', async () => {
+        const err = Object.assign(new Error('connection lost'), { errno: 2013 });
+        const db = { query: jest.fn().mockRejectedValueOnce(err) };
+        await expect(svc.resolveRecipients(db)).rejects.toThrow('connection lost');
+    });
+});
+
+describe('enviarReporteSemanal — orquestación (db + email mockeados)', () => {
+    // buildReportData hace 7 queries; mock en orden.
+    function makeDb7() {
+        return {
+            query: jest.fn()
+                .mockResolvedValueOnce([[]])   // contrataciones
+                .mockResolvedValueOnce([[]])   // desvinculaciones
+                .mockResolvedValueOnce([[]])   // faltas
+                .mockResolvedValueOnce([[]])   // aniversarios
+                .mockResolvedValueOnce([[]])   // faltasMes
+                .mockResolvedValueOnce([[]])   // contratacionesMes
+                .mockResolvedValueOnce([[]]),  // desvinculacionesMes
+        };
+    }
+    beforeEach(() => { emailService.sendSystemEmail.mockClear(); });
+
+    test('dry-run retorna preview y NO envía', async () => {
+        const db = makeDb7();
+        const r = await svc.enviarReporteSemanal({ db, fecha: '2026-05-25', dry: true });
+        expect(r.dry).toBe(true);
+        expect(r.html).toContain('<!DOCTYPE html>');
+        expect(r.text).toContain('REPORTE SEMANAL RRHH');
+        expect(r.subject).toMatch(/^Reporte Semanal RRHH —/);
+        expect(emailService.sendSystemEmail).not.toHaveBeenCalled();
+    });
+
+    test('envío con to explícito llama sendSystemEmail una vez a ese destinatario', async () => {
+        const db = makeDb7();
+        const r = await svc.enviarReporteSemanal({ db, to: ['rrhh@lols.cl'], fecha: '2026-05-25', dry: false });
+        expect(emailService.sendSystemEmail).toHaveBeenCalledTimes(1);
+        const arg = emailService.sendSystemEmail.mock.calls[0][0];
+        expect(arg.to).toEqual(['rrhh@lols.cl']);
+        expect(arg.subject).toMatch(/^Reporte Semanal RRHH —/);
+        expect(arg.html).toContain('<!DOCTYPE html>');
+        expect(r.messageId).toBe('test-msg-id');
+        expect(r.recipients).toEqual(['rrhh@lols.cl']);
+    });
+
+    test('sin destinatarios (to vacío + env vacío + tabla vacía) lanza error', async () => {
+        const prev = process.env.REPORTE_TO;
+        process.env.REPORTE_TO = '';
+        const db = makeDb7();
+        db.query.mockResolvedValueOnce([[]]); // 8ª query: suscriptores activos vacíos
+        await expect(svc.enviarReporteSemanal({ db, fecha: '2026-05-25', dry: false }))
+            .rejects.toThrow(/Sin destinatarios/);
+        expect(emailService.sendSystemEmail).not.toHaveBeenCalled();
+        process.env.REPORTE_TO = prev;
     });
 });

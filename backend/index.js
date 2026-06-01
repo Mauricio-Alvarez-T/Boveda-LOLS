@@ -235,6 +235,7 @@ safeRoute('/api/usuarios', './src/routes/usuarios.routes', 'Usuarios');
 safeRoute('/api/feriados', './src/routes/feriados.routes', 'Feriados');
 safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config Horarios');
 safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
+safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
 
 // ============================================
 // Health Check & Dashboard

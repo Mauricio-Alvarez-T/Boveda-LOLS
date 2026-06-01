@@ -205,6 +205,7 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'sistema.tipos_doc.gestionar':             { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
     'sistema.estados.gestionar':               { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar', sensible: 'critico' },
     'sistema.tipos_ausencia.gestionar':        { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
+    'sistema.reportes.gestionar':              { seccion: 'configuracion', subseccion: 'Sistema', verbo: 'editar' },
 };
 
 /** Sección por defecto cuando ninguna específica está activa. */

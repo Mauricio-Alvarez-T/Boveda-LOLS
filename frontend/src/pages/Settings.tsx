@@ -61,9 +61,10 @@ import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
 import PermisosRolPanel from '../components/settings/PermisosRolPanel';
 import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
+import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
 import { Modal } from '../components/ui/Modal';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
 interface TabDef {
     key: TabKey;
@@ -128,6 +129,7 @@ const tabGroups: TabGroup[] = [
         items: [
             { key: 'mi_correo', label: 'Mi Correo', shortLabel: 'Correo', icon: Mail },
             { key: 'plantillas', label: 'Plantillas Email', shortLabel: 'Plantillas', icon: FileText },
+            { key: 'reportes_suscriptores', label: 'Reportes Automáticos', shortLabel: 'Reportes', icon: Mail },
             { key: 'logs', label: 'Historial de Actividad', shortLabel: 'Historial', icon: Clock },
             { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
@@ -545,7 +547,7 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'roles' && (
                         <CrudTable
-                            endpoint="/usuarios/roles/list"
+                            endpoint="/usuarios/roles"
                             columns={rolCols}
                             entityName="Rol"
                             entityNamePlural="Roles"
@@ -615,6 +617,15 @@ const SettingsPage: React.FC = () => {
                                 <p className="text-sm text-muted-foreground mt-1">Crea y gestiona las plantillas predefinidas que aparecerán al enviar un reporte por correo.</p>
                             </div>
                             <PlantillasEmailPanel />
+                        </div>
+                    )}
+                    {activeTab === 'reportes_suscriptores' && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-brand-dark">Reportes Automáticos</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Destinatarios del reporte semanal de RRHH (contrataciones, desvinculaciones, faltas y aniversarios). Se envía automáticamente los lunes a las 08:00.</p>
+                            </div>
+                            <ReporteSuscriptoresPanel />
                         </div>
                     )}
                     {activeTab === 'logs' && (

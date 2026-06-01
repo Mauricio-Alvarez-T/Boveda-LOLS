@@ -121,6 +121,7 @@ const MAESTRO_PERMISOS = [
     ['sistema.tipos_doc.gestionar',  'Sistema', 'Gestionar Tipos Doc.',           'Crear y editar tipos de documento', 4],
     ['sistema.estados.gestionar',    'Sistema', 'Gestionar Estados Asist.',       'Crear y editar estados de asistencia', 5],
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
+    ['sistema.reportes.gestionar',   'Sistema', 'Gestionar Reportes Automáticos', 'Gestionar destinatarios y enviar prueba del reporte semanal RRHH', 7],
 
     // ─────────────────────────────────────────────────────────────────────────
     // FINANCIERO — sección transversal que gatea visibilidad de campos $ del
