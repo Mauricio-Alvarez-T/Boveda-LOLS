@@ -14,26 +14,21 @@ const versionService = require('./src/services/version.service');
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
+const { applyTrustProxy, generalLimiter, loginLimiter } = require('./src/middleware/rateLimiter');
 const errorHandler = require('./src/middleware/errorHandler');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Confiar en el reverse proxy (Apache/Passenger) para que req.ip sea la IP real
+// del cliente. DEBE ir antes de cualquier middleware que use la IP. Tunable por
+// env TRUST_PROXY (default 1 = un hop). Ver src/middleware/rateLimiter.js.
+applyTrustProxy(app);
+
 // 🔒 SECURITY MIDDLEWARE
 app.use(helmet()); // Sets various secure HTTP headers
 
-// Rate limiting: 500 requests per 15 minutes per IP
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, 
-  max: 500, 
-  standardHeaders: true, 
-  legacyHeaders: false,
-  message: { error: 'Demasiadas peticiones desde esta IP, por favor intente de nuevo más tarde.' }
-});
-app.use('/api/', limiter);
-
-// Restricted CORS
+// Restricted CORS — antes del rate limiter para que incluso un 429 lleve headers CORS
 const corsOptions = {
   origin: process.env.FRONTEND_URL || '*', // In prod, better to set FRONTEND_URL
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
@@ -45,8 +40,13 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 
-// Serve inventory item images (under /api so cPanel proxy forwards them to Express)
+// Serve inventory item images (under /api so cPanel proxy forwards them to Express).
+// Va ANTES del rate limiter: las imágenes servidas no llegan al limiter (no consumen cupo).
 app.use('/api/uploads/inventario', express.static(path.join(__dirname, 'uploads/inventario')));
+
+// Rate limiting general (por usuario autenticado; cae a IP). Montado DESPUÉS del
+// static para que las miniaturas de inventario no cuenten contra el cupo.
+app.use('/api/', generalLimiter);
 const activityLogger = require('./src/middleware/logger').activityLogger;
 const logger = require('./src/utils/logger-structured');
 app.use(activityLogger);
@@ -79,6 +79,9 @@ function safeRoute(path, routeModule, routeName) {
 // ============================================
 
 // Auth (critical — always load directly)
+// Limiter estricto SOLO para el login (anti fuerza bruta, por IP). Va antes del
+// router de auth para no afectar /me ni /me/password.
+app.use('/api/auth/login', loginLimiter);
 app.use('/api/auth', require('./src/routes/auth.routes'));
 
 // CRUD routes (safe loading)
