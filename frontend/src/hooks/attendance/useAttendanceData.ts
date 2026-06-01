@@ -163,19 +163,27 @@ export function useAttendanceData() {
         fetchMeta();
     }, []);
 
+    // Cancela la carga anterior cuando cambia fecha/obra (evita 4 requests apiladas → 429).
+    const abortRef = useRef<AbortController | null>(null);
+
     const fetchAttendanceInfo = useCallback(async () => {
         if (!defaultEstado) return;
         const isGlobal = !selectedObra;
         if (isGlobal && !hasPermission('asistencia.tomar.global')) return;
+
+        // Cancelar la carga anterior en vuelo y abrir una nueva.
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
 
         setLoading(true);
         try {
             const globalObraId = isGlobal ? 'ALL' : selectedObra.id;
 
             const [workersRes, attendanceRes, schedulesRes] = await Promise.all([
-                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?activo=true&limit=5000${isGlobal ? '' : `&obra_id=${selectedObra.id}`}`),
-                api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${globalObraId}?fecha=${date}`),
-                api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${globalObraId}`)
+                api.get<ApiResponse<Trabajador[]>>(`/trabajadores?activo=true&limit=5000${isGlobal ? '' : `&obra_id=${selectedObra.id}`}`, { signal: controller.signal }),
+                api.get<ApiResponse<{ registros: Asistencia[], feriado: Feriado }>>(`/asistencias/obra/${globalObraId}?fecha=${date}`, { signal: controller.signal }),
+                api.get<ApiResponse<ConfiguracionHorario[]>>(`/config-horarios/obra/${globalObraId}`, { signal: controller.signal })
             ]);
 
             let workerList = workersRes.data.data.filter(w => Boolean(w.activo) !== false);
@@ -255,15 +263,20 @@ export function useAttendanceData() {
                 const dateObj = new Date(date + 'T12:00:00');
                 const mes = dateObj.getMonth() + 1;
                 const anio = dateObj.getFullYear();
-                const alertasRes = await api.get(`/asistencias/alertas/${globalObraId}?mes=${mes}&anio=${anio}`);
+                const alertasRes = await api.get(`/asistencias/alertas/${globalObraId}?mes=${mes}&anio=${anio}`, { signal: controller.signal });
                 setAlertasFaltas(alertasRes.data?.data || []);
-            } catch {
-                setAlertasFaltas([]);
+            } catch (e) {
+                // No pisar el estado si fue cancelada por un reemplazo.
+                if ((e as { code?: string })?.code !== 'ERR_CANCELED') setAlertasFaltas([]);
             }
         } catch (err) {
+            // Carga cancelada por un cambio de fecha/obra más nuevo → no es error.
+            if ((err as { code?: string })?.code === 'ERR_CANCELED') return;
             toast.error('Error al cargar datos de asistencia');
         } finally {
-            setLoading(false);
+            // Solo apagar el spinner si esta sigue siendo la carga vigente
+            // (un request cancelado no debe apagar el de su reemplazo).
+            if (abortRef.current === controller) setLoading(false);
         }
     }, [selectedObra, date, defaultEstado, hasPermission]);
 
@@ -271,6 +284,8 @@ export function useAttendanceData() {
         if (defaultEstado && (selectedObra || hasPermission('asistencia.tomar.global'))) {
             fetchAttendanceInfo();
         }
+        // Abortar la carga en vuelo al cambiar fecha/obra o al desmontar.
+        return () => abortRef.current?.abort();
     }, [fetchAttendanceInfo, defaultEstado, selectedObra, hasPermission]);
 
     const updateAttendance = (workerId: number, data: Partial<Asistencia>) => {

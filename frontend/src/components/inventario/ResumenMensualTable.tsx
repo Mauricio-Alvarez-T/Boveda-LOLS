@@ -697,7 +697,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <>
                                 {/* ── Descuento por obra: muestra el monto individual en cada columna TOTAL ── */}
                                 <tr className="border-t border-border/50">
-                                    <td colSpan={verValores ? 4 : 3} className="bg-amber-50/70 dark:bg-amber-950/70 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground">
+                                    <td colSpan={verValores ? 4 : 3} className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground">
                                         DESCUENTO POR OBRA
                                     </td>
                                     {visibleObras.map(o => {
@@ -708,20 +708,20 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                         const obraDescuento = descPorcentaje > 0 ? Math.round(obraTotal * descPorcentaje) / 100 : 0;
                                         return (
                                             <React.Fragment key={`desc_obra_${o.id}`}>
-                                                <td className="bg-amber-50/70 dark:bg-amber-950/70 px-2 py-1.5" />
-                                                <td className="bg-amber-50/70 dark:bg-amber-950/70 px-2 py-1.5 text-right font-bold text-[10px] text-red-600 dark:text-red-400 border-r-2 border-border">
+                                                <td className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5" />
+                                                <td className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-red-600 dark:text-red-400 border-r-2 border-border">
                                                     {obraDescuento > 0 ? `-${fmtMoney(obraDescuento)}` : ''}
                                                 </td>
                                             </React.Fragment>
                                         );
                                     })}
                                     {visibleBodegas.map(b => (
-                                        <td key={`desc_bod_${b.id}`} className="bg-amber-50/70 dark:bg-amber-950/70 border-r-2 border-border" />
+                                        <td key={`desc_bod_${b.id}`} className="bg-amber-100 dark:bg-amber-950 border-r-2 border-border" />
                                     ))}
-                                    <td className="bg-amber-50/70 dark:bg-amber-950/70 px-2 py-1.5 text-right font-bold text-[11px] text-red-600 dark:text-red-400 border-r-2 border-border">
+                                    <td className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[11px] text-red-600 dark:text-red-400 border-r-2 border-border">
                                         -{fmtMoney(grandTotals.totalDescuento)}
                                     </td>
-                                    <td className="bg-amber-50/70 dark:bg-amber-950/70" />
+                                    <td className="bg-amber-100 dark:bg-amber-950" />
                                 </tr>
                                 <tr className="border-t-2 border-brand-primary/20">
                                     <td colSpan={totalColSpan - 2} className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-dark border-r-2 border-border">
