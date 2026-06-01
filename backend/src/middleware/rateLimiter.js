@@ -77,6 +77,26 @@ function skipNoCount(req) {
     return url.startsWith('/api/health') || url.startsWith('/api/uploads/inventario');
 }
 
+/**
+ * ¿La IP colapsó a loopback? Señal de que `trust proxy` quedó mal configurado y
+ * Express ve la IP del proxy en vez de la del cliente.
+ */
+function isLoopbackIp(req) {
+    const ip = req.ip;
+    return ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1';
+}
+
+/**
+ * Safety valve del limiter de login: si las IPs colapsan a loopback (proxy mal
+ * configurado), NO limitamos el login — preferible no proteger temporalmente
+ * que bloquear logins legítimos de toda la empresa contra un único bucket.
+ * Con trust proxy correcto (IPs reales) esta condición nunca se cumple y la
+ * protección anti fuerza bruta aplica normal.
+ */
+function skipLoginIfCollapsed(req) {
+    return isLoopbackIp(req);
+}
+
 const generalLimiter = rateLimit({
     windowMs: WINDOW_MS,
     max: MAX,
@@ -93,6 +113,7 @@ const loginLimiter = rateLimit({
     standardHeaders: true,
     legacyHeaders: false,
     keyGenerator: ipKey, // en login aún no hay token → por IP
+    skip: skipLoginIfCollapsed, // no limitar si las IPs colapsan a loopback (proxy mal config)
     message: { error: 'Demasiados intentos de inicio de sesión. Intente nuevamente más tarde.' },
 });
 
