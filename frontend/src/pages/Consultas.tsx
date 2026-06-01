@@ -464,22 +464,17 @@ const ConsultasPage: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <motion.div 
+                        <motion.div
                             className="flex flex-col gap-2.5 pb-10 sm:pb-5"
-                            variants={{
-                                show: { transition: { staggerChildren: 0.04 } }
-                            }}
-                            initial="hidden"
-                            animate="show"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.15 }}
                         >
+                            {/* Filas como <div> normal: animar cada una (hasta 192) causaba jank.
+                                La aparición de la lista se anima una sola vez en el contenedor. */}
                             {workers.map((worker, idx) => (
-                                <motion.div
+                                <div
                                     key={worker.id}
-                                    variants={{
-                                        hidden: { opacity: 0, y: 15, scale: 0.98 },
-                                        show: { opacity: 1, y: 0, scale: 1 }
-                                    }}
-                                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                                     className={cn(
                                         "bg-card rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
                                         selectedWorkers.has(worker.id) 
@@ -630,7 +625,7 @@ const ConsultasPage: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))}
                         </motion.div>
                     )}

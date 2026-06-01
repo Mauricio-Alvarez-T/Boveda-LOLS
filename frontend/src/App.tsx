@@ -1,23 +1,29 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import AttendancePage from './pages/Attendance';
-import ConsultasPage from './pages/Consultas';
-import SettingsPage from './pages/Settings';
-import InventarioPage from './pages/Inventario';
 import { MainLayout } from './components/layout/MainLayout';
+
+// Code-splitting: las páginas pesadas (recharts, dnd-kit, xlsx, etc.) se cargan
+// al entrar a su ruta, no en el bundle inicial. Login y el layout quedan eager
+// porque son el punto de entrada.
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const AttendancePage = React.lazy(() => import('./pages/Attendance'));
+const ConsultasPage = React.lazy(() => import('./pages/Consultas'));
+const InventarioPage = React.lazy(() => import('./pages/Inventario'));
+const SettingsPage = React.lazy(() => import('./pages/Settings'));
+
+const FullScreenSpinner: React.FC = () => (
+  <div className="min-h-screen bg-background flex items-center justify-center">
+    <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
+  </div>
+);
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
+    return <FullScreenSpinner />;
   }
 
   if (!isAuthenticated) {
@@ -30,27 +36,29 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const App: React.FC = () => {
   return (
     <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
+      <Suspense fallback={<FullScreenSpinner />}>
+        <Routes>
+          <Route path="/login" element={<LoginPage />} />
 
-        {/* Protected Routes inside Layout */}
-        <Route
-          path="/"
-          element={
-            <ProtectedRoute>
-              <MainLayout />
-            </ProtectedRoute>
-          }
-        >
-          <Route index element={<Dashboard />} />
-          <Route path="asistencia" element={<AttendancePage />} />
-          <Route path="consultas" element={<ConsultasPage />} />
-          <Route path="inventario" element={<InventarioPage />} />
-          <Route path="configuracion" element={<SettingsPage />} />
-        </Route>
+          {/* Protected Routes inside Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <MainLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Dashboard />} />
+            <Route path="asistencia" element={<AttendancePage />} />
+            <Route path="consultas" element={<ConsultasPage />} />
+            <Route path="inventario" element={<InventarioPage />} />
+            <Route path="configuracion" element={<SettingsPage />} />
+          </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 };

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import api from '../services/api';
 import type { Obra } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -61,23 +61,27 @@ export const ObraProvider: React.FC<{ children: React.ReactNode }> = ({ children
         fetchObras();
     }, [fetchObras]);
 
-    const setSelectedObra = (obra: Obra | null) => {
+    const setSelectedObra = useCallback((obra: Obra | null) => {
         setSelectedObraState(obra);
         if (obra) {
             localStorage.setItem(STORAGE_KEY, String(obra.id));
         } else {
             localStorage.setItem(STORAGE_KEY, 'ALL');
         }
-    };
+    }, []);
+
+    // value memoizado: identidad estable para no re-renderizar a todos los
+    // consumidores de useObra() en cada render del provider.
+    const value = useMemo(() => ({
+        obras,
+        selectedObra,
+        setSelectedObra,
+        isLoading,
+        refreshObras: fetchObras,
+    }), [obras, selectedObra, setSelectedObra, isLoading, fetchObras]);
 
     return (
-        <ObraContext.Provider value={{
-            obras,
-            selectedObra,
-            setSelectedObra,
-            isLoading,
-            refreshObras: fetchObras,
-        }}>
+        <ObraContext.Provider value={value}>
             {children}
         </ObraContext.Provider>
     );
