@@ -35,6 +35,8 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
     const [isLoadingMore, setIsLoadingMore] = useState(false);
     
     const fetchingRef = useRef(false);
+    // Cancela la búsqueda anterior cuando llega una nueva (evita requests apiladas → 429).
+    const abortRef = useRef<AbortController | null>(null);
 
     // Cargar catálogos
     const fetchCatalogs = useCallback(async () => {
@@ -57,7 +59,10 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
         isInitial: boolean = false,
         onSuccessInitial?: () => void
     ) => {
-        if (fetchingRef.current) return;
+        // Cancelar la petición anterior en vuelo y abrir una nueva.
+        abortRef.current?.abort();
+        const controller = new AbortController();
+        abortRef.current = controller;
         fetchingRef.current = true;
 
         if (isInitial) {
@@ -84,9 +89,9 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             urlParams.append('page', isInitial ? '1' : page.toString());
             urlParams.append('limit', '50');
 
-            const res = await api.get<{ data: TrabajadorAvanzado[] }>(`/fiscalizacion/trabajadores-avanzado?${urlParams.toString()}`);
+            const res = await api.get<{ data: TrabajadorAvanzado[] }>(`/fiscalizacion/trabajadores-avanzado?${urlParams.toString()}`, { signal: controller.signal });
             const data = res.data.data || [];
-            
+
             setWorkers(prev => isInitial ? data : [...prev, ...data]);
             setHasMore(data.length === 50);
 
@@ -95,13 +100,17 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             }
 
         } catch (err) {
+            // Petición cancelada por una búsqueda más nueva → no es error.
+            if ((err as { code?: string })?.code === 'ERR_CANCELED') return;
             toast.error('Error al realizar la búsqueda');
         } finally {
-            setLoading(false);
-            setIsLoadingMore(false);
-            setTimeout(() => {
+            // Solo apagar flags si esta sigue siendo la búsqueda vigente
+            // (un request cancelado no debe apagar el spinner de su reemplazo).
+            if (abortRef.current === controller) {
+                setLoading(false);
+                setIsLoadingMore(false);
                 fetchingRef.current = false;
-            }, 200);
+            }
         }
     }, [filters, page]);
 
@@ -119,6 +128,9 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
         }, 300);
         return () => clearTimeout(timeoutId);
     }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m]);
+
+    // Abortar cualquier búsqueda en vuelo al desmontar.
+    useEffect(() => () => abortRef.current?.abort(), []);
 
     // Carga inicial de catálogos
     useEffect(() => {

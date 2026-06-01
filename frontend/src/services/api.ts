@@ -8,6 +8,11 @@ const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 let _last403Ts = 0;
 const TOAST_403_THROTTLE_MS = 3000;
 
+// 429 (rate limit): throttle más alto que 403 — si ya hay saturación no queremos
+// sumar toasts. NO se reintenta automáticamente (evitar tormentas de peticiones).
+let _last429Ts = 0;
+const TOAST_429_THROTTLE_MS = 5000;
+
 const api = axios.create({
     baseURL: API_URL,
     headers: {
@@ -66,6 +71,19 @@ api.interceptors.response.use(
                     const msg = error.response?.data?.error || 'No tienes permiso para esta acción.';
                     toast.error(msg);
                 }
+            }
+        }
+
+        // 429 Too Many Requests (rate limit). Mostramos UN toast informativo por
+        // ventana (throttled) y NO reintentamos: reintentar alimentaría el límite.
+        // El error se propaga al caller como siempre.
+        if (status === 429) {
+            const now = Date.now();
+            if (now - _last429Ts > TOAST_429_THROTTLE_MS) {
+                _last429Ts = now;
+                const msg = error.response?.data?.error
+                    || 'El servidor está recibiendo muchas peticiones. Espera unos segundos e intenta de nuevo.';
+                toast.error(msg);
             }
         }
 
