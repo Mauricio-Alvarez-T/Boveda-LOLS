@@ -26,10 +26,10 @@ const errorHandler = (err, req, res, next) => {
         logger.warn(`[${category}] ${err.message}`, meta);
     }
 
-    // Also write to legacy error_debug.log for backward compatibility
+    // Also write to legacy error_debug.log for backward compatibility (async, no bloqueante)
     try {
         const logContent = `[${new Date().toISOString()}] [${category}] ${req.method} ${req.originalUrl}\nERROR: ${err.message}\nSTACK: ${err.stack}\n\n`;
-        fs.appendFileSync(path.join(__dirname, '../../error_debug.log'), logContent);
+        fs.appendFile(path.join(__dirname, '../../error_debug.log'), logContent, () => { /* silently fail */ });
     } catch (e) { }
 
     // Multer file size error

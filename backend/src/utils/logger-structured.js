@@ -36,17 +36,17 @@ const logger = {
         const hasMeta = meta && typeof meta === 'object' && !Array.isArray(meta) && Object.keys(meta).length > 0;
         console.log(`${colors[level] || ''}[${level}]${reset} ${message}`, hasMeta ? meta : '');
 
-        // File output
-        try {
-            // Simple rotation: if file > MAX_LOG_SIZE, rename to .old
-            if (fs.existsSync(logFile)) {
-                const stats = fs.statSync(logFile);
-                if (stats.size > MAX_LOG_SIZE) {
-                    fs.renameSync(logFile, logFile + '.old');
-                }
+        // File output — NO bloqueante (fire-and-forget). Evita bloquear el event
+        // loop con I/O síncrono. Rotación simple: si el archivo supera MAX_LOG_SIZE
+        // se renombra a .old antes de escribir.
+        fs.stat(logFile, (statErr, stats) => {
+            const append = () => fs.appendFile(logFile, line + '\n', () => { /* silently fail */ });
+            if (!statErr && stats && stats.size > MAX_LOG_SIZE) {
+                fs.rename(logFile, logFile + '.old', () => append());
+            } else {
+                append();
             }
-            fs.appendFileSync(logFile, line + '\n');
-        } catch (e) { /* silently fail file write */ }
+        });
     },
 
     debug(msg, meta) { if (currentLevel <= LEVELS.DEBUG) this._write('DEBUG', msg, meta); },

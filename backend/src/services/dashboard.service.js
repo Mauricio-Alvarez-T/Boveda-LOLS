@@ -390,6 +390,17 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
         const realNextMonth = nextMonth > 12 ? nextMonth - 12 : nextMonth;
         const nextMonthStr = String(realNextMonth).padStart(2, '0');
 
+        // Ventana sargable: "cumple 10 meses en (nextYear, realNextMonth)" equivale
+        // a "fecha_ingreso en el mes (realNextMonth - 10)". Usar un rango sobre la
+        // columna (en vez de MONTH(DATE_ADD(...))) permite usar índice y es idéntico:
+        // DATE_ADD conserva el mes destino para todo el mes de ingreso.
+        let m0 = realNextMonth - 1 - 10, y0 = nextYear; // 0-based, puede ser negativo
+        while (m0 < 0) { m0 += 12; y0 -= 1; }
+        let m1 = m0 + 1, y1 = y0;
+        if (m1 > 11) { m1 = 0; y1 += 1; }
+        const ingresoDesde = `${y0}-${String(m0 + 1).padStart(2, '0')}-01`;
+        const ingresoHasta = `${y1}-${String(m1 + 1).padStart(2, '0')}-01`;
+
         const [workers10m] = await pool.query(`
             SELECT t.id, t.rut, t.nombres, t.apellido_paterno, t.fecha_ingreso,
                    e.razon_social as empresa_nombre,
@@ -399,10 +410,10 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             WHERE t.activo = 1
               AND t.es_prueba = 0
               AND t.fecha_ingreso IS NOT NULL
-              AND MONTH(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
-              AND YEAR(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
+              AND t.fecha_ingreso >= ?
+              AND t.fecha_ingreso < ?
             ORDER BY DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH) ASC, t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC
-        `, [realNextMonth, nextYear]);
+        `, [ingresoDesde, ingresoHasta]);
 
         if (workers10m.length > 0) {
             alertas.push({

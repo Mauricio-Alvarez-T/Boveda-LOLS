@@ -7,7 +7,9 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME || 'sgdl',
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
-    connectionLimit: 25,
+    // Tunable por env (insurance ante picos multi-usuario; las queries son rápidas
+    // y liberan pronto). waitForConnections:true encola en vez de rechazar.
+    connectionLimit: Number(process.env.DB_POOL_LIMIT) || 50,
     queueLimit: 50,
     charset: 'utf8mb4'
 });
