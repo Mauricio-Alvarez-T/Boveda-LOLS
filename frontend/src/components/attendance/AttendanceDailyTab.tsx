@@ -510,7 +510,11 @@ const AttendanceDailyTab: React.FC = () => {
                 onClose={() => setCalendarWorker(null)}
                 worker={calendarWorker}
                 estados={estados}
-                obraId={selectedObra?.id}
+                // En modo "Reporte Global" (sin obra seleccionada) selectedObra es null;
+                // caer a la obra del propio trabajador para que el panel "Asignar Período"
+                // siga disponible (mismo criterio que WorkerQuickView). Sin esto, el modal
+                // abierto desde la fila en modo global salía sin el panel de asignación.
+                obraId={selectedObra?.id ?? calendarWorker?.obra_id ?? undefined}
                 onSuccess={fetchAttendanceInfo}
             />
 
