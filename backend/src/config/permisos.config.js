@@ -123,6 +123,12 @@ const MAESTRO_PERMISOS = [
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
     ['sistema.reportes.gestionar',   'Sistema', 'Gestionar Reportes Automáticos', 'Gestionar destinatarios y enviar prueba del reporte semanal RRHH', 7],
 
+    // VEHÍCULOS
+    ['vehiculos.ver',      'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],
+    ['vehiculos.crear',    'Vehículos', 'Crear Vehículo',      'Registrar nuevos vehículos, seguros, revisiones técnicas y mantenciones', 2],
+    ['vehiculos.editar',   'Vehículos', 'Editar Vehículo',     'Modificar datos de vehículos, actualizar kilómetros, editar seguros y revisiones', 3],
+    ['vehiculos.eliminar', 'Vehículos', 'Eliminar Vehículo',   'Dar de baja vehículos y sus registros asociados', 4],
+
     // ─────────────────────────────────────────────────────────────────────────
     // FINANCIERO — sección transversal que gatea visibilidad de campos $ del
     // módulo INVENTARIO (costos, facturas, bombas, descuentos, resumen).

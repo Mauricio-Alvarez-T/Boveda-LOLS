@@ -147,7 +147,8 @@ try {
     allowedFields: [
       'rut', 'nombres', 'apellido_paterno', 'apellido_materno',
       'fecha_ingreso', 'fecha_desvinculacion', 'email', 'telefono',
-      'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte', 'es_prueba'
+      'cargo_id', 'obra_id', 'empresa_id', 'activo', 'categoria_reporte', 'es_prueba',
+      'licencia_conducir', 'licencia_vencimiento'
     ],
     testFlagColumn: 'es_prueba',
     // Herencia: un trabajador nuevo asignado a una obra de prueba hereda el flag
@@ -239,6 +240,7 @@ safeRoute('/api/feriados', './src/routes/feriados.routes', 'Feriados');
 safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config Horarios');
 safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
+safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 
 // ============================================
 // Health Check & Dashboard
