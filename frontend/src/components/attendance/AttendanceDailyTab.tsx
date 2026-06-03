@@ -47,7 +47,7 @@ const AttendanceDailyTab: React.FC = () => {
         date, setDate, navigateDate, loading, workers, filteredWorkers, availableEmpresas,
         attendance, updateAttendance, horariosObra, estados, feriadoActual,
         searchQuery, setSearchQuery, selectedEmpresaId, setSelectedEmpresaId,
-        statusFilter, setStatusFilter, alertasFaltas,
+        statusFilter, setStatusFilter, alertasFaltas, periodosMap,
         reportMonth, setReportMonth, reportYear, setReportYear, fetchAttendanceInfo,
         summary, isSaturday, isSunday
     } = attendanceData;
@@ -120,6 +120,24 @@ const AttendanceDailyTab: React.FC = () => {
         if (!est.es_presente && expandedWorkerId !== worker.id) {
             setExpandedWorkerId(worker.id);
         }
+    };
+
+    /**
+     * Etiqueta de un período activo (V/LM/etc.) con su rango y días, ej:
+     * "(V) 01/01/2026 - 15/01/2026 (15 días)". El rango viene de `periodosMap`
+     * (mismo endpoint que el export). Si no hay período registrado (caso legacy
+     * asignado por día), cae a solo el código "(V)".
+     */
+    const fmtPeriodo = (s: string) => String(s).split('T')[0].split('-').reverse().join('/');
+    const periodoLabel = (workerId: number, est: { id: number; codigo: string }): string => {
+        const p = periodosMap[`${workerId}_${est.id}`];
+        if (!p) return `(${est.codigo})`;
+        const fi = String(p.fecha_inicio).split('T')[0];
+        const ff = String(p.fecha_fin).split('T')[0];
+        const dias = Math.floor((new Date(ff + 'T00:00:00').getTime() - new Date(fi + 'T00:00:00').getTime()) / 86400000) + 1;
+        return dias <= 1
+            ? `(${est.codigo}) ${fmtPeriodo(fi)} (1 día)`
+            : `(${est.codigo}) ${fmtPeriodo(fi)} - ${fmtPeriodo(ff)} (${dias} días)`;
     };
 
     // Global Header (Contexto)
@@ -297,6 +315,12 @@ const AttendanceDailyTab: React.FC = () => {
                                 const isPreContrato = fIngreso ? date < fIngreso : false;
                                 const isOutOfRange = isDesvinculado || isPreContrato;
                                 const workerAlerta = alertasFaltas.find(a => a.trabajador_id === worker.id);
+                                // Tinte pálido de la card según el estado activo (A/sin estado → blanco).
+                                // color-mix se adapta solo a claro/oscuro (mezcla con var(--card)).
+                                // La alerta de faltas tiene prioridad (mantiene su rojo).
+                                const cardTint = currentEstado && currentEstado.codigo !== 'A' && currentEstado.color && !workerAlerta
+                                    ? `color-mix(in srgb, ${currentEstado.color} 10%, var(--card))`
+                                    : undefined;
 
                                 return (
                                     // Perf: sin motion.div + whileInView en el row. Con 183 workers
@@ -306,6 +330,7 @@ const AttendanceDailyTab: React.FC = () => {
                                     <div
                                         key={`${worker.id}-${date}`}
                                         title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
+                                        style={cardTint ? { backgroundColor: cardTint } : undefined}
                                         className={cn(
                                             "transition-all duration-200 bg-card rounded-2xl border border-border shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
                                             markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
@@ -330,30 +355,24 @@ const AttendanceDailyTab: React.FC = () => {
                                                 <button onClick={() => setCalendarWorker(worker)} className="h-10 w-10 rounded-xl bg-card flex items-center justify-center text-brand-primary border border-brand-primary/20 shadow-sm active:scale-90 transition-all shrink-0" title="Ver Calendario"><CalendarDays className="h-5 w-5" /></button>
                                             </div>
 
-                                            <div className="flex gap-1.5 items-stretch h-12">
-                                                {['A', 'F', 'JI', 'TO'].map(code => {
-                                                    const est = estados.find(e => e.codigo === code);
-                                                    if (!est) return null;
-                                                    const isActive = state.estado_id === est.id;
-                                                    return (
-                                                        <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
-                                                    );
-                                                })}
-                                                <div className="relative flex-1">
-                                                    {(() => {
-                                                        const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
-                                                        const activeSecondary = secondary.find(e => e.id === state.estado_id);
+                                            <div className="flex gap-1.5 items-stretch min-h-[3rem]">
+                                                {(() => {
+                                                    const activeSecondary = estados.find(e => e.id === state.estado_id && !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                    if (activeSecondary) {
+                                                        // Período del calendario: pill SOLO-LECTURA con rango (reemplaza los botones).
                                                         return (
-                                                            <select className={cn("w-full h-full rounded-xl text-[10px] font-black uppercase appearance-none text-center px-1 border transition-all truncate bg-card outline-none active:scale-95", activeSecondary ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={activeSecondary ? { backgroundColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
-                                                                    const estId = parseInt(e.target.value);
-                                                                    const est = estados.find(x => x.id === estId);
-                                                                    if (est) applyStatusChange(worker, est);
-                                                                }}><option value="" disabled>{activeSecondary ? activeSecondary.nombre : 'MÁS'}</option>
-                                                                {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
-                                                            </select>
+                                                            <div className="flex-1 rounded-xl text-[10px] font-black uppercase text-white text-center leading-tight px-2 py-1.5 flex items-center justify-center shadow-md" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
                                                         );
-                                                    })()}
-                                                </div>
+                                                    }
+                                                    return ['A', 'F', 'JI', 'TO'].map(code => {
+                                                        const est = estados.find(e => e.codigo === code);
+                                                        if (!est) return null;
+                                                        const isActive = state.estado_id === est.id;
+                                                        return (
+                                                            <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
+                                                        );
+                                                    });
+                                                })()}
                                             </div>
                                             <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-[10px] text-brand-primary font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 dark:bg-muted/40 border border-slate-100 dark:border-border transition-all active:scale-98", (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale")}>
                                                 <span>{isExpanded ? 'Cerrar' : 'Detalle'}</span><ChevronDown className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-180")} />
@@ -373,32 +392,25 @@ const AttendanceDailyTab: React.FC = () => {
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-center">
-                                                    <div className="flex gap-1 p-1 bg-slate-100/50 dark:bg-muted/50 rounded-2xl border border-slate-200/50 dark:border-border shadow-inner max-w-fit transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
-                                                        {['A', 'F', 'JI', 'TO'].map(code => {
-                                                            const est = estados.find(e => e.codigo === code);
-                                                            if (!est) return null;
-                                                            const isActive2 = state.estado_id === est.id;
-                                                            return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
-                                                        })}
-                                                        <div className="relative min-w-[80px] flex-shrink-0">
-                                                            {(() => {
-                                                                const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
-                                                                const activeSecondary = secondary.find(e => e.id === state.estado_id);
-                                                                return (
-                                                                    <div className="relative h-8 group/select">
-                                                                        <select className={cn("h-full w-full pl-3 pr-7 rounded-xl text-[10px] font-black uppercase appearance-none border transition-all truncate bg-card outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
-                                                                                const estId = parseInt(e.target.value);
-                                                                                const est = estados.find(x => x.id === estId);
-                                                                                if (est) applyStatusChange(worker, est);
-                                                                            }}><option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
-                                                                            {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
-                                                                        </select>
-                                                                        <div className={cn("absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none transition-colors", activeSecondary ? "text-white/70" : "text-slate-300 dark:text-muted-foreground/50 group-hover/select:text-slate-400 dark:text-muted-foreground")}><ChevronDown className="h-3 w-3" /></div>
-                                                                    </div>
-                                                                );
-                                                            })()}
-                                                        </div>
-                                                    </div>
+                                                    {(() => {
+                                                        const activeSecondary = estados.find(e => e.id === state.estado_id && !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                        if (activeSecondary) {
+                                                            // Período del calendario: pill SOLO-LECTURA con rango (reemplaza los botones).
+                                                            return (
+                                                                <div className="h-8 px-3.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center text-white shadow-md whitespace-nowrap" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div className="flex gap-1 p-1 bg-slate-100/50 dark:bg-muted/50 rounded-2xl border border-slate-200/50 dark:border-border shadow-inner max-w-fit transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
+                                                                {['A', 'F', 'JI', 'TO'].map(code => {
+                                                                    const est = estados.find(e => e.codigo === code);
+                                                                    if (!est) return null;
+                                                                    const isActive2 = state.estado_id === est.id;
+                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                 </div>
                                                 <div className="flex items-center justify-end gap-2">
                                                     <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"} className={cn("text-[10px] text-brand-primary font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
@@ -428,32 +440,25 @@ const AttendanceDailyTab: React.FC = () => {
                                                 </div>
                                                 {/* Row 2: Status buttons + Horas extra */}
                                                 <div className="flex items-center gap-2 pl-[34px]">
-                                                    <div className="flex gap-0.5 p-0.5 bg-slate-100/50 dark:bg-muted/50 rounded-xl border border-slate-200/50 dark:border-border shadow-inner flex-1 min-w-0 transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
-                                                        {['A', 'F', 'JI', 'TO'].map(code => {
-                                                            const est = estados.find(e => e.codigo === code);
-                                                            if (!est) return null;
-                                                            const isActive2 = state.estado_id === est.id;
-                                                            return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-[9px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
-                                                        })}
-                                                        <div className="relative min-w-[60px] flex-shrink-0">
-                                                            {(() => {
-                                                                const secondary = estados.filter(e => !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
-                                                                const activeSecondary = secondary.find(e => e.id === state.estado_id);
-                                                                return (
-                                                                    <div className="relative h-7 group/select">
-                                                                        <select className={cn("h-full w-full pl-2 pr-5 rounded-lg text-[9px] font-black uppercase appearance-none border transition-all truncate bg-card outline-none cursor-pointer", activeSecondary ? "text-white border-transparent shadow-md" : "border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)]")} style={activeSecondary ? { backgroundColor: activeSecondary.color, borderColor: activeSecondary.color } : undefined} value={activeSecondary?.id || ""} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} onChange={(e) => {
-                                                                                const estId = parseInt(e.target.value);
-                                                                                const est = estados.find(x => x.id === estId);
-                                                                                if (est) applyStatusChange(worker, est);
-                                                                            }}><option value="" disabled>{activeSecondary ? activeSecondary.codigo : 'OTRO'}</option>
-                                                                            {secondary.map(est => (<option key={est.id} value={est.id}>{est.codigo} - {est.nombre}</option>))}
-                                                                        </select>
-                                                                        <div className={cn("absolute right-1 top-1/2 -translate-y-1/2 pointer-events-none transition-colors", activeSecondary ? "text-white/70" : "text-slate-300 dark:text-muted-foreground/50")}><ChevronDown className="h-2.5 w-2.5" /></div>
-                                                                    </div>
-                                                                );
-                                                            })()}
-                                                        </div>
-                                                    </div>
+                                                    {(() => {
+                                                        const activeSecondary = estados.find(e => e.id === state.estado_id && !['A', 'F', 'JI', 'TO', 'AT'].includes(e.codigo));
+                                                        if (activeSecondary) {
+                                                            // Período del calendario: pill SOLO-LECTURA con rango (reemplaza los botones).
+                                                            return (
+                                                                <div className="flex-1 min-w-0 rounded-lg text-[9px] font-black uppercase text-white text-center leading-tight px-2 py-1 flex items-center justify-center shadow-md" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div className="flex gap-0.5 p-0.5 bg-slate-100/50 dark:bg-muted/50 rounded-xl border border-slate-200/50 dark:border-border shadow-inner flex-1 min-w-0 transition-all group-hover:bg-brand-primary/5 group-hover:border-brand-primary/20">
+                                                                {['A', 'F', 'JI', 'TO'].map(code => {
+                                                                    const est = estados.find(e => e.codigo === code);
+                                                                    if (!est) return null;
+                                                                    const isActive2 = state.estado_id === est.id;
+                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-[9px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                                })}
+                                                            </div>
+                                                        );
+                                                    })()}
                                                     {verHorasExtra && (
                                                         <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-[48px] bg-background border border-border rounded-lg px-1.5 py-1 text-[9px] text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     )}

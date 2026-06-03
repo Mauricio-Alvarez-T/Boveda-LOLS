@@ -125,10 +125,19 @@ class FiscalizacionService {
             if (m) {
                 const year = parseInt(m[1], 10);
                 const month = parseInt(m[2], 10);
+                // Sargable: "cumple 10m en (year, month)" ⟺ "fecha_ingreso en el mes
+                // (month - 10)". Rango sobre la columna en vez de MONTH(DATE_ADD(...))
+                // → usa índice; idéntico (DATE_ADD conserva el mes destino).
+                let m0 = month - 1 - 10, y0 = year;
+                while (m0 < 0) { m0 += 12; y0 -= 1; }
+                let m1 = m0 + 1, y1 = y0;
+                if (m1 > 11) { m1 = 0; y1 += 1; }
+                const ingresoDesde = `${y0}-${String(m0 + 1).padStart(2, '0')}-01`;
+                const ingresoHasta = `${y1}-${String(m1 + 1).padStart(2, '0')}-01`;
                 query += ` AND t.fecha_ingreso IS NOT NULL
-                           AND MONTH(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?
-                           AND YEAR(DATE_ADD(t.fecha_ingreso, INTERVAL 10 MONTH)) = ?`;
-                params.push(month, year);
+                           AND t.fecha_ingreso >= ?
+                           AND t.fecha_ingreso < ?`;
+                params.push(ingresoDesde, ingresoHasta);
             }
         }
 

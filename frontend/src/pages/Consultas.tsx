@@ -87,12 +87,20 @@ const ConsultasPage: React.FC = () => {
         return m ? `${m[2].padStart(2, '0')}/${m[1]}` : '';
     }, [filterAniversario10m]);
 
+    // ids memoizados: evita recrear el array en cada render (dep del hook de selección).
+    const workerIds = useMemo(() => workers.map(w => w.id), [workers]);
+
+    // Opciones de filtros memoizadas: identidad estable hacia FilterPanel (react-select).
+    const obraOptions = useMemo(() => obras.map(o => ({ value: o.value, label: o.label })), [obras]);
+    const empresaOptions = useMemo(() => empresas.map(e => ({ value: e.value, label: e.label })), [empresas]);
+    const cargoOptions = useMemo(() => cargos.map(c => ({ value: c.value, label: c.label })), [cargos]);
+
     // 3. Selección
     const {
         selectedWorkers,
         handleSelectAll,
         handleSelectWorker
-    } = useConsultasSelection(workers.length, workers.map(w => w.id));
+    } = useConsultasSelection(workers.length, workerIds);
 
     // 4. Exportación
     const {
@@ -312,9 +320,9 @@ const ConsultasPage: React.FC = () => {
                             className="relative z-40"
                         >
                             <FilterPanel 
-                                obras={obras.map(o => ({ value: o.value, label: o.label }))}
-                                empresas={empresas.map(e => ({ value: e.value, label: e.label }))}
-                                cargos={cargos.map(c => ({ value: c.value, label: c.label }))}
+                                obras={obraOptions}
+                                empresas={empresaOptions}
+                                cargos={cargoOptions}
                                 filterObra={filterObra}
                                 setFilterObra={setFilterObra}
                                 filterEmpresa={filterEmpresa}
@@ -464,22 +472,17 @@ const ConsultasPage: React.FC = () => {
                             )}
                         </div>
                     ) : (
-                        <motion.div 
+                        <motion.div
                             className="flex flex-col gap-2.5 pb-10 sm:pb-5"
-                            variants={{
-                                show: { transition: { staggerChildren: 0.04 } }
-                            }}
-                            initial="hidden"
-                            animate="show"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ duration: 0.15 }}
                         >
+                            {/* Filas como <div> normal: animar cada una (hasta 192) causaba jank.
+                                La aparición de la lista se anima una sola vez en el contenedor. */}
                             {workers.map((worker, idx) => (
-                                <motion.div
+                                <div
                                     key={worker.id}
-                                    variants={{
-                                        hidden: { opacity: 0, y: 15, scale: 0.98 },
-                                        show: { opacity: 1, y: 0, scale: 1 }
-                                    }}
-                                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                                     className={cn(
                                         "bg-card rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
                                         selectedWorkers.has(worker.id) 
@@ -630,7 +633,7 @@ const ConsultasPage: React.FC = () => {
                                             )}
                                         </div>
                                     </div>
-                                </motion.div>
+                                </div>
                             ))}
                         </motion.div>
                     )}
@@ -839,9 +842,9 @@ const ConsultasPage: React.FC = () => {
                             {/* Body */}
                             <div className="flex-1 overflow-y-auto px-5 pb-8 custom-scrollbar">
                                 <FilterPanel 
-                                    obras={obras.map(o => ({ value: o.value, label: o.label }))}
-                                    empresas={empresas.map(e => ({ value: e.value, label: e.label }))}
-                                    cargos={cargos.map(c => ({ value: c.value, label: c.label }))}
+                                    obras={obraOptions}
+                                    empresas={empresaOptions}
+                                    cargos={cargoOptions}
                                     filterObra={filterObra}
                                     setFilterObra={setFilterObra}
                                     filterEmpresa={filterEmpresa}
