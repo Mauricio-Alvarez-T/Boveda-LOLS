@@ -124,6 +124,9 @@ export function useAttendanceData() {
     const [selectedEmpresaId, setSelectedEmpresaId] = useState<number | null>(null);
     const [statusFilter, setStatusFilter] = useState<number | null>(null);
     const [alertasFaltas, setAlertasFaltas] = useState<AlertaFalta[]>([]);
+    // Períodos activos del día (V/LM/etc. asignados por calendario), keyed
+    // `${trabajador_id}_${estado_id}` → rango. Para mostrar el rango en la fila.
+    const [periodosMap, setPeriodosMap] = useState<Record<string, { fecha_inicio: string; fecha_fin: string }>>({});
     // reportMonth/reportYear inicializan desde la fecha del calendario diario
     // (no desde "hoy") para que el export en modo "Todas las Obras" respete
     // el período que el usuario está revisando. Se sincroniza vía useEffect
@@ -258,6 +261,26 @@ export function useAttendanceData() {
 
             setWorkers(workerList);
             setAttendance(newAttendance);
+
+            // Períodos del día (solo con obra seleccionada; el endpoint requiere obra_id).
+            // Reusa el mismo endpoint que el export. Enriquece las filas con rango V/LM/etc.
+            if (!isGlobal) {
+                try {
+                    const periodsRes = await api.get<{ data: Array<{ trabajador_id: number; estado_id: number; fecha_inicio: string; fecha_fin: string }> }>(
+                        `/asistencias/periodos?obra_id=${selectedObra.id}&fecha_inicio=${date}&fecha_fin=${date}&activo=true`,
+                        { signal: controller.signal }
+                    );
+                    const map: Record<string, { fecha_inicio: string; fecha_fin: string }> = {};
+                    for (const p of (periodsRes.data?.data || [])) {
+                        map[`${p.trabajador_id}_${p.estado_id}`] = { fecha_inicio: p.fecha_inicio, fecha_fin: p.fecha_fin };
+                    }
+                    setPeriodosMap(map);
+                } catch (e) {
+                    if ((e as { code?: string })?.code !== 'ERR_CANCELED') setPeriodosMap({});
+                }
+            } else {
+                setPeriodosMap({});
+            }
 
             try {
                 const dateObj = new Date(date + 'T12:00:00');
@@ -430,7 +453,7 @@ export function useAttendanceData() {
         searchQuery, setSearchQuery,
         selectedEmpresaId, setSelectedEmpresaId,
         statusFilter, setStatusFilter,
-        alertasFaltas,
+        alertasFaltas, periodosMap,
         reportMonth, setReportMonth,
         reportYear, setReportYear,
         fetchAttendanceInfo,
