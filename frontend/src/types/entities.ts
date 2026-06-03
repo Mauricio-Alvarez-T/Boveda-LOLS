@@ -50,6 +50,79 @@ export interface Trabajador {
     activo: boolean;
     /** Si TRUE, trabajador de prueba: aislado de reportes/dashboard/asistencia/consultas operativas. */
     es_prueba?: boolean;
+    /** Clase/tipo de licencia de conducir (ej: B, A2, D). */
+    licencia_conducir?: string | null;
+    /** Fecha de vencimiento de la licencia de conducir. */
+    licencia_vencimiento?: string | null;
+}
+
+// ── Módulo Vehículos ──────────────────────────────────────────────────
+
+export interface Vehiculo {
+    id: number;
+    patente: string;
+    marca: string;
+    modelo: string;
+    anio: number;
+    tipo: 'camioneta' | 'camion' | 'auto' | 'furgon' | 'bus' | 'otro';
+    kilometraje_actual: number;
+    color?: string | null;
+    observaciones?: string | null;
+    activo: boolean;
+    // Campos enriquecidos por el backend (subconsultas)
+    seguro_tipo?: string | null;
+    seguro_vencimiento?: string | null;
+    revision_tecnica_vencimiento?: string | null;
+    revision_gases_vencimiento?: string | null;
+}
+
+export interface VehiculoSeguro {
+    id: number;
+    vehiculo_id: number;
+    tipo: 'SOAP' | 'complementario' | 'otro';
+    compania?: string | null;
+    numero_poliza?: string | null;
+    fecha_inicio: string;
+    fecha_vencimiento: string;
+    monto?: number | null;
+    observaciones?: string | null;
+    activo: boolean;
+}
+
+export interface VehiculoRevision {
+    id: number;
+    vehiculo_id: number;
+    tipo: 'tecnica' | 'gases' | 'mecanica';
+    fecha: string;
+    fecha_vencimiento: string;
+    resultado: 'aprobado' | 'rechazado' | 'pendiente';
+    planta?: string | null;
+    observaciones?: string | null;
+    activo: boolean;
+}
+
+export interface VehiculoMantencion {
+    id: number;
+    vehiculo_id: number;
+    fecha: string;
+    tipo: string;
+    km_al_realizar: number;
+    descripcion?: string | null;
+    costo?: number | null;
+    taller?: string | null;
+    activo: boolean;
+}
+
+export interface VehiculoAlerta {
+    patente?: string;
+    marca?: string;
+    modelo?: string;
+    nombre?: string;   // para licencias (nombre del trabajador)
+    rut?: string;
+    elemento: string;
+    fecha_vencimiento: string;
+    dias_restantes: number;
+    categoria: 'seguro' | 'revision' | 'licencia';
 }
 
 export interface TipoDocumento {

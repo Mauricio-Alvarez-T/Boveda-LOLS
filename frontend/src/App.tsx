@@ -11,6 +11,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const AttendancePage = React.lazy(() => import('./pages/Attendance'));
 const ConsultasPage = React.lazy(() => import('./pages/Consultas'));
 const InventarioPage = React.lazy(() => import('./pages/Inventario'));
+const VehiculosPage = React.lazy(() => import('./pages/Vehiculos'));
 const SettingsPage = React.lazy(() => import('./pages/Settings'));
 
 const FullScreenSpinner: React.FC = () => (
@@ -53,6 +54,7 @@ const App: React.FC = () => {
             <Route path="asistencia" element={<AttendancePage />} />
             <Route path="consultas" element={<ConsultasPage />} />
             <Route path="inventario" element={<InventarioPage />} />
+            <Route path="vehiculos" element={<VehiculosPage />} />
             <Route path="configuracion" element={<SettingsPage />} />
           </Route>
 

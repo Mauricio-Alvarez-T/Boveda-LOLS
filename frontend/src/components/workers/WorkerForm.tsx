@@ -30,6 +30,8 @@ const workerSchema = z.object({
     categoria_reporte: z.enum(['obra', 'operaciones', 'rotativo']),
     fecha_ingreso: z.string().optional(),
     es_prueba: z.boolean().optional(),
+    licencia_conducir: z.string().optional(),
+    licencia_vencimiento: z.string().optional(),
 });
 
 type WorkerFormData = z.infer<typeof workerSchema>;
@@ -68,6 +70,8 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             categoria_reporte: initialData.categoria_reporte || 'obra',
             fecha_ingreso: initialData.fecha_ingreso ? initialData.fecha_ingreso.split('T')[0] : '',
             es_prueba: initialData.es_prueba ?? false,
+            licencia_conducir: initialData.licencia_conducir || '',
+            licencia_vencimiento: initialData.licencia_vencimiento ? initialData.licencia_vencimiento.split('T')[0] : '',
         } : {},
     });
 
@@ -252,6 +256,21 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     type="date"
                     error={errors.fecha_ingreso?.message}
                     {...register('fecha_ingreso')}
+                />
+            </div>
+
+            {/* Licencia de conducir */}
+            <div className="h-px bg-white/5 my-1" />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                    label="Clase de Licencia"
+                    placeholder="Ej: B, A2, D"
+                    {...register('licencia_conducir')}
+                />
+                <Input
+                    label="Vencimiento Licencia"
+                    type="date"
+                    {...register('licencia_vencimiento')}
                 />
             </div>
 
