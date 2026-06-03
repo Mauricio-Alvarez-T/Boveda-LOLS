@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Truck, Plus, Shield, Wrench, ClipboardList, AlertTriangle, Trash2, Edit2, X, ChevronRight } from 'lucide-react';
+import {
+    Truck, Plus, Shield, Wrench, ClipboardList,
+    Trash2, Edit2, X, ChevronLeft, Bell
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -23,8 +26,8 @@ function diasHasta(fecha: string | null | undefined): number | null {
 
 function EstadoVencimiento({ fecha, label }: { fecha?: string | null; label: string }) {
     const dias = diasHasta(fecha);
-    if (dias === null) return <span className="text-xs text-muted-foreground">Sin {label}</span>;
-    if (dias < 0)  return <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-red-100 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300">VENCIDO ({Math.abs(dias)}d)</span>;
+    if (dias === null) return <span className="text-xs text-muted-foreground italic">Sin {label}</span>;
+    if (dias < 0)   return <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-red-100 text-red-700 border border-red-200 dark:bg-red-950/40 dark:text-red-300">VENCIDO {Math.abs(dias)}d</span>;
     if (dias <= 30) return <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-amber-100 text-amber-700 border border-amber-200 dark:bg-amber-950/40 dark:text-amber-300">Vence en {dias}d</span>;
     return <span className="text-[10px] font-black px-2 py-0.5 rounded-lg bg-green-100 text-green-700 border border-green-200 dark:bg-green-950/40 dark:text-green-300">Vigente</span>;
 }
@@ -38,9 +41,18 @@ function fmtMoney(n?: number | null) {
     return `$${Number(n).toLocaleString('es-CL')}`;
 }
 
-// ── Componente principal ──────────────────────────────────────────────────────
+function AlertaBadge({ diasAlerta, emailAlerta, telAlerta }: { diasAlerta?: number | null; emailAlerta?: string | null; telAlerta?: string | null }) {
+    const canales = [emailAlerta && 'Email', telAlerta && 'WhatsApp'].filter(Boolean).join(' + ');
+    if (!canales || !diasAlerta) return null;
+    return (
+        <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-1.5 py-0.5 rounded-md">
+            <Bell className="h-2.5 w-2.5" />
+            {diasAlerta}d · {canales}
+        </span>
+    );
+}
 
-type TabKey = 'vehiculos' | 'seguros' | 'revisiones' | 'mantenciones';
+// ── Componente principal ──────────────────────────────────────────────────────
 
 const VehiculosPage: React.FC = () => {
     const { hasPermission } = useAuth();
@@ -51,25 +63,23 @@ const VehiculosPage: React.FC = () => {
         </div>
     );
 
-    const [activeTab, setActiveTab] = useState<TabKey>('vehiculos');
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
     const [loading, setLoading] = useState(false);
+    // En móvil: null = lista, Vehiculo = detalle
     const [selected, setSelected] = useState<Vehiculo | null>(null);
 
-    // Datos del panel detalle
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
     const [revisiones, setRevisiones] = useState<VehiculoRevision[]>([]);
     const [mantenciones, setMantenciones] = useState<VehiculoMantencion[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
 
-    // Modales
     const [modalVehiculo, setModalVehiculo] = useState(false);
     const [editVehiculo, setEditVehiculo] = useState<Vehiculo | null>(null);
     const [modalSeguro, setModalSeguro] = useState(false);
     const [modalRevision, setModalRevision] = useState(false);
     const [modalMantencion, setModalMantencion] = useState(false);
 
-    // ── Fetch ────────────────────────────────────────────────────────────────
+    // ── Fetch ─────────────────────────────────────────────────────────────────
 
     const fetchVehiculos = useCallback(async () => {
         setLoading(true);
@@ -98,8 +108,6 @@ const VehiculosPage: React.FC = () => {
     useEffect(() => { fetchVehiculos(); }, [fetchVehiculos]);
     useEffect(() => { if (selected) fetchDetail(selected.id); }, [selected, fetchDetail]);
 
-    // ── Eliminar ─────────────────────────────────────────────────────────────
-
     const handleDelete = async (v: Vehiculo) => {
         if (!confirm(`¿Dar de baja el vehículo ${v.patente}?`)) return;
         try {
@@ -107,288 +115,220 @@ const VehiculosPage: React.FC = () => {
             toast.success('Vehículo dado de baja');
             if (selected?.id === v.id) setSelected(null);
             fetchVehiculos();
-        } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al eliminar');
-        }
+        } catch (err: any) { toast.error(err.response?.data?.error || 'Error al eliminar'); }
     };
 
-    const removeSeguro = async (id: number) => {
+    const removeItem = async (endpoint: string, id: number) => {
         if (!selected) return;
-        await api.delete(`/vehiculos/${selected.id}/seguros/${id}`);
+        await api.delete(`/vehiculos/${selected.id}/${endpoint}/${id}`);
         fetchDetail(selected.id);
-        toast.success('Seguro eliminado');
-    };
-    const removeRevision = async (id: number) => {
-        if (!selected) return;
-        await api.delete(`/vehiculos/${selected.id}/revisiones/${id}`);
-        fetchDetail(selected.id);
-        toast.success('Revisión eliminada');
-    };
-    const removeMantencion = async (id: number) => {
-        if (!selected) return;
-        await api.delete(`/vehiculos/${selected.id}/mantenciones/${id}`);
-        fetchDetail(selected.id);
-        toast.success('Mantención eliminada');
+        toast.success('Eliminado');
     };
 
-    // ── Tabs ─────────────────────────────────────────────────────────────────
+    // ── Vista lista ───────────────────────────────────────────────────────────
 
-    const tabs = [
-        { key: 'vehiculos'    as TabKey, label: 'Vehículos',  icon: Truck },
-        { key: 'seguros'      as TabKey, label: 'Seguros',    icon: Shield },
-        { key: 'revisiones'   as TabKey, label: 'Revisiones', icon: ClipboardList },
-        { key: 'mantenciones' as TabKey, label: 'Mantenciones', icon: Wrench },
-    ];
+    const ListView = (
+        <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6">
+            <div className="flex items-center justify-between shrink-0 mb-4">
+                <h3 className="text-sm font-bold text-brand-dark flex items-center gap-2">
+                    <Truck className="h-4 w-4 text-brand-primary" />
+                    Flota de Vehículos
+                    <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{vehiculos.length}</span>
+                </h3>
+                {hasPermission('vehiculos.crear') && (
+                    <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+                        leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                        Nuevo vehículo
+                    </Button>
+                )}
+            </div>
 
-    // ── Render ───────────────────────────────────────────────────────────────
+            {loading ? (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
+            ) : vehiculos.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12">
+                    <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
+                        <Truck className="h-8 w-8 text-muted-foreground/40" />
+                    </div>
+                    <div className="text-center">
+                        <p className="text-sm font-semibold text-brand-dark">Sin vehículos registrados</p>
+                        <p className="text-xs text-muted-foreground mt-1">Haz clic en "Nuevo vehículo" para comenzar</p>
+                    </div>
+                </div>
+            ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                    {vehiculos.map(v => (
+                        <div key={v.id}
+                            onClick={() => setSelected(v)}
+                            className={cn(
+                                'px-4 py-3 rounded-2xl border cursor-pointer transition-all active:scale-[0.99]',
+                                selected?.id === v.id
+                                    ? 'border-brand-primary bg-brand-primary/5 shadow-sm'
+                                    : 'border-border hover:border-brand-primary/40 hover:bg-brand-primary/[0.02]'
+                            )}>
+                            <div className="flex items-center justify-between gap-3">
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="font-black text-brand-dark text-sm">{v.patente}</span>
+                                        <span className="text-xs text-muted-foreground">{v.marca} {v.modelo} {v.anio}</span>
+                                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                        <EstadoVencimiento fecha={v.seguro_vencimiento} label="seguro" />
+                                        <EstadoVencimiento fecha={v.revision_tecnica_vencimiento} label="revisión" />
+                                        <span className="text-[10px] text-muted-foreground">{(v.kilometraje_actual || 0).toLocaleString('es-CL')} km</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0">
+                                    {hasPermission('vehiculos.editar') && (
+                                        <button onClick={e => { e.stopPropagation(); setEditVehiculo(v); setModalVehiculo(true); }}
+                                            className="p-1.5 rounded-lg hover:bg-brand-primary/10 text-muted-foreground hover:text-brand-primary transition-colors">
+                                            <Edit2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                    {hasPermission('vehiculos.eliminar') && (
+                                        <button onClick={e => { e.stopPropagation(); handleDelete(v); }}
+                                            className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                                            <Trash2 className="h-3.5 w-3.5" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+
+    // ── Vista detalle ─────────────────────────────────────────────────────────
+
+    const DetailView = selected ? (
+        <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6 md:w-[460px] md:shrink-0">
+            {/* Header */}
+            <div className="flex items-center gap-3 mb-4 shrink-0">
+                {/* Botón volver - solo en móvil */}
+                <button onClick={() => setSelected(null)}
+                    className="md:hidden p-2 rounded-xl hover:bg-muted text-muted-foreground">
+                    <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Detalle vehículo</p>
+                    <h4 className="text-base font-black text-brand-dark truncate">{selected.patente} · {selected.marca} {selected.modelo} {selected.anio}</h4>
+                </div>
+                <button onClick={() => setSelected(null)}
+                    className="hidden md:flex p-1.5 rounded-full hover:bg-muted text-muted-foreground">
+                    <X className="h-4 w-4" />
+                </button>
+            </div>
+
+            {detailLoading ? (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
+            ) : (
+                <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
+
+                    {/* SEGUROS */}
+                    <Section
+                        icon={<Shield className="h-3.5 w-3.5" />}
+                        title="Seguros"
+                        onAdd={hasPermission('vehiculos.crear') ? () => setModalSeguro(true) : undefined}
+                    >
+                        {seguros.length === 0
+                            ? <Empty>Sin seguros registrados</Empty>
+                            : seguros.map(s => (
+                                <ItemRow key={s.id}
+                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('seguros', s.id) : undefined}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-bold text-brand-dark">{s.tipo}</span>
+                                        {s.compania && <span className="text-[10px] text-muted-foreground">{s.compania}</span>}
+                                        <EstadoVencimiento fecha={s.fecha_vencimiento} label="seguro" />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        {fmtDate(s.fecha_inicio)} → {fmtDate(s.fecha_vencimiento)}
+                                        {(s as any).numero_poliza ? ` · Pól. ${(s as any).numero_poliza}` : ''}
+                                        {(s as any).monto ? ` · ${fmtMoney((s as any).monto)}` : ''}
+                                    </p>
+                                    <AlertaBadge diasAlerta={(s as any).dias_alerta} emailAlerta={(s as any).email_alerta} telAlerta={(s as any).tel_alerta} />
+                                </ItemRow>
+                            ))
+                        }
+                    </Section>
+
+                    {/* REVISIONES */}
+                    <Section
+                        icon={<ClipboardList className="h-3.5 w-3.5" />}
+                        title="Revisiones Técnicas"
+                        onAdd={hasPermission('vehiculos.crear') ? () => setModalRevision(true) : undefined}
+                    >
+                        {revisiones.length === 0
+                            ? <Empty>Sin revisiones registradas</Empty>
+                            : revisiones.map(r => (
+                                <ItemRow key={r.id}
+                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('revisiones', r.id) : undefined}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-bold text-brand-dark capitalize">{r.tipo}</span>
+                                        <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md",
+                                            r.resultado === 'aprobado' ? 'bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-300' :
+                                            r.resultado === 'rechazado' ? 'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-300' :
+                                            'bg-amber-100 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300'
+                                        )}>{r.resultado}</span>
+                                        <EstadoVencimiento fecha={r.fecha_vencimiento} label="revisión" />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        {fmtDate(r.fecha)} → {fmtDate(r.fecha_vencimiento)}
+                                        {r.planta ? ` · ${r.planta}` : ''}
+                                    </p>
+                                    <AlertaBadge diasAlerta={(r as any).dias_alerta} emailAlerta={(r as any).email_alerta} telAlerta={(r as any).tel_alerta} />
+                                </ItemRow>
+                            ))
+                        }
+                    </Section>
+
+                    {/* MANTENCIONES */}
+                    <Section
+                        icon={<Wrench className="h-3.5 w-3.5" />}
+                        title="Mantenciones"
+                        onAdd={hasPermission('vehiculos.crear') ? () => setModalMantencion(true) : undefined}
+                    >
+                        {mantenciones.length === 0
+                            ? <Empty>Sin mantenciones registradas</Empty>
+                            : mantenciones.map(m => (
+                                <ItemRow key={m.id}
+                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('mantenciones', m.id) : undefined}>
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-xs font-bold text-brand-dark">{m.tipo}</span>
+                                        <span className="text-[10px] text-muted-foreground">{(m.km_al_realizar || 0).toLocaleString('es-CL')} km</span>
+                                        {(m as any).fecha_proxima && <EstadoVencimiento fecha={(m as any).fecha_proxima} label="próx. mantención" />}
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        {fmtDate(m.fecha)}
+                                        {m.taller ? ` · ${m.taller}` : ''}
+                                        {m.costo ? ` · ${fmtMoney(m.costo)}` : ''}
+                                    </p>
+                                    {m.descripcion && <p className="text-[10px] text-muted-foreground/70 italic">{m.descripcion}</p>}
+                                    <AlertaBadge diasAlerta={(m as any).dias_alerta} emailAlerta={(m as any).email_alerta} telAlerta={(m as any).tel_alerta} />
+                                </ItemRow>
+                            ))
+                        }
+                    </Section>
+                </div>
+            )}
+        </div>
+    ) : null;
+
+    // ── Layout responsive ─────────────────────────────────────────────────────
 
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-4">
-            {/* Tab bar */}
-            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
-                <div className="flex items-center gap-1 p-1.5 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
-                    {tabs.map(tab => {
-                        const Icon = tab.icon;
-                        return (
-                            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                                title={tab.label}
-                                className={cn(
-                                    'flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 flex-1 min-w-0 transition-all',
-                                    activeTab === tab.key
-                                        ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
-                                        : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
-                                )}>
-                                <Icon className="h-5 w-5 shrink-0" />
-                                <span className="text-[10px] font-black uppercase tracking-tight leading-none">{tab.label}</span>
-                            </button>
-                        );
-                    })}
-                </div>
+            {/* MOBILE: alterna entre lista y detalle */}
+            <div className="md:hidden flex flex-1 min-h-0">
+                {selected ? DetailView : ListView}
             </div>
 
-            {/* Content */}
-            <div className="flex flex-1 min-h-0 gap-4">
-
-                {/* ── Lista de vehículos (siempre visible en la pestaña vehiculos) ── */}
-                <div className={cn(
-                    "flex flex-col min-h-0 flex-1 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6",
-                    activeTab !== 'vehiculos' && 'hidden md:flex'
-                )}>
-                    <div className="flex items-center justify-between shrink-0 mb-4">
-                        <h3 className="text-sm font-bold text-brand-dark flex items-center gap-2">
-                            <Truck className="h-4 w-4 text-brand-primary" />
-                            Flota de Vehículos
-                        </h3>
-                        {hasPermission('vehiculos.crear') && (
-                            <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
-                                leftIcon={<Plus className="h-3.5 w-3.5" />}>
-                                Nuevo vehículo
-                            </Button>
-                        )}
-                    </div>
-
-                    {loading ? (
-                        <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
-                    ) : vehiculos.length === 0 ? (
-                        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
-                            <Truck className="h-10 w-10 opacity-20" />
-                            <p className="text-sm font-semibold">Sin vehículos registrados</p>
-                            <p className="text-xs">Haz clic en "Nuevo vehículo" para comenzar</p>
-                        </div>
-                    ) : (
-                        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-                            {vehiculos.map(v => (
-                                <div key={v.id}
-                                    onClick={() => setSelected(selected?.id === v.id ? null : v)}
-                                    className={cn(
-                                        'px-4 py-3 rounded-2xl border cursor-pointer transition-all',
-                                        selected?.id === v.id
-                                            ? 'border-brand-primary bg-brand-primary/5 shadow-sm'
-                                            : 'border-border hover:border-brand-primary/40 hover:bg-brand-primary/[0.02]'
-                                    )}>
-                                    <div className="flex items-center justify-between gap-3">
-                                        <div className="flex-1 min-w-0">
-                                            <div className="flex items-center gap-2 flex-wrap">
-                                                <span className="font-black text-brand-dark text-sm">{v.patente}</span>
-                                                <span className="text-xs text-muted-foreground">{v.marca} {v.modelo} {v.anio}</span>
-                                                <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
-                                            </div>
-                                            <div className="flex items-center gap-3 mt-1.5 flex-wrap">
-                                                <EstadoVencimiento fecha={v.seguro_vencimiento} label="seguro" />
-                                                <EstadoVencimiento fecha={v.revision_tecnica_vencimiento} label="revisión" />
-                                                <span className="text-[10px] text-muted-foreground">{(v.kilometraje_actual || 0).toLocaleString('es-CL')} km</span>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-1 shrink-0">
-                                            {hasPermission('vehiculos.editar') && (
-                                                <button onClick={e => { e.stopPropagation(); setEditVehiculo(v); setModalVehiculo(true); }}
-                                                    className="p-1.5 rounded-lg hover:bg-brand-primary/10 text-muted-foreground hover:text-brand-primary transition-colors">
-                                                    <Edit2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                            {hasPermission('vehiculos.eliminar') && (
-                                                <button onClick={e => { e.stopPropagation(); handleDelete(v); }}
-                                                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                            <ChevronRight className={cn("h-4 w-4 text-muted-foreground transition-transform", selected?.id === v.id && "rotate-90")} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-
-                {/* ── Panel detalle ── */}
-                {selected && (
-                    <div className="flex flex-col min-h-0 md:w-[420px] lg:w-[480px] md:shrink-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6">
-                        <div className="flex items-center justify-between mb-4 shrink-0">
-                            <div>
-                                <p className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest">Detalle</p>
-                                <h4 className="text-base font-black text-brand-dark">{selected.patente} — {selected.marca} {selected.modelo}</h4>
-                            </div>
-                            <button onClick={() => setSelected(null)} className="p-1.5 rounded-full hover:bg-muted text-muted-foreground">
-                                <X className="h-4 w-4" />
-                            </button>
-                        </div>
-
-                        {detailLoading ? (
-                            <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
-                        ) : (
-                            <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
-
-                                {/* Seguros */}
-                                <section>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
-                                            <Shield className="h-3.5 w-3.5" /> Seguros
-                                        </span>
-                                        {hasPermission('vehiculos.crear') && (
-                                            <button onClick={() => setModalSeguro(true)}
-                                                className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1">
-                                                <Plus className="h-3 w-3" /> Agregar
-                                            </button>
-                                        )}
-                                    </div>
-                                    {seguros.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground">Sin seguros registrados</p>
-                                    ) : seguros.map(s => (
-                                        <div key={s.id} className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-muted/40 border border-border mb-1.5">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="text-xs font-bold text-brand-dark">{s.tipo}</span>
-                                                    {s.compania && <span className="text-[10px] text-muted-foreground">{s.compania}</span>}
-                                                    <EstadoVencimiento fecha={s.fecha_vencimiento} label="seguro" />
-                                                </div>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    {fmtDate(s.fecha_inicio)} → {fmtDate(s.fecha_vencimiento)}
-                                                    {s.numero_poliza && ` · Pól. ${s.numero_poliza}`}
-                                                    {s.monto && ` · ${fmtMoney(s.monto)}`}
-                                                </p>
-                                            </div>
-                                            {hasPermission('vehiculos.eliminar') && (
-                                                <button onClick={() => removeSeguro(s.id)}
-                                                    className="p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0">
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                </section>
-
-                                {/* Revisiones */}
-                                <section>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
-                                            <ClipboardList className="h-3.5 w-3.5" /> Revisiones Técnicas
-                                        </span>
-                                        {hasPermission('vehiculos.crear') && (
-                                            <button onClick={() => setModalRevision(true)}
-                                                className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1">
-                                                <Plus className="h-3 w-3" /> Agregar
-                                            </button>
-                                        )}
-                                    </div>
-                                    {revisiones.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground">Sin revisiones registradas</p>
-                                    ) : revisiones.map(r => (
-                                        <div key={r.id} className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-muted/40 border border-border mb-1.5">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="text-xs font-bold text-brand-dark capitalize">{r.tipo}</span>
-                                                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md",
-                                                        r.resultado === 'aprobado' ? 'bg-green-100 text-green-700' :
-                                                        r.resultado === 'rechazado' ? 'bg-red-100 text-red-700' :
-                                                        'bg-amber-100 text-amber-700'
-                                                    )}>{r.resultado}</span>
-                                                    <EstadoVencimiento fecha={r.fecha_vencimiento} label="revisión" />
-                                                </div>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    {fmtDate(r.fecha)} → {fmtDate(r.fecha_vencimiento)}
-                                                    {r.planta && ` · ${r.planta}`}
-                                                </p>
-                                            </div>
-                                            {hasPermission('vehiculos.eliminar') && (
-                                                <button onClick={() => removeRevision(r.id)}
-                                                    className="p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0">
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                </section>
-
-                                {/* Mantenciones */}
-                                <section>
-                                    <div className="flex items-center justify-between mb-2">
-                                        <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
-                                            <Wrench className="h-3.5 w-3.5" /> Mantenciones
-                                        </span>
-                                        {hasPermission('vehiculos.crear') && (
-                                            <button onClick={() => setModalMantencion(true)}
-                                                className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1">
-                                                <Plus className="h-3 w-3" /> Agregar
-                                            </button>
-                                        )}
-                                    </div>
-                                    {mantenciones.length === 0 ? (
-                                        <p className="text-xs text-muted-foreground">Sin mantenciones registradas</p>
-                                    ) : mantenciones.map(m => (
-                                        <div key={m.id} className="flex items-start justify-between gap-2 p-2.5 rounded-xl bg-muted/40 border border-border mb-1.5">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2">
-                                                    <span className="text-xs font-bold text-brand-dark">{m.tipo}</span>
-                                                    <span className="text-[10px] text-muted-foreground">{(m.km_al_realizar).toLocaleString('es-CL')} km</span>
-                                                </div>
-                                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                                    {fmtDate(m.fecha)}
-                                                    {m.taller && ` · ${m.taller}`}
-                                                    {m.costo && ` · ${fmtMoney(m.costo)}`}
-                                                </p>
-                                                {m.descripcion && <p className="text-[10px] text-muted-foreground/70 mt-0.5 italic">{m.descripcion}</p>}
-                                            </div>
-                                            {hasPermission('vehiculos.eliminar') && (
-                                                <button onClick={() => removeMantencion(m.id)}
-                                                    className="p-1 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive shrink-0">
-                                                    <Trash2 className="h-3.5 w-3.5" />
-                                                </button>
-                                            )}
-                                        </div>
-                                    ))}
-                                </section>
-                            </div>
-                        )}
-                    </div>
-                )}
-
-                {/* ── Pestañas consolidadas (seguros / revisiones / mantenciones) ── */}
-                {activeTab !== 'vehiculos' && (
-                    <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6">
-                        <ConsolidatedTab tab={activeTab} vehiculos={vehiculos} />
-                    </div>
-                )}
+            {/* DESKTOP: lista + detalle en paralelo */}
+            <div className="hidden md:flex flex-1 min-h-0 gap-4">
+                {ListView}
+                {DetailView}
             </div>
 
             {/* ── Modales ── */}
@@ -419,62 +359,39 @@ const VehiculosPage: React.FC = () => {
     );
 };
 
-// ── Vista consolidada ─────────────────────────────────────────────────────────
+// ── Sub-componentes ───────────────────────────────────────────────────────────
 
-const ConsolidatedTab: React.FC<{ tab: TabKey; vehiculos: Vehiculo[] }> = ({ tab, vehiculos }) => {
-    const [rows, setRows] = useState<any[]>([]);
-    const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        if (tab === 'vehiculos') return;
-        setLoading(true);
-        const endpoint = tab === 'seguros' ? 'seguros' : tab === 'revisiones' ? 'revisiones' : 'mantenciones';
-        Promise.all(
-            vehiculos.map(v =>
-                api.get<{ data: any[] }>(`/vehiculos/${v.id}/${endpoint}`)
-                    .then(r => r.data.data.map((item: any) => ({ ...item, vehiculo: v })))
-                    .catch(() => [])
-            )
-        ).then(all => {
-            const flat = all.flat().sort((a, b) => {
-                const fa = a.fecha_vencimiento || a.fecha || '';
-                const fb = b.fecha_vencimiento || b.fecha || '';
-                return fa.localeCompare(fb);
-            });
-            setRows(flat);
-        }).finally(() => setLoading(false));
-    }, [tab, vehiculos]);
-
-    if (loading) return <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>;
-    if (rows.length === 0) return (
-        <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
-            <AlertTriangle className="h-8 w-8 opacity-20" />
-            <p className="text-sm font-semibold">Sin registros</p>
+const Section: React.FC<{ icon: React.ReactNode; title: string; onAdd?: () => void; children: React.ReactNode }> = ({ icon, title, onAdd, children }) => (
+    <section>
+        <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
+                {icon} {title}
+            </span>
+            {onAdd && (
+                <button onClick={onAdd}
+                    className="text-[10px] font-bold text-brand-primary hover:underline flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-brand-primary/5 transition-colors">
+                    <Plus className="h-3 w-3" /> Agregar
+                </button>
+            )}
         </div>
-    );
+        <div className="space-y-1.5">{children}</div>
+    </section>
+);
 
-    return (
-        <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-            {rows.map((row, i) => (
-                <div key={i} className="flex items-start justify-between gap-3 p-3 rounded-xl border border-border bg-muted/30">
-                    <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                            <span className="text-xs font-black text-brand-dark">{row.vehiculo?.patente}</span>
-                            <span className="text-[10px] text-muted-foreground">{row.vehiculo?.marca} {row.vehiculo?.modelo}</span>
-                            {tab === 'seguros' && <><span className="text-xs font-bold text-brand-dark">{row.tipo}</span>{row.compania && <span className="text-[10px] text-muted-foreground">{row.compania}</span>}</>}
-                            {tab === 'revisiones' && <><span className="text-xs font-bold text-brand-dark capitalize">{row.tipo}</span><span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md", row.resultado === 'aprobado' ? 'bg-green-100 text-green-700' : row.resultado === 'rechazado' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700')}>{row.resultado}</span></>}
-                            {tab === 'mantenciones' && <><span className="text-xs font-bold text-brand-dark">{row.tipo}</span><span className="text-[10px] text-muted-foreground">{(row.km_al_realizar || 0).toLocaleString('es-CL')} km</span></>}
-                        </div>
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                            {tab !== 'mantenciones' ? `${fmtDate(row.fecha_inicio || row.fecha)} → ${fmtDate(row.fecha_vencimiento)}` : fmtDate(row.fecha)}
-                            {tab === 'seguros' && row.monto ? ` · ${fmtMoney(row.monto)}` : ''}
-                        </p>
-                    </div>
-                    {tab !== 'mantenciones' && <EstadoVencimiento fecha={row.fecha_vencimiento} label="" />}
-                </div>
-            ))}
-        </div>
-    );
-};
+const ItemRow: React.FC<{ onDelete?: () => void; children: React.ReactNode }> = ({ onDelete, children }) => (
+    <div className="flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border">
+        <div className="flex-1 min-w-0 flex flex-col gap-0.5">{children}</div>
+        {onDelete && (
+            <button onClick={onDelete}
+                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0 mt-0.5">
+                <Trash2 className="h-3.5 w-3.5" />
+            </button>
+        )}
+    </div>
+);
+
+const Empty: React.FC<{ children: string }> = ({ children }) => (
+    <p className="text-xs text-muted-foreground py-1 pl-1 italic">{children}</p>
+);
 
 export default VehiculosPage;

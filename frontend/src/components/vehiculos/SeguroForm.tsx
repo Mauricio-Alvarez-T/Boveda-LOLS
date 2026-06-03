@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save } from 'lucide-react';
+import { Save, Bell } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
@@ -14,13 +14,22 @@ interface Props {
 
 export const SeguroForm: React.FC<Props> = ({ vehiculoId, onSuccess, onCancel }) => {
     const { register, handleSubmit, formState: { isSubmitting } } = useForm({
-        defaultValues: { tipo: 'SOAP', compania: '', numero_poliza: '', fecha_inicio: '', fecha_vencimiento: '', monto: '', observaciones: '' }
+        defaultValues: {
+            tipo: 'SOAP', compania: '', numero_poliza: '',
+            fecha_inicio: '', fecha_vencimiento: '', monto: '',
+            observaciones: '',
+            dias_alerta: 30, email_alerta: '', tel_alerta: '',
+        }
     });
 
     const onSubmit = async (data: any) => {
         try {
             await api.post(`/vehiculos/${vehiculoId}/seguros`, {
-                ...data, monto: data.monto ? Number(data.monto) : null,
+                ...data,
+                monto: data.monto ? Number(data.monto) : null,
+                dias_alerta: data.dias_alerta ? Number(data.dias_alerta) : null,
+                email_alerta: data.email_alerta || null,
+                tel_alerta: data.tel_alerta || null,
             });
             toast.success('Seguro agregado');
             onSuccess();
@@ -56,7 +65,28 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, onSuccess, onCancel })
                 <textarea {...register('observaciones')} rows={2}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
             </div>
-            <div className="flex justify-end gap-3 mt-4">
+
+            {/* Configuración de alertas */}
+            <div className="border-t border-border pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                    <Bell className="h-3.5 w-3.5 text-brand-primary" />
+                    <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                    <div>
+                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
+                        <input type="number" {...register('dias_alerta')} min={1} max={365}
+                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                    </div>
+                    <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
+                    <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
+                </div>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                    Se enviará una alerta automática X días antes del vencimiento al email y/o WhatsApp indicado.
+                </p>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
                 <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>Guardar</Button>
             </div>
