@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Truck, Plus, Shield, Wrench, ClipboardList,
-    Trash2, Edit2, X, ChevronLeft, Bell
+    Trash2, Edit2, X, ChevronLeft, Bell, Pencil
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -76,8 +76,11 @@ const VehiculosPage: React.FC = () => {
     const [modalVehiculo, setModalVehiculo] = useState(false);
     const [editVehiculo, setEditVehiculo] = useState<Vehiculo | null>(null);
     const [modalSeguro, setModalSeguro] = useState(false);
+    const [editSeguro, setEditSeguro] = useState<VehiculoSeguro | null>(null);
     const [modalRevision, setModalRevision] = useState(false);
+    const [editRevision, setEditRevision] = useState<VehiculoRevision | null>(null);
     const [modalMantencion, setModalMantencion] = useState(false);
+    const [editMantencion, setEditMantencion] = useState<VehiculoMantencion | null>(null);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -237,6 +240,7 @@ const VehiculosPage: React.FC = () => {
                             ? <Empty>Sin seguros registrados</Empty>
                             : seguros.map(s => (
                                 <ItemRow key={s.id}
+                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditSeguro(s); setModalSeguro(true); } : undefined}
                                     onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('seguros', s.id) : undefined}>
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-xs font-bold text-brand-dark">{s.tipo}</span>
@@ -264,6 +268,7 @@ const VehiculosPage: React.FC = () => {
                             ? <Empty>Sin revisiones registradas</Empty>
                             : revisiones.map(r => (
                                 <ItemRow key={r.id}
+                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditRevision(r); setModalRevision(true); } : undefined}
                                     onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('revisiones', r.id) : undefined}>
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-xs font-bold text-brand-dark capitalize">{r.tipo}</span>
@@ -294,6 +299,7 @@ const VehiculosPage: React.FC = () => {
                             ? <Empty>Sin mantenciones registradas</Empty>
                             : mantenciones.map(m => (
                                 <ItemRow key={m.id}
+                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditMantencion(m); setModalMantencion(true); } : undefined}
                                     onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('mantenciones', m.id) : undefined}>
                                     <div className="flex items-center gap-2">
                                         <span className="text-xs font-bold text-brand-dark">{m.tipo}</span>
@@ -340,18 +346,27 @@ const VehiculosPage: React.FC = () => {
 
             {selected && (
                 <>
-                    <Modal isOpen={modalSeguro} onClose={() => setModalSeguro(false)} title="Agregar Seguro" size="md">
-                        <SeguroForm vehiculoId={selected.id} onCancel={() => setModalSeguro(false)}
-                            onSuccess={() => { setModalSeguro(false); fetchDetail(selected.id); fetchVehiculos(); }} />
+                    <Modal isOpen={modalSeguro}
+                        onClose={() => { setModalSeguro(false); setEditSeguro(null); }}
+                        title={editSeguro ? 'Editar Seguro' : 'Agregar Seguro'} size="md">
+                        <SeguroForm vehiculoId={selected.id} initialData={editSeguro}
+                            onCancel={() => { setModalSeguro(false); setEditSeguro(null); }}
+                            onSuccess={() => { setModalSeguro(false); setEditSeguro(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
-                    <Modal isOpen={modalRevision} onClose={() => setModalRevision(false)} title="Agregar Revisión Técnica" size="md">
-                        <RevisionForm vehiculoId={selected.id} onCancel={() => setModalRevision(false)}
-                            onSuccess={() => { setModalRevision(false); fetchDetail(selected.id); fetchVehiculos(); }} />
+                    <Modal isOpen={modalRevision}
+                        onClose={() => { setModalRevision(false); setEditRevision(null); }}
+                        title={editRevision ? 'Editar Revisión Técnica' : 'Agregar Revisión Técnica'} size="md">
+                        <RevisionForm vehiculoId={selected.id} initialData={editRevision}
+                            onCancel={() => { setModalRevision(false); setEditRevision(null); }}
+                            onSuccess={() => { setModalRevision(false); setEditRevision(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
-                    <Modal isOpen={modalMantencion} onClose={() => setModalMantencion(false)} title="Registrar Mantención" size="md">
+                    <Modal isOpen={modalMantencion}
+                        onClose={() => { setModalMantencion(false); setEditMantencion(null); }}
+                        title={editMantencion ? 'Editar Mantención' : 'Registrar Mantención'} size="md">
                         <MantencionForm vehiculoId={selected.id} kmActual={selected.kilometraje_actual}
-                            onCancel={() => setModalMantencion(false)}
-                            onSuccess={() => { setModalMantencion(false); fetchDetail(selected.id); }} />
+                            initialData={editMantencion}
+                            onCancel={() => { setModalMantencion(false); setEditMantencion(null); }}
+                            onSuccess={() => { setModalMantencion(false); setEditMantencion(null); fetchDetail(selected.id); }} />
                     </Modal>
                 </>
             )}
@@ -378,15 +393,23 @@ const Section: React.FC<{ icon: React.ReactNode; title: string; onAdd?: () => vo
     </section>
 );
 
-const ItemRow: React.FC<{ onDelete?: () => void; children: React.ReactNode }> = ({ onDelete, children }) => (
+const ItemRow: React.FC<{ onEdit?: () => void; onDelete?: () => void; children: React.ReactNode }> = ({ onEdit, onDelete, children }) => (
     <div className="flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border">
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">{children}</div>
-        {onDelete && (
-            <button onClick={onDelete}
-                className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors shrink-0 mt-0.5">
-                <Trash2 className="h-3.5 w-3.5" />
-            </button>
-        )}
+        <div className="flex items-center gap-1 shrink-0 mt-0.5">
+            {onEdit && (
+                <button onClick={onEdit}
+                    className="p-1.5 rounded-lg hover:bg-brand-primary/10 text-muted-foreground hover:text-brand-primary transition-colors">
+                    <Pencil className="h-3.5 w-3.5" />
+                </button>
+            )}
+            {onDelete && (
+                <button onClick={onDelete}
+                    className="p-1.5 rounded-lg hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors">
+                    <Trash2 className="h-3.5 w-3.5" />
+                </button>
+            )}
+        </div>
     </div>
 );
 

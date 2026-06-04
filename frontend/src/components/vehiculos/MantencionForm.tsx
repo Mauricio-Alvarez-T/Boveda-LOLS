@@ -5,29 +5,43 @@ import { Save, Bell } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
+import type { VehiculoMantencion } from '../../types/entities';
 
 interface Props {
     vehiculoId: number;
     kmActual?: number;
+    initialData?: VehiculoMantencion | null;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
 const TIPOS_COMUNES = ['Cambio de aceite', 'Frenos', 'Neumáticos', 'Filtros', 'Revisión general', 'Correa distribución', 'Suspensión', 'Transmisión'];
 
-export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, onSuccess, onCancel }) => {
+export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, initialData, onSuccess, onCancel }) => {
+    const isEdit = !!initialData;
+
     const { register, handleSubmit, formState: { isSubmitting } } = useForm({
-        defaultValues: {
+        defaultValues: isEdit ? {
+            fecha: String(initialData.fecha).split('T')[0],
+            tipo: initialData.tipo,
+            km_al_realizar: initialData.km_al_realizar,
+            descripcion: initialData.descripcion || '',
+            costo: (initialData as any).costo ?? '',
+            taller: (initialData as any).taller || '',
+            fecha_proxima: (initialData as any).fecha_proxima ? String((initialData as any).fecha_proxima).split('T')[0] : '',
+            dias_alerta: (initialData as any).dias_alerta ?? 30,
+            email_alerta: (initialData as any).email_alerta || '',
+            tel_alerta: (initialData as any).tel_alerta || '',
+        } : {
             fecha: '', tipo: '', km_al_realizar: kmActual,
-            descripcion: '', costo: '', taller: '',
-            fecha_proxima: '',
+            descripcion: '', costo: '', taller: '', fecha_proxima: '',
             dias_alerta: 30, email_alerta: '', tel_alerta: '',
         }
     });
 
     const onSubmit = async (data: any) => {
         try {
-            await api.post(`/vehiculos/${vehiculoId}/mantenciones`, {
+            const payload = {
                 ...data,
                 km_al_realizar: Number(data.km_al_realizar),
                 costo: data.costo ? Number(data.costo) : null,
@@ -35,8 +49,14 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, onSu
                 dias_alerta: data.dias_alerta ? Number(data.dias_alerta) : null,
                 email_alerta: data.email_alerta || null,
                 tel_alerta: data.tel_alerta || null,
-            });
-            toast.success('Mantención registrada');
+            };
+            if (isEdit) {
+                await api.put(`/vehiculos/${vehiculoId}/mantenciones/${initialData.id}`, payload);
+                toast.success('Mantención actualizada');
+            } else {
+                await api.post(`/vehiculos/${vehiculoId}/mantenciones`, payload);
+                toast.success('Mantención registrada');
+            }
             onSuccess();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al guardar mantención');
@@ -68,7 +88,6 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, onSu
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
             </div>
 
-            {/* Próxima mantención + alerta */}
             <div className="border-t border-border pt-4">
                 <div className="flex items-center gap-2 mb-3">
                     <Bell className="h-3.5 w-3.5 text-brand-primary" />
@@ -84,14 +103,13 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, onSu
                     <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
                     <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-2">
-                    Si defines una fecha próxima, recibirás una alerta automática X días antes por email y/o WhatsApp.
-                </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>Guardar</Button>
+                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
+                    {isEdit ? 'Actualizar' : 'Guardar'}
+                </Button>
             </div>
         </form>
     );

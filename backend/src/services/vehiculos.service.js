@@ -110,6 +110,17 @@ const vehiculosService = {
         return rows[0];
     },
 
+    async updateSeguro(seguroId, data) {
+        const allowed = ['tipo','compania','numero_poliza','fecha_inicio','fecha_vencimiento','monto','observaciones','dias_alerta','email_alerta','tel_alerta'];
+        const fields = [], params = [];
+        allowed.forEach(f => { if (data[f] !== undefined) { fields.push(`${f} = ?`); params.push(data[f] ?? null); } });
+        if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
+        params.push(seguroId);
+        await db.query(`UPDATE vehiculo_seguros SET ${fields.join(', ')} WHERE id = ?`, params);
+        const [rows] = await db.query('SELECT * FROM vehiculo_seguros WHERE id = ?', [seguroId]);
+        return rows[0];
+    },
+
     async removeSeguro(vehiculoId, seguroId) {
         await db.query('UPDATE vehiculo_seguros SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [seguroId, vehiculoId]);
         return { id: seguroId, activo: false };
@@ -139,6 +150,17 @@ const vehiculosService = {
         return rows[0];
     },
 
+    async updateRevision(revisionId, data) {
+        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','observaciones','dias_alerta','email_alerta','tel_alerta'];
+        const fields = [], params = [];
+        allowed.forEach(f => { if (data[f] !== undefined) { fields.push(`${f} = ?`); params.push(data[f] ?? null); } });
+        if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
+        params.push(revisionId);
+        await db.query(`UPDATE vehiculo_revisiones SET ${fields.join(', ')} WHERE id = ?`, params);
+        const [rows] = await db.query('SELECT * FROM vehiculo_revisiones WHERE id = ?', [revisionId]);
+        return rows[0];
+    },
+
     async removeRevision(vehiculoId, revisionId) {
         await db.query('UPDATE vehiculo_revisiones SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [revisionId, vehiculoId]);
         return { id: revisionId, activo: false };
@@ -165,6 +187,17 @@ const vehiculosService = {
             [vehiculoId, fecha, tipo, km_al_realizar, descripcion || null, costo || null, taller || null]
         );
         const [rows] = await db.query('SELECT * FROM vehiculo_mantenciones WHERE id = ?', [r.insertId]);
+        return rows[0];
+    },
+
+    async updateMantencion(mantencionId, data) {
+        const allowed = ['fecha','tipo','km_al_realizar','descripcion','costo','taller','fecha_proxima','dias_alerta','email_alerta','tel_alerta'];
+        const fields = [], params = [];
+        allowed.forEach(f => { if (data[f] !== undefined) { fields.push(`${f} = ?`); params.push(data[f] ?? null); } });
+        if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
+        params.push(mantencionId);
+        await db.query(`UPDATE vehiculo_mantenciones SET ${fields.join(', ')} WHERE id = ?`, params);
+        const [rows] = await db.query('SELECT * FROM vehiculo_mantenciones WHERE id = ?', [mantencionId]);
         return rows[0];
     },
 

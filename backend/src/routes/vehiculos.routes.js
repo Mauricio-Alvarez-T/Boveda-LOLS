@@ -52,6 +52,11 @@ router.post('/:id/seguros', auth, checkPermission('vehiculos.crear'), async (req
     catch (err) { next(err); }
 });
 
+router.put('/:id/seguros/:segId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
+    try { res.json({ data: await svc.updateSeguro(req.params.segId, req.body) }); }
+    catch (err) { next(err); }
+});
+
 router.delete('/:id/seguros/:segId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
     try { res.json({ data: await svc.removeSeguro(req.params.id, req.params.segId) }); }
     catch (err) { next(err); }
@@ -68,6 +73,11 @@ router.post('/:id/revisiones', auth, checkPermission('vehiculos.crear'), async (
     catch (err) { next(err); }
 });
 
+router.put('/:id/revisiones/:revId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
+    try { res.json({ data: await svc.updateRevision(req.params.revId, req.body) }); }
+    catch (err) { next(err); }
+});
+
 router.delete('/:id/revisiones/:revId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
     try { res.json({ data: await svc.removeRevision(req.params.id, req.params.revId) }); }
     catch (err) { next(err); }
@@ -81,6 +91,11 @@ router.get('/:id/mantenciones', auth, checkPermission('vehiculos.ver'), async (r
 
 router.post('/:id/mantenciones', auth, checkPermission('vehiculos.crear'), async (req, res, next) => {
     try { res.status(201).json({ data: await svc.createMantencion(req.params.id, req.body) }); }
+    catch (err) { next(err); }
+});
+
+router.put('/:id/mantenciones/:mId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
+    try { res.json({ data: await svc.updateMantencion(req.params.mId, req.body) }); }
     catch (err) { next(err); }
 });
 
