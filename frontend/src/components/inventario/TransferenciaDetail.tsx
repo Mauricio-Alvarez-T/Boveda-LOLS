@@ -80,15 +80,17 @@ const MaterialesAprobacionPanel: React.FC<{
         onFuente: (f: 'comprar' | 'obra') => void,
         onObra: (id: number | null) => void
     ) => (
-        <div className="mt-1.5 pl-7 space-y-1.5">
-            <div className="flex gap-1 p-0.5 bg-muted/60 rounded-lg w-fit">
+        <div className="space-y-1.5">
+            <div className="flex gap-1.5">
                 <button type="button" onClick={() => onFuente('comprar')}
-                    className={cn("px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors", fuente === 'comprar' ? "bg-amber-500 text-white shadow-sm" : "text-muted-foreground hover:text-brand-dark")}>
-                    🛒 Comprar
+                    className={cn("flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded-md text-[11px] font-bold border transition-colors",
+                        fuente === 'comprar' ? "bg-amber-500 text-white border-amber-500 shadow-sm" : "bg-card text-muted-foreground border-border hover:text-brand-dark")}>
+                    <ShoppingBag className="h-3.5 w-3.5" /> Comprar
                 </button>
                 <button type="button" onClick={() => onFuente('obra')}
-                    className={cn("px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors", fuente === 'obra' ? "bg-brand-primary text-white shadow-sm" : "text-muted-foreground hover:text-brand-dark")}>
-                    📍 Traer de obra
+                    className={cn("flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded-md text-[11px] font-bold border transition-colors",
+                        fuente === 'obra' ? "bg-brand-primary text-white border-brand-primary shadow-sm" : "bg-card text-muted-foreground border-border hover:text-brand-dark")}>
+                    <MapPin className="h-3.5 w-3.5" /> Traer de obra
                 </button>
             </div>
             {fuente === 'obra' && (
@@ -129,8 +131,8 @@ const MaterialesAprobacionPanel: React.FC<{
                             </button>
                         </div>
                         {e.aprobado && (
-                            <>
-                                <div className="mt-1.5 pl-7 grid grid-cols-[80px_1fr] gap-1.5">
+                            <div className="mt-2 pl-7 space-y-1.5">
+                                <div className="grid grid-cols-[90px_1fr] gap-1.5">
                                     <input type="number" min={1} value={e.cantidad_aprobada}
                                         onChange={ev => setEdit(e.id, { cantidad_aprobada: parseInt(ev.target.value) || 0 })}
                                         className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
@@ -141,8 +143,8 @@ const MaterialesAprobacionPanel: React.FC<{
                                 {renderOrigen(e.fuente, e.origen_obra_id, f => setEdit(e.id, { fuente: f }), o => setEdit(e.id, { origen_obra_id: o }))}
                                 <input value={e.nota_aprobador} onChange={ev => setEdit(e.id, { nota_aprobador: ev.target.value })}
                                     placeholder={e.fuente === 'obra' ? 'Nota del origen (ej. bodega 2, pallet azul)' : 'Nota del aprobador (opcional)'}
-                                    className="mt-1.5 ml-7 w-[calc(100%-1.75rem)] h-7 px-2 text-[11px] rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
-                            </>
+                                    className="w-full h-8 px-2 text-[11px] rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                            </div>
                         )}
                     </li>
                 ))}
@@ -157,13 +159,15 @@ const MaterialesAprobacionPanel: React.FC<{
                                 <Trash2 className="h-3.5 w-3.5" />
                             </button>
                         </div>
-                        <div className="mt-1.5 pl-7 grid grid-cols-[80px_1fr] gap-1.5">
-                            <input type="number" min={1} value={n.cantidad} onChange={ev => setNuevo(n._k, { cantidad: parseInt(ev.target.value) || 0 })}
-                                className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
-                            <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="Unidad (kg, m, U...)"
-                                className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                        <div className="mt-2 pl-7 space-y-1.5">
+                            <div className="grid grid-cols-[90px_1fr] gap-1.5">
+                                <input type="number" min={1} value={n.cantidad} onChange={ev => setNuevo(n._k, { cantidad: parseInt(ev.target.value) || 0 })}
+                                    className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                                <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="Unidad (kg, m, U...)"
+                                    className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                            </div>
+                            {renderOrigen(n.fuente, n.origen_obra_id, f => setNuevo(n._k, { fuente: f }), o => setNuevo(n._k, { origen_obra_id: o }))}
                         </div>
-                        {renderOrigen(n.fuente, n.origen_obra_id, f => setNuevo(n._k, { fuente: f }), o => setNuevo(n._k, { origen_obra_id: o }))}
                     </li>
                 ))}
             </ul>
@@ -930,17 +934,17 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                         <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold uppercase">No se compra</span>
                                                     )}
                                                     {!rechazado && it.fuente === 'obra' && (
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold">📍 Traer de {it.origen_obra_nombre || 'otra obra'}</span>
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold"><MapPin className="h-2.5 w-2.5" /> Traer de {it.origen_obra_nombre || 'otra obra'}</span>
                                                     )}
                                                     {!rechazado && it.fuente !== 'obra' && (
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[9px] font-bold">🛒 Comprar</span>
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[9px] font-bold"><ShoppingBag className="h-2.5 w-2.5" /> Comprar</span>
                                                     )}
                                                 </div>
                                                 {it.observacion && (
                                                     <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
                                                 )}
                                                 {it.nota_aprobador && (
-                                                    <div className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5">📝 {it.nota_aprobador}</div>
+                                                    <div className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5 inline-flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}</div>
                                                 )}
                                             </td>
                                             <td className="px-2 py-1.5 text-center font-semibold">
