@@ -63,10 +63,8 @@ function emailHtml({ diasRestantes, filas, nota }) {
         <!-- CABECERA — solo "¡ATENCIÓN! Quedan X días" -->
         <tr>
           <td class="header" style="background:#1a7a3f;padding:28px 36px;text-align:center">
-            <p style="margin:0 0 8px;font-size:11px;color:#bbf7d0;letter-spacing:3px;text-transform:uppercase;font-weight:700">Bóveda LOLS — Gestión Vehicular</p>
-            <p style="margin:0 0 6px;font-size:18px;color:#ffffff;font-weight:700">⚠️ ¡Atención!</p>
-            <p class="dias" style="margin:0;font-size:52px;color:#fde047;font-weight:900;line-height:1">Quedan ${diasRestantes}</p>
-            <p style="margin:4px 0 0;font-size:18px;color:#fde047;font-weight:700">días</p>
+            <p style="margin:0 0 10px;font-size:11px;color:#bbf7d0;letter-spacing:3px;text-transform:uppercase;font-weight:700">Bóveda LOLS — Gestión Vehicular</p>
+            <p class="dias" style="margin:0;font-size:28px;color:#fde047;font-weight:900;line-height:1.3">⚠️ ¡Atención! Quedan ${diasRestantes} días para tu revisión!</p>
           </td>
         </tr>
 
