@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoRevision } from '../../types/entities';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
     vehiculoId: number;
@@ -16,6 +17,9 @@ interface Props {
 
 export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
+    const { user, hasPermission } = useAuth();
+    // Solo admin (rol 1) o quien tenga el permiso ve/edita los avisos por email/WhatsApp.
+    const canConfigurarAlertas = user?.rol_id === 1 || hasPermission('vehiculos.configurar_alertas');
 
     const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm({
         defaultValues: isEdit ? {
@@ -56,13 +60,21 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
 
     const onSubmit = async (data: any) => {
         try {
-            const payload = {
+            const payload: any = {
                 ...data,
-                dias_alerta: data.dias_alerta ? Number(data.dias_alerta) : null,
-                email_alerta: data.email_alerta || null,
-                tel_alerta: data.tel_alerta || null,
                 periodicidad_anios: data.periodicidad_anios ? Number(data.periodicidad_anios) : null,
             };
+            if (canConfigurarAlertas) {
+                payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
+                payload.email_alerta = data.email_alerta || null;
+                payload.tel_alerta = data.tel_alerta || null;
+            } else {
+                // Trabajador sin permiso: no enviar estos campos para NO sobreescribir
+                // la configuración de alerta existente (el aviso por email se mantiene).
+                delete payload.dias_alerta;
+                delete payload.email_alerta;
+                delete payload.tel_alerta;
+            }
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/revisiones/${initialData.id}`, payload);
                 toast.success('Revisión actualizada');
@@ -144,15 +156,17 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
                     </p>
                 </div>
 
-                <div className="grid grid-cols-3 gap-3">
-                    <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
-                        <input type="number" {...register('dias_alerta')} min={1} max={365}
-                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                {canConfigurarAlertas && (
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
+                            <input type="number" {...register('dias_alerta')} min={1} max={365}
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                        </div>
+                        <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
+                        <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
                     </div>
-                    <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
-                    <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
-                </div>
+                )}
             </div>
 
             <div className="flex justify-end gap-3 pt-2">

@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoSeguro } from '../../types/entities';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
     vehiculoId: number;
@@ -16,6 +17,8 @@ interface Props {
 
 export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
+    const { user, hasPermission } = useAuth();
+    const canConfigurarAlertas = user?.rol_id === 1 || hasPermission('vehiculos.configurar_alertas');
 
     const { register, handleSubmit, formState: { isSubmitting } } = useForm({
         defaultValues: isEdit ? {
@@ -39,13 +42,20 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
 
     const onSubmit = async (data: any) => {
         try {
-            const payload = {
+            const payload: any = {
                 ...data,
                 monto: data.monto ? Number(data.monto) : null,
-                dias_alerta: data.dias_alerta ? Number(data.dias_alerta) : null,
-                email_alerta: data.email_alerta || null,
-                tel_alerta: data.tel_alerta || null,
             };
+            if (canConfigurarAlertas) {
+                payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
+                payload.email_alerta = data.email_alerta || null;
+                payload.tel_alerta = data.tel_alerta || null;
+            } else {
+                // No sobreescribir la config de alerta existente.
+                delete payload.dias_alerta;
+                delete payload.email_alerta;
+                delete payload.tel_alerta;
+            }
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/seguros/${initialData.id}`, payload);
                 toast.success('Seguro actualizado');
@@ -87,21 +97,23 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
             </div>
 
-            <div className="border-t border-border pt-4">
-                <div className="flex items-center gap-2 mb-3">
-                    <Bell className="h-3.5 w-3.5 text-brand-primary" />
-                    <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3">
-                    <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
-                        <input type="number" {...register('dias_alerta')} min={1} max={365}
-                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+            {canConfigurarAlertas && (
+                <div className="border-t border-border pt-4">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Bell className="h-3.5 w-3.5 text-brand-primary" />
+                        <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
                     </div>
-                    <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
-                    <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
+                    <div className="grid grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
+                            <input type="number" {...register('dias_alerta')} min={1} max={365}
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                        </div>
+                        <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
+                        <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
+                    </div>
                 </div>
-            </div>
+            )}
 
             <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>

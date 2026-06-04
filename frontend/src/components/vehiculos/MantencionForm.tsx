@@ -6,6 +6,7 @@ import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoMantencion } from '../../types/entities';
+import { useAuth } from '../../context/AuthContext';
 
 interface Props {
     vehiculoId: number;
@@ -19,6 +20,8 @@ const TIPOS_COMUNES = ['Cambio de aceite', 'Frenos', 'Neumáticos', 'Filtros', '
 
 export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
+    const { user, hasPermission } = useAuth();
+    const canConfigurarAlertas = user?.rol_id === 1 || hasPermission('vehiculos.configurar_alertas');
 
     const { register, handleSubmit, formState: { isSubmitting } } = useForm({
         defaultValues: isEdit ? {
@@ -41,15 +44,22 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
 
     const onSubmit = async (data: any) => {
         try {
-            const payload = {
+            const payload: any = {
                 ...data,
                 km_al_realizar: Number(data.km_al_realizar),
                 costo: data.costo ? Number(data.costo) : null,
                 fecha_proxima: data.fecha_proxima || null,
-                dias_alerta: data.dias_alerta ? Number(data.dias_alerta) : null,
-                email_alerta: data.email_alerta || null,
-                tel_alerta: data.tel_alerta || null,
             };
+            if (canConfigurarAlertas) {
+                payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
+                payload.email_alerta = data.email_alerta || null;
+                payload.tel_alerta = data.tel_alerta || null;
+            } else {
+                // No sobreescribir la config de alerta existente.
+                delete payload.dias_alerta;
+                delete payload.email_alerta;
+                delete payload.tel_alerta;
+            }
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/mantenciones/${initialData.id}`, payload);
                 toast.success('Mantención actualizada');
@@ -94,15 +104,17 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
                     <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Programar Próxima Mantención</span>
                 </div>
                 <Input label="Fecha próxima mantención" type="date" {...register('fecha_proxima')} />
-                <div className="grid grid-cols-3 gap-3 mt-3">
-                    <div>
-                        <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Avisar X días antes</label>
-                        <input type="number" {...register('dias_alerta')} min={1} max={365}
-                            className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                {canConfigurarAlertas && (
+                    <div className="grid grid-cols-3 gap-3 mt-3">
+                        <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Avisar X días antes</label>
+                            <input type="number" {...register('dias_alerta')} min={1} max={365}
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                        </div>
+                        <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
+                        <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
                     </div>
-                    <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
-                    <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
-                </div>
+                )}
             </div>
 
             <div className="flex justify-end gap-3 pt-2">
