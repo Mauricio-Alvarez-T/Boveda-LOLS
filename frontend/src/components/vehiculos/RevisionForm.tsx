@@ -108,7 +108,7 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
             <div className="flex justify-end gap-3 pt-2">
                 <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
                 <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-                    {isEdit ? 'Actualizar' : 'Guardar'}
+                    Guardar
                 </Button>
             </div>
         </form>
