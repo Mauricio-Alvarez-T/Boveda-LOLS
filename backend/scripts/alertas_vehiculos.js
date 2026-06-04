@@ -23,6 +23,66 @@ const forzar    = args.includes('--forzar'); // Envía aunque no sea el día exa
 const dias      = isNaN(diasArg) ? 30 : diasArg;
 
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+
+/** Genera el HTML del email con una estructura limpia y consistente. */
+function emailHtml({ titulo, subtitulo, filas, nota }) {
+    const filasHtml = filas
+        .filter(Boolean)
+        .map(([label, valor]) => `
+            <tr>
+                <td style="padding:8px 12px;background:#f9fafb;font-size:13px;color:#6b7280;font-weight:600;width:40%;border-bottom:1px solid #e5e7eb">${label}</td>
+                <td style="padding:8px 12px;font-size:13px;color:#111827;border-bottom:1px solid #e5e7eb">${valor}</td>
+            </tr>`).join('');
+
+    return `<!DOCTYPE html>
+<html lang="es">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#f3f4f6;font-family:Arial,Helvetica,sans-serif">
+  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:32px 0">
+    <tr><td align="center">
+      <table width="520" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.08)">
+
+        <!-- Cabecera verde -->
+        <tr>
+          <td style="background:#1a7a3f;padding:24px 32px">
+            <p style="margin:0;font-size:11px;color:#bbf7d0;letter-spacing:2px;text-transform:uppercase;font-weight:600">Bóveda LOLS — Gestión Vehicular</p>
+            <h1 style="margin:8px 0 0;font-size:22px;color:#ffffff;font-weight:700">${titulo}</h1>
+            <p style="margin:6px 0 0;font-size:14px;color:#d1fae5;font-weight:500">${subtitulo}</p>
+          </td>
+        </tr>
+
+        <!-- Tabla de datos -->
+        <tr>
+          <td style="padding:24px 32px 0">
+            <table width="100%" cellpadding="0" cellspacing="0" style="border:1px solid #e5e7eb;border-radius:8px;overflow:hidden">
+              ${filasHtml}
+            </table>
+          </td>
+        </tr>
+
+        <!-- Nota de acción -->
+        <tr>
+          <td style="padding:20px 32px">
+            <div style="background:#fefce8;border:1px solid #fde047;border-radius:8px;padding:16px">
+              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#854d0e">📋 Acción requerida</p>
+              <p style="margin:0;font-size:13px;color:#713f12;line-height:1.5">${nota}</p>
+            </div>
+          </td>
+        </tr>
+
+        <!-- Pie -->
+        <tr>
+          <td style="padding:16px 32px 24px;border-top:1px solid #e5e7eb">
+            <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">Este mensaje fue generado automáticamente por <b>Bóveda LOLS</b>.<br>No responder a este correo.</p>
+          </td>
+        </tr>
+
+      </table>
+    </td></tr>
+  </table>
+</body>
+</html>`;
+}
 function fmtFecha(s) {
     if (!s) return '—';
     const [y, m, d] = String(s).split('T')[0].split('-');
@@ -103,67 +163,63 @@ async function main() {
 
     // ── Seguros ───────────────────────────────────────────────────────────────
     for (const s of seguros) {
-        const asunto = `🔔 Recordatorio — Seguro ${s.tipo} vehículo ${s.patente} vence en ${s.dias_restantes} días`;
-        const waMensaje = `🔔 *Recordatorio Bóveda LOLS*\n\nEl seguro *${s.tipo}* del vehículo *${s.patente}* (${s.marca} ${s.modelo}) vence el *${fmtFecha(s.fecha_vencimiento)}* — quedan *${s.dias_restantes} días*.\n${s.compania ? `Compañía: ${s.compania}` : ''}\n\n_Favor gestionar la renovación con anticipación._`;
-        const html = `
-            <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-            <h2 style="color:#1a7a3f;border-bottom:2px solid #1a7a3f;padding-bottom:8px">🚗 Recordatorio de Seguro Vehicular</h2>
-            <p><b>Vehículo:</b> ${s.patente} — ${s.marca} ${s.modelo}</p>
-            <p><b>Tipo de seguro:</b> ${s.tipo}</p>
-            ${s.compania ? `<p><b>Compañía:</b> ${s.compania}</p>` : ''}
-            ${s.numero_poliza ? `<p><b>N° Póliza:</b> ${s.numero_poliza}</p>` : ''}
-            <p><b>Fecha de vencimiento:</b> ${fmtFecha(s.fecha_vencimiento)}</p>
-            <div style="background:#fef3c7;border-left:4px solid #d97706;padding:12px;margin:16px 0;border-radius:4px">
-                <b style="color:#92400e">⏰ Quedan ${s.dias_restantes} días para el vencimiento.</b><br>
-                <span style="color:#78350f">Favor gestionar la renovación con anticipación.</span>
-            </div>
-            <hr style="border:none;border-top:1px solid #e5e7eb"/>
-            <p style="font-size:0.8em;color:#9ca3af">Bóveda LOLS — Sistema de Gestión Vehicular</p>
-            </div>`;
+        const asunto = `⚠️ ¡Atención! Quedan ${s.dias_restantes} días — Seguro ${s.tipo} · ${s.patente}`;
+        const waMensaje = `⚠️ *¡Atención! Quedan ${s.dias_restantes} días*\n\nEl seguro *${s.tipo}* del vehículo *${s.patente}* (${s.marca} ${s.modelo}) vence el *${fmtFecha(s.fecha_vencimiento)}*.\n${s.compania ? `🏢 Compañía: ${s.compania}` : ''}${s.numero_poliza ? `\n📋 Póliza: ${s.numero_poliza}` : ''}\n\n_Favor agendar la renovación con anticipación._\n\n_Bóveda LOLS_`;
+        const html = emailHtml({
+            titulo: `⚠️ ¡Atención! Quedan <span style="color:#dc2626">${s.dias_restantes} días</span>`,
+            subtitulo: `Seguro ${s.tipo} por vencer`,
+            filas: [
+                ['Vehículo', `${s.marca} ${s.modelo}`],
+                ['Patente', s.patente],
+                ['Tipo de seguro', s.tipo],
+                s.compania    ? ['Compañía',  s.compania]    : null,
+                s.numero_poliza ? ['N° Póliza', s.numero_poliza] : null,
+                ['Fecha de vencimiento', fmtFecha(s.fecha_vencimiento)],
+            ],
+            nota: 'Favor agendar la renovación del seguro con anticipación. La hora y el lugar deberán ser coordinados directamente con la compañía aseguradora.',
+        });
         await enviarEmail(s.email_alerta, asunto, html, s.tel_alerta, waMensaje);
     }
 
     // ── Revisiones ────────────────────────────────────────────────────────────
     for (const r of revisiones) {
         const tipoLabel = r.tipo === 'tecnica' ? 'Revisión Técnica' : r.tipo === 'gases' ? 'Control de Gases' : 'Revisión Mecánica';
-        const asunto = `🔔 Recordatorio — ${tipoLabel} vehículo ${r.patente} en ${r.dias_restantes} días`;
-        const waMensaje = `🔔 *Recordatorio Bóveda LOLS*\n\n*${tipoLabel}* del vehículo *${r.patente}* (${r.marca} ${r.modelo}).\n\n📅 Fecha: *${fmtFecha(r.fecha_vencimiento)}* — quedan *${r.dias_restantes} días*\n${r.planta ? `🏭 Planta: ${r.planta}` : ''}${r.direccion ? `\n📍 Dirección: ${r.direccion}` : ''}\n\n_Favor coordinar el traslado del vehículo._`;
-        const html = `
-            <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-            <h2 style="color:#1a7a3f;border-bottom:2px solid #1a7a3f;padding-bottom:8px">🚗 Recordatorio de Revisión Técnica</h2>
-            <p><b>Vehículo:</b> ${r.patente} — ${r.marca} ${r.modelo}</p>
-            <p><b>Tipo:</b> ${tipoLabel}</p>
-            ${r.planta ? `<p><b>Planta:</b> ${r.planta}</p>` : ''}
-            ${r.direccion ? `<p><b>Dirección:</b> ${r.direccion}</p>` : ''}
-            <p><b>Fecha programada:</b> ${fmtFecha(r.fecha_vencimiento)}</p>
-            <div style="background:#fef3c7;border-left:4px solid #d97706;padding:12px;margin:16px 0;border-radius:4px">
-                <b style="color:#92400e">⏰ Quedan ${r.dias_restantes} días para la revisión.</b><br>
-                <span style="color:#78350f">Favor coordinar el traslado del vehículo con anticipación.</span>
-            </div>
-            <hr style="border:none;border-top:1px solid #e5e7eb"/>
-            <p style="font-size:0.8em;color:#9ca3af">Bóveda LOLS — Sistema de Gestión Vehicular</p>
-            </div>`;
+        const asunto = `⚠️ ¡Atención! Quedan ${r.dias_restantes} días — ${tipoLabel} · ${r.patente}`;
+        const waMensaje = `⚠️ *¡Atención! Quedan ${r.dias_restantes} días*\n\n*${tipoLabel}* del vehículo *${r.patente}* (${r.marca} ${r.modelo}).\n\n📅 Fecha programada: *${fmtFecha(r.fecha_vencimiento)}*\n${r.planta ? `🏭 Planta: ${r.planta}` : ''}${r.direccion ? `\n📍 Dirección: ${r.direccion}` : ''}\n\n_Favor agendar el turno y coordinar el traslado del vehículo._\n\n_Bóveda LOLS_`;
+        const html = emailHtml({
+            titulo: `⚠️ ¡Atención! Quedan <span style="color:#dc2626">${r.dias_restantes} días</span>`,
+            subtitulo: tipoLabel,
+            filas: [
+                ['Vehículo', `${r.marca} ${r.modelo}`],
+                ['Patente', r.patente],
+                ['Tipo de revisión', tipoLabel],
+                r.planta    ? ['Planta / Taller', r.planta]      : null,
+                r.direccion ? ['Dirección',        r.direccion]  : null,
+                ['Fecha programada', fmtFecha(r.fecha_vencimiento)],
+                ['Hora del turno', '⚠️ Por agendar manualmente'],
+            ],
+            nota: 'Favor agendar el turno directamente en la planta de revisión técnica y coordinar el traslado del vehículo con anticipación.',
+        });
         await enviarEmail(r.email_alerta, asunto, html, r.tel_alerta, waMensaje);
     }
 
     // ── Mantenciones ──────────────────────────────────────────────────────────
     for (const m of mantenciones) {
-        const asunto = `🔔 Recordatorio — Mantención "${m.tipo}" vehículo ${m.patente} en ${m.dias_restantes} días`;
-        const waMensaje = `🔔 *Recordatorio Bóveda LOLS*\n\nMantención *${m.tipo}* del vehículo *${m.patente}* (${m.marca} ${m.modelo}).\n\n📅 Fecha programada: *${fmtFecha(m.fecha_proxima)}* — quedan *${m.dias_restantes} días*\n${m.taller ? `🔧 Taller: ${m.taller}` : ''}\n\n_Favor coordinar con anticipación._`;
-        const html = `
-            <div style="font-family:sans-serif;max-width:500px;margin:0 auto">
-            <h2 style="color:#1a7a3f;border-bottom:2px solid #1a7a3f;padding-bottom:8px">🔧 Recordatorio de Mantención Programada</h2>
-            <p><b>Vehículo:</b> ${m.patente} — ${m.marca} ${m.modelo}</p>
-            <p><b>Tipo de mantención:</b> ${m.tipo}</p>
-            ${m.taller ? `<p><b>Taller:</b> ${m.taller}</p>` : ''}
-            <p><b>Fecha programada:</b> ${fmtFecha(m.fecha_proxima)}</p>
-            <div style="background:#fef3c7;border-left:4px solid #d97706;padding:12px;margin:16px 0;border-radius:4px">
-                <b style="color:#92400e">⏰ Quedan ${m.dias_restantes} días para la mantención.</b><br>
-                <span style="color:#78350f">Favor coordinar con el taller con anticipación.</span>
-            </div>
-            <hr style="border:none;border-top:1px solid #e5e7eb"/>
-            <p style="font-size:0.8em;color:#9ca3af">Bóveda LOLS — Sistema de Gestión Vehicular</p>
-            </div>`;
+        const asunto = `⚠️ ¡Atención! Quedan ${m.dias_restantes} días — Mantención: ${m.tipo} · ${m.patente}`;
+        const waMensaje = `⚠️ *¡Atención! Quedan ${m.dias_restantes} días*\n\nMantención *${m.tipo}* del vehículo *${m.patente}* (${m.marca} ${m.modelo}).\n\n📅 Fecha programada: *${fmtFecha(m.fecha_proxima)}*\n${m.taller ? `🔧 Taller: ${m.taller}` : ''}\n\n_Favor agendar el turno con el taller y coordinar el traslado._\n\n_Bóveda LOLS_`;
+        const html = emailHtml({
+            titulo: `⚠️ ¡Atención! Quedan <span style="color:#dc2626">${m.dias_restantes} días</span>`,
+            subtitulo: `Mantención: ${m.tipo}`,
+            filas: [
+                ['Vehículo', `${m.marca} ${m.modelo}`],
+                ['Patente', m.patente],
+                ['Tipo de mantención', m.tipo],
+                m.taller ? ['Taller', m.taller] : null,
+                ['Fecha programada', fmtFecha(m.fecha_proxima)],
+                ['Hora del turno', '⚠️ Por agendar manualmente'],
+            ],
+            nota: 'Favor agendar el turno directamente con el taller y coordinar el traslado del vehículo con anticipación.',
+        });
         await enviarEmail(m.email_alerta, asunto, html, m.tel_alerta, waMensaje);
     }
 
