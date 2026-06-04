@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoRevision } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
+import { puedeConfigurarAlertasVehiculos } from '../../utils/alertasVehiculos';
 
 interface Props {
     vehiculoId: number;
@@ -17,9 +18,9 @@ interface Props {
 
 export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
-    const { user, hasPermission } = useAuth();
-    // Solo admin (rol 1) o quien tenga el permiso ve/edita los avisos por email/WhatsApp.
-    const canConfigurarAlertas = user?.rol_id === 1 || hasPermission('vehiculos.configurar_alertas');
+    const { user } = useAuth();
+    // Solo usuarios de la lista blanca ven/editan los avisos por email/WhatsApp.
+    const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
 
     const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm({
         defaultValues: isEdit ? {

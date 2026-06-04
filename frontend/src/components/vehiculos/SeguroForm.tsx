@@ -7,6 +7,7 @@ import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoSeguro } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
+import { puedeConfigurarAlertasVehiculos } from '../../utils/alertasVehiculos';
 
 interface Props {
     vehiculoId: number;
@@ -17,8 +18,8 @@ interface Props {
 
 export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
-    const { user, hasPermission } = useAuth();
-    const canConfigurarAlertas = user?.rol_id === 1 || hasPermission('vehiculos.configurar_alertas');
+    const { user } = useAuth();
+    const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
 
     const { register, handleSubmit, formState: { isSubmitting } } = useForm({
         defaultValues: isEdit ? {

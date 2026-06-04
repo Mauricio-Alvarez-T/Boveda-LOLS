@@ -128,7 +128,6 @@ const MAESTRO_PERMISOS = [
     ['vehiculos.crear',    'Vehículos', 'Crear Vehículo',      'Registrar nuevos vehículos, seguros, revisiones técnicas y mantenciones', 2],
     ['vehiculos.editar',   'Vehículos', 'Editar Vehículo',     'Modificar datos de vehículos, actualizar kilómetros, editar seguros y revisiones', 3],
     ['vehiculos.eliminar', 'Vehículos', 'Eliminar Vehículo',   'Dar de baja vehículos y sus registros asociados', 4],
-    ['vehiculos.configurar_alertas', 'Vehículos', 'Configurar Alertas de Vencimiento', 'Ver y editar los avisos por email/WhatsApp de seguros, revisiones y mantenciones', 5],
 
     // ─────────────────────────────────────────────────────────────────────────
     // FINANCIERO — sección transversal que gatea visibilidad de campos $ del
