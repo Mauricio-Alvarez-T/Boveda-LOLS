@@ -76,10 +76,9 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                <Input label="Fecha realizada" type="date" {...register('fecha', { required: true })} />
-                <Input label="KM al realizar" type="number" {...register('km_al_realizar', { required: true })} />
-            </div>
+            <Input label="Fecha por realizar" type="date" {...register('fecha', { required: true })} />
+            {/* KM se captura automáticamente del kilometraje actual del vehículo (campo oculto) */}
+            <input type="hidden" {...register('km_al_realizar')} />
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo de mantención</label>
                 <input list="tipos-mantencion" {...register('tipo', { required: true })}
