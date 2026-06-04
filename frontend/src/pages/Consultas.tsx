@@ -387,27 +387,27 @@ const ConsultasPage: React.FC = () => {
             <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
                 
                 {/* Header Acciones Múltiples */}
-                <div className="h-[60px] border-b border-border bg-white/50 px-5 flex items-center justify-between shrink-0">
-                    <div className="flex items-center gap-4 hidden sm:flex">
-                         <div className="h-8 w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
-                            <SearchCheck className="h-4 w-4 text-brand-primary" />
-                        </div>
-                        <h2 className="text-sm font-bold text-brand-dark">Resultados</h2>
+                <div className="h-[60px] border-b border-border bg-white/50 px-3 flex items-center justify-between shrink-0 gap-3">
+                    {/* Botón RESULTADOS — estilo igual que pestaña activa de Inventario */}
+                    <div className="hidden sm:flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-xl shadow-lg shadow-brand-primary/25">
+                        <SearchCheck className="h-4 w-4" />
+                        <span className="text-xs font-black uppercase tracking-widest">Resultados</span>
                     </div>
 
-                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between sm:justify-end">
-                        <label className="flex items-center gap-3 cursor-pointer group">
+                    <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
+                        {/* Botón TODOS — mismo estilo verde */}
+                        <label className="flex items-center gap-2 cursor-pointer bg-brand-primary text-white px-4 py-2 rounded-xl shadow-lg shadow-brand-primary/25 select-none">
                             <div className="relative flex items-center">
                                 <input
                                     type="checkbox"
                                     checked={workers.length > 0 && selectedWorkers.size === workers.length}
                                     onChange={handleSelectAll}
-                                    className="peer h-[18px] w-[18px] appearance-none rounded border-2 border-border bg-card checked:border-brand-primary checked:bg-brand-primary transition-all cursor-pointer disabled:opacity-50"
+                                    className="peer h-[16px] w-[16px] appearance-none rounded border-2 border-white/60 bg-white/20 checked:border-white checked:bg-white transition-all cursor-pointer"
                                 />
-                                <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3.5 w-3.5 text-white pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
+                                <CheckSquare className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 h-3 w-3 text-brand-primary pointer-events-none opacity-0 peer-checked:opacity-100 transition-opacity" />
                             </div>
-                            <span className="text-xs sm:text-sm font-semibold text-brand-dark group-hover:text-brand-primary transition-colors">
-                                {selectedWorkers.size > 0 ? `${selectedWorkers.size} seleccionados` : 'Todos'}
+                            <span className="text-xs font-black uppercase tracking-widest">
+                                {selectedWorkers.size > 0 ? `${selectedWorkers.size} sel.` : 'Todos'}
                             </span>
                         </label>
 
