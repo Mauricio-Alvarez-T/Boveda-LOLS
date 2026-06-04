@@ -130,11 +130,11 @@ const VehiculosPage: React.FC = () => {
     const ListView = (
         <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6">
             <div className="flex items-center justify-between shrink-0 mb-4">
-                <h3 className="text-sm font-bold text-brand-dark flex items-center gap-2">
-                    <Truck className="h-4 w-4 text-brand-primary" />
-                    Flota de Vehículos
-                    <span className="text-[10px] font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded-full">{vehiculos.length}</span>
-                </h3>
+                <div className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2.5 rounded-xl shadow-lg shadow-brand-primary/25">
+                    <Truck className="h-4 w-4" />
+                    <span className="text-xs font-black uppercase tracking-widest">Flota de Vehículos</span>
+                    <span className="text-[10px] font-black bg-white/20 px-1.5 py-0.5 rounded-md">{vehiculos.length}</span>
+                </div>
                 {hasPermission('vehiculos.crear') && (
                     <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
                         leftIcon={<Plus className="h-3.5 w-3.5" />}>
