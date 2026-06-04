@@ -97,7 +97,12 @@ export interface VehiculoRevision {
     fecha_vencimiento: string;
     resultado: 'aprobado' | 'rechazado' | 'pendiente';
     planta?: string | null;
+    direccion?: string | null;
     observaciones?: string | null;
+    periodicidad_anios?: number | null;
+    dias_alerta?: number | null;
+    email_alerta?: string | null;
+    tel_alerta?: string | null;
     activo: boolean;
 }
 

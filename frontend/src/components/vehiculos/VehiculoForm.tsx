@@ -3,12 +3,13 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save } from 'lucide-react';
+import { Save, CalendarCheck } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { Vehiculo } from '../../types/entities';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
+import { mesRevisionPorPatente } from '../../utils/revisionTecnica';
 
 const schema = z.object({
     patente: z.string().min(1, 'Patente requerida'),
@@ -29,7 +30,7 @@ interface Props {
 }
 
 export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
-    const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
+    const { register, handleSubmit, watch, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: initialData ? {
             patente: initialData.patente,
@@ -44,6 +45,10 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
     });
 
     useFormDirtyProtection(isDirty);
+
+    // Mes de revisión técnica según el último dígito de la patente (calendario MTT)
+    const patente = watch('patente');
+    const mesRevision = mesRevisionPorPatente(patente);
 
     const onSubmit = async (data: FormData) => {
         try {
@@ -78,6 +83,21 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                     </select>
                 </div>
             </div>
+
+            {/* Calendario de revisión técnica según el último dígito de la patente */}
+            {mesRevision && (
+                <div className="flex items-start gap-2.5 rounded-xl border border-brand-primary/30 bg-brand-primary/5 px-3.5 py-2.5">
+                    <CalendarCheck className="h-4 w-4 text-brand-primary mt-0.5 shrink-0" />
+                    <p className="text-sm text-brand-dark leading-snug">
+                        Según el último dígito de la patente, la <b>revisión técnica</b> de este vehículo
+                        corresponde al mes de <b className="text-brand-primary">{mesRevision}</b>.
+                        <span className="block text-xs text-muted-foreground mt-0.5">
+                            Calendario MTT referencial para vehículos particulares.
+                        </span>
+                    </p>
+                </div>
+            )}
+
             <div className="grid grid-cols-2 gap-4">
                 <Input label="Marca" placeholder="Toyota" {...register('marca')} error={errors.marca?.message} />
                 <Input label="Modelo" placeholder="Hilux" {...register('modelo')} error={errors.modelo?.message} />

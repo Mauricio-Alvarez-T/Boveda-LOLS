@@ -17,7 +17,7 @@ interface Props {
 export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
 
-    const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+    const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm({
         defaultValues: isEdit ? {
             tipo: initialData.tipo,
             fecha: String(initialData.fecha).split('T')[0],
@@ -29,12 +29,30 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
             dias_alerta: (initialData as any).dias_alerta ?? 30,
             email_alerta: (initialData as any).email_alerta || '',
             tel_alerta: (initialData as any).tel_alerta || '',
+            periodicidad_anios: (initialData as any).periodicidad_anios ?? null,
         } : {
             tipo: 'tecnica', fecha: '', fecha_vencimiento: '',
             resultado: 'aprobado', planta: '', direccion: '', observaciones: '',
             dias_alerta: 30, email_alerta: '', tel_alerta: '',
+            periodicidad_anios: null,
         }
     });
+
+    const fecha = watch('fecha');
+    const periodicidad = watch('periodicidad_anios');
+
+    /** Aplica la periodicidad (1/2/3 años) y recalcula la fecha de vencimiento desde la fecha de revisión. */
+    const aplicarPeriodicidad = (anios: number) => {
+        setValue('periodicidad_anios', anios as any, { shouldDirty: true });
+        if (fecha) {
+            const d = new Date(`${fecha}T00:00:00`);
+            d.setFullYear(d.getFullYear() + anios);
+            const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            setValue('fecha_vencimiento', iso, { shouldDirty: true, shouldValidate: true });
+        } else {
+            toast.info('Primero ingresa la fecha de revisión para calcular el vencimiento.');
+        }
+    };
 
     const onSubmit = async (data: any) => {
         try {
@@ -43,6 +61,7 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
                 dias_alerta: data.dias_alerta ? Number(data.dias_alerta) : null,
                 email_alerta: data.email_alerta || null,
                 tel_alerta: data.tel_alerta || null,
+                periodicidad_anios: data.periodicidad_anios ? Number(data.periodicidad_anios) : null,
             };
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/revisiones/${initialData.id}`, payload);
@@ -96,6 +115,35 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
                     <Bell className="h-3.5 w-3.5 text-brand-primary" />
                     <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
                 </div>
+
+                {/* Periodicidad: calcula automáticamente la fecha de vencimiento (depende si es nuevo o usado) */}
+                <input type="hidden" {...register('periodicidad_anios')} />
+                <div className="mb-4">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Próxima revisión en
+                    </label>
+                    <div className="grid grid-cols-3 gap-2">
+                        {[1, 2, 3].map((n) => (
+                            <button
+                                key={n}
+                                type="button"
+                                onClick={() => aplicarPeriodicidad(n)}
+                                className={`px-3 py-2.5 rounded-xl border text-sm font-bold transition-colors ${
+                                    Number(periodicidad) === n
+                                        ? 'border-brand-primary bg-brand-primary text-white shadow-sm shadow-brand-primary/30'
+                                        : 'border-border bg-card text-brand-dark hover:border-brand-primary/50'
+                                }`}
+                            >
+                                {n} {n === 1 ? 'año' : 'años'}
+                            </button>
+                        ))}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                        Calcula el vencimiento desde la fecha de revisión. Vehículos nuevos suelen tener mayor
+                        periodicidad que los usados.
+                    </p>
+                </div>
+
                 <div className="grid grid-cols-3 gap-3">
                     <div>
                         <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
