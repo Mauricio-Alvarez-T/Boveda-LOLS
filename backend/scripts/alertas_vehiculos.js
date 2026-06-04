@@ -130,6 +130,7 @@ async function main() {
             <p><b>Tipo:</b> ${tipoLabel}</p>
             <p><b>Resultado actual:</b> ${r.resultado}</p>
             ${r.planta ? `<p><b>Planta:</b> ${r.planta}</p>` : ''}
+            ${r.direccion ? `<p><b>Dirección:</b> ${r.direccion}</p>` : ''}
             <p><b>Vencimiento:</b> ${fmtFecha(r.fecha_vencimiento)}</p>
             <p style="font-size:1.2em;color:${r.dias_restantes <= 0 ? '#dc2626' : '#d97706'}">
                 <b>${r.dias_restantes <= 0 ? `Venció hace ${Math.abs(r.dias_restantes)} días` : `Vence en ${r.dias_restantes} días`}</b>

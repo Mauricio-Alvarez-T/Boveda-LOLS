@@ -24,13 +24,14 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
             fecha_vencimiento: String(initialData.fecha_vencimiento).split('T')[0],
             resultado: initialData.resultado,
             planta: (initialData as any).planta || '',
+            direccion: (initialData as any).direccion || '',
             observaciones: (initialData as any).observaciones || '',
             dias_alerta: (initialData as any).dias_alerta ?? 30,
             email_alerta: (initialData as any).email_alerta || '',
             tel_alerta: (initialData as any).tel_alerta || '',
         } : {
             tipo: 'tecnica', fecha: '', fecha_vencimiento: '',
-            resultado: 'aprobado', planta: '', observaciones: '',
+            resultado: 'aprobado', planta: '', direccion: '', observaciones: '',
             dias_alerta: 30, email_alerta: '', tel_alerta: '',
         }
     });
@@ -83,6 +84,7 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
                 <Input label="Fecha vencimiento" type="date" {...register('fecha_vencimiento', { required: true })} />
             </div>
             <Input label="Planta / Taller" placeholder="Nombre de la planta..." {...register('planta')} />
+            <Input label="Dirección" placeholder="Ej: Caletera General Velásquez N°7319" {...register('direccion')} />
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
                 <textarea {...register('observaciones')} rows={2}

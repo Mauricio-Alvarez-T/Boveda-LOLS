@@ -175,7 +175,7 @@ const vehiculosService = {
         }
         const obj = { vehiculo_id: vehiculoId, tipo: data.tipo, fecha: data.fecha,
             fecha_vencimiento: data.fecha_vencimiento, resultado: data.resultado || 'aprobado',
-            planta: data.planta || null, observaciones: data.observaciones || null,
+            planta: data.planta || null, direccion: data.direccion || null, observaciones: data.observaciones || null,
             dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null };
         const { keys, vals } = await buildInsert('vehiculo_revisiones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_revisiones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
@@ -184,7 +184,7 @@ const vehiculosService = {
     },
 
     async updateRevision(revisionId, data) {
-        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','observaciones','dias_alerta','email_alerta','tel_alerta'];
+        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','direccion','observaciones','dias_alerta','email_alerta','tel_alerta'];
         const { fields, params } = await buildUpdate('vehiculo_revisiones', data, allowed);
         if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
         params.push(revisionId);
