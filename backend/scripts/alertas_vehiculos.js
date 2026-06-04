@@ -64,7 +64,7 @@ function emailHtml({ diasRestantes, filas, nota }) {
         <tr>
           <td class="header" style="background:#1a7a3f;padding:28px 36px;text-align:center">
             <p style="margin:0 0 10px;font-size:11px;color:#bbf7d0;letter-spacing:3px;text-transform:uppercase;font-weight:700">Bóveda LOLS — Gestión Vehicular</p>
-            <p class="dias" style="margin:0;font-size:28px;color:#fde047;font-weight:900;line-height:1.3">⚠️ ¡Atención! Quedan ${diasRestantes} días para tu revisión!</p>
+            <p class="dias" style="margin:0;font-size:28px;color:#fde047;font-weight:900;line-height:1.3">¡Atención! Quedan ${diasRestantes} días para tu revisión!</p>
           </td>
         </tr>
 
@@ -81,7 +81,7 @@ function emailHtml({ diasRestantes, filas, nota }) {
         <tr>
           <td style="padding:16px 28px">
             <div style="background:#fefce8;border-left:4px solid #f59e0b;border-radius:8px;padding:14px 16px">
-              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#92400e">📋 Acción requerida</p>
+              <p style="margin:0 0 4px;font-size:13px;font-weight:700;color:#92400e">Acción requerida</p>
               <p style="margin:0;font-size:13px;color:#78350f;line-height:1.6">${nota}</p>
             </div>
           </td>
@@ -216,7 +216,7 @@ async function main() {
                 ['Patente',          r.patente],
                 r.planta    ? ['Planta / Taller', r.planta]     : null,
                 r.direccion ? ['Dirección',       r.direccion]  : null,
-                ['Hora del turno',   '⚠️ Por agendar manualmente'],
+                ['Hora del turno',   'Por agendar manualmente'],
             ],
             nota: 'Favor agendar el turno directamente en la planta de revisión técnica y coordinar el traslado del vehículo con anticipación.',
         });
@@ -236,7 +236,7 @@ async function main() {
                 ['Patente',            m.patente],
                 m.taller ? ['Taller', m.taller] : null,
                 m.descripcion ? ['Detalle / Dirección', m.descripcion] : null,
-                ['Hora del turno',     '⚠️ Por agendar manualmente'],
+                ['Hora del turno',     'Por agendar manualmente'],
             ],
             nota: 'Favor agendar el turno directamente con el taller y coordinar el traslado del vehículo con anticipación.',
         });
