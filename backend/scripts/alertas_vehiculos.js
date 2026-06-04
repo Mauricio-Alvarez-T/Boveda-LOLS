@@ -14,7 +14,7 @@
  */
 require('dotenv').config();
 const mysql    = require('mysql2/promise');
-const emailSvc = require('./src/services/email.service');
+const emailSvc = require('../src/services/email.service');
 
 const args      = process.argv.slice(2);
 const diasArg   = args.includes('--dias') ? Number(args[args.indexOf('--dias') + 1]) : 30;
