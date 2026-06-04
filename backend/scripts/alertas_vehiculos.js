@@ -85,7 +85,10 @@ function emailHtml({ titulo, subtitulo, filas, nota }) {
 }
 function fmtFecha(s) {
     if (!s) return '—';
-    const [y, m, d] = String(s).split('T')[0].split('-');
+    // MySQL puede devolver Date object o string — normalizar a 'YYYY-MM-DD'
+    const iso = s instanceof Date ? s.toISOString().split('T')[0] : String(s).split('T')[0];
+    const [y, m, d] = iso.split('-');
+    if (!y || !m || !d) return String(s);
     return `${d} ${MESES[Number(m)-1]} ${y}`;
 }
 
@@ -102,7 +105,8 @@ async function main() {
     // Modo normal: solo envía cuando faltan EXACTAMENTE los días configurados → 1 aviso por evento.
     // Modo --forzar: envía todo lo que tenga email_alerta (para pruebas).
     const condSeguro   = forzar ? 'AND s.email_alerta IS NOT NULL' : 'AND s.email_alerta IS NOT NULL AND s.dias_alerta IS NOT NULL AND DATEDIFF(s.fecha_vencimiento, CURDATE()) = s.dias_alerta';
-    const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : 'AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND DATEDIFF(r.fecha_vencimiento, CURDATE()) = r.dias_alerta';
+    // Para revisiones: alerta basada en 'fecha' (cuándo va a la planta), no en 'fecha_vencimiento' (cuándo expira el certificado)
+    const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : 'AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND DATEDIFF(r.fecha, CURDATE()) = r.dias_alerta';
     const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL' : 'AND m.email_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL AND m.dias_alerta IS NOT NULL AND DATEDIFF(m.fecha_proxima, CURDATE()) = m.dias_alerta';
 
     if (forzar) console.log('⚠️  Modo --forzar: enviando TODAS las alertas con email configurado.\n');
@@ -116,7 +120,7 @@ async function main() {
 
     const [revisiones] = await pool.query(`
         SELECT r.*, v.patente, v.marca, v.modelo,
-               DATEDIFF(r.fecha_vencimiento, CURDATE()) AS dias_restantes
+               DATEDIFF(r.fecha, CURDATE()) AS dias_restantes
         FROM vehiculo_revisiones r JOIN vehiculos v ON v.id = r.vehiculo_id
         WHERE r.activo = 1 AND v.activo = 1 ${condRevision}
     `, []);
@@ -185,7 +189,7 @@ async function main() {
     for (const r of revisiones) {
         const tipoLabel = r.tipo === 'tecnica' ? 'Revisión Técnica' : r.tipo === 'gases' ? 'Control de Gases' : 'Revisión Mecánica';
         const asunto = `⚠️ ¡Atención! Quedan ${r.dias_restantes} días — ${tipoLabel} · ${r.patente}`;
-        const waMensaje = `⚠️ *¡Atención! Quedan ${r.dias_restantes} días*\n\n*${tipoLabel}* del vehículo *${r.patente}* (${r.marca} ${r.modelo}).\n\n📅 Fecha programada: *${fmtFecha(r.fecha_vencimiento)}*\n${r.planta ? `🏭 Planta: ${r.planta}` : ''}${r.direccion ? `\n📍 Dirección: ${r.direccion}` : ''}\n\n_Favor agendar el turno y coordinar el traslado del vehículo._\n\n_Bóveda LOLS_`;
+        const waMensaje = `⚠️ *¡Atención! Quedan ${r.dias_restantes} días*\n\n*${tipoLabel}* del vehículo *${r.patente}* (${r.marca} ${r.modelo}).\n\n📅 Fecha programada: *${fmtFecha(r.fecha)}*\n${r.planta ? `🏭 Planta: ${r.planta}` : ''}${r.direccion ? `\n📍 Dirección: ${r.direccion}` : ''}\n\n_Favor agendar el turno y coordinar el traslado del vehículo._\n\n_Bóveda LOLS_`;
         const html = emailHtml({
             titulo: `⚠️ ¡Atención! Quedan <span style="color:#dc2626">${r.dias_restantes} días</span>`,
             subtitulo: tipoLabel,
@@ -195,7 +199,7 @@ async function main() {
                 ['Tipo de revisión', tipoLabel],
                 r.planta    ? ['Planta / Taller', r.planta]      : null,
                 r.direccion ? ['Dirección',        r.direccion]  : null,
-                ['Fecha programada', fmtFecha(r.fecha_vencimiento)],
+                ['Fecha programada', fmtFecha(r.fecha)],
                 ['Hora del turno', '⚠️ Por agendar manualmente'],
             ],
             nota: 'Favor agendar el turno directamente en la planta de revisión técnica y coordinar el traslado del vehículo con anticipación.',
