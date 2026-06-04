@@ -212,7 +212,13 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
     const customItemsValidos = useMemo(() => customItems.filter(c =>
         c.descripcion.trim() && Number(c.cantidad) >= 1
     ), [customItems]);
-    const hayCustomInvalidos = customItems.length > customItemsValidos.length;
+    // Solo BLOQUEAN las filas EMPEZADAS pero incompletas (algo escrito + falta
+    // descripción o cantidad). Las filas totalmente vacías se IGNORAN al crear
+    // (no bloquean): el jefe de obra puede dejar una en cola sin quedar trabado.
+    const hayCustomInvalidos = useMemo(() => customItems.some(c => {
+        const tieneAlgo = c.descripcion.trim() || c.unidad.trim() || c.observacion.trim();
+        return tieneAlgo && (!c.descripcion.trim() || Number(c.cantidad) < 1);
+    }), [customItems]);
 
     const handleSubmit = async () => {
         if (!destinoObraId) { toast.error('Selecciona un destino'); return; }
@@ -635,19 +641,23 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                         hideCatalog ? "flex-1 overflow-y-auto -mr-1 pr-1" : "md:max-h-[180px] md:overflow-y-auto md:-mr-1 md:pr-1"
                     )}>
                         {customItems.map((c, idx) => {
-                            const sinDesc = !c.descripcion.trim();
-                            const invalido = sinDesc || Number(c.cantidad) < 1;
+                            const desc = c.descripcion.trim();
+                            const tieneAlgo = !!(desc || c.unidad.trim() || c.observacion.trim());
+                            const esVacio = !tieneAlgo;                                   // fila en blanco → se ignora al crear (no bloquea)
+                            const error = tieneAlgo && (!desc || Number(c.cantidad) < 1); // empezada pero incompleta → bloquea
                             // El primer item es el más reciente (prepend). Autofocus en su
                             // descripción facilita "agregar uno a uno" sin buscar el input nuevo.
-                            const esNuevo = idx === 0 && sinDesc;
+                            const esNuevo = idx === 0 && esVacio;
                             return (
                                 <li
                                     key={c._localId}
                                     className={cn(
                                         'rounded-xl border p-3 transition-all',
-                                        invalido
+                                        error
                                             ? 'border-red-300 ring-1 ring-red-200/50 bg-red-50/20'
-                                            : 'border-amber-200 bg-amber-50/30'
+                                            : esVacio
+                                                ? 'border-dashed border-amber-200 bg-amber-50/20'
+                                                : 'border-amber-200 bg-amber-50/30'
                                     )}
                                 >
                                     {/* Descripción + eliminar */}
@@ -664,7 +674,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             autoFocus={esNuevo}
                                             className={cn(
                                                 "flex-1 min-w-0 h-9 px-3 text-sm font-medium rounded-lg bg-card outline-none focus:ring-2 focus:ring-brand-primary/30 border",
-                                                sinDesc ? "border-red-300" : "border-border"
+                                                error && !desc ? "border-red-300" : "border-border"
                                             )}
                                         />
                                         <button
@@ -705,12 +715,17 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                             className="w-full h-8 px-3 text-xs border border-border rounded-lg bg-card outline-none focus:ring-2 focus:ring-brand-primary/30"
                                         />
                                     </div>
-                                    {invalido && (
+                                    {error ? (
                                         <p className="mt-2 pl-8 flex items-center gap-1 text-[11px] font-medium text-red-600">
                                             <AlertCircle className="h-3 w-3 shrink-0" />
-                                            {sinDesc ? 'Falta la descripción del ítem' : 'La cantidad debe ser 1 o más'}
+                                            {!desc ? 'Falta la descripción del ítem' : 'La cantidad debe ser 1 o más'}
                                         </p>
-                                    )}
+                                    ) : esVacio ? (
+                                        <p className="mt-2 pl-8 flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                                            <AlertCircle className="h-3 w-3 shrink-0" />
+                                            Vacío — se ignora al crear. Complétalo o bórralo.
+                                        </p>
+                                    ) : null}
                                 </li>
                             );
                         })}
