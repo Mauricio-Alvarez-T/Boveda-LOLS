@@ -593,14 +593,19 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                 )}
             </div>
 
-            {/* Items personalizados (no en catálogo) */}
-            <div className="shrink-0 border-t border-border pt-2">
-                <div className="flex items-center justify-between mb-1.5">
-                    <div className="text-[10px] font-bold text-brand-dark flex items-center gap-1">
-                        <ShoppingBag className="h-3 w-3" />
+            {/* Items personalizados (no en catálogo).
+                En hideCatalog ocupa el alto disponible (flex-1) — antes quedaba capado
+                a 180px desperdiciando el modal. Cards grandes y legibles, inválidos en rojo. */}
+            <div className={cn(
+                "border-t border-border pt-3",
+                hideCatalog ? "flex-1 min-h-0 flex flex-col" : "shrink-0"
+            )}>
+                <div className="flex items-center justify-between mb-2 shrink-0">
+                    <div className="text-xs md:text-sm font-bold text-brand-dark flex items-center gap-1.5">
+                        <ShoppingBag className="h-4 w-4 text-amber-600" />
                         Personalizados (a comprar)
                         {customItems.length > 0 && (
-                            <span className="ml-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[9px]">
+                            <span className="ml-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black">
                                 {customItems.length}
                             </span>
                         )}
@@ -608,81 +613,104 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                     <button
                         type="button"
                         onClick={addCustomItem}
-                        className={cn(
-                            // Mobile: verde grande, fácil de tocar para jefe de obra
-                            "flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 border border-brand-primary rounded-lg shadow-sm transition-colors",
-                            // Desktop: chico ámbar (look discreto integrado al panel)
-                            "md:gap-1 md:px-2 md:py-0.5 md:text-[10px] md:text-amber-800 md:bg-amber-50 md:hover:bg-amber-100 md:border-amber-200 md:rounded-md md:shadow-none"
-                        )}
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 border border-brand-primary rounded-lg shadow-sm transition-colors md:px-3 md:py-1.5 md:text-xs md:text-amber-800 md:bg-amber-50 md:hover:bg-amber-100 md:border-amber-200 md:shadow-none"
                     >
-                        <Plus className="h-4 w-4 md:h-2.5 md:w-2.5" strokeWidth={3} />
-                        Agregar
+                        <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={3} />
+                        Agregar ítem
                     </button>
                 </div>
                 {customItems.length === 0 ? (
-                    <p className="text-[10px] text-muted-foreground italic px-1">
-                        Items que no están en el catálogo (ej. cosas a comprar). El aprobador los verá.
-                    </p>
+                    <div className={cn(
+                        "flex flex-col items-center justify-center text-center px-4 border-2 border-dashed border-amber-200 rounded-xl bg-amber-50/30",
+                        hideCatalog ? "flex-1 py-10" : "py-6"
+                    )}>
+                        <ShoppingBag className="h-8 w-8 text-amber-400/70 mb-2" />
+                        <p className="text-xs text-muted-foreground max-w-[280px]">
+                            Ítems que no están en el catálogo (ej. cosas a comprar). Toca <span className="font-bold text-amber-700">Agregar ítem</span> para empezar.
+                        </p>
+                    </div>
                 ) : (
-                    <ul className="space-y-1.5 md:max-h-[180px] md:overflow-y-auto md:-mr-1 md:pr-1">
+                    <ul className={cn(
+                        "space-y-2",
+                        hideCatalog ? "flex-1 overflow-y-auto -mr-1 pr-1" : "md:max-h-[180px] md:overflow-y-auto md:-mr-1 md:pr-1"
+                    )}>
                         {customItems.map((c, idx) => {
-                            const invalido = !c.descripcion.trim() || Number(c.cantidad) < 1;
-                            // El primer item es siempre el más reciente (prepend).
-                            // Autofocus en su descripción facilita "agregar uno a uno"
-                            // sin necesidad de buscar el input nuevo.
-                            const esNuevo = idx === 0 && !c.descripcion.trim();
+                            const sinDesc = !c.descripcion.trim();
+                            const invalido = sinDesc || Number(c.cantidad) < 1;
+                            // El primer item es el más reciente (prepend). Autofocus en su
+                            // descripción facilita "agregar uno a uno" sin buscar el input nuevo.
+                            const esNuevo = idx === 0 && sinDesc;
                             return (
                                 <li
                                     key={c._localId}
                                     className={cn(
-                                        'rounded-lg border p-1.5 bg-amber-50/40',
-                                        invalido ? 'border-red-300' : 'border-amber-200'
+                                        'rounded-xl border p-3 transition-all',
+                                        invalido
+                                            ? 'border-red-300 ring-1 ring-red-200/50 bg-red-50/20'
+                                            : 'border-amber-200 bg-amber-50/30'
                                     )}
                                 >
-                                    <div className="flex gap-1.5 items-start">
+                                    {/* Descripción + eliminar */}
+                                    <div className="flex gap-2 items-center">
+                                        <span className="shrink-0 w-6 h-6 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-black flex items-center justify-center">
+                                            {idx + 1}
+                                        </span>
                                         <input
                                             type="text"
                                             value={c.descripcion}
                                             onChange={e => updateCustomItem(c._localId, { descripcion: e.target.value })}
-                                            placeholder="Descripción del ítem*"
+                                            placeholder="Descripción del ítem *"
                                             maxLength={500}
                                             autoFocus={esNuevo}
-                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-border rounded-md bg-card focus:ring-1 focus:ring-brand-primary outline-none"
+                                            className={cn(
+                                                "flex-1 min-w-0 h-9 px-3 text-sm font-medium rounded-lg bg-card outline-none focus:ring-2 focus:ring-brand-primary/30 border",
+                                                sinDesc ? "border-red-300" : "border-border"
+                                            )}
                                         />
                                         <button
                                             type="button"
                                             onClick={() => removeCustomItem(c._localId)}
-                                            className="shrink-0 p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
+                                            className="shrink-0 p-2 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors"
                                             aria-label="Eliminar item personalizado"
                                         >
-                                            <Trash2 className="h-3 w-3" />
+                                            <Trash2 className="h-4 w-4" />
                                         </button>
                                     </div>
-                                    <div className="mt-1 flex gap-1.5 items-center">
+                                    {/* Cantidad + unidad (alineadas bajo la descripción) */}
+                                    <div className="mt-2 pl-8 grid grid-cols-[96px_1fr] gap-2">
                                         <input
                                             type="number"
                                             min={1}
                                             value={c.cantidad}
                                             onChange={e => updateCustomItem(c._localId, { cantidad: parseInt(e.target.value) || 0 })}
                                             placeholder="Cant."
-                                            className="w-14 px-2 py-1 text-[11px] font-bold text-center border border-border rounded-md bg-card"
+                                            className="h-9 px-2 text-sm font-bold text-center border border-border rounded-lg bg-card outline-none focus:ring-2 focus:ring-brand-primary/30"
                                         />
                                         <input
                                             type="text"
                                             value={c.unidad}
                                             onChange={e => updateCustomItem(c._localId, { unidad: e.target.value })}
-                                            placeholder="Unidad (kg, m, U...)"
+                                            placeholder="Unidad (kg, m, U, sacos...)"
                                             maxLength={50}
-                                            className="flex-1 min-w-0 px-2 py-1 text-[11px] border border-border rounded-md bg-card"
+                                            className="h-9 min-w-0 px-3 text-sm border border-border rounded-lg bg-card outline-none focus:ring-2 focus:ring-brand-primary/30"
                                         />
                                     </div>
-                                    <input
-                                        type="text"
-                                        value={c.observacion}
-                                        onChange={e => updateCustomItem(c._localId, { observacion: e.target.value })}
-                                        placeholder="Observación opcional (marca, especificación...)"
-                                        className="mt-1 w-full px-2 py-1 text-[10px] border border-border rounded-md bg-card"
-                                    />
+                                    {/* Observación */}
+                                    <div className="mt-2 pl-8">
+                                        <input
+                                            type="text"
+                                            value={c.observacion}
+                                            onChange={e => updateCustomItem(c._localId, { observacion: e.target.value })}
+                                            placeholder="Observación opcional (marca, especificación...)"
+                                            className="w-full h-8 px-3 text-xs border border-border rounded-lg bg-card outline-none focus:ring-2 focus:ring-brand-primary/30"
+                                        />
+                                    </div>
+                                    {invalido && (
+                                        <p className="mt-2 pl-8 flex items-center gap-1 text-[11px] font-medium text-red-600">
+                                            <AlertCircle className="h-3 w-3 shrink-0" />
+                                            {sinDesc ? 'Falta la descripción del ítem' : 'La cantidad debe ser 1 o más'}
+                                        </p>
+                                    )}
                                 </li>
                             );
                         })}
@@ -734,6 +762,20 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                         onChange={(val) => setDestinoObraId(val as number | null)}
                         placeholder="Seleccionar obra destino..."
                     />
+                </div>
+            )}
+
+            {/* Aviso de qué falta para crear (guía de flujo, resalta lo que necesita atención) */}
+            {!puedeCrear && !submitting && (
+                <div className="shrink-0 flex items-start gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                    <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                    <span>{
+                        !destinoObraId ? 'Selecciona la obra destino para continuar.'
+                            : (cart.length === 0 && customItemsValidos.length === 0) ? 'Agrega al menos un ítem a la solicitud.'
+                                : hayExceso ? 'Hay ítems con cantidad mayor al stock disponible.'
+                                    : hayCustomInvalidos ? 'Completa la descripción y cantidad de los ítems marcados en rojo.'
+                                        : 'Completa los campos requeridos.'
+                    }</span>
                 </div>
             )}
 
@@ -808,7 +850,7 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                 <div className={cn(
                     'flex flex-col min-h-0',
                     hideCatalog
-                        ? 'flex w-full md:max-w-[480px]'
+                        ? 'flex w-full md:max-w-[560px]'
                         : 'md:w-[360px] md:shrink-0 md:border-l md:border-border md:pl-4',
                     !hideCatalog && (mobileTab === 'sol' ? 'flex' : 'hidden md:flex')
                 )}>
