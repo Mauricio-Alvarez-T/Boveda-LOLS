@@ -11,9 +11,9 @@
  * ▶ Para autorizar a alguien más: agrega su email corporativo en MINÚSCULAS.
  */
 export const EMAILS_CONFIG_ALERTAS_VEHICULOS: string[] = [
-    'marcouribe@lols.cl',
-    'mauricioalvarez@lols.cl',
-    'daphnelazcano@lols.cl',
+    'marcouribe@lols.cl',   // Marco Uribe
+    'test@lols.cl',         // Mauricio Alvarez
+    'daphnelazcano@lols.cl', // Daphne Lazcano
 ];
 
 /** True si el usuario puede ver/editar la configuración de alertas de vehículos. */
