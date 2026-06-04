@@ -124,7 +124,8 @@ async function main() {
     const condSeguro   = forzar ? 'AND s.email_alerta IS NOT NULL' : 'AND s.email_alerta IS NOT NULL AND s.dias_alerta IS NOT NULL AND DATEDIFF(s.fecha_vencimiento, CURDATE()) = s.dias_alerta';
     // Para revisiones: alerta basada en 'fecha' (cuándo va a la planta), no en 'fecha_vencimiento' (cuándo expira el certificado)
     const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : 'AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND DATEDIFF(r.fecha, CURDATE()) = r.dias_alerta';
-    const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL' : 'AND m.email_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL AND m.dias_alerta IS NOT NULL AND DATEDIFF(m.fecha_proxima, CURDATE()) = m.dias_alerta';
+    // Para mantenciones: alerta basada en 'fecha' (Fecha por realizar), igual que revisiones.
+    const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL' : 'AND m.email_alerta IS NOT NULL AND m.dias_alerta IS NOT NULL AND DATEDIFF(m.fecha, CURDATE()) = m.dias_alerta';
 
     if (forzar) console.log('⚠️  Modo --forzar: enviando TODAS las alertas con email configurado.\n');
 
@@ -144,7 +145,7 @@ async function main() {
 
     const [mantenciones] = await pool.query(`
         SELECT m.*, v.patente, v.marca, v.modelo,
-               DATEDIFF(m.fecha_proxima, CURDATE()) AS dias_restantes
+               DATEDIFF(m.fecha, CURDATE()) AS dias_restantes
         FROM vehiculo_mantenciones m JOIN vehiculos v ON v.id = m.vehiculo_id
         WHERE m.activo = 1 AND v.activo = 1 ${condMant}
     `, []);
@@ -224,16 +225,17 @@ async function main() {
 
     // ── Mantenciones ──────────────────────────────────────────────────────────
     for (const m of mantenciones) {
-        const asunto = `⚠️ ¡Atención! Quedan ${m.dias_restantes} días — Mantención: ${m.tipo} · ${m.patente}`;
-        const waMensaje = `⚠️ *¡Atención! Quedan ${m.dias_restantes} días*\n\nMantención *${m.tipo}* del vehículo *${m.patente}* (${m.marca} ${m.modelo}).\n\n📅 Fecha programada: *${fmtFecha(m.fecha_proxima)}*\n${m.taller ? `🔧 Taller: ${m.taller}` : ''}\n\n_Favor agendar el turno con el taller y coordinar el traslado._\n\n_Bóveda LOLS_`;
+        const asunto = `⚠️ ¡Atención! Quedan ${m.dias_restantes} días — Próxima mantención: ${m.tipo} · ${m.patente}`;
+        const waMensaje = `⚠️ *¡Atención! Quedan ${m.dias_restantes} días*\n\nPróxima mantención *${m.tipo}* del vehículo *${m.patente}* (${m.marca} ${m.modelo}).\n\n📅 Fecha por realizar: *${fmtFecha(m.fecha)}*\n${m.taller ? `🔧 Taller: ${m.taller}` : ''}${m.descripcion ? `\n📍 ${m.descripcion}` : ''}\n\n_Favor agendar el turno con el taller y coordinar el traslado._\n\n_Bóveda LOLS_`;
         const html = emailHtml({
             diasRestantes: m.dias_restantes,
             filas: [
                 ['Tipo de mantención', m.tipo],
                 ['Vehículo',           `${m.marca} ${m.modelo}`],
-                ['Fecha programada',   fmtFecha(m.fecha_proxima)],
+                ['Fecha por realizar', fmtFecha(m.fecha)],
                 ['Patente',            m.patente],
                 m.taller ? ['Taller', m.taller] : null,
+                m.descripcion ? ['Detalle / Dirección', m.descripcion] : null,
                 ['Hora del turno',     '⚠️ Por agendar manualmente'],
             ],
             nota: 'Favor agendar el turno directamente con el taller y coordinar el traslado del vehículo con anticipación.',
