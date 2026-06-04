@@ -417,15 +417,20 @@ const transferenciaService = {
                     const unidad = e.unidad != null ? (String(e.unidad).slice(0, 50) || null) : null;
                     const cantAprob = Number(e.cantidad_aprobada) > 0 ? Number(e.cantidad_aprobada) : null;
                     const nota = e.nota_aprobador != null ? (String(e.nota_aprobador).slice(0, 1000) || null) : null;
+                    // Origen: 'obra' solo si viene explícito + obra válida; si no, 'comprar'.
+                    const fuente = (e.fuente === 'obra' && Number(e.origen_obra_id) > 0) ? 'obra' : 'comprar';
+                    const origenObra = fuente === 'obra' ? Number(e.origen_obra_id) : null;
                     await conn.query(
                         `UPDATE transferencia_items_custom
                             SET descripcion = COALESCE(?, descripcion),
                                 unidad = ?,
                                 cantidad_aprobada = ?,
                                 aprobado = ?,
-                                nota_aprobador = ?
+                                nota_aprobador = ?,
+                                fuente = ?,
+                                origen_obra_id = ?
                           WHERE id = ? AND transferencia_id = ?`,
-                        [desc, unidad, cantAprob, aprobadoFlag, nota, Number(e.id), id]
+                        [desc, unidad, cantAprob, aprobadoFlag, nota, fuente, origenObra, Number(e.id), id]
                     );
                 }
 
@@ -434,15 +439,18 @@ const transferenciaService = {
                     const ndesc = String((n && n.descripcion) || '').trim();
                     if (!ndesc) continue;
                     const ncant = Number(n.cantidad) > 0 ? Number(n.cantidad) : 1;
+                    const nfuente = (n.fuente === 'obra' && Number(n.origen_obra_id) > 0) ? 'obra' : 'comprar';
+                    const norigen = nfuente === 'obra' ? Number(n.origen_obra_id) : null;
                     await conn.query(
                         `INSERT INTO transferencia_items_custom
                            (transferencia_id, descripcion, cantidad, unidad, observacion,
-                            cantidad_aprobada, aprobado, agregado_por_aprobador)
-                         VALUES (?, ?, ?, ?, ?, ?, 1, 1)`,
+                            cantidad_aprobada, aprobado, agregado_por_aprobador, fuente, origen_obra_id)
+                         VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
                         [
                             id, ndesc.slice(0, 500), ncant,
                             n.unidad ? String(n.unidad).slice(0, 50) : null,
                             n.observacion ? String(n.observacion) : null, ncant,
+                            nfuente, norigen,
                         ]
                     );
                 }
@@ -1550,12 +1558,14 @@ const transferenciaService = {
 
         // Items personalizados (fuera de catálogo). Pueden estar vacíos.
         const [itemsCustom] = await db.query(
-            `SELECT id, descripcion, cantidad, unidad, observacion,
-                    cantidad_aprobada, aprobado, nota_aprobador, agregado_por_aprobador,
-                    compra_realizada, notas_compra, fecha_compra
-             FROM transferencia_items_custom
-             WHERE transferencia_id = ?
-             ORDER BY id ASC`,
+            `SELECT tic.id, tic.descripcion, tic.cantidad, tic.unidad, tic.observacion,
+                    tic.cantidad_aprobada, tic.aprobado, tic.nota_aprobador, tic.agregado_por_aprobador,
+                    tic.fuente, tic.origen_obra_id, o.nombre AS origen_obra_nombre,
+                    tic.compra_realizada, tic.notas_compra, tic.fecha_compra
+             FROM transferencia_items_custom tic
+             LEFT JOIN obras o ON o.id = tic.origen_obra_id
+             WHERE tic.transferencia_id = ?
+             ORDER BY tic.id ASC`,
             [id]
         );
 

@@ -118,8 +118,10 @@ interface AprobarData {
         cantidad_aprobada?: number;
         aprobado?: boolean;
         nota_aprobador?: string;
+        fuente?: 'comprar' | 'obra';
+        origen_obra_id?: number | null;
     }>;
-    items_custom_nuevos?: CustomItemPayload[];
+    items_custom_nuevos?: Array<{ descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }>;
 }
 
 export function useTransferencias() {

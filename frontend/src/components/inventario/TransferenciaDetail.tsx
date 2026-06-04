@@ -28,19 +28,24 @@ interface MatCustomItem {
     cantidad_aprobada?: number | null;
     aprobado?: boolean;
     nota_aprobador?: string | null;
+    fuente?: 'comprar' | 'obra';
+    origen_obra_id?: number | null;
+    origen_obra_nombre?: string | null;
 }
 interface MatAprobacionEdit {
     id: number; descripcion: string; unidad: string;
     cantidad_aprobada: number; aprobado: boolean; nota_aprobador: string;
+    fuente: 'comprar' | 'obra'; origen_obra_id: number | null;
 }
-interface MatNuevoItem { _k: number; descripcion: string; cantidad: number; unidad: string; observacion: string; }
+interface MatNuevoItem { _k: number; descripcion: string; cantidad: number; unidad: string; observacion: string; fuente: 'comprar' | 'obra'; origen_obra_id: number | null; }
 
 const MaterialesAprobacionPanel: React.FC<{
     items: MatCustomItem[];
+    obras: { id: number; nombre: string }[];
     loading: boolean;
-    onConfirm: (edits: MatAprobacionEdit[], nuevos: { descripcion: string; cantidad: number; unidad?: string; observacion?: string }[]) => void;
+    onConfirm: (edits: MatAprobacionEdit[], nuevos: { descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }[]) => void;
     onCancel: () => void;
-}> = ({ items, loading, onConfirm, onCancel }) => {
+}> = ({ items, obras, loading, onConfirm, onCancel }) => {
     const [edits, setEdits] = useState<MatAprobacionEdit[]>(() =>
         items.map(it => ({
             id: it.id,
@@ -49,6 +54,8 @@ const MaterialesAprobacionPanel: React.FC<{
             cantidad_aprobada: it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : (Number(it.cantidad) || 1),
             aprobado: it.aprobado !== false,
             nota_aprobador: it.nota_aprobador || '',
+            fuente: (it.fuente === 'obra' ? 'obra' : 'comprar') as 'comprar' | 'obra',
+            origen_obra_id: it.origen_obra_id ?? null,
         }))
     );
     const [nuevos, setNuevos] = useState<MatNuevoItem[]>([]);
@@ -57,10 +64,42 @@ const MaterialesAprobacionPanel: React.FC<{
         setEdits(prev => prev.map(e => (e.id === id ? { ...e, ...patch } : e)));
     const setNuevo = (k: number, patch: Partial<MatNuevoItem>) =>
         setNuevos(prev => prev.map(n => (n._k === k ? { ...n, ...patch } : n)));
-    const addNuevo = () => setNuevos(prev => [...prev, { _k: prev.length ? Math.max(...prev.map(p => p._k)) + 1 : 1, descripcion: '', cantidad: 1, unidad: '', observacion: '' }]);
+    const addNuevo = () => setNuevos(prev => [...prev, { _k: prev.length ? Math.max(...prev.map(p => p._k)) + 1 : 1, descripcion: '', cantidad: 1, unidad: '', observacion: '', fuente: 'comprar', origen_obra_id: null }]);
     const delNuevo = (k: number) => setNuevos(prev => prev.filter(n => n._k !== k));
 
     const aprobadosCount = edits.filter(e => e.aprobado).length + nuevos.filter(n => n.descripcion.trim()).length;
+    // Bloquear si algún ítem "traer de obra" no tiene obra elegida.
+    const faltaOrigen = edits.some(e => e.aprobado && e.fuente === 'obra' && !e.origen_obra_id)
+        || nuevos.some(n => n.descripcion.trim() && n.fuente === 'obra' && !n.origen_obra_id);
+
+    // Selector de origen (Comprar / Traer de obra + select de obra). Función que
+    // retorna JSX (no componente) para no remontar y perder foco en cada cambio.
+    const renderOrigen = (
+        fuente: 'comprar' | 'obra',
+        origenObraId: number | null,
+        onFuente: (f: 'comprar' | 'obra') => void,
+        onObra: (id: number | null) => void
+    ) => (
+        <div className="mt-1.5 pl-7 space-y-1.5">
+            <div className="flex gap-1 p-0.5 bg-muted/60 rounded-lg w-fit">
+                <button type="button" onClick={() => onFuente('comprar')}
+                    className={cn("px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors", fuente === 'comprar' ? "bg-amber-500 text-white shadow-sm" : "text-muted-foreground hover:text-brand-dark")}>
+                    🛒 Comprar
+                </button>
+                <button type="button" onClick={() => onFuente('obra')}
+                    className={cn("px-2.5 py-1 rounded-md text-[11px] font-bold transition-colors", fuente === 'obra' ? "bg-brand-primary text-white shadow-sm" : "text-muted-foreground hover:text-brand-dark")}>
+                    📍 Traer de obra
+                </button>
+            </div>
+            {fuente === 'obra' && (
+                <select value={origenObraId ?? ''} onChange={ev => onObra(ev.target.value ? Number(ev.target.value) : null)}
+                    className={cn("w-full h-8 px-2 text-xs rounded-md border bg-card outline-none focus:ring-1 focus:ring-brand-primary", origenObraId ? "border-border" : "border-red-300")}>
+                    <option value="">Elige la obra de origen...</option>
+                    {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                </select>
+            )}
+        </div>
+    );
 
     return (
         <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-3">
@@ -99,8 +138,9 @@ const MaterialesAprobacionPanel: React.FC<{
                                         placeholder="Unidad (kg, m, U...)"
                                         className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
                                 </div>
+                                {renderOrigen(e.fuente, e.origen_obra_id, f => setEdit(e.id, { fuente: f }), o => setEdit(e.id, { origen_obra_id: o }))}
                                 <input value={e.nota_aprobador} onChange={ev => setEdit(e.id, { nota_aprobador: ev.target.value })}
-                                    placeholder="Nota del aprobador (opcional)"
+                                    placeholder={e.fuente === 'obra' ? 'Nota del origen (ej. bodega 2, pallet azul)' : 'Nota del aprobador (opcional)'}
                                     className="mt-1.5 ml-7 w-[calc(100%-1.75rem)] h-7 px-2 text-[11px] rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
                             </>
                         )}
@@ -123,6 +163,7 @@ const MaterialesAprobacionPanel: React.FC<{
                             <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="Unidad (kg, m, U...)"
                                 className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
                         </div>
+                        {renderOrigen(n.fuente, n.origen_obra_id, f => setNuevo(n._k, { fuente: f }), o => setNuevo(n._k, { origen_obra_id: o }))}
                     </li>
                 ))}
             </ul>
@@ -135,6 +176,9 @@ const MaterialesAprobacionPanel: React.FC<{
             {aprobadosCount === 0 && (
                 <p className="text-[11px] text-destructive">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
             )}
+            {faltaOrigen && aprobadosCount > 0 && (
+                <p className="text-[11px] text-destructive">Elige la obra de origen en los ítems marcados "Traer de obra".</p>
+            )}
 
             <div className="flex gap-2 pt-1">
                 <button
@@ -145,9 +189,11 @@ const MaterialesAprobacionPanel: React.FC<{
                             cantidad: Number(n.cantidad) || 1,
                             unidad: n.unidad.trim() || undefined,
                             observacion: n.observacion.trim() || undefined,
+                            fuente: n.fuente,
+                            origen_obra_id: n.fuente === 'obra' ? n.origen_obra_id : null,
                         }))
                     )}
-                    disabled={loading || aprobadosCount === 0}
+                    disabled={loading || aprobadosCount === 0 || faltaOrigen}
                     className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                     {loading ? 'Aprobando...' : 'Confirmar Aprobación'}
                 </button>
@@ -211,8 +257,8 @@ interface Props {
             | { item_id: number; splits: { origen_obra_id: number | null; origen_bodega_id: number | null; cantidad: number }[] }
         >;
         // Solicitud de Materiales: ediciones del aprobador a ítems custom + nuevos.
-        items_custom?: Array<{ id: number; descripcion?: string; unidad?: string; cantidad_aprobada?: number; aprobado?: boolean; nota_aprobador?: string }>;
-        items_custom_nuevos?: { descripcion: string; cantidad: number; unidad?: string; observacion?: string }[];
+        items_custom?: Array<{ id: number; descripcion?: string; unidad?: string; cantidad_aprobada?: number; aprobado?: boolean; nota_aprobador?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }>;
+        items_custom_nuevos?: { descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }[];
     }) => Promise<boolean>;
     onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
     onRecibir: (
@@ -268,6 +314,10 @@ const TransferenciaDetail: React.FC<Props> = ({
         aprobado?: boolean;
         nota_aprobador?: string | null;
         agregado_por_aprobador?: boolean;
+        // Origen (migración 071): comprar | traer de otra obra (sobrante).
+        fuente?: 'comprar' | 'obra';
+        origen_obra_id?: number | null;
+        origen_obra_nombre?: string | null;
     }
     const itemsCustom: TransferenciaItemCustom[] = (t as { items_custom?: TransferenciaItemCustom[] }).items_custom || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
@@ -467,14 +517,29 @@ const TransferenciaDetail: React.FC<Props> = ({
         // Omitir ítems que el aprobador quitó (aprobado===false); usar cantidad
         // aprobada cuando exista.
         const customVisibles = itemsCustom.filter(it => it.aprobado !== false);
-        if (customVisibles.length > 0) {
-            lines.push(`${CART} *Por comprar / fuera de catálogo (${customVisibles.length}):*`);
-            customVisibles.forEach((it) => {
-                const cant = it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad;
-                const unidad = it.unidad ? ` ${it.unidad}` : '';
-                lines.push(`• ${cant}${unidad} — ${it.descripcion}`);
+        const fmtCustom = (it: TransferenciaItemCustom) => {
+            const cant = it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad;
+            const unidad = it.unidad ? ` ${it.unidad}` : '';
+            return `• ${cant}${unidad} — ${it.descripcion}`;
+        };
+        const aComprar = customVisibles.filter(it => it.fuente !== 'obra');
+        const deObra = customVisibles.filter(it => it.fuente === 'obra');
+        if (aComprar.length > 0) {
+            lines.push(`${CART} *Por comprar (${aComprar.length}):*`);
+            aComprar.forEach((it) => {
+                lines.push(fmtCustom(it));
                 if (it.observacion) lines.push(`   _${it.observacion}_`);
                 if (it.nota_aprobador) lines.push(`   _Aprobador: ${it.nota_aprobador}_`);
+            });
+            lines.push('');
+        }
+        if (deObra.length > 0) {
+            lines.push(`📍 *Traer de otra obra (${deObra.length}):*`);
+            deObra.forEach((it) => {
+                const origen = it.origen_obra_nombre ? ` → traer de ${it.origen_obra_nombre}` : '';
+                lines.push(`${fmtCustom(it)}${origen}`);
+                if (it.nota_aprobador) lines.push(`   _${it.nota_aprobador}_`);
+                else if (it.observacion) lines.push(`   _${it.observacion}_`);
             });
             lines.push('');
         }
@@ -838,7 +903,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 <div className="shrink-0 mb-5">
                     <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1.5">
                         <ShoppingBag className="h-3.5 w-3.5" />
-                        Items personalizados — a comprar ({itemsCustom.length})
+                        Items personalizados ({itemsCustom.length})
                     </h4>
                     <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20">
                         <table className="w-full text-[11px]">
@@ -863,6 +928,12 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     )}
                                                     {rechazado && (
                                                         <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold uppercase">No se compra</span>
+                                                    )}
+                                                    {!rechazado && it.fuente === 'obra' && (
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold">📍 Traer de {it.origen_obra_nombre || 'otra obra'}</span>
+                                                    )}
+                                                    {!rechazado && it.fuente !== 'obra' && (
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[9px] font-bold">🛒 Comprar</span>
                                                     )}
                                                 </div>
                                                 {it.observacion && (
@@ -985,6 +1056,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             {activeForm === 'aprobar' && items.length === 0 && (
                 <MaterialesAprobacionPanel
                     items={itemsCustom}
+                    obras={obras}
                     loading={actionLoading}
                     onConfirm={async (edits, nuevos) => {
                         const ok = await onAprobar({ items: [], items_custom: edits, items_custom_nuevos: nuevos });
