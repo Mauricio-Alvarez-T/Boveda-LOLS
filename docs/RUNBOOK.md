@@ -269,6 +269,39 @@ Gráficos en HTML puro (compatibles con Gmail/Outlook/móvil), logo LOLS embebid
 > código a un entorno donde la migración no corrió, falla con
 > `Unknown column 't.es_prueba'`. Ver § 6 — "deploy de código acoplado a migración".
 
+### Caso concreto: Alertas de Vehículos (todos los días 08:00)
+
+Avisa por **email** (y deja el texto de WhatsApp en el log) cuando a un seguro,
+revisión técnica o mantención le faltan **exactamente** los días configurados
+(`dias_alerta`, típicamente 30) para su fecha. El correo es HTML responsive con el
+header verde de Bóveda y el número de días en grande.
+
+- **Script:** `backend/scripts/alertas_vehiculos.js` · alias `npm run alertas-vehiculos`
+- **Horario:** `0 8 * * *` (todos los días a las 08:00)
+- **Command staging:**
+  ```
+  cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/alertas_vehiculos.js >> ~/alertas-vehiculos.log 2>&1
+  ```
+- **Command producción:** igual con `~/boveda` y su ruta de node correspondiente.
+- **Modo normal (sin flags) = el que va en el cron.** Solo envía cuando
+  `DATEDIFF(fecha, CURDATE()) = dias_alerta` → **un solo aviso por evento**, no
+  molesta a diario. Por eso es seguro correrlo cada mañana.
+- **Flags útiles (para probar a mano):**
+  - `--forzar` (alias `alertas-vehiculos-forzar`) → envía TODO lo que tenga
+    `email_alerta`, ignorando la fecha. Para demos/pruebas.
+  - `--test` (alias `alertas-vehiculos-test`) → no envía, solo imprime qué enviaría.
+  - `--dias N` → cambia la ventana (default 30).
+- **Qué fecha cuenta:** seguros usan `fecha_vencimiento`; revisiones y mantenciones
+  usan `fecha` (la "Fecha por realizar" / cita), NO `fecha_vencimiento`.
+- **WhatsApp:** NO se envía automáticamente (no hay integración con WhatsApp Business
+  API). El script solo **imprime** el mensaje en el log; el email sí se envía real.
+- **Variables `.env` requeridas:** `MAIL_HOST`, `MAIL_USER`, `MAIL_PASS` (puerto 465 SSL
+  por defecto). Sin ellas el envío lanza error.
+- **Depende de las migraciones 069–073** (módulo vehículos + alertas + periodicidad).
+- **Probar el cron sin esperar:** crear un cron temporal "+2 min" con el mismo command
+  pero agregando `--forzar`, verificar `~/alertas-vehiculos.log` (debe mostrar
+  `✅ Email enviado`), y luego **borrarlo** dejando solo el definitivo sin `--forzar`.
+
 ---
 
 ## 5. Variables de Entorno
