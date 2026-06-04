@@ -17,7 +17,8 @@
     "reporte-semanal": "node scripts/reporte_semanal.js",
     "diag-estados": "node scripts/diag_estados.js",
     "alertas-vehiculos": "node scripts/alertas_vehiculos.js",
-    "alertas-vehiculos-test": "node scripts/alertas_vehiculos.js --test"
+    "alertas-vehiculos-test": "node scripts/alertas_vehiculos.js --test",
+    "alertas-vehiculos-forzar": "node scripts/alertas_vehiculos.js --forzar"
   },
   "keywords": [],
   "author": "",
