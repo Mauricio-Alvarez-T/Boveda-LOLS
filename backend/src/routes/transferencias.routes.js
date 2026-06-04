@@ -172,7 +172,7 @@ router.put('/:id/despachar', auth, checkPermission('inventario.transferencias.de
 router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.recibir'), async (req, res, next) => {
     try {
         const tipo = req.body.tipo === 'parcial' ? 'parcial' : 'total';
-        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo);
+        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo, req.body.observacion);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

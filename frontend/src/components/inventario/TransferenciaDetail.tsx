@@ -16,6 +16,176 @@ import { Modal } from '../ui/Modal';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
+// ════════════════════════════════════════════════════════════════════
+// Paneles del flujo "Solicitud de Materiales" (ítems a comprar / custom).
+// Module-level para montar con estado propio sólo al abrir la acción.
+// ════════════════════════════════════════════════════════════════════
+interface MatCustomItem {
+    id: number;
+    descripcion: string;
+    cantidad: number;
+    unidad: string | null;
+    cantidad_aprobada?: number | null;
+    aprobado?: boolean;
+    nota_aprobador?: string | null;
+}
+interface MatAprobacionEdit {
+    id: number; descripcion: string; unidad: string;
+    cantidad_aprobada: number; aprobado: boolean; nota_aprobador: string;
+}
+interface MatNuevoItem { _k: number; descripcion: string; cantidad: number; unidad: string; observacion: string; }
+
+const MaterialesAprobacionPanel: React.FC<{
+    items: MatCustomItem[];
+    loading: boolean;
+    onConfirm: (edits: MatAprobacionEdit[], nuevos: { descripcion: string; cantidad: number; unidad?: string; observacion?: string }[]) => void;
+    onCancel: () => void;
+}> = ({ items, loading, onConfirm, onCancel }) => {
+    const [edits, setEdits] = useState<MatAprobacionEdit[]>(() =>
+        items.map(it => ({
+            id: it.id,
+            descripcion: it.descripcion,
+            unidad: it.unidad || '',
+            cantidad_aprobada: it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : (Number(it.cantidad) || 1),
+            aprobado: it.aprobado !== false,
+            nota_aprobador: it.nota_aprobador || '',
+        }))
+    );
+    const [nuevos, setNuevos] = useState<MatNuevoItem[]>([]);
+
+    const setEdit = (id: number, patch: Partial<MatAprobacionEdit>) =>
+        setEdits(prev => prev.map(e => (e.id === id ? { ...e, ...patch } : e)));
+    const setNuevo = (k: number, patch: Partial<MatNuevoItem>) =>
+        setNuevos(prev => prev.map(n => (n._k === k ? { ...n, ...patch } : n)));
+    const addNuevo = () => setNuevos(prev => [...prev, { _k: prev.length ? Math.max(...prev.map(p => p._k)) + 1 : 1, descripcion: '', cantidad: 1, unidad: '', observacion: '' }]);
+    const delNuevo = (k: number) => setNuevos(prev => prev.filter(n => n._k !== k));
+
+    const aprobadosCount = edits.filter(e => e.aprobado).length + nuevos.filter(n => n.descripcion.trim()).length;
+
+    return (
+        <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-3">
+            <div className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
+                <h4 className="text-sm font-bold text-green-800 dark:text-green-300">Revisar y aprobar materiales</h4>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+                Ajusta cantidades, corrige descripciones, quita los ítems que no se comprarán o agrega los que falten. Al aprobar, la solicitud avanza para que el material llegue a obra.
+            </p>
+
+            <ul className="space-y-2 max-h-[42vh] overflow-y-auto -mr-1 pr-1">
+                {edits.map((e, idx) => (
+                    <li key={e.id} className={cn(
+                        "rounded-lg border p-2.5",
+                        e.aprobado ? "border-amber-200 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/20" : "border-border bg-muted/40 opacity-60"
+                    )}>
+                        <div className="flex gap-2 items-center">
+                            <span className="shrink-0 w-5 h-5 rounded bg-amber-100 text-amber-800 text-[10px] font-black flex items-center justify-center">{idx + 1}</span>
+                            <input value={e.descripcion} disabled={!e.aprobado}
+                                onChange={ev => setEdit(e.id, { descripcion: ev.target.value })}
+                                className={cn("flex-1 min-w-0 h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary", !e.aprobado && "line-through")} />
+                            <button type="button" onClick={() => setEdit(e.id, { aprobado: !e.aprobado })}
+                                title={e.aprobado ? 'Quitar (no se compra)' : 'Restaurar'}
+                                className={cn("shrink-0 p-1.5 rounded-md transition-colors", e.aprobado ? "text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10" : "text-brand-primary hover:bg-brand-primary/10")}>
+                                {e.aprobado ? <Trash2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+                            </button>
+                        </div>
+                        {e.aprobado && (
+                            <>
+                                <div className="mt-1.5 pl-7 grid grid-cols-[80px_1fr] gap-1.5">
+                                    <input type="number" min={1} value={e.cantidad_aprobada}
+                                        onChange={ev => setEdit(e.id, { cantidad_aprobada: parseInt(ev.target.value) || 0 })}
+                                        className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                                    <input value={e.unidad} onChange={ev => setEdit(e.id, { unidad: ev.target.value })}
+                                        placeholder="Unidad (kg, m, U...)"
+                                        className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                                </div>
+                                <input value={e.nota_aprobador} onChange={ev => setEdit(e.id, { nota_aprobador: ev.target.value })}
+                                    placeholder="Nota del aprobador (opcional)"
+                                    className="mt-1.5 ml-7 w-[calc(100%-1.75rem)] h-7 px-2 text-[11px] rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                            </>
+                        )}
+                    </li>
+                ))}
+                {nuevos.map(n => (
+                    <li key={`n${n._k}`} className="rounded-lg border border-dashed border-brand-primary/40 bg-brand-primary/[0.03] p-2.5">
+                        <div className="flex gap-2 items-center">
+                            <span className="shrink-0 px-1.5 h-5 rounded bg-brand-primary/10 text-brand-primary text-[9px] font-black flex items-center justify-center">NUEVO</span>
+                            <input value={n.descripcion} autoFocus onChange={ev => setNuevo(n._k, { descripcion: ev.target.value })}
+                                placeholder="Descripción del ítem *"
+                                className="flex-1 min-w-0 h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                            <button type="button" onClick={() => delNuevo(n._k)} className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10">
+                                <Trash2 className="h-3.5 w-3.5" />
+                            </button>
+                        </div>
+                        <div className="mt-1.5 pl-7 grid grid-cols-[80px_1fr] gap-1.5">
+                            <input type="number" min={1} value={n.cantidad} onChange={ev => setNuevo(n._k, { cantidad: parseInt(ev.target.value) || 0 })}
+                                className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                            <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="Unidad (kg, m, U...)"
+                                className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                        </div>
+                    </li>
+                ))}
+            </ul>
+
+            <button type="button" onClick={addNuevo}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-900">
+                <Plus className="h-3.5 w-3.5" /> Agregar ítem
+            </button>
+
+            {aprobadosCount === 0 && (
+                <p className="text-[11px] text-destructive">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
+            )}
+
+            <div className="flex gap-2 pt-1">
+                <button
+                    onClick={() => onConfirm(
+                        edits,
+                        nuevos.filter(n => n.descripcion.trim()).map(n => ({
+                            descripcion: n.descripcion.trim(),
+                            cantidad: Number(n.cantidad) || 1,
+                            unidad: n.unidad.trim() || undefined,
+                            observacion: n.observacion.trim() || undefined,
+                        }))
+                    )}
+                    disabled={loading || aprobadosCount === 0}
+                    className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    {loading ? 'Aprobando...' : 'Confirmar Aprobación'}
+                </button>
+                <button onClick={onCancel} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
+            </div>
+        </div>
+    );
+};
+
+const MaterialesRecepcionPanel: React.FC<{
+    loading: boolean;
+    onConfirm: (observacion: string) => void;
+    onCancel: () => void;
+}> = ({ loading, onConfirm, onCancel }) => {
+    const [obs, setObs] = useState('');
+    return (
+        <div className="shrink-0 border border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 rounded-xl p-4 mb-4 space-y-3">
+            <div className="flex items-center gap-2">
+                <PackageCheck className="h-4 w-4 text-blue-700 dark:text-blue-400" />
+                <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Confirmar recepción</h4>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+                Confirma que el material llegó a obra. Puedes anotar diferencias o sobrantes (ej. "llegaron 10, se usaron 6, sobran 4"). La solicitud quedará cerrada.
+            </p>
+            <textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
+                placeholder="Observaciones / sobrantes (opcional)..."
+                className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-card resize-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
+            <div className="flex gap-2 pt-1">
+                <button onClick={() => onConfirm(obs.trim())} disabled={loading}
+                    className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    {loading ? 'Confirmando...' : 'Confirmar Recepción'}
+                </button>
+                <button onClick={onCancel} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
+            </div>
+        </div>
+    );
+};
+
 interface StockLocation {
     type: string;
     id: number;
@@ -40,11 +210,15 @@ interface Props {
             | { item_id: number; cantidad_enviada: number; origen_obra_id?: number | null; origen_bodega_id?: number | null }
             | { item_id: number; splits: { origen_obra_id: number | null; origen_bodega_id: number | null; cantidad: number }[] }
         >;
+        // Solicitud de Materiales: ediciones del aprobador a ítems custom + nuevos.
+        items_custom?: Array<{ id: number; descripcion?: string; unidad?: string; cantidad_aprobada?: number; aprobado?: boolean; nota_aprobador?: string }>;
+        items_custom_nuevos?: { descripcion: string; cantidad: number; unidad?: string; observacion?: string }[];
     }) => Promise<boolean>;
     onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
     onRecibir: (
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
-        tipo?: 'parcial' | 'total'
+        tipo?: 'parcial' | 'total',
+        observacion?: string
     ) => Promise<boolean>;
     /** Fetcher del historial de eventos de recepción. Inyectado por el panel padre. */
     onFetchRecepciones?: (id: number) => Promise<TransferenciaRecepcion[]>;
@@ -88,6 +262,12 @@ const TransferenciaDetail: React.FC<Props> = ({
         unidad: string | null;
         observacion: string | null;
         compra_realizada?: boolean;
+        // Aprobación (migración 070): el aprobador ajusta cantidad, quita ítems,
+        // corrige descripción/unidad, agrega ítems y deja nota.
+        cantidad_aprobada?: number | null;
+        aprobado?: boolean;
+        nota_aprobador?: string | null;
+        agregado_por_aprobador?: boolean;
     }
     const itemsCustom: TransferenciaItemCustom[] = (t as { items_custom?: TransferenciaItemCustom[] }).items_custom || [];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
@@ -284,12 +464,17 @@ const TransferenciaDetail: React.FC<Props> = ({
         }
         // Items personalizados (a comprar) — sección separada para que el
         // transportista/aprobador los identifique fácil.
-        if (itemsCustom.length > 0) {
-            lines.push(`${CART} *Por comprar / fuera de catálogo (${itemsCustom.length}):*`);
-            itemsCustom.forEach((it) => {
+        // Omitir ítems que el aprobador quitó (aprobado===false); usar cantidad
+        // aprobada cuando exista.
+        const customVisibles = itemsCustom.filter(it => it.aprobado !== false);
+        if (customVisibles.length > 0) {
+            lines.push(`${CART} *Por comprar / fuera de catálogo (${customVisibles.length}):*`);
+            customVisibles.forEach((it) => {
+                const cant = it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad;
                 const unidad = it.unidad ? ` ${it.unidad}` : '';
-                lines.push(`• ${it.cantidad}${unidad} — ${it.descripcion}`);
+                lines.push(`• ${cant}${unidad} — ${it.descripcion}`);
                 if (it.observacion) lines.push(`   _${it.observacion}_`);
+                if (it.nota_aprobador) lines.push(`   _Aprobador: ${it.nota_aprobador}_`);
             });
             lines.push('');
         }
@@ -665,18 +850,39 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 </tr>
                             </thead>
                             <tbody>
-                                {itemsCustom.map((it, idx) => (
-                                    <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-amber-50/40 dark:bg-amber-950/20")}>
-                                        <td className="px-3 py-1.5 font-medium text-brand-dark">
-                                            <div>{it.descripcion}</div>
-                                            {it.observacion && (
-                                                <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
-                                            )}
-                                        </td>
-                                        <td className="px-2 py-1.5 text-center font-semibold">{Number(it.cantidad)}</td>
-                                        <td className="px-2 py-1.5 text-left text-muted-foreground">{it.unidad || '—'}</td>
-                                    </tr>
-                                ))}
+                                {itemsCustom.map((it, idx) => {
+                                    const rechazado = it.aprobado === false;
+                                    const ajustada = it.cantidad_aprobada != null && Number(it.cantidad_aprobada) !== Number(it.cantidad);
+                                    return (
+                                        <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-amber-50/40 dark:bg-amber-950/20", rechazado && "opacity-50")}>
+                                            <td className="px-3 py-1.5 font-medium text-brand-dark">
+                                                <div className="flex flex-wrap items-center gap-1.5">
+                                                    <span className={cn(rechazado && "line-through")}>{it.descripcion}</span>
+                                                    {it.agregado_por_aprobador && (
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold uppercase">+ aprobador</span>
+                                                    )}
+                                                    {rechazado && (
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold uppercase">No se compra</span>
+                                                    )}
+                                                </div>
+                                                {it.observacion && (
+                                                    <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
+                                                )}
+                                                {it.nota_aprobador && (
+                                                    <div className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5">📝 {it.nota_aprobador}</div>
+                                                )}
+                                            </td>
+                                            <td className="px-2 py-1.5 text-center font-semibold">
+                                                {ajustada ? (
+                                                    <span><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-brand-primary">{Number(it.cantidad_aprobada)}</span></span>
+                                                ) : (
+                                                    <span className={cn(rechazado && "line-through text-muted-foreground")}>{Number(it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad)}</span>
+                                                )}
+                                            </td>
+                                            <td className="px-2 py-1.5 text-left text-muted-foreground">{it.unidad || '—'}</td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -777,32 +983,15 @@ const TransferenciaDetail: React.FC<Props> = ({
                 ── APPROVAL FORM — splits multi-origen + quick-fix ──
                ════════════════════════════════════════════════ */}
             {activeForm === 'aprobar' && items.length === 0 && (
-                // Branch simplificado: transferencia sin items de catálogo (ej.
-                // solicitud_materiales). No hay stock que asignar — sólo aprobar la compra.
-                <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
-                        <h4 className="text-sm font-bold text-green-800 dark:text-green-300">Aprobar Solicitud de Materiales</h4>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                        Esta solicitud contiene <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} a comprar. Al aprobar, el solicitante podrá continuar con el flujo de recepción una vez que el material llegue a obra.
-                    </p>
-                    <div className="flex gap-2 pt-1">
-                        <button
-                            onClick={async () => {
-                                const ok = await onAprobar({ items: [] });
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            {actionLoading ? 'Aprobando...' : 'Confirmar Aprobación'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
+                <MaterialesAprobacionPanel
+                    items={itemsCustom}
+                    loading={actionLoading}
+                    onConfirm={async (edits, nuevos) => {
+                        const ok = await onAprobar({ items: [], items_custom: edits, items_custom_nuevos: nuevos });
+                        if (ok) setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
             )}
             {activeForm === 'aprobar' && items.length > 0 && (() => {
                 // Helpers locales ---------------------------------------------------
@@ -1424,32 +1613,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                     discrepancia.
                ════════════════════════════════════════════ */}
             {activeForm === 'recibir' && items.length === 0 && (
-                // Branch simplificado: transferencia sin items de catálogo (solicitud_materiales).
-                // No hay stock que actualizar — sólo confirmar recepción del material comprado.
-                <div className="shrink-0 border border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 rounded-xl p-4 mb-4 space-y-4">
-                    <div className="flex items-center gap-2">
-                        <PackageCheck className="h-4 w-4 text-blue-700 dark:text-blue-400" />
-                        <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Confirmar Recepción de Materiales</h4>
-                    </div>
-                    <p className="text-[11px] text-muted-foreground">
-                        Confirma que recibiste los <strong>{itemsCustom.length}</strong> {(itemsCustom.length === 1) ? 'item' : 'items'} solicitados. La transferencia quedará cerrada como recibida.
-                    </p>
-                    <div className="flex gap-2 pt-1">
-                        <button
-                            onClick={async () => {
-                                const ok = await onRecibir([], 'total');
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-                        >
-                            {actionLoading ? 'Confirmando...' : 'Confirmar Recepción'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
-                </div>
+                <MaterialesRecepcionPanel
+                    loading={actionLoading}
+                    onConfirm={async (obs) => {
+                        const ok = await onRecibir([], 'total', obs);
+                        if (ok) setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
             )}
             {activeForm === 'recibir' && items.length > 0 && (() => {
                 // Cálculos derivados para la UI:

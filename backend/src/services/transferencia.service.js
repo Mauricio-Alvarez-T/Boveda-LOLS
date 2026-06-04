@@ -396,13 +396,74 @@ const transferenciaService = {
             // Caso típico: solicitud_materiales (sólo items_custom, materiales a comprar).
             // No hay stock que reservar ni splits que crear — sólo transición de estado.
             if (dbItems.length === 0) {
-                const [customCnt] = await conn.query(
-                    'SELECT COUNT(*) AS c FROM transferencia_items_custom WHERE transferencia_id = ?',
+                const [customRows] = await conn.query(
+                    'SELECT id FROM transferencia_items_custom WHERE transferencia_id = ?',
                     [id]
                 );
-                if (Number(customCnt[0].c) === 0) {
+                if (customRows.length === 0) {
                     throw new Error('La transferencia no tiene items para aprobar');
                 }
+                const validIds = new Set(customRows.map(r => Number(r.id)));
+                const edits = Array.isArray(data.items_custom) ? data.items_custom : [];
+                const nuevos = Array.isArray(data.items_custom_nuevos) ? data.items_custom_nuevos : [];
+
+                // Ediciones del aprobador sobre ítems existentes: cantidad aprobada,
+                // descripción/unidad corregidas, nota, o quitar/rechazar (aprobado=false).
+                for (const e of edits) {
+                    if (!e || !validIds.has(Number(e.id))) continue;
+                    const aprobadoFlag = e.aprobado === false ? 0 : 1;
+                    const desc = (e.descripcion != null && String(e.descripcion).trim())
+                        ? String(e.descripcion).trim().slice(0, 500) : null; // null → COALESCE conserva la actual
+                    const unidad = e.unidad != null ? (String(e.unidad).slice(0, 50) || null) : null;
+                    const cantAprob = Number(e.cantidad_aprobada) > 0 ? Number(e.cantidad_aprobada) : null;
+                    const nota = e.nota_aprobador != null ? (String(e.nota_aprobador).slice(0, 1000) || null) : null;
+                    await conn.query(
+                        `UPDATE transferencia_items_custom
+                            SET descripcion = COALESCE(?, descripcion),
+                                unidad = ?,
+                                cantidad_aprobada = ?,
+                                aprobado = ?,
+                                nota_aprobador = ?
+                          WHERE id = ? AND transferencia_id = ?`,
+                        [desc, unidad, cantAprob, aprobadoFlag, nota, Number(e.id), id]
+                    );
+                }
+
+                // Ítems que agregó el aprobador (no los pidió la obra).
+                for (const n of nuevos) {
+                    const ndesc = String((n && n.descripcion) || '').trim();
+                    if (!ndesc) continue;
+                    const ncant = Number(n.cantidad) > 0 ? Number(n.cantidad) : 1;
+                    await conn.query(
+                        `INSERT INTO transferencia_items_custom
+                           (transferencia_id, descripcion, cantidad, unidad, observacion,
+                            cantidad_aprobada, aprobado, agregado_por_aprobador)
+                         VALUES (?, ?, ?, ?, ?, ?, 1, 1)`,
+                        [
+                            id, ndesc.slice(0, 500), ncant,
+                            n.unidad ? String(n.unidad).slice(0, 50) : null,
+                            n.observacion ? String(n.observacion) : null, ncant,
+                        ]
+                    );
+                }
+
+                // Default: ítems aprobados sin cantidad_aprobada explícita heredan la solicitada.
+                await conn.query(
+                    `UPDATE transferencia_items_custom
+                        SET cantidad_aprobada = cantidad
+                      WHERE transferencia_id = ? AND aprobado = 1 AND cantidad_aprobada IS NULL`,
+                    [id]
+                );
+
+                // Debe quedar ≥1 ítem aprobado; si quitó todos, el flujo correcto es Rechazar.
+                const [aprobCnt] = await conn.query(
+                    'SELECT COUNT(*) AS c FROM transferencia_items_custom WHERE transferencia_id = ? AND aprobado = 1',
+                    [id]
+                );
+                if (Number(aprobCnt[0].c) === 0) {
+                    throw new Error('No queda ningún ítem aprobado. Si no se comprará nada, usa Rechazar.');
+                }
+
                 await conn.query(
                     `UPDATE transferencias
                      SET estado = 'aprobada', aprobador_id = ?, aprobado_por = ?, fecha_aprobacion = NOW()
@@ -655,7 +716,7 @@ const transferenciaService = {
      * directa (sin despacho intermedio): tampoco el aprobador. Se valida en
      * CADA evento.
      */
-    async recibir(id, receptorId, items, userPermisos, tipo = 'total') {
+    async recibir(id, receptorId, items, userPermisos, tipo = 'total', observacion = null) {
         // items vacío es válido en transferencias de sólo items_custom (ej. solicitud_materiales).
         // Se valida después: si hay items de catálogo en BD, exigimos items en el payload.
         items = Array.isArray(items) ? items : [];
@@ -706,11 +767,13 @@ const transferenciaService = {
                 if (Number(customCnt[0].c) === 0) {
                     throw new Error('La transferencia no tiene items para recibir');
                 }
-                // Audit: registrar evento de recepción aunque sin items específicos
+                // Audit: registrar evento de recepción. observacion = nota libre del
+                // receptor (ej. "llegaron 10, se usaron 6, sobran 4 tarros").
+                const obs = observacion ? String(observacion).slice(0, 2000) : null;
                 const [recRes] = await conn.query(
                     `INSERT INTO transferencia_recepciones (transferencia_id, receptor_id, tipo, observacion)
-                     VALUES (?, ?, 'total', NULL)`,
-                    [id, receptorId]
+                     VALUES (?, ?, 'total', ?)`,
+                    [id, receptorId, obs]
                 );
                 await conn.query(
                     "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
@@ -1488,6 +1551,7 @@ const transferenciaService = {
         // Items personalizados (fuera de catálogo). Pueden estar vacíos.
         const [itemsCustom] = await db.query(
             `SELECT id, descripcion, cantidad, unidad, observacion,
+                    cantidad_aprobada, aprobado, nota_aprobador, agregado_por_aprobador,
                     compra_realizada, notas_compra, fecha_compra
              FROM transferencia_items_custom
              WHERE transferencia_id = ?
@@ -1495,9 +1559,12 @@ const transferenciaService = {
             [id]
         );
 
-        // Normalizar DECIMAL → Number en items personalizados
+        // Normalizar DECIMAL → Number y TINYINT → boolean en items personalizados
         itemsCustom.forEach(i => {
             i.cantidad = Number(i.cantidad) || 0;
+            i.cantidad_aprobada = i.cantidad_aprobada != null ? Number(i.cantidad_aprobada) : null;
+            i.aprobado = !!i.aprobado;
+            i.agregado_por_aprobador = !!i.agregado_por_aprobador;
         });
 
         return { ...rows[0], items, items_custom: itemsCustom };

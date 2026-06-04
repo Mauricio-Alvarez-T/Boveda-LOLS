@@ -113,10 +113,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     const handleRecibir = useCallback(async (
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
-        tipo: 'parcial' | 'total' = 'total'
+        tipo: 'parcial' | 'total' = 'total',
+        observacion?: string
     ) => {
         setActionLoading(true);
-        const ok = await trfHook.recibir(selectedId!, items, tipo);
+        const ok = await trfHook.recibir(selectedId!, items, tipo, observacion);
         if (ok) {
             await refreshAll();
             // Refresh pending discrepancies count — recibir() may have created new ones.
