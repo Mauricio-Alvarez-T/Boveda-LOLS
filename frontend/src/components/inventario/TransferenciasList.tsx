@@ -74,7 +74,7 @@ const TransferenciasList: React.FC<Props> = ({
     return (
         <div className="flex flex-col flex-1 min-h-0">
             {/* Search */}
-            <div className="relative shrink-0 mb-2">
+            <div className="relative shrink-0 mb-2 mx-4 md:mx-6">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                 <input
                     type="text"
@@ -91,7 +91,7 @@ const TransferenciasList: React.FC<Props> = ({
             </div>
 
             {/* Status filter — Mobile: icon + short label stacked */}
-            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
+            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
@@ -136,7 +136,7 @@ const TransferenciasList: React.FC<Props> = ({
             </div>
 
             {/* Status filter — Desktop: icon + short label stacked (mismo formato que mobile) */}
-            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
+            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 md:mx-6 shadow-sm">
                 {visibleChips.map(chip => {
                     const isActive = statusFilter === chip.value;
                     const isDiscrep = !!chip.discrepancia;
@@ -173,8 +173,8 @@ const TransferenciasList: React.FC<Props> = ({
                 })}
             </div>
 
-            {/* Lista compacta estilo master — borde izquierdo coloreado por estado */}
-            <div className="flex-1 min-h-0 overflow-y-auto space-y-0.5">
+            {/* Lista estilo master (Vehículos) — borde izquierdo coloreado por estado + separadores */}
+            <div className="flex-1 min-h-0 overflow-y-auto">
                 {loading ? (
                     <div className="py-8 text-center text-muted-foreground text-xs">Cargando...</div>
                 ) : filtered.length === 0 ? (
@@ -206,11 +206,11 @@ const TransferenciasList: React.FC<Props> = ({
                                 key={t.id}
                                 onClick={() => onSelect(t.id)}
                                 className={cn(
-                                    "flex gap-3 pl-3 pr-3 py-2.5 rounded-lg border-l-[3px] cursor-pointer transition-all",
+                                    "flex gap-3 cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px] border-b border-b-border/50 last:border-b-0",
                                     borderLeft,
                                     isSelected
-                                        ? "bg-brand-primary/[0.06] shadow-sm ring-1 ring-brand-primary/20"
-                                        : "bg-card hover:bg-muted"
+                                        ? "bg-brand-primary/[0.06]"
+                                        : "hover:bg-brand-primary/[0.03]"
                                 )}
                             >
                                 {/* Icono estado */}

@@ -98,6 +98,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         await trfHook.fetchById(id);
     }, [trfHook.fetchById]);
 
+    // Auto-selección del primer movimiento en desktop (como Vehículos), para que el
+    // panel de detalle no quede vacío al entrar. Respeta initialSelectedId y discrepancias.
+    useEffect(() => {
+        if (selectedId || isDiscrepanciasMode || trfHook.transferencias.length === 0) return;
+        if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+            handleSelect(trfHook.transferencias[0].id);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trfHook.transferencias, selectedId, isDiscrepanciasMode]);
+
     const refreshAll = useCallback(async () => {
         await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
         if (selectedId) await trfHook.fetchById(selectedId);
@@ -279,18 +289,18 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}
             </div>
 
-            {/* Master-Detail body — siempre split en desktop (lista sidebar + detail);
-                en mobile alterna entre lista y detalle */}
-            <div className="flex flex-1 min-h-0 gap-4">
-                {/* LEFT: List sidebar — siempre visible en desktop, oculta en mobile cuando hay detalle */}
+            {/* Master-Detail body — card unificado estilo Vehículos: lista (prominente) +
+                panel de detalle. En mobile alterna entre lista y detalle. */}
+            <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0 md:w-[340px] lg:w-[380px] md:shrink-0",
+                    "flex flex-col min-h-0 flex-1 min-w-0 py-4 md:py-6",
                     detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
                             {/* Search — arriba de los chips (consistente con el resto de modos) */}
-                            <div className="relative shrink-0 mb-2">
+                            <div className="relative shrink-0 mb-2 mx-4 md:mx-6">
                                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                                 <input
                                     type="text"
@@ -307,7 +317,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             </div>
                             {/* Top row: status chips — mobile icon+label / desktop pills */}
                             {/* Mobile */}
-                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
+                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 shadow-sm">
                                 {MAIN_STATUS_CHIPS
                                     .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
                                     .map(chip => {
@@ -348,7 +358,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                 })}
                             </div>
                             {/* Desktop: icon + short label stacked (mismo formato que mobile) */}
-                            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
+                            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 md:mx-6 shadow-sm">
                                 {MAIN_STATUS_CHIPS
                                     .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
                                     .map(chip => {
@@ -415,9 +425,13 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     )}
                 </div>
 
-                {/* RIGHT: Detail — siempre visible en desktop, en mobile solo con selección */}
+                {/* RIGHT: Detalle — panel enfocado (materiales) o ancho (catálogo/discrepancias).
+                    Estilo Vehículos: ancho fijo cuando es materiales; flex-1 cuando necesita espacio. */}
                 <div className={cn(
-                    "flex-1 min-h-0",
+                    "min-h-0 md:border-l md:border-border",
+                    !isDiscrepanciasMode && trfHook.selected?.tipo_flujo === 'solicitud_materiales'
+                        ? "md:w-[460px] md:shrink-0"
+                        : "flex-1",
                     detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
                 )}>
                     {isDiscrepanciasMode ? (

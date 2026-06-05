@@ -45,7 +45,9 @@ const MaterialesAprobacionPanel: React.FC<{
     loading: boolean;
     onConfirm: (edits: MatAprobacionEdit[], nuevos: { descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }[]) => void;
     onCancel: () => void;
-}> = ({ items, obras, loading, onConfirm, onCancel }) => {
+    /** En modal: el Modal aporta título y marco → no renderiza su card de color ni su header propio. */
+    embedded?: boolean;
+}> = ({ items, obras, loading, onConfirm, onCancel, embedded = false }) => {
     const [edits, setEdits] = useState<MatAprobacionEdit[]>(() =>
         items.map(it => ({
             id: it.id,
@@ -116,16 +118,24 @@ const MaterialesAprobacionPanel: React.FC<{
     );
 
     return (
-        <div className="shrink-0 border border-green-200 bg-green-50/40 dark:border-green-900 dark:bg-green-950/20 rounded-2xl p-4 md:p-5 mb-4 space-y-4">
-            <div>
-                <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
-                    <h4 className="text-base font-bold text-green-800 dark:text-green-300">Revisar y aprobar materiales</h4>
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
+        <div className={embedded
+            ? "space-y-4"
+            : "shrink-0 border border-green-200 bg-green-50/40 dark:border-green-900 dark:bg-green-950/20 rounded-2xl p-4 md:p-5 mb-4 space-y-4"}>
+            {embedded ? (
+                <p className="text-xs text-muted-foreground">
                     Para cada ítem revisa la cantidad y elige si se <strong>compra</strong> o se <strong>trae de otra obra</strong>. Después confirma.
                 </p>
-            </div>
+            ) : (
+                <div>
+                    <div className="flex items-center gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
+                        <h4 className="text-base font-bold text-green-800 dark:text-green-300">Revisar y aprobar materiales</h4>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Para cada ítem revisa la cantidad y elige si se <strong>compra</strong> o se <strong>trae de otra obra</strong>. Después confirma.
+                    </p>
+                </div>
+            )}
 
             <ul className="space-y-3 max-h-[52vh] overflow-y-auto -mr-1 pr-1">
                 {edits.map((e, idx) => {
@@ -249,14 +259,20 @@ const MaterialesRecepcionPanel: React.FC<{
     loading: boolean;
     onConfirm: (observacion: string) => void;
     onCancel: () => void;
-}> = ({ loading, onConfirm, onCancel }) => {
+    /** En modal: el Modal aporta título y marco → no renderiza su card de color ni su header propio. */
+    embedded?: boolean;
+}> = ({ loading, onConfirm, onCancel, embedded = false }) => {
     const [obs, setObs] = useState('');
     return (
-        <div className="shrink-0 border border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 rounded-xl p-4 mb-4 space-y-3">
-            <div className="flex items-center gap-2">
-                <PackageCheck className="h-4 w-4 text-blue-700 dark:text-blue-400" />
-                <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Confirmar recepción</h4>
-            </div>
+        <div className={embedded
+            ? "space-y-3"
+            : "shrink-0 border border-blue-200 bg-blue-50/30 dark:border-blue-900 dark:bg-blue-950/20 rounded-xl p-4 mb-4 space-y-3"}>
+            {!embedded && (
+                <div className="flex items-center gap-2">
+                    <PackageCheck className="h-4 w-4 text-blue-700 dark:text-blue-400" />
+                    <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Confirmar recepción</h4>
+                </div>
+            )}
             <p className="text-[11px] text-muted-foreground">
                 Confirma que el material llegó a obra. Puedes anotar diferencias o sobrantes (ej. "llegaron 10, se usaron 6, sobran 4"). La solicitud quedará cerrada.
             </p>
@@ -337,6 +353,18 @@ const MatRequestRow: React.FC<{
         </div>
     );
 };
+
+// Sección de detalle estilo Vehículos (etiqueta uppercase + contenido). Solo lectura.
+const DetailSection: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
+    <section>
+        <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
+                {icon} {title}
+            </span>
+        </div>
+        <div className="space-y-1.5">{children}</div>
+    </section>
+);
 
 interface StockLocation {
     type: string;
@@ -821,7 +849,7 @@ const TransferenciaDetail: React.FC<Props> = ({
     const isMateriales = items.length === 0;
 
     const renderCatalogo = () => (
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto">
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
             {/* Mobile back */}
             <button onClick={onBack} className="md:hidden flex items-center gap-1 mb-3 text-xs text-muted-foreground hover:text-brand-dark transition-colors shrink-0">
                 <ChevronLeft className="h-4 w-4" /> Volver
@@ -2157,274 +2185,243 @@ const TransferenciaDetail: React.FC<Props> = ({
     // lado a lado en xl (≥1280px). Móvil mantiene el toggle lista↔detalle
     // del panel padre + el botón "Volver".
     const renderMateriales = () => (
-        <div className="flex flex-col flex-1 min-h-0">
-            {/* Mobile back */}
-            <button onClick={onBack} className="md:hidden flex items-center gap-1 mb-3 text-xs text-muted-foreground hover:text-brand-dark transition-colors shrink-0">
-                <ChevronLeft className="h-4 w-4" /> Volver
-            </button>
-
-            <div className="flex flex-col xl:flex-row flex-1 min-h-0 gap-4 xl:gap-0 overflow-y-auto xl:overflow-hidden">
-
-                {/* ── IZQUIERDA: lo que se pide (solo lectura) ── */}
-                <div className="flex flex-col min-h-0 xl:w-[340px] xl:shrink-0 xl:border-r xl:border-border xl:pr-5 xl:overflow-y-auto">
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4 shrink-0">
-                        <div>
-                            <h2 className="text-lg font-black text-brand-dark tracking-tight">{t.codigo}</h2>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
-                                <span className="font-medium">{origen}</span>
-                                <span>→</span>
-                                <span className="font-medium">{destino}</span>
-                            </div>
-                            {t.motivo && (
-                                <div className="text-[11px] text-muted-foreground mt-1 italic">Motivo: {t.motivo}</div>
-                            )}
-                        </div>
-                        <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold", cfg.color)}>
-                            <Icon className="h-3.5 w-3.5" />
-                            {cfg.label}
-                        </div>
-                    </div>
-
-                    {/* Stepper */}
-                    <div className="shrink-0 mb-5">
-                        {isTerminated ? (
-                            <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-gray-50 border-gray-200 dark:bg-muted dark:border-border")}>
-                                {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-gray-400" />}
-                                <div>
-                                    <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-gray-600 dark:text-muted-foreground")}>
-                                        {t.estado === 'rechazada' ? 'Transferencia Rechazada' : 'Transferencia Cancelada'}
-                                    </p>
-                                    {t.observaciones_rechazo && (
-                                        <p className="text-[10px] text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
-                                    )}
-                                </div>
-                            </div>
-                        ) : (
-                            <div className="flex items-center justify-between px-2">
-                                {STEPS.map((step, idx) => {
-                                    const completed = idx <= activeStep;
-                                    const isCurrent = idx === activeStep;
-                                    const StepIcon = step.icon;
-                                    return (
-                                        <React.Fragment key={step.key}>
-                                            {idx > 0 && (
-                                                <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
-                                            )}
-                                            <div className="flex flex-col items-center gap-1.5">
-                                                <div className={cn(
-                                                    "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all",
-                                                    completed ? "bg-brand-primary border-brand-primary text-white" : "bg-card border-border text-muted-foreground/40",
-                                                    isCurrent && "ring-4 ring-brand-primary/20 scale-110"
-                                                )}>
-                                                    <StepIcon className="h-4 w-4" />
-                                                </div>
-                                                <span className={cn("text-[10px] font-bold whitespace-nowrap", completed ? "text-brand-primary" : "text-muted-foreground/40")}>
-                                                    {step.label}
-                                                </span>
-                                            </div>
-                                        </React.Fragment>
-                                    );
-                                })}
-                            </div>
-                        )}
-                    </div>
-
-                    {/* Lo que se pide */}
-                    <div className="shrink-0 mb-5">
-                        <h4 className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5 mb-2">
-                            <ShoppingBag className="h-3.5 w-3.5" /> Lo que se pide ({itemsCustom.length})
-                        </h4>
-                        <div className="space-y-1.5">
-                            {itemsCustom.length === 0
-                                ? <MatEmpty>Sin materiales en esta solicitud</MatEmpty>
-                                : itemsCustom.map((it, idx) => <MatRequestRow key={it.id || idx} it={it} estado={t.estado} />)}
-                        </div>
-                    </div>
-
-                    {/* Info */}
-                    <div className="shrink-0 mb-5 space-y-2">
-                        {t.observaciones && (
-                            <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
-                                <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                                <span>{t.observaciones}</span>
-                            </div>
-                        )}
-                        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
-                            <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-                            <div className="space-y-0.5">
-                                <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
-                                {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{t.aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
-                                {t.fecha_recepcion && <p>Recepcion: {fmtDate(t.fecha_recepcion)}</p>}
-                            </div>
-                        </div>
-                    </div>
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6">
+            {/* Header estilo Vehículos */}
+            <div className="flex items-center gap-3 mb-4 shrink-0">
+                <button onClick={onBack} className="md:hidden p-2 rounded-xl hover:bg-muted text-muted-foreground">
+                    <ChevronLeft className="h-5 w-5" />
+                </button>
+                <div className="flex-1 min-w-0">
+                    <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Detalle solicitud</p>
+                    <h4 className="text-base font-black text-brand-dark truncate">{t.codigo}</h4>
+                    <p className="text-[11px] text-muted-foreground truncate">{origen} → {destino}</p>
                 </div>
-
-                {/* ── DERECHA: acciones ── */}
-                <div className="flex flex-col flex-1 min-h-0 xl:pl-5 xl:overflow-y-auto">
-                    {/* SoD banner */}
-                    {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && !activeForm && (
-                        <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
-                            <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-                            <div>
-                                <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
-                                <span className="text-amber-800 dark:text-amber-300">
-                                    {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
-                                    {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
-                                    {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
-                                    Si no hay otra persona disponible, contacta al admin para que conceda el permiso "Bypass SoD".
-                                </span>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Botones de acción */}
-                    {hasActions && !activeForm && (
-                        <div className="shrink-0 flex flex-wrap gap-2 mb-4">
-                            {canAprobar && (
-                                <button onClick={() => setActiveForm('aprobar')} disabled={actionLoading}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all shadow-sm">
-                                    <CheckCircle2 className="h-3.5 w-3.5" /> Aprobar
-                                </button>
-                            )}
-                            {canRechazar && (
-                                <button onClick={() => setActiveForm('rechazar')} disabled={actionLoading}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
-                                    <XCircle className="h-3.5 w-3.5" /> Rechazar
-                                </button>
-                            )}
-                            {canRecibir && (
-                                <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
-                                    title="Marca qué llegó del cargamento de hoy. Si falta, podrás registrar próximos viajes."
-                                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                                    <PackageCheck className="h-3.5 w-3.5" /> Registrar lo que llegó
-                                </button>
-                            )}
-                            {canRechazarRecepcion && (
-                                <button onClick={() => setActiveForm('rechazar_recepcion')} disabled={actionLoading}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
-                                    <XCircle className="h-3.5 w-3.5" /> Rechazar Recepción
-                                </button>
-                            )}
-                            {canCancelar && (
-                                <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-muted-foreground bg-muted rounded-xl hover:bg-muted disabled:opacity-50 transition-all">
-                                    <Ban className="h-3.5 w-3.5" /> Cancelar
-                                </button>
-                            )}
-                            {canCompartirWhatsApp && (
-                                <button onClick={handleShareWhatsApp} disabled={actionLoading}
-                                    title={t.estado === 'pendiente' ? 'Notificar nueva solicitud al grupo de WhatsApp para que el aprobador la revise' : 'Enviar información del movimiento por WhatsApp'}
-                                    className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-[#25D366] rounded-xl hover:bg-[#1EBE5B] disabled:opacity-50 transition-all shadow-sm">
-                                    <Send className="h-3.5 w-3.5" />
-                                    {t.estado === 'pendiente' ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}
-                                </button>
-                            )}
-                        </div>
-                    )}
-
-                    {/* Aprobar (materiales) */}
-                    {activeForm === 'aprobar' && (
-                        <MaterialesAprobacionPanel
-                            items={itemsCustom}
-                            obras={obras}
-                            loading={actionLoading}
-                            onConfirm={async (edits, nuevos) => {
-                                const ok = await onAprobar({ items: [], items_custom: edits, items_custom_nuevos: nuevos });
-                                if (ok) setActiveForm(null);
-                            }}
-                            onCancel={() => setActiveForm(null)}
-                        />
-                    )}
-
-                    {/* Recibir (materiales) */}
-                    {activeForm === 'recibir' && (
-                        <MaterialesRecepcionPanel
-                            loading={actionLoading}
-                            onConfirm={async (obs) => {
-                                const ok = await onRecibir([], 'total', obs);
-                                if (ok) setActiveForm(null);
-                            }}
-                            onCancel={() => setActiveForm(null)}
-                        />
-                    )}
-
-                    {/* Rechazar */}
-                    {activeForm === 'rechazar' && (
-                        <div className="shrink-0 border border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/20 rounded-xl p-4 mb-4 space-y-3">
-                            <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
-                                <XCircle className="h-4 w-4" /> Rechazar Transferencia
-                            </h4>
-                            <textarea
-                                value={rejectMotivo}
-                                onChange={e => setRejectMotivo(e.target.value)}
-                                placeholder="Motivo del rechazo..."
-                                className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
-                                required
-                            />
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={async () => {
-                                        if (!rejectMotivo.trim()) return;
-                                        const ok = await onRechazar(rejectMotivo);
-                                        if (ok) setActiveForm(null);
-                                    }}
-                                    disabled={actionLoading || !rejectMotivo.trim()}
-                                    className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
-                                >
-                                    {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
-                                </button>
-                                <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Rechazar recepción */}
-                    {activeForm === 'rechazar_recepcion' && (
-                        <div className="shrink-0 border border-red-200 bg-red-50/30 dark:border-red-900 dark:bg-red-950/20 rounded-xl p-4 mb-4 space-y-3">
-                            <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
-                                <XCircle className="h-4 w-4" /> Rechazar Recepción
-                            </h4>
-                            <p className="text-[11px] text-muted-foreground">
-                                Rechaza físicamente el material recibido. La transferencia pasa a "rechazada" y el stock no se actualiza.
-                            </p>
-                            <textarea
-                                value={rejectMotivo}
-                                onChange={e => setRejectMotivo(e.target.value)}
-                                placeholder="Motivo del rechazo de recepción..."
-                                className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
-                                required
-                            />
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={async () => {
-                                        if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
-                                        const ok = await onRechazarRecepcion(rejectMotivo);
-                                        if (ok) setActiveForm(null);
-                                    }}
-                                    disabled={actionLoading || !rejectMotivo.trim()}
-                                    className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
-                                >
-                                    {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo de Recepción'}
-                                </button>
-                                <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                                    Cancelar
-                                </button>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Hint cuando no hay acción activa (solo desktop xl) */}
-                    {!activeForm && (
-                        <div className="hidden xl:flex flex-1 items-center justify-center text-center px-4">
-                            <p className="text-xs text-muted-foreground/60">Usa los botones de arriba para aprobar, recibir o rechazar esta solicitud.</p>
-                        </div>
-                    )}
-                </div>
+                <span className={cn("hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold shrink-0", cfg.color)}>
+                    <Icon className="h-3 w-3" /> {cfg.label}
+                </span>
+                <button onClick={onBack} className="hidden md:flex p-1.5 rounded-full hover:bg-muted text-muted-foreground shrink-0">
+                    <XIcon className="h-4 w-4" />
+                </button>
             </div>
+
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
+                {/* Estado: stepper o banner terminado */}
+                {isTerminated ? (
+                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-gray-50 border-gray-200 dark:bg-muted dark:border-border")}>
+                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-gray-400" />}
+                        <div>
+                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-gray-600 dark:text-muted-foreground")}>
+                                {t.estado === 'rechazada' ? 'Solicitud Rechazada' : 'Solicitud Cancelada'}
+                            </p>
+                            {t.observaciones_rechazo && (
+                                <p className="text-[10px] text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="flex items-center justify-between px-2">
+                        {STEPS.map((step, idx) => {
+                            const completed = idx <= activeStep;
+                            const isCurrent = idx === activeStep;
+                            const StepIcon = step.icon;
+                            return (
+                                <React.Fragment key={step.key}>
+                                    {idx > 0 && (
+                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
+                                    )}
+                                    <div className="flex flex-col items-center gap-1.5">
+                                        <div className={cn(
+                                            "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all",
+                                            completed ? "bg-brand-primary border-brand-primary text-white" : "bg-card border-border text-muted-foreground/40",
+                                            isCurrent && "ring-4 ring-brand-primary/20 scale-110"
+                                        )}>
+                                            <StepIcon className="h-4 w-4" />
+                                        </div>
+                                        <span className={cn("text-[10px] font-bold whitespace-nowrap", completed ? "text-brand-primary" : "text-muted-foreground/40")}>
+                                            {step.label}
+                                        </span>
+                                    </div>
+                                </React.Fragment>
+                            );
+                        })}
+                    </div>
+                )}
+
+                {/* SoD banner */}
+                {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && (
+                    <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
+                        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                            <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
+                            <span className="text-amber-800 dark:text-amber-300">
+                                {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
+                                {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
+                                {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
+                                Si no hay otra persona disponible, contacta al admin para que conceda el permiso "Bypass SoD".
+                            </span>
+                        </div>
+                    </div>
+                )}
+
+                {/* Acciones primarias (abren modal) */}
+                {hasActions && (
+                    <div className="flex flex-wrap gap-2">
+                        {canAprobar && (
+                            <button onClick={() => setActiveForm('aprobar')} disabled={actionLoading}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all shadow-sm">
+                                <CheckCircle2 className="h-4 w-4" /> Revisar y aprobar
+                            </button>
+                        )}
+                        {canRecibir && (
+                            <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
+                                title="Confirma que el material llegó a obra."
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
+                                <PackageCheck className="h-4 w-4" /> Registrar recepción
+                            </button>
+                        )}
+                        {canRechazar && (
+                            <button onClick={() => setActiveForm('rechazar')} disabled={actionLoading}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
+                                <XCircle className="h-4 w-4" /> Rechazar
+                            </button>
+                        )}
+                        {canRechazarRecepcion && (
+                            <button onClick={() => setActiveForm('rechazar_recepcion')} disabled={actionLoading}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
+                                <XCircle className="h-4 w-4" /> Rechazar Recepción
+                            </button>
+                        )}
+                        {canCancelar && (
+                            <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-muted-foreground bg-muted rounded-xl hover:bg-muted disabled:opacity-50 transition-all">
+                                <Ban className="h-4 w-4" /> Cancelar
+                            </button>
+                        )}
+                        {canCompartirWhatsApp && (
+                            <button onClick={handleShareWhatsApp} disabled={actionLoading}
+                                title={t.estado === 'pendiente' ? 'Notificar nueva solicitud al grupo de WhatsApp para que el aprobador la revise' : 'Enviar información del movimiento por WhatsApp'}
+                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-[#25D366] rounded-xl hover:bg-[#1EBE5B] disabled:opacity-50 transition-all shadow-sm">
+                                <Send className="h-4 w-4" />
+                                {t.estado === 'pendiente' ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}
+                            </button>
+                        )}
+                    </div>
+                )}
+
+                {/* Materiales pedidos (solo lectura) */}
+                <DetailSection icon={<ShoppingBag className="h-3.5 w-3.5" />} title={`Materiales pedidos (${itemsCustom.length})`}>
+                    {itemsCustom.length === 0
+                        ? <MatEmpty>Sin materiales en esta solicitud</MatEmpty>
+                        : itemsCustom.map((it, idx) => <MatRequestRow key={it.id || idx} it={it} estado={t.estado} />)}
+                </DetailSection>
+
+                {/* Información */}
+                <DetailSection icon={<Users className="h-3.5 w-3.5" />} title="Información">
+                    {t.motivo && (
+                        <div className="text-xs text-muted-foreground"><span className="font-semibold text-brand-dark">Motivo:</span> {t.motivo}</div>
+                    )}
+                    {t.observaciones && (
+                        <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                            <MessageSquare className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                            <span>{t.observaciones}</span>
+                        </div>
+                    )}
+                    <div className="flex items-start gap-2 text-xs text-muted-foreground bg-muted rounded-lg px-3 py-2">
+                        <Users className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                        <div className="space-y-0.5">
+                            <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
+                            {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{t.aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
+                            {t.fecha_recepcion && <p>Recepción: {fmtDate(t.fecha_recepcion)}</p>}
+                        </div>
+                    </div>
+                </DetailSection>
+            </div>
+
+            {/* ── MODALES (solo flujo materiales) ── */}
+            <Modal isOpen={activeForm === 'aprobar'} onClose={() => setActiveForm(null)} title="Revisar y aprobar materiales" size="lg">
+                <MaterialesAprobacionPanel
+                    embedded
+                    items={itemsCustom}
+                    obras={obras}
+                    loading={actionLoading}
+                    onConfirm={async (edits, nuevos) => {
+                        const ok = await onAprobar({ items: [], items_custom: edits, items_custom_nuevos: nuevos });
+                        if (ok) setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            </Modal>
+
+            <Modal isOpen={activeForm === 'recibir'} onClose={() => setActiveForm(null)} title="Registrar recepción" size="md">
+                <MaterialesRecepcionPanel
+                    embedded
+                    loading={actionLoading}
+                    onConfirm={async (obs) => {
+                        const ok = await onRecibir([], 'total', obs);
+                        if (ok) setActiveForm(null);
+                    }}
+                    onCancel={() => setActiveForm(null)}
+                />
+            </Modal>
+
+            <Modal isOpen={activeForm === 'rechazar'} onClose={() => setActiveForm(null)} title="Rechazar solicitud" size="sm">
+                <div className="space-y-3">
+                    <textarea
+                        value={rejectMotivo}
+                        onChange={e => setRejectMotivo(e.target.value)}
+                        placeholder="Motivo del rechazo..."
+                        className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-24 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
+                        required
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => {
+                                if (!rejectMotivo.trim()) return;
+                                const ok = await onRechazar(rejectMotivo);
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading || !rejectMotivo.trim()}
+                            className="flex-1 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
+                        >
+                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </Modal>
+
+            <Modal isOpen={activeForm === 'rechazar_recepcion'} onClose={() => setActiveForm(null)} title="Rechazar recepción" size="sm">
+                <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                        Rechaza físicamente el material recibido. La solicitud pasa a "rechazada" y el stock no se actualiza.
+                    </p>
+                    <textarea
+                        value={rejectMotivo}
+                        onChange={e => setRejectMotivo(e.target.value)}
+                        placeholder="Motivo del rechazo de recepción..."
+                        className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-24 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
+                        required
+                    />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={async () => {
+                                if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
+                                const ok = await onRechazarRecepcion(rejectMotivo);
+                                if (ok) setActiveForm(null);
+                            }}
+                            disabled={actionLoading || !rejectMotivo.trim()}
+                            className="flex-1 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
+                        >
+                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
+                        </button>
+                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                            Cancelar
+                        </button>
+                    </div>
+                </div>
+            </Modal>
         </div>
     );
 
