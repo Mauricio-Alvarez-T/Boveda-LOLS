@@ -293,8 +293,9 @@ header verde de Bóveda y el número de días en grande.
   - `--dias N` → cambia la ventana (default 30).
 - **Qué fecha cuenta:** seguros usan `fecha_vencimiento`; revisiones y mantenciones
   usan `fecha` (la "Fecha por realizar" / cita), NO `fecha_vencimiento`.
-- **WhatsApp:** NO se envía automáticamente (no hay integración con WhatsApp Business
-  API). El script solo **imprime** el mensaje en el log; el email sí se envía real.
+- **Solo email:** el módulo NO usa WhatsApp (se quitó por no contar con un número para
+  envío automático). La columna `tel_alerta` queda en la DB pero sin uso. Si en el
+  futuro se integra WhatsApp Business API, se puede reactivar.
 - **Variables `.env` requeridas:** `MAIL_HOST`, `MAIL_USER`, `MAIL_PASS` (puerto 465 SSL
   por defecto). Sin ellas el envío lanza error.
 - **Depende de las migraciones 069–073** (módulo vehículos + alertas + periodicidad).

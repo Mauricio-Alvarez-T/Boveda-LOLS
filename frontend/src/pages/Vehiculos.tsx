@@ -41,13 +41,12 @@ function fmtMoney(n?: number | null) {
     return `$${Number(n).toLocaleString('es-CL')}`;
 }
 
-function AlertaBadge({ diasAlerta, emailAlerta, telAlerta }: { diasAlerta?: number | null; emailAlerta?: string | null; telAlerta?: string | null }) {
-    const canales = [emailAlerta && 'Email', telAlerta && 'WhatsApp'].filter(Boolean).join(' + ');
-    if (!canales || !diasAlerta) return null;
+function AlertaBadge({ diasAlerta, emailAlerta }: { diasAlerta?: number | null; emailAlerta?: string | null }) {
+    if (!emailAlerta || !diasAlerta) return null;
     return (
         <span className="inline-flex items-center gap-1 text-[10px] font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-1.5 py-0.5 rounded-md">
             <Bell className="h-2.5 w-2.5" />
-            {diasAlerta}d · {canales}
+            {diasAlerta}d · Email
         </span>
     );
 }
@@ -252,7 +251,7 @@ const VehiculosPage: React.FC = () => {
                                         {(s as any).numero_poliza ? ` · Pól. ${(s as any).numero_poliza}` : ''}
                                         {(s as any).monto ? ` · ${fmtMoney((s as any).monto)}` : ''}
                                     </p>
-                                    <AlertaBadge diasAlerta={(s as any).dias_alerta} emailAlerta={(s as any).email_alerta} telAlerta={(s as any).tel_alerta} />
+                                    <AlertaBadge diasAlerta={(s as any).dias_alerta} emailAlerta={(s as any).email_alerta} />
                                 </ItemRow>
                             ))
                         }
@@ -283,7 +282,7 @@ const VehiculosPage: React.FC = () => {
                                         {fmtDate(r.fecha)} → {fmtDate(r.fecha_vencimiento)}
                                         {r.planta ? ` · ${r.planta}` : ''}
                                     </p>
-                                    <AlertaBadge diasAlerta={(r as any).dias_alerta} emailAlerta={(r as any).email_alerta} telAlerta={(r as any).tel_alerta} />
+                                    <AlertaBadge diasAlerta={(r as any).dias_alerta} emailAlerta={(r as any).email_alerta} />
                                 </ItemRow>
                             ))
                         }
@@ -312,7 +311,7 @@ const VehiculosPage: React.FC = () => {
                                         {m.costo ? ` · ${fmtMoney(m.costo)}` : ''}
                                     </p>
                                     {m.descripcion && <p className="text-[10px] text-muted-foreground/70 italic">{m.descripcion}</p>}
-                                    <AlertaBadge diasAlerta={(m as any).dias_alerta} emailAlerta={(m as any).email_alerta} telAlerta={(m as any).tel_alerta} />
+                                    <AlertaBadge diasAlerta={(m as any).dias_alerta} emailAlerta={(m as any).email_alerta} />
                                 </ItemRow>
                             ))
                         }

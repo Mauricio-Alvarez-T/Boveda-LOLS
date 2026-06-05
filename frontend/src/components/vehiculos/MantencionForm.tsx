@@ -35,11 +35,10 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
             fecha_proxima: (initialData as any).fecha_proxima ? String((initialData as any).fecha_proxima).split('T')[0] : '',
             dias_alerta: (initialData as any).dias_alerta ?? 30,
             email_alerta: (initialData as any).email_alerta || '',
-            tel_alerta: (initialData as any).tel_alerta || '',
         } : {
             fecha: '', tipo: '', km_al_realizar: kmActual,
             descripcion: '', costo: '', taller: '', fecha_proxima: '',
-            dias_alerta: 30, email_alerta: '', tel_alerta: '',
+            dias_alerta: 30, email_alerta: '',
         }
     });
 
@@ -54,12 +53,10 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
             if (canConfigurarAlertas) {
                 payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
                 payload.email_alerta = data.email_alerta || null;
-                payload.tel_alerta = data.tel_alerta || null;
             } else {
                 // No sobreescribir la config de alerta existente.
                 delete payload.dias_alerta;
                 delete payload.email_alerta;
-                delete payload.tel_alerta;
             }
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/mantenciones/${initialData.id}`, payload);
@@ -105,14 +102,13 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
                 </div>
                 <Input label="Fecha próxima mantención" type="date" {...register('fecha_proxima')} />
                 {canConfigurarAlertas && (
-                    <div className="grid grid-cols-3 gap-3 mt-3">
+                    <div className="grid grid-cols-2 gap-3 mt-3">
                         <div>
                             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Avisar X días antes</label>
                             <input type="number" {...register('dias_alerta')} min={1} max={365}
                                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                         </div>
                         <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
-                        <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
                     </div>
                 )}
             </div>

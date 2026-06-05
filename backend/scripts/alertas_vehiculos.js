@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * Script de alertas de vehículos — envía emails y genera mensajes WhatsApp
- * para seguros, revisiones técnicas y mantenciones que vencen en los
- * próximos N días (default: 30).
+ * Script de alertas de vehículos — envía emails automáticos para seguros,
+ * revisiones técnicas y mantenciones que vencen en los próximos N días
+ * (default: 30).
  *
  * USO:
  *   node scripts/alertas_vehiculos.js           # Alertas próximos 30 días
@@ -162,10 +162,9 @@ async function main() {
     let enviados = 0, errores = 0;
 
     // ── Función para enviar un email ──────────────────────────────────────────
-    async function enviarEmail(dest, asunto, html, whatsapp, waMensaje) {
+    async function enviarEmail(dest, asunto, html) {
         if (testMode) {
             console.log(`  📧 [TEST] Enviaría a ${dest}: "${asunto}"`);
-            if (whatsapp) { console.log(`  📱 [TEST] WhatsApp ${whatsapp}:`); console.log(waMensaje || asunto); }
             return;
         }
         try {
@@ -176,17 +175,11 @@ async function main() {
             console.error(`  ❌ Error enviando a ${dest}: ${err.message}`);
             errores++;
         }
-        if (whatsapp && waMensaje) {
-            // El mensaje de WhatsApp se muestra en el log del servidor.
-            // Para envío automático real se requiere WhatsApp Business API.
-            console.log(`\n  📱 Mensaje WhatsApp para ${whatsapp}:\n${'─'.repeat(50)}\n${waMensaje}\n${'─'.repeat(50)}`);
-        }
     }
 
     // ── Seguros ───────────────────────────────────────────────────────────────
     for (const s of seguros) {
         const asunto = `⚠️ ¡Atención! Quedan ${s.dias_restantes} días — Seguro ${s.tipo} · ${s.patente}`;
-        const waMensaje = `⚠️ *¡Atención! Quedan ${s.dias_restantes} días*\n\nEl seguro *${s.tipo}* del vehículo *${s.patente}* (${s.marca} ${s.modelo}) vence el *${fmtFecha(s.fecha_vencimiento)}*.\n${s.compania ? `🏢 Compañía: ${s.compania}` : ''}${s.numero_poliza ? `\n📋 Póliza: ${s.numero_poliza}` : ''}\n\n_Favor agendar la renovación con anticipación._\n\n_Bóveda LOLS_`;
         const html = emailHtml({
             diasRestantes: s.dias_restantes,
             filas: [
@@ -199,14 +192,13 @@ async function main() {
             ],
             nota: 'Favor gestionar la renovación del seguro con anticipación. Coordinar directamente con la compañía aseguradora.',
         });
-        await enviarEmail(s.email_alerta, asunto, html, s.tel_alerta, waMensaje);
+        await enviarEmail(s.email_alerta, asunto, html);
     }
 
     // ── Revisiones ────────────────────────────────────────────────────────────
     for (const r of revisiones) {
         const tipoLabel = r.tipo === 'tecnica' ? 'Revisión Técnica' : r.tipo === 'gases' ? 'Control de Gases' : 'Revisión Mecánica';
         const asunto = `⚠️ ¡Atención! Quedan ${r.dias_restantes} días — ${tipoLabel} · ${r.patente}`;
-        const waMensaje = `⚠️ *¡Atención! Quedan ${r.dias_restantes} días*\n\n*${tipoLabel}* del vehículo *${r.patente}* (${r.marca} ${r.modelo}).\n\n📅 Fecha programada: *${fmtFecha(r.fecha)}*\n${r.planta ? `🏭 Planta: ${r.planta}` : ''}${r.direccion ? `\n📍 Dirección: ${r.direccion}` : ''}\n\n_Favor agendar el turno y coordinar el traslado del vehículo._\n\n_Bóveda LOLS_`;
         const html = emailHtml({
             diasRestantes: r.dias_restantes,
             filas: [
@@ -220,13 +212,12 @@ async function main() {
             ],
             nota: 'Favor agendar el turno directamente en la planta de revisión técnica y coordinar el traslado del vehículo con anticipación.',
         });
-        await enviarEmail(r.email_alerta, asunto, html, r.tel_alerta, waMensaje);
+        await enviarEmail(r.email_alerta, asunto, html);
     }
 
     // ── Mantenciones ──────────────────────────────────────────────────────────
     for (const m of mantenciones) {
         const asunto = `⚠️ ¡Atención! Quedan ${m.dias_restantes} días — Próxima mantención: ${m.tipo} · ${m.patente}`;
-        const waMensaje = `⚠️ *¡Atención! Quedan ${m.dias_restantes} días*\n\nPróxima mantención *${m.tipo}* del vehículo *${m.patente}* (${m.marca} ${m.modelo}).\n\n📅 Fecha por realizar: *${fmtFecha(m.fecha)}*\n${m.taller ? `🔧 Taller: ${m.taller}` : ''}${m.descripcion ? `\n📍 ${m.descripcion}` : ''}\n\n_Favor agendar el turno con el taller y coordinar el traslado._\n\n_Bóveda LOLS_`;
         const html = emailHtml({
             diasRestantes: m.dias_restantes,
             filas: [
@@ -240,7 +231,7 @@ async function main() {
             ],
             nota: 'Favor agendar el turno directamente con el taller y coordinar el traslado del vehículo con anticipación.',
         });
-        await enviarEmail(m.email_alerta, asunto, html, m.tel_alerta, waMensaje);
+        await enviarEmail(m.email_alerta, asunto, html);
     }
 
     console.log(`\n📊 Resultado: ${enviados} enviados, ${errores} errores.\n`);

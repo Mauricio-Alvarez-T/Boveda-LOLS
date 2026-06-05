@@ -19,7 +19,7 @@ interface Props {
 export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess, onCancel }) => {
     const isEdit = !!initialData;
     const { user } = useAuth();
-    // Solo usuarios de la lista blanca ven/editan los avisos por email/WhatsApp.
+    // Solo usuarios de la lista blanca ven/editan el aviso por email.
     const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
 
     const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm({
@@ -33,12 +33,11 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
             observaciones: (initialData as any).observaciones || '',
             dias_alerta: (initialData as any).dias_alerta ?? 30,
             email_alerta: (initialData as any).email_alerta || '',
-            tel_alerta: (initialData as any).tel_alerta || '',
             periodicidad_anios: (initialData as any).periodicidad_anios ?? null,
         } : {
             tipo: 'tecnica', fecha: '', fecha_vencimiento: '',
             resultado: 'aprobado', planta: '', direccion: '', observaciones: '',
-            dias_alerta: 30, email_alerta: '', tel_alerta: '',
+            dias_alerta: 30, email_alerta: '',
             periodicidad_anios: null,
         }
     });
@@ -68,13 +67,11 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
             if (canConfigurarAlertas) {
                 payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
                 payload.email_alerta = data.email_alerta || null;
-                payload.tel_alerta = data.tel_alerta || null;
             } else {
                 // Trabajador sin permiso: no enviar estos campos para NO sobreescribir
                 // la configuración de alerta existente (el aviso por email se mantiene).
                 delete payload.dias_alerta;
                 delete payload.email_alerta;
-                delete payload.tel_alerta;
             }
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/revisiones/${initialData.id}`, payload);
@@ -158,14 +155,13 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
                 </div>
 
                 {canConfigurarAlertas && (
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
                             <input type="number" {...register('dias_alerta')} min={1} max={365}
                                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                         </div>
                         <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
-                        <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
                     </div>
                 )}
             </div>

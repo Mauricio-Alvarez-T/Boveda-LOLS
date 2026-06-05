@@ -1,7 +1,7 @@
 /**
  * Usuarios autorizados a VER y CONFIGURAR las alertas de vencimiento de
- * vehículos (los campos "Días antes / Email alerta / WhatsApp" de seguros,
- * revisiones y mantenciones).
+ * vehículos (los campos "Días antes / Email alerta" de seguros, revisiones
+ * y mantenciones).
  *
  * Se controla por USUARIO y no por rol: varios usuarios comparten el rol
  * "Super Administrador", pero solo estas personas deben configurar alertas.

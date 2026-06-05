@@ -32,12 +32,11 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
             observaciones: (initialData as any).observaciones || '',
             dias_alerta: (initialData as any).dias_alerta ?? 30,
             email_alerta: (initialData as any).email_alerta || '',
-            tel_alerta: (initialData as any).tel_alerta || '',
         } : {
             tipo: 'SOAP', compania: '', numero_poliza: '',
             fecha_inicio: '', fecha_vencimiento: '', monto: '',
             observaciones: '',
-            dias_alerta: 30, email_alerta: '', tel_alerta: '',
+            dias_alerta: 30, email_alerta: '',
         }
     });
 
@@ -50,12 +49,10 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
             if (canConfigurarAlertas) {
                 payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
                 payload.email_alerta = data.email_alerta || null;
-                payload.tel_alerta = data.tel_alerta || null;
             } else {
                 // No sobreescribir la config de alerta existente.
                 delete payload.dias_alerta;
                 delete payload.email_alerta;
-                delete payload.tel_alerta;
             }
             if (isEdit) {
                 await api.put(`/vehiculos/${vehiculoId}/seguros/${initialData.id}`, payload);
@@ -104,14 +101,13 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
                         <Bell className="h-3.5 w-3.5 text-brand-primary" />
                         <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
                     </div>
-                    <div className="grid grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
                             <input type="number" {...register('dias_alerta')} min={1} max={365}
                                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                         </div>
                         <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
-                        <Input label="WhatsApp" placeholder="+56 9 XXXX XXXX" {...register('tel_alerta')} />
                     </div>
                 </div>
             )}
