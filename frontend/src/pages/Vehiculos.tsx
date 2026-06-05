@@ -121,16 +121,19 @@ const VehiculosPage: React.FC = () => {
     }, [vehiculos, filtro]);
 
     // ── Header global de página ───────────────────────────────────────────────
-    // Title: badge "Flota de Vehículos" con el contador (antes vivía dentro del
-    // ListView). Actions: botón Filtros (toggle) + Nuevo vehículo. Mismo patrón
-    // que la página Consultas.
+    // Title: estilo Inventario (icono + título + subtítulo descriptivo).
+    // Actions: botón Filtros (toggle) + Nuevo vehículo. Mismo patrón que Consultas.
     const headerTitle = useMemo(() => (
-        <div className="flex items-center gap-2">
-            <div className="flex items-center gap-2 bg-brand-primary text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-md shadow-brand-primary/20">
-                <Truck className="h-4 w-4" />
-                <span className="text-xs font-black uppercase tracking-widest hidden sm:inline">Flota de Vehículos</span>
-                <span className="text-xs font-black uppercase tracking-widest sm:hidden">Flota</span>
-                <span className="text-[10px] font-black bg-white/20 px-1.5 py-0.5 rounded-md">{vehiculos.length}</span>
+        <div className="flex items-center gap-3">
+            <Truck className="h-6 w-6 text-brand-primary" />
+            <div className="flex flex-col leading-tight">
+                <h1 className="text-lg font-bold text-brand-dark">
+                    Vehículos
+                    <span className="ml-2 text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle">
+                        {vehiculos.length}
+                    </span>
+                </h1>
+                <p className="text-muted-foreground text-xs">Seguros, Revisiones Técnicas y Mantenciones</p>
             </div>
         </div>
     ), [vehiculos.length]);
