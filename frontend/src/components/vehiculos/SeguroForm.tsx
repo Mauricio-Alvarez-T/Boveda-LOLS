@@ -7,7 +7,8 @@ import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoSeguro } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
-import { puedeConfigurarAlertasVehiculos } from '../../utils/alertasVehiculos';
+import { puedeConfigurarAlertasVehiculos, validarDiasAlerta } from '../../utils/alertasVehiculos';
+import { FieldError } from '../ui/FieldError';
 
 interface Props {
     vehiculoId: number;
@@ -21,7 +22,7 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
     const { user } = useAuth();
     const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
 
-    const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+    const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
         defaultValues: isEdit ? {
             tipo: initialData.tipo,
             compania: (initialData as any).compania || '',
@@ -68,7 +69,7 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo</label>
@@ -104,8 +105,9 @@ export const SeguroForm: React.FC<Props> = ({ vehiculoId, initialData, onSuccess
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Días antes</label>
-                            <input type="number" {...register('dias_alerta')} min={1} max={365}
+                            <input type="number" {...register('dias_alerta', { validate: validarDiasAlerta })}
                                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <FieldError message={errors.dias_alerta?.message as string | undefined} className="mt-1" />
                         </div>
                         <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
                     </div>

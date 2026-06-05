@@ -7,7 +7,8 @@ import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoMantencion } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
-import { puedeConfigurarAlertasVehiculos } from '../../utils/alertasVehiculos';
+import { puedeConfigurarAlertasVehiculos, validarDiasAlerta } from '../../utils/alertasVehiculos';
+import { FieldError } from '../ui/FieldError';
 
 interface Props {
     vehiculoId: number;
@@ -24,7 +25,7 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
     const { user } = useAuth();
     const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
 
-    const { register, handleSubmit, formState: { isSubmitting } } = useForm({
+    const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
         defaultValues: isEdit ? {
             fecha: String(initialData.fecha).split('T')[0],
             tipo: initialData.tipo,
@@ -72,7 +73,7 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <Input label="Fecha por realizar" type="date" {...register('fecha', { required: true })} />
             {/* KM se captura automáticamente del kilometraje actual del vehículo (campo oculto) */}
             <input type="hidden" {...register('km_al_realizar')} />
@@ -105,8 +106,9 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
                     <div className="grid grid-cols-2 gap-3 mt-3">
                         <div>
                             <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Avisar X días antes</label>
-                            <input type="number" {...register('dias_alerta')} min={1} max={365}
+                            <input type="number" {...register('dias_alerta', { validate: validarDiasAlerta })}
                                 className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <FieldError message={errors.dias_alerta?.message as string | undefined} className="mt-1" />
                         </div>
                         <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
                     </div>

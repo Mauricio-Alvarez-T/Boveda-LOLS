@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import { FieldError } from './FieldError';
 
 export interface SelectOption {
     value: string | number;
@@ -43,11 +44,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6" /></svg>
                     </div>
                 </div>
-                {error && (
-                    <p className="text-xs text-destructive font-medium ml-0.5">
-                        {error}
-                    </p>
-                )}
+                <FieldError message={error} />
                 {helperText && !error && (
                     <p className="text-xs text-muted-foreground ml-0.5">
                         {helperText}

@@ -16,6 +16,20 @@ export const EMAILS_CONFIG_ALERTAS_VEHICULOS: string[] = [
     'daphnelazcano@lols.cl', // Daphne Lazcano
 ];
 
+/**
+ * Valida el campo "Días antes" de las alertas (react-hook-form `validate`).
+ * Permite vacío (campo opcional) y exige rango 1–365. Devuelve true o el mensaje
+ * de error que mostrará el componente estándar <FieldError>.
+ */
+export function validarDiasAlerta(v: unknown): true | string {
+    if (v === '' || v === null || v === undefined) return true;
+    const n = Number(v);
+    if (Number.isNaN(n)) return 'Ingresa un número válido';
+    if (n < 1) return 'Mínimo 1 día';
+    if (n > 365) return 'Máximo 365 días';
+    return true;
+}
+
 /** True si el usuario puede ver/editar la configuración de alertas de vehículos. */
 export function puedeConfigurarAlertasVehiculos(
     user?: { email?: string; email_corporativo?: string } | null,

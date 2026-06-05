@@ -290,7 +290,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
             {/* ═══ CREATE MODAL ═══ */}
             <Modal isOpen={showModal} onClose={handleClose} title="Registrar Factura de Inventario" size="lg">
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                     {/* Row 1: Numero + Proveedor */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -471,7 +471,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
             {/* ═══ MODAL CREAR ÍTEM NUEVO (anidado) ═══ */}
             <Modal isOpen={showNewItemModal} onClose={() => setShowNewItemModal(false)} title="Crear ítem nuevo" size="md">
-                <form onSubmit={handleCreateItem} className="space-y-4">
+                <form onSubmit={handleCreateItem} className="space-y-4" noValidate>
                     <p className="text-[11px] text-muted-foreground">
                         El ítem se agrega al catálogo y se vincula automáticamente a esta línea de la factura.
                     </p>

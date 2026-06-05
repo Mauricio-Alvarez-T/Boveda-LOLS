@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../utils/cn';
+import { FieldError } from './FieldError';
 
 export interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
     label?: string;
@@ -35,11 +36,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
                         {...props}
                     />
                 </div>
-                {error && (
-                    <p className="text-xs text-destructive font-medium ml-0.5">
-                        {error}
-                    </p>
-                )}
+                <FieldError message={error} />
                 {helperText && !error && (
                     <p className="text-xs text-muted-foreground ml-0.5">
                         {helperText}

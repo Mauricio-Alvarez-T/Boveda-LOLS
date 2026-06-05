@@ -2,6 +2,7 @@ import React, { forwardRef, useId } from 'react';
 import Select from 'react-select';
 import { cn } from '../../utils/cn';
 import { ChevronDown } from 'lucide-react';
+import { FieldError } from './FieldError';
 
 export interface SearchableSelectProps {
     label?: string;
@@ -87,13 +88,13 @@ export const SearchableSelect = forwardRef<any, SearchableSelectProps>(
                                 minHeight: '44px',
                                 borderRadius: '0.75rem',
                                 borderColor: error
-                                    ? '#FF3B30'
+                                    ? 'var(--destructive)'
                                     : state.isFocused ? '#029E4D' : '#D2D2D7',
                                 boxShadow: state.isFocused
                                     ? error ? '0 0 0 2px rgba(255, 59, 48, 0.3)' : '0 0 0 2px rgba(2, 158, 77, 0.2)'
                                     : 'none',
                                 '&:hover': {
-                                    borderColor: error ? '#FF3B30' : '#029E4D'
+                                    borderColor: error ? 'var(--destructive)' : '#029E4D'
                                 },
                                 backgroundColor: state.isDisabled ? '#F5F5F7' : 'white',
                                 opacity: state.isDisabled ? 0.5 : 1,
@@ -139,11 +140,7 @@ export const SearchableSelect = forwardRef<any, SearchableSelectProps>(
                         />
                     </div>
                 </div>
-                {error && (
-                    <p className="text-xs text-destructive font-medium ml-0.5">
-                        {error}
-                    </p>
-                )}
+                <FieldError message={error} />
                 {helperText && !error && (
                     <p className="text-xs text-muted-foreground ml-0.5">
                         {helperText}
