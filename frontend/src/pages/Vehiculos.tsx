@@ -62,6 +62,10 @@ const VehiculosPage: React.FC = () => {
     const [selected, setSelected] = useState<Vehiculo | null>(null);
     // Filtro de búsqueda (patente, marca, modelo, año, tipo)
     const [filtro, setFiltro] = useState('');
+    const [filtroPatente, setFiltroPatente] = useState('');
+    const [filtroMarca, setFiltroMarca] = useState('');
+    const [filtroModelo, setFiltroModelo] = useState('');
+    const [filtroTipo, setFiltroTipo] = useState('');
     const [showFiltros, setShowFiltros] = useState(false);
 
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
@@ -107,18 +111,38 @@ const VehiculosPage: React.FC = () => {
     useEffect(() => { fetchVehiculos(); }, [fetchVehiculos]);
     useEffect(() => { if (selected) fetchDetail(selected.id); }, [selected, fetchDetail]);
 
-    // Lista filtrada por el buscador (patente / marca / modelo / año / tipo).
+    // Opciones únicas para los dropdowns de filtro (se generan a partir de
+    // los vehículos cargados — la persona no escribe, elige).
+    const opcionesFiltro = useMemo(() => {
+        const patentes = Array.from(new Set(vehiculos.map(v => v.patente))).sort();
+        const marcas   = Array.from(new Set(vehiculos.map(v => v.marca))).sort();
+        const modelos  = Array.from(new Set(vehiculos.map(v => v.modelo))).sort();
+        const tipos    = Array.from(new Set(vehiculos.map(v => v.tipo))).sort();
+        return { patentes, marcas, modelos, tipos };
+    }, [vehiculos]);
+
+    // Lista filtrada — combina texto libre + 4 dropdowns (AND entre ellos).
     const vehiculosFiltrados = useMemo(() => {
         const q = filtro.trim().toLowerCase();
-        if (!q) return vehiculos;
-        return vehiculos.filter(v =>
-            v.patente.toLowerCase().includes(q) ||
-            v.marca.toLowerCase().includes(q) ||
-            v.modelo.toLowerCase().includes(q) ||
-            String(v.anio).includes(q) ||
-            v.tipo.toLowerCase().includes(q)
-        );
-    }, [vehiculos, filtro]);
+        return vehiculos.filter(v => {
+            if (q && !(
+                v.patente.toLowerCase().includes(q) ||
+                v.marca.toLowerCase().includes(q) ||
+                v.modelo.toLowerCase().includes(q) ||
+                String(v.anio).includes(q) ||
+                v.tipo.toLowerCase().includes(q)
+            )) return false;
+            if (filtroPatente && v.patente !== filtroPatente) return false;
+            if (filtroMarca   && v.marca   !== filtroMarca)   return false;
+            if (filtroModelo  && v.modelo  !== filtroModelo)  return false;
+            if (filtroTipo    && v.tipo    !== filtroTipo)    return false;
+            return true;
+        });
+    }, [vehiculos, filtro, filtroPatente, filtroMarca, filtroModelo, filtroTipo]);
+
+    const limpiarFiltros = () => {
+        setFiltro(''); setFiltroPatente(''); setFiltroMarca(''); setFiltroModelo(''); setFiltroTipo('');
+    };
 
     // ── Header global de página ───────────────────────────────────────────────
     // Title: estilo Inventario (icono + título + subtítulo descriptivo).
@@ -138,7 +162,12 @@ const VehiculosPage: React.FC = () => {
         </div>
     ), [vehiculos.length]);
 
-    const filtrosActivos = filtro.trim() ? 1 : 0;
+    const filtrosActivos =
+        (filtro.trim() ? 1 : 0) +
+        (filtroPatente ? 1 : 0) +
+        (filtroMarca ? 1 : 0) +
+        (filtroModelo ? 1 : 0) +
+        (filtroTipo ? 1 : 0);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-2">
@@ -199,7 +228,7 @@ const VehiculosPage: React.FC = () => {
     // ── Vista lista ───────────────────────────────────────────────────────────
 
     const ListView = (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:pr-3 min-w-0">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 min-w-0">
             {loading ? (
                 <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
             ) : vehiculos.length === 0 ? (
@@ -266,7 +295,7 @@ const VehiculosPage: React.FC = () => {
     // ── Vista detalle ─────────────────────────────────────────────────────────
 
     const DetailView = selected ? (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:pl-5 md:w-[460px] md:shrink-0 md:border-l md:border-border">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:w-[420px] md:shrink-0 md:border-l md:border-border bg-muted/30">
             {/* Header */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 {/* Botón volver - solo en móvil */}
@@ -387,46 +416,105 @@ const VehiculosPage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 gap-3">
             {/* PANEL DE FILTROS (toggle desde el header) */}
             {showFiltros && (
-                <div className="bg-card border border-border rounded-2xl shadow-sm p-4 shrink-0 animate-in slide-in-from-top-2 duration-200">
+                <div className="bg-card border border-border rounded-2xl shadow-sm p-4 md:p-5 shrink-0 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center gap-2 mb-3">
                         <Filter className="h-3.5 w-3.5 text-brand-primary" />
                         <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Filtros de búsqueda</span>
                         {filtrosActivos > 0 && (
                             <button
                                 type="button"
-                                onClick={() => setFiltro('')}
+                                onClick={limpiarFiltros}
                                 className="ml-auto text-[11px] font-bold text-destructive hover:underline"
                             >
-                                Limpiar
+                                Limpiar filtros
                             </button>
                         )}
                     </div>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+
+                    {/* Búsqueda de texto libre (atajo rápido) */}
+                    <div className="mb-3">
+                        <label className="block text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1.5">
+                            Buscar
+                        </label>
+                        <div className="relative">
+                            <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                            <input
+                                type="text"
+                                value={filtro}
+                                onChange={e => setFiltro(e.target.value)}
+                                placeholder="Patente, marca, modelo, año o tipo..."
+                                className="w-full pl-9 pr-8 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                            />
+                            {filtro && (
+                                <button
+                                    type="button"
+                                    onClick={() => setFiltro('')}
+                                    className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-muted text-muted-foreground"
+                                    aria-label="Limpiar"
+                                >
+                                    <X className="h-3.5 w-3.5" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Dropdowns con opciones existentes (la persona elige, no escribe) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         <div>
-                            <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
-                                Buscar
-                            </label>
-                            <div className="relative">
-                                <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                                <input
-                                    type="text"
-                                    value={filtro}
-                                    onChange={e => setFiltro(e.target.value)}
-                                    placeholder="Patente, marca, modelo, año o tipo..."
-                                    className="w-full pl-9 pr-8 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-                                    autoFocus
-                                />
-                                {filtro && (
-                                    <button
-                                        type="button"
-                                        onClick={() => setFiltro('')}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-muted text-muted-foreground"
-                                        aria-label="Limpiar"
-                                    >
-                                        <X className="h-3.5 w-3.5" />
-                                    </button>
+                            <label className="block text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1.5">Patente</label>
+                            <select
+                                value={filtroPatente}
+                                onChange={e => setFiltroPatente(e.target.value)}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary appearance-none cursor-pointer",
+                                    filtroPatente ? "border-brand-primary text-brand-primary font-semibold" : "border-border text-brand-dark"
                                 )}
-                            </div>
+                            >
+                                <option value="">Todas las patentes</option>
+                                {opcionesFiltro.patentes.map(p => <option key={p} value={p}>{p}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1.5">Marca</label>
+                            <select
+                                value={filtroMarca}
+                                onChange={e => setFiltroMarca(e.target.value)}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary appearance-none cursor-pointer",
+                                    filtroMarca ? "border-brand-primary text-brand-primary font-semibold" : "border-border text-brand-dark"
+                                )}
+                            >
+                                <option value="">Todas las marcas</option>
+                                {opcionesFiltro.marcas.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1.5">Modelo</label>
+                            <select
+                                value={filtroModelo}
+                                onChange={e => setFiltroModelo(e.target.value)}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary appearance-none cursor-pointer",
+                                    filtroModelo ? "border-brand-primary text-brand-primary font-semibold" : "border-border text-brand-dark"
+                                )}
+                            >
+                                <option value="">Todos los modelos</option>
+                                {opcionesFiltro.modelos.map(m => <option key={m} value={m}>{m}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <label className="block text-[10px] font-bold text-brand-primary uppercase tracking-wider mb-1.5">Tipo</label>
+                            <select
+                                value={filtroTipo}
+                                onChange={e => setFiltroTipo(e.target.value)}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary appearance-none cursor-pointer capitalize",
+                                    filtroTipo ? "border-brand-primary text-brand-primary font-semibold" : "border-border text-brand-dark"
+                                )}
+                            >
+                                <option value="">Todos los tipos</option>
+                                {opcionesFiltro.tipos.map(t => <option key={t} value={t} className="capitalize">{t}</option>)}
+                            </select>
                         </div>
                     </div>
                 </div>
