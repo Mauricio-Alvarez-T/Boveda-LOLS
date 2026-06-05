@@ -1,7 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Truck, Plus, Shield, Wrench, ClipboardList,
-    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search
+    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -55,12 +55,6 @@ function AlertaBadge({ diasAlerta, emailAlerta }: { diasAlerta?: number | null; 
 
 const VehiculosPage: React.FC = () => {
     const { hasPermission } = useAuth();
-    useSetPageHeader(
-        <div className="flex items-center gap-2">
-            <Truck className="h-5 w-5 text-brand-primary" />
-            <span className="font-bold">Vehículos</span>
-        </div>
-    );
 
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
     const [loading, setLoading] = useState(false);
@@ -68,6 +62,7 @@ const VehiculosPage: React.FC = () => {
     const [selected, setSelected] = useState<Vehiculo | null>(null);
     // Filtro de búsqueda (patente, marca, modelo, año, tipo)
     const [filtro, setFiltro] = useState('');
+    const [showFiltros, setShowFiltros] = useState(false);
 
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
     const [revisiones, setRevisiones] = useState<VehiculoRevision[]>([]);
@@ -113,7 +108,7 @@ const VehiculosPage: React.FC = () => {
     useEffect(() => { if (selected) fetchDetail(selected.id); }, [selected, fetchDetail]);
 
     // Lista filtrada por el buscador (patente / marca / modelo / año / tipo).
-    const vehiculosFiltrados = React.useMemo(() => {
+    const vehiculosFiltrados = useMemo(() => {
         const q = filtro.trim().toLowerCase();
         if (!q) return vehiculos;
         return vehiculos.filter(v =>
@@ -124,6 +119,54 @@ const VehiculosPage: React.FC = () => {
             v.tipo.toLowerCase().includes(q)
         );
     }, [vehiculos, filtro]);
+
+    // ── Header global de página ───────────────────────────────────────────────
+    // Title: badge "Flota de Vehículos" con el contador (antes vivía dentro del
+    // ListView). Actions: botón Filtros (toggle) + Nuevo vehículo. Mismo patrón
+    // que la página Consultas.
+    const headerTitle = useMemo(() => (
+        <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 bg-brand-primary text-white px-3 py-1.5 md:px-4 md:py-2 rounded-xl shadow-md shadow-brand-primary/20">
+                <Truck className="h-4 w-4" />
+                <span className="text-xs font-black uppercase tracking-widest hidden sm:inline">Flota de Vehículos</span>
+                <span className="text-xs font-black uppercase tracking-widest sm:hidden">Flota</span>
+                <span className="text-[10px] font-black bg-white/20 px-1.5 py-0.5 rounded-md">{vehiculos.length}</span>
+            </div>
+        </div>
+    ), [vehiculos.length]);
+
+    const filtrosActivos = filtro.trim() ? 1 : 0;
+
+    const headerActions = useMemo(() => (
+        <div className="flex items-center gap-2">
+            <Button
+                size="sm"
+                variant={showFiltros ? 'primary' : 'outline'}
+                onClick={() => setShowFiltros(v => !v)}
+                leftIcon={showFiltros ? <X className="h-3.5 w-3.5" /> : <Filter className="h-3.5 w-3.5" />}
+                className="h-9"
+            >
+                <span className="hidden sm:inline">Filtros</span>
+                {filtrosActivos > 0 && (
+                    <span className={cn(
+                        "ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold",
+                        showFiltros ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
+                    )}>
+                        {filtrosActivos}
+                    </span>
+                )}
+            </Button>
+            {hasPermission('vehiculos.crear') && (
+                <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+                    leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
+                    <span className="hidden sm:inline">Nuevo vehículo</span>
+                    <span className="sm:hidden">Nuevo</span>
+                </Button>
+            )}
+        </div>
+    ), [showFiltros, filtrosActivos, hasPermission]);
+
+    useSetPageHeader(headerTitle, headerActions);
 
     // Auto-selección del primer vehículo en desktop, para que al entrar a la
     // página el panel de detalle se vea desde el inicio (no vacío).
@@ -153,44 +196,7 @@ const VehiculosPage: React.FC = () => {
     // ── Vista lista ───────────────────────────────────────────────────────────
 
     const ListView = (
-        <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6">
-            <div className="flex items-center gap-3 shrink-0 mb-4 flex-wrap">
-                <div className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2.5 rounded-xl shadow-lg shadow-brand-primary/25 shrink-0">
-                    <Truck className="h-4 w-4" />
-                    <span className="text-xs font-black uppercase tracking-widest">Flota de Vehículos</span>
-                    <span className="text-[10px] font-black bg-white/20 px-1.5 py-0.5 rounded-md">{vehiculos.length}</span>
-                </div>
-
-                {/* Filtro: buscar por patente / marca / modelo / año / tipo */}
-                <div className="relative flex-1 min-w-[180px] max-w-sm">
-                    <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-                    <input
-                        type="text"
-                        value={filtro}
-                        onChange={e => setFiltro(e.target.value)}
-                        placeholder="Filtrar por patente, marca, modelo..."
-                        className="w-full pl-9 pr-8 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
-                    />
-                    {filtro && (
-                        <button
-                            type="button"
-                            onClick={() => setFiltro('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-muted text-muted-foreground"
-                            aria-label="Limpiar filtro"
-                        >
-                            <X className="h-3.5 w-3.5" />
-                        </button>
-                    )}
-                </div>
-
-                {hasPermission('vehiculos.crear') && (
-                    <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
-                        leftIcon={<Plus className="h-3.5 w-3.5" />} className="shrink-0">
-                        Nuevo vehículo
-                    </Button>
-                )}
-            </div>
-
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:pr-3 min-w-0">
             {loading ? (
                 <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
             ) : vehiculos.length === 0 ? (
@@ -257,7 +263,7 @@ const VehiculosPage: React.FC = () => {
     // ── Vista detalle ─────────────────────────────────────────────────────────
 
     const DetailView = selected ? (
-        <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6 md:w-[460px] md:shrink-0">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:pl-5 md:w-[460px] md:shrink-0 md:border-l md:border-border">
             {/* Header */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 {/* Botón volver - solo en móvil */}
@@ -375,14 +381,61 @@ const VehiculosPage: React.FC = () => {
     // ── Layout responsive ─────────────────────────────────────────────────────
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 gap-4">
+        <div className="flex flex-col flex-1 min-h-0 gap-3">
+            {/* PANEL DE FILTROS (toggle desde el header) */}
+            {showFiltros && (
+                <div className="bg-card border border-border rounded-2xl shadow-sm p-4 shrink-0 animate-in slide-in-from-top-2 duration-200">
+                    <div className="flex items-center gap-2 mb-3">
+                        <Filter className="h-3.5 w-3.5 text-brand-primary" />
+                        <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Filtros de búsqueda</span>
+                        {filtrosActivos > 0 && (
+                            <button
+                                type="button"
+                                onClick={() => setFiltro('')}
+                                className="ml-auto text-[11px] font-bold text-destructive hover:underline"
+                            >
+                                Limpiar
+                            </button>
+                        )}
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label className="block text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-1.5">
+                                Buscar
+                            </label>
+                            <div className="relative">
+                                <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                                <input
+                                    type="text"
+                                    value={filtro}
+                                    onChange={e => setFiltro(e.target.value)}
+                                    placeholder="Patente, marca, modelo, año o tipo..."
+                                    className="w-full pl-9 pr-8 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                                    autoFocus
+                                />
+                                {filtro && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setFiltro('')}
+                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-muted text-muted-foreground"
+                                        aria-label="Limpiar"
+                                    >
+                                        <X className="h-3.5 w-3.5" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* MOBILE: alterna entre lista y detalle */}
-            <div className="md:hidden flex flex-1 min-h-0">
+            <div className="md:hidden flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {selected ? DetailView : ListView}
             </div>
 
-            {/* DESKTOP: lista + detalle pegados (sin separación visible) */}
-            <div className="hidden md:flex flex-1 min-h-0 gap-0 -mx-px">
+            {/* DESKTOP: lista + detalle dentro de un mismo card (separados por border interno) */}
+            <div className="hidden md:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {ListView}
                 {DetailView}
             </div>
