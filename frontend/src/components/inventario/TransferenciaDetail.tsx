@@ -59,6 +59,11 @@ const MaterialesAprobacionPanel: React.FC<{
         }))
     );
     const [nuevos, setNuevos] = useState<MatNuevoItem[]>([]);
+    // Divulgación progresiva: qué ítems tienen abierta la zona "avanzada".
+    const [expanded, setExpanded] = useState<Set<string>>(new Set());
+    const toggleExp = (key: string) =>
+        setExpanded(prev => { const n = new Set(prev); n.has(key) ? n.delete(key) : n.add(key); return n; });
+    const inputBase = "w-full h-11 px-3 text-sm rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary";
 
     const setEdit = (id: number, patch: Partial<MatAprobacionEdit>) =>
         setEdits(prev => prev.map(e => (e.id === id ? { ...e, ...patch } : e)));
@@ -72,119 +77,153 @@ const MaterialesAprobacionPanel: React.FC<{
     const faltaOrigen = edits.some(e => e.aprobado && e.fuente === 'obra' && !e.origen_obra_id)
         || nuevos.some(n => n.descripcion.trim() && n.fuente === 'obra' && !n.origen_obra_id);
 
-    // Selector de origen (Comprar / Traer de obra + select de obra). Función que
-    // retorna JSX (no componente) para no remontar y perder foco en cada cambio.
-    const renderOrigen = (
+    // Decisión por ítem: "¿Cómo se consigue?" (Comprar / Traer de obra) + select de
+    // obra + nota de origen. Función que retorna JSX (no componente) para no remontar.
+    const renderDecision = (
         fuente: 'comprar' | 'obra',
         origenObraId: number | null,
+        nota: string,
         onFuente: (f: 'comprar' | 'obra') => void,
-        onObra: (id: number | null) => void
+        onObra: (id: number | null) => void,
+        onNota: (v: string) => void
     ) => (
-        <div className="space-y-1.5">
-            <div className="flex gap-1.5">
+        <div>
+            <div className="text-sm font-semibold text-brand-dark mb-1.5">¿Cómo se consigue?</div>
+            <div className="grid grid-cols-2 gap-2">
                 <button type="button" onClick={() => onFuente('comprar')}
-                    className={cn("flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded-md text-[11px] font-bold border transition-colors",
-                        fuente === 'comprar' ? "bg-amber-500 text-white border-amber-500 shadow-sm" : "bg-card text-muted-foreground border-border hover:text-brand-dark")}>
-                    <ShoppingBag className="h-3.5 w-3.5" /> Comprar
+                    className={cn("h-11 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-bold border-2 transition-colors",
+                        fuente === 'comprar' ? "bg-amber-500 text-white border-amber-500" : "bg-card text-brand-dark border-border hover:border-amber-300")}>
+                    <ShoppingBag className="h-4 w-4" /> Comprar
                 </button>
                 <button type="button" onClick={() => onFuente('obra')}
-                    className={cn("flex-1 h-8 inline-flex items-center justify-center gap-1.5 rounded-md text-[11px] font-bold border transition-colors",
-                        fuente === 'obra' ? "bg-brand-primary text-white border-brand-primary shadow-sm" : "bg-card text-muted-foreground border-border hover:text-brand-dark")}>
-                    <MapPin className="h-3.5 w-3.5" /> Traer de obra
+                    className={cn("h-11 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-bold border-2 transition-colors",
+                        fuente === 'obra' ? "bg-brand-primary text-white border-brand-primary" : "bg-card text-brand-dark border-border hover:border-brand-primary/40")}>
+                    <MapPin className="h-4 w-4" /> Traer de obra
                 </button>
             </div>
             {fuente === 'obra' && (
-                <select value={origenObraId ?? ''} onChange={ev => onObra(ev.target.value ? Number(ev.target.value) : null)}
-                    className={cn("w-full h-8 px-2 text-xs rounded-md border bg-card outline-none focus:ring-1 focus:ring-brand-primary", origenObraId ? "border-border" : "border-red-300")}>
-                    <option value="">Elige la obra de origen...</option>
-                    {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
-                </select>
+                <div className="mt-2 space-y-2">
+                    <select value={origenObraId ?? ''} onChange={ev => onObra(ev.target.value ? Number(ev.target.value) : null)}
+                        className={cn(inputBase, !origenObraId && "border-red-300")}>
+                        <option value="">¿De qué obra se trae?</option>
+                        {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                    </select>
+                    <input value={nota} onChange={ev => onNota(ev.target.value)}
+                        placeholder="Nota: dónde buscarlo (opcional)" className={inputBase} />
+                </div>
             )}
         </div>
     );
 
     return (
-        <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-3">
-            <div className="flex items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-700 dark:text-green-400" />
-                <h4 className="text-sm font-bold text-green-800 dark:text-green-300">Revisar y aprobar materiales</h4>
+        <div className="shrink-0 border border-green-200 bg-green-50/40 dark:border-green-900 dark:bg-green-950/20 rounded-2xl p-4 md:p-5 mb-4 space-y-4">
+            <div>
+                <div className="flex items-center gap-2">
+                    <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
+                    <h4 className="text-base font-bold text-green-800 dark:text-green-300">Revisar y aprobar materiales</h4>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                    Para cada ítem revisa la cantidad y elige si se <strong>compra</strong> o se <strong>trae de otra obra</strong>. Después confirma.
+                </p>
             </div>
-            <p className="text-[11px] text-muted-foreground">
-                Ajusta cantidades, corrige descripciones, quita los ítems que no se comprarán o agrega los que falten. Al aprobar, la solicitud avanza para que el material llegue a obra.
-            </p>
 
-            <ul className="space-y-2 max-h-[42vh] overflow-y-auto -mr-1 pr-1">
-                {edits.map((e, idx) => (
-                    <li key={e.id} className={cn(
-                        "rounded-lg border p-2.5",
-                        e.aprobado ? "border-amber-200 bg-amber-50/40 dark:border-amber-900 dark:bg-amber-950/20" : "border-border bg-muted/40 opacity-60"
-                    )}>
-                        <div className="flex gap-2 items-center">
-                            <span className="shrink-0 w-5 h-5 rounded bg-amber-100 text-amber-800 text-[10px] font-black flex items-center justify-center">{idx + 1}</span>
-                            <input value={e.descripcion} disabled={!e.aprobado}
-                                onChange={ev => setEdit(e.id, { descripcion: ev.target.value })}
-                                className={cn("flex-1 min-w-0 h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary", !e.aprobado && "line-through")} />
-                            <button type="button" onClick={() => setEdit(e.id, { aprobado: !e.aprobado })}
-                                title={e.aprobado ? 'Quitar (no se compra)' : 'Restaurar'}
-                                className={cn("shrink-0 p-1.5 rounded-md transition-colors", e.aprobado ? "text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10" : "text-brand-primary hover:bg-brand-primary/10")}>
-                                {e.aprobado ? <Trash2 className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
-                            </button>
-                        </div>
-                        {e.aprobado && (
-                            <div className="mt-2 pl-7 space-y-1.5">
-                                <div className="grid grid-cols-[90px_1fr] gap-1.5">
-                                    <input type="number" min={1} value={e.cantidad_aprobada}
-                                        onChange={ev => setEdit(e.id, { cantidad_aprobada: parseInt(ev.target.value) || 0 })}
-                                        className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
-                                    <input value={e.unidad} onChange={ev => setEdit(e.id, { unidad: ev.target.value })}
-                                        placeholder="Unidad (kg, m, U...)"
-                                        className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+            <ul className="space-y-3 max-h-[52vh] overflow-y-auto -mr-1 pr-1">
+                {edits.map((e, idx) => {
+                    const key = `e${e.id}`;
+                    const isExp = expanded.has(key);
+                    return (
+                        <li key={e.id} className={cn("rounded-2xl border p-4", e.aprobado ? "border-border bg-card" : "border-border bg-muted/40 opacity-70")}>
+                            {/* Encabezado: número + nombre grande + quitar/incluir */}
+                            <div className="flex items-start gap-3">
+                                <span className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-amber-100 text-amber-800 text-xs font-black flex items-center justify-center dark:bg-amber-950/40 dark:text-amber-300">{idx + 1}</span>
+                                <p className={cn("flex-1 min-w-0 text-base font-bold text-brand-dark leading-snug break-words", !e.aprobado && "line-through text-muted-foreground")}>{e.descripcion || 'Ítem'}</p>
+                                <button type="button" onClick={() => setEdit(e.id, { aprobado: !e.aprobado })}
+                                    className={cn("shrink-0 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors", e.aprobado ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "text-brand-primary hover:bg-brand-primary/10")}>
+                                    {e.aprobado ? 'Quitar' : 'Incluir'}
+                                </button>
+                            </div>
+
+                            {e.aprobado && (
+                                <div className="mt-3 space-y-3">
+                                    <div className="flex items-center gap-2">
+                                        <span className="text-sm font-semibold text-muted-foreground shrink-0">Cantidad</span>
+                                        <input type="number" min={1} value={e.cantidad_aprobada}
+                                            onChange={ev => setEdit(e.id, { cantidad_aprobada: parseInt(ev.target.value) || 0 })}
+                                            className="w-20 h-11 px-2 text-base font-bold text-center rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                        <input value={e.unidad} onChange={ev => setEdit(e.id, { unidad: ev.target.value })}
+                                            placeholder="unidad (sacos, kg...)"
+                                            className="flex-1 min-w-0 h-11 px-3 text-sm rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                    </div>
+
+                                    {renderDecision(e.fuente, e.origen_obra_id, e.nota_aprobador,
+                                        f => setEdit(e.id, { fuente: f }),
+                                        o => setEdit(e.id, { origen_obra_id: o }),
+                                        v => setEdit(e.id, { nota_aprobador: v }))}
+
+                                    <div>
+                                        <button type="button" onClick={() => toggleExp(key)}
+                                            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline">
+                                            <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExp && "rotate-180")} />
+                                            Corregir nombre{e.fuente === 'comprar' ? ' o nota' : ''}
+                                        </button>
+                                        {isExp && (
+                                            <div className="mt-2 space-y-2">
+                                                <input value={e.descripcion} onChange={ev => setEdit(e.id, { descripcion: ev.target.value })}
+                                                    placeholder="Nombre del ítem" className={inputBase} />
+                                                {e.fuente === 'comprar' && (
+                                                    <input value={e.nota_aprobador} onChange={ev => setEdit(e.id, { nota_aprobador: ev.target.value })}
+                                                        placeholder="Nota del aprobador (opcional)" className={inputBase} />
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
-                                {renderOrigen(e.fuente, e.origen_obra_id, f => setEdit(e.id, { fuente: f }), o => setEdit(e.id, { origen_obra_id: o }))}
-                                <input value={e.nota_aprobador} onChange={ev => setEdit(e.id, { nota_aprobador: ev.target.value })}
-                                    placeholder={e.fuente === 'obra' ? 'Nota del origen (ej. bodega 2, pallet azul)' : 'Nota del aprobador (opcional)'}
-                                    className="w-full h-8 px-2 text-[11px] rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
-                            </div>
-                        )}
-                    </li>
-                ))}
+                            )}
+                        </li>
+                    );
+                })}
+
                 {nuevos.map(n => (
-                    <li key={`n${n._k}`} className="rounded-lg border border-dashed border-brand-primary/40 bg-brand-primary/[0.03] p-2.5">
-                        <div className="flex gap-2 items-center">
-                            <span className="shrink-0 px-1.5 h-5 rounded bg-brand-primary/10 text-brand-primary text-[9px] font-black flex items-center justify-center">NUEVO</span>
+                    <li key={`n${n._k}`} className="rounded-2xl border border-dashed border-brand-primary/40 bg-brand-primary/[0.03] p-4">
+                        <div className="flex items-start gap-3">
+                            <span className="shrink-0 mt-1 px-2 h-6 rounded-lg bg-brand-primary/10 text-brand-primary text-[10px] font-black flex items-center justify-center">NUEVO</span>
                             <input value={n.descripcion} autoFocus onChange={ev => setNuevo(n._k, { descripcion: ev.target.value })}
-                                placeholder="Descripción del ítem *"
-                                className="flex-1 min-w-0 h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
-                            <button type="button" onClick={() => delNuevo(n._k)} className="shrink-0 p-1.5 rounded-md text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10">
-                                <Trash2 className="h-3.5 w-3.5" />
-                            </button>
+                                placeholder="Nombre del ítem nuevo"
+                                className="flex-1 min-w-0 h-11 px-3 text-base font-bold rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <button type="button" onClick={() => delNuevo(n._k)}
+                                className="shrink-0 mt-1 text-xs font-bold px-2.5 py-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">Quitar</button>
                         </div>
-                        <div className="mt-2 pl-7 space-y-1.5">
-                            <div className="grid grid-cols-[90px_1fr] gap-1.5">
+                        <div className="mt-3 space-y-3">
+                            <div className="flex items-center gap-2">
+                                <span className="text-sm font-semibold text-muted-foreground shrink-0">Cantidad</span>
                                 <input type="number" min={1} value={n.cantidad} onChange={ev => setNuevo(n._k, { cantidad: parseInt(ev.target.value) || 0 })}
-                                    className="h-8 px-2 text-xs font-bold text-center rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
-                                <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="Unidad (kg, m, U...)"
-                                    className="h-8 px-2 text-xs rounded-md border border-border bg-card outline-none focus:ring-1 focus:ring-brand-primary" />
+                                    className="w-20 h-11 px-2 text-base font-bold text-center rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="unidad (sacos, kg...)"
+                                    className="flex-1 min-w-0 h-11 px-3 text-sm rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
                             </div>
-                            {renderOrigen(n.fuente, n.origen_obra_id, f => setNuevo(n._k, { fuente: f }), o => setNuevo(n._k, { origen_obra_id: o }))}
+                            {renderDecision(n.fuente, n.origen_obra_id, n.observacion,
+                                f => setNuevo(n._k, { fuente: f }),
+                                o => setNuevo(n._k, { origen_obra_id: o }),
+                                v => setNuevo(n._k, { observacion: v }))}
                         </div>
                     </li>
                 ))}
             </ul>
 
             <button type="button" onClick={addNuevo}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-amber-800 bg-amber-50 hover:bg-amber-100 border border-amber-200 rounded-lg dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-900">
-                <Plus className="h-3.5 w-3.5" /> Agregar ítem
+                className="w-full h-11 inline-flex items-center justify-center gap-2 text-sm font-bold text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/20 rounded-xl transition-colors">
+                <Plus className="h-4 w-4" /> Agregar otro ítem
             </button>
 
             {aprobadosCount === 0 && (
-                <p className="text-[11px] text-destructive">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
+                <p className="text-xs text-destructive">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
             )}
             {faltaOrigen && aprobadosCount > 0 && (
-                <p className="text-[11px] text-destructive">Elige la obra de origen en los ítems marcados "Traer de obra".</p>
+                <p className="text-xs text-destructive">Elige de qué obra se trae en los ítems marcados "Traer de obra".</p>
             )}
 
-            <div className="flex gap-2 pt-1">
+            <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
+                <button onClick={onCancel} className="h-12 px-5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
                 <button
                     onClick={() => onConfirm(
                         edits,
@@ -198,10 +237,9 @@ const MaterialesAprobacionPanel: React.FC<{
                         }))
                     )}
                     disabled={loading || aprobadosCount === 0 || faltaOrigen}
-                    className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    className="flex-1 h-12 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
                     {loading ? 'Aprobando...' : 'Confirmar Aprobación'}
                 </button>
-                <button onClick={onCancel} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
             </div>
         </div>
     );
@@ -933,10 +971,12 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     {rechazado && (
                                                         <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold uppercase">No se compra</span>
                                                     )}
-                                                    {!rechazado && it.fuente === 'obra' && (
+                                                    {/* La fuente la decide el aprobador → solo mostrar el chip cuando ya
+                                                        está decidida (no en 'pendiente', donde 'comprar' es solo el default). */}
+                                                    {t.estado !== 'pendiente' && !rechazado && it.fuente === 'obra' && (
                                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold"><MapPin className="h-2.5 w-2.5" /> Traer de {it.origen_obra_nombre || 'otra obra'}</span>
                                                     )}
-                                                    {!rechazado && it.fuente !== 'obra' && (
+                                                    {t.estado !== 'pendiente' && !rechazado && it.fuente !== 'obra' && (
                                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[9px] font-bold"><ShoppingBag className="h-2.5 w-2.5" /> Comprar</span>
                                                     )}
                                                 </div>
