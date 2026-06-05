@@ -91,29 +91,50 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div className="grid grid-cols-2 gap-4">
                 <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo</label>
-                    <select {...register('tipo')}
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Tipo <span className="text-destructive">*</span>
+                    </label>
+                    <select {...register('tipo', { required: 'Selecciona el tipo de revisión' })}
                         className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
                         <option value="tecnica">Revisión Técnica</option>
                         <option value="gases">Control de Gases</option>
                         <option value="mecanica">Revisión Mecánica</option>
                     </select>
+                    <FieldError message={errors.tipo?.message as string | undefined} className="mt-1" />
                 </div>
                 <div>
-                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Resultado</label>
-                    <select {...register('resultado')}
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                        Resultado <span className="text-destructive">*</span>
+                    </label>
+                    <select {...register('resultado', { required: 'Selecciona el resultado' })}
                         className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
                         <option value="aprobado">Aprobado</option>
                         <option value="rechazado">Rechazado</option>
                         <option value="pendiente">Pendiente</option>
                     </select>
+                    <FieldError message={errors.resultado?.message as string | undefined} className="mt-1" />
                 </div>
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <Input label="Fecha revisión" type="date" {...register('fecha', { required: true })} />
-                <Input label="Fecha vencimiento" type="date" {...register('fecha_vencimiento', { required: true })} />
+                <Input
+                    label="Fecha revisión *"
+                    type="date"
+                    {...register('fecha', { required: 'Indica la fecha de revisión' })}
+                    error={errors.fecha?.message as string | undefined}
+                />
+                <Input
+                    label="Fecha vencimiento *"
+                    type="date"
+                    {...register('fecha_vencimiento', { required: 'Indica la fecha de vencimiento' })}
+                    error={errors.fecha_vencimiento?.message as string | undefined}
+                />
             </div>
-            <Input label="Planta / Taller" placeholder="Nombre de la planta..." {...register('planta')} />
+            <Input
+                label="Planta / Taller *"
+                placeholder="Nombre de la planta..."
+                {...register('planta', { required: 'Indica la planta o taller' })}
+                error={errors.planta?.message as string | undefined}
+            />
             <Input label="Dirección" placeholder="Ej: Caletera General Velásquez N°7319" {...register('direccion')} />
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>

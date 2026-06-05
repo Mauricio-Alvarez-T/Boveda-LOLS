@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
     Truck, Plus, Shield, Wrench, ClipboardList,
-    Trash2, Edit2, X, ChevronLeft, Bell, Pencil
+    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -66,6 +66,8 @@ const VehiculosPage: React.FC = () => {
     const [loading, setLoading] = useState(false);
     // En móvil: null = lista, Vehiculo = detalle
     const [selected, setSelected] = useState<Vehiculo | null>(null);
+    // Filtro de búsqueda (patente, marca, modelo, año, tipo)
+    const [filtro, setFiltro] = useState('');
 
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
     const [revisiones, setRevisiones] = useState<VehiculoRevision[]>([]);
@@ -110,6 +112,27 @@ const VehiculosPage: React.FC = () => {
     useEffect(() => { fetchVehiculos(); }, [fetchVehiculos]);
     useEffect(() => { if (selected) fetchDetail(selected.id); }, [selected, fetchDetail]);
 
+    // Lista filtrada por el buscador (patente / marca / modelo / año / tipo).
+    const vehiculosFiltrados = React.useMemo(() => {
+        const q = filtro.trim().toLowerCase();
+        if (!q) return vehiculos;
+        return vehiculos.filter(v =>
+            v.patente.toLowerCase().includes(q) ||
+            v.marca.toLowerCase().includes(q) ||
+            v.modelo.toLowerCase().includes(q) ||
+            String(v.anio).includes(q) ||
+            v.tipo.toLowerCase().includes(q)
+        );
+    }, [vehiculos, filtro]);
+
+    // Auto-selección del primer vehículo en desktop, para que al entrar a la
+    // página el panel de detalle se vea desde el inicio (no vacío).
+    useEffect(() => {
+        if (selected || vehiculos.length === 0) return;
+        const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
+        if (isDesktop) setSelected(vehiculos[0]);
+    }, [vehiculos, selected]);
+
     const handleDelete = async (v: Vehiculo) => {
         if (!confirm(`¿Dar de baja el vehículo ${v.patente}?`)) return;
         try {
@@ -131,15 +154,38 @@ const VehiculosPage: React.FC = () => {
 
     const ListView = (
         <div className="flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm p-4 md:p-6">
-            <div className="flex items-center justify-between shrink-0 mb-4">
-                <div className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2.5 rounded-xl shadow-lg shadow-brand-primary/25">
+            <div className="flex items-center gap-3 shrink-0 mb-4 flex-wrap">
+                <div className="flex items-center gap-2 bg-brand-primary text-white px-4 py-2.5 rounded-xl shadow-lg shadow-brand-primary/25 shrink-0">
                     <Truck className="h-4 w-4" />
                     <span className="text-xs font-black uppercase tracking-widest">Flota de Vehículos</span>
                     <span className="text-[10px] font-black bg-white/20 px-1.5 py-0.5 rounded-md">{vehiculos.length}</span>
                 </div>
+
+                {/* Filtro: buscar por patente / marca / modelo / año / tipo */}
+                <div className="relative flex-1 min-w-[180px] max-w-sm">
+                    <Search className="h-3.5 w-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+                    <input
+                        type="text"
+                        value={filtro}
+                        onChange={e => setFiltro(e.target.value)}
+                        placeholder="Filtrar por patente, marca, modelo..."
+                        className="w-full pl-9 pr-8 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
+                    />
+                    {filtro && (
+                        <button
+                            type="button"
+                            onClick={() => setFiltro('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-muted text-muted-foreground"
+                            aria-label="Limpiar filtro"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                        </button>
+                    )}
+                </div>
+
                 {hasPermission('vehiculos.crear') && (
                     <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
-                        leftIcon={<Plus className="h-3.5 w-3.5" />}>
+                        leftIcon={<Plus className="h-3.5 w-3.5" />} className="shrink-0">
                         Nuevo vehículo
                     </Button>
                 )}
@@ -157,9 +203,14 @@ const VehiculosPage: React.FC = () => {
                         <p className="text-xs text-muted-foreground mt-1">Haz clic en "Nuevo vehículo" para comenzar</p>
                     </div>
                 </div>
+            ) : vehiculosFiltrados.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12">
+                    <Search className="h-8 w-8 text-muted-foreground/40" />
+                    <p className="text-sm text-muted-foreground">No se encontraron resultados para "{filtro}"</p>
+                </div>
             ) : (
                 <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
-                    {vehiculos.map(v => (
+                    {vehiculosFiltrados.map(v => (
                         <div key={v.id}
                             onClick={() => setSelected(v)}
                             className={cn(
@@ -330,8 +381,8 @@ const VehiculosPage: React.FC = () => {
                 {selected ? DetailView : ListView}
             </div>
 
-            {/* DESKTOP: lista + detalle en paralelo */}
-            <div className="hidden md:flex flex-1 min-h-0 gap-4">
+            {/* DESKTOP: lista + detalle pegados (sin separación visible) */}
+            <div className="hidden md:flex flex-1 min-h-0 gap-0 -mx-px">
                 {ListView}
                 {DetailView}
             </div>
@@ -347,21 +398,21 @@ const VehiculosPage: React.FC = () => {
                 <>
                     <Modal isOpen={modalSeguro}
                         onClose={() => { setModalSeguro(false); setEditSeguro(null); }}
-                        title={editSeguro ? 'Editar Seguro' : 'Agregar Seguro'} size="md">
+                        title={editSeguro ? 'Editar Seguro' : 'Agregar Seguro'} size="lg">
                         <SeguroForm vehiculoId={selected.id} initialData={editSeguro}
                             onCancel={() => { setModalSeguro(false); setEditSeguro(null); }}
                             onSuccess={() => { setModalSeguro(false); setEditSeguro(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
                     <Modal isOpen={modalRevision}
                         onClose={() => { setModalRevision(false); setEditRevision(null); }}
-                        title={editRevision ? 'Editar Revisión Técnica' : 'Agregar Revisión Técnica'} size="md">
+                        title={editRevision ? 'Editar Revisión Técnica' : 'Agregar Revisión Técnica'} size="lg">
                         <RevisionForm vehiculoId={selected.id} initialData={editRevision}
                             onCancel={() => { setModalRevision(false); setEditRevision(null); }}
                             onSuccess={() => { setModalRevision(false); setEditRevision(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
                     <Modal isOpen={modalMantencion}
                         onClose={() => { setModalMantencion(false); setEditMantencion(null); }}
-                        title={editMantencion ? 'Editar Mantención' : 'Registrar Mantención'} size="md">
+                        title={editMantencion ? 'Editar Mantención' : 'Registrar Mantención'} size="lg">
                         <MantencionForm vehiculoId={selected.id} kmActual={selected.kilometraje_actual}
                             initialData={editMantencion}
                             onCancel={() => { setModalMantencion(false); setEditMantencion(null); }}
