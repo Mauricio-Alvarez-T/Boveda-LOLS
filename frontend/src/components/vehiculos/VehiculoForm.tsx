@@ -119,7 +119,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                 <Input label="Año" type="number" placeholder="2022" {...register('anio')} error={errors.anio?.message} />
                 <Input label="Color" placeholder="Blanco" {...register('color')} error={errors.color?.message} />
             </div>
-            <Input label="Kilómetros actuales" type="number" min={0} {...register('kilometraje_actual')} error={errors.kilometraje_actual?.message} />
+            <Input label="Kilómetros actuales" type="number" {...register('kilometraje_actual')} error={errors.kilometraje_actual?.message} />
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
                 <textarea {...register('observaciones')} rows={2}
