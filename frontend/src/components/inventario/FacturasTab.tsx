@@ -7,6 +7,7 @@ import type { ApiResponse } from '../../types';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { FieldError } from '../ui/FieldError';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
@@ -42,6 +43,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     const [observaciones, setObservaciones] = useState('');
     const [items, setItems] = useState<LineItem[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    // Errores de validación inline (los mostramos bajo cada campo con <FieldError>).
+    const [formErrors, setFormErrors] = useState<{ numFactura?: string; proveedor?: string; items?: string }>({});
 
     /* ── Catalog data for selects ── */
     const [catalogoItems, setCatalogoItems] = useState<ItemInventario[]>([]);
@@ -138,6 +141,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     const handleClose = () => {
         setShowModal(false);
         resetForm();
+        setFormErrors({});
     };
 
     /* ── Item helpers ── */
@@ -188,11 +192,15 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     /* ── Submit ── */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!numFactura.trim()) { toast.error('Ingresa el numero de factura'); return; }
-        if (!proveedor.trim()) { toast.error('Ingresa el proveedor'); return; }
+        // Validación inline: cada error aparece bajo su campo (no toast).
+        const errs: typeof formErrors = {};
+        if (!numFactura.trim()) errs.numFactura = 'Ingresa el número de factura';
+        if (!proveedor.trim()) errs.proveedor = 'Ingresa el proveedor';
         if (!items.length || items.some(i => !i.item_id || i.cantidad < 1 || !i.destino_id)) {
-            toast.error('Agrega al menos un item con destino valido'); return;
+            errs.items = 'Agrega al menos un ítem con destino válido';
         }
+        setFormErrors(errs);
+        if (Object.keys(errs).length > 0) return;
 
         setSubmitting(true);
         try {
@@ -298,22 +306,28 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             <input
                                 type="text"
                                 value={numFactura}
-                                onChange={e => setNumFactura(e.target.value)}
+                                onChange={e => { setNumFactura(e.target.value); if (formErrors.numFactura) setFormErrors(p => ({ ...p, numFactura: undefined })); }}
                                 placeholder="Ej: 001234"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.numFactura ? "border-destructive" : "border-border"
+                                )}
                             />
+                            <FieldError message={formErrors.numFactura} className="mt-1" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Proveedor</label>
                             <input
                                 type="text"
                                 value={proveedor}
-                                onChange={e => setProveedor(e.target.value)}
+                                onChange={e => { setProveedor(e.target.value); if (formErrors.proveedor) setFormErrors(p => ({ ...p, proveedor: undefined })); }}
                                 placeholder="Nombre del proveedor"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.proveedor ? "border-destructive" : "border-border"
+                                )}
                             />
+                            <FieldError message={formErrors.proveedor} className="mt-1" />
                         </div>
                     </div>
 
@@ -325,7 +339,6 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             value={fechaFactura}
                             onChange={e => setFechaFactura(e.target.value)}
                             className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            required
                         />
                     </div>
 
@@ -424,12 +437,16 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 </div>
                             ))}
 
-                            <button type="button" onClick={addItem}
-                                className="w-full border-2 border-dashed border-border rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors">
+                            <button type="button" onClick={() => { addItem(); if (formErrors.items) setFormErrors(p => ({ ...p, items: undefined })); }}
+                                className={cn(
+                                    "w-full border-2 border-dashed rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors",
+                                    formErrors.items ? "border-destructive/60" : "border-border"
+                                )}>
                                 <Plus className="h-4 w-4 inline-block mr-1 -mt-0.5" />
                                 Agregar item
                             </button>
                         </div>
+                        <FieldError message={formErrors.items} className="mt-2" />
                     </div>
 
                     {/* Monto total */}

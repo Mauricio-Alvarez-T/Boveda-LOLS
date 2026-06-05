@@ -24,10 +24,14 @@ const workerSchema = z.object({
     apellido_materno: z.string().optional(),
     email: z.string().email('Email inválido').optional().or(z.literal('')),
     telefono: z.string().optional(),
+    // Los IDs vienen como 0 cuando no hay selección (default explícito) — así llegan al .min(1) y muestran el mensaje en español.
     empresa_id: z.coerce.number().min(1, 'Selecciona una empresa'),
     obra_id: z.coerce.number().min(1, 'Selecciona una obra'),
     cargo_id: z.coerce.number().min(1, 'Selecciona un cargo'),
-    categoria_reporte: z.enum(['obra', 'operaciones', 'rotativo']),
+    // El <Select> agrega una opción vacía; mensaje custom evita el "Invalid input" genérico.
+    categoria_reporte: z.enum(['obra', 'operaciones', 'rotativo'], {
+        error: () => ({ message: 'Selecciona una categoría de reporte' }),
+    }),
     fecha_ingreso: z.string().optional(),
     es_prueba: z.boolean().optional(),
     licencia_conducir: z.string().optional(),
@@ -72,7 +76,24 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
             es_prueba: initialData.es_prueba ?? false,
             licencia_conducir: initialData.licencia_conducir || '',
             licencia_vencimiento: initialData.licencia_vencimiento ? initialData.licencia_vencimiento.split('T')[0] : '',
-        } : {},
+        } : {
+            // Defaults explícitos para trabajador nuevo: garantizan que la validación
+            // dispare el mensaje en español del schema (no el genérico "Invalid input").
+            rut: '',
+            nombres: '',
+            apellido_paterno: '',
+            apellido_materno: '',
+            email: '',
+            telefono: '',
+            empresa_id: 0,
+            obra_id: 0,
+            cargo_id: 0,
+            categoria_reporte: undefined,
+            fecha_ingreso: '',
+            es_prueba: false,
+            licencia_conducir: '',
+            licencia_vencimiento: '',
+        },
     });
 
     useFormDirtyProtection(isDirty);

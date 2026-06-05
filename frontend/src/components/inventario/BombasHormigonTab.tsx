@@ -6,6 +6,7 @@ import type { RegistroBombaHormigon } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
+import { FieldError } from '../ui/FieldError';
 
 interface Props {
     obras: { id: number; nombre: string }[];
@@ -56,6 +57,8 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
     const [editingId, setEditingId] = useState<number | null>(null);
     const [form, setForm] = useState<BombaFormState>(emptyForm());
     const [submitting, setSubmitting] = useState(false);
+    // Errores inline por campo (los mostramos con <FieldError> bajo cada input).
+    const [formErrors, setFormErrors] = useState<{ obra_id?: string; fecha?: string; tipo_bomba?: string }>({});
 
     const fetchData = async () => {
         setLoading(true);
@@ -73,6 +76,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm());
+        setFormErrors({});
         setShowModal(true);
     };
 
@@ -88,17 +92,22 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
             costo: r.costo != null ? String(r.costo) : '',
             observaciones: r.observaciones || '',
         });
+        setFormErrors({});
         setShowModal(true);
     };
 
-    const closeModal = () => { setShowModal(false); setEditingId(null); };
+    const closeModal = () => { setShowModal(false); setEditingId(null); setFormErrors({}); };
 
     // ── Guardar (crear o editar) ──
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.obra_id) { toast.error('Selecciona una obra'); return; }
-        if (!form.fecha) { toast.error('Indica la fecha'); return; }
-        if (!form.tipo_bomba.trim()) { toast.error('Indica el tipo de bomba'); return; }
+        // Validación inline por campo (no toast): cada mensaje aparece bajo su input.
+        const errs: typeof formErrors = {};
+        if (!form.obra_id) errs.obra_id = 'Selecciona una obra';
+        if (!form.fecha) errs.fecha = 'Indica la fecha';
+        if (!form.tipo_bomba.trim()) errs.tipo_bomba = 'Indica el tipo de bomba';
+        setFormErrors(errs);
+        if (Object.keys(errs).length > 0) return;
 
         // Payload: costo solo se envía si el usuario tiene permiso financiero y
         // escribió un valor. El backend igual lo descarta si no tiene permiso.
@@ -316,23 +325,29 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Obra <span className="text-red-500">*</span></label>
                             <select
                                 value={form.obra_id}
-                                onChange={e => setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' }))}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                onChange={e => { setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' })); if (formErrors.obra_id) setFormErrors(p => ({ ...p, obra_id: undefined })); }}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.obra_id ? "border-destructive" : "border-border"
+                                )}
                             >
                                 <option value="">Seleccionar obra...</option>
                                 {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
                             </select>
+                            <FieldError message={formErrors.obra_id} className="mt-1" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Fecha <span className="text-red-500">*</span></label>
                             <input
                                 type="date"
                                 value={form.fecha}
-                                onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                onChange={e => { setForm(f => ({ ...f, fecha: e.target.value })); if (formErrors.fecha) setFormErrors(p => ({ ...p, fecha: undefined })); }}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.fecha ? "border-destructive" : "border-border"
+                                )}
                             />
+                            <FieldError message={formErrors.fecha} className="mt-1" />
                         </div>
                     </div>
 
@@ -342,11 +357,14 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                         <input
                             type="text"
                             value={form.tipo_bomba}
-                            onChange={e => setForm(f => ({ ...f, tipo_bomba: e.target.value }))}
+                            onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
                             placeholder="Ej: Pluma 32m, Estacionaria, Telescópica..."
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            required
+                            className={cn(
+                                "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                formErrors.tipo_bomba ? "border-destructive" : "border-border"
+                            )}
                         />
+                        <FieldError message={formErrors.tipo_bomba} className="mt-1" />
                     </div>
 
                     {/* Propia / Externa toggle */}
@@ -405,7 +423,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
                                 <input
-                                    type="number" min={0} step="any"
+                                    type="number" step="any"
                                     value={form.costo}
                                     onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
                                     placeholder="0"
