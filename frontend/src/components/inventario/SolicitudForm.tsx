@@ -5,6 +5,7 @@ import api from '../../services/api';
 import type { ApiResponse } from '../../types';
 import type { ItemInventario, CategoriaInventario } from '../../types/entities';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { FieldError } from '../ui/FieldError';
 import { StockBadge, type StockUbicacion } from './StockBadge';
 import ItemDetailModal from './ItemDetailModal';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
@@ -578,10 +579,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                         <span className="text-[10px] text-muted-foreground ml-1">{d.item?.unidad || 'U'}</span>
                                     </div>
                                     {d.excede && (
-                                        <div className="mt-1 flex items-center gap-1 text-[10px] text-red-700 font-medium">
-                                            <AlertCircle className="h-2.5 w-2.5" />
-                                            Solo hay {d.disponible} disponibles
-                                        </div>
+                                        <FieldError
+                                            className="mt-1"
+                                            icon={<AlertCircle className="h-2.5 w-2.5" />}
+                                            message={`Solo hay ${d.disponible} disponibles`}
+                                        />
                                     )}
                                 </div>
 
@@ -716,10 +718,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
                                         />
                                     </div>
                                     {error ? (
-                                        <p className="mt-2 pl-8 flex items-center gap-1 text-[11px] font-medium text-red-600">
-                                            <AlertCircle className="h-3 w-3 shrink-0" />
-                                            {!desc ? 'Falta la descripción del ítem' : 'La cantidad debe ser 1 o más'}
-                                        </p>
+                                        <FieldError
+                                            className="mt-2 pl-8"
+                                            icon={<AlertCircle className="h-3 w-3 shrink-0" />}
+                                            message={!desc ? 'Falta la descripción del ítem' : 'La cantidad debe ser 1 o más'}
+                                        />
                                     ) : esVacio ? (
                                         <p className="mt-2 pl-8 flex items-center gap-1 text-[11px] text-muted-foreground/70">
                                             <AlertCircle className="h-3 w-3 shrink-0" />

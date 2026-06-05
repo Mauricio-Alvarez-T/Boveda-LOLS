@@ -7,6 +7,7 @@ import { Save, AlertTriangle } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { FieldError } from '../ui/FieldError';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
 
@@ -148,7 +149,7 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                             </option>
                         ))}
                     </select>
-                    {errors.rol_id && <p className="text-xs text-destructive font-medium ml-1">{errors.rol_id.message}</p>}
+                    <FieldError message={errors.rol_id?.message} />
                     {/* Preview del rol seleccionado — alerta si tiene 0 permisos. */}
                     {selectedRol && typeof selectedRol.permisos_count === 'number' && (
                         selectedRol.permisos_count === 0 ? (

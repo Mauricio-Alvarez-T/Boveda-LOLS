@@ -401,6 +401,41 @@ Para que las páginas llenen el viewport y permitan sticky headers/footers sin a
 
 ---
 
+## 7.1 Estándar de Mensajes de Error (FieldError / FormError)
+
+Para que el rojo de validación se vea **igual en toda la app**, hay dos componentes
+estándar en `frontend/src/components/ui/`:
+
+- **`<FieldError message={...} />`** — error de **campo inline** (texto rojo bajo el input).
+  Estilo canónico: `text-xs text-destructive font-medium ml-0.5`. No renderiza nada si el
+  mensaje es vacío. Acepta `icon` (variante carrito/fila) y `className` (ej. `pl-8`, `mt-1`).
+  Lo consumen internamente `Input`, `Select`, `CurrencyInput`, `SearchableSelect` y
+  `TimeStepperInput` → **cualquier form que use el prop `error` de esos componentes ya hereda
+  el estándar** sin tocarlo.
+- **`<FormError message={...} />`** — **banner** de error de acción/formulario persistente en
+  página (no transitorio). Usa el token semántico `destructive`. Para errores de API
+  transitorios usar `showApiError(err, fallback)` (toast), NO un banner.
+
+**Regla de oro contra tooltips nativos del navegador:** los atributos HTML `min`/`max`/
+`required`/`pattern` en `<input>`/`<select>` dentro de un `<form onSubmit>` disparan el globo
+nativo (ej. *"El valor debe ser superior o igual a 0"*), que **no** queremos. Para evitarlo:
+
+1. Agregar `noValidate` al `<form>` (desactiva TODA la validación nativa del navegador), y
+2. Mover la regla a la validación de la app (reglas de `register()` en react-hook-form, o un
+   handler en forms controlados) mostrando el mensaje con `<FieldError>`.
+3. Se conservan `step="0.5"`/`step="any"` (UX de decimales/medias horas) y `maxLength` (topes benignos).
+
+**Color:** usar siempre el token `destructive` (`text-destructive`, `border-destructive`,
+`var(--destructive)` en estilos inline de react-select) — nunca hex sueltos (`#FF3B30`) ni
+utilidades `red-*`, para respetar el tema claro/oscuro.
+
+> Origen: auditoría de manejo de errores del frontend (46 hallazgos). Pendientes de menor
+> prioridad (backlog): edición inline con `min`/`max` sin `<form>` (StockUbicacionTable,
+> ResumenMensualTable, TransferenciaDetail, MovimientoForm) — no disparan tooltip, es solo
+> limpieza de consistencia; y unificar todos los `catch` al helper `showApiError`.
+
+---
+
 ## 8. Worktrees de Claude Code
 
 Las sesiones usan worktrees en `.claude/worktrees/NOMBRE/`. Cada uno tiene una rama local que trackea `origin/develop`:

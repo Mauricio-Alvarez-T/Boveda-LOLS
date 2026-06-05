@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Plus, Save, X, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
+import { FieldError } from '../../ui/FieldError';
 import { cn } from '../../../utils/cn';
 import api from '../../../services/api';
 import { useObra } from '../../../context/ObraContext';
@@ -205,7 +206,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                             fechaError ? 'border-red-400 focus:border-red-500' : 'border-border focus:border-brand-primary'
                         )}
                     />
-                    {fechaError && <p className="text-[10px] text-red-600 dark:text-red-400 font-semibold mt-1">{fechaError}</p>}
+                    <FieldError message={fechaError} className="mt-1" />
                 </div>
                 <div>
                     <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
