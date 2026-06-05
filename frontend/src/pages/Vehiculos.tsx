@@ -228,11 +228,11 @@ const VehiculosPage: React.FC = () => {
     // ── Vista lista ───────────────────────────────────────────────────────────
 
     const ListView = (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 min-w-0">
+        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
             {loading ? (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 md:px-6">Cargando...</div>
             ) : vehiculos.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12">
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 py-12 px-4 md:px-6">
                     <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
                         <Truck className="h-8 w-8 text-muted-foreground/40" />
                     </div>
@@ -242,20 +242,24 @@ const VehiculosPage: React.FC = () => {
                     </div>
                 </div>
             ) : vehiculosFiltrados.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12">
+                <div className="flex-1 flex flex-col items-center justify-center gap-2 py-12 px-4 md:px-6">
                     <Search className="h-8 w-8 text-muted-foreground/40" />
                     <p className="text-sm text-muted-foreground">No se encontraron resultados para "{filtro}"</p>
                 </div>
             ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     {vehiculosFiltrados.map(v => (
                         <div key={v.id}
                             onClick={() => setSelected(v)}
                             className={cn(
-                                'px-4 py-3 rounded-2xl border cursor-pointer transition-all active:scale-[0.99]',
+                                // Item base: full-width, separación por línea inferior (no border completo)
+                                'relative cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px]',
+                                'border-b border-b-border/50 last:border-b-0',
                                 selected?.id === v.id
-                                    ? 'border-brand-primary bg-brand-primary/5 shadow-sm'
-                                    : 'border-border hover:border-brand-primary/40 hover:bg-brand-primary/[0.02]'
+                                    // Seleccionado: acento verde a la izquierda + fondo suave;
+                                    // en desktop quita el padding-right para "conectarse" con el panel detalle.
+                                    ? 'border-l-brand-primary bg-brand-primary/[0.06]'
+                                    : 'border-l-transparent hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/30'
                             )}>
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 min-w-0">
@@ -295,7 +299,7 @@ const VehiculosPage: React.FC = () => {
     // ── Vista detalle ─────────────────────────────────────────────────────────
 
     const DetailView = selected ? (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:w-[420px] md:shrink-0 md:border-l md:border-border bg-muted/30">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:w-[420px] md:shrink-0 md:border-l md:border-border">
             {/* Header */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 {/* Botón volver - solo en móvil */}
