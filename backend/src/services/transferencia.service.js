@@ -1060,7 +1060,7 @@ const transferenciaService = {
                     ti.item_id, i.descripcion AS item_descripcion, i.unidad
              FROM transferencia_recepcion_items ri
              INNER JOIN transferencia_items ti ON ti.id = ri.transferencia_item_id
-             LEFT JOIN items i ON i.id = ti.item_id
+             LEFT JOIN items_inventario i ON i.id = ti.item_id
              WHERE ri.recepcion_id IN (?)
              ORDER BY ri.id ASC`,
             [ids]
