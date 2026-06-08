@@ -1,9 +1,9 @@
 import React from 'react';
-import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, AlertTriangle, PackageOpen, LayoutGrid } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { ArrowRight, Clock, CheckCircle2, Truck, PackageCheck, XCircle, Ban, Search, X, PackageOpen } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import type { Transferencia } from '../../types/entities';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import StatusFilterBar from './StatusFilterBar';
 
 interface Props {
     transferencias: Transferencia[];
@@ -19,14 +19,14 @@ interface Props {
     canVerDiscrepancias?: boolean;
 }
 
-export const estadoConfig: Record<string, { label: string; color: string; bgSolid: string; icon: React.ElementType }> = {
-    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60', bgSolid: 'bg-amber-500', icon: Clock },
-    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60', bgSolid: 'bg-blue-500', icon: CheckCircle2 },
-    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60', bgSolid: 'bg-indigo-500', icon: Truck },
-    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60', bgSolid: 'bg-purple-500', icon: PackageOpen },
-    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', bgSolid: 'bg-green-500', icon: PackageCheck },
-    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60', bgSolid: 'bg-red-500', icon: XCircle },
-    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border', bgSolid: 'bg-gray-400', icon: Ban },
+export const estadoConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
+    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60', icon: Clock },
+    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60', icon: CheckCircle2 },
+    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60', icon: Truck },
+    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60', icon: PackageOpen },
+    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', icon: PackageCheck },
+    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60', icon: XCircle },
+    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border', icon: Ban },
 };
 
 export const tipoFlujoConfig: Record<string, { label: string; color: string }> = {
@@ -50,14 +50,6 @@ const BORDER_LEFT_COLOR: Record<string, string> = {
     cancelada: 'border-l-gray-400',
 };
 
-const STATUS_CHIPS: { value: string; label: string; shortLabel: string; icon: React.ElementType; discrepancia?: boolean }[] = [
-    { value: 'todas',          label: 'Todas',          shortLabel: 'Todas',    icon: LayoutGrid },
-    { value: 'pendiente',      label: 'Pendientes',     shortLabel: 'Pend.',    icon: Clock },
-    { value: 'aprobada',       label: 'Aprobadas',      shortLabel: 'Aprob.',   icon: CheckCircle2 },
-    { value: 'recibida',       label: 'Recibidas',      shortLabel: 'Recib.',   icon: PackageCheck },
-    { value: 'discrepancias',  label: 'Discrepancias',  shortLabel: 'Discrep.', icon: AlertTriangle, discrepancia: true },
-];
-
 const TransferenciasList: React.FC<Props> = ({
     transferencias, loading, selectedId, onSelect,
     statusFilter, onStatusFilterChange, searchQuery, onSearchChange,
@@ -67,9 +59,6 @@ const TransferenciasList: React.FC<Props> = ({
     const filtered = transferencias.filter(t =>
         !searchQuery || t.codigo.toLowerCase().includes(searchQuery.toLowerCase())
     );
-
-    // Discrepancias requiere permiso aprobador. Si no lo tiene, oculta el chip.
-    const visibleChips = STATUS_CHIPS.filter(c => c.value !== 'discrepancias' || canVerDiscrepancias);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
@@ -90,88 +79,14 @@ const TransferenciasList: React.FC<Props> = ({
                 )}
             </div>
 
-            {/* Status filter — Mobile: icon + short label stacked */}
-            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 shadow-sm">
-                {visibleChips.map(chip => {
-                    const isActive = statusFilter === chip.value;
-                    const isDiscrep = !!chip.discrepancia;
-                    const ChipIcon = chip.icon;
-                    return (
-                        <button
-                            key={chip.value}
-                            onClick={() => onStatusFilterChange(chip.value)}
-                            className={cn(
-                                "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
-                                isActive
-                                    ? "text-white"
-                                    : isDiscrep && discrepanciasCount > 0
-                                        ? "text-red-600 dark:text-red-400"
-                                        : "text-muted-foreground"
-                            )}
-                        >
-                            {isActive && (
-                                <motion.div
-                                    layoutId="activeStatusChipMobile"
-                                    className={cn(
-                                        "absolute inset-0 rounded-xl shadow-sm",
-                                        isDiscrep ? "bg-red-500" : "bg-brand-primary"
-                                    )}
-                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                />
-                            )}
-                            <div className="relative z-10 flex items-center">
-                                <ChipIcon className="h-[15px] w-[15px]" />
-                                {isDiscrep && discrepanciasCount > 0 && !isActive && (
-                                    <span className="absolute -top-1 -right-2 px-1 py-[1px] rounded-full text-[7px] font-black leading-none bg-red-500 text-white">
-                                        {discrepanciasCount}
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center">
-                                {chip.shortLabel}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
-
-            {/* Status filter — Desktop: icon + short label stacked (mismo formato que mobile) */}
-            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 md:mx-6 shadow-sm">
-                {visibleChips.map(chip => {
-                    const isActive = statusFilter === chip.value;
-                    const isDiscrep = !!chip.discrepancia;
-                    const ChipIcon = chip.icon;
-                    return (
-                        <button
-                            key={chip.value}
-                            onClick={() => onStatusFilterChange(chip.value)}
-                            title={chip.label}
-                            className={cn(
-                                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-2 flex-1 min-w-0 transition-all",
-                                isActive
-                                    ? isDiscrep
-                                        ? "bg-red-500 text-white shadow-sm"
-                                        : "bg-brand-primary text-white shadow-sm"
-                                    : isDiscrep && discrepanciasCount > 0
-                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                            )}
-                        >
-                            <div className="relative flex items-center">
-                                <ChipIcon className="h-[18px] w-[18px]" />
-                                {isDiscrep && discrepanciasCount > 0 && !isActive && (
-                                    <span className="absolute -top-1.5 -right-2.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
-                                        {discrepanciasCount}
-                                    </span>
-                                )}
-                            </div>
-                            <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
-                                {chip.shortLabel}
-                            </span>
-                        </button>
-                    );
-                })}
-            </div>
+            {/* Filtro de estado — control segmentado liviano (estilo Vehículos) */}
+            <StatusFilterBar
+                active={statusFilter}
+                onChange={onStatusFilterChange}
+                discrepanciasCount={discrepanciasCount}
+                canVerDiscrepancias={canVerDiscrepancias}
+                className="mb-3 mx-4 md:mx-6"
+            />
 
             {/* Lista estilo master (Vehículos) — borde izquierdo coloreado por estado + separadores */}
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -185,7 +100,6 @@ const TransferenciasList: React.FC<Props> = ({
                 ) : (
                     filtered.map(t => {
                         const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
-                        const Icon = cfg.icon;
                         const origenBodega = (t as any).origen_bodega_nombre as string | null | undefined;
                         const destinoBodega = (t as any).destino_bodega_nombre as string | null | undefined;
                         const origen = (t as any).origen_obra_nombre
@@ -206,54 +120,43 @@ const TransferenciasList: React.FC<Props> = ({
                                 key={t.id}
                                 onClick={() => onSelect(t.id)}
                                 className={cn(
-                                    "flex gap-3 cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px] border-b border-b-border/50 last:border-b-0",
+                                    "cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px] border-b border-b-border/50 last:border-b-0",
                                     borderLeft,
                                     isSelected
                                         ? "bg-brand-primary/[0.06]"
                                         : "hover:bg-brand-primary/[0.03]"
                                 )}
                             >
-                                {/* Icono estado */}
-                                <div className={cn(
-                                    "w-7 h-7 rounded-md flex items-center justify-center shrink-0 mt-0.5",
-                                    cfg.color
-                                )}>
-                                    <Icon className="h-3 w-3" />
+                                {/* Fila 1: Código + fecha */}
+                                <div className="flex items-center justify-between gap-2">
+                                    <span className={cn(
+                                        "text-sm font-bold truncate",
+                                        isSelected ? "text-brand-primary" : "text-brand-dark"
+                                    )}>
+                                        {t.codigo}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0">
+                                        {fechaStr}
+                                    </span>
                                 </div>
 
-                                {/* Contenido */}
-                                <div className="flex-1 min-w-0">
-                                    {/* Fila 1: Código + fecha */}
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className={cn(
-                                            "text-[11px] font-bold truncate",
-                                            isSelected ? "text-brand-primary" : "text-brand-dark"
-                                        )}>
-                                            {t.codigo}
+                                {/* Fila 2: Estado badge + flujo */}
+                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none", cfg.color)}>
+                                        {cfg.label}
+                                    </span>
+                                    {flujo && (
+                                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none", flujo.color)}>
+                                            {flujo.label}
                                         </span>
-                                        <span className="text-[9px] text-muted-foreground/60 tabular-nums shrink-0">
-                                            {fechaStr}
-                                        </span>
-                                    </div>
+                                    )}
+                                </div>
 
-                                    {/* Fila 2: Estado badge + flujo */}
-                                    <div className="flex items-center gap-1.5 mt-0.5">
-                                        <span className={cn("text-[8px] font-bold px-1.5 py-[1px] rounded-full border leading-none", cfg.color)}>
-                                            {cfg.label}
-                                        </span>
-                                        {flujo && (
-                                            <span className={cn("text-[8px] font-bold px-1.5 py-[1px] rounded-full border leading-none", flujo.color)}>
-                                                {flujo.label}
-                                            </span>
-                                        )}
-                                    </div>
-
-                                    {/* Fila 3: Origen → Destino */}
-                                    <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
-                                        <span className="truncate max-w-[40%]">{origen}</span>
-                                        <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
-                                        <span className="truncate max-w-[40%]">{destino}</span>
-                                    </div>
+                                {/* Fila 3: Origen → Destino */}
+                                <div className="flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground">
+                                    <span className="truncate flex-1 min-w-0">{origen}</span>
+                                    <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
+                                    <span className="truncate flex-1 min-w-0">{destino}</span>
                                 </div>
                             </div>
                         );

@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck, Search, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Plus, ArrowLeftRight, AlertTriangle, Search, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
+import StatusFilterBar from './StatusFilterBar';
 import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
 import SolicitudForm from './SolicitudForm';
@@ -27,16 +27,6 @@ interface Props {
      */
     initialSelectedId?: number | null;
 }
-
-// Mirror of STATUS_CHIPS inside TransferenciasList — kept here so the panel
-// can render the same row in discrepancias mode (where the nested list is skipped).
-const MAIN_STATUS_CHIPS: { value: string; label: string; shortLabel: string; icon: React.ElementType }[] = [
-    { value: 'todas',         label: 'Todas',         shortLabel: 'Todas',    icon: LayoutGrid },
-    { value: 'pendiente',     label: 'Pendientes',    shortLabel: 'Pend.',    icon: Clock },
-    { value: 'aprobada',      label: 'Aprobadas',     shortLabel: 'Aprob.',   icon: CheckCircle2 },
-    { value: 'recibida',      label: 'Recibidas',     shortLabel: 'Recib.',   icon: PackageCheck },
-    { value: 'discrepancias', label: 'Discrepancias', shortLabel: 'Discrep.', icon: AlertTriangle },
-];
 
 const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
     const { user } = useAuth();
@@ -282,7 +272,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 ) && (
                     <button
                         onClick={() => setShowSelectorModal(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20"
+                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
                     >
                         <Plus className="h-3.5 w-3.5" /> Nuevo movimiento
                     </button>
@@ -315,87 +305,14 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                                     </button>
                                 )}
                             </div>
-                            {/* Top row: status chips — mobile icon+label / desktop pills */}
-                            {/* Mobile */}
-                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 shadow-sm">
-                                {MAIN_STATUS_CHIPS
-                                    .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
-                                    .map(chip => {
-                                    const isActive = statusFilter === chip.value;
-                                    const isDisc = chip.value === 'discrepancias';
-                                    const ChipIcon = chip.icon;
-                                    return (
-                                        <button
-                                            key={chip.value}
-                                            onClick={() => setStatusFilter(chip.value)}
-                                            className={cn(
-                                                "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
-                                                isActive ? "text-white"
-                                                    : isDisc && pendientesCount > 0 ? "text-red-600 dark:text-red-400"
-                                                    : "text-muted-foreground"
-                                            )}
-                                        >
-                                            {isActive && (
-                                                <motion.div
-                                                    layoutId="activeDiscChipMobile"
-                                                    className={cn("absolute inset-0 rounded-xl shadow-sm", isDisc ? "bg-red-500" : "bg-brand-primary")}
-                                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                                />
-                                            )}
-                                            <div className="relative z-10 flex items-center">
-                                                <ChipIcon className="h-[15px] w-[15px]" />
-                                                {isDisc && pendientesCount > 0 && !isActive && (
-                                                    <span className="absolute -top-1 -right-2 px-1 py-[1px] rounded-full text-[7px] font-black leading-none bg-red-500 text-white">
-                                                        {pendientesCount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <span className="text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center">
-                                                {chip.shortLabel}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {/* Desktop: icon + short label stacked (mismo formato que mobile) */}
-                            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 mx-4 md:mx-6 shadow-sm">
-                                {MAIN_STATUS_CHIPS
-                                    .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
-                                    .map(chip => {
-                                    const isActive = statusFilter === chip.value;
-                                    const isDisc = chip.value === 'discrepancias';
-                                    const ChipIcon = chip.icon;
-                                    return (
-                                        <button
-                                            key={chip.value}
-                                            onClick={() => setStatusFilter(chip.value)}
-                                            title={chip.label}
-                                            className={cn(
-                                                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-2 flex-1 min-w-0 transition-all",
-                                                isActive
-                                                    ? isDisc
-                                                        ? "bg-red-500 text-white shadow-sm"
-                                                        : "bg-brand-primary text-white shadow-sm"
-                                                    : isDisc && pendientesCount > 0
-                                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                                            )}
-                                        >
-                                            <div className="relative flex items-center">
-                                                <ChipIcon className="h-[18px] w-[18px]" />
-                                                {isDisc && pendientesCount > 0 && !isActive && (
-                                                    <span className="absolute -top-1.5 -right-2.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
-                                                        {pendientesCount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
-                                                {chip.shortLabel}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            {/* Filtro de estado — control segmentado liviano (mismo que la lista) */}
+                            <StatusFilterBar
+                                active={statusFilter}
+                                onChange={setStatusFilter}
+                                discrepanciasCount={pendientesCount}
+                                canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                                className="mb-3 mx-4 md:mx-6"
+                            />
                             {/* Discrepancias list (with its own sub-filter and search) */}
                             <DiscrepanciasList
                                 discrepancias={trfHook.discrepancias}

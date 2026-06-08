@@ -861,7 +861,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-lg font-black text-brand-dark tracking-tight">{t.codigo}</h2>
                         {t.tipo_flujo && t.tipo_flujo !== 'solicitud' && (
-                            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-full border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
+                            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
                                 {(tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).label}
                             </span>
                         )}
@@ -951,7 +951,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             </thead>
                             <tbody>
                                 {items.map((item, idx) => (
-                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted")}>
+                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted/40")}>
                                         <td className="px-3 py-1.5 font-medium text-brand-dark">
                                             <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
                                                 {item.item_descripcion || `Item #${item.item_id}`}
