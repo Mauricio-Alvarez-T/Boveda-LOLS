@@ -273,7 +273,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0 flex-1 min-w-0 pt-4 md:pt-5 pb-4 md:pb-6",
+                    "flex flex-col min-h-0 md:w-[300px] md:shrink-0 pt-4 md:pt-5 pb-4 md:pb-6",
                     detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
@@ -312,7 +312,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     a la misma altura que la primera fila TRF. */}
                 <div className={cn(
                     "min-h-0 md:border-l md:border-border pt-4 md:pt-5",
-                    "md:w-1/2 md:shrink-0",
+                    "flex-1 min-w-0",
                     detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
                 )}>
                     {isDiscrepanciasMode ? (
