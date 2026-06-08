@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader2, Save } from 'lucide-react';
+import { Loader2, Save, XCircle, CheckCircle2 } from 'lucide-react';
 
 import { formatRut, validateRut } from '../../utils/rut';
 
@@ -53,6 +53,42 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     const [empresas, setEmpresas] = useState<SelectOption[]>([]);
     const [obras, setObras] = useState<SelectOption[]>([]);
     const [cargos, setCargos] = useState<SelectOption[]>([]);
+
+    // ── Verificación en vivo del RUT (solo al crear) ──
+    // Avisa con una X + texto si el trabajador ya existe en la base de datos.
+    const [rutStatus, setRutStatus] = useState<'idle' | 'checking' | 'exists' | 'available'>('idle');
+    const [rutExistName, setRutExistName] = useState('');
+    const rutTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const rutSeq = useRef(0); // descarta respuestas viejas (race) al tipear rápido
+
+    const checkRut = (formatted: string) => {
+        if (rutTimer.current) clearTimeout(rutTimer.current);
+        // Al editar no validamos duplicado: el propio RUT del trabajador "existe".
+        if (initialData) { setRutStatus('idle'); return; }
+        if (!validateRut(formatted)) { setRutStatus('idle'); setRutExistName(''); return; }
+
+        setRutStatus('checking');
+        const seq = ++rutSeq.current;
+        rutTimer.current = setTimeout(async () => {
+            try {
+                const res = await api.get<{ exists: boolean; trabajador: { nombre: string } | null }>(
+                    `/trabajadores/check-rut/${encodeURIComponent(formatted)}`
+                );
+                if (seq !== rutSeq.current) return; // llegó tarde, ignorar
+                if (res.data.exists) {
+                    setRutStatus('exists');
+                    setRutExistName(res.data.trabajador?.nombre || '');
+                } else {
+                    setRutStatus('available');
+                    setRutExistName('');
+                }
+            } catch {
+                if (seq === rutSeq.current) setRutStatus('idle'); // error de red → no bloquear
+            }
+        }, 400);
+    };
+
+    useEffect(() => () => { if (rutTimer.current) clearTimeout(rutTimer.current); }, []);
 
     const {
         register,
@@ -123,6 +159,11 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     }, []);
 
     const onSubmit = async (data: WorkerFormData) => {
+        // Bloqueo defensivo: no permitir crear si el RUT ya existe.
+        if (!initialData && rutStatus === 'exists') {
+            toast.error('Este trabajador ya existe en la base de datos');
+            return;
+        }
         setLoading(true);
         try {
             if (initialData) {
@@ -156,20 +197,41 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                     name="rut"
                     control={control}
                     render={({ field: { onChange, value, ref } }) => (
-                        <Input
-                            ref={ref}
-                            label="RUT"
-                            placeholder="12.345.678-9"
-                            error={errors.rut?.message}
-                            value={value || ''}
-                            autoCapitalize="characters"
-                            autoCorrect="off"
-                            spellCheck={false}
-                            onChange={(e) => {
-                                const formatted = formatRut(e.target.value);
-                                onChange(formatted);
-                            }}
-                        />
+                        <div>
+                            <Input
+                                ref={ref}
+                                label="RUT"
+                                placeholder="12.345.678-9"
+                                error={errors.rut?.message}
+                                value={value || ''}
+                                autoCapitalize="characters"
+                                autoCorrect="off"
+                                spellCheck={false}
+                                onChange={(e) => {
+                                    const formatted = formatRut(e.target.value);
+                                    onChange(formatted);
+                                    checkRut(formatted);
+                                }}
+                            />
+                            {/* Aviso en vivo de duplicado (solo al crear, RUT válido) */}
+                            {!errors.rut && rutStatus === 'checking' && (
+                                <p className="flex items-center gap-1 text-xs text-muted-foreground mt-1 ml-0.5">
+                                    <Loader2 className="h-3 w-3 animate-spin shrink-0" /> Verificando RUT...
+                                </p>
+                            )}
+                            {!errors.rut && rutStatus === 'exists' && (
+                                <p className="flex items-center gap-1.5 text-xs font-medium text-destructive mt-1 ml-0.5">
+                                    <XCircle className="h-3.5 w-3.5 shrink-0" />
+                                    Este trabajador ya existe en la base de datos
+                                    {rutExistName ? ` (${rutExistName})` : ''}
+                                </p>
+                            )}
+                            {!errors.rut && rutStatus === 'available' && (
+                                <p className="flex items-center gap-1 text-xs text-green-600 dark:text-green-400 mt-1 ml-0.5">
+                                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" /> RUT disponible
+                                </p>
+                            )}
+                        </div>
                     )}
                 />
                 <Input
@@ -321,6 +383,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                 <Button
                     type="submit"
                     isLoading={loading}
+                    disabled={!initialData && rutStatus === 'exists'}
                     leftIcon={<Save className="h-5 w-5" />}
                     className="w-full sm:w-auto"
                 >

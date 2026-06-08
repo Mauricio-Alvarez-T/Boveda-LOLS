@@ -2,8 +2,36 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const db = require('../config/db');
+const { cleanRut } = require('../utils/rut');
 const fs = require('fs');
 const path = require('path');
+
+// Verificar si un RUT ya existe — usado por el formulario de creación para
+// avisar en vivo "este trabajador ya existe" sin tener que enviar el form.
+// Ruta de 2 segmentos (/check-rut/:rut): NO colisiona con el GET '/:id' del
+// CRUD genérico (que matchea solo 1 segmento), igual que /:id/quick-view.
+// Normaliza ambos lados (sin puntos/guion, mayúsculas) para tolerar RUTs
+// guardados con formato distinto.
+router.get('/check-rut/:rut', auth, checkPermission('trabajadores.crear'), async (req, res, next) => {
+    try {
+        const cleaned = cleanRut(req.params.rut);
+        if (!cleaned) return res.json({ exists: false, trabajador: null });
+
+        const [rows] = await db.query(
+            `SELECT id, nombres, apellido_paterno, apellido_materno, activo
+             FROM trabajadores
+             WHERE REPLACE(REPLACE(UPPER(rut), '.', ''), '-', '') = ?
+             LIMIT 1`,
+            [cleaned]
+        );
+
+        if (!rows.length) return res.json({ exists: false, trabajador: null });
+
+        const t = rows[0];
+        const nombre = [t.apellido_paterno, t.apellido_materno, t.nombres].filter(Boolean).join(' ');
+        res.json({ exists: true, trabajador: { id: t.id, nombre, activo: !!t.activo } });
+    } catch (err) { next(err); }
+});
 
 // Worker Quick-View (combines worker info + doc completion + recent attendance)
 router.get('/:id/quick-view', auth, async (req, res, next) => {

@@ -428,6 +428,46 @@ describe('CRUD Trabajadores', () => {
 
         expect(res.status).toBe(403);
     });
+
+    // ── Verificación en vivo de RUT duplicado (form de creación) ──
+    test('GET /api/trabajadores/check-rut/:rut → exists:true si el RUT ya está en BD', async () => {
+        db.query.mockResolvedValueOnce([[
+            { id: 7, nombres: 'Juan', apellido_paterno: 'Pérez', apellido_materno: 'Soto', activo: 1 }
+        ]]);
+
+        const res = await request(app)
+            .get('/api/trabajadores/check-rut/17.611.988-8')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.exists).toBe(true);
+        expect(res.body.trabajador.nombre).toContain('Pérez');
+        // El RUT debe llegar normalizado (sin puntos ni guion) al SELECT
+        const params = db.query.mock.calls[0][1];
+        expect(params[0]).toBe('176119888');
+    });
+
+    test('GET /api/trabajadores/check-rut/:rut → exists:false si no existe', async () => {
+        db.query.mockResolvedValueOnce([[]]);
+
+        const res = await request(app)
+            .get('/api/trabajadores/check-rut/11.111.111-1')
+            .set('Authorization', `Bearer ${adminToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.exists).toBe(false);
+        expect(res.body.trabajador).toBeNull();
+    });
+
+    test('GET /api/trabajadores/check-rut/:rut → 403 sin permiso de crear', async () => {
+        const viewOnlyToken = makeToken(['trabajadores.ver']);
+
+        const res = await request(app)
+            .get('/api/trabajadores/check-rut/11.111.111-1')
+            .set('Authorization', `Bearer ${viewOnlyToken}`);
+
+        expect(res.status).toBe(403);
+    });
 });
 
 // ══════════════════════════════════════════════
