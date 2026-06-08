@@ -20,9 +20,11 @@ interface Props {
     initialData?: Cargo | null;
     onSuccess: () => void;
     onCancel: () => void;
+    /** Si true, oculta los botones internos (cuando el Modal padre los expone vía headerAction). */
+    hideActions?: boolean;
 }
 
-export const CargoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+export const CargoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel, hideActions = false }) => {
     const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
         resolver: zodResolver(schema),
         defaultValues: { nombre: initialData?.nombre || '' },
@@ -44,14 +46,16 @@ export const CargoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel })
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form id="cargo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre del Cargo" {...register('nombre')} error={errors.nombre?.message} placeholder="Jornal, Capataz, etc." />
-            <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
-                <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-                    {initialData ? 'Actualizar' : 'Crear'}
-                </Button>
-            </div>
+            {!hideActions && (
+                <div className="flex justify-end gap-3 pt-4 border-t border-white/10">
+                    <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
+                    <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
+                        {initialData ? 'Actualizar' : 'Crear'}
+                    </Button>
+                </div>
+            )}
         </form>
     );
 };

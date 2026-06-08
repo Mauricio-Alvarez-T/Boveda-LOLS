@@ -26,9 +26,11 @@ interface Props {
     initialData?: Empresa | null;
     onSuccess: () => void;
     onCancel: () => void;
+    /** Si true, oculta el botón Guardar interno (cuando el Modal padre lo expone vía headerAction). */
+    hideActions?: boolean;
 }
 
-export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _onCancel, hideActions = false }) => {
     const { register, handleSubmit, control, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema),
         defaultValues: {
@@ -57,7 +59,7 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form id="empresa-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Controller
                 name="rut"
                 control={control}
@@ -81,11 +83,13 @@ export const EmpresaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             <Input label="Razón Social" {...register('razon_social')} error={errors.razon_social?.message} placeholder="Constructora SpA" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Principal 123" />
             <Input label="Teléfono" type="tel" inputMode="tel" {...register('telefono')} error={errors.telefono?.message} placeholder="+56 9 1234 5678" />
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
-                    Guardar
-                </Button>
-            </div>
+            {!hideActions && (
+                <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
+                    <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
+                        Guardar
+                    </Button>
+                </div>
+            )}
         </form>
     );
 };

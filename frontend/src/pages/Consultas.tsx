@@ -782,8 +782,16 @@ const ConsultasPage: React.FC = () => {
                 onClose={() => setModalType(null)}
                 title="Nueva Empresa"
                 size="md"
+                headerAction={
+                    modalType === 'empresa' ? (
+                        <Button type="submit" form="empresa-form" size="sm" leftIcon={<Save className="h-3.5 w-3.5" />}>
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 <EmpresaForm
+                    hideActions
                     onCancel={() => setModalType(null)}
                     onSuccess={() => {
                         setModalType(null);
@@ -797,8 +805,16 @@ const ConsultasPage: React.FC = () => {
                 onClose={() => setModalType(null)}
                 title="Nueva Obra / Proyecto"
                 size="md"
+                headerAction={
+                    modalType === 'obra' ? (
+                        <Button type="submit" form="obra-form" size="sm" leftIcon={<Save className="h-3.5 w-3.5" />}>
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 <ObraForm
+                    hideActions
                     onCancel={() => setModalType(null)}
                     onSuccess={() => {
                         setModalType(null);
@@ -893,8 +909,16 @@ const ConsultasPage: React.FC = () => {
                 onClose={() => setModalType(null)}
                 title="Nuevo Cargo"
                 size="md"
+                headerAction={
+                    modalType === 'cargo' ? (
+                        <Button type="submit" form="cargo-form" size="sm" leftIcon={<Save className="h-3.5 w-3.5" />}>
+                            Crear
+                        </Button>
+                    ) : undefined
+                }
             >
                 <CargoForm
+                    hideActions
                     onCancel={() => setModalType(null)}
                     onSuccess={() => {
                         setModalType(null);
@@ -908,8 +932,16 @@ const ConsultasPage: React.FC = () => {
                 onClose={() => setModalType(null)}
                 title="Nuevo Tipo de Documento"
                 size="md"
+                headerAction={
+                    modalType === 'tipodoc' ? (
+                        <Button type="submit" form="tipodoc-form" size="sm" leftIcon={<Save className="h-3.5 w-3.5" />}>
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 <TipoDocumentoForm
+                    hideActions
                     onCancel={() => setModalType(null)}
                     onSuccess={() => {
                         setModalType(null);
