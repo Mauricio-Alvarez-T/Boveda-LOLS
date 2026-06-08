@@ -2258,6 +2258,45 @@ const TransferenciaDetail: React.FC<Props> = ({
                         : itemsCustom.map((it, idx) => <MatRequestRow key={it.id || idx} it={it} estado={t.estado} />)}
                 </DetailSection>
 
+                {/* Historial de entregas — un bloque por cada viaje, con su receptor.
+                    Útil cuando la solicitud se entrega en múltiples viajes (parciales):
+                    deja registro de quién recibió y qué llegó en cada instancia. */}
+                {recepciones.length > 0 && (
+                    <DetailSection icon={<History className="h-3.5 w-3.5" />} title={`Historial de entregas (${recepciones.length})`}>
+                        {recepciones.map((rec, idx) => (
+                            <div key={rec.id} className="p-3 rounded-xl bg-muted/40 border border-border">
+                                <div className="flex items-center justify-between gap-2 flex-wrap">
+                                    <div className="flex items-center gap-1.5">
+                                        <span className="text-[10px] font-bold text-muted-foreground">Viaje #{idx + 1}</span>
+                                        <span className={cn(
+                                            "text-[9px] font-bold px-1.5 py-0.5 rounded-full border leading-none",
+                                            rec.tipo === 'total'
+                                                ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800"
+                                                : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800"
+                                        )}>
+                                            {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
+                                        </span>
+                                    </div>
+                                    <span className="text-[10px] text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground mt-1">
+                                    Recibido por <span className="font-semibold text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</span>
+                                </p>
+                                {rec.items && rec.items.length > 0 && (
+                                    <ul className="mt-1 space-y-0.5 ml-1">
+                                        {rec.items.map(ri => (
+                                            <li key={ri.id} className="text-[10px] text-muted-foreground">
+                                                <span className="font-semibold text-brand-dark">{Number(ri.cantidad_recibida)}</span>
+                                                {ri.unidad ? ` ${ri.unidad}` : ''} · {ri.item_descripcion || `Item #${ri.item_id}`}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
+                        ))}
+                    </DetailSection>
+                )}
+
                 {/* Información */}
                 <DetailSection icon={<Users className="h-3.5 w-3.5" />} title="Información">
                     {t.motivo && (
