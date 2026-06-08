@@ -1152,6 +1152,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         {t.fecha_recepcion && (
                             <p>Recepción: {fmtDate(t.fecha_recepcion)}
                                 {t.receptor_nombre ? <> · por <span className="font-medium text-brand-dark">{t.receptor_nombre}</span></> : null}
+                                {recepciones.length > 0 && <span className="text-brand-primary font-semibold"> · {recepciones.length} viaje{recepciones.length !== 1 ? 's' : ''}</span>}
                             </p>
                         )}
                     </div>
@@ -2329,6 +2330,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             {t.fecha_recepcion && (
                                 <p>Recepción: {fmtDate(t.fecha_recepcion)}
                                     {t.receptor_nombre ? <> · por <span className="font-medium text-brand-dark">{t.receptor_nombre}</span></> : null}
+                                    {recepciones.length > 0 && <span className="text-brand-primary font-semibold"> · {recepciones.length} viaje{recepciones.length !== 1 ? 's' : ''}</span>}
                                 </p>
                             )}
                         </div>
