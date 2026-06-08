@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Truck, Plus, Shield, Wrench, ClipboardList,
-    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter
+    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter, Save
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -414,6 +414,18 @@ const VehiculosPage: React.FC = () => {
         </div>
     ) : null;
 
+    // ── Helper: botones del headerAction para cada modal de form ─────────────
+    // El botón Guardar usa form="..." (HTML5) para disparar el submit del form
+    // aunque viva fuera del <form>. Cancelar llama al onClose del Modal.
+    const formActions = (formId: string, onCancel: () => void) => (
+        <div className="flex items-center gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
+            <Button type="submit" size="sm" form={formId} leftIcon={<Save className="h-3.5 w-3.5" />}>
+                Guardar
+            </Button>
+        </div>
+    );
+
     // ── Layout responsive ─────────────────────────────────────────────────────
 
     return (
@@ -537,7 +549,8 @@ const VehiculosPage: React.FC = () => {
 
             {/* ── Modales ── */}
             <Modal isOpen={modalVehiculo} onClose={() => setModalVehiculo(false)}
-                title={editVehiculo ? 'Editar Vehículo' : 'Nuevo Vehículo'} size="lg">
+                title={editVehiculo ? 'Editar Vehículo' : 'Nuevo Vehículo'} size="lg"
+                headerAction={formActions('vehiculo-form', () => setModalVehiculo(false))}>
                 <VehiculoForm initialData={editVehiculo} onCancel={() => setModalVehiculo(false)}
                     onSuccess={() => { setModalVehiculo(false); fetchVehiculos(); }} />
             </Modal>
@@ -546,21 +559,24 @@ const VehiculosPage: React.FC = () => {
                 <>
                     <Modal isOpen={modalSeguro}
                         onClose={() => { setModalSeguro(false); setEditSeguro(null); }}
-                        title={editSeguro ? 'Editar Seguro' : 'Agregar Seguro'} size="lg">
+                        title={editSeguro ? 'Editar Seguro' : 'Agregar Seguro'} size="lg"
+                        headerAction={formActions('seguro-form', () => { setModalSeguro(false); setEditSeguro(null); })}>
                         <SeguroForm vehiculoId={selected.id} initialData={editSeguro}
                             onCancel={() => { setModalSeguro(false); setEditSeguro(null); }}
                             onSuccess={() => { setModalSeguro(false); setEditSeguro(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
                     <Modal isOpen={modalRevision}
                         onClose={() => { setModalRevision(false); setEditRevision(null); }}
-                        title={editRevision ? 'Editar Revisión Técnica' : 'Agregar Revisión Técnica'} size="lg">
+                        title={editRevision ? 'Editar Revisión Técnica' : 'Agregar Revisión Técnica'} size="lg"
+                        headerAction={formActions('revision-form', () => { setModalRevision(false); setEditRevision(null); })}>
                         <RevisionForm vehiculoId={selected.id} initialData={editRevision}
                             onCancel={() => { setModalRevision(false); setEditRevision(null); }}
                             onSuccess={() => { setModalRevision(false); setEditRevision(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
                     <Modal isOpen={modalMantencion}
                         onClose={() => { setModalMantencion(false); setEditMantencion(null); }}
-                        title={editMantencion ? 'Editar Mantención' : 'Registrar Mantención'} size="lg">
+                        title={editMantencion ? 'Editar Mantención' : 'Registrar Mantención'} size="lg"
+                        headerAction={formActions('mantencion-form', () => { setModalMantencion(false); setEditMantencion(null); })}>
                         <MantencionForm vehiculoId={selected.id} kmActual={selected.kilometraje_actual}
                             initialData={editMantencion}
                             onCancel={() => { setModalMantencion(false); setEditMantencion(null); }}

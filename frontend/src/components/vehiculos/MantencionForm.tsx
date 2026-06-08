@@ -1,8 +1,7 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save, Bell } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Bell } from 'lucide-react';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { VehiculoMantencion } from '../../types/entities';
@@ -25,7 +24,7 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
     const { user } = useAuth();
     const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
 
-    const { register, handleSubmit, formState: { isSubmitting, errors } } = useForm({
+    const { register, handleSubmit, formState: { errors } } = useForm({
         defaultValues: isEdit ? {
             fecha: String(initialData.fecha).split('T')[0],
             tipo: initialData.tipo,
@@ -73,7 +72,7 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+        <form id="mantencion-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <Input label="Fecha por realizar" type="date" {...register('fecha', { required: true })} />
             {/* KM se captura automáticamente del kilometraje actual del vehículo (campo oculto) */}
             <input type="hidden" {...register('km_al_realizar')} />
@@ -115,12 +114,7 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
                 )}
             </div>
 
-            <div className="flex justify-end gap-3 pt-2">
-                <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-                    Guardar
-                </Button>
-            </div>
+            {/* Botones Cancelar/Guardar viven en el header del Modal (headerAction). */}
         </form>
     );
 };

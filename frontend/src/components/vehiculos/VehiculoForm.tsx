@@ -3,8 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save, CalendarCheck } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { CalendarCheck } from 'lucide-react';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { Vehiculo } from '../../types/entities';
@@ -43,7 +42,7 @@ interface Props {
 }
 
 export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
-    const { register, handleSubmit, watch, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
+    const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: initialData ? {
             patente: initialData.patente,
@@ -79,7 +78,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form id="vehiculo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
                 <Input label="Patente" placeholder="Ej: ABCD·12" {...register('patente')}
                     error={errors.patente?.message} />
@@ -125,10 +124,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                 <textarea {...register('observaciones')} rows={2}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
             </div>
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
-                <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>Guardar</Button>
-            </div>
+            {/* Botones Cancelar/Guardar viven en el header del Modal (headerAction). */}
         </form>
     );
 };
