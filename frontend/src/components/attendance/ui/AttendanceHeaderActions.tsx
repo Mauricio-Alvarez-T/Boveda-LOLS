@@ -152,13 +152,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                         variant="glass"
                         disabled={isRepeatDisabled}
                         className={cn(
-                            "hidden lg:flex h-9 px-3 items-center justify-center gap-1.5 rounded-xl bg-card border border-border text-brand-primary shadow-sm transition-all",
+                            "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl bg-card border border-border text-brand-primary shadow-sm transition-all",
                             isRepeatDisabled ? "opacity-40 grayscale pointer-events-none" : "hover:bg-brand-primary/5"
                         )}
-                        title="Copiar el último día laboral registrado a este día (sin guardar)"
+                        title="Repetir día anterior: copiar el último día laboral registrado a este día (sin guardar)"
                     >
                         <CopyPlus className="h-4 w-4" />
-                        <span className="hidden xl:inline text-[10px] font-black uppercase tracking-wider">Repetir día ant.</span>
                     </Button>
                 )}
                 <RequirePermission permiso="asistencia.feriado.gestionar">
@@ -196,13 +195,13 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     onClick={handleSave}
                     isLoading={saving}
                     disabled={isSaveDisabled}
+                    title="Guardar"
                     className={cn(
-                        "h-9 px-3 lg:px-4 rounded-xl font-black text-[10px] uppercase tracking-wider shadow-lg shadow-brand-primary/20",
+                        "h-9 w-9 p-0 justify-center rounded-xl shadow-lg shadow-brand-primary/20",
                         isSaveDisabled && "opacity-40 grayscale pointer-events-none"
                     )}
                 >
-                    <Save className="h-4 w-4 lg:mr-1" />
-                    <span className="hidden lg:inline underline decoration-white/30 active:translate-y-px transition-all">Guardar</span>
+                    <Save className="h-4 w-4" />
                 </Button>
             </div>
         </div>
