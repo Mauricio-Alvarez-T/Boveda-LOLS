@@ -744,7 +744,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     Mostrando {filteredCategorias.reduce((s, c) => s + c.items.length, 0)} ítems en {filteredCategorias.length} categorías
                 </p>
             )}
-            {/* Item Detail Modal */}
+            {/* Item Detail Modal — editable para perfiles con permiso (inventario.editar) */}
             <ItemDetailModal
                 isOpen={!!itemDetail.selectedItemId}
                 onClose={itemDetail.closeItem}
@@ -752,6 +752,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 stockLocations={itemDetail.stockLocations}
                 loading={itemDetail.loading}
                 stockLoading={itemDetail.stockLoading}
+                canEdit={canEdit}
+                onSaved={(patch) => { itemDetail.applyItemUpdate(patch); onRefresh(); }}
             />
         </div>
     );
