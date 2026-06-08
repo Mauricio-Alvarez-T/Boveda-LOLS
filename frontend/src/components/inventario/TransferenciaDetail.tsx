@@ -1149,7 +1149,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="space-y-0.5">
                         <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
                         {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{t.aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
-                        {t.fecha_recepcion && <p>Recepcion: {fmtDate(t.fecha_recepcion)}</p>}
+                        {t.fecha_recepcion && (
+                            <p>Recepción: {fmtDate(t.fecha_recepcion)}
+                                {t.receptor_nombre ? <> · por <span className="font-medium text-brand-dark">{t.receptor_nombre}</span></> : null}
+                            </p>
+                        )}
                     </div>
                 </div>
             </div>
@@ -2322,7 +2326,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <div className="space-y-0.5">
                             <p>Solicitante: <span className="font-medium text-brand-dark">{t.solicitante_nombre || '—'}</span> · {fmtDateTime(t.fecha_solicitud)}</p>
                             {t.fecha_aprobacion && <p>Aprobador: <span className="font-medium text-brand-dark">{t.aprobador_nombre || '—'}</span> · {fmtDate(t.fecha_aprobacion)}</p>}
-                            {t.fecha_recepcion && <p>Recepción: {fmtDate(t.fecha_recepcion)}</p>}
+                            {t.fecha_recepcion && (
+                                <p>Recepción: {fmtDate(t.fecha_recepcion)}
+                                    {t.receptor_nombre ? <> · por <span className="font-medium text-brand-dark">{t.receptor_nombre}</span></> : null}
+                                </p>
+                            )}
                         </div>
                     </div>
                 </DetailSection>
