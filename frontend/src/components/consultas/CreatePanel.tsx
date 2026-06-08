@@ -1,5 +1,6 @@
 import React from 'react';
 import { Building2, Briefcase, FileText, UserPlus, PlusCircle } from 'lucide-react';
+import { cn } from '../../utils/cn';
 
 interface CreatePanelProps {
     hasPermission: (perm: string) => boolean;
@@ -7,73 +8,60 @@ interface CreatePanelProps {
     setSelectedWorkerForAction: (worker: any) => void;
 }
 
+/**
+ * Panel "Crear" — versión compacta horizontal estilo tabs de Inventario:
+ * ícono pequeño (h-4 w-4) AL LADO del texto, padding chico, una sola fila.
+ * Cada botón conserva su acción (abrir modal correspondiente).
+ */
 export const CreatePanel: React.FC<CreatePanelProps> = ({
     hasPermission,
     setModalType,
     setSelectedWorkerForAction
-}) => (
-    <div className="p-5 bg-card border border-border rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3">
-        {hasPermission('trabajadores.crear') && (
-            <button
-                onClick={() => {
-                    setSelectedWorkerForAction(null);
-                    setModalType('form');
-                }}
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
-            >
-                <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
-                    <UserPlus className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Trabajador</span>
-            </button>
-        )}
+}) => {
+    const items: { perm: string; label: string; icon: React.ElementType; onClick: () => void }[] = [
+        {
+            perm: 'trabajadores.crear', label: 'Trabajador', icon: UserPlus,
+            onClick: () => { setSelectedWorkerForAction(null); setModalType('form'); }
+        },
+        {
+            perm: 'empresas.crear', label: 'Empresa', icon: Building2,
+            onClick: () => setModalType('empresa')
+        },
+        {
+            perm: 'obras.crear', label: 'Obra / Proyecto', icon: PlusCircle,
+            onClick: () => setModalType('obra')
+        },
+        {
+            perm: 'cargos.crear', label: 'Cargo', icon: Briefcase,
+            onClick: () => setModalType('cargo')
+        },
+        {
+            perm: 'sistema.tipos_doc.gestionar', label: 'Tipo de Docto', icon: FileText,
+            onClick: () => setModalType('tipodoc')
+        },
+    ];
+    const visible = items.filter(it => hasPermission(it.perm));
+    if (visible.length === 0) return null;
 
-        {hasPermission('empresas.crear') && (
-            <button
-                onClick={() => setModalType('empresa')}
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
-            >
-                <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
-                    <Building2 className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Empresa</span>
-            </button>
-        )}
-
-        {hasPermission('obras.crear') && (
-            <button
-                onClick={() => setModalType('obra')}
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
-            >
-                <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
-                    <PlusCircle className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Obra / Proyecto</span>
-            </button>
-        )}
-
-        {hasPermission('cargos.crear') && (
-            <button
-                onClick={() => setModalType('cargo')}
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
-            >
-                <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
-                    <Briefcase className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Cargo</span>
-            </button>
-        )}
-
-        {hasPermission('sistema.tipos_doc.gestionar') && (
-            <button
-                onClick={() => setModalType('tipodoc')}
-                className="flex flex-col items-center justify-center p-4 rounded-xl border border-border hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all group gap-2"
-            >
-                <div className="h-10 w-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary group-hover:scale-110 transition-transform">
-                    <FileText className="h-5 w-5" />
-                </div>
-                <span className="text-xs font-bold text-brand-dark uppercase tracking-tight">Tipo de Docto</span>
-            </button>
-        )}
-    </div>
-);
+    return (
+        <div className="flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
+            {visible.map(item => {
+                const Icon = item.icon;
+                return (
+                    <button
+                        key={item.label}
+                        onClick={item.onClick}
+                        title={`Nuevo ${item.label}`}
+                        className={cn(
+                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] whitespace-nowrap shrink-0 transition-all",
+                            "text-muted-foreground hover:bg-background hover:text-brand-primary"
+                        )}
+                    >
+                        <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-brand-primary" />
+                        <span>{item.label}</span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+};
