@@ -170,21 +170,32 @@ export const WorkerCalendarModal: React.FC<Props> = ({
             size="2xl"
             headerAction={
                 obraId ? (
-                    <Button
-                        onClick={handleSubmit}
-                        disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
-                        size="sm"
-                        className="hidden md:inline-flex"
-                    >
-                        {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                            <>
-                                <Check className="h-4 w-4 mr-1.5" />
-                                Confirmar Período
-                            </>
+                    <div className="hidden md:flex items-center gap-3">
+                        {/* Rango seleccionado — visible solo cuando hay fechas */}
+                        {(fechaInicio || fechaFin) && (
+                            <div className="flex flex-col leading-tight">
+                                <span className="text-[9px] uppercase font-black text-muted-foreground/70 tracking-widest">Rango seleccionado</span>
+                                <span className="text-xs font-bold text-brand-dark tabular-nums">
+                                    {fechaInicio ? fechaInicio.split('-').reverse().join('/') : '—'}
+                                    {fechaFin && fechaFin !== fechaInicio && ` — ${fechaFin.split('-').reverse().join('/')}`}
+                                </span>
+                            </div>
                         )}
-                    </Button>
+                        <Button
+                            onClick={handleSubmit}
+                            disabled={!isValid || loading || !hasPermission('asistencia.periodo.crear')}
+                            size="sm"
+                        >
+                            {loading ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                                <>
+                                    <Check className="h-4 w-4 mr-1.5" />
+                                    Confirmar Período
+                                </>
+                            )}
+                        </Button>
+                    </div>
                 ) : undefined
             }
         >
