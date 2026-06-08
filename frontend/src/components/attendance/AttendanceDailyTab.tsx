@@ -33,7 +33,12 @@ import type { Trabajador, Asistencia } from '../../types/entities';
  * cambios funcionales: solo se relocó como sub-componente para permitir
  * la coexistencia con el tab "Sábados Extra".
  */
-const AttendanceDailyTab: React.FC = () => {
+interface DailyTabProps {
+    /** Si se pasa, muestra el ícono de Sábados Extra en la barra de búsqueda. */
+    onGoSabados?: () => void;
+}
+
+const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     const { selectedObra, obras } = useObra();
     const { hasPermission } = useAuth();
     const canTakeGlobal = hasPermission('asistencia.tomar.global');
@@ -286,6 +291,7 @@ const AttendanceDailyTab: React.FC = () => {
                         onStatusFilter={setStatusFilter}
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
+                        onGoSabados={onGoSabados}
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">
