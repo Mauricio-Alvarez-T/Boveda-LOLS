@@ -509,18 +509,7 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
 
     return (
         <div className="flex items-center gap-2 shrink-0 mb-2">
-            {/* Botón + a la izquierda */}
-            {canNuevoMovimiento && (
-                <button
-                    onClick={onNuevoMovimiento}
-                    title="Nuevo movimiento"
-                    className="flex items-center justify-center h-8 w-8 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
-                >
-                    <Plus className="h-4 w-4" />
-                </button>
-            )}
-
-            {/* Filtros auto-width (sin flex-1 en cada chip) */}
+            {/* Filtros auto-width — ocupan su ancho natural */}
             <StatusFilterBar
                 active={statusFilter}
                 onChange={onStatusChange}
@@ -528,11 +517,12 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
                 canVerDiscrepancias={canVerDiscrepancias}
             />
 
-            {/* Espacio flexible empuja la lupa a la derecha */}
+            {/* Espacio flexible — empuja lupa y + hacia la derecha */}
             <div className="flex-1" />
 
-            {/* Lupa: ícono solo → expandible con input al hacer clic */}
-            <div className="flex items-center shrink-0">
+            {/* Derecha: lupa expandible + botón + juntos */}
+            <div className="flex items-center gap-1.5 shrink-0">
+                {/* Lupa: ícono solo → expandible con input al hacer clic */}
                 {searchOpen ? (
                     <div className="relative flex items-center animate-in fade-in slide-in-from-right-2 duration-150">
                         <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
@@ -559,6 +549,17 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
                         className="flex items-center justify-center h-8 w-8 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5 rounded-xl border border-border bg-card transition-all"
                     >
                         <Search className="h-3.5 w-3.5" />
+                    </button>
+                )}
+
+                {/* Botón + al lado de la lupa */}
+                {canNuevoMovimiento && (
+                    <button
+                        onClick={onNuevoMovimiento}
+                        title="Nuevo movimiento"
+                        className="flex items-center justify-center h-8 w-8 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" />
                     </button>
                 )}
             </div>

@@ -102,39 +102,39 @@ const TransferenciasList: React.FC<Props> = ({
                                 key={t.id}
                                 onClick={() => onSelect(t.id)}
                                 className={cn(
-                                    "cursor-pointer transition-all px-4 md:px-6 py-2 border-l-[3px] border-b border-b-border/50 last:border-b-0",
+                                    "cursor-pointer transition-all px-3 md:px-4 py-1.5 border-l-[3px] border-b border-b-border/50 last:border-b-0",
                                     borderLeft,
                                     isSelected
                                         ? "bg-brand-primary/[0.06]"
                                         : "hover:bg-brand-primary/[0.03]"
                                 )}
                             >
-                                {/* Fila 1: Código + badges + fecha — todo en una línea */}
-                                <div className="flex items-center gap-2 min-w-0">
+                                {/* Fila 1: Código + estado + fecha */}
+                                <div className="flex items-center gap-1.5 min-w-0">
                                     <span className={cn(
-                                        "text-sm font-bold shrink-0",
+                                        "text-xs font-bold shrink-0",
                                         isSelected ? "text-brand-primary" : "text-brand-dark"
                                     )}>
                                         {t.codigo}
                                     </span>
-                                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none shrink-0", cfg.color)}>
+                                    <span className={cn("text-[9px] font-bold px-1 py-0.5 rounded border leading-none shrink-0", cfg.color)}>
                                         {cfg.label}
                                     </span>
-                                    {flujo && (
-                                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none shrink-0", flujo.color)}>
-                                            {flujo.label}
-                                        </span>
-                                    )}
-                                    <span className="text-[10px] text-muted-foreground/70 tabular-nums ml-auto shrink-0">
+                                    <span className="text-[10px] text-muted-foreground/60 tabular-nums ml-auto shrink-0">
                                         {fechaStr}
                                     </span>
                                 </div>
 
-                                {/* Fila 2: Origen → Destino */}
-                                <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
-                                    <span className="truncate flex-1 min-w-0">{origen}</span>
+                                {/* Fila 2: Destino · tipo de flujo */}
+                                <div className="flex items-center gap-1 mt-0.5 text-[10px] text-muted-foreground min-w-0">
                                     <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
-                                    <span className="truncate flex-1 min-w-0">{destino}</span>
+                                    <span className="truncate font-medium">{destino}</span>
+                                    {flujo && (
+                                        <>
+                                            <span className="text-muted-foreground/30 shrink-0">·</span>
+                                            <span className="truncate shrink-0 text-muted-foreground/70">{flujo.label}</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         );
