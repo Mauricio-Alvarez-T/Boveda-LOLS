@@ -1299,11 +1299,13 @@ const asistenciaService = {
         });
         if (!maxStrDateInRecords) maxStrDateInRecords = formatDate(new Date());
 
-        // 2. Generar Rango de Días (FIJO A 31 DÍAS como pidió RRHH)
+        // 2. Generar Rango de Días (FIJO A 30 DÍAS — mes comercial).
+        //    RRHH: cada quincena cuenta 15 días como máximo (Q1: 1-15, Q2: 16-30).
+        //    El día 31 NO se incluye en la grilla ni en los conteos.
         const days = [];
         const startYear = start.getFullYear();
         const startMonth = start.getMonth();
-        for (let d = 1; d <= 31; d++) {
+        for (let d = 1; d <= 30; d++) {
             days.push(new Date(startYear, startMonth, d));
         }
 
@@ -1468,8 +1470,8 @@ const asistenciaService = {
             const dayColStart = 9;
             const dowMap = ['D', 'L', 'M', 'MI', 'J', 'V', 'S'];
 
-            // Pintar cabeceras 1-31
-            for (let i = 0; i < 31; i++) {
+            // Pintar cabeceras 1-30 (mes comercial: el día 31 se omite)
+            for (let i = 0; i < 30; i++) {
                 const colIdx = dayColStart + (i < 15 ? i : i + 1);
                 const dayNum = i + 1;
                 const tempDay = new Date(startYear, startMonth, dayNum);
@@ -1502,7 +1504,7 @@ const asistenciaService = {
             q1Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
             q1Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const q2Col = dayColStart + 31 + 1;
+            const q2Col = dayColStart + 30 + 1;
             ws.mergeCells(7, q2Col, 8, q2Col);
             const q2Header = ws.getCell(7, q2Col);
             q2Header.value = 'SEGUNDA QUINCENA';
@@ -1774,7 +1776,7 @@ const asistenciaService = {
                 const q1Formula = countifParts.join('+');
                 ws.getCell(rowIdx, q1Col).value = { formula: q1Formula };
 
-                const q2Range = `${ws.getCell(rowIdx, dayColStart + 16).address}:${ws.getCell(rowIdx, dayColStart + 31).address}`;
+                const q2Range = `${ws.getCell(rowIdx, dayColStart + 16).address}:${ws.getCell(rowIdx, dayColStart + 30).address}`;
                 const countifParts2 = allCodigos.map(cod => `COUNTIF(${q2Range},"${cod}")`);
                 const q2Formula = countifParts2.join('+');
                 ws.getCell(rowIdx, q2Col).value = { formula: q2Formula };
