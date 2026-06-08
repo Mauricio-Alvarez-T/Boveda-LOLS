@@ -159,11 +159,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     ]);
 
     // colSpan dinámico: cuando se ocultan columnas $ el total cambia.
-    //   verValores=true:  # + Img + Desc + V.Arriendo + (Cant+Total)*obras + Cant*bodegas + Total Arriendo + Total Unid
-    //   verValores=false: # + Img + Desc           + Cant*obras           + Cant*bodegas                  + Total Unid
+    //   verValores=true:  # + Img + Desc + M² + V.Arriendo + V.Compra + (Cant+Total)*obras + Cant*bodegas + Total Arriendo + Total Unid
+    //   verValores=false: # + Img + Desc + M²                          + Cant*obras         + Cant*bodegas                  + Total Unid
     const totalColSpan = verValores
-        ? 4 + visibleObras.length * 2 + visibleBodegas.length + 2
-        : 3 + visibleObras.length + visibleBodegas.length + 1;
+        ? 6 + visibleObras.length * 2 + visibleBodegas.length + 2
+        : 4 + visibleObras.length + visibleBodegas.length + 1;
     const hiddenCount = hiddenCols.size;
 
     // ── Mobile: expanded item state ──
@@ -500,8 +500,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 <ImageIcon className={cn("h-3.5 w-3.5 mx-auto transition-colors", showImages ? "text-brand-primary" : "text-muted-foreground/40")} />
                             </th>
                             <th className={cn("sticky z-30 bg-muted px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-border min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
+                            <th className="bg-muted px-2 py-2 text-center font-bold text-brand-dark border-b border-r border-border w-12">M²</th>
                             {verValores && (
                                 <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Arriendo</th>
+                            )}
+                            {verValores && (
+                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Compra</th>
                             )}
                             {visibleObras.map((o, oIdx) => (
                                 <th key={`obra_${o.id}`} colSpan={verValores ? 2 : 1} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border group/col", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>
@@ -544,6 +548,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <th className="sticky left-0 z-30 bg-muted border-b border-r border-border" />
                             <th className="bg-muted border-b border-r border-border" />
                             <th className={cn("sticky z-30 bg-muted border-b border-r border-border", showImages ? "left-[68px]" : "left-8")} />
+                            <th className="bg-muted border-b border-r border-border" />
+                            {verValores && <th className="bg-muted border-b border-r border-border" />}
                             {verValores && <th className="bg-muted border-b border-r border-border" />}
                             {visibleObras.map((o, oIdx) => (
                                 <React.Fragment key={`sub_obra_${o.id}`}>
@@ -608,8 +614,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                     {item.descripcion}
                                                 </button>
                                             </td>
+                                            <td className={cn("px-2 py-1.5 text-center text-muted-foreground border-r border-b border-border", !verValores && "border-r-2")}>{item.m2 ? item.m2.toFixed(2) : ''}</td>
                                             {verValores && (
-                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border")}>{fmtMoney(item.valor_arriendo)}</td>
+                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r border-b border-border")}>{fmtMoney(item.valor_arriendo)}</td>
+                                            )}
+                                            {verValores && (
+                                                <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border")}>{item.valor_compra > 0 ? fmtMoney(item.valor_compra) : ''}</td>
                                             )}
                                             {visibleObras.map((o, oIdx) => {
                                                 const ub = item.ubicaciones[`obra_${o.id}`];
@@ -658,7 +668,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         reducida sólo con conteos de unidades, sin montos $. */}
                     <tfoot className="sticky bottom-0 z-10">
                         <tr className="border-t-2 border-brand-primary/30">
-                            <td colSpan={verValores ? 4 : 3} className="bg-muted px-2 py-2.5 text-right font-black text-xs text-brand-dark">
+                            <td colSpan={verValores ? 6 : 4} className="bg-muted px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
                             {visibleObras.map(o => {
@@ -697,7 +707,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <>
                                 {/* ── Descuento por obra: muestra el monto individual en cada columna TOTAL ── */}
                                 <tr className="border-t border-border/50">
-                                    <td colSpan={verValores ? 4 : 3} className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground">
+                                    <td colSpan={verValores ? 6 : 4} className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground">
                                         DESCUENTO POR OBRA
                                     </td>
                                     {visibleObras.map(o => {
