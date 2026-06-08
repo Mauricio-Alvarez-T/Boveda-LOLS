@@ -134,15 +134,27 @@ const InventarioPage: React.FC = () => {
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
     const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>({ nonce: 0 });
 
+    // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
+    // para que el usuario sepa dónde está sin mirar las pestañas.
+    const activeTabDef = useMemo(() => tabs.find(t => t.key === activeTab), [activeTab]);
+
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
             <Package className="h-6 w-6 text-brand-primary" />
             <div className="flex flex-col leading-tight">
-                <h1 className="text-lg font-bold text-brand-dark">Inventario</h1>
+                <div className="flex items-center gap-1.5">
+                    <h1 className="text-lg font-bold text-brand-dark">Inventario</h1>
+                    {activeTabDef && (
+                        <>
+                            <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground/50 rotate-90" />
+                            <span className="text-lg font-bold text-brand-primary">{activeTabDef.shortLabel}</span>
+                        </>
+                    )}
+                </div>
                 <p className="text-muted-foreground text-xs">Herramientas, Maquinaria y Moldajes</p>
             </div>
         </div>
-    ), []);
+    ), [activeTabDef]);
 
     useSetPageHeader(headerTitle);
 
