@@ -239,33 +239,31 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
                                     Estado de ausencia
                                 </label>
-                                {/* Móvil: grilla 2-3 col. Desktop: 2 columnas (Falta | Licencia, etc.) */}
-                                <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-2 gap-2">
+                                {/* Compacto: nombre y código en UNA sola línea. 2 columnas en desktop. */}
+                                <div className="grid grid-cols-2 gap-1.5">
                                     {estadosAusencia.map(est => (
                                         <button
                                             key={est.id}
                                             onClick={() => setEstadoId(est.id)}
-                                            className={`p-3 rounded-xl border-2 text-left transition-all ${
+                                            className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-left transition-all ${
                                                 estadoId === est.id
-                                                    ? 'border-current shadow-lg scale-[1.02]'
+                                                    ? 'border-current shadow-sm'
                                                     : 'border-border hover:border-border'
                                             }`}
                                             style={
                                                 estadoId === est.id
-                                                    ? { borderColor: est.color, backgroundColor: `${est.color}08` }
+                                                    ? { borderColor: est.color, backgroundColor: `${est.color}10` }
                                                     : {}
                                             }
                                         >
-                                            <div className="flex items-center gap-2">
-                                                <span
-                                                    className="w-3 h-3 rounded-full shrink-0"
-                                                    style={{ backgroundColor: est.color }}
-                                                />
-                                                <span className="text-sm font-semibold text-brand-dark">
-                                                    {est.nombre}
-                                                </span>
-                                            </div>
-                                            <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">
+                                            <span
+                                                className="w-2 h-2 rounded-full shrink-0"
+                                                style={{ backgroundColor: est.color }}
+                                            />
+                                            <span className="text-xs font-semibold text-brand-dark truncate flex-1 min-w-0">
+                                                {est.nombre}
+                                            </span>
+                                            <span className="text-[9px] font-bold text-muted-foreground/70 shrink-0">
                                                 {est.codigo}
                                             </span>
                                         </button>
