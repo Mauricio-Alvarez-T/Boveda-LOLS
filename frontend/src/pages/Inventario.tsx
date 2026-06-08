@@ -246,10 +246,10 @@ const InventarioPage: React.FC = () => {
     }, [isBodega, stockBodega, stockObra]);
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 gap-4">
-            {/* Tab Navigation */}
-            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-2 bg-background shrink-0">
-                {/* ── Mobile: icon + short label stacked ── */}
+        <div className="flex flex-col flex-1 min-h-0 gap-3">
+            {/* Tab Navigation — estilo Configuración: ícono pequeño al lado del texto */}
+            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1.5 bg-background shrink-0">
+                {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ── */}
                 <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
@@ -259,10 +259,8 @@ const InventarioPage: React.FC = () => {
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
                                 className={cn(
-                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-2 px-1 flex-1 min-w-0 transition-all",
-                                    isActive
-                                        ? "text-white"
-                                        : "text-muted-foreground"
+                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
+                                    isActive ? "text-white" : "text-muted-foreground"
                                 )}
                             >
                                 {isActive && (
@@ -273,7 +271,7 @@ const InventarioPage: React.FC = () => {
                                     />
                                 )}
                                 <TabIcon className={cn(
-                                    "h-[18px] w-[18px] relative z-10 transition-colors",
+                                    "h-4 w-4 relative z-10 transition-colors",
                                     isActive ? "text-white" : "text-muted-foreground"
                                 )} />
                                 <span className={cn(
@@ -286,26 +284,25 @@ const InventarioPage: React.FC = () => {
                         );
                     })}
                 </div>
-                {/* ── Desktop: icon + short label stacked (mismo formato que mobile) ── */}
-                <div className="hidden md:flex items-center gap-1 p-1.5 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
+                {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
+                <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
+                        const isActive = activeTab === tab.key;
                         return (
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
                                 title={tab.label}
                                 className={cn(
-                                    "flex flex-col items-center justify-center gap-1.5 rounded-xl py-2.5 px-2 flex-1 min-w-0 transition-all",
-                                    activeTab === tab.key
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] transition-all whitespace-nowrap shrink-0",
+                                    isActive
                                         ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
                                         : "text-muted-foreground hover:bg-background hover:text-brand-dark"
                                 )}
                             >
-                                <TabIcon className="h-5 w-5 shrink-0" />
-                                <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
-                                    {tab.shortLabel}
-                                </span>
+                                <TabIcon className={cn("h-4 w-4 shrink-0", isActive ? "text-white" : "text-muted-foreground/60")} />
+                                <span>{tab.shortLabel}</span>
                             </button>
                         );
                     })}
