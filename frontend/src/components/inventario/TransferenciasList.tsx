@@ -62,31 +62,34 @@ const TransferenciasList: React.FC<Props> = ({
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Search */}
-            <div className="relative shrink-0 mb-2 mx-4 md:mx-6">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={e => onSearchChange(e.target.value)}
-                    placeholder="Buscar por código..."
-                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
-                />
-                {searchQuery && (
-                    <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                        <X className="h-3 w-3 text-muted-foreground" />
-                    </button>
-                )}
-            </div>
+            {/* Buscador + filtros en UNA sola fila — ocupa el ancho completo */}
+            <div className="flex items-center gap-2 shrink-0 mb-3 mx-4 md:mx-6">
+                {/* Buscador: ancho fijo para no aplastar los filtros */}
+                <div className="relative w-44 shrink-0">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <input
+                        type="text"
+                        value={searchQuery}
+                        onChange={e => onSearchChange(e.target.value)}
+                        placeholder="Buscar código..."
+                        className="w-full pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                    />
+                    {searchQuery && (
+                        <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
+                            <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
 
-            {/* Filtro de estado — control segmentado liviano (estilo Vehículos) */}
-            <StatusFilterBar
-                active={statusFilter}
-                onChange={onStatusFilterChange}
-                discrepanciasCount={discrepanciasCount}
-                canVerDiscrepancias={canVerDiscrepancias}
-                className="mb-3 mx-4 md:mx-6"
-            />
+                {/* Filtros: ocupan el resto del espacio disponible */}
+                <StatusFilterBar
+                    active={statusFilter}
+                    onChange={onStatusFilterChange}
+                    discrepanciasCount={discrepanciasCount}
+                    canVerDiscrepancias={canVerDiscrepancias}
+                    className="flex-1 min-w-0"
+                />
+            </div>
 
             {/* Lista estilo master (Vehículos) — borde izquierdo coloreado por estado + separadores */}
             <div className="flex-1 min-h-0 overflow-y-auto">
@@ -120,40 +123,36 @@ const TransferenciasList: React.FC<Props> = ({
                                 key={t.id}
                                 onClick={() => onSelect(t.id)}
                                 className={cn(
-                                    "cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px] border-b border-b-border/50 last:border-b-0",
+                                    "cursor-pointer transition-all px-4 md:px-6 py-2 border-l-[3px] border-b border-b-border/50 last:border-b-0",
                                     borderLeft,
                                     isSelected
                                         ? "bg-brand-primary/[0.06]"
                                         : "hover:bg-brand-primary/[0.03]"
                                 )}
                             >
-                                {/* Fila 1: Código + fecha */}
-                                <div className="flex items-center justify-between gap-2">
+                                {/* Fila 1: Código + badges + fecha — todo en una línea */}
+                                <div className="flex items-center gap-2 min-w-0">
                                     <span className={cn(
-                                        "text-sm font-bold truncate",
+                                        "text-sm font-bold shrink-0",
                                         isSelected ? "text-brand-primary" : "text-brand-dark"
                                     )}>
                                         {t.codigo}
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground/70 tabular-nums shrink-0">
+                                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none shrink-0", cfg.color)}>
+                                        {cfg.label}
+                                    </span>
+                                    {flujo && (
+                                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none shrink-0", flujo.color)}>
+                                            {flujo.label}
+                                        </span>
+                                    )}
+                                    <span className="text-[10px] text-muted-foreground/70 tabular-nums ml-auto shrink-0">
                                         {fechaStr}
                                     </span>
                                 </div>
 
-                                {/* Fila 2: Estado badge + flujo */}
-                                <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
-                                    <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none", cfg.color)}>
-                                        {cfg.label}
-                                    </span>
-                                    {flujo && (
-                                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded-md border leading-none", flujo.color)}>
-                                            {flujo.label}
-                                        </span>
-                                    )}
-                                </div>
-
-                                {/* Fila 3: Origen → Destino */}
-                                <div className="flex items-center gap-1 mt-1.5 text-[10px] text-muted-foreground">
+                                {/* Fila 2: Origen → Destino */}
+                                <div className="flex items-center gap-1 mt-1 text-[10px] text-muted-foreground">
                                     <span className="truncate flex-1 min-w-0">{origen}</span>
                                     <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
                                     <span className="truncate flex-1 min-w-0">{destino}</span>
