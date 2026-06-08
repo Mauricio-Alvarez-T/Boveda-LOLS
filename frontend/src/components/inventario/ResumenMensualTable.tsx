@@ -1,6 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { cn } from '../../utils/cn';
-import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon, Check, MapPin, Warehouse } from 'lucide-react';
+import { ChevronRight, ChevronDown, Search, Package, Download, X, ImageIcon, Check, MapPin, Warehouse, GripVertical } from 'lucide-react';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors, type DragEndEvent } from '@dnd-kit/core';
+import { SortableContext, horizontalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import { useInlineEdit } from '../../hooks/inventario/useInlineEdit';
@@ -21,6 +24,64 @@ interface Props {
 const fmt = (n: number) => n.toLocaleString('es-CL');
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
+
+/**
+ * Encabezado de columna de ubicación (obra/bodega) arrastrable para reordenar.
+ * El "grip" es el único elemento que inicia el drag; el botón X (ocultar) y el
+ * texto no interfieren. Durante el arrastre solo se mueve el encabezado; al
+ * soltar, toda la columna se reordena (la tabla mapea el orden actualizado).
+ */
+const SortableColHeader: React.FC<{
+    id: string;
+    colSpan: number;
+    bgClass: string;
+    label: string;
+    title: string;
+    onHide: () => void;
+}> = ({ id, colSpan, bgClass, label, title, onHide }) => {
+    const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+    const style: React.CSSProperties = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.85 : undefined,
+        zIndex: isDragging ? 40 : undefined,
+        position: isDragging ? 'relative' : undefined,
+    };
+    return (
+        <th
+            ref={setNodeRef}
+            style={style}
+            colSpan={colSpan}
+            className={cn(
+                "px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border group/col",
+                bgClass,
+                isDragging && "ring-2 ring-brand-primary/40"
+            )}
+        >
+            <div className="flex items-center justify-center gap-1">
+                <button
+                    type="button"
+                    {...attributes}
+                    {...listeners}
+                    className="cursor-grab active:cursor-grabbing p-0.5 rounded text-muted-foreground/40 hover:text-brand-primary hover:bg-black/5 shrink-0 touch-none"
+                    title="Arrastrar para reordenar"
+                    aria-label={`Reordenar ${label}`}
+                >
+                    <GripVertical className="h-3 w-3" />
+                </button>
+                <span className="truncate" title={title}>{label}</span>
+                <button
+                    type="button"
+                    onClick={onHide}
+                    className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 transition-all shrink-0"
+                    title={`Ocultar ${label}`}
+                >
+                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
+                </button>
+            </div>
+        </th>
+    );
+};
 
 const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, onRefresh }) => {
     const { obras, bodegas, categorias } = data;
@@ -47,12 +108,21 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
         search, setSearch,
         selectedCategoryId, setSelectedCategoryId,
         showImages, setShowImages,
-        colsWithStock,
-        visibleObras,
-        visibleBodegas,
+        orderedLocations,
+        moveCol,
+        restoreColOrder,
+        isCustomOrder,
         filteredCategorias,
         searchLower
     } = filters;
+
+    // ── Drag & drop de columnas de ubicación ──
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+    const locationKeys = useMemo(() => orderedLocations.map(l => l.key), [orderedLocations]);
+    const handleColDragEnd = useCallback((e: DragEndEvent) => {
+        const { active, over } = e;
+        if (over && active.id !== over.id) moveCol(String(active.id), String(over.id));
+    }, [moveCol]);
 
     // ── Category totals (for collapsed summary) ──
     const catTotals = useMemo(() => {
@@ -161,9 +231,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
     // colSpan dinámico: cuando se ocultan columnas $ el total cambia.
     //   verValores=true:  # + Img + Desc + M² + V.Arriendo + V.Compra + (Cant+Total)*obras + Cant*bodegas + Total Arriendo + Total Unid
     //   verValores=false: # + Img + Desc + M²                          + Cant*obras         + Cant*bodegas                  + Total Unid
+    const obraColCount = orderedLocations.filter(l => l.type === 'obra').length;
+    const bodegaColCount = orderedLocations.filter(l => l.type === 'bodega').length;
     const totalColSpan = verValores
-        ? 6 + visibleObras.length * 2 + visibleBodegas.length + 2
-        : 4 + visibleObras.length + visibleBodegas.length + 1;
+        ? 6 + obraColCount * 2 + bodegaColCount + 2
+        : 4 + obraColCount + bodegaColCount + 1;
     const hiddenCount = hiddenCols.size;
 
     // ── Mobile: expanded item state ──
@@ -481,12 +553,17 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                 setHideEmpty={setHideEmpty}
                 hiddenCount={hiddenCount}
                 restoreCols={restoreCols}
+                isCustomOrder={isCustomOrder}
+                restoreColOrder={restoreColOrder}
                 canCreate={canEdit}
                 onRefresh={onRefresh}
             />
 
-            {/* ── Table — fills remaining space, scrolls both axes ── */}
+            {/* ── Table — fills remaining space, scrolls both axes ──
+                Columnas de ubicación reordenables por drag & drop (encabezados). */}
             <div className="hidden md:block overflow-auto flex-1 min-h-0 rounded-xl border border-border">
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleColDragEnd}>
+                <SortableContext items={locationKeys} strategy={horizontalListSortingStrategy}>
                 <table className="w-full text-[11px] border-collapse">
                     <thead className="sticky top-0 z-20">
                         {/* Header row 1 — solid backgrounds for sticky */}
@@ -507,35 +584,18 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             {verValores && (
                                 <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Compra</th>
                             )}
-                            {visibleObras.map((o, oIdx) => (
-                                <th key={`obra_${o.id}`} colSpan={verValores ? 2 : 1} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border group/col", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>
-                                    <div className="flex items-center justify-center gap-1">
-                                        <span className="truncate">{o.nombre}</span>
-                                        <button
-                                            onClick={() => toggleCol(`obra_${o.id}`)}
-                                            className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 transition-all shrink-0"
-                                            title={`Ocultar ${o.nombre}`}
-                                        >
-                                            <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                        </button>
-                                    </div>
-                                </th>
-                            ))}
-                            {visibleBodegas.map((b, bIdx) => {
-                                const bodegaLabel = formatBodegaConResponsable(b);
+                            {orderedLocations.map(loc => {
+                                const label = loc.type === 'bodega' ? formatBodegaConResponsable(loc.raw) : loc.nombre;
                                 return (
-                                    <th key={`bodega_${b.id}`} className={cn("px-1 py-2 text-center font-bold text-brand-dark border-b border-r-2 border-border group/col", bIdx % 2 === 0 ? "bg-amber-50 dark:bg-amber-950" : "bg-amber-50 dark:bg-amber-950")}>
-                                        <div className="flex items-center justify-center gap-1">
-                                            <span className="truncate" title={bodegaLabel}>{bodegaLabel}</span>
-                                            <button
-                                                onClick={() => toggleCol(`bodega_${b.id}`)}
-                                                className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 transition-all shrink-0"
-                                                title={`Ocultar ${b.nombre}`}
-                                            >
-                                                <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                                            </button>
-                                        </div>
-                                    </th>
+                                    <SortableColHeader
+                                        key={loc.key}
+                                        id={loc.key}
+                                        colSpan={loc.type === 'obra' ? (verValores ? 2 : 1) : 1}
+                                        bgClass={loc.type === 'obra' ? "bg-blue-50 dark:bg-blue-950" : "bg-amber-50 dark:bg-amber-950"}
+                                        label={label}
+                                        title={label}
+                                        onHide={() => toggleCol(loc.key)}
+                                    />
                                 );
                             })}
                             {verValores && (
@@ -551,16 +611,17 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <th className="bg-muted border-b border-r border-border" />
                             {verValores && <th className="bg-muted border-b border-r border-border" />}
                             {verValores && <th className="bg-muted border-b border-r border-border" />}
-                            {visibleObras.map((o, oIdx) => (
-                                <React.Fragment key={`sub_obra_${o.id}`}>
-                                    <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-border uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>Cant</th>
-                                    {verValores && (
-                                        <th className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border uppercase tracking-wider", oIdx % 2 === 0 ? "bg-blue-50 dark:bg-blue-950" : "bg-blue-50 dark:bg-blue-950")}>Total</th>
-                                    )}
-                                </React.Fragment>
-                            ))}
-                            {visibleBodegas.map((b, bIdx) => (
-                                <th key={`sub_bod_${b.id}`} className={cn("px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border uppercase tracking-wider", bIdx % 2 === 0 ? "bg-amber-50 dark:bg-amber-950" : "bg-amber-50 dark:bg-amber-950")}>Cant</th>
+                            {orderedLocations.map(loc => (
+                                loc.type === 'obra' ? (
+                                    <React.Fragment key={`sub_${loc.key}`}>
+                                        <th className="px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r border-border uppercase tracking-wider bg-blue-50 dark:bg-blue-950">Cant</th>
+                                        {verValores && (
+                                            <th className="px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border uppercase tracking-wider bg-blue-50 dark:bg-blue-950">Total</th>
+                                        )}
+                                    </React.Fragment>
+                                ) : (
+                                    <th key={`sub_${loc.key}`} className="px-1 py-1 text-center text-[9px] text-muted-foreground font-semibold border-b border-r-2 border-border uppercase tracking-wider bg-amber-50 dark:bg-amber-950">Cant</th>
+                                )
                             ))}
                             {verValores && <th className="bg-emerald-50 dark:bg-emerald-950 border-b border-r border-border" />}
                             <th className="bg-emerald-50 dark:bg-emerald-950 border-b border-border" />
@@ -621,30 +682,28 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                             {verValores && (
                                                 <td className={cn("px-2 py-1.5 text-right text-muted-foreground border-r-2 border-b border-border")}>{item.valor_compra > 0 ? fmtMoney(item.valor_compra) : ''}</td>
                                             )}
-                                            {visibleObras.map((o, oIdx) => {
-                                                const ub = item.ubicaciones[`obra_${o.id}`];
-                                                const cellKey = `obra_${o.id}_item_${item.id}`;
-                                                const colBg = oIdx % 2 === 1 ? 'bg-blue-50/30 dark:bg-blue-950/20' : '';
-                                                return (
-                                                    <React.Fragment key={cellKey}>
-                                                        <td className={cn("px-2 py-1.5 text-center border-r border-b border-border", colBg)}>
-                                                            {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, o.id, null, !!(ub && ub.cantidad > 0))}
-                                                        </td>
-                                                        {verValores && (
-                                                            <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-border", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
-                                                                {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
+                                            {orderedLocations.map((loc, locIdx) => {
+                                                const ub = item.ubicaciones[loc.key];
+                                                const cellKey = `${loc.key}_item_${item.id}`;
+                                                if (loc.type === 'obra') {
+                                                    const colBg = locIdx % 2 === 1 ? 'bg-blue-50/30 dark:bg-blue-950/20' : '';
+                                                    return (
+                                                        <React.Fragment key={cellKey}>
+                                                            <td className={cn("px-2 py-1.5 text-center border-r border-b border-border", colBg)}>
+                                                                {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, loc.id, null, !!(ub && ub.cantidad > 0))}
                                                             </td>
-                                                        )}
-                                                    </React.Fragment>
-                                                );
-                                            })}
-                                            {visibleBodegas.map((b, bIdx) => {
-                                                const ub = item.ubicaciones[`bodega_${b.id}`];
-                                                const cellKey = `bodega_${b.id}_item_${item.id}`;
-                                                const colBg = bIdx % 2 === 1 ? 'bg-amber-50/30 dark:bg-amber-950/20' : '';
+                                                            {verValores && (
+                                                                <td className={cn("px-2 py-1.5 text-right border-r-2 border-b border-border", colBg, ub && ub.total > 0 ? "text-brand-dark" : "text-muted-foreground/40")}>
+                                                                    {ub && ub.total > 0 ? fmtMoney(ub.total) : ''}
+                                                                </td>
+                                                            )}
+                                                        </React.Fragment>
+                                                    );
+                                                }
+                                                const colBg = locIdx % 2 === 1 ? 'bg-amber-50/30 dark:bg-amber-950/20' : '';
                                                 return (
                                                     <td key={cellKey} className={cn("px-2 py-1.5 text-center border-r-2 border-b border-border", colBg)}>
-                                                        {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, null, b.id, !!(ub && ub.cantidad > 0))}
+                                                        {renderEditableQty(cellKey, ub?.cantidad || 0, item.id, null, loc.id, !!(ub && ub.cantidad > 0))}
                                                     </td>
                                                 );
                                             })}
@@ -671,26 +730,24 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             <td colSpan={verValores ? 6 : 4} className="bg-muted px-2 py-2.5 text-right font-black text-xs text-brand-dark">
                                 TOTAL GENERAL
                             </td>
-                            {visibleObras.map(o => {
-                                const obraTotal = categorias.reduce((sum, cat) =>
-                                    sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0);
-                                const obraCant = categorias.reduce((sum, cat) =>
-                                    sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.cantidad || 0), 0), 0);
+                            {orderedLocations.map(loc => {
+                                const locCant = categorias.reduce((sum, cat) =>
+                                    sum + cat.items.reduce((s, item) => s + (item.ubicaciones[loc.key]?.cantidad || 0), 0), 0);
+                                if (loc.type === 'obra') {
+                                    const obraTotal = categorias.reduce((sum, cat) =>
+                                        sum + cat.items.reduce((s, item) => s + (item.ubicaciones[loc.key]?.total || 0), 0), 0);
+                                    return (
+                                        <React.Fragment key={`total_${loc.key}`}>
+                                            <td className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px]">{locCant > 0 ? fmt(locCant) : ''}</td>
+                                            {verValores && (
+                                                <td className="bg-muted px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-border">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
+                                            )}
+                                        </React.Fragment>
+                                    );
+                                }
                                 return (
-                                    <React.Fragment key={`total_obra_${o.id}`}>
-                                        <td className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px]">{obraCant > 0 ? fmt(obraCant) : ''}</td>
-                                        {verValores && (
-                                            <td className="bg-muted px-2 py-2.5 text-right font-bold text-brand-dark text-[11px] border-r-2 border-border">{obraTotal > 0 ? fmtMoney(obraTotal) : ''}</td>
-                                        )}
-                                    </React.Fragment>
-                                );
-                            })}
-                            {visibleBodegas.map(b => {
-                                const bodCant = categorias.reduce((sum, cat) =>
-                                    sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`bodega_${b.id}`]?.cantidad || 0), 0), 0);
-                                return (
-                                    <td key={`total_bod_${b.id}`} className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px] border-r-2 border-border">
-                                        {bodCant > 0 ? fmt(bodCant) : ''}
+                                    <td key={`total_${loc.key}`} className="bg-muted px-2 py-2.5 text-center font-bold text-brand-dark text-[11px] border-r-2 border-border">
+                                        {locCant > 0 ? fmt(locCant) : ''}
                                     </td>
                                 );
                             })}
@@ -710,14 +767,17 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     <td colSpan={verValores ? 6 : 4} className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-muted-foreground">
                                         DESCUENTO POR OBRA
                                     </td>
-                                    {visibleObras.map(o => {
+                                    {orderedLocations.map(loc => {
+                                        if (loc.type === 'bodega') {
+                                            return <td key={`desc_${loc.key}`} className="bg-amber-100 dark:bg-amber-950 border-r-2 border-border" />;
+                                        }
                                         const obraTotal = categorias.reduce((sum, cat) =>
-                                            sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
+                                            sum + cat.items.reduce((s, item) => s + (item.ubicaciones[loc.key]?.total || 0), 0), 0
                                         );
-                                        const descPorcentaje = data.descuentos?.[o.id] || 0;
+                                        const descPorcentaje = data.descuentos?.[loc.id] || 0;
                                         const obraDescuento = descPorcentaje > 0 ? Math.round(obraTotal * descPorcentaje) / 100 : 0;
                                         return (
-                                            <React.Fragment key={`desc_obra_${o.id}`}>
+                                            <React.Fragment key={`desc_${loc.key}`}>
                                                 <td className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5" />
                                                 <td className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[10px] text-red-600 dark:text-red-400 border-r-2 border-border">
                                                     {obraDescuento > 0 ? `-${fmtMoney(obraDescuento)}` : ''}
@@ -725,9 +785,6 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                             </React.Fragment>
                                         );
                                     })}
-                                    {visibleBodegas.map(b => (
-                                        <td key={`desc_bod_${b.id}`} className="bg-amber-100 dark:bg-amber-950 border-r-2 border-border" />
-                                    ))}
                                     <td className="bg-amber-100 dark:bg-amber-950 px-2 py-1.5 text-right font-bold text-[11px] text-red-600 dark:text-red-400 border-r-2 border-border">
                                         -{fmtMoney(grandTotals.totalDescuento)}
                                     </td>
@@ -746,6 +803,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         )}
                     </tfoot>
                 </table>
+                </SortableContext>
+              </DndContext>
             </div>
 
             {/* Search results hint (desktop) */}
