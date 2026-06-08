@@ -777,12 +777,24 @@ const transferenciaService = {
                 }
                 // Audit: registrar evento de recepción. observacion = nota libre del
                 // receptor (ej. "llegaron 10, se usaron 6, sobran 4 tarros").
+                // Soporta entrega en MÚLTIPLES VIAJES: tipo='parcial' deja la
+                // solicitud abierta (recepcion_parcial) y registra el viaje con su
+                // receptor; tipo='total' cierra la solicitud.
                 const obs = observacion ? String(observacion).slice(0, 2000) : null;
                 const [recRes] = await conn.query(
                     `INSERT INTO transferencia_recepciones (transferencia_id, receptor_id, tipo, observacion)
-                     VALUES (?, ?, 'total', ?)`,
-                    [id, receptorId, obs]
+                     VALUES (?, ?, ?, ?)`,
+                    [id, receptorId, tipo, obs]
                 );
+                if (tipo === 'parcial') {
+                    // No fija receptor/fecha final — eso lo hace el cierre 'total'.
+                    await conn.query(
+                        "UPDATE transferencias SET estado = 'recepcion_parcial' WHERE id = ?",
+                        [id]
+                    );
+                    await conn.commit();
+                    return { id, estado: 'recepcion_parcial', recepcion_id: recRes.insertId };
+                }
                 await conn.query(
                     "UPDATE transferencias SET estado = 'recibida', receptor_id = ?, recibido_por = ?, fecha_recepcion = NOW() WHERE id = ?",
                     [receptorId, receptorId, id]

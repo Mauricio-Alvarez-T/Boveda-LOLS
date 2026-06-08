@@ -258,11 +258,13 @@ const MaterialesAprobacionPanel: React.FC<{
 
 const MaterialesRecepcionPanel: React.FC<{
     loading: boolean;
-    onConfirm: (observacion: string) => void;
+    onConfirm: (observacion: string, tipo: 'parcial' | 'total') => void;
     onCancel: () => void;
     /** En modal: el Modal aporta título y marco → no renderiza su card de color ni su header propio. */
     embedded?: boolean;
-}> = ({ loading, onConfirm, onCancel, embedded = false }) => {
+    /** Si ya hubo viajes previos (estado recepcion_parcial), ajusta los textos. */
+    yaIniciada?: boolean;
+}> = ({ loading, onConfirm, onCancel, embedded = false, yaIniciada = false }) => {
     const [obs, setObs] = useState('');
     return (
         <div className={embedded
@@ -271,22 +273,28 @@ const MaterialesRecepcionPanel: React.FC<{
             {!embedded && (
                 <div className="flex items-center gap-2">
                     <PackageCheck className="h-4 w-4 text-blue-700 dark:text-blue-400" />
-                    <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Confirmar recepción</h4>
+                    <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Registrar entrega</h4>
                 </div>
             )}
             <p className="text-[11px] text-muted-foreground">
-                Confirma que el material llegó a obra. Puedes anotar diferencias o sobrantes (ej. "llegaron 10, se usaron 6, sobran 4"). La solicitud quedará cerrada.
+                Registra lo que llegó en este viaje. Si la entrega viene en <strong>varios viajes</strong>, usa
+                {' '}<strong>"Registrar viaje"</strong> (la solicitud queda abierta y queda el registro con tu nombre);
+                cuando llegue <strong>todo</strong>, usa <strong>"Cerrar entrega"</strong>. Anota diferencias o sobrantes si aplica.
             </p>
             <textarea value={obs} onChange={e => setObs(e.target.value)} rows={3}
-                placeholder="Observaciones / sobrantes (opcional)..."
+                placeholder='Observaciones de este viaje (ej. "llegaron 10, se usaron 6, sobran 4")...'
                 className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-card resize-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
-            <div className="flex gap-2 pt-1">
-                <button onClick={() => onConfirm(obs.trim())} disabled={loading}
-                    className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
-                    {loading ? 'Confirmando...' : 'Confirmar Recepción'}
+            <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <button onClick={() => onConfirm(obs.trim(), 'parcial')} disabled={loading}
+                    className="flex-1 py-2.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    {loading ? '...' : (yaIniciada ? 'Registrar otro viaje' : 'Registrar viaje (parcial)')}
                 </button>
-                <button onClick={onCancel} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
+                <button onClick={() => onConfirm(obs.trim(), 'total')} disabled={loading}
+                    className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    {loading ? 'Confirmando...' : 'Cerrar entrega (total)'}
+                </button>
             </div>
+            <button onClick={onCancel} className="w-full py-1.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
         </div>
     );
 };
@@ -1800,8 +1808,9 @@ const TransferenciaDetail: React.FC<Props> = ({
             {activeForm === 'recibir' && items.length === 0 && (
                 <MaterialesRecepcionPanel
                     loading={actionLoading}
-                    onConfirm={async (obs) => {
-                        const ok = await onRecibir([], 'total', obs);
+                    yaIniciada={t.estado === 'recepcion_parcial'}
+                    onConfirm={async (obs, tipo) => {
+                        const ok = await onRecibir([], tipo, obs);
                         if (ok) setActiveForm(null);
                     }}
                     onCancel={() => setActiveForm(null)}
@@ -2334,12 +2343,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                 />
             </Modal>
 
-            <Modal isOpen={activeForm === 'recibir'} onClose={() => setActiveForm(null)} title="Registrar recepción" size="md">
+            <Modal isOpen={activeForm === 'recibir'} onClose={() => setActiveForm(null)} title={t.estado === 'recepcion_parcial' ? 'Registrar otro viaje' : 'Registrar entrega'} size="md">
                 <MaterialesRecepcionPanel
                     embedded
                     loading={actionLoading}
-                    onConfirm={async (obs) => {
-                        const ok = await onRecibir([], 'total', obs);
+                    yaIniciada={t.estado === 'recepcion_parcial'}
+                    onConfirm={async (obs, tipo) => {
+                        const ok = await onRecibir([], tipo, obs);
                         if (ok) setActiveForm(null);
                     }}
                     onCancel={() => setActiveForm(null)}

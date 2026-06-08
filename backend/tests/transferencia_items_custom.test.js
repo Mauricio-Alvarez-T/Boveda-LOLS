@@ -152,6 +152,58 @@ describe('crear() — items_custom', () => {
     });
 });
 
+describe('recibir() — solicitud de materiales en múltiples viajes', () => {
+    beforeEach(() => {
+        jest.clearAllMocks();
+        db.query.mockReset();
+        db.getConnection.mockReset();
+    });
+
+    function mockMaterialesConn({ estado = 'aprobada' } = {}) {
+        const conn = makeConn();
+        conn.query
+            // SELECT * FROM transferencias ... FOR UPDATE
+            .mockResolvedValueOnce([[{ id: 1, estado, transportista_id: null, aprobador_id: null, stock_reconciliado: 1 }]])
+            // SELECT ... FROM transferencia_items (sin catálogo)
+            .mockResolvedValueOnce([[]])
+            // SELECT COUNT(*) FROM transferencia_items_custom
+            .mockResolvedValueOnce([[{ c: 2 }]])
+            // INSERT INTO transferencia_recepciones
+            .mockResolvedValueOnce([{ insertId: 77 }])
+            // UPDATE transferencias SET estado ...
+            .mockResolvedValueOnce([{ affectedRows: 1 }]);
+        db.getConnection.mockResolvedValue(conn);
+        return conn;
+    }
+
+    test('parcial: registra el viaje (receptor + tipo) y deja la solicitud en recepcion_parcial', async () => {
+        const conn = mockMaterialesConn({ estado: 'aprobada' });
+        const res = await transferenciaService.recibir(1, 99, [], [], 'parcial', 'Llegó la mitad');
+        expect(res).toMatchObject({ id: 1, estado: 'recepcion_parcial', recepcion_id: 77 });
+
+        const recIns = conn.query.mock.calls.find(c => /INSERT INTO transferencia_recepciones/i.test(c[0]));
+        expect(recIns[1]).toEqual([1, 99, 'parcial', 'Llegó la mitad']);
+
+        const upd = conn.query.mock.calls.find(c => /UPDATE transferencias SET estado/i.test(c[0]));
+        expect(upd[0]).toMatch(/recepcion_parcial/);
+        expect(upd[0]).not.toMatch(/recibida/);
+        expect(conn.commit).toHaveBeenCalled();
+    });
+
+    test('total: cierra la solicitud en recibida', async () => {
+        const conn = mockMaterialesConn({ estado: 'recepcion_parcial' });
+        const res = await transferenciaService.recibir(1, 99, [], [], 'total', null);
+        expect(res).toMatchObject({ id: 1, estado: 'recibida', recepcion_id: 77 });
+
+        const recIns = conn.query.mock.calls.find(c => /INSERT INTO transferencia_recepciones/i.test(c[0]));
+        expect(recIns[1]).toEqual([1, 99, 'total', null]);
+
+        const upd = conn.query.mock.calls.find(c => /UPDATE transferencias SET estado/i.test(c[0]));
+        expect(upd[0]).toMatch(/recibida/);
+        expect(conn.commit).toHaveBeenCalled();
+    });
+});
+
 describe('getById() — items_custom', () => {
     beforeEach(() => {
         jest.clearAllMocks();
