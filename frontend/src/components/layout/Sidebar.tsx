@@ -37,7 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     }, [location.pathname]);
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/', visible: true },
+        { icon: LayoutDashboard, label: 'Inicio', path: '/', visible: true },
         {
             icon: CheckSquare,
             label: 'Asistencia',
