@@ -3,12 +3,11 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Loader2, Save, XCircle, CheckCircle2 } from 'lucide-react';
+import { Loader2, XCircle, CheckCircle2 } from 'lucide-react';
 
 import { formatRut, validateRut } from '../../utils/rut';
 
 import { Input } from '../ui/Input';
-import { Button } from '../ui/Button';
 import { Select } from '../ui/Select';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import type { SelectOption } from '../ui/Select';
@@ -191,7 +190,7 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
     }
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+        <form id="worker-form" onSubmit={handleSubmit(onSubmit)} className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Controller
                     name="rut"
@@ -379,17 +378,8 @@ export const WorkerForm: React.FC<WorkerFormProps> = ({ initialData, onSuccess, 
                 </label>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-8 z-10">
-                <Button
-                    type="submit"
-                    isLoading={loading}
-                    disabled={!initialData && rutStatus === 'exists'}
-                    leftIcon={<Save className="h-5 w-5" />}
-                    className="w-full sm:w-auto"
-                >
-                    Guardar
-                </Button>
-            </div>
+            {/* Botón Guardar vive en el headerAction del Modal (al lado de la X).
+                Usa form="worker-form" para disparar este submit desde fuera. */}
         </form >
     );
 };

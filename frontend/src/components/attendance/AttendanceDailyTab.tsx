@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     CheckSquare, Users, CalendarDays, CalendarRange, ChevronDown,
-    AlertTriangle, FileDown, Search, X
+    AlertTriangle, FileDown, Search, X, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -561,6 +561,18 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 onClose={() => { setModalType(null); setIsUploading(false); }}
                 title={modalType === 'form' ? "Editar Trabajador" : `Documentos: ${selectedWorker?.apellido_paterno} ${selectedWorker?.apellido_materno || ''} ${selectedWorker?.nombres}`}
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
+                headerAction={
+                    modalType === 'form' ? (
+                        <Button
+                            type="submit"
+                            form="worker-form"
+                            size="sm"
+                            leftIcon={<Save className="h-3.5 w-3.5" />}
+                        >
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 {modalType === 'form' && selectedWorker && (
                     <WorkerForm initialData={selectedWorker} onSuccess={() => { setModalType(null); fetchAttendanceInfo(); }} onCancel={() => setModalType(null)} />

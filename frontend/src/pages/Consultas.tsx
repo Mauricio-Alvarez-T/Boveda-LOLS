@@ -19,7 +19,8 @@ import {
     Plus,
     Eraser,
     PlusCircle,
-    CalendarClock
+    CalendarClock,
+    Save
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -671,6 +672,18 @@ const ConsultasPage: React.FC = () => {
                 onClose={() => setModalType(null)}
                 title={selectedWorkerForAction ? "Editar Trabajador" : "Registrar Nuevo Trabajador"}
                 size="md"
+                headerAction={
+                    modalType === 'form' ? (
+                        <Button
+                            type="submit"
+                            form="worker-form"
+                            size="sm"
+                            leftIcon={<Save className="h-3.5 w-3.5" />}
+                        >
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 {modalType === 'form' && (
                     <WorkerForm
