@@ -62,34 +62,6 @@ const TransferenciasList: React.FC<Props> = ({
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Buscador + filtros en UNA sola fila — ocupa el ancho completo */}
-            <div className="flex items-center gap-2 shrink-0 mb-3 mx-4 md:mx-6">
-                {/* Buscador: ancho fijo para no aplastar los filtros */}
-                <div className="relative w-44 shrink-0">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                    <input
-                        type="text"
-                        value={searchQuery}
-                        onChange={e => onSearchChange(e.target.value)}
-                        placeholder="Buscar código..."
-                        className="w-full pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
-                    />
-                    {searchQuery && (
-                        <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                            <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                    )}
-                </div>
-
-                {/* Filtros: ocupan el resto del espacio disponible */}
-                <StatusFilterBar
-                    active={statusFilter}
-                    onChange={onStatusFilterChange}
-                    discrepanciasCount={discrepanciasCount}
-                    canVerDiscrepancias={canVerDiscrepancias}
-                    className="flex-1 min-w-0"
-                />
-            </div>
 
             {/* Lista estilo master (Vehículos) — borde izquierdo coloreado por estado + separadores */}
             <div className="flex-1 min-h-0 overflow-y-auto">

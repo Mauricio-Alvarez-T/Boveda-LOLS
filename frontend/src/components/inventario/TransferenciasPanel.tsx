@@ -281,38 +281,43 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
             {/* Master-Detail body — card unificado estilo Vehículos: lista (prominente) +
                 panel de detalle. En mobile alterna entre lista y detalle. */}
+            {/* Barra buscar+filtros FULL-WIDTH — fuera del card, abarca lista Y detalle */}
+            <div className="flex items-center gap-2 shrink-0 mb-2 px-1">
+                <div className="relative w-44 shrink-0">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                    <input
+                        type="text"
+                        value={isDiscrepanciasMode ? discSearchQuery : searchQuery}
+                        onChange={e => isDiscrepanciasMode ? setDiscSearchQuery(e.target.value) : setSearchQuery(e.target.value)}
+                        placeholder="Buscar código..."
+                        className="w-full pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                    />
+                    {(isDiscrepanciasMode ? discSearchQuery : searchQuery) && (
+                        <button
+                            onClick={() => isDiscrepanciasMode ? setDiscSearchQuery('') : setSearchQuery('')}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded"
+                        >
+                            <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                    )}
+                </div>
+                <StatusFilterBar
+                    active={statusFilter}
+                    onChange={setStatusFilter}
+                    discrepanciasCount={pendientesCount}
+                    canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                    className="flex-1 min-w-0"
+                />
+            </div>
+
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0 flex-1 min-w-0 py-4 md:py-6",
+                    "flex flex-col min-h-0 flex-1 min-w-0 pt-4 md:pt-5 pb-4 md:pb-6",
                     detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
-                            {/* Search — arriba de los chips (consistente con el resto de modos) */}
-                            <div className="relative shrink-0 mb-2 mx-4 md:mx-6">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    value={discSearchQuery}
-                                    onChange={e => setDiscSearchQuery(e.target.value)}
-                                    placeholder="Buscar por código TRF..."
-                                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
-                                />
-                                {discSearchQuery && (
-                                    <button onClick={() => setDiscSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                                        <X className="h-3 w-3 text-muted-foreground" />
-                                    </button>
-                                )}
-                            </div>
-                            {/* Filtro de estado — control segmentado liviano (mismo que la lista) */}
-                            <StatusFilterBar
-                                active={statusFilter}
-                                onChange={setStatusFilter}
-                                discrepanciasCount={pendientesCount}
-                                canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
-                                className="mb-3 mx-4 md:mx-6"
-                            />
                             {/* Discrepancias list (with its own sub-filter and search) */}
                             <DiscrepanciasList
                                 discrepancias={trfHook.discrepancias}
@@ -342,13 +347,12 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     )}
                 </div>
 
-                {/* RIGHT: Detalle — panel enfocado (materiales) o ancho (catálogo/discrepancias).
-                    Estilo Vehículos: ancho fijo cuando es materiales; flex-1 cuando necesita espacio. */}
+                {/* RIGHT: Detalle — siempre 50% del card para balance visual con la lista.
+                    pt alineado con el panel izquierdo para que "DETALLE SOLICITUD" arranque
+                    a la misma altura que la primera fila TRF. */}
                 <div className={cn(
-                    "min-h-0 md:border-l md:border-border",
-                    !isDiscrepanciasMode && trfHook.selected?.tipo_flujo === 'solicitud_materiales'
-                        ? "md:w-[460px] md:shrink-0"
-                        : "flex-1",
+                    "min-h-0 md:border-l md:border-border pt-4 md:pt-5",
+                    "md:w-1/2 md:shrink-0",
                     detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
                 )}>
                     {isDiscrepanciasMode ? (
