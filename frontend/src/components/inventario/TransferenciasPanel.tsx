@@ -250,34 +250,23 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Header */}
-            <div className="flex items-center justify-between shrink-0 mb-3">
-                <h3 className="text-sm font-bold text-brand-dark flex items-center gap-2">
-                    {isDiscrepanciasMode ? (
-                        <>
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                            Discrepancias
-                        </>
-                    ) : (
-                        'Transferencias'
-                    )}
-                </h3>
-                {/* "Nuevo movimiento" visible si tiene AL MENOS UN flujo. El modal
-                    interno filtra qué flujos específicos puede ejecutar. */}
-                {!isDiscrepanciasMode && (
-                    hasPermission('inventario.transferencias.solicitar') ||
-                    hasPermission('inventario.transferencias.push_directo') ||
-                    hasPermission('inventario.transferencias.intra_bodega') ||
-                    hasPermission('inventario.transferencias.orden_gerencia')
-                ) && (
+            {/* Header: solo el botón "+" con tooltip cuando hay permiso */}
+            {!isDiscrepanciasMode && (
+                hasPermission('inventario.transferencias.solicitar') ||
+                hasPermission('inventario.transferencias.push_directo') ||
+                hasPermission('inventario.transferencias.intra_bodega') ||
+                hasPermission('inventario.transferencias.orden_gerencia')
+            ) && (
+                <div className="flex justify-end shrink-0 mb-3">
                     <button
                         onClick={() => setShowSelectorModal(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
+                        title="Nuevo movimiento"
+                        className="flex items-center justify-center h-9 w-9 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
                     >
-                        <Plus className="h-3.5 w-3.5" /> Nuevo movimiento
+                        <Plus className="h-4 w-4" />
                     </button>
-                )}
-            </div>
+                </div>
+            )}
 
             {/* Master-Detail body — card unificado estilo Vehículos: lista (prominente) +
                 panel de detalle. En mobile alterna entre lista y detalle. */}

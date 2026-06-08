@@ -19,35 +19,42 @@ interface Props {
     canVerDiscrepancias?: boolean;
 }
 
+// Paleta simplificada: verde (aprobada/recibida), rojo (pendiente/rechazada), gris para el resto.
+const NEUTRAL = 'bg-muted text-muted-foreground border-border dark:bg-muted dark:text-muted-foreground dark:border-border';
+const GREEN   = 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60';
+const RED     = 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60';
+
 export const estadoConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
-    pendiente: { label: 'Pendiente', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60', icon: Clock },
-    aprobada: { label: 'Aprobada', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60', icon: CheckCircle2 },
-    en_transito: { label: 'En Tránsito', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60', icon: Truck },
-    recepcion_parcial: { label: 'Entrega en curso', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60', icon: PackageOpen },
-    recibida: { label: 'Recibida', color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', icon: PackageCheck },
-    rechazada: { label: 'Rechazada', color: 'bg-red-100 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60', icon: XCircle },
-    cancelada: { label: 'Cancelada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border', icon: Ban },
+    pendiente:         { label: 'Pendiente',       color: RED,     icon: Clock },
+    aprobada:          { label: 'Aprobada',         color: GREEN,   icon: CheckCircle2 },
+    en_transito:       { label: 'En Tránsito',      color: NEUTRAL, icon: Truck },
+    recepcion_parcial: { label: 'Entrega en curso', color: NEUTRAL, icon: PackageOpen },
+    recibida:          { label: 'Recibida',         color: GREEN,   icon: PackageCheck },
+    rechazada:         { label: 'Rechazada',        color: RED,     icon: XCircle },
+    cancelada:         { label: 'Cancelada',        color: NEUTRAL, icon: Ban },
 };
 
+// Tipo de flujo: todos en gris neutro (la info secundaria no necesita color).
+const FLUJO_NEUTRAL = 'bg-muted text-muted-foreground border-border';
 export const tipoFlujoConfig: Record<string, { label: string; color: string }> = {
-    solicitud: { label: 'Solicitud', color: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-700/60' },
-    solicitud_materiales: { label: 'Mat. construcción', color: 'bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-800/60' },
-    push_directo: { label: 'Push directo', color: 'bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60' },
-    intra_bodega: { label: 'Intra-bodega', color: 'bg-blue-100 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60' },
-    intra_obra: { label: 'Intra-obra', color: 'bg-indigo-100 text-indigo-700 border-indigo-200 dark:bg-indigo-500/15 dark:text-indigo-300 dark:border-indigo-800/60' },
-    orden_gerencia: { label: 'Orden gerencia', color: 'bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60' },
-    devolucion: { label: 'Devolución', color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60' },
+    solicitud:            { label: 'Solicitud',        color: FLUJO_NEUTRAL },
+    solicitud_materiales: { label: 'Mat. construcción', color: FLUJO_NEUTRAL },
+    push_directo:         { label: 'Push directo',     color: FLUJO_NEUTRAL },
+    intra_bodega:         { label: 'Intra-bodega',     color: FLUJO_NEUTRAL },
+    intra_obra:           { label: 'Intra-obra',       color: FLUJO_NEUTRAL },
+    orden_gerencia:       { label: 'Orden gerencia',   color: FLUJO_NEUTRAL },
+    devolucion:           { label: 'Devolución',       color: FLUJO_NEUTRAL },
 };
 
-/** Color sólido del borde izquierdo por estado */
+/** Color del borde izquierdo: verde/rojo/gris — alineado con la paleta simplificada */
 const BORDER_LEFT_COLOR: Record<string, string> = {
-    pendiente: 'border-l-amber-500',
-    aprobada: 'border-l-blue-500',
-    en_transito: 'border-l-indigo-500',
-    recepcion_parcial: 'border-l-purple-500',
-    recibida: 'border-l-green-500',
-    rechazada: 'border-l-red-500',
-    cancelada: 'border-l-gray-400',
+    pendiente:         'border-l-red-400',
+    aprobada:          'border-l-green-500',
+    en_transito:       'border-l-border',
+    recepcion_parcial: 'border-l-border',
+    recibida:          'border-l-green-500',
+    rechazada:         'border-l-red-400',
+    cancelada:         'border-l-border',
 };
 
 const TransferenciasList: React.FC<Props> = ({
