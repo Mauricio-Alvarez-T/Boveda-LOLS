@@ -250,54 +250,25 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Header: solo el botón "+" con tooltip cuando hay permiso */}
-            {!isDiscrepanciasMode && (
-                hasPermission('inventario.transferencias.solicitar') ||
-                hasPermission('inventario.transferencias.push_directo') ||
-                hasPermission('inventario.transferencias.intra_bodega') ||
-                hasPermission('inventario.transferencias.orden_gerencia')
-            ) && (
-                <div className="flex justify-end shrink-0 mb-3">
-                    <button
-                        onClick={() => setShowSelectorModal(true)}
-                        title="Nuevo movimiento"
-                        className="flex items-center justify-center h-9 w-9 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
-                    >
-                        <Plus className="h-4 w-4" />
-                    </button>
-                </div>
-            )}
 
             {/* Master-Detail body — card unificado estilo Vehículos: lista (prominente) +
                 panel de detalle. En mobile alterna entre lista y detalle. */}
-            {/* Barra buscar+filtros FULL-WIDTH — fuera del card, abarca lista Y detalle */}
-            <div className="flex items-center gap-2 shrink-0 mb-2 px-1">
-                <div className="relative w-44 shrink-0">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
-                    <input
-                        type="text"
-                        value={isDiscrepanciasMode ? discSearchQuery : searchQuery}
-                        onChange={e => isDiscrepanciasMode ? setDiscSearchQuery(e.target.value) : setSearchQuery(e.target.value)}
-                        placeholder="Buscar código..."
-                        className="w-full pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
-                    />
-                    {(isDiscrepanciasMode ? discSearchQuery : searchQuery) && (
-                        <button
-                            onClick={() => isDiscrepanciasMode ? setDiscSearchQuery('') : setSearchQuery('')}
-                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded"
-                        >
-                            <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                    )}
-                </div>
-                <StatusFilterBar
-                    active={statusFilter}
-                    onChange={setStatusFilter}
-                    discrepanciasCount={pendientesCount}
-                    canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
-                    className="flex-1 min-w-0"
-                />
-            </div>
+            {/* Barra FULL-WIDTH: [+] [filtros auto-width] [espacio] [🔍 expandible] */}
+            <BarraFiltros
+                statusFilter={statusFilter}
+                onStatusChange={setStatusFilter}
+                pendientesCount={pendientesCount}
+                canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
+                onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
+                canNuevoMovimiento={!isDiscrepanciasMode && (
+                    hasPermission('inventario.transferencias.solicitar') ||
+                    hasPermission('inventario.transferencias.push_directo') ||
+                    hasPermission('inventario.transferencias.intra_bodega') ||
+                    hasPermission('inventario.transferencias.orden_gerencia')
+                )}
+                onNuevoMovimiento={() => setShowSelectorModal(true)}
+            />
 
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
@@ -503,3 +474,94 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 };
 
 export default TransferenciasPanel;
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  BarraFiltros                                                               */
+/*  Layout: [+] [filtros auto-width] [espacio flexible] [🔍 expandible]       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+interface BarraFiltrosProps {
+    statusFilter: string;
+    onStatusChange: (v: string) => void;
+    pendientesCount: number;
+    canVerDiscrepancias: boolean;
+    searchQuery: string;
+    onSearchChange: (q: string) => void;
+    canNuevoMovimiento: boolean;
+    onNuevoMovimiento: () => void;
+}
+
+const BarraFiltros: React.FC<BarraFiltrosProps> = ({
+    statusFilter, onStatusChange, pendientesCount, canVerDiscrepancias,
+    searchQuery, onSearchChange, canNuevoMovimiento, onNuevoMovimiento,
+}) => {
+    const [searchOpen, setSearchOpen] = React.useState(false);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    const openSearch = () => {
+        setSearchOpen(true);
+        setTimeout(() => inputRef.current?.focus(), 50);
+    };
+
+    const closeSearch = () => {
+        setSearchOpen(false);
+        onSearchChange('');
+    };
+
+    return (
+        <div className="flex items-center gap-2 shrink-0 mb-2">
+            {/* Botón + a la izquierda */}
+            {canNuevoMovimiento && (
+                <button
+                    onClick={onNuevoMovimiento}
+                    title="Nuevo movimiento"
+                    className="flex items-center justify-center h-8 w-8 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
+                >
+                    <Plus className="h-4 w-4" />
+                </button>
+            )}
+
+            {/* Filtros auto-width (sin flex-1 en cada chip) */}
+            <StatusFilterBar
+                active={statusFilter}
+                onChange={onStatusChange}
+                discrepanciasCount={pendientesCount}
+                canVerDiscrepancias={canVerDiscrepancias}
+            />
+
+            {/* Espacio flexible empuja la lupa a la derecha */}
+            <div className="flex-1" />
+
+            {/* Lupa: ícono solo → expandible con input al hacer clic */}
+            <div className="flex items-center shrink-0">
+                {searchOpen ? (
+                    <div className="relative flex items-center animate-in fade-in slide-in-from-right-2 duration-150">
+                        <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => onSearchChange(e.target.value)}
+                            placeholder="Buscar código..."
+                            className="w-44 pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                        />
+                        <button
+                            onClick={closeSearch}
+                            className="absolute right-2 p-0.5 hover:bg-muted rounded"
+                            title="Cerrar búsqueda"
+                        >
+                            <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={openSearch}
+                        title="Buscar por código"
+                        className="flex items-center justify-center h-8 w-8 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5 rounded-xl border border-border bg-card transition-all"
+                    >
+                        <Search className="h-3.5 w-3.5" />
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};

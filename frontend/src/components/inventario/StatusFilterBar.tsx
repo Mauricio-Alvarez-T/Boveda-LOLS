@@ -54,7 +54,7 @@ const StatusFilterBar: React.FC<Props> = ({
                         onClick={() => onChange(chip.value)}
                         title={chip.label}
                         className={cn(
-                            "relative flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 flex-1 min-w-0 text-[11px] font-bold transition-all",
+                            "relative flex items-center justify-center gap-1.5 rounded-lg py-1.5 px-2 text-[11px] font-bold transition-all shrink-0",
                             isActive
                                 ? isDiscrep
                                     ? "bg-card text-red-600 dark:text-red-400 shadow-sm"
