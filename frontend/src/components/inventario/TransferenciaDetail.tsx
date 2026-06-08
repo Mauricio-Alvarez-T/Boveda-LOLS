@@ -2183,7 +2183,9 @@ const TransferenciaDetail: React.FC<Props> = ({
     // lado a lado en xl (≥1280px). Móvil mantiene el toggle lista↔detalle
     // del panel padre + el botón "Volver".
     const renderMateriales = () => (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6">
+        <div className="flex flex-row flex-1 min-h-0 overflow-hidden">
+            {/* ── Contenido principal (izquierda, scrollable) ── */}
+            <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 min-w-0 overflow-hidden">
             {/* Header estilo Vehículos */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 <button onClick={onBack} className="md:hidden p-2 rounded-xl hover:bg-muted text-muted-foreground">
@@ -2261,51 +2263,6 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
                 )}
 
-                {/* Acciones primarias (abren modal) */}
-                {hasActions && (
-                    <div className="flex flex-wrap gap-2">
-                        {canAprobar && (
-                            <button onClick={() => setActiveForm('aprobar')} disabled={actionLoading}
-                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all shadow-sm">
-                                <CheckCircle2 className="h-4 w-4" /> Revisar y aprobar
-                            </button>
-                        )}
-                        {canRecibir && (
-                            <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
-                                title="Confirma que el material llegó a obra."
-                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                                <PackageCheck className="h-4 w-4" /> Registrar recepción
-                            </button>
-                        )}
-                        {canRechazar && (
-                            <button onClick={() => setActiveForm('rechazar')} disabled={actionLoading}
-                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
-                                <XCircle className="h-4 w-4" /> Rechazar
-                            </button>
-                        )}
-                        {canRechazarRecepcion && (
-                            <button onClick={() => setActiveForm('rechazar_recepcion')} disabled={actionLoading}
-                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all shadow-sm">
-                                <XCircle className="h-4 w-4" /> Rechazar Recepción
-                            </button>
-                        )}
-                        {canCancelar && (
-                            <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
-                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-muted-foreground bg-muted rounded-xl hover:bg-muted disabled:opacity-50 transition-all">
-                                <Ban className="h-4 w-4" /> Cancelar
-                            </button>
-                        )}
-                        {canCompartirWhatsApp && (
-                            <button onClick={handleShareWhatsApp} disabled={actionLoading}
-                                title={t.estado === 'pendiente' ? 'Notificar nueva solicitud al grupo de WhatsApp para que el aprobador la revise' : 'Enviar información del movimiento por WhatsApp'}
-                                className="flex items-center gap-1.5 px-4 py-2.5 text-sm font-bold text-white bg-[#25D366] rounded-xl hover:bg-[#1EBE5B] disabled:opacity-50 transition-all shadow-sm">
-                                <Send className="h-4 w-4" />
-                                {t.estado === 'pendiente' ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}
-                            </button>
-                        )}
-                    </div>
-                )}
-
                 {/* Materiales pedidos (solo lectura) */}
                 <DetailSection icon={<ShoppingBag className="h-3.5 w-3.5" />} title={`Materiales pedidos (${itemsCustom.length})`}>
                     {itemsCustom.length === 0
@@ -2334,6 +2291,51 @@ const TransferenciaDetail: React.FC<Props> = ({
                     </div>
                 </DetailSection>
             </div>
+            </div>{/* ── FIN contenido principal (izquierda) ── */}
+
+            {/* ── Columna derecha de acciones ── */}
+            {hasActions && (
+                <div className="flex flex-col gap-1.5 p-3 border-l border-border bg-muted/20 shrink-0 w-[150px] overflow-y-auto">
+                    {canAprobar && (
+                        <button onClick={() => setActiveForm('aprobar')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-2 py-2 text-[11px] font-bold text-white bg-green-600 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-all w-full">
+                            <CheckCircle2 className="h-3 w-3 shrink-0" /> Revisar y aprobar
+                        </button>
+                    )}
+                    {canRecibir && (
+                        <button onClick={() => setActiveForm('recibir')} disabled={actionLoading}
+                            title="Confirma que el material llegó a obra."
+                            className="flex items-center gap-1.5 px-2 py-2 text-[11px] font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 disabled:opacity-50 transition-all w-full">
+                            <PackageCheck className="h-3 w-3 shrink-0" /> Registrar recepción
+                        </button>
+                    )}
+                    {canRechazar && (
+                        <button onClick={() => setActiveForm('rechazar')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-2 py-2 text-[11px] font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all w-full">
+                            <XCircle className="h-3 w-3 shrink-0" /> Rechazar
+                        </button>
+                    )}
+                    {canRechazarRecepcion && (
+                        <button onClick={() => setActiveForm('rechazar_recepcion')} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-2 py-2 text-[11px] font-bold text-white bg-red-600 rounded-lg hover:bg-red-700 disabled:opacity-50 transition-all w-full">
+                            <XCircle className="h-3 w-3 shrink-0" /> Rechazar Recepción
+                        </button>
+                    )}
+                    {canCancelar && (
+                        <button onClick={async () => { await onCancelar(); }} disabled={actionLoading}
+                            className="flex items-center gap-1.5 px-2 py-2 text-[11px] font-bold text-muted-foreground bg-muted rounded-lg hover:bg-muted/80 disabled:opacity-50 transition-all w-full">
+                            <Ban className="h-3 w-3 shrink-0" /> Cancelar
+                        </button>
+                    )}
+                    {canCompartirWhatsApp && (
+                        <button onClick={handleShareWhatsApp} disabled={actionLoading}
+                            title={t.estado === 'pendiente' ? 'Notificar nueva solicitud por WhatsApp' : 'Enviar por WhatsApp'}
+                            className="flex items-center justify-center h-9 w-9 text-white bg-[#25D366] rounded-lg hover:bg-[#1EBE5B] disabled:opacity-50 transition-all shadow-sm">
+                            <Send className="h-4 w-4" />
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* ── MODALES (solo flujo materiales) ── */}
             <Modal isOpen={activeForm === 'aprobar'} onClose={() => setActiveForm(null)} title="Revisar y aprobar materiales" size="lg">
