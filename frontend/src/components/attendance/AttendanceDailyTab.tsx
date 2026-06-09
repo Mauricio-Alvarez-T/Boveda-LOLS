@@ -13,6 +13,7 @@ import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { WorkerForm } from '../workers/WorkerForm';
 import WorkerLink from '../workers/WorkerLink';
+import { EmpresaBadge } from './ui/EmpresaBadge';
 import WorkerQuickView from '../workers/WorkerQuickView';
 
 import { cn } from '../../utils/cn';
@@ -353,7 +354,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                         <span className="text-[12px] font-black text-brand-dark uppercase tracking-tight">{worker.apellido_paterno} {worker.apellido_materno || ''}</span>
                                                         <span className="text-[11px] font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">{worker.nombres}</span>
                                                     </WorkerLink>
-                                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} className="mr-1 align-middle" />{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
                                                     {workerAlerta && (
                                                         <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[9px] font-bold text-red-600 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
                                                     )}
@@ -393,7 +394,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                 <div className="flex items-center gap-3 min-w-0 border-l border-border/40 pl-3 group-hover:border-brand-primary/30 transition-colors">
                                                     <div className="min-w-0">
                                                         <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[12px] truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
-                                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><span className="bg-slate-100 dark:bg-muted px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1.5">{worker.cargo_nombre}</span>}</p>
+                                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1.5">{worker.cargo_nombre}</span>}</p>
                                                         {workerAlerta && (<div className="flex items-center gap-1.5 mt-1"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[10px] font-bold text-red-600 dark:text-red-300 leading-tight">{workerAlerta.alertas.map(a => a.mensaje).join(' · ')}</span></div>)}
                                                     </div>
                                                 </div>
@@ -436,7 +437,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                     <button onClick={() => toggleMarkedRow(idx)} className={cn("w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-black transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border hover:border-brand-primary/30 active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button>
                                                     <div className="flex-1 min-w-0">
                                                         <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[11px] truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors leading-tight">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
-                                                        <p className="text-[9px] text-muted-foreground font-medium flex items-center gap-1 mt-0.5"><span className="bg-slate-100 dark:bg-muted px-0.5 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1">{worker.cargo_nombre}</span>}</p>
+                                                        <p className="text-[9px] text-muted-foreground font-medium flex items-center gap-1 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-0.5 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1">{worker.cargo_nombre}</span>}</p>
                                                         {workerAlerta && (<div className="flex items-center gap-1 mt-0.5"><AlertTriangle className="h-2.5 w-2.5 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[9px] font-bold text-red-600 dark:text-red-300 leading-tight truncate">{workerAlerta.alertas[0]?.mensaje}</span></div>)}
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
