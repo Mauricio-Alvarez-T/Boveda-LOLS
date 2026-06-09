@@ -110,8 +110,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             };
             if (newItem.valor_compra.trim() !== '') payload.valor_compra = Number(newItem.valor_compra) || 0;
 
-            const res = await api.post<ApiResponse<ItemInventario>>('/items-inventario', payload);
-            const created = res.data.data;
+            const res = await api.post('/items-inventario', payload);
+            // El CRUD genérico devuelve el ítem DIRECTO (res.data), no envuelto en { data }.
+            // Soportamos ambas formas y validamos que llegó con id (si no, no contaminamos el catálogo).
+            const created: any = (res.data as any)?.data ?? res.data;
+            if (!created || created.id == null) {
+                throw new Error('La respuesta del servidor no incluyó el ítem creado');
+            }
             // Refrescar catálogo e insertar el nuevo ítem para que el selector lo encuentre
             setCatalogoItems(prev => [...prev, created]);
             // Auto-seleccionar en la línea que disparó la creación
@@ -182,9 +187,9 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     );
 
     const availableOptions = useMemo(() =>
-        catalogoItems.map(c => ({
+        catalogoItems.filter(Boolean).map(c => ({
             value: c.id,
-            label: `${c.nro_item} — ${c.descripcion} (${c.unidad})`,
+            label: `${c.nro_item ? c.nro_item + ' — ' : ''}${c.descripcion} (${c.unidad})`,
         })),
     [catalogoItems]);
 
