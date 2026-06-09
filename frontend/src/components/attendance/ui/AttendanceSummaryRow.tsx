@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X, CalendarDays, FileWarning } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X, CalendarDays } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import { useTheme } from '../../../context/ThemeContext';
@@ -31,8 +31,6 @@ interface AttendanceSummaryRowProps {
     setSearchQuery: (val: string) => void;
     /** Callback para navegar al tab Sábados Extra. Si no se pasa, no se muestra el ícono. */
     onGoSabados?: () => void;
-    /** Callback para abrir el flujo de Carta de Amonestación. Si no se pasa, no se muestra el botón. */
-    onAmonestacion?: () => void;
 }
 
 export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
@@ -46,7 +44,6 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     searchQuery,
     setSearchQuery,
     onGoSabados,
-    onAmonestacion,
 }) => {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
@@ -59,35 +56,23 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
         <>
             {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
             <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-card border-b border-border shrink-0">
-                <div className="flex items-center gap-2">
-                    <div className="flex-1 flex items-center justify-between bg-card rounded-2xl p-1 border border-border shadow-sm">
-                        <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
-                            <ChevronLeft className="h-5 w-5" />
-                        </Button>
-                        <div className="flex-1 flex items-center justify-center gap-2">
-                            <Calendar className="h-3.5 w-3.5 text-brand-primary/60" />
-                            <input
-                                type="date"
-                                value={date}
-                                max={maxFecha}
-                                onChange={(e) => setDate(e.target.value)}
-                                className="bg-transparent text-sm text-brand-dark font-black focus:outline-none text-center cursor-pointer uppercase tracking-tight"
-                            />
-                        </div>
-                        <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(1)}>
-                            <ChevronRight className="h-5 w-5" />
-                        </Button>
+                <div className="flex items-center justify-between bg-card rounded-2xl p-1 border border-border shadow-sm">
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
+                        <ChevronLeft className="h-5 w-5" />
+                    </Button>
+                    <div className="flex-1 flex items-center justify-center gap-2">
+                        <Calendar className="h-3.5 w-3.5 text-brand-primary/60" />
+                        <input
+                            type="date"
+                            value={date}
+                            max={maxFecha}
+                            onChange={(e) => setDate(e.target.value)}
+                            className="bg-transparent text-sm text-brand-dark font-black focus:outline-none text-center cursor-pointer uppercase tracking-tight"
+                        />
                     </div>
-                    {/* Carta de Amonestación (voz → PDF) — móvil */}
-                    {onAmonestacion && (
-                        <button
-                            onClick={onAmonestacion}
-                            title="Carta de amonestación"
-                            className="h-12 w-12 shrink-0 rounded-2xl bg-destructive/10 text-destructive border border-destructive/20 flex items-center justify-center active:scale-95 transition-all shadow-sm"
-                        >
-                            <FileWarning className="h-5 w-5" />
-                        </button>
-                    )}
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(1)}>
+                        <ChevronRight className="h-5 w-5" />
+                    </Button>
                 </div>
 
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
@@ -188,16 +173,6 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         className="flex items-center justify-center h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40 transition-all"
                                     >
                                         <CalendarDays className="h-3.5 w-3.5" />
-                                    </button>
-                                )}
-                                {/* Carta de Amonestación (voz → PDF) — desktop */}
-                                {onAmonestacion && (
-                                    <button
-                                        onClick={onAmonestacion}
-                                        title="Carta de amonestación"
-                                        className="flex items-center justify-center h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-destructive hover:border-destructive/40 transition-all"
-                                    >
-                                        <FileWarning className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                             </div>

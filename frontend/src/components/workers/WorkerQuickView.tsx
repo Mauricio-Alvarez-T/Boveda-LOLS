@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, FileWarning } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -9,7 +9,6 @@ import { PeriodAssignModal } from '../attendance/PeriodAssignModal';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { WorkerForm } from './WorkerForm';
-import { AmonestacionModal } from './AmonestacionModal';
 import { DocumentUploader } from '../documents/DocumentUploader';
 import { DocumentList } from '../documents/DocumentList';
 import { useAuth } from '../../context/AuthContext';
@@ -62,7 +61,6 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
-    const [showAmonestacion, setShowAmonestacion] = useState(false);
     const [isMobile, setIsMobile] = useState(() => 
         typeof window !== 'undefined' ? window.innerWidth < 1024 : false
     );
@@ -338,16 +336,6 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             <span className="text-[11px] font-semibold text-brand-accent">Asistencia</span>
                                         </button>
                                     </div>
-
-                                    {/* Carta de Amonestación (asistida por IA) — solo jefes con permiso */}
-                                    {hasPermission('asistencia.amonestacion.generar') && (
-                                        <button
-                                            onClick={() => setShowAmonestacion(true)}
-                                            className="w-full flex items-center justify-center gap-2 p-3 rounded-2xl bg-destructive/5 hover:bg-destructive/10 border border-destructive/15 transition-colors text-destructive font-semibold text-sm"
-                                        >
-                                            <FileWarning className="h-4 w-4" /> Carta de Amonestación
-                                        </button>
-                                    )}
                                     </div>
                                 ) : null}
                             </div>
@@ -383,13 +371,6 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                     setRefreshKey(prev => prev + 1);
                     if (onUpdate) onUpdate();
                 }}
-            />
-
-            {/* Carta de Amonestación (voz/texto → IA → PDF) */}
-            <AmonestacionModal
-                isOpen={showAmonestacion}
-                onClose={() => setShowAmonestacion(false)}
-                worker={worker as any}
             />
 
             {/* Action Modal (Edit/Docs) */}

@@ -241,7 +241,6 @@ safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config
 safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
-safeRoute('/api/amonestaciones', './src/routes/amonestaciones.routes', 'Amonestaciones (IA)');
 
 // ============================================
 // Health Check & Dashboard

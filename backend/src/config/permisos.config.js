@@ -24,7 +24,6 @@ const MAESTRO_PERMISOS = [
     ['asistencia.sabados_extra.registrar',     'Asistencia', 'Registrar Asistencia Sábado', 'Marcar asistencia y horas trabajadas el sábado', 16],
     ['asistencia.sabados_extra.enviar_whatsapp','Asistencia','Enviar Sábado por WhatsApp',  'Compartir citación o asistencia de sábado por WhatsApp', 17],
     ['asistencia.horas_extra.ver',  'Asistencia', '$ Ver Horas Extra',           'Asistencia → Vista Diaria y Exportación Excel: si está denegado, oculta las columnas "Horas Extra" y "Horas Sábado" (datos sensibles porque son insumo del cálculo de pago).', 18],
-    ['asistencia.amonestacion.generar', 'Asistencia', 'Generar Carta de Amonestación', 'Trabajadores → Ficha Rápida: permite redactar (con ayuda de IA) y descargar en PDF una carta de amonestación para el trabajador. Pensado para jefes de obra.', 19],
 
     // TRABAJADORES
     ['trabajadores.ver',            'Trabajadores', 'Ver Trabajadores',          'Ver la lista y fichas de trabajadores', 1],
