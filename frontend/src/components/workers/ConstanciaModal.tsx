@@ -117,14 +117,16 @@ function buildCartaHtml(
         // Encabezado: logo a la izquierda, título CENTRADO en la página (columnas laterales iguales).
         `<table width="100%"><tr>` +
         `<td width="28%" style="vertical-align:top">${logoCell}</td>` +
-        `<td width="44%" style="text-align:center;vertical-align:middle">` +
+        `<td width="44%" style="text-align:center;vertical-align:top">` +
+        `<div style="margin-top:26pt">` +
         `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
         `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
+        `</div>` +
         `</td>` +
         `<td width="28%"></td>` +
         `</tr></table>` +
         `<p style="margin:14pt 0 0;text-align:left"><b>NOMBRE:</b> ${escapeHtml(nombreDe(w))}</p>` +
-        `<p style="margin:0;text-align:left"><b>SUCURSAL:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
+        `<p style="margin:0;text-align:left"><b>OBRA:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
         `<p style="margin:0;text-align:left"><b>CARGO:</b> ${escapeHtml(w.cargo_nombre || '')}</p>` +
         `<p style="margin:0;text-align:left"><b>RUT:</b> ${escapeHtml(w.rut || '')}</p>` +
         `<p style="margin:14pt 0 0">De nuestra consideración:</p>` +
@@ -185,7 +187,7 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                     <div className="mt-1 grid grid-cols-1 gap-0.5 text-xs text-muted-foreground">
                         {worker.rut && <span>RUT: {worker.rut}</span>}
                         {worker.cargo_nombre && <span>Cargo: {worker.cargo_nombre}</span>}
-                        {worker.obra_nombre && <span>Sucursal: {worker.obra_nombre}</span>}
+                        {worker.obra_nombre && <span>Obra: {worker.obra_nombre}</span>}
                         {worker.empresa_nombre && <span>Empresa: {worker.empresa_nombre}</span>}
                     </div>
                     <p className="text-[11px] text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
