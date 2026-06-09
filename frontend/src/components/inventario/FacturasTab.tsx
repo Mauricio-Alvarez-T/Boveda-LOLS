@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, FileText, XCircle, Trash2, Receipt, PackagePlus } from 'lucide-react';
+import { Plus, Minus, FileText, XCircle, Trash2, Receipt, PackagePlus, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
@@ -35,6 +35,10 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
     /* ── Modal state ── */
     const [showModal, setShowModal] = useState(false);
+
+    /* ── Vista previa (detalle) ── */
+    const [detalleId, setDetalleId] = useState<number | null>(null);
+    const [detalle, setDetalle] = useState<any | null>(null);
 
     /* ── Form state ── */
     const [numFactura, setNumFactura] = useState('');
@@ -228,6 +232,19 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
         }
     };
 
+    /* ── Vista previa: cargar detalle con ítems ── */
+    const openDetalle = async (id: number) => {
+        setDetalleId(id);
+        setDetalle(null);
+        try {
+            const res = await api.get(`/facturas-inventario/${id}`);
+            setDetalle(res.data.data);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'No se pudo cargar la factura');
+            setDetalleId(null);
+        }
+    };
+
     /* ── Anular ── */
     const handleAnular = async (id: number) => {
         if (!window.confirm('Esta accion anulara la factura y revertira el stock. Continuar?')) return;
@@ -271,7 +288,12 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             ) : (
                 <div className="space-y-2">
                     {facturas.map(f => (
-                        <div key={f.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-brand-primary/20 transition-colors">
+                        <div
+                            key={f.id}
+                            onClick={() => openDetalle(f.id)}
+                            title="Ver detalle de la factura"
+                            className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-brand-primary/40 hover:bg-muted/40 transition-colors cursor-pointer"
+                        >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <span className="text-xs font-bold text-brand-dark">#{f.numero_factura}</span>
@@ -281,12 +303,16 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(f.monto_neto)} neto
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!f.activo && (
                                     <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">ANULADA</span>
                                 )}
+                                <button onClick={() => openDetalle(f.id)} title="Ver detalle"
+                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors">
+                                    <Eye className="h-3.5 w-3.5" />
+                                </button>
                                 {canDelete && f.activo && (
-                                    <button onClick={() => handleAnular(f.id)} className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
+                                    <button onClick={() => handleAnular(f.id)} title="Anular factura (revierte stock)" className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
                                         <XCircle className="h-3.5 w-3.5" />
                                     </button>
                                 )}
@@ -295,6 +321,80 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     ))}
                 </div>
             )}
+
+            {/* ═══ VISTA PREVIA (DETALLE) ═══ */}
+            <Modal
+                isOpen={detalleId !== null}
+                onClose={() => { setDetalleId(null); setDetalle(null); }}
+                title={detalle ? `Factura #${detalle.numero_factura}` : 'Factura'}
+                size="lg"
+            >
+                {!detalle ? (
+                    <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                        <p className="text-sm">Cargando factura…</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Cabecera */}
+                        <div className="bg-muted rounded-xl border border-border p-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-black text-brand-dark">#{detalle.numero_factura}</span>
+                                {!detalle.activo && (
+                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">ANULADA</span>
+                                )}
+                            </div>
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                <p className="text-muted-foreground">Proveedor: <span className="font-semibold text-brand-dark">{detalle.proveedor}</span></p>
+                                <p className="text-muted-foreground">Fecha: <span className="font-semibold text-brand-dark">{fmtFecha(detalle.fecha_factura)}</span></p>
+                                {detalle.registrado_por_nombre && (
+                                    <p className="text-muted-foreground">Registró: <span className="font-semibold text-brand-dark">{detalle.registrado_por_nombre}</span></p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Ítems */}
+                        <div>
+                            <p className="text-xs font-bold text-brand-dark mb-2">Ítems</p>
+                            <div className="space-y-2">
+                                {(detalle.items || []).map((it: any, idx: number) => (
+                                    <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-brand-dark truncate">{it.item_descripcion}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
+                                                {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs font-bold text-brand-dark shrink-0">
+                                            {fmtMoney(Number(it.cantidad) * Number(it.precio_unitario))}
+                                        </span>
+                                    </div>
+                                ))}
+                                {(!detalle.items || detalle.items.length === 0) && (
+                                    <p className="text-xs text-muted-foreground italic">Sin ítems.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Total */}
+                        <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3 border border-border">
+                            <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                                <Receipt className="h-3.5 w-3.5 text-brand-primary" /> Total Neto
+                            </span>
+                            <span className="text-sm font-black text-brand-dark">{fmtMoney(detalle.monto_neto)}</span>
+                        </div>
+
+                        {/* Observaciones */}
+                        {detalle.observaciones && (
+                            <div>
+                                <p className="text-xs font-bold text-brand-dark mb-1">Observaciones</p>
+                                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{detalle.observaciones}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Modal>
 
             {/* ═══ CREATE MODAL ═══ */}
             <Modal isOpen={showModal} onClose={handleClose} title="Registrar Factura de Inventario" size="lg">
