@@ -28,18 +28,6 @@ const hoy = () => new Date().toISOString().split('T')[0];
 const nombreDe = (w: ConstanciaWorker) =>
     `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.replace(/\s+/g, ' ').trim();
 
-const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
-const fechaLargaDel = (iso: string) => {
-    if (!iso) return '';
-    const d = new Date(iso + 'T12:00:00');
-    return `${String(d.getDate()).padStart(2, '0')} de ${MESES[d.getMonth()]} del ${d.getFullYear()}`;
-};
-const fechaCorta = (iso: string) => {
-    if (!iso) return '__/__/____';
-    const d = new Date(iso + 'T12:00:00');
-    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
-};
-
 function escapeHtml(s: string): string {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
@@ -57,14 +45,15 @@ const LOGO_SVG =
     `<text x="225" y="192" font-family="Arial, sans-serif" font-weight="700" font-size="42">INGENIERIA</text>` +
     `</g></svg>`;
 
+// Espacios en blanco para completar a mano EN EL WORD (fechas / motivo).
+const LINEA = '____________________________';
+
 // ── Plantilla: ACTA DE CONSENTIMIENTO ──
-function buildActaHtml(w: ConstanciaWorker, f: { lugar: string; fechaActa: string; fechaHecho: string }): string {
-    const enc = `${(f.lugar || 'Santiago').trim()}, ${fechaLargaDel(f.fechaActa)}.`;
-    const dia = f.fechaHecho ? fechaLargaDel(f.fechaHecho) : '____________________';
+function buildActaHtml(w: ConstanciaWorker): string {
     return (
         `<table width="100%" style="margin-bottom:8pt"><tr>` +
         `<td style="vertical-align:top">${LOGO_SVG}</td>` +
-        `<td style="text-align:right;vertical-align:top;font-size:11pt">${escapeHtml(enc)}</td>` +
+        `<td style="text-align:right;vertical-align:top;font-size:11pt">Santiago, ${LINEA}.</td>` +
         `</tr></table>` +
         `<div style="text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 18pt">Acta de Consentimiento</div>` +
         `<p style="text-align:left;margin:0 0 2pt"><b>Nombre del Trabajador:</b> ${escapeHtml(nombreDe(w))}</p>` +
@@ -73,7 +62,7 @@ function buildActaHtml(w: ConstanciaWorker, f: { lugar: string; fechaActa: strin
         `<p style="text-align:left;margin:0 0 2pt"><b>Obra:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
         `<p style="text-align:left;margin:18pt 0 8pt"><u><b>PRESENTE</b></u></p>` +
         `<ol>` +
-        `<li>El día ${escapeHtml(dia)}, mi firma quedo registrada en el libro de asistencia de la empresa</li>` +
+        `<li>El día ${LINEA}, mi firma quedo registrada en el libro de asistencia de la empresa</li>` +
         `<li>Reconozco que ese día no me presente a laborar</li>` +
         `<li>Declaro que mi firma fue puesta de manera voluntaria.</li>` +
         `<li>Autorizo a mi empresa a registrar esta manifestación como aclaración sobre lo ocurrido</li>` +
@@ -85,17 +74,14 @@ function buildActaHtml(w: ConstanciaWorker, f: { lugar: string; fechaActa: strin
 }
 
 // ── Plantilla: CARTA DE AMONESTACIÓN ──
-function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfraccion: string; falta: string }): string {
-    const fInfra = f.fechaInfraccion ? fechaLargaDel(f.fechaInfraccion) : '…………………………………………………………';
-    const faltaHtml = f.falta.trim()
-        ? f.falta.split(/\n+/).filter(Boolean).map(l => `<p>${escapeHtml(l)}</p>`).join('')
-        : '<p>_______________________________________________</p>'.repeat(4);
+function buildCartaHtml(w: ConstanciaWorker): string {
+    const lineasFalta = '<p>_______________________________________________</p>'.repeat(4);
     return (
         `<table width="100%"><tr>` +
         `<td width="40%" style="vertical-align:top">${LOGO_SVG}</td>` +
         `<td style="text-align:center;vertical-align:top">` +
         `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
-        `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
+        `<div style="margin-top:6pt">Fecha: ___/___/______</div>` +
         `</td></tr></table>` +
         `<p style="margin:14pt 0 0"><b>NOMBRE:</b> ${escapeHtml(nombreDe(w))}</p>` +
         `<p style="margin:0"><b>DIVISIÓN:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
@@ -104,9 +90,9 @@ function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfra
         `<p style="margin:0">Presente.</p>` +
         `<p style="margin:14pt 0 0">De nuestra consideración:</p>` +
         `<p>Ponemos en su conocimiento, que la Administración de LOLS INGENIERÍA LTDA. Ha determinado sancionarlo con una amonestación escrita.</p>` +
-        `<p>La infracción fue cometida por usted el día ${escapeHtml(fInfra)}</p>` +
+        `<p>La infracción fue cometida por usted el día …………………………………………………………</p>` +
         `<p>La falta es la siguiente:</p>` +
-        faltaHtml +
+        lineasFalta +
         `<p style="margin-top:14pt">Le recordamos a usted que las infracciones de forma recurrente pueden generar el termino de Contrato.</p>` +
         `<p style="margin-top:10pt">Sin otro particular, Atentamente</p>` +
         `<table width="100%" style="margin-top:54pt"><tr>` +
@@ -121,17 +107,9 @@ function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfra
 
 export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) => {
     const [formato, setFormato] = useState<Formato | null>(null);
-    // Campos editables por el jefe (solo fechas y/o motivo)
-    const [lugar, setLugar] = useState('Santiago');
-    const [fechaDoc, setFechaDoc] = useState(hoy());      // fecha del acta / de la carta
-    const [fechaHecho, setFechaHecho] = useState('');     // acta: día punto 1 / carta: día de la infracción
-    const [falta, setFalta] = useState('');               // solo carta
 
     useEffect(() => {
-        if (isOpen) {
-            setFormato(null);
-            setLugar('Santiago'); setFechaDoc(hoy()); setFechaHecho(''); setFalta('');
-        }
+        if (isOpen) setFormato(null);
     }, [isOpen]);
 
     if (!worker) return null;
@@ -139,12 +117,11 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
     const descargar = () => {
         if (!formato) return;
         const safe = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
+        const sufijo = `${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${hoy()}`;
         if (formato === 'acta') {
-            const html = buildActaHtml(worker, { lugar, fechaActa: fechaDoc, fechaHecho });
-            downloadWord(`Acta_Consentimiento_${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${fechaDoc}`, html);
+            downloadWord(`Acta_Consentimiento_${sufijo}`, buildActaHtml(worker));
         } else {
-            const html = buildCartaHtml(worker, { fechaCarta: fechaDoc, fechaInfraccion: fechaHecho, falta });
-            downloadWord(`Amonestacion_${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${fechaDoc}`, html);
+            downloadWord(`Amonestacion_${sufijo}`, buildCartaHtml(worker));
         }
     };
 
@@ -189,9 +166,8 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                     ))}
                 </div>
             ) : (
-                /* Paso 2: completar (solo fechas/motivo) y descargar */
+                /* Paso 2: solo datos autocompletados + descargar (fechas y motivo se llenan en el Word) */
                 <div className="space-y-4">
-                    {/* Datos autocompletados del trabajador */}
                     <div className="bg-background rounded-2xl p-4 border border-border text-sm">
                         <p className="font-bold text-brand-dark">{nombreDe(worker)}</p>
                         <div className="mt-1 grid grid-cols-1 gap-0.5 text-xs text-muted-foreground">
@@ -202,53 +178,9 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                         </div>
                         <p className="text-[11px] text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
                     </div>
-
-                    {formato === 'acta' ? (
-                        <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-dark mb-1">Lugar</label>
-                                    <input type="text" value={lugar} onChange={(e) => setLugar(e.target.value)} placeholder="Santiago"
-                                        className="w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-dark mb-1">Fecha del acta</label>
-                                    <input type="date" value={fechaDoc} onChange={(e) => setFechaDoc(e.target.value)}
-                                        className="w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">Día del hecho (punto 1)</label>
-                                <input type="date" value={fechaHecho} onChange={(e) => setFechaHecho(e.target.value)}
-                                    className="w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40" />
-                                <p className="text-[11px] text-muted-foreground mt-1">Día en que la firma quedó registrada / no se presentó a laborar.</p>
-                            </div>
-                        </>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-dark mb-1">Fecha de la carta</label>
-                                    <input type="date" value={fechaDoc} onChange={(e) => setFechaDoc(e.target.value)}
-                                        className="w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40" />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-dark mb-1">Día de la infracción</label>
-                                    <input type="date" value={fechaHecho} onChange={(e) => setFechaHecho(e.target.value)}
-                                        className="w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">La falta (motivo)</label>
-                                <textarea value={falta} onChange={(e) => setFalta(e.target.value)} rows={5}
-                                    placeholder="Describe la falta. Si lo dejas vacío, el Word queda con líneas en blanco para completar a mano."
-                                    className="w-full p-3 rounded-xl border border-border bg-card text-brand-dark text-sm leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-brand-primary/40" />
-                            </div>
-                        </>
-                    )}
-
-                    <p className="text-[11px] text-muted-foreground">
-                        El resto del texto es fijo (igual a tu formato oficial). Al descargar, se abre en Word y puedes editar lo que quieras antes de imprimir/firmar.
+                    <p className="text-sm text-muted-foreground">
+                        El documento <strong>{formato === 'acta' ? 'Acta de Consentimiento' : 'Carta de Amonestación'}</strong> se descargará en Word con los datos del trabajador ya puestos.
+                        Las <strong>fechas y el motivo</strong> los completas directamente en el Word.
                     </p>
                 </div>
             )}

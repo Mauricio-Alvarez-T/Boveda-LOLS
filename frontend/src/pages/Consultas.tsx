@@ -579,14 +579,13 @@ const ConsultasPage: React.FC = () => {
 
                                         {/* 3. Acciones (Derecha) */}
                                         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
-                                            {/* Constancia: genera Carta de Amonestación o Acta de Consentimiento (Word) */}
+                                            {/* Constancia: genera Carta de Amonestación o Acta de Consentimiento (Word). Solo ícono + tooltip. */}
                                             <button
                                                 onClick={() => setConstanciaWorker(worker)}
-                                                title="Generar constancia (Word)"
-                                                className="flex items-center gap-1 px-2 h-7 sm:h-8 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide hover:bg-brand-primary/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                                                title="Constancia"
+                                                className="h-7 w-7 sm:h-8 sm:w-8 flex items-center justify-center rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 hover:bg-brand-primary/20 hover:scale-110 active:scale-95 transition-all shrink-0"
                                             >
-                                                <FileText className="h-3.5 w-3.5 shrink-0" />
-                                                <span>Constancia</span>
+                                                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                                             </button>
                                             <Button
                                                 variant="glass"
