@@ -101,7 +101,7 @@ const MaterialesAprobacionPanel: React.FC<{
                 <button type="button" onClick={() => onFuente('obra')}
                     className={cn("h-11 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-bold border-2 transition-colors",
                         fuente === 'obra' ? "bg-brand-primary text-white border-brand-primary" : "bg-card text-brand-dark border-border hover:border-brand-primary/40")}>
-                    <MapPin className="h-4 w-4" /> Traer de obra
+                    <MapPin className="h-4 w-4" /> Traer de obra/bodega
                 </button>
             </div>
             {fuente === 'obra' && (
@@ -230,7 +230,7 @@ const MaterialesAprobacionPanel: React.FC<{
                 <p className="text-xs text-destructive">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
             )}
             {faltaOrigen && aprobadosCount > 0 && (
-                <p className="text-xs text-destructive">Elige de qué obra se trae en los ítems marcados "Traer de obra".</p>
+                <p className="text-xs text-destructive">Elige de qué obra/bodega se trae en los ítems marcados "Traer de obra/bodega".</p>
             )}
 
             <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
