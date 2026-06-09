@@ -59,18 +59,9 @@ function escapeHtml(s: string): string {
 
 const LINEA = '____________________________';
 
-// Logo LOLS (réplica del componente Logo, verde oficial) — inline SVG para el membrete.
-const LOGO_SVG =
-    `<svg width="160" height="71" viewBox="0 0 540 240" xmlns="http://www.w3.org/2000/svg"><g fill="#029E4D">` +
-    `<rect x="20" y="20" width="500" height="12"/><rect x="20" y="208" width="500" height="12"/>` +
-    `<rect x="20" y="48" width="75" height="144"/>` +
-    `<rect x="119" y="52" width="77" height="32" fill="transparent" stroke="#029E4D" stroke-width="8"/>` +
-    `<rect x="119" y="104" width="77" height="32" fill="transparent" stroke="#029E4D" stroke-width="8"/>` +
-    `<rect x="115" y="152" width="85" height="40"/>` +
-    `<text x="220" y="134" font-family="Arial, sans-serif" font-weight="700" font-size="115">LOLS</text>` +
-    `<rect x="220" y="148" width="300" height="6"/>` +
-    `<text x="225" y="192" font-family="Arial, sans-serif" font-weight="700" font-size="42">INGENIERIA</text>` +
-    `</g></svg>`;
+// Membrete LOLS como TEXTO (el SVG no renderiza bien en Word). Si más adelante
+// se quiere el logo gráfico, se incrusta un PNG en base64.
+const LOGO_HEADER = `<div style="font-size:13pt;font-weight:bold;color:#029E4D">LOLS INGENIERÍA</div>`;
 
 // ── Plantilla: ACTA DE CONSENTIMIENTO ──
 function buildActaHtml(w: ConstanciaWorker, f: { fechaActa: string; fechaHecho: string }): string {
@@ -78,7 +69,7 @@ function buildActaHtml(w: ConstanciaWorker, f: { fechaActa: string; fechaHecho: 
     const dia = f.fechaHecho ? fechaLargaDel(f.fechaHecho) : LINEA;
     return (
         `<table width="100%" style="margin-bottom:8pt"><tr>` +
-        `<td style="vertical-align:top">${LOGO_SVG}</td>` +
+        `<td style="vertical-align:top">${LOGO_HEADER}</td>` +
         `<td style="text-align:right;vertical-align:top;font-size:11pt">${escapeHtml(enc)}</td>` +
         `</tr></table>` +
         `<div style="text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 18pt">Acta de Consentimiento</div>` +
@@ -108,16 +99,17 @@ function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfra
         : '<p>_______________________________________________</p>'.repeat(4);
     return (
         `<table width="100%"><tr>` +
-        `<td width="40%" style="vertical-align:top">${LOGO_SVG}</td>` +
+        `<td width="40%" style="vertical-align:top">${LOGO_HEADER}</td>` +
         `<td style="text-align:center;vertical-align:top">` +
         `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
         `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
         `</td></tr></table>` +
-        `<p style="margin:14pt 0 0"><b>NOMBRE:</b> ${escapeHtml(nombreDe(w))}</p>` +
-        `<p style="margin:0"><b>DIVISIÓN:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
-        `<p style="margin:0"><b>CARGO:</b> ${escapeHtml(w.cargo_nombre || '')}</p>` +
-        `<p style="margin:8pt 0 0">Señor: ${escapeHtml(nombreDe(w))}</p>` +
-        `<p style="margin:0">Presente.</p>` +
+        `<p style="margin:14pt 0 0;text-align:left"><b>NOMBRE:</b> ${escapeHtml(nombreDe(w))}</p>` +
+        `<p style="margin:0;text-align:left"><b>SUCURSAL:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
+        `<p style="margin:0;text-align:left"><b>CARGO:</b> ${escapeHtml(w.cargo_nombre || '')}</p>` +
+        `<p style="margin:0;text-align:left"><b>RUT:</b> ${escapeHtml(w.rut || '')}</p>` +
+        `<p style="margin:8pt 0 0;text-align:left">Señor: ${escapeHtml(nombreDe(w))}</p>` +
+        `<p style="margin:0;text-align:left">Presente.</p>` +
         `<p style="margin:14pt 0 0">De nuestra consideración:</p>` +
         `<p>Ponemos en su conocimiento, que la Administración de LOLS INGENIERÍA LTDA. Ha determinado sancionarlo con una amonestación escrita.</p>` +
         `<p>La infracción fue cometida por usted el día ${escapeHtml(fInfra)}</p>` +
@@ -129,7 +121,7 @@ function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfra
         `<td width="50%"><b>Empleador</b></td>` +
         `<td width="50%" style="text-align:right"><b>Trabajador.</b></td>` +
         `</tr></table>` +
-        `<p style="margin-top:20pt">c.c.: Inspección del Trabajo<br>` +
+        `<p style="margin-top:20pt;text-align:left">c.c.: Inspección del Trabajo<br>` +
         `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Archivo de personal<br>` +
         `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Archivo</p>`
     );
