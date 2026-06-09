@@ -23,12 +23,12 @@ export function empresaTag(nombre?: string | null): EmpresaTag | null {
     if (!nombre || !nombre.trim()) return null;
     const n = nombre.toUpperCase();
 
-    if (n.includes('LOLS')) return { letra: 'L', label: 'LOLS', color: GREEN };
-    if (n.includes('URRUTIA') || n.includes('MAUA')) return { letra: 'M', label: 'MAUA', color: BLUE };
-    if (n.includes('PROVISORI')) return { letra: 'P', label: 'Provisorio', color: AMBER };
-    if (n.includes('DEDALIUS')) return { letra: 'D', label: 'Dedalius', color: PURPLE };
+    if (n.includes('LOLS')) return { letra: 'LOLS', label: 'LOLS', color: GREEN };
+    if (n.includes('URRUTIA') || n.includes('MAUA')) return { letra: 'MAU', label: 'MAUA', color: BLUE };
+    if (n.includes('PROVISORI')) return { letra: 'PROV', label: 'Provisorio', color: AMBER };
+    if (n.includes('DEDALIUS')) return { letra: 'DED', label: 'Dedalius', color: PURPLE };
 
-    // Fallback: primera letra del nombre, color neutro. Conserva el nombre
+    // Fallback: primeras letras del nombre, color neutro. Conserva el nombre
     // completo en el tooltip para que igual se identifique la empresa.
-    return { letra: n.trim().charAt(0) || '?', label: nombre, color: GRAY };
+    return { letra: n.trim().slice(0, 4) || '?', label: nombre, color: GRAY };
 }
