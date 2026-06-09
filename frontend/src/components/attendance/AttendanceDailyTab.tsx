@@ -15,6 +15,7 @@ import { WorkerForm } from '../workers/WorkerForm';
 import WorkerLink from '../workers/WorkerLink';
 import { EmpresaBadge } from './ui/EmpresaBadge';
 import WorkerQuickView from '../workers/WorkerQuickView';
+import { AmonestacionModal } from '../workers/AmonestacionModal';
 
 import { cn } from '../../utils/cn';
 import { useObra } from '../../context/ObraContext';
@@ -76,6 +77,8 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     const [markedRows, setMarkedRows] = useState<Set<number>>(new Set());
     const [trasladoWorker, setTrasladoWorker] = useState<Trabajador | null>(null);
     const [showSearchBox, setShowSearchBox] = useState(false);
+    const [showAmonestacion, setShowAmonestacion] = useState(false);
+    const canAmonestar = hasPermission('asistencia.amonestacion.generar');
 
     const toggleMarkedRow = (index: number) => {
         setMarkedRows(prev => {
@@ -293,6 +296,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
                         onGoSabados={onGoSabados}
+                        onAmonestacion={canAmonestar ? () => setShowAmonestacion(true) : undefined}
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">
@@ -511,6 +515,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                     </div>
                 </div>
             )}
+
+            {/* Carta de Amonestación desde la barra (elige trabajador → voz/texto → PDF) */}
+            <AmonestacionModal
+                isOpen={showAmonestacion}
+                onClose={() => setShowAmonestacion(false)}
+                workers={workers as any}
+            />
 
             <WorkerCalendarModal
                 isOpen={!!calendarWorker}
