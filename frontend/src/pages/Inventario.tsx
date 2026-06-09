@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, Droplets, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt } from 'lucide-react';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt } from 'lucide-react';
+import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
@@ -33,7 +34,7 @@ const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.Elemen
     { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   shortLabel: 'Obra/Bod.', icon: Building2,       requiresPerm: 'inventario.tab.por_ubicacion' },
     { key: 'transferencias',    label: 'Transferencias',    shortLabel: 'Transf.',   icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
     { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
-    { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: Droplets,        requiresPerm: 'inventario.tab.bombas' },
+    { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: MixerTruck,      requiresPerm: 'inventario.tab.bombas' },
     { key: 'facturas',          label: 'Facturas',          shortLabel: 'Facturas',  icon: Receipt,         requiresPerm: 'inventario.facturas.ver' },
     { key: 'movimientos',       label: 'Movimientos',       shortLabel: 'Movim.',    icon: History,         requiresPerm: 'inventario.movimientos.ver' },
 ];

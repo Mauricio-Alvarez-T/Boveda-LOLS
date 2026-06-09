@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Droplets, Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { MixerTruck } from '../icons/MixerTruck';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { RegistroBombaHormigon } from '../../types/entities';
@@ -242,7 +243,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                 {/* Stats cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <StatCard
-                        icon={Droplets}
+                        icon={MixerTruck}
                         label="Total Bombeos"
                         value={String(stats.total)}
                         color="bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
@@ -276,7 +277,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                     <div className="py-12 text-center text-muted-foreground text-xs">Cargando...</div>
                 ) : filtered.length === 0 ? (
                     <div className="py-16 text-center text-muted-foreground">
-                        <Droplets className="h-10 w-10 mx-auto opacity-20 mb-3" />
+                        <MixerTruck className="h-10 w-10 mx-auto opacity-20 mb-3" />
                         <p className="text-sm font-medium">Sin registros de bombas</p>
                         <p className="text-xs mt-1 text-muted-foreground/60">
                             {searchQuery ? 'No hay resultados para la búsqueda' : 'No se han registrado bombeos aún'}
@@ -454,7 +455,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                         </button>
                         <button type="submit" disabled={submitting}
                             className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                            <Droplets className="h-3.5 w-3.5" />
+                            <MixerTruck className="h-3.5 w-3.5" />
                             {submitting ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Registrar')}
                         </button>
                     </div>
@@ -531,7 +532,7 @@ const BombaCard: React.FC<{
 
             {/* Type + date row */}
             <div className="flex items-center gap-1.5 mb-1">
-                <Droplets className="h-3 w-3 text-blue-400 shrink-0" />
+                <MixerTruck className="h-3 w-3 text-blue-400 shrink-0" />
                 <span className="text-xs text-brand-dark/80 font-medium">{r.tipo_bomba}</span>
                 <span className="text-[10px] text-muted-foreground/50 mx-0.5">&middot;</span>
                 <span className="text-[10px] text-muted-foreground">{fmtDateShort(r.fecha)}</span>
