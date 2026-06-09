@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
-import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package, Eye, EyeOff } from 'lucide-react';
+import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package } from 'lucide-react';
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import { useAuth } from '../../context/AuthContext';
@@ -13,11 +13,13 @@ interface Props {
     onUpdateStock: (itemId: number, obraId: number, data: { cantidad?: number; valor_arriendo_override?: number | null }) => Promise<boolean>;
     onUpdateDescuento: (obraId: number, porcentaje: number) => Promise<boolean>;
     onRefresh: () => void;
+    /** Filtro "Ocultar vacías" controlado desde el header de Inventario. */
+    hideEmpty?: boolean;
 }
 
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
-const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh }) => {
+const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh, hideEmpty = false }) => {
     // Gate financiero: ocultar columnas/cards $ si no tiene `inventario.costos.ver`.
     // El backend ya sanitiza el JSON (`valor_arriendo`, `total`, `total_facturacion`,
     // `descuento_*`, `total_con_descuento` no llegan). Aquí ocultamos columnas para
@@ -149,9 +151,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
         mobileCancelEdit();
     };
 
-    // Toggle "Ocultar vacías": esconde items con cantidad 0 (y categorías que
-    // queden sin items). Aplica a la vista mobile y desktop.
-    const [hideEmpty, setHideEmpty] = useState(false);
+    // Filtro "Ocultar vacías" (prop desde el header de Inventario): esconde items
+    // con cantidad 0 (y categorías que queden sin items). Mobile y desktop.
     const categorias = React.useMemo(
         () => hideEmpty
             ? data.categorias
@@ -165,24 +166,6 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Toolbar: toggle "Ocultar vacías" (esconde items con cantidad 0) */}
-            <div className="flex items-center justify-end shrink-0 mb-2">
-                <button
-                    type="button"
-                    onClick={() => setHideEmpty(v => !v)}
-                    title={hideEmpty ? 'Mostrar items sin stock' : 'Ocultar items sin stock'}
-                    className={cn(
-                        "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
-                        hideEmpty
-                            ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
-                            : "bg-card border-border text-muted-foreground hover:border-brand-primary/30"
-                    )}
-                >
-                    {hideEmpty ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
-                    Ocultar vacías
-                </button>
-            </div>
-
             {/* ═══════════════════════════════════════════
                 ── MOBILE VIEW (smartphones only) ──
                ═══════════════════════════════════════════ */}

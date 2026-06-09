@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt } from 'lucide-react';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -131,6 +131,8 @@ const InventarioPage: React.FC = () => {
     });
     const [maestroSubTab, setMaestroSubTab] = useState<'items' | 'stock'>('items');
     const [selectedUbicacionKey, setSelectedUbicacionKey] = useState<string>('');
+    // Filtro "Ocultar vacías" para la vista Por Obra/Bodega (botón en el header).
+    const [hideEmptyUbic, setHideEmptyUbic] = useState(false);
     // Intent de navegación desde el Resumen Ejecutivo hacia Transferencias.
     // Se consume como props iniciales del Panel; cambia de valor fuerza remount via `key`.
     const [trfNavIntent, setTrfNavIntent] = useState<{ estado?: string; id?: number | null; nonce: number }>({ nonce: 0 });
@@ -391,6 +393,22 @@ const InventarioPage: React.FC = () => {
                             {currentStockData && !isBodega && hasPermission('inventario.editar') && (
                                 <ExportExcelDropdown stockData={currentStockData} />
                             )}
+                            {currentStockData && (
+                                <button
+                                    type="button"
+                                    onClick={() => setHideEmptyUbic(v => !v)}
+                                    title={hideEmptyUbic ? 'Mostrar items sin stock' : 'Ocultar items sin stock'}
+                                    className={cn(
+                                        "flex items-center justify-center gap-1.5 px-3 py-2 md:py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
+                                        hideEmptyUbic
+                                            ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                                            : "bg-card border-border text-muted-foreground hover:border-brand-primary/30"
+                                    )}
+                                >
+                                    {hideEmptyUbic ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                                    Ocultar vacías
+                                </button>
+                            )}
                         </div>
 
                         {loading ? (
@@ -406,6 +424,7 @@ const InventarioPage: React.FC = () => {
                                 onUpdateStock={(itemId, ubicId, data) => updateStock(itemId, isBodega ? null : ubicId, isBodega ? ubicId : null, data)}
                                 onUpdateDescuento={updateDescuento}
                                 onRefresh={invalidateStockAll}
+                                hideEmpty={hideEmptyUbic}
                             />
                         ) : (
                             <div className="flex flex-col items-center justify-center py-16 text-center">
