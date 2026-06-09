@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { FileWarning, FileCheck2, ArrowLeft, Download, Printer, ChevronRight } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
-import { Button } from '../ui/Button';
 import { downloadWord, printDoc } from '../../utils/downloadWord';
 
 interface ConstanciaWorker {
@@ -155,17 +154,21 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
     const descargar = () => { if (formato) downloadWord(nombreArchivo(), buildHtml()); };
     const imprimir = () => { if (formato) printDoc(buildHtml(), formato === 'acta' ? 'Acta de Consentimiento' : 'Carta de Amonestación'); };
 
-    const footer = formato ? (
-        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
-            <Button variant="ghost" onClick={() => setFormato(null)} leftIcon={<ArrowLeft className="h-4 w-4" />} className="w-full sm:w-auto">
-                Volver
-            </Button>
-            <Button variant="glass" onClick={imprimir} leftIcon={<Printer className="h-4 w-4" />} className="w-full sm:w-auto">
-                Imprimir
-            </Button>
-            <Button onClick={descargar} leftIcon={<Download className="h-4 w-4" />} className="w-full sm:w-auto">
-                Descargar Word
-            </Button>
+    // Acciones arriba, al lado de la X (solo ícono + tooltip). Solo en el paso 2.
+    const headerAction = formato ? (
+        <div className="flex items-center gap-1">
+            <button onClick={() => setFormato(null)} title="Volver"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-dark hover:bg-background transition-colors">
+                <ArrowLeft className="h-4 w-4" />
+            </button>
+            <button onClick={imprimir} title="Imprimir"
+                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-primary hover:bg-background transition-colors">
+                <Printer className="h-4 w-4" />
+            </button>
+            <button onClick={descargar} title="Descargar Word"
+                className="h-8 w-8 rounded-full flex items-center justify-center bg-brand-primary text-white hover:bg-[#027A3B] transition-colors shadow-sm">
+                <Download className="h-4 w-4" />
+            </button>
         </div>
     ) : undefined;
 
@@ -175,7 +178,7 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
     ];
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Constancia" size="md" footer={footer}>
+        <Modal isOpen={isOpen} onClose={onClose} title="Constancia" size="md" headerAction={headerAction}>
             {!formato ? (
                 /* Paso 1: Motivo (elegir tipo) */
                 <div className="space-y-3">
