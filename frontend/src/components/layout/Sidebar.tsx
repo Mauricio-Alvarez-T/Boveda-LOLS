@@ -154,7 +154,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* Desktop Sidebar */}
             <motion.aside
                 animate={{ width: isCollapsed ? '72px' : '260px' }}
-                className="hidden md:flex h-screen sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
+                className="hidden md:flex h-[100dvh] sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
             >
                 {sidebarContent(false)}
 

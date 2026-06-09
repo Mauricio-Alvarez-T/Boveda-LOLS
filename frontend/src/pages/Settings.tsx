@@ -343,7 +343,7 @@ const SettingsPage: React.FC = () => {
     useSetPageHeader(headerTitle);
 
     return (
-        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             {/* ── Mobile: Icon + Short Label Category Tabs (all 5 visible) ── */}
             <div className="md:hidden flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-1 flex items-center gap-0.5 shadow-sm">
                 {tabGroups.map((group, idx) => {

@@ -315,7 +315,7 @@ const InventarioPage: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 flex-1 min-h-0 flex flex-col"
+                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col"
             >
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (

@@ -15,7 +15,7 @@ const VehiculosPage = React.lazy(() => import('./pages/Vehiculos'));
 const SettingsPage = React.lazy(() => import('./pages/Settings'));
 
 const FullScreenSpinner: React.FC = () => (
-  <div className="min-h-screen bg-background flex items-center justify-center">
+  <div className="min-h-[100dvh] bg-background flex items-center justify-center">
     <div className="h-12 w-12 border-4 border-brand-primary border-t-transparent rounded-full animate-spin" />
   </div>
 );

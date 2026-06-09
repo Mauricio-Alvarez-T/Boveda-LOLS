@@ -62,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
         lg: 'md:max-w-3xl',
         xl: 'md:max-w-5xl',
         '2xl': 'md:max-w-7xl',
-        full: 'md:max-w-[95vw] md:h-[90vh]',
+        full: 'md:max-w-[95vw] md:h-[90dvh]',
         dynamic: 'md:max-w-4xl',
     };
 
@@ -108,7 +108,7 @@ export const Modal: React.FC<ModalProps> = ({
                         animate={{ opacity: 1, scale: 1, y: 0 }}
                         exit={{ opacity: 0, scale: 0.95, y: 20 }}
                         className={cn(
-                            "relative bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] w-full",
+                            "relative bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] w-full",
                             desktopSizes[size]
                         )}
                     >
@@ -163,7 +163,7 @@ export const Modal: React.FC<ModalProps> = ({
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative w-full max-h-[92vh] bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
+                        className="relative w-full max-h-[92dvh] bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
                     >
                         {/* Handle & Header */}
                         <div className="shrink-0">

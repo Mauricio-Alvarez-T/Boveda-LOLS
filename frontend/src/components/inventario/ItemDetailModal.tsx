@@ -409,7 +409,7 @@ const ItemDetailModal: React.FC<Props> = ({
                     <img
                         src={imageUrl}
                         alt={item?.descripcion}
-                        className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                        className="max-w-full max-h-[90dvh] object-contain rounded-lg"
                     />
                 </div>
             )}

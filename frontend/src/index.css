@@ -156,7 +156,8 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     font-feature-settings: "rlig" 1, "calt" 1;
-    min-height: 100vh;
+    min-height: 100vh; /* fallback navegadores viejos */
+    min-height: 100dvh; /* viewport visible real en móvil (barra del navegador) */
   }
 
   ::selection {

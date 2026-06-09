@@ -299,7 +299,7 @@ const ConsultasPage: React.FC = () => {
     // Componentes extraídos al directorio components/consultas/...
 
     return (
-        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             {/* Mobile Search - Only visible on small screens */}
             <div className="md:hidden relative shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
@@ -860,7 +860,7 @@ const ConsultasPage: React.FC = () => {
                             animate={{ y: 0 }}
                             exit={{ y: '100%' }}
                             transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-h-[85vh] bg-card rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
+                            className="lg:hidden fixed bottom-0 left-0 right-0 w-full max-h-[85dvh] bg-card rounded-t-[32px] shadow-2xl z-[1001] flex flex-col overflow-hidden"
                         >
                             {/* Drag Handle */}
                             <div className="pt-3 pb-2 flex justify-center shrink-0" onClick={() => setShowMobileFilters(false)}>

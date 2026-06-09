@@ -156,7 +156,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                             className={cn(
                                 "fixed z-[61] bg-card shadow-2xl flex flex-col",
                                 isMobile 
-                                    ? "bottom-0 left-0 right-0 w-full max-h-[92vh] rounded-t-[32px]" 
+                                    ? "bottom-0 left-0 right-0 w-full max-h-[92dvh] rounded-t-[32px]"
                                     : "inset-y-0 right-0 w-[420px] rounded-l-3xl"
                             )}
                         >

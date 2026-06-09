@@ -195,7 +195,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
 
     if (!selectedObra && !canTakeGlobal) {
         return (
-            <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
+            <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
                 <div className="h-14 w-14 bg-background rounded-full flex items-center justify-center mb-4">
                     <CheckSquare className="h-7 w-7 text-muted-foreground" />
                 </div>
@@ -241,7 +241,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     }
 
     return (
-        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             <AnimatePresence>
                 {showSearchBox && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden space-y-2 overflow-hidden pb-2">

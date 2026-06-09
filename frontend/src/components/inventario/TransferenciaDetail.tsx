@@ -858,7 +858,7 @@ const TransferenciaDetail: React.FC<Props> = ({
     const isMateriales = items.length === 0;
 
     const renderCatalogo = () => (
-        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-4 md:p-6">
+        <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-3 md:p-6">
             {/* Mobile back */}
             <button onClick={onBack} className="md:hidden flex items-center gap-1 mb-3 text-xs text-muted-foreground hover:text-brand-dark transition-colors shrink-0">
                 <ChevronLeft className="h-4 w-4" /> Volver
@@ -2171,7 +2171,7 @@ const TransferenciaDetail: React.FC<Props> = ({
     // lado a lado en xl (≥1280px). Móvil mantiene el toggle lista↔detalle
     // del panel padre + el botón "Volver".
     const renderMateriales = () => (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 overflow-hidden">
+        <div className="flex flex-col flex-1 min-h-0 p-3 md:p-6 overflow-hidden">
             {/* Header con chip estado + menú "Acciones ▾" */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 <button onClick={onBack} className="md:hidden p-2 rounded-xl hover:bg-muted text-muted-foreground">
