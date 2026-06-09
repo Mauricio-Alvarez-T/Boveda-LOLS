@@ -118,8 +118,8 @@ function buildCartaHtml(
         `<table width="100%"><tr>` +
         `<td width="28%" style="vertical-align:top">${logoCell}</td>` +
         `<td width="44%" style="text-align:center;vertical-align:top">` +
-        `<div style="margin-top:26pt">` +
-        `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
+        `<div style="margin-top:46pt">` +
+        `<div style="font-size:14pt;font-weight:bold">CARTA DE AMONESTACION</div>` +
         `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
         `</div>` +
         `</td>` +
