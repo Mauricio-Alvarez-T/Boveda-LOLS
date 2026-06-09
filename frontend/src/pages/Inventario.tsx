@@ -246,9 +246,9 @@ const InventarioPage: React.FC = () => {
     }, [isBodega, stockBodega, stockObra]);
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 gap-3">
+        <div className="flex flex-col flex-1 min-h-0 gap-2">
             {/* Tab Navigation — estilo Configuración: ícono pequeño al lado del texto */}
-            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1.5 bg-background shrink-0">
+            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1 bg-background shrink-0">
                 {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ── */}
                 <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
@@ -315,7 +315,7 @@ const InventarioPage: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 md:p-6 flex-1 min-h-0 flex flex-col"
+                className="bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-4 flex-1 min-h-0 flex flex-col"
             >
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (

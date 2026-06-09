@@ -83,7 +83,7 @@ export const MainLayout: React.FC = () => {
                 </header>
 
                 {/* Page Content — actual scroll container */}
-                <div className="flex-1 min-h-0 p-3 md:p-5 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
+                <div className="flex-1 min-h-0 p-3 md:px-5 md:pt-2 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}

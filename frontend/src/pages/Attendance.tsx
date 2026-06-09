@@ -76,7 +76,7 @@ const AttendancePage: React.FC = () => {
         : 'diaria';
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 gap-3">
+        <div className="flex flex-col flex-1 min-h-0 gap-2">
             {/* Tab bar — solo en MÓVIL (en desktop el ícono de Sábados vive en AttendanceSummaryRow) */}
             {visibleTabs.length > 1 && (
                 <div className="md:hidden flex items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">

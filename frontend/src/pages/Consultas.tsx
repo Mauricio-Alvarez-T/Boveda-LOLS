@@ -297,7 +297,7 @@ const ConsultasPage: React.FC = () => {
     // Componentes extraídos al directorio components/consultas/...
 
     return (
-        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             {/* Mobile Search - Only visible on small screens */}
             <div className="md:hidden relative shrink-0">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
