@@ -117,7 +117,7 @@ function buildCartaHtml(
         // Encabezado: logo a la izquierda, título CENTRADO en la página (columnas laterales iguales).
         `<table width="100%"><tr>` +
         `<td width="28%" style="vertical-align:top">${logoCell}</td>` +
-        `<td width="44%" style="text-align:center;vertical-align:top">` +
+        `<td width="44%" style="text-align:center;vertical-align:middle">` +
         `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
         `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
         `</td>` +
@@ -127,18 +127,17 @@ function buildCartaHtml(
         `<p style="margin:0;text-align:left"><b>SUCURSAL:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
         `<p style="margin:0;text-align:left"><b>CARGO:</b> ${escapeHtml(w.cargo_nombre || '')}</p>` +
         `<p style="margin:0;text-align:left"><b>RUT:</b> ${escapeHtml(w.rut || '')}</p>` +
-        `<p style="margin:10pt 0 0;text-align:left">Señor:</p>` +
-        `<p style="margin:0;text-align:left">Presente.</p>` +
         `<p style="margin:14pt 0 0">De nuestra consideración:</p>` +
         `<p>Ponemos en su conocimiento, que la Administración de LOLS INGENIERÍA LTDA. Ha determinado sancionarlo con una amonestación escrita.</p>` +
-        `<p>La infracción fue cometida por usted el día ${escapeHtml(fInfra)}</p>` +
+        `<p style="text-align:left">La infracción fue cometida por usted el día ${escapeHtml(fInfra)}</p>` +
         `<p>La falta es la siguiente:</p>` +
         faltaHtml +
         `<p style="margin-top:14pt">Le recordamos a usted que las infracciones de forma recurrente pueden generar el termino de Contrato.</p>` +
         `<p style="margin-top:10pt">Sin otro particular, Atentamente</p>` +
-        `<table width="100%" style="margin-top:60pt"><tr>` +
-        `<td width="50%"><b>Empleador</b></td>` +
-        `<td width="50%" style="text-align:right"><b>Trabajador.</b></td>` +
+        `<table width="100%" style="margin-top:70pt"><tr>` +
+        `<td width="40%" style="text-align:center"><div style="border-top:1px solid #000;padding-top:4pt"><b>Empleador</b></div></td>` +
+        `<td width="20%"></td>` +
+        `<td width="40%" style="text-align:center"><div style="border-top:1px solid #000;padding-top:4pt"><b>Trabajador.</b></div></td>` +
         `</tr></table>`
     );
 }
