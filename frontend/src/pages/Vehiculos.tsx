@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Truck, Plus, Shield, Wrench, ClipboardList,
+    Truck, Plus, Shield, Wrench, ClipboardList, ScrollText,
     Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter, Save
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,8 +13,9 @@ import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { SeguroForm } from '../components/vehiculos/SeguroForm';
 import { RevisionForm } from '../components/vehiculos/RevisionForm';
 import { MantencionForm } from '../components/vehiculos/MantencionForm';
+import { PermisoCirculacionForm } from '../components/vehiculos/PermisoCirculacionForm';
 import api from '../services/api';
-import type { Vehiculo, VehiculoSeguro, VehiculoRevision, VehiculoMantencion } from '../types/entities';
+import type { Vehiculo, VehiculoSeguro, VehiculoRevision, VehiculoMantencion, VehiculoPermiso } from '../types/entities';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -71,6 +72,7 @@ const VehiculosPage: React.FC = () => {
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
     const [revisiones, setRevisiones] = useState<VehiculoRevision[]>([]);
     const [mantenciones, setMantenciones] = useState<VehiculoMantencion[]>([]);
+    const [permisos, setPermisos] = useState<VehiculoPermiso[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
 
     const [modalVehiculo, setModalVehiculo] = useState(false);
@@ -81,6 +83,8 @@ const VehiculosPage: React.FC = () => {
     const [editRevision, setEditRevision] = useState<VehiculoRevision | null>(null);
     const [modalMantencion, setModalMantencion] = useState(false);
     const [editMantencion, setEditMantencion] = useState<VehiculoMantencion | null>(null);
+    const [modalPermiso, setModalPermiso] = useState(false);
+    const [editPermiso, setEditPermiso] = useState<VehiculoPermiso | null>(null);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -96,14 +100,16 @@ const VehiculosPage: React.FC = () => {
     const fetchDetail = useCallback(async (vId: number) => {
         setDetailLoading(true);
         try {
-            const [s, r, m] = await Promise.all([
+            const [s, r, m, p] = await Promise.all([
                 api.get<{ data: VehiculoSeguro[] }>(`/vehiculos/${vId}/seguros`),
                 api.get<{ data: VehiculoRevision[] }>(`/vehiculos/${vId}/revisiones`),
                 api.get<{ data: VehiculoMantencion[] }>(`/vehiculos/${vId}/mantenciones`),
+                api.get<{ data: VehiculoPermiso[] }>(`/vehiculos/${vId}/permisos`),
             ]);
             setSeguros(s.data.data || []);
             setRevisiones(r.data.data || []);
             setMantenciones(m.data.data || []);
+            setPermisos(p.data.data || []);
         } catch { /* silencioso */ }
         finally { setDetailLoading(false); }
     }, []);
@@ -409,6 +415,34 @@ const VehiculosPage: React.FC = () => {
                             ))
                         }
                     </Section>
+
+                    {/* PERMISO DE CIRCULACIÓN */}
+                    <Section
+                        icon={<ScrollText className="h-3.5 w-3.5" />}
+                        title="Permiso de Circulación"
+                        onAdd={hasPermission('vehiculos.crear') ? () => setModalPermiso(true) : undefined}
+                    >
+                        {permisos.length === 0
+                            ? <Empty>Sin permisos registrados</Empty>
+                            : permisos.map(p => (
+                                <ItemRow key={p.id}
+                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditPermiso(p); setModalPermiso(true); } : undefined}
+                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('permisos', p.id) : undefined}>
+                                    <div className="flex items-center gap-2 flex-wrap">
+                                        <span className="text-xs font-bold text-brand-dark">Permiso de Circulación</span>
+                                        <EstadoVencimiento fecha={p.fecha_vencimiento} label="permiso" />
+                                    </div>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">
+                                        {(p as any).fecha_emision ? `${fmtDate((p as any).fecha_emision)} → ` : ''}{fmtDate(p.fecha_vencimiento)}
+                                        {(p as any).municipalidad ? ` · ${(p as any).municipalidad}` : ''}
+                                        {(p as any).numero_permiso ? ` · N° ${(p as any).numero_permiso}` : ''}
+                                        {(p as any).monto ? ` · ${fmtMoney((p as any).monto)}` : ''}
+                                    </p>
+                                    <AlertaBadge diasAlerta={(p as any).dias_alerta} emailAlerta={(p as any).email_alerta} />
+                                </ItemRow>
+                            ))
+                        }
+                    </Section>
                 </div>
             )}
         </div>
@@ -581,6 +615,14 @@ const VehiculosPage: React.FC = () => {
                             initialData={editMantencion}
                             onCancel={() => { setModalMantencion(false); setEditMantencion(null); }}
                             onSuccess={() => { setModalMantencion(false); setEditMantencion(null); fetchDetail(selected.id); }} />
+                    </Modal>
+                    <Modal isOpen={modalPermiso}
+                        onClose={() => { setModalPermiso(false); setEditPermiso(null); }}
+                        title={editPermiso ? 'Editar Permiso de Circulación' : 'Agregar Permiso de Circulación'} size="lg"
+                        headerAction={formActions('permiso-form', () => { setModalPermiso(false); setEditPermiso(null); })}>
+                        <PermisoCirculacionForm vehiculoId={selected.id} initialData={editPermiso}
+                            onCancel={() => { setModalPermiso(false); setEditPermiso(null); }}
+                            onSuccess={() => { setModalPermiso(false); setEditPermiso(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
                 </>
             )}

@@ -104,4 +104,25 @@ router.delete('/:id/mantenciones/:mId', auth, checkPermission('vehiculos.elimina
     catch (err) { next(err); }
 });
 
+// ── Permisos de Circulación ───────────────────────────────────────────
+router.get('/:id/permisos', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
+    try { res.json({ data: await svc.getPermisos(req.params.id) }); }
+    catch (err) { next(err); }
+});
+
+router.post('/:id/permisos', auth, checkPermission('vehiculos.crear'), async (req, res, next) => {
+    try { res.status(201).json({ data: await svc.createPermiso(req.params.id, req.body) }); }
+    catch (err) { next(err); }
+});
+
+router.put('/:id/permisos/:permId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
+    try { res.json({ data: await svc.updatePermiso(req.params.permId, req.body) }); }
+    catch (err) { next(err); }
+});
+
+router.delete('/:id/permisos/:permId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
+    try { res.json({ data: await svc.removePermiso(req.params.id, req.params.permId) }); }
+    catch (err) { next(err); }
+});
+
 module.exports = router;

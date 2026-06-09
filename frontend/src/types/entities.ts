@@ -118,6 +118,21 @@ export interface VehiculoMantencion {
     activo: boolean;
 }
 
+export interface VehiculoPermiso {
+    id: number;
+    vehiculo_id: number;
+    numero_permiso?: string | null;
+    fecha_emision?: string | null;
+    fecha_vencimiento: string;
+    monto?: number | null;
+    municipalidad?: string | null;
+    observaciones?: string | null;
+    dias_alerta?: number | null;
+    email_alerta?: string | null;
+    tel_alerta?: string | null;
+    activo: boolean;
+}
+
 export interface VehiculoAlerta {
     patente?: string;
     marca?: string;

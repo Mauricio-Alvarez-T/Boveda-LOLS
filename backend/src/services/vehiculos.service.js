@@ -239,6 +239,46 @@ const vehiculosService = {
         return { id: mantencionId, activo: false };
     },
 
+    // ── Permisos de Circulación ───────────────────────────────────────────
+
+    async getPermisos(vehiculoId) {
+        const [rows] = await db.query(
+            `SELECT * FROM vehiculo_permisos WHERE vehiculo_id = ? AND activo = 1
+             ORDER BY fecha_vencimiento DESC`, [vehiculoId]
+        );
+        return rows;
+    },
+
+    async createPermiso(vehiculoId, data) {
+        if (!data.fecha_vencimiento) {
+            throw Object.assign(new Error('fecha_vencimiento es obligatoria'), { statusCode: 400 });
+        }
+        const obj = { vehiculo_id: vehiculoId, numero_permiso: data.numero_permiso || null,
+            fecha_emision: data.fecha_emision || null, fecha_vencimiento: data.fecha_vencimiento,
+            monto: data.monto || null, municipalidad: data.municipalidad || null,
+            observaciones: data.observaciones || null,
+            dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null };
+        const { keys, vals } = await buildInsert('vehiculo_permisos', obj);
+        const [r] = await db.query(`INSERT INTO vehiculo_permisos (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
+        const [rows] = await db.query('SELECT * FROM vehiculo_permisos WHERE id = ?', [r.insertId]);
+        return rows[0];
+    },
+
+    async updatePermiso(permisoId, data) {
+        const allowed = ['numero_permiso','fecha_emision','fecha_vencimiento','monto','municipalidad','observaciones','dias_alerta','email_alerta','tel_alerta'];
+        const { fields, params } = await buildUpdate('vehiculo_permisos', data, allowed);
+        if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
+        params.push(permisoId);
+        await db.query(`UPDATE vehiculo_permisos SET ${fields.join(', ')} WHERE id = ?`, params);
+        const [rows] = await db.query('SELECT * FROM vehiculo_permisos WHERE id = ?', [permisoId]);
+        return rows[0];
+    },
+
+    async removePermiso(vehiculoId, permisoId) {
+        await db.query('UPDATE vehiculo_permisos SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [permisoId, vehiculoId]);
+        return { id: permisoId, activo: false };
+    },
+
     // ── Alertas de vencimiento ────────────────────────────────────────
 
     /**
