@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
@@ -54,29 +54,80 @@ function escapeHtml(s: string): string {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-// Membrete LOLS como TEXTO (el SVG no renderiza bien en Word). Para el logo
-// gráfico se puede incrustar un PNG en base64 cuando esté disponible.
-const LOGO_HEADER = `<div style="font-size:13pt;font-weight:bold;color:#029E4D">LOLS INGENIERÍA</div>`;
+// ── Logo LOLS: el SVG inline no renderiza en Word, así que lo rasterizamos a PNG
+// (en el navegador, vía canvas) y lo incrustamos como base64. Se cachea. ──
+const LOGO_W = 150, LOGO_H = 66;
+const LOGO_SVG_STRING =
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${LOGO_W}" height="${LOGO_H}" viewBox="0 0 540 240"><g fill="#029E4D">` +
+    `<rect x="20" y="20" width="500" height="12"/><rect x="20" y="208" width="500" height="12"/>` +
+    `<rect x="20" y="48" width="75" height="144"/>` +
+    `<rect x="119" y="52" width="77" height="32" fill="none" stroke="#029E4D" stroke-width="8"/>` +
+    `<rect x="119" y="104" width="77" height="32" fill="none" stroke="#029E4D" stroke-width="8"/>` +
+    `<rect x="115" y="152" width="85" height="40"/>` +
+    `<text x="220" y="134" font-family="Arial, sans-serif" font-weight="700" font-size="115">LOLS</text>` +
+    `<rect x="220" y="148" width="300" height="6"/>` +
+    `<text x="225" y="192" font-family="Arial, sans-serif" font-weight="700" font-size="42">INGENIERIA</text>` +
+    `</g></svg>`;
+
+let _logoPng: string | null = null;
+let _logoPromise: Promise<string> | null = null;
+function getLogoPng(): Promise<string> {
+    if (_logoPng !== null) return Promise.resolve(_logoPng);
+    if (_logoPromise) return _logoPromise;
+    _logoPromise = new Promise<string>((resolve) => {
+        try {
+            const img = new Image();
+            const blob = new Blob([LOGO_SVG_STRING], { type: 'image/svg+xml' });
+            const url = URL.createObjectURL(blob);
+            img.onload = () => {
+                try {
+                    const scale = 3;
+                    const canvas = document.createElement('canvas');
+                    canvas.width = LOGO_W * scale;
+                    canvas.height = LOGO_H * scale;
+                    const ctx = canvas.getContext('2d');
+                    if (ctx) ctx.drawImage(img, 0, 0, LOGO_W * scale, LOGO_H * scale);
+                    _logoPng = canvas.toDataURL('image/png');
+                } catch { _logoPng = ''; }
+                URL.revokeObjectURL(url);
+                resolve(_logoPng || '');
+            };
+            img.onerror = () => { URL.revokeObjectURL(url); _logoPng = ''; resolve(''); };
+            img.src = url;
+        } catch { _logoPng = ''; resolve(''); }
+    });
+    return _logoPromise;
+}
+
+const LOGO_TEXT_FALLBACK = `<div style="font-size:13pt;font-weight:bold;color:#029E4D">LOLS INGENIERÍA</div>`;
 
 // ── Plantilla única: CARTA DE AMONESTACIÓN ──
-function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfraccion: string; motivo: string }): string {
+function buildCartaHtml(
+    w: ConstanciaWorker,
+    f: { fechaCarta: string; fechaInfraccion: string; motivo: string },
+    logoPng: string
+): string {
     const fInfra = f.fechaInfraccion ? fechaLargaDel(f.fechaInfraccion) : '…………………………………………………………';
     const motivoValido = f.motivo && f.motivo !== OTRO;
     const faltaHtml = motivoValido
         ? `<p>${escapeHtml(f.motivo)}</p>`
         : '<p>_______________________________________________</p>'.repeat(4);
+    const logoCell = logoPng ? `<img src="${logoPng}" width="${LOGO_W}" height="${LOGO_H}" alt="LOLS INGENIERIA"/>` : LOGO_TEXT_FALLBACK;
     return (
+        // Encabezado: logo a la izquierda, título CENTRADO en la página (columnas laterales iguales).
         `<table width="100%"><tr>` +
-        `<td width="40%" style="vertical-align:top">${LOGO_HEADER}</td>` +
-        `<td style="text-align:center;vertical-align:top">` +
+        `<td width="28%" style="vertical-align:top">${logoCell}</td>` +
+        `<td width="44%" style="text-align:center;vertical-align:top">` +
         `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
         `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
-        `</td></tr></table>` +
+        `</td>` +
+        `<td width="28%"></td>` +
+        `</tr></table>` +
         `<p style="margin:14pt 0 0;text-align:left"><b>NOMBRE:</b> ${escapeHtml(nombreDe(w))}</p>` +
         `<p style="margin:0;text-align:left"><b>SUCURSAL:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
         `<p style="margin:0;text-align:left"><b>CARGO:</b> ${escapeHtml(w.cargo_nombre || '')}</p>` +
         `<p style="margin:0;text-align:left"><b>RUT:</b> ${escapeHtml(w.rut || '')}</p>` +
-        `<p style="margin:8pt 0 0;text-align:left">Señor: ${escapeHtml(nombreDe(w))}</p>` +
+        `<p style="margin:10pt 0 0;text-align:left">Señor:</p>` +
         `<p style="margin:0;text-align:left">Presente.</p>` +
         `<p style="margin:14pt 0 0">De nuestra consideración:</p>` +
         `<p>Ponemos en su conocimiento, que la Administración de LOLS INGENIERÍA LTDA. Ha determinado sancionarlo con una amonestación escrita.</p>` +
@@ -85,13 +136,10 @@ function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfra
         faltaHtml +
         `<p style="margin-top:14pt">Le recordamos a usted que las infracciones de forma recurrente pueden generar el termino de Contrato.</p>` +
         `<p style="margin-top:10pt">Sin otro particular, Atentamente</p>` +
-        `<table width="100%" style="margin-top:54pt"><tr>` +
+        `<table width="100%" style="margin-top:60pt"><tr>` +
         `<td width="50%"><b>Empleador</b></td>` +
         `<td width="50%" style="text-align:right"><b>Trabajador.</b></td>` +
-        `</tr></table>` +
-        `<p style="margin-top:20pt;text-align:left">c.c.: Inspección del Trabajo<br>` +
-        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Archivo de personal<br>` +
-        `&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Archivo</p>`
+        `</tr></table>`
     );
 }
 
@@ -102,21 +150,20 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
     const [fechaInfraccion, setFechaInfraccion] = useState('');
     const [motivo, setMotivo] = useState('');
 
-    useEffect(() => {
-        if (isOpen) { setFechaCarta(hoy()); setFechaInfraccion(''); setMotivo(''); }
+    React.useEffect(() => {
+        if (isOpen) { setFechaCarta(hoy()); setFechaInfraccion(''); setMotivo(''); getLogoPng(); }
     }, [isOpen]);
 
     if (!worker) return null;
 
-    const html = () => buildCartaHtml(worker, { fechaCarta, fechaInfraccion, motivo });
+    const buildHtml = async () => buildCartaHtml(worker, { fechaCarta, fechaInfraccion, motivo }, await getLogoPng());
     const nombreArchivo = () => {
         const safe = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
         return `Amonestacion_${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${hoy()}`;
     };
-    const descargar = () => downloadWord(nombreArchivo(), html());
-    const imprimir = () => printDoc(html(), 'Carta de Amonestación');
+    const descargar = async () => downloadWord(nombreArchivo(), await buildHtml());
+    const imprimir = async () => printDoc(await buildHtml(), 'Carta de Amonestación');
 
-    // Acciones arriba, al lado de la X (solo ícono + tooltip).
     const headerAction = (
         <div className="flex items-center gap-1">
             <button onClick={imprimir} title="Imprimir"
