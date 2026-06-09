@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, FileText, XCircle, Trash2, Receipt, PackagePlus, Eye, Loader2 } from 'lucide-react';
+import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
@@ -319,7 +319,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 </button>
                                 {canDelete && f.activo && (
                                     <button onClick={() => handleAnular(f.id)} title="Anular factura (revierte stock)" className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
-                                        <XCircle className="h-3.5 w-3.5" />
+                                        <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                             </div>
