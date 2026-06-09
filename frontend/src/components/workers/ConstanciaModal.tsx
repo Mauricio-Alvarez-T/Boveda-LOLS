@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { FileWarning, FileCheck2, ArrowLeft, Download, Printer, ChevronRight } from 'lucide-react';
+import { Download, Printer } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
 import { downloadWord, printDoc } from '../../utils/downloadWord';
@@ -21,8 +21,6 @@ interface Props {
     worker: ConstanciaWorker | null;
 }
 
-type Formato = 'amonestacion' | 'acta';
-
 const hoy = () => new Date().toISOString().split('T')[0];
 const nombreDe = (w: ConstanciaWorker) =>
     `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.replace(/\s+/g, ' ').trim();
@@ -39,7 +37,7 @@ const fechaCorta = (iso: string) => {
     return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
 };
 
-// Motivos predefinidos para la Carta de Amonestación (ajustables).
+// Motivos predefinidos (ajustables a la lista oficial del usuario).
 const MOTIVOS = [
     'Atraso reiterado en el ingreso',
     'Inasistencia injustificada',
@@ -56,40 +54,11 @@ function escapeHtml(s: string): string {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
-const LINEA = '____________________________';
-
-// Membrete LOLS como TEXTO (el SVG no renderiza bien en Word). Si más adelante
-// se quiere el logo gráfico, se incrusta un PNG en base64.
+// Membrete LOLS como TEXTO (el SVG no renderiza bien en Word). Para el logo
+// gráfico se puede incrustar un PNG en base64 cuando esté disponible.
 const LOGO_HEADER = `<div style="font-size:13pt;font-weight:bold;color:#029E4D">LOLS INGENIERÍA</div>`;
 
-// ── Plantilla: ACTA DE CONSENTIMIENTO ──
-function buildActaHtml(w: ConstanciaWorker, f: { fechaActa: string; fechaHecho: string }): string {
-    const enc = `Santiago, ${f.fechaActa ? fechaLargaDel(f.fechaActa) : LINEA}.`;
-    const dia = f.fechaHecho ? fechaLargaDel(f.fechaHecho) : LINEA;
-    return (
-        `<table width="100%" style="margin-bottom:8pt"><tr>` +
-        `<td style="vertical-align:top">${LOGO_HEADER}</td>` +
-        `<td style="text-align:right;vertical-align:top;font-size:11pt">${escapeHtml(enc)}</td>` +
-        `</tr></table>` +
-        `<div style="text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 18pt">Acta de Consentimiento</div>` +
-        `<p style="text-align:left;margin:0 0 2pt"><b>Nombre del Trabajador:</b> ${escapeHtml(nombreDe(w))}</p>` +
-        `<p style="text-align:left;margin:0 0 2pt"><b>Rut:</b> ${escapeHtml(w.rut || '')}</p>` +
-        `<p style="text-align:left;margin:0 0 2pt"><b>Cargo:</b> ${escapeHtml(w.cargo_nombre || '')}</p>` +
-        `<p style="text-align:left;margin:0 0 2pt"><b>Obra:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
-        `<p style="text-align:left;margin:18pt 0 8pt"><u><b>PRESENTE</b></u></p>` +
-        `<ol>` +
-        `<li>El día ${escapeHtml(dia)}, mi firma quedo registrada en el libro de asistencia de la empresa</li>` +
-        `<li>Reconozco que ese día no me presente a laborar</li>` +
-        `<li>Declaro que mi firma fue puesta de manera voluntaria.</li>` +
-        `<li>Autorizo a mi empresa a registrar esta manifestación como aclaración sobre lo ocurrido</li>` +
-        `<li>Declaro que realizo esta firma sin coacción y en pleno uso de mis facultades</li>` +
-        `</ol>` +
-        `<p style="margin:18pt 0 0">Saluda atentamente.</p>` +
-        `<div style="margin-top:64pt;text-align:center">_____________________________<br>Firma del Trabajador</div>`
-    );
-}
-
-// ── Plantilla: CARTA DE AMONESTACIÓN ──
+// ── Plantilla única: CARTA DE AMONESTACIÓN ──
 function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfraccion: string; motivo: string }): string {
     const fInfra = f.fechaInfraccion ? fechaLargaDel(f.fechaInfraccion) : '…………………………………………………………';
     const motivoValido = f.motivo && f.motivo !== OTRO;
@@ -129,38 +98,27 @@ function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfra
 const inputCls = "w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40";
 
 export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) => {
-    const [formato, setFormato] = useState<Formato | null>(null);
-    const [fechaDoc, setFechaDoc] = useState(hoy());   // fecha del acta / de la carta
-    const [fechaHecho, setFechaHecho] = useState('');  // acta: día punto 1 / carta: día de la infracción
-    const [motivo, setMotivo] = useState('');          // solo carta (select)
+    const [fechaCarta, setFechaCarta] = useState(hoy());
+    const [fechaInfraccion, setFechaInfraccion] = useState('');
+    const [motivo, setMotivo] = useState('');
 
     useEffect(() => {
-        if (isOpen) { setFormato(null); setFechaDoc(hoy()); setFechaHecho(''); setMotivo(''); }
+        if (isOpen) { setFechaCarta(hoy()); setFechaInfraccion(''); setMotivo(''); }
     }, [isOpen]);
 
     if (!worker) return null;
 
-    const buildHtml = (): string =>
-        formato === 'acta'
-            ? buildActaHtml(worker, { fechaActa: fechaDoc, fechaHecho })
-            : buildCartaHtml(worker, { fechaCarta: fechaDoc, fechaInfraccion: fechaHecho, motivo });
-
+    const html = () => buildCartaHtml(worker, { fechaCarta, fechaInfraccion, motivo });
     const nombreArchivo = () => {
         const safe = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
-        const base = formato === 'acta' ? 'Acta_Consentimiento' : 'Amonestacion';
-        return `${base}_${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${hoy()}`;
+        return `Amonestacion_${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${hoy()}`;
     };
+    const descargar = () => downloadWord(nombreArchivo(), html());
+    const imprimir = () => printDoc(html(), 'Carta de Amonestación');
 
-    const descargar = () => { if (formato) downloadWord(nombreArchivo(), buildHtml()); };
-    const imprimir = () => { if (formato) printDoc(buildHtml(), formato === 'acta' ? 'Acta de Consentimiento' : 'Carta de Amonestación'); };
-
-    // Acciones arriba, al lado de la X (solo ícono + tooltip). Solo en el paso 2.
-    const headerAction = formato ? (
+    // Acciones arriba, al lado de la X (solo ícono + tooltip).
+    const headerAction = (
         <div className="flex items-center gap-1">
-            <button onClick={() => setFormato(null)} title="Volver"
-                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-dark hover:bg-background transition-colors">
-                <ArrowLeft className="h-4 w-4" />
-            </button>
             <button onClick={imprimir} title="Imprimir"
                 className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-primary hover:bg-background transition-colors">
                 <Printer className="h-4 w-4" />
@@ -170,90 +128,48 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                 <Download className="h-4 w-4" />
             </button>
         </div>
-    ) : undefined;
-
-    const opciones: { key: Formato; titulo: string; icon: React.ElementType }[] = [
-        { key: 'amonestacion', titulo: 'Carta de Amonestación', icon: FileWarning },
-        { key: 'acta', titulo: 'Acta de Consentimiento', icon: FileCheck2 },
-    ];
+    );
 
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Constancia" size="md" headerAction={headerAction}>
-            {!formato ? (
-                /* Paso 1: Motivo (elegir tipo) */
-                <div className="space-y-3">
-                    <div className="bg-background rounded-2xl p-3 border border-border">
-                        <p className="text-sm font-bold text-brand-dark">{nombreDe(worker)}</p>
-                        <p className="text-xs text-muted-foreground">{worker.rut}{worker.cargo_nombre ? ` · ${worker.cargo_nombre}` : ''}</p>
+        <Modal isOpen={isOpen} onClose={onClose} title="Carta de Amonestación" size="md" headerAction={headerAction}>
+            <div className="space-y-4">
+                {/* Datos autocompletados del trabajador */}
+                <div className="bg-background rounded-2xl p-4 border border-border text-sm">
+                    <p className="font-bold text-brand-dark">{nombreDe(worker)}</p>
+                    <div className="mt-1 grid grid-cols-1 gap-0.5 text-xs text-muted-foreground">
+                        {worker.rut && <span>RUT: {worker.rut}</span>}
+                        {worker.cargo_nombre && <span>Cargo: {worker.cargo_nombre}</span>}
+                        {worker.obra_nombre && <span>Sucursal: {worker.obra_nombre}</span>}
+                        {worker.empresa_nombre && <span>Empresa: {worker.empresa_nombre}</span>}
                     </div>
-                    <p className="text-sm font-semibold text-brand-dark">Motivo</p>
-                    {opciones.map(({ key, titulo, icon: Icon }) => (
-                        <button
-                            key={key}
-                            onClick={() => setFormato(key)}
-                            className="w-full flex items-center gap-3 p-4 rounded-2xl bg-background hover:bg-muted border border-border transition-colors text-left"
-                        >
-                            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center shrink-0">
-                                <Icon className="h-5 w-5 text-brand-primary" />
-                            </div>
-                            <span className="flex-1 text-sm font-semibold text-brand-dark">{titulo}</span>
-                            <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                        </button>
-                    ))}
+                    <p className="text-[11px] text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
                 </div>
-            ) : (
-                /* Paso 2: formulario con opciones (sin escribir) */
-                <div className="space-y-4">
-                    <div className="bg-background rounded-2xl p-4 border border-border text-sm">
-                        <p className="font-bold text-brand-dark">{nombreDe(worker)}</p>
-                        <div className="mt-1 grid grid-cols-1 gap-0.5 text-xs text-muted-foreground">
-                            {worker.rut && <span>RUT: {worker.rut}</span>}
-                            {worker.cargo_nombre && <span>Cargo: {worker.cargo_nombre}</span>}
-                            {worker.obra_nombre && <span>Obra: {worker.obra_nombre}</span>}
-                            {worker.empresa_nombre && <span>Empresa: {worker.empresa_nombre}</span>}
-                        </div>
-                        <p className="text-[11px] text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
+
+                {/* Formulario con opciones (sin escribir) */}
+                <div className="grid grid-cols-2 gap-3">
+                    <div>
+                        <label className="block text-sm font-medium text-brand-dark mb-1">Fecha de la carta</label>
+                        <input type="date" value={fechaCarta} onChange={(e) => setFechaCarta(e.target.value)} className={inputCls} />
                     </div>
-
-                    {formato === 'acta' ? (
-                        <div className="grid grid-cols-2 gap-3">
-                            <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">Fecha del acta</label>
-                                <input type="date" value={fechaDoc} onChange={(e) => setFechaDoc(e.target.value)} className={inputCls} />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">Día del hecho</label>
-                                <input type="date" value={fechaHecho} onChange={(e) => setFechaHecho(e.target.value)} className={inputCls} />
-                            </div>
-                        </div>
-                    ) : (
-                        <>
-                            <div className="grid grid-cols-2 gap-3">
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-dark mb-1">Fecha de la carta</label>
-                                    <input type="date" value={fechaDoc} onChange={(e) => setFechaDoc(e.target.value)} className={inputCls} />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-brand-dark mb-1">Día de la infracción</label>
-                                    <input type="date" value={fechaHecho} onChange={(e) => setFechaHecho(e.target.value)} className={inputCls} />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">Motivo de la falta</label>
-                                <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inputCls}>
-                                    <option value="">Selecciona un motivo…</option>
-                                    {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
-                                    <option value={OTRO}>{OTRO}</option>
-                                </select>
-                            </div>
-                        </>
-                    )}
-
-                    <p className="text-[11px] text-muted-foreground">
-                        Completa con las opciones. Lo que elijas saldrá en el documento; lo que dejes sin elegir queda como línea en blanco para llenar a mano.
-                    </p>
+                    <div>
+                        <label className="block text-sm font-medium text-brand-dark mb-1">Día de la infracción</label>
+                        <input type="date" value={fechaInfraccion} onChange={(e) => setFechaInfraccion(e.target.value)} className={inputCls} />
+                    </div>
                 </div>
-            )}
+                <div>
+                    <label className="block text-sm font-medium text-brand-dark mb-1">Motivo de la falta</label>
+                    <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inputCls}>
+                        <option value="">Selecciona un motivo…</option>
+                        {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+                        <option value={OTRO}>{OTRO}</option>
+                    </select>
+                </div>
+
+                <p className="text-[11px] text-muted-foreground">
+                    Completa con las opciones. Usa <strong>Imprimir</strong> o <strong>Descargar Word</strong> (arriba) para emitir la carta lista.
+                    Lo que dejes sin elegir queda como línea en blanco para llenar a mano.
+                </p>
+            </div>
         </Modal>
     );
 };
