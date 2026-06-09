@@ -24,7 +24,7 @@ export function empresaTag(nombre?: string | null): EmpresaTag | null {
     const n = nombre.toUpperCase();
 
     if (n.includes('LOLS')) return { letra: 'LOLS', label: 'LOLS', color: GREEN };
-    if (n.includes('URRUTIA') || n.includes('MAUA')) return { letra: 'MAU', label: 'MAUA', color: BLUE };
+    if (n.includes('URRUTIA') || n.includes('MAUA')) return { letra: 'MAUA', label: 'MAUA', color: BLUE };
     if (n.includes('PROVISORI')) return { letra: 'PROV', label: 'Provisorio', color: AMBER };
     if (n.includes('DEDALIUS')) return { letra: 'DED', label: 'Dedalius', color: PURPLE };
 
