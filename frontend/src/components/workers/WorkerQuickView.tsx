@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -386,6 +386,13 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                         : `Documentos: ${worker?.apellido_paterno} ${worker?.apellido_materno || ''} ${worker?.nombres}`
                 }
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
+                headerAction={
+                    modalType === 'form' ? (
+                        <Button type="submit" form="worker-form" size="sm" leftIcon={<Save className="h-3.5 w-3.5" />}>
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 {modalType === 'form' && worker && (
                     <WorkerForm
