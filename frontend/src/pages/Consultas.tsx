@@ -41,6 +41,7 @@ import { cn } from '../utils/cn';
 import { useObra } from '../context/ObraContext';
 import EnvioEmailModal from '../components/workers/EnvioEmailModal';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
+import { ConstanciaModal } from '../components/workers/ConstanciaModal';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useAuth } from '../context/AuthContext';
 import { FilterPanel } from '../components/consultas/FilterPanel';
@@ -127,6 +128,7 @@ const ConsultasPage: React.FC = () => {
 
     // Estados Locales UI Varios
     const [quickViewId, setQuickViewId] = useState<number | null>(null);
+    const [constanciaWorker, setConstanciaWorker] = useState<Trabajador | null>(null);
     const [emailModalOpen, setEmailModalOpen] = useState(false);
     const [showMobileFilters, setShowMobileFilters] = useState(false);
     const [showCreatePanel, setShowCreatePanel] = useState(false);
@@ -577,6 +579,15 @@ const ConsultasPage: React.FC = () => {
 
                                         {/* 3. Acciones (Derecha) */}
                                         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
+                                            {/* Constancia: genera Carta de Amonestación o Acta de Consentimiento (Word) */}
+                                            <button
+                                                onClick={() => setConstanciaWorker(worker)}
+                                                title="Generar constancia (Word)"
+                                                className="flex items-center gap-1 px-2 h-7 sm:h-8 rounded-lg bg-brand-primary/10 text-brand-primary border border-brand-primary/20 text-[9px] sm:text-[10px] font-bold uppercase tracking-wide hover:bg-brand-primary/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                                            >
+                                                <FileText className="h-3.5 w-3.5 shrink-0" />
+                                                <span>Constancia</span>
+                                            </button>
                                             <Button
                                                 variant="glass"
                                                 size="icon"
@@ -956,6 +967,12 @@ const ConsultasPage: React.FC = () => {
                     onUpdate={() => performSearch(true)}
                 />
             )}
+
+            <ConstanciaModal
+                isOpen={!!constanciaWorker}
+                onClose={() => setConstanciaWorker(null)}
+                worker={constanciaWorker}
+            />
         </div>
     );
 };
