@@ -23,8 +23,9 @@ interface LineItem {
     item_id: number;
     descripcion: string;
     unidad: string;
-    cantidad: number;
-    precio_unitario: number;
+    // Permiten '' (vacío) mientras el usuario edita; se coercen a número al calcular/guardar.
+    cantidad: number | '';
+    precio_unitario: number | '';
     destino_type: 'obra' | 'bodega';
     destino_id: number;
 }
@@ -125,7 +126,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     item_id: created.id,
                     descripcion: created.descripcion,
                     unidad: created.unidad,
-                    precio_unitario: created.valor_compra || 0,
+                    precio_unitario: created.valor_compra || '',
                 });
             }
             toast.success(`Ítem "${created.descripcion}" creado y vinculado`);
@@ -157,7 +158,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     const addItem = () => {
         setItems([...items, {
             item_id: 0, descripcion: '', unidad: 'U',
-            cantidad: 1, precio_unitario: 0,
+            cantidad: 1, precio_unitario: '',
             destino_type: 'bodega', destino_id: 0,
         }]);
     };
@@ -176,13 +177,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             item_id: Number(value) || 0,
             descripcion: found?.descripcion || '',
             unidad: found?.unidad || 'U',
-            precio_unitario: found?.valor_compra || 0,
+            precio_unitario: found?.valor_compra || '',
         });
     };
 
     /* ── Computed total ── */
     const montoNeto = useMemo(
-        () => items.reduce((sum, i) => sum + i.cantidad * i.precio_unitario, 0),
+        () => items.reduce((sum, i) => sum + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0),
         [items],
     );
 
@@ -205,8 +206,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
         const errs: typeof formErrors = {};
         if (!numFactura.trim()) errs.numFactura = 'Ingresa el número de factura';
         if (!proveedor.trim()) errs.proveedor = 'Ingresa el proveedor';
-        if (!items.length || items.some(i => !i.item_id || i.cantidad < 1 || !i.destino_id)) {
-            errs.items = 'Agrega al menos un ítem con destino válido';
+        if (!items.length || items.some(i => !i.item_id || Number(i.cantidad) < 1 || !i.destino_id)) {
+            errs.items = 'Agrega al menos un ítem con cantidad (mínimo 1) y destino válido';
         }
         setFormErrors(errs);
         if (Object.keys(errs).length > 0) return;
@@ -223,8 +224,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     item_id: i.item_id,
                     obra_id: i.destino_type === 'obra' ? i.destino_id : null,
                     bodega_id: i.destino_type === 'bodega' ? i.destino_id : null,
-                    cantidad: i.cantidad,
-                    precio_unitario: i.precio_unitario,
+                    cantidad: Number(i.cantidad) || 0,
+                    precio_unitario: Number(i.precio_unitario) || 0,
                 })),
             });
             toast.success('Factura registrada correctamente');
@@ -495,17 +496,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                             {/* Cantidad */}
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[10px] text-muted-foreground font-medium">Cant:</span>
-                                                <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, item.cantidad - 1) })}
+                                                <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, (Number(item.cantidad) || 1) - 1) })}
                                                     className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Minus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
                                                 <input
-                                                    type="number" min={1}
+                                                    type="number" min={0}
                                                     value={item.cantidad}
-                                                    onChange={e => updateItem(idx, { cantidad: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                    onChange={e => updateItem(idx, { cantidad: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })}
                                                     className="w-14 px-2 py-1 text-xs border border-border rounded-lg text-center font-bold"
                                                 />
-                                                <button type="button" onClick={() => updateItem(idx, { cantidad: item.cantidad + 1 })}
+                                                <button type="button" onClick={() => updateItem(idx, { cantidad: (Number(item.cantidad) || 0) + 1 })}
                                                     className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Plus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
@@ -520,7 +521,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                                     <input
                                                         type="number" min={0} step="any"
                                                         value={item.precio_unitario}
-                                                        onChange={e => updateItem(idx, { precio_unitario: parseFloat(e.target.value) || 0 })}
+                                                        onChange={e => updateItem(idx, { precio_unitario: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0) })}
                                                         className="w-24 pl-5 pr-2 py-1 text-xs border border-border rounded-lg text-right font-bold"
                                                     />
                                                 </div>
@@ -534,9 +535,9 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     </div>
 
                                     {/* Subtotal */}
-                                    {item.cantidad > 0 && item.precio_unitario > 0 && (
+                                    {Number(item.cantidad) > 0 && Number(item.precio_unitario) > 0 && (
                                         <p className="text-[10px] text-right text-muted-foreground">
-                                            Subtotal: <span className="font-bold text-brand-dark">{fmtMoney(item.cantidad * item.precio_unitario)}</span>
+                                            Subtotal: <span className="font-bold text-brand-dark">{fmtMoney(Number(item.cantidad) * Number(item.precio_unitario))}</span>
                                         </p>
                                     )}
                                 </div>
