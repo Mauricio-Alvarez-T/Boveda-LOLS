@@ -245,6 +245,28 @@ export function useAttendanceExport({
             text += `\n`;
         }
 
+        // Aviso de faltas reiteradas (posible causal Art.160 N°3): se debe verificar
+        // la asistencia de estos trabajadores. Degradable: si falla o el usuario no
+        // tiene permiso, se omite el bloque sin romper el mensaje (igual patrón que el
+        // enriquecimiento de períodos de arriba).
+        try {
+            const [aYear, aMonth] = currentDate.split('-');
+            const alertRes = await api.get<{ data: Array<{ nombres: string; apellido_paterno: string; total_faltas: number; fechas?: string[]; alertas?: Array<{ tipo: string; mensaje: string }> }> }>(
+                `/asistencias/alertas/${currentObra.id}?mes=${parseInt(aMonth)}&anio=${parseInt(aYear)}`
+            );
+            const flagged = (alertRes.data?.data || []).filter(a => (a.alertas?.length || 0) > 0);
+            if (flagged.length > 0) {
+                text += `⚠️ VERIFICAR ASISTENCIA (posibles faltas reiteradas):\n`;
+                flagged.forEach(a => {
+                    const fechasFmt = (a.fechas || []).map(f => f.split('-').reverse().join('/')).join(', ');
+                    text += `- ${a.apellido_paterno} ${a.nombres}: faltas el ${fechasFmt}\n`;
+                });
+                text += `\n`;
+            }
+        } catch {
+            // Sin permiso (asistencia.ver) o error de red → se omite el aviso.
+        }
+
         text += `Saludos cordiales\n\n`;
         text += `_Este mensaje se genero usando Bóveda lols_`;
 

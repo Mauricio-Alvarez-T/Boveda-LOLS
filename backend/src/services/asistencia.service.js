@@ -2417,6 +2417,7 @@ const asistenciaService = {
                     apellido_paterno: data.apellido_paterno,
                     rut: data.rut,
                     total_faltas: fechas.length,
+                    fechas, // lista 'YYYY-MM-DD' de las faltas del mes (para el aviso WhatsApp)
                     alertas: trabajadorAlerts
                 });
             }
