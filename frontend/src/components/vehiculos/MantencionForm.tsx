@@ -73,20 +73,33 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
 
     return (
         <form id="mantencion-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
-            <Input label="Fecha por realizar" type="date" {...register('fecha', { required: true })} />
+            <Input
+                label="Fecha por realizar *"
+                type="date"
+                {...register('fecha', { required: 'Agrega la fecha' })}
+                error={errors.fecha?.message as string | undefined}
+            />
             {/* KM se captura automáticamente del kilometraje actual del vehículo (campo oculto) */}
             <input type="hidden" {...register('km_al_realizar')} />
             <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo de mantención</label>
-                <input list="tipos-mantencion" {...register('tipo', { required: true })}
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                    Tipo de mantención <span className="text-destructive">*</span>
+                </label>
+                <input list="tipos-mantencion" {...register('tipo', { required: 'Agrega el motivo de la mantención' })}
                     placeholder="Ej: Cambio de aceite"
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                    className={`w-full px-3 py-2.5 rounded-xl border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 ${errors.tipo ? 'border-destructive' : 'border-border'}`} />
                 <datalist id="tipos-mantencion">
                     {TIPOS_COMUNES.map(t => <option key={t} value={t} />)}
                 </datalist>
+                <FieldError message={errors.tipo?.message as string | undefined} className="mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <Input label="Taller" placeholder="Nombre del taller..." {...register('taller')} />
+                <Input
+                    label="Taller / Lugar *"
+                    placeholder="Nombre del taller..."
+                    {...register('taller', { required: 'Agrega el lugar / taller' })}
+                    error={errors.taller?.message as string | undefined}
+                />
                 <Input label="Costo ($)" type="number" {...register('costo')} />
             </div>
             <div>

@@ -67,14 +67,34 @@ export const PermisoCirculacionForm: React.FC<Props> = ({ vehiculoId, initialDat
     return (
         <form id="permiso-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
             <div className="grid grid-cols-2 gap-4">
-                <Input label="N° Permiso" placeholder="Opcional" {...register('numero_permiso')} />
+                <Input
+                    label="N° Permiso *"
+                    placeholder="Ej: 256"
+                    {...register('numero_permiso', { required: 'Agrega el N° de permiso' })}
+                    error={errors.numero_permiso?.message as string | undefined}
+                />
                 <Input label="Monto ($)" type="number" {...register('monto')} />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <Input label="Fecha de pago / emisión" type="date" {...register('fecha_emision')} />
-                <Input label="Fecha vencimiento" type="date" {...register('fecha_vencimiento', { required: true })} />
+                <Input
+                    label="Fecha de pago / emisión *"
+                    type="date"
+                    {...register('fecha_emision', { required: 'Agrega la fecha de pago / emisión' })}
+                    error={errors.fecha_emision?.message as string | undefined}
+                />
+                <Input
+                    label="Fecha vencimiento *"
+                    type="date"
+                    {...register('fecha_vencimiento', { required: 'Agrega la fecha de vencimiento' })}
+                    error={errors.fecha_vencimiento?.message as string | undefined}
+                />
             </div>
-            <Input label="Municipalidad" placeholder="Comuna donde se pagó" {...register('municipalidad')} />
+            <Input
+                label="Municipalidad *"
+                placeholder="Comuna donde se pagó"
+                {...register('municipalidad', { required: 'Agrega la municipalidad' })}
+                error={errors.municipalidad?.message as string | undefined}
+            />
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
                 <textarea {...register('observaciones')} rows={2}
