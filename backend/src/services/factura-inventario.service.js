@@ -54,7 +54,7 @@ const facturaInventarioService = {
             FROM facturas_inventario f
             LEFT JOIN usuarios u ON f.registrado_por = u.id
             WHERE f.activo = 1
-            ORDER BY f.fecha_factura DESC
+            ORDER BY f.fecha_factura DESC, f.id DESC
             LIMIT ? OFFSET ?
         `, [limit, offset]);
 
