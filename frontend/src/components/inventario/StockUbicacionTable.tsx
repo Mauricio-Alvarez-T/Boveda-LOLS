@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { cn } from '../../utils/cn';
-import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package } from 'lucide-react';
+import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package, Eye, EyeOff } from 'lucide-react';
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import { useAuth } from '../../context/AuthContext';
@@ -149,10 +149,40 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
         mobileCancelEdit();
     };
 
-    const totalItems = data.categorias.reduce((s, c) => s + c.items.length, 0);
+    // Toggle "Ocultar vacías": esconde items con cantidad 0 (y categorías que
+    // queden sin items). Aplica a la vista mobile y desktop.
+    const [hideEmpty, setHideEmpty] = useState(false);
+    const categorias = React.useMemo(
+        () => hideEmpty
+            ? data.categorias
+                .map(c => ({ ...c, items: c.items.filter(it => it.cantidad > 0) }))
+                .filter(c => c.items.length > 0)
+            : data.categorias,
+        [data.categorias, hideEmpty]
+    );
+
+    const totalItems = categorias.reduce((s, c) => s + c.items.length, 0);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
+            {/* Toolbar: toggle "Ocultar vacías" (esconde items con cantidad 0) */}
+            <div className="flex items-center justify-end shrink-0 mb-2">
+                <button
+                    type="button"
+                    onClick={() => setHideEmpty(v => !v)}
+                    title={hideEmpty ? 'Mostrar items sin stock' : 'Ocultar items sin stock'}
+                    className={cn(
+                        "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
+                        hideEmpty
+                            ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                            : "bg-card border-border text-muted-foreground hover:border-brand-primary/30"
+                    )}
+                >
+                    {hideEmpty ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+                    Ocultar vacías
+                </button>
+            </div>
+
             {/* ═══════════════════════════════════════════
                 ── MOBILE VIEW (smartphones only) ──
                ═══════════════════════════════════════════ */}
@@ -229,11 +259,13 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                 {totalItems === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <p className="text-sm text-muted-foreground">Sin items en esta {isBodega ? 'bodega' : 'obra'}.</p>
+                        <p className="text-sm text-muted-foreground">
+                            {hideEmpty ? 'No hay items con stock.' : `Sin items en esta ${isBodega ? 'bodega' : 'obra'}.`}
+                        </p>
                     </div>
                 ) : (
                     <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-4">
-                        {data.categorias.map(cat => {
+                        {categorias.map(cat => {
                             const catExpanded = expandedCats.has(cat.id);
                             return (
                                 <div key={cat.id} className="rounded-2xl border border-border overflow-hidden bg-card">
@@ -428,7 +460,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         </tr>
                     </thead>
                     <tbody>
-                        {data.categorias.map(cat => {
+                        {categorias.map(cat => {
                             const collapsed = collapsedCatsDesktop.has(cat.id);
                             return (
                             <React.Fragment key={cat.id}>
