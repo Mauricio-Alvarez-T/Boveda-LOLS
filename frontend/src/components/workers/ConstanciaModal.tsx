@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { FileWarning, FileCheck2, ArrowLeft, Download, ChevronRight } from 'lucide-react';
+import { FileWarning, FileCheck2, ArrowLeft, Download, Printer, ChevronRight } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { downloadWord } from '../../utils/downloadWord';
+import { downloadWord, printDoc } from '../../utils/downloadWord';
 
 interface ConstanciaWorker {
     id: number;
@@ -28,9 +28,36 @@ const hoy = () => new Date().toISOString().split('T')[0];
 const nombreDe = (w: ConstanciaWorker) =>
     `${w.apellido_paterno} ${w.apellido_materno || ''} ${w.nombres}`.replace(/\s+/g, ' ').trim();
 
+const MESES = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+const fechaLargaDel = (iso: string) => {
+    if (!iso) return '';
+    const d = new Date(iso + 'T12:00:00');
+    return `${String(d.getDate()).padStart(2, '0')} de ${MESES[d.getMonth()]} del ${d.getFullYear()}`;
+};
+const fechaCorta = (iso: string) => {
+    if (!iso) return '___/___/______';
+    const d = new Date(iso + 'T12:00:00');
+    return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`;
+};
+
+// Motivos predefinidos para la Carta de Amonestación (ajustables).
+const MOTIVOS = [
+    'Atraso reiterado en el ingreso',
+    'Inasistencia injustificada',
+    'Abandono de funciones durante la jornada',
+    'No uso de elementos de protección personal (EPP)',
+    'Incumplimiento de normas de seguridad',
+    'Incumplimiento de instrucciones de la jefatura',
+    'Uso indebido de equipos o herramientas',
+    'Conducta inapropiada en el lugar de trabajo',
+];
+const OTRO = 'Otro (completar en el documento)';
+
 function escapeHtml(s: string): string {
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
+
+const LINEA = '____________________________';
 
 // Logo LOLS (réplica del componente Logo, verde oficial) — inline SVG para el membrete.
 const LOGO_SVG =
@@ -45,15 +72,14 @@ const LOGO_SVG =
     `<text x="225" y="192" font-family="Arial, sans-serif" font-weight="700" font-size="42">INGENIERIA</text>` +
     `</g></svg>`;
 
-// Espacios en blanco para completar a mano EN EL WORD (fechas / motivo).
-const LINEA = '____________________________';
-
 // ── Plantilla: ACTA DE CONSENTIMIENTO ──
-function buildActaHtml(w: ConstanciaWorker): string {
+function buildActaHtml(w: ConstanciaWorker, f: { fechaActa: string; fechaHecho: string }): string {
+    const enc = `Santiago, ${f.fechaActa ? fechaLargaDel(f.fechaActa) : LINEA}.`;
+    const dia = f.fechaHecho ? fechaLargaDel(f.fechaHecho) : LINEA;
     return (
         `<table width="100%" style="margin-bottom:8pt"><tr>` +
         `<td style="vertical-align:top">${LOGO_SVG}</td>` +
-        `<td style="text-align:right;vertical-align:top;font-size:11pt">Santiago, ${LINEA}.</td>` +
+        `<td style="text-align:right;vertical-align:top;font-size:11pt">${escapeHtml(enc)}</td>` +
         `</tr></table>` +
         `<div style="text-align:center;font-size:14pt;font-weight:bold;margin:8pt 0 18pt">Acta de Consentimiento</div>` +
         `<p style="text-align:left;margin:0 0 2pt"><b>Nombre del Trabajador:</b> ${escapeHtml(nombreDe(w))}</p>` +
@@ -62,7 +88,7 @@ function buildActaHtml(w: ConstanciaWorker): string {
         `<p style="text-align:left;margin:0 0 2pt"><b>Obra:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
         `<p style="text-align:left;margin:18pt 0 8pt"><u><b>PRESENTE</b></u></p>` +
         `<ol>` +
-        `<li>El día ${LINEA}, mi firma quedo registrada en el libro de asistencia de la empresa</li>` +
+        `<li>El día ${escapeHtml(dia)}, mi firma quedo registrada en el libro de asistencia de la empresa</li>` +
         `<li>Reconozco que ese día no me presente a laborar</li>` +
         `<li>Declaro que mi firma fue puesta de manera voluntaria.</li>` +
         `<li>Autorizo a mi empresa a registrar esta manifestación como aclaración sobre lo ocurrido</li>` +
@@ -74,14 +100,18 @@ function buildActaHtml(w: ConstanciaWorker): string {
 }
 
 // ── Plantilla: CARTA DE AMONESTACIÓN ──
-function buildCartaHtml(w: ConstanciaWorker): string {
-    const lineasFalta = '<p>_______________________________________________</p>'.repeat(4);
+function buildCartaHtml(w: ConstanciaWorker, f: { fechaCarta: string; fechaInfraccion: string; motivo: string }): string {
+    const fInfra = f.fechaInfraccion ? fechaLargaDel(f.fechaInfraccion) : '…………………………………………………………';
+    const motivoValido = f.motivo && f.motivo !== OTRO;
+    const faltaHtml = motivoValido
+        ? `<p>${escapeHtml(f.motivo)}</p>`
+        : '<p>_______________________________________________</p>'.repeat(4);
     return (
         `<table width="100%"><tr>` +
         `<td width="40%" style="vertical-align:top">${LOGO_SVG}</td>` +
         `<td style="text-align:center;vertical-align:top">` +
         `<div style="font-size:14pt;font-weight:bold">CARTA AMONESTACION</div>` +
-        `<div style="margin-top:6pt">Fecha: ___/___/______</div>` +
+        `<div style="margin-top:6pt">Fecha: ${escapeHtml(fechaCorta(f.fechaCarta))}</div>` +
         `</td></tr></table>` +
         `<p style="margin:14pt 0 0"><b>NOMBRE:</b> ${escapeHtml(nombreDe(w))}</p>` +
         `<p style="margin:0"><b>DIVISIÓN:</b> ${escapeHtml(w.obra_nombre || '')}</p>` +
@@ -90,9 +120,9 @@ function buildCartaHtml(w: ConstanciaWorker): string {
         `<p style="margin:0">Presente.</p>` +
         `<p style="margin:14pt 0 0">De nuestra consideración:</p>` +
         `<p>Ponemos en su conocimiento, que la Administración de LOLS INGENIERÍA LTDA. Ha determinado sancionarlo con una amonestación escrita.</p>` +
-        `<p>La infracción fue cometida por usted el día …………………………………………………………</p>` +
+        `<p>La infracción fue cometida por usted el día ${escapeHtml(fInfra)}</p>` +
         `<p>La falta es la siguiente:</p>` +
-        lineasFalta +
+        faltaHtml +
         `<p style="margin-top:14pt">Le recordamos a usted que las infracciones de forma recurrente pueden generar el termino de Contrato.</p>` +
         `<p style="margin-top:10pt">Sin otro particular, Atentamente</p>` +
         `<table width="100%" style="margin-top:54pt"><tr>` +
@@ -105,35 +135,46 @@ function buildCartaHtml(w: ConstanciaWorker): string {
     );
 }
 
+const inputCls = "w-full h-11 px-3 rounded-xl border border-border bg-card text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/40";
+
 export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) => {
     const [formato, setFormato] = useState<Formato | null>(null);
+    const [fechaDoc, setFechaDoc] = useState(hoy());   // fecha del acta / de la carta
+    const [fechaHecho, setFechaHecho] = useState('');  // acta: día punto 1 / carta: día de la infracción
+    const [motivo, setMotivo] = useState('');          // solo carta (select)
 
     useEffect(() => {
-        if (isOpen) setFormato(null);
+        if (isOpen) { setFormato(null); setFechaDoc(hoy()); setFechaHecho(''); setMotivo(''); }
     }, [isOpen]);
 
     if (!worker) return null;
 
-    const descargar = () => {
-        if (!formato) return;
+    const buildHtml = (): string =>
+        formato === 'acta'
+            ? buildActaHtml(worker, { fechaActa: fechaDoc, fechaHecho })
+            : buildCartaHtml(worker, { fechaCarta: fechaDoc, fechaInfraccion: fechaHecho, motivo });
+
+    const nombreArchivo = () => {
         const safe = (s: string) => (s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9]/g, '_');
-        const sufijo = `${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${hoy()}`;
-        if (formato === 'acta') {
-            downloadWord(`Acta_Consentimiento_${sufijo}`, buildActaHtml(worker));
-        } else {
-            downloadWord(`Amonestacion_${sufijo}`, buildCartaHtml(worker));
-        }
+        const base = formato === 'acta' ? 'Acta_Consentimiento' : 'Amonestacion';
+        return `${base}_${safe(worker.apellido_paterno)}_${safe(worker.nombres)}_${hoy()}`;
     };
 
+    const descargar = () => { if (formato) downloadWord(nombreArchivo(), buildHtml()); };
+    const imprimir = () => { if (formato) printDoc(buildHtml(), formato === 'acta' ? 'Acta de Consentimiento' : 'Carta de Amonestación'); };
+
     const footer = formato ? (
-        <>
+        <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 w-full sm:w-auto">
             <Button variant="ghost" onClick={() => setFormato(null)} leftIcon={<ArrowLeft className="h-4 w-4" />} className="w-full sm:w-auto">
                 Volver
+            </Button>
+            <Button variant="glass" onClick={imprimir} leftIcon={<Printer className="h-4 w-4" />} className="w-full sm:w-auto">
+                Imprimir
             </Button>
             <Button onClick={descargar} leftIcon={<Download className="h-4 w-4" />} className="w-full sm:w-auto">
                 Descargar Word
             </Button>
-        </>
+        </div>
     ) : undefined;
 
     const opciones: { key: Formato; titulo: string; icon: React.ElementType }[] = [
@@ -144,13 +185,13 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
     return (
         <Modal isOpen={isOpen} onClose={onClose} title="Constancia" size="md" footer={footer}>
             {!formato ? (
-                /* Paso 1: elegir formato */
+                /* Paso 1: Motivo (elegir tipo) */
                 <div className="space-y-3">
                     <div className="bg-background rounded-2xl p-3 border border-border">
                         <p className="text-sm font-bold text-brand-dark">{nombreDe(worker)}</p>
                         <p className="text-xs text-muted-foreground">{worker.rut}{worker.cargo_nombre ? ` · ${worker.cargo_nombre}` : ''}</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">Elige el formato a generar:</p>
+                    <p className="text-sm font-semibold text-brand-dark">Motivo</p>
                     {opciones.map(({ key, titulo, icon: Icon }) => (
                         <button
                             key={key}
@@ -166,7 +207,7 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                     ))}
                 </div>
             ) : (
-                /* Paso 2: solo datos autocompletados + descargar (fechas y motivo se llenan en el Word) */
+                /* Paso 2: formulario con opciones (sin escribir) */
                 <div className="space-y-4">
                     <div className="bg-background rounded-2xl p-4 border border-border text-sm">
                         <p className="font-bold text-brand-dark">{nombreDe(worker)}</p>
@@ -178,9 +219,43 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                         </div>
                         <p className="text-[11px] text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                        El documento <strong>{formato === 'acta' ? 'Acta de Consentimiento' : 'Carta de Amonestación'}</strong> se descargará en Word con los datos del trabajador ya puestos.
-                        Las <strong>fechas y el motivo</strong> los completas directamente en el Word.
+
+                    {formato === 'acta' ? (
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-sm font-medium text-brand-dark mb-1">Fecha del acta</label>
+                                <input type="date" value={fechaDoc} onChange={(e) => setFechaDoc(e.target.value)} className={inputCls} />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-brand-dark mb-1">Día del hecho</label>
+                                <input type="date" value={fechaHecho} onChange={(e) => setFechaHecho(e.target.value)} className={inputCls} />
+                            </div>
+                        </div>
+                    ) : (
+                        <>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="block text-sm font-medium text-brand-dark mb-1">Fecha de la carta</label>
+                                    <input type="date" value={fechaDoc} onChange={(e) => setFechaDoc(e.target.value)} className={inputCls} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-brand-dark mb-1">Día de la infracción</label>
+                                    <input type="date" value={fechaHecho} onChange={(e) => setFechaHecho(e.target.value)} className={inputCls} />
+                                </div>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-brand-dark mb-1">Motivo de la falta</label>
+                                <select value={motivo} onChange={(e) => setMotivo(e.target.value)} className={inputCls}>
+                                    <option value="">Selecciona un motivo…</option>
+                                    {MOTIVOS.map(m => <option key={m} value={m}>{m}</option>)}
+                                    <option value={OTRO}>{OTRO}</option>
+                                </select>
+                            </div>
+                        </>
+                    )}
+
+                    <p className="text-[11px] text-muted-foreground">
+                        Completa con las opciones. Lo que elijas saldrá en el documento; lo que dejes sin elegir queda como línea en blanco para llenar a mano.
                     </p>
                 </div>
             )}
