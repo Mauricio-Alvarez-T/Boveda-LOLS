@@ -576,7 +576,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                             >
                                 <ImageIcon className={cn("h-3.5 w-3.5 mx-auto transition-colors", showImages ? "text-brand-primary" : "text-muted-foreground/40")} />
                             </th>
-                            <th className={cn("sticky z-30 bg-muted px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-border min-w-[180px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
+                            <th className={cn("sticky z-30 bg-muted px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-border min-w-[220px] max-w-[320px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
                             <th className="bg-muted px-2 py-2 text-center font-bold text-brand-dark border-b border-r border-border w-12">M²</th>
                             {verValores && (
                                 <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Arriendo</th>
@@ -666,11 +666,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                         : <div className="w-8 h-8 rounded bg-muted/30 flex items-center justify-center mx-auto"><ImageIcon className="h-3 w-3 text-muted-foreground/30" /></div>
                                                 )}
                                             </td>
-                                            <td className={cn("sticky z-10 px-2 py-1.5 font-medium text-brand-dark border-r border-b border-border truncate max-w-[200px]", rowBg, showImages ? "left-[68px]" : "left-8")}>
+                                            <td className={cn("sticky z-10 px-2 py-1.5 font-medium text-brand-dark border-r border-b border-border align-top min-w-[220px] max-w-[320px] whitespace-normal break-words", rowBg, showImages ? "left-[68px]" : "left-8")}>
                                                 <button
                                                     type="button"
+                                                    title={item.descripcion}
                                                     onClick={() => itemDetail.openItem(item.id, item)}
-                                                    className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                    className="text-left whitespace-normal break-words hover:underline hover:text-brand-primary transition-colors cursor-pointer"
                                                 >
                                                     {item.descripcion}
                                                 </button>
