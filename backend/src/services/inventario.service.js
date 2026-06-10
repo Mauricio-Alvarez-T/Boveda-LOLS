@@ -103,7 +103,8 @@ const inventarioService = {
                 const s = itemStock ? itemStock.get(`obra_${oid}`) : undefined;
                 const cant = s ? s.cantidad : 0;
                 const arriendo = s && s.override != null ? parseFloat(s.override) : valorArriendoBase;
-                const total = cant * arriendo;
+                const m2Factor = item.m2 ? parseFloat(item.m2) : 1;
+                const total = cant * arriendo * m2Factor;
                 ubicaciones[`obra_${oid}`] = { cantidad: cant, total };
                 totalArriendo += total;
                 totalCantidad += cant;
