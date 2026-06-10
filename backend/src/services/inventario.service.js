@@ -42,7 +42,7 @@ const inventarioService = {
                 FROM items_inventario i
                 JOIN categorias_inventario c ON i.categoria_id = c.id
                 WHERE i.activo = 1
-                ORDER BY c.orden ASC, i.nro_item ASC
+                ORDER BY c.orden ASC, i.descripcion ASC
             `),
             db.query(stockQuery, stockParams),
             // Helper compartido (utils/descuentoMap) — antes inline query duplicada con getStockPorObra
@@ -195,7 +195,7 @@ const inventarioService = {
             JOIN categorias_inventario c ON i.categoria_id = c.id
             LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id = ? AND us.bodega_id IS NULL
             WHERE i.activo = 1
-            ORDER BY c.orden ASC, i.nro_item ASC
+            ORDER BY c.orden ASC, i.descripcion ASC
         `, [obraId]);
 
         // Descuento (helper compartido — antes inline duplicado con getResumen)
@@ -272,7 +272,7 @@ const inventarioService = {
             JOIN categorias_inventario c ON i.categoria_id = c.id
             LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.bodega_id = ? AND us.obra_id IS NULL
             WHERE i.activo = 1
-            ORDER BY c.orden ASC, i.nro_item ASC
+            ORDER BY c.orden ASC, i.descripcion ASC
         `, [bodegaId]);
 
         const categorias = {};
