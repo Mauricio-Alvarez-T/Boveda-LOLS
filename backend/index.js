@@ -313,6 +313,21 @@ try {
         [safeData.categoria_id]
       );
       safeData.nro_item = rows[0].next_nro;
+    },
+    // Al MOVER un ítem de categoría, su nro_item (secuencial por categoría) chocaría
+    // con el de la categoría destino → UNIQUE(categoria_id, nro_item) lanzaría
+    // "dato duplicado". Recalculamos nro_item al siguiente disponible de la categoría
+    // destino: el ítem sigue siendo el MISMO registro (mismo id), solo cambia de
+    // categoría. Sin duplicar, sin bloquear.
+    beforeUpdate: async (id, safeData, db) => {
+      if (safeData.categoria_id === undefined) return;
+      const [cur] = await db.query('SELECT categoria_id FROM items_inventario WHERE id = ?', [id]);
+      if (!cur.length || Number(cur[0].categoria_id) === Number(safeData.categoria_id)) return;
+      const [rows] = await db.query(
+        'SELECT COALESCE(MAX(nro_item), 0) + 1 AS next_nro FROM items_inventario WHERE categoria_id = ?',
+        [safeData.categoria_id]
+      );
+      safeData.nro_item = rows[0].next_nro;
     }
   }));
 

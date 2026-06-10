@@ -18,6 +18,7 @@ const createCrudService = (tableName, options = {}) => {
         allowedFilters = [],
         allowedFields = [], // Whitelist for create/update
         beforeCreate = null, // async (safeData, db) => void — mutate safeData before INSERT
+        beforeUpdate = null, // async (id, safeData, db) => void — mutate safeData antes del UPDATE (corre DESPUÉS del filtro de whitelist, puede agregar campos)
         testFlagColumn = null, // Columna de aislamiento (ej. 'es_prueba'); si está, getAll excluye por defecto las filas marcadas salvo ?incluir_prueba=true
         // Segundo flag genérico de ocultamiento (ej. 'finalizada'). Igual que
         // testFlagColumn pero con su propio query param de override y sin la
@@ -235,6 +236,13 @@ const createCrudService = (tableName, options = {}) => {
                 const { formatRut } = require('../utils/rut');
                 safeData.rut = formatRut(safeData.rut);
             }
+
+            // Hook opcional: corre DESPUÉS del filtro de whitelist y puede agregar/ajustar
+            // campos de safeData (ej. recalcular nro_item al mover un ítem de categoría).
+            if (typeof beforeUpdate === 'function') {
+                await beforeUpdate(id, safeData, db);
+            }
+
             const fields = Object.keys(safeData).map(f => `${f} = ?`).join(', ');
             const values = [...Object.values(safeData), id];
 
