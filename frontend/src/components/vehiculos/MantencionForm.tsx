@@ -1,56 +1,105 @@
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
-import { Save } from 'lucide-react';
-import { Button } from '../ui/Button';
+import { Bell } from 'lucide-react';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
+import type { VehiculoMantencion } from '../../types/entities';
+import { useAuth } from '../../context/AuthContext';
+import { puedeConfigurarAlertasVehiculos, validarDiasAlerta } from '../../utils/alertasVehiculos';
+import { FieldError } from '../ui/FieldError';
 
 interface Props {
     vehiculoId: number;
     kmActual?: number;
+    initialData?: VehiculoMantencion | null;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, onSuccess, onCancel }) => {
-    const { register, handleSubmit, formState: { isSubmitting } } = useForm({
-        defaultValues: { fecha: '', tipo: '', km_al_realizar: kmActual, descripcion: '', costo: '', taller: '' }
+const TIPOS_COMUNES = ['Cambio de aceite', 'Frenos', 'Neumáticos', 'Filtros', 'Revisión general', 'Correa distribución', 'Suspensión', 'Transmisión'];
+
+export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, initialData, onSuccess, onCancel }) => {
+    const isEdit = !!initialData;
+    const { user } = useAuth();
+    const canConfigurarAlertas = puedeConfigurarAlertasVehiculos(user);
+
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        defaultValues: isEdit ? {
+            fecha: String(initialData.fecha).split('T')[0],
+            tipo: initialData.tipo,
+            km_al_realizar: initialData.km_al_realizar,
+            descripcion: initialData.descripcion || '',
+            costo: (initialData as any).costo ?? '',
+            taller: (initialData as any).taller || '',
+            fecha_proxima: (initialData as any).fecha_proxima ? String((initialData as any).fecha_proxima).split('T')[0] : '',
+            dias_alerta: (initialData as any).dias_alerta ?? 30,
+            email_alerta: (initialData as any).email_alerta || '',
+        } : {
+            fecha: '', tipo: '', km_al_realizar: kmActual,
+            descripcion: '', costo: '', taller: '', fecha_proxima: '',
+            dias_alerta: 30, email_alerta: '',
+        }
     });
 
     const onSubmit = async (data: any) => {
         try {
-            await api.post(`/vehiculos/${vehiculoId}/mantenciones`, {
+            const payload: any = {
                 ...data,
                 km_al_realizar: Number(data.km_al_realizar),
                 costo: data.costo ? Number(data.costo) : null,
-            });
-            toast.success('Mantención registrada');
+                fecha_proxima: data.fecha_proxima || null,
+            };
+            if (canConfigurarAlertas) {
+                payload.dias_alerta = data.dias_alerta ? Number(data.dias_alerta) : null;
+                payload.email_alerta = data.email_alerta || null;
+            } else {
+                // No sobreescribir la config de alerta existente.
+                delete payload.dias_alerta;
+                delete payload.email_alerta;
+            }
+            if (isEdit) {
+                await api.put(`/vehiculos/${vehiculoId}/mantenciones/${initialData.id}`, payload);
+                toast.success('Mantención actualizada');
+            } else {
+                await api.post(`/vehiculos/${vehiculoId}/mantenciones`, payload);
+                toast.success('Mantención registrada');
+            }
             onSuccess();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al guardar mantención');
         }
     };
 
-    const TIPOS_COMUNES = ['Cambio de aceite', 'Frenos', 'Neumáticos', 'Filtros', 'Revisión general', 'Correa distribución'];
-
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-                <Input label="Fecha" type="date" {...register('fecha', { required: true })} />
-                <Input label="KM al realizar" type="number" {...register('km_al_realizar', { required: true })} />
-            </div>
+        <form id="mantencion-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+            <Input
+                label="Fecha por realizar *"
+                type="date"
+                {...register('fecha', { required: 'Agrega la fecha' })}
+                error={errors.fecha?.message as string | undefined}
+            />
+            {/* KM se captura automáticamente del kilometraje actual del vehículo (campo oculto) */}
+            <input type="hidden" {...register('km_al_realizar')} />
             <div>
-                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo de mantención</label>
-                <input list="tipos-mantencion" {...register('tipo', { required: true })}
+                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">
+                    Tipo de mantención <span className="text-destructive">*</span>
+                </label>
+                <input list="tipos-mantencion" {...register('tipo', { required: 'Agrega el motivo de la mantención' })}
                     placeholder="Ej: Cambio de aceite"
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                    className={`w-full px-3 py-2.5 rounded-xl border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 ${errors.tipo ? 'border-destructive' : 'border-border'}`} />
                 <datalist id="tipos-mantencion">
                     {TIPOS_COMUNES.map(t => <option key={t} value={t} />)}
                 </datalist>
+                <FieldError message={errors.tipo?.message as string | undefined} className="mt-1" />
             </div>
             <div className="grid grid-cols-2 gap-4">
-                <Input label="Taller" placeholder="Nombre del taller..." {...register('taller')} />
+                <Input
+                    label="Taller / Lugar *"
+                    placeholder="Nombre del taller..."
+                    {...register('taller', { required: 'Agrega el lugar / taller' })}
+                    error={errors.taller?.message as string | undefined}
+                />
                 <Input label="Costo ($)" type="number" {...register('costo')} />
             </div>
             <div>
@@ -58,10 +107,27 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, onSu
                 <textarea {...register('descripcion')} rows={2}
                     className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
             </div>
-            <div className="flex justify-end gap-3 mt-4">
-                <Button type="button" variant="outline" onClick={onCancel}>Cancelar</Button>
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>Guardar</Button>
+
+            <div className="border-t border-border pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                    <Bell className="h-3.5 w-3.5 text-brand-primary" />
+                    <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Programar Próxima Mantención</span>
+                </div>
+                <Input label="Fecha próxima mantención" type="date" {...register('fecha_proxima')} />
+                {canConfigurarAlertas && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                        <div>
+                            <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Avisar X días antes</label>
+                            <input type="number" {...register('dias_alerta', { validate: validarDiasAlerta })}
+                                className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <FieldError message={errors.dias_alerta?.message as string | undefined} className="mt-1" />
+                        </div>
+                        <Input label="Email alerta" placeholder="admin@empresa.cl" {...register('email_alerta')} />
+                    </div>
+                )}
             </div>
+
+            {/* Botones Cancelar/Guardar viven en el header del Modal (headerAction). */}
         </form>
     );
 };

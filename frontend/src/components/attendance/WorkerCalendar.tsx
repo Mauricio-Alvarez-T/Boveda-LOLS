@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, Loader2, Trash2 } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Loader2, Trash2, CalendarRange } from 'lucide-react';
 import { Button } from '../ui/Button';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, Asistencia, PeriodoAusencia, Feriado } from '../../types/entities';
-import { CalendarRange } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -137,14 +136,6 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
             setHoverDate(null);
             // Rellena automáticamente las fechas del formulario con el rango elegido
             if (onSelectRange) onSelectRange(lo, hi);
-        }
-    };
-
-    const handleAssignRange = () => {
-        if (selectionStart && selectionEnd && onSelectRange) {
-            onSelectRange(selectionStart, selectionEnd);
-            setSelectionStart(null);
-            setSelectionEnd(null);
         }
     };
 
@@ -311,35 +302,10 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                 </div>
             )}
 
-            {!readOnly && selectionStart && (
-                <motion.div 
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="mt-4 p-3 bg-background rounded-2xl flex items-center justify-between border border-border"
-                >
-                    <div className="flex flex-col">
-                        <span className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Rango Seleccionado</span>
-                        <span className="text-xs font-bold text-brand-dark">
-                            {selectionStart.split('-').reverse().join('/')} 
-                            {selectionEnd && selectionEnd !== selectionStart && ` — ${selectionEnd.split('-').reverse().join('/')}`}
-                        </span>
-                    </div>
-                    <div className="flex gap-2">
-                        <Button variant="glass" size="sm" onClick={() => { setSelectionStart(null); setSelectionEnd(null); }}>
-                            Anular
-                        </Button>
-                        <Button
-                            variant="primary" 
-                            size="sm" 
-                            onClick={handleAssignRange}
-                            disabled={!selectionEnd}
-                            leftIcon={<CalendarRange className="h-4 w-4" />}
-                        >
-                            Asignar Ausencia
-                        </Button>
-                    </div>
-                </motion.div>
-            )}
+            {/* Bloque inferior "Rango Seleccionado / Anular / Asignar Ausencia" eliminado.
+                Ahora la asignación es automática al completar el 2º clic (useEffect abajo) y
+                el rango seleccionado se muestra arriba junto al botón "Confirmar Período"
+                del modal padre (vía las fechas del formulario). */}
 
             {showLegend && (
                 <div className="mt-6 pt-6 border-t border-border">

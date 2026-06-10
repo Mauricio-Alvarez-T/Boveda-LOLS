@@ -1,14 +1,18 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Droplets, Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { MixerTruck } from '../icons/MixerTruck';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import type { RegistroBombaHormigon } from '../../types/entities';
+import type { ApiResponse } from '../../types';
+import type { RegistroBombaHormigon, Obra } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
+import { FieldError } from '../ui/FieldError';
 
 interface Props {
-    obras: { id: number; nombre: string }[];
+    /** Ya no se usa: el tab fetchea sus obras filtradas por participa_bombas. */
+    obras?: { id: number; nombre: string }[];
     canCreate: boolean;
     /** Permite editar/eliminar registros existentes. Default false. */
     canEdit?: boolean;
@@ -39,7 +43,7 @@ const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmtDateShort = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 
-const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false }) => {
+const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     // Gate financiero: usuarios sin `inventario.bombas.ver_costos` no ven
     // el StatCard "Costo Total" ni la columna costo por registro (el backend
     // ya sanitiza `r.costo` → undefined, aquí cubrimos la parte UI).
@@ -47,6 +51,8 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
     const verCostos = hasPermission('inventario.bombas.ver_costos');
 
     const [registros, setRegistros] = useState<RegistroBombaHormigon[]>([]);
+    // Obras filtradas por participa_bombas (selector + filtro). Fetch propio.
+    const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
     const [loading, setLoading] = useState(false);
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -56,6 +62,8 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
     const [editingId, setEditingId] = useState<number | null>(null);
     const [form, setForm] = useState<BombaFormState>(emptyForm());
     const [submitting, setSubmitting] = useState(false);
+    // Errores inline por campo (los mostramos con <FieldError> bajo cada input).
+    const [formErrors, setFormErrors] = useState<{ obra_id?: string; fecha?: string; tipo_bomba?: string }>({});
 
     const fetchData = async () => {
         setLoading(true);
@@ -69,10 +77,18 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
 
     useEffect(() => { fetchData(); }, [filterObraId]);
 
+    // Obras que participan en Bombas (independiente de inventario).
+    useEffect(() => {
+        api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_bombas=1&limit=500')
+            .then(res => setObras((res.data.data || []).map(o => ({ id: o.id, nombre: o.nombre }))))
+            .catch(() => setObras([]));
+    }, []);
+
     // ── Abrir modal en modo crear ──
     const openCreate = () => {
         setEditingId(null);
         setForm(emptyForm());
+        setFormErrors({});
         setShowModal(true);
     };
 
@@ -88,17 +104,22 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
             costo: r.costo != null ? String(r.costo) : '',
             observaciones: r.observaciones || '',
         });
+        setFormErrors({});
         setShowModal(true);
     };
 
-    const closeModal = () => { setShowModal(false); setEditingId(null); };
+    const closeModal = () => { setShowModal(false); setEditingId(null); setFormErrors({}); };
 
     // ── Guardar (crear o editar) ──
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!form.obra_id) { toast.error('Selecciona una obra'); return; }
-        if (!form.fecha) { toast.error('Indica la fecha'); return; }
-        if (!form.tipo_bomba.trim()) { toast.error('Indica el tipo de bomba'); return; }
+        // Validación inline por campo (no toast): cada mensaje aparece bajo su input.
+        const errs: typeof formErrors = {};
+        if (!form.obra_id) errs.obra_id = 'Selecciona una obra';
+        if (!form.fecha) errs.fecha = 'Indica la fecha';
+        if (!form.tipo_bomba.trim()) errs.tipo_bomba = 'Indica el tipo de bomba';
+        setFormErrors(errs);
+        if (Object.keys(errs).length > 0) return;
 
         // Payload: costo solo se envía si el usuario tiene permiso financiero y
         // escribió un valor. El backend igual lo descarta si no tiene permiso.
@@ -233,7 +254,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                 {/* Stats cards */}
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                     <StatCard
-                        icon={Droplets}
+                        icon={MixerTruck}
                         label="Total Bombeos"
                         value={String(stats.total)}
                         color="bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
@@ -267,7 +288,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                     <div className="py-12 text-center text-muted-foreground text-xs">Cargando...</div>
                 ) : filtered.length === 0 ? (
                     <div className="py-16 text-center text-muted-foreground">
-                        <Droplets className="h-10 w-10 mx-auto opacity-20 mb-3" />
+                        <MixerTruck className="h-10 w-10 mx-auto opacity-20 mb-3" />
                         <p className="text-sm font-medium">Sin registros de bombas</p>
                         <p className="text-xs mt-1 text-muted-foreground/60">
                             {searchQuery ? 'No hay resultados para la búsqueda' : 'No se han registrado bombeos aún'}
@@ -309,30 +330,36 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
 
             {/* ═══ MODAL REGISTRAR / EDITAR ═══ */}
             <Modal isOpen={showModal} onClose={closeModal} title={editingId ? 'Editar uso de bomba' : 'Registrar uso de bomba'} size="md">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
                     {/* Obra + Fecha */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Obra <span className="text-red-500">*</span></label>
                             <select
                                 value={form.obra_id}
-                                onChange={e => setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' }))}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                onChange={e => { setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' })); if (formErrors.obra_id) setFormErrors(p => ({ ...p, obra_id: undefined })); }}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.obra_id ? "border-destructive" : "border-border"
+                                )}
                             >
                                 <option value="">Seleccionar obra...</option>
                                 {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
                             </select>
+                            <FieldError message={formErrors.obra_id} className="mt-1" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Fecha <span className="text-red-500">*</span></label>
                             <input
                                 type="date"
                                 value={form.fecha}
-                                onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                onChange={e => { setForm(f => ({ ...f, fecha: e.target.value })); if (formErrors.fecha) setFormErrors(p => ({ ...p, fecha: undefined })); }}
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.fecha ? "border-destructive" : "border-border"
+                                )}
                             />
+                            <FieldError message={formErrors.fecha} className="mt-1" />
                         </div>
                     </div>
 
@@ -342,11 +369,14 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                         <input
                             type="text"
                             value={form.tipo_bomba}
-                            onChange={e => setForm(f => ({ ...f, tipo_bomba: e.target.value }))}
+                            onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
                             placeholder="Ej: Pluma 32m, Estacionaria, Telescópica..."
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            required
+                            className={cn(
+                                "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                formErrors.tipo_bomba ? "border-destructive" : "border-border"
+                            )}
                         />
+                        <FieldError message={formErrors.tipo_bomba} className="mt-1" />
                     </div>
 
                     {/* Propia / Externa toggle */}
@@ -405,7 +435,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
                                 <input
-                                    type="number" min={0} step="any"
+                                    type="number" step="any"
                                     value={form.costo}
                                     onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
                                     placeholder="0"
@@ -436,7 +466,7 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
                         </button>
                         <button type="submit" disabled={submitting}
                             className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                            <Droplets className="h-3.5 w-3.5" />
+                            <MixerTruck className="h-3.5 w-3.5" />
                             {submitting ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Registrar')}
                         </button>
                     </div>
@@ -513,7 +543,7 @@ const BombaCard: React.FC<{
 
             {/* Type + date row */}
             <div className="flex items-center gap-1.5 mb-1">
-                <Droplets className="h-3 w-3 text-blue-400 shrink-0" />
+                <MixerTruck className="h-3 w-3 text-blue-400 shrink-0" />
                 <span className="text-xs text-brand-dark/80 font-medium">{r.tipo_bomba}</span>
                 <span className="text-[10px] text-muted-foreground/50 mx-0.5">&middot;</span>
                 <span className="text-[10px] text-muted-foreground">{fmtDateShort(r.fecha)}</span>

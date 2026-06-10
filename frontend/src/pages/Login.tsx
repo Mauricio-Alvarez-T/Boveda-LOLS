@@ -64,7 +64,7 @@ const LoginPage: React.FC = () => {
     }, []);
 
     return (
-        <div className="relative min-h-screen w-full flex items-center justify-center overflow-hidden bg-muted"
+        <div className="relative min-h-[100dvh] w-full flex items-center justify-center overflow-hidden bg-muted"
             style={{
                 backgroundImage: `linear-gradient(to right, #E5E7EB 1px, transparent 1px), linear-gradient(to bottom, #E5E7EB 1px, transparent 1px)`,
                 backgroundSize: '40px 40px'

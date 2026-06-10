@@ -76,10 +76,10 @@ const AttendancePage: React.FC = () => {
         : 'diaria';
 
     return (
-        <div className="flex flex-col flex-1 min-h-0 gap-3">
-            {/* Tab bar — solo si hay más de 1 tab visible */}
+        <div className="flex flex-col flex-1 min-h-0 gap-2">
+            {/* Tab bar — solo en MÓVIL (en desktop el ícono de Sábados vive en AttendanceSummaryRow) */}
             {visibleTabs.length > 1 && (
-                <div className="flex items-center gap-0.5 md:gap-1 p-1 md:p-1.5 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">
+                <div className="md:hidden flex items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 overflow-x-auto scrollbar-none">
                     {visibleTabs.map(tab => {
                         const TabIcon = tab.icon;
                         const isActive = effectiveTab === tab.key;
@@ -90,16 +90,14 @@ const AttendancePage: React.FC = () => {
                                 onClick={() => setActiveTab(tab.key)}
                                 className={cn(
                                     'flex items-center justify-center gap-1.5 rounded-xl font-bold uppercase tracking-wider transition-all whitespace-nowrap',
-                                    'flex-1 md:flex-none px-3 py-2 text-[11px] md:px-5 md:py-2.5 md:text-xs',
-                                    tab.mobileOnly && 'md:hidden',
+                                    'flex-1 px-3 py-2 text-[11px]',
                                     isActive
                                         ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
                                         : 'text-muted-foreground hover:bg-background hover:text-brand-dark'
                                 )}
                             >
                                 <TabIcon className="h-4 w-4 shrink-0" />
-                                <span className="md:hidden">{tab.shortLabel}</span>
-                                <span className="hidden md:inline">{tab.label}</span>
+                                <span>{tab.shortLabel}</span>
                             </button>
                         );
                     })}
@@ -116,7 +114,15 @@ const AttendancePage: React.FC = () => {
                     transition={{ duration: 0.15 }}
                     className="flex-1 min-h-0 flex flex-col"
                 >
-                    {effectiveTab === 'diaria' && <AttendanceDailyTab />}
+                    {effectiveTab === 'diaria' && (
+                        <AttendanceDailyTab
+                            onGoSabados={
+                                visibleTabs.some(t => t.key === 'sabados')
+                                    ? () => setActiveTab('sabados')
+                                    : undefined
+                            }
+                        />
+                    )}
                     {effectiveTab === 'sabados' && (
                         <SabadosErrorBoundary>
                             <SabadosExtraTab />

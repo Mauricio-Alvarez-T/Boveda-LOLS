@@ -13,11 +13,13 @@ interface Props {
     onUpdateStock: (itemId: number, obraId: number, data: { cantidad?: number; valor_arriendo_override?: number | null }) => Promise<boolean>;
     onUpdateDescuento: (obraId: number, porcentaje: number) => Promise<boolean>;
     onRefresh: () => void;
+    /** Filtro "Ocultar vacías" controlado desde el header de Inventario. */
+    hideEmpty?: boolean;
 }
 
 const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
 
-const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh }) => {
+const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh, hideEmpty = false }) => {
     // Gate financiero: ocultar columnas/cards $ si no tiene `inventario.costos.ver`.
     // El backend ya sanitiza el JSON (`valor_arriendo`, `total`, `total_facturacion`,
     // `descuento_*`, `total_con_descuento` no llegan). Aquí ocultamos columnas para
@@ -149,7 +151,18 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
         mobileCancelEdit();
     };
 
-    const totalItems = data.categorias.reduce((s, c) => s + c.items.length, 0);
+    // Filtro "Ocultar vacías" (prop desde el header de Inventario): esconde items
+    // con cantidad 0 (y categorías que queden sin items). Mobile y desktop.
+    const categorias = React.useMemo(
+        () => hideEmpty
+            ? data.categorias
+                .map(c => ({ ...c, items: c.items.filter(it => it.cantidad > 0) }))
+                .filter(c => c.items.length > 0)
+            : data.categorias,
+        [data.categorias, hideEmpty]
+    );
+
+    const totalItems = categorias.reduce((s, c) => s + c.items.length, 0);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
@@ -229,11 +242,13 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                 {totalItems === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
                         <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
-                        <p className="text-sm text-muted-foreground">Sin items en esta {isBodega ? 'bodega' : 'obra'}.</p>
+                        <p className="text-sm text-muted-foreground">
+                            {hideEmpty ? 'No hay items con stock.' : `Sin items en esta ${isBodega ? 'bodega' : 'obra'}.`}
+                        </p>
                     </div>
                 ) : (
                     <div className="flex-1 min-h-0 overflow-y-auto space-y-3 pb-4">
-                        {data.categorias.map(cat => {
+                        {categorias.map(cat => {
                             const catExpanded = expandedCats.has(cat.id);
                             return (
                                 <div key={cat.id} className="rounded-2xl border border-border overflow-hidden bg-card">
@@ -428,7 +443,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         </tr>
                     </thead>
                     <tbody>
-                        {data.categorias.map(cat => {
+                        {categorias.map(cat => {
                             const collapsed = collapsedCatsDesktop.has(cat.id);
                             return (
                             <React.Fragment key={cat.id}>

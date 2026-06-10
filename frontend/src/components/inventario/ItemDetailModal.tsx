@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
-import { Package, MapPin, Warehouse, Copy, Check, X, ImageOff } from 'lucide-react';
+import { Package, MapPin, Warehouse, Copy, Check, X, ImageOff, Pencil, Save } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
+import { Input } from '../ui/Input';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import { copyToClipboard } from '../../utils/whatsappShare';
+import api from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useItemDetail';
 
@@ -25,6 +30,17 @@ interface Props {
     stockLocations: StockLocation[];
     loading: boolean;
     stockLoading: boolean;
+    /**
+     * Si true, habilita la edición en vivo de los campos del ítem (descripción,
+     * unidad, m², valores). El padre debe gatear esto con el permiso adecuado
+     * (p. ej. inventario.editar). Default false → modal de solo lectura.
+     */
+    canEdit?: boolean;
+    /**
+     * Notifica al padre que el ítem fue editado, con el patch aplicado, para
+     * refrescar la vista (cache del hook + datos de la tabla).
+     */
+    onSaved?: (patch: Partial<ItemInventario>) => void;
 }
 
 const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
@@ -33,12 +49,70 @@ const Skeleton: React.FC<{ className?: string }> = ({ className }) => (
 
 const ItemDetailModal: React.FC<Props> = ({
     isOpen, onClose, itemData, stockLocations, loading, stockLoading,
+    canEdit = false, onSaved,
 }) => {
+    const { hasPermission } = useAuth();
+    const canEditCosts = hasPermission('inventario.costos.editar');
+
     const [imageZoom, setImageZoom] = useState(false);
     const [copied, setCopied] = useState(false);
 
+    // ── Edición en vivo ──
+    const [editing, setEditing] = useState(false);
+    const [saving, setSaving] = useState(false);
+    const [draft, setDraft] = useState<{
+        descripcion: string; unidad: string; m2: string;
+        valor_arriendo: number; valor_compra: number;
+    } | null>(null);
+
     const item = itemData;
     const imageUrl = resolveImageUrl(item?.imagen_url);
+
+    // Salir de edición al cerrar el modal o cambiar de ítem.
+    useEffect(() => { setEditing(false); setDraft(null); }, [item?.id, isOpen]);
+
+    const startEdit = () => {
+        if (!item) return;
+        setDraft({
+            descripcion: item.descripcion || '',
+            unidad: item.unidad || 'U',
+            m2: item.m2 != null ? String(item.m2) : '',
+            valor_arriendo: Number(item.valor_arriendo) || 0,
+            valor_compra: Number(item.valor_compra) || 0,
+        });
+        setEditing(true);
+    };
+
+    const cancelEdit = () => { setEditing(false); setDraft(null); };
+
+    const saveEdit = async () => {
+        if (!item || !draft) return;
+        if (!draft.descripcion.trim()) { toast.error('La descripción es requerida'); return; }
+        if (!draft.unidad.trim()) { toast.error('La unidad es requerida'); return; }
+        setSaving(true);
+        try {
+            const patch: Record<string, unknown> = {
+                categoria_id: item.categoria_id,
+                descripcion: draft.descripcion.trim(),
+                unidad: draft.unidad.trim(),
+                m2: draft.m2.trim() === '' ? null : Number(draft.m2),
+            };
+            // Gate financiero: solo enviar valores si puede editarlos (backend valida igual).
+            if (canEditCosts) {
+                patch.valor_arriendo = Number(draft.valor_arriendo) || 0;
+                patch.valor_compra = Number(draft.valor_compra) || 0;
+            }
+            await api.put(`/items-inventario/${item.id}`, patch);
+            toast.success('Ítem actualizado');
+            onSaved?.({ ...patch, id: item.id } as Partial<ItemInventario>);
+            setEditing(false);
+            setDraft(null);
+        } catch (err: any) {
+            toast.error(err?.response?.data?.error || 'Error al actualizar ítem');
+        } finally {
+            setSaving(false);
+        }
+    };
 
     const obras = stockLocations.filter(l => l.type === 'obra');
     const bodegas = stockLocations.filter(l => l.type === 'bodega');
@@ -119,7 +193,7 @@ const ItemDetailModal: React.FC<Props> = ({
 
                         {/* ═══ INFO GRID ═══ */}
                         <div className="space-y-2">
-                            {/* Categoría + nro_item */}
+                            {/* Categoría + nro_item + acciones de edición */}
                             <div className="flex items-center gap-2 flex-wrap">
                                 {(item as any).categoria_nombre && (
                                     <span className="px-2.5 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-[10px] font-bold">
@@ -139,31 +213,118 @@ const ItemDetailModal: React.FC<Props> = ({
                                         : <Copy className="h-3 w-3" />
                                     }
                                 </button>
+
+                                {/* Editar / Guardar / Cancelar (solo perfiles con permiso) */}
+                                {canEdit && (
+                                    <div className="ml-auto flex items-center gap-2">
+                                        {!editing ? (
+                                            <button
+                                                type="button"
+                                                onClick={startEdit}
+                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary/10 text-brand-primary text-[11px] font-bold hover:bg-brand-primary/15 transition-colors"
+                                            >
+                                                <Pencil className="h-3 w-3" /> Editar
+                                            </button>
+                                        ) : (
+                                            <>
+                                                <button
+                                                    type="button"
+                                                    onClick={cancelEdit}
+                                                    disabled={saving}
+                                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-muted-foreground hover:text-brand-dark transition-colors disabled:opacity-50"
+                                                >
+                                                    Cancelar
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={saveEdit}
+                                                    disabled={saving}
+                                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary text-white text-[11px] font-bold hover:bg-brand-primary/90 transition-colors disabled:opacity-50"
+                                                >
+                                                    <Save className="h-3 w-3" /> {saving ? 'Guardando...' : 'Guardar'}
+                                                </button>
+                                            </>
+                                        )}
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Métricas */}
-                            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                    <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
-                                    <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_arriendo)}</p>
+                            {/* Descripción editable */}
+                            {editing && draft && (
+                                <Input
+                                    label="Descripción"
+                                    value={draft.descripcion}
+                                    onChange={e => setDraft(d => d ? { ...d, descripcion: e.target.value } : d)}
+                                    placeholder="Descripción del ítem"
+                                />
+                            )}
+
+                            {/* Métricas — display o edición */}
+                            {editing && draft ? (
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {canEditCosts ? (
+                                        <CurrencyInput
+                                            label="V. Arriendo"
+                                            value={draft.valor_arriendo}
+                                            onChange={v => setDraft(d => d ? { ...d, valor_arriendo: v } : d)}
+                                        />
+                                    ) : (
+                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
+                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
+                                            <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_arriendo)}</p>
+                                        </div>
+                                    )}
+                                    {canEditCosts ? (
+                                        <CurrencyInput
+                                            label="V. Compra"
+                                            value={draft.valor_compra}
+                                            onChange={v => setDraft(d => d ? { ...d, valor_compra: v } : d)}
+                                        />
+                                    ) : item.valor_compra > 0 ? (
+                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
+                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
+                                            <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_compra)}</p>
+                                        </div>
+                                    ) : null}
+                                    <Input
+                                        label="Unidad"
+                                        value={draft.unidad}
+                                        onChange={e => setDraft(d => d ? { ...d, unidad: e.target.value } : d)}
+                                        placeholder="U"
+                                    />
+                                    <Input
+                                        label="M²"
+                                        type="number"
+                                        step="0.0001"
+                                        value={draft.m2}
+                                        onChange={e => setDraft(d => d ? { ...d, m2: e.target.value } : d)}
+                                        placeholder="0.00"
+                                    />
                                 </div>
-                                {item.valor_compra > 0 && (
+                            ) : (
+                                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                                     <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                        <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
-                                        <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_compra)}</p>
+                                        <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
+                                        <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_arriendo)}</p>
                                     </div>
-                                )}
-                                <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                    <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">Unidad</p>
-                                    <p className="text-sm font-black text-brand-dark">{item.unidad}</p>
+                                    {item.valor_compra > 0 && (
+                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
+                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
+                                            <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_compra)}</p>
+                                        </div>
+                                    )}
+                                    <div className="rounded-xl border border-border bg-card px-3 py-2">
+                                        <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">Unidad</p>
+                                        <p className="text-sm font-black text-brand-dark">{item.unidad}</p>
+                                    </div>
+                                    {item.m2 && item.m2 > 0 && (
+                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
+                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">M²</p>
+                                            <p className="text-sm font-black text-brand-dark">{item.m2.toFixed(2)}</p>
+                                        </div>
+                                    )}
                                 </div>
-                                {item.m2 && item.m2 > 0 && (
-                                    <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                        <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">M²</p>
-                                        <p className="text-sm font-black text-brand-dark">{item.m2.toFixed(2)}</p>
-                                    </div>
-                                )}
-                            </div>
+                            )}
                         </div>
 
                         {/* ═══ STOCK POR UBICACIÓN ═══ */}
@@ -248,7 +409,7 @@ const ItemDetailModal: React.FC<Props> = ({
                     <img
                         src={imageUrl}
                         alt={item?.descripcion}
-                        className="max-w-full max-h-[90vh] object-contain rounded-lg"
+                        className="max-w-full max-h-[90dvh] object-contain rounded-lg"
                     />
                 </div>
             )}

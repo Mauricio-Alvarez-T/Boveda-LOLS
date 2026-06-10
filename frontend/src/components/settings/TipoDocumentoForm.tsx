@@ -27,9 +27,11 @@ interface Props {
     initialData?: TipoDocumento | null;
     onSuccess: () => void;
     onCancel: () => void;
+    /** Si true, oculta el botón Guardar interno (cuando el Modal padre lo expone vía headerAction). */
+    hideActions?: boolean;
 }
 
-export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _onCancel, hideActions = false }) => {
     const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
@@ -62,7 +64,7 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form id="tipodoc-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre" {...register('nombre')} error={errors.nombre?.message} placeholder="Contrato de Trabajo" />
             <Input
                 label="Días de Vigencia"
@@ -94,16 +96,18 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
                 </div>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
-                <Button
-                    type="submit"
-                    className="w-full sm:w-auto bg-brand-primary text-white hover:bg-[#027A3B]"
-                    isLoading={isSubmitting}
-                    leftIcon={<Save className="h-4 w-4" />}
-                >
-                    Guardar
-                </Button>
-            </div>
+            {!hideActions && (
+                <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
+                    <Button
+                        type="submit"
+                        className="w-full sm:w-auto bg-brand-primary text-white hover:bg-[#027A3B]"
+                        isLoading={isSubmitting}
+                        leftIcon={<Save className="h-4 w-4" />}
+                    >
+                        Guardar
+                    </Button>
+                </div>
+            )}
         </form>
     );
 };

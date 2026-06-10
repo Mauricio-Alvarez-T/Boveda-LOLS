@@ -16,6 +16,9 @@ const schema = z.object({
     direccion: z.string().optional(),
     encargado_nombre: z.string().optional(),
     participa_inventario: z.boolean().optional(),
+    participa_asistencia: z.boolean().optional(),
+    participa_transferencias: z.boolean().optional(),
+    participa_bombas: z.boolean().optional(),
     es_prueba: z.boolean().optional(),
 });
 
@@ -24,6 +27,9 @@ type FormData = {
     direccion?: string;
     encargado_nombre?: string;
     participa_inventario?: boolean;
+    participa_asistencia?: boolean;
+    participa_transferencias?: boolean;
+    participa_bombas?: boolean;
     es_prueba?: boolean;
 };
 
@@ -31,9 +37,11 @@ interface Props {
     initialData?: Obra | null;
     onSuccess: () => void;
     onCancel: () => void;
+    /** Si true, oculta el botón Guardar interno (cuando el Modal padre lo expone vía headerAction). */
+    hideActions?: boolean;
 }
 
-export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _onCancel, hideActions = false }) => {
     const { register, handleSubmit, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
@@ -43,6 +51,9 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
             // Default TRUE para obras nuevas (se comportan como antes).
             // En edición respetamos el valor actual.
             participa_inventario: initialData ? (initialData.participa_inventario ?? true) : true,
+            participa_asistencia: initialData ? (initialData.participa_asistencia ?? true) : true,
+            participa_transferencias: initialData ? (initialData.participa_transferencias ?? true) : true,
+            participa_bombas: initialData ? (initialData.participa_bombas ?? true) : true,
             es_prueba: initialData?.es_prueba ?? false,
         },
     });
@@ -54,6 +65,9 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
             const payload = {
                 ...data,
                 participa_inventario: data.participa_inventario ?? true,
+                participa_asistencia: data.participa_asistencia ?? true,
+                participa_transferencias: data.participa_transferencias ?? true,
+                participa_bombas: data.participa_bombas ?? true,
                 es_prueba: data.es_prueba ?? false,
             };
             if (initialData) {
@@ -70,7 +84,7 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
     };
 
     return (
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form id="obra-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre" {...register('nombre')} error={errors.nombre?.message} placeholder="Edificio Los Olmos" />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Providencia 456" />
             <Input
@@ -102,6 +116,29 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
                 </label>
             </div>
 
+            {/* Participación por apartado (mig 075). También editable rápido con los
+                botones toggle de la fila en Configuración → Obras. */}
+            <div className="rounded-xl border border-border p-3">
+                <span className="text-xs font-bold text-brand-dark/60 uppercase tracking-wider">Participa en otros apartados</span>
+                <div className="mt-2 space-y-2">
+                    {[
+                        { field: 'participa_asistencia' as const, label: 'Asistencia' },
+                        { field: 'participa_transferencias' as const, label: 'Transferencias' },
+                        { field: 'participa_bombas' as const, label: 'Bombas de hormigón' },
+                    ].map(({ field, label }) => (
+                        <label key={field} className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                id={field}
+                                {...register(field)}
+                                className="h-5 w-5 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
+                            />
+                            <span className="text-sm text-brand-dark">{label}</span>
+                        </label>
+                    ))}
+                </div>
+            </div>
+
             <div className="py-2">
                 <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/30 p-3">
                     <div className="pt-0.5">
@@ -125,11 +162,13 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) 
                 </label>
             </div>
 
-            <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
-                <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
-                    Guardar
-                </Button>
-            </div>
+            {!hideActions && (
+                <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
+                    <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />} className="w-full sm:w-auto">
+                        Guardar
+                    </Button>
+                </div>
+            )}
         </form>
     );
 };

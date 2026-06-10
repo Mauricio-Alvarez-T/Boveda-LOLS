@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X, CalendarDays } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
 import { useTheme } from '../../../context/ThemeContext';
@@ -29,6 +29,8 @@ interface AttendanceSummaryRowProps {
     onStatusFilter: (estadoId: number | null) => void;
     searchQuery: string;
     setSearchQuery: (val: string) => void;
+    /** Callback para navegar al tab Sábados Extra. Si no se pasa, no se muestra el ícono. */
+    onGoSabados?: () => void;
 }
 
 export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
@@ -40,7 +42,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
     statusFilter,
     onStatusFilter,
     searchQuery,
-    setSearchQuery
+    setSearchQuery,
+    onGoSabados,
 }) => {
     const { resolvedTheme } = useTheme();
     const isDark = resolvedTheme === 'dark';
@@ -141,23 +144,35 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                 </div>
                             </div>
 
-                            {/* Buscador — vive junto a la fecha y los KPIs */}
-                            <div className="relative shrink-0 group">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-focus-within:text-brand-primary pointer-events-none" />
-                                <input
-                                    type="text"
-                                    placeholder="Buscar..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
-                                />
-                                {searchQuery && (
+                            {/* Buscador + ícono Sábados Extra */}
+                            <div className="flex items-center gap-1.5 shrink-0">
+                                <div className="relative group">
+                                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60 transition-colors group-focus-within:text-brand-primary pointer-events-none" />
+                                    <input
+                                        type="text"
+                                        placeholder="Buscar..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
+                                    />
+                                    {searchQuery && (
+                                        <button
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all"
+                                            title="Limpiar búsqueda"
+                                        >
+                                            <X className="h-2.5 w-2.5" />
+                                        </button>
+                                    )}
+                                </div>
+                                {/* Ícono Sábados Extra — solo visible si el tab está disponible */}
+                                {onGoSabados && (
                                     <button
-                                        onClick={() => setSearchQuery('')}
-                                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all"
-                                        title="Limpiar búsqueda"
+                                        onClick={onGoSabados}
+                                        title="Sábados Extra"
+                                        className="flex items-center justify-center h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40 transition-all"
                                     >
-                                        <X className="h-2.5 w-2.5" />
+                                        <CalendarDays className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                             </div>

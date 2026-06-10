@@ -296,13 +296,13 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
 
         // Header "HRS DESCONTADAS (JI)" debe existir
-        // totalCol = q2Col + 1 = 41 + 1 = 42. horasOrd = 43. horasDesc = 44.
-        // dayColStart = 9. Q1 = 9+15 = 24. Q2 = 9+32 = 41. total = 42. ord = 43. desc = 44.
-        const descHeader = wsLols.getCell(7, 44);
+        // Mes comercial 30 días: Q2 col = dayColStart + 30 + 1.
+        // dayColStart = 9. Q1 = 9+15 = 24. Q2 = 9+31 = 40. total = 41. ord = 42. desc = 43.
+        const descHeader = wsLols.getCell(7, 43);
         expect(descHeader.value).toBe('HRS DESCONTADAS (JI)');
 
         // Trabajador con 1 día JI (jornada 9h): descuento = 9 - 4.5 = 4.5
-        const cDesc = wsLols.getCell(9, 44);
+        const cDesc = wsLols.getCell(9, 43);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
 
@@ -336,7 +336,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
         // Fallback default 9h → JI calc = 4.5, descuento = 9 - 4.5 = 4.5
-        const cDesc = wsLols.getCell(9, 44);
+        // Mes comercial 30 días: horasDesc col = 43 (ver Test 6).
+        const cDesc = wsLols.getCell(9, 43);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
 

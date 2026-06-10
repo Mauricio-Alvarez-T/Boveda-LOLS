@@ -16,6 +16,8 @@ interface ToolbarProps {
     setHideEmpty: React.Dispatch<React.SetStateAction<boolean>>;
     hiddenCount: number;
     restoreCols: () => void;
+    isCustomOrder?: boolean;
+    restoreColOrder?: () => void;
     canCreate?: boolean;
     onRefresh?: () => void;
 }
@@ -26,6 +28,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
     selectedCategoryId, setSelectedCategoryId,
     hideEmpty, setHideEmpty,
     hiddenCount, restoreCols,
+    isCustomOrder = false, restoreColOrder,
     canCreate = false, onRefresh,
 }) => {
     const [showCreateModal, setShowCreateModal] = useState(false);
@@ -91,6 +94,18 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                 >
                     <RotateCcw className="h-3 w-3" />
                     Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}
+                </button>
+            )}
+
+            {/* Restore column order */}
+            {isCustomOrder && restoreColOrder && (
+                <button
+                    onClick={restoreColOrder}
+                    title="Restablecer el orden de columnas (obras primero, bodegas al final)"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-border bg-card text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary transition-all"
+                >
+                    <RotateCcw className="h-3 w-3" />
+                    Orden por defecto
                 </button>
             )}
 

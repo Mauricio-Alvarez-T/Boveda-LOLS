@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, FileText, XCircle, Trash2, Receipt, PackagePlus } from 'lucide-react';
+import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
@@ -7,6 +7,7 @@ import type { ApiResponse } from '../../types';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { FieldError } from '../ui/FieldError';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
@@ -22,8 +23,9 @@ interface LineItem {
     item_id: number;
     descripcion: string;
     unidad: string;
-    cantidad: number;
-    precio_unitario: number;
+    // Permiten '' (vacío) mientras el usuario edita; se coercen a número al calcular/guardar.
+    cantidad: number | '';
+    precio_unitario: number | '';
     destino_type: 'obra' | 'bodega';
     destino_id: number;
 }
@@ -35,6 +37,10 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     /* ── Modal state ── */
     const [showModal, setShowModal] = useState(false);
 
+    /* ── Vista previa (detalle) ── */
+    const [detalleId, setDetalleId] = useState<number | null>(null);
+    const [detalle, setDetalle] = useState<any | null>(null);
+
     /* ── Form state ── */
     const [numFactura, setNumFactura] = useState('');
     const [proveedor, setProveedor] = useState('');
@@ -42,6 +48,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     const [observaciones, setObservaciones] = useState('');
     const [items, setItems] = useState<LineItem[]>([]);
     const [submitting, setSubmitting] = useState(false);
+    // Errores de validación inline (los mostramos bajo cada campo con <FieldError>).
+    const [formErrors, setFormErrors] = useState<{ numFactura?: string; proveedor?: string; items?: string }>({});
 
     /* ── Catalog data for selects ── */
     const [catalogoItems, setCatalogoItems] = useState<ItemInventario[]>([]);
@@ -103,8 +111,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             };
             if (newItem.valor_compra.trim() !== '') payload.valor_compra = Number(newItem.valor_compra) || 0;
 
-            const res = await api.post<ApiResponse<ItemInventario>>('/items-inventario', payload);
-            const created = res.data.data;
+            const res = await api.post('/items-inventario', payload);
+            // El CRUD genérico devuelve el ítem DIRECTO (res.data), no envuelto en { data }.
+            // Soportamos ambas formas y validamos que llegó con id (si no, no contaminamos el catálogo).
+            const created: any = (res.data as any)?.data ?? res.data;
+            if (!created || created.id == null) {
+                throw new Error('La respuesta del servidor no incluyó el ítem creado');
+            }
             // Refrescar catálogo e insertar el nuevo ítem para que el selector lo encuentre
             setCatalogoItems(prev => [...prev, created]);
             // Auto-seleccionar en la línea que disparó la creación
@@ -113,7 +126,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     item_id: created.id,
                     descripcion: created.descripcion,
                     unidad: created.unidad,
-                    precio_unitario: created.valor_compra || 0,
+                    precio_unitario: created.valor_compra || '',
                 });
             }
             toast.success(`Ítem "${created.descripcion}" creado y vinculado`);
@@ -138,13 +151,14 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     const handleClose = () => {
         setShowModal(false);
         resetForm();
+        setFormErrors({});
     };
 
     /* ── Item helpers ── */
     const addItem = () => {
         setItems([...items, {
             item_id: 0, descripcion: '', unidad: 'U',
-            cantidad: 1, precio_unitario: 0,
+            cantidad: 1, precio_unitario: '',
             destino_type: 'bodega', destino_id: 0,
         }]);
     };
@@ -163,20 +177,20 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             item_id: Number(value) || 0,
             descripcion: found?.descripcion || '',
             unidad: found?.unidad || 'U',
-            precio_unitario: found?.valor_compra || 0,
+            precio_unitario: found?.valor_compra || '',
         });
     };
 
     /* ── Computed total ── */
     const montoNeto = useMemo(
-        () => items.reduce((sum, i) => sum + i.cantidad * i.precio_unitario, 0),
+        () => items.reduce((sum, i) => sum + (Number(i.cantidad) || 0) * (Number(i.precio_unitario) || 0), 0),
         [items],
     );
 
     const availableOptions = useMemo(() =>
-        catalogoItems.map(c => ({
+        catalogoItems.filter(Boolean).map(c => ({
             value: c.id,
-            label: `${c.nro_item} — ${c.descripcion} (${c.unidad})`,
+            label: `${c.nro_item ? c.nro_item + ' — ' : ''}${c.descripcion} (${c.unidad})`,
         })),
     [catalogoItems]);
 
@@ -188,11 +202,15 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     /* ── Submit ── */
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!numFactura.trim()) { toast.error('Ingresa el numero de factura'); return; }
-        if (!proveedor.trim()) { toast.error('Ingresa el proveedor'); return; }
-        if (!items.length || items.some(i => !i.item_id || i.cantidad < 1 || !i.destino_id)) {
-            toast.error('Agrega al menos un item con destino valido'); return;
+        // Validación inline: cada error aparece bajo su campo (no toast).
+        const errs: typeof formErrors = {};
+        if (!numFactura.trim()) errs.numFactura = 'Ingresa el número de factura';
+        if (!proveedor.trim()) errs.proveedor = 'Ingresa el proveedor';
+        if (!items.length || items.some(i => !i.item_id || Number(i.cantidad) < 1 || !i.destino_id)) {
+            errs.items = 'Agrega al menos un ítem con cantidad (mínimo 1) y destino válido';
         }
+        setFormErrors(errs);
+        if (Object.keys(errs).length > 0) return;
 
         setSubmitting(true);
         try {
@@ -206,8 +224,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     item_id: i.item_id,
                     obra_id: i.destino_type === 'obra' ? i.destino_id : null,
                     bodega_id: i.destino_type === 'bodega' ? i.destino_id : null,
-                    cantidad: i.cantidad,
-                    precio_unitario: i.precio_unitario,
+                    cantidad: Number(i.cantidad) || 0,
+                    precio_unitario: Number(i.precio_unitario) || 0,
                 })),
             });
             toast.success('Factura registrada correctamente');
@@ -217,6 +235,19 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             toast.error(err.response?.data?.error || 'Error al crear factura');
         } finally {
             setSubmitting(false);
+        }
+    };
+
+    /* ── Vista previa: cargar detalle con ítems ── */
+    const openDetalle = async (id: number) => {
+        setDetalleId(id);
+        setDetalle(null);
+        try {
+            const res = await api.get(`/facturas-inventario/${id}`);
+            setDetalle(res.data.data);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'No se pudo cargar la factura');
+            setDetalleId(null);
         }
     };
 
@@ -263,7 +294,12 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             ) : (
                 <div className="space-y-2">
                     {facturas.map(f => (
-                        <div key={f.id} className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-brand-primary/20 transition-colors">
+                        <div
+                            key={f.id}
+                            onClick={() => openDetalle(f.id)}
+                            title="Ver detalle de la factura"
+                            className="flex items-center justify-between px-4 py-3 rounded-xl border border-border hover:border-brand-primary/40 hover:bg-muted/40 transition-colors cursor-pointer"
+                        >
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <span className="text-xs font-bold text-brand-dark">#{f.numero_factura}</span>
@@ -273,13 +309,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(f.monto_neto)} neto
                                 </p>
                             </div>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!f.activo && (
                                     <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">ANULADA</span>
                                 )}
+                                <button onClick={() => openDetalle(f.id)} title="Ver detalle"
+                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors">
+                                    <Eye className="h-3.5 w-3.5" />
+                                </button>
                                 {canDelete && f.activo && (
-                                    <button onClick={() => handleAnular(f.id)} className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
-                                        <XCircle className="h-3.5 w-3.5" />
+                                    <button onClick={() => handleAnular(f.id)} title="Anular factura (revierte stock)" className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
+                                        <Trash2 className="h-3.5 w-3.5" />
                                     </button>
                                 )}
                             </div>
@@ -288,9 +328,83 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                 </div>
             )}
 
+            {/* ═══ VISTA PREVIA (DETALLE) ═══ */}
+            <Modal
+                isOpen={detalleId !== null}
+                onClose={() => { setDetalleId(null); setDetalle(null); }}
+                title={detalle ? `Factura #${detalle.numero_factura}` : 'Factura'}
+                size="lg"
+            >
+                {!detalle ? (
+                    <div className="py-12 flex flex-col items-center justify-center text-muted-foreground">
+                        <Loader2 className="h-6 w-6 animate-spin mb-2" />
+                        <p className="text-sm">Cargando factura…</p>
+                    </div>
+                ) : (
+                    <div className="space-y-4">
+                        {/* Cabecera */}
+                        <div className="bg-muted rounded-xl border border-border p-4">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <span className="text-sm font-black text-brand-dark">#{detalle.numero_factura}</span>
+                                {!detalle.activo && (
+                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">ANULADA</span>
+                                )}
+                            </div>
+                            <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
+                                <p className="text-muted-foreground">Proveedor: <span className="font-semibold text-brand-dark">{detalle.proveedor}</span></p>
+                                <p className="text-muted-foreground">Fecha: <span className="font-semibold text-brand-dark">{fmtFecha(detalle.fecha_factura)}</span></p>
+                                {detalle.registrado_por_nombre && (
+                                    <p className="text-muted-foreground">Registró: <span className="font-semibold text-brand-dark">{detalle.registrado_por_nombre}</span></p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Ítems */}
+                        <div>
+                            <p className="text-xs font-bold text-brand-dark mb-2">Ítems</p>
+                            <div className="space-y-2">
+                                {(detalle.items || []).map((it: any, idx: number) => (
+                                    <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
+                                        <div className="min-w-0">
+                                            <p className="text-xs font-semibold text-brand-dark truncate">{it.item_descripcion}</p>
+                                            <p className="text-[10px] text-muted-foreground">
+                                                {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
+                                                {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
+                                            </p>
+                                        </div>
+                                        <span className="text-xs font-bold text-brand-dark shrink-0">
+                                            {fmtMoney(Number(it.cantidad) * Number(it.precio_unitario))}
+                                        </span>
+                                    </div>
+                                ))}
+                                {(!detalle.items || detalle.items.length === 0) && (
+                                    <p className="text-xs text-muted-foreground italic">Sin ítems.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Total */}
+                        <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3 border border-border">
+                            <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                                <Receipt className="h-3.5 w-3.5 text-brand-primary" /> Total Neto
+                            </span>
+                            <span className="text-sm font-black text-brand-dark">{fmtMoney(detalle.monto_neto)}</span>
+                        </div>
+
+                        {/* Observaciones */}
+                        {detalle.observaciones && (
+                            <div>
+                                <p className="text-xs font-bold text-brand-dark mb-1">Observaciones</p>
+                                <p className="text-xs text-muted-foreground whitespace-pre-wrap">{detalle.observaciones}</p>
+                            </div>
+                        )}
+                    </div>
+                )}
+            </Modal>
+
             {/* ═══ CREATE MODAL ═══ */}
             <Modal isOpen={showModal} onClose={handleClose} title="Registrar Factura de Inventario" size="lg">
-                <form onSubmit={handleSubmit} className="space-y-5">
+                <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                     {/* Row 1: Numero + Proveedor */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
@@ -298,22 +412,28 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             <input
                                 type="text"
                                 value={numFactura}
-                                onChange={e => setNumFactura(e.target.value)}
+                                onChange={e => { setNumFactura(e.target.value); if (formErrors.numFactura) setFormErrors(p => ({ ...p, numFactura: undefined })); }}
                                 placeholder="Ej: 001234"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.numFactura ? "border-destructive" : "border-border"
+                                )}
                             />
+                            <FieldError message={formErrors.numFactura} className="mt-1" />
                         </div>
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Proveedor</label>
                             <input
                                 type="text"
                                 value={proveedor}
-                                onChange={e => setProveedor(e.target.value)}
+                                onChange={e => { setProveedor(e.target.value); if (formErrors.proveedor) setFormErrors(p => ({ ...p, proveedor: undefined })); }}
                                 placeholder="Nombre del proveedor"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                required
+                                className={cn(
+                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.proveedor ? "border-destructive" : "border-border"
+                                )}
                             />
+                            <FieldError message={formErrors.proveedor} className="mt-1" />
                         </div>
                     </div>
 
@@ -325,7 +445,6 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             value={fechaFactura}
                             onChange={e => setFechaFactura(e.target.value)}
                             className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            required
                         />
                     </div>
 
@@ -377,17 +496,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                             {/* Cantidad */}
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-[10px] text-muted-foreground font-medium">Cant:</span>
-                                                <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, item.cantidad - 1) })}
+                                                <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, (Number(item.cantidad) || 1) - 1) })}
                                                     className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Minus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
                                                 <input
-                                                    type="number" min={1}
+                                                    type="number" min={0}
                                                     value={item.cantidad}
-                                                    onChange={e => updateItem(idx, { cantidad: Math.max(1, parseInt(e.target.value) || 1) })}
+                                                    onChange={e => updateItem(idx, { cantidad: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })}
                                                     className="w-14 px-2 py-1 text-xs border border-border rounded-lg text-center font-bold"
                                                 />
-                                                <button type="button" onClick={() => updateItem(idx, { cantidad: item.cantidad + 1 })}
+                                                <button type="button" onClick={() => updateItem(idx, { cantidad: (Number(item.cantidad) || 0) + 1 })}
                                                     className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Plus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
@@ -402,7 +521,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                                     <input
                                                         type="number" min={0} step="any"
                                                         value={item.precio_unitario}
-                                                        onChange={e => updateItem(idx, { precio_unitario: parseFloat(e.target.value) || 0 })}
+                                                        onChange={e => updateItem(idx, { precio_unitario: e.target.value === '' ? '' : (parseFloat(e.target.value) || 0) })}
                                                         className="w-24 pl-5 pr-2 py-1 text-xs border border-border rounded-lg text-right font-bold"
                                                     />
                                                 </div>
@@ -416,20 +535,24 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     </div>
 
                                     {/* Subtotal */}
-                                    {item.cantidad > 0 && item.precio_unitario > 0 && (
+                                    {Number(item.cantidad) > 0 && Number(item.precio_unitario) > 0 && (
                                         <p className="text-[10px] text-right text-muted-foreground">
-                                            Subtotal: <span className="font-bold text-brand-dark">{fmtMoney(item.cantidad * item.precio_unitario)}</span>
+                                            Subtotal: <span className="font-bold text-brand-dark">{fmtMoney(Number(item.cantidad) * Number(item.precio_unitario))}</span>
                                         </p>
                                     )}
                                 </div>
                             ))}
 
-                            <button type="button" onClick={addItem}
-                                className="w-full border-2 border-dashed border-border rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors">
+                            <button type="button" onClick={() => { addItem(); if (formErrors.items) setFormErrors(p => ({ ...p, items: undefined })); }}
+                                className={cn(
+                                    "w-full border-2 border-dashed rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors",
+                                    formErrors.items ? "border-destructive/60" : "border-border"
+                                )}>
                                 <Plus className="h-4 w-4 inline-block mr-1 -mt-0.5" />
                                 Agregar item
                             </button>
                         </div>
+                        <FieldError message={formErrors.items} className="mt-2" />
                     </div>
 
                     {/* Monto total */}
@@ -471,7 +594,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
             {/* ═══ MODAL CREAR ÍTEM NUEVO (anidado) ═══ */}
             <Modal isOpen={showNewItemModal} onClose={() => setShowNewItemModal(false)} title="Crear ítem nuevo" size="md">
-                <form onSubmit={handleCreateItem} className="space-y-4">
+                <form onSubmit={handleCreateItem} className="space-y-4" noValidate>
                     <p className="text-[11px] text-muted-foreground">
                         El ítem se agrega al catálogo y se vincula automáticamente a esta línea de la factura.
                     </p>

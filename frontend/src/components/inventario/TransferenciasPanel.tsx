@@ -1,10 +1,10 @@
 import React, { useState, useCallback, useEffect } from 'react';
-import { Plus, ArrowLeftRight, AlertTriangle, LayoutGrid, Clock, CheckCircle2, PackageCheck, Search, X } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Plus, ArrowLeftRight, AlertTriangle, Search, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
+import StatusFilterBar from './StatusFilterBar';
 import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
 import SolicitudForm from './SolicitudForm';
@@ -27,16 +27,6 @@ interface Props {
      */
     initialSelectedId?: number | null;
 }
-
-// Mirror of STATUS_CHIPS inside TransferenciasList — kept here so the panel
-// can render the same row in discrepancias mode (where the nested list is skipped).
-const MAIN_STATUS_CHIPS: { value: string; label: string; shortLabel: string; icon: React.ElementType }[] = [
-    { value: 'todas',         label: 'Todas',         shortLabel: 'Todas',    icon: LayoutGrid },
-    { value: 'pendiente',     label: 'Pendientes',    shortLabel: 'Pend.',    icon: Clock },
-    { value: 'aprobada',      label: 'Aprobadas',     shortLabel: 'Aprob.',   icon: CheckCircle2 },
-    { value: 'recibida',      label: 'Recibidas',     shortLabel: 'Recib.',   icon: PackageCheck },
-    { value: 'discrepancias', label: 'Discrepancias', shortLabel: 'Discrep.', icon: AlertTriangle },
-];
 
 const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialStatusFilter, initialSelectedId }) => {
     const { user } = useAuth();
@@ -98,6 +88,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         await trfHook.fetchById(id);
     }, [trfHook.fetchById]);
 
+    // Auto-selección del primer movimiento en desktop (como Vehículos), para que el
+    // panel de detalle no quede vacío al entrar. Respeta initialSelectedId y discrepancias.
+    useEffect(() => {
+        if (selectedId || isDiscrepanciasMode || trfHook.transferencias.length === 0) return;
+        if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
+            handleSelect(trfHook.transferencias[0].id);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [trfHook.transferencias, selectedId, isDiscrepanciasMode]);
+
     const refreshAll = useCallback(async () => {
         await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
         if (selectedId) await trfHook.fetchById(selectedId);
@@ -113,10 +113,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     const handleRecibir = useCallback(async (
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
-        tipo: 'parcial' | 'total' = 'total'
+        tipo: 'parcial' | 'total' = 'total',
+        observacion?: string
     ) => {
         setActionLoading(true);
-        const ok = await trfHook.recibir(selectedId!, items, tipo);
+        const ok = await trfHook.recibir(selectedId!, items, tipo, observacion);
         if (ok) {
             await refreshAll();
             // Refresh pending discrepancies count — recibir() may have created new ones.
@@ -249,142 +250,34 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
-            {/* Header */}
-            <div className="flex items-center justify-between shrink-0 mb-3">
-                <h3 className="text-sm font-bold text-brand-dark flex items-center gap-2">
-                    {isDiscrepanciasMode ? (
-                        <>
-                            <AlertTriangle className="h-4 w-4 text-red-500" />
-                            Discrepancias
-                        </>
-                    ) : (
-                        'Transferencias'
-                    )}
-                </h3>
-                {/* "Nuevo movimiento" visible si tiene AL MENOS UN flujo. El modal
-                    interno filtra qué flujos específicos puede ejecutar. */}
-                {!isDiscrepanciasMode && (
+
+            {/* Master-Detail body — card unificado estilo Vehículos: lista (prominente) +
+                panel de detalle. En mobile alterna entre lista y detalle. */}
+            {/* Barra FULL-WIDTH: [+] [filtros auto-width] [espacio] [🔍 expandible] */}
+            <BarraFiltros
+                statusFilter={statusFilter}
+                onStatusChange={setStatusFilter}
+                pendientesCount={pendientesCount}
+                canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
+                onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
+                canNuevoMovimiento={!isDiscrepanciasMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.push_directo') ||
                     hasPermission('inventario.transferencias.intra_bodega') ||
                     hasPermission('inventario.transferencias.orden_gerencia')
-                ) && (
-                    <button
-                        onClick={() => setShowSelectorModal(true)}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20"
-                    >
-                        <Plus className="h-3.5 w-3.5" /> Nuevo movimiento
-                    </button>
                 )}
-            </div>
+                onNuevoMovimiento={() => setShowSelectorModal(true)}
+            />
 
-            {/* Master-Detail body — siempre split en desktop (lista sidebar + detail);
-                en mobile alterna entre lista y detalle */}
-            <div className="flex flex-1 min-h-0 gap-4">
-                {/* LEFT: List sidebar — siempre visible en desktop, oculta en mobile cuando hay detalle */}
+            <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0 md:w-[340px] lg:w-[380px] md:shrink-0",
+                    "flex flex-col min-h-0 md:w-[300px] md:shrink-0 pt-4 md:pt-5 pb-4 md:pb-6",
                     detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
                         <>
-                            {/* Search — arriba de los chips (consistente con el resto de modos) */}
-                            <div className="relative shrink-0 mb-2">
-                                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-                                <input
-                                    type="text"
-                                    value={discSearchQuery}
-                                    onChange={e => setDiscSearchQuery(e.target.value)}
-                                    placeholder="Buscar por código TRF..."
-                                    className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
-                                />
-                                {discSearchQuery && (
-                                    <button onClick={() => setDiscSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                                        <X className="h-3 w-3 text-muted-foreground" />
-                                    </button>
-                                )}
-                            </div>
-                            {/* Top row: status chips — mobile icon+label / desktop pills */}
-                            {/* Mobile */}
-                            <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
-                                {MAIN_STATUS_CHIPS
-                                    .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
-                                    .map(chip => {
-                                    const isActive = statusFilter === chip.value;
-                                    const isDisc = chip.value === 'discrepancias';
-                                    const ChipIcon = chip.icon;
-                                    return (
-                                        <button
-                                            key={chip.value}
-                                            onClick={() => setStatusFilter(chip.value)}
-                                            className={cn(
-                                                "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
-                                                isActive ? "text-white"
-                                                    : isDisc && pendientesCount > 0 ? "text-red-600 dark:text-red-400"
-                                                    : "text-muted-foreground"
-                                            )}
-                                        >
-                                            {isActive && (
-                                                <motion.div
-                                                    layoutId="activeDiscChipMobile"
-                                                    className={cn("absolute inset-0 rounded-xl shadow-sm", isDisc ? "bg-red-500" : "bg-brand-primary")}
-                                                    transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-                                                />
-                                            )}
-                                            <div className="relative z-10 flex items-center">
-                                                <ChipIcon className="h-[15px] w-[15px]" />
-                                                {isDisc && pendientesCount > 0 && !isActive && (
-                                                    <span className="absolute -top-1 -right-2 px-1 py-[1px] rounded-full text-[7px] font-black leading-none bg-red-500 text-white">
-                                                        {pendientesCount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <span className="text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center">
-                                                {chip.shortLabel}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
-                            {/* Desktop: icon + short label stacked (mismo formato que mobile) */}
-                            <div className="hidden md:flex items-center gap-1 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border shrink-0 mb-3 shadow-sm">
-                                {MAIN_STATUS_CHIPS
-                                    .filter(c => c.value !== 'discrepancias' || hasPermission('inventario.transferencias.aprobar'))
-                                    .map(chip => {
-                                    const isActive = statusFilter === chip.value;
-                                    const isDisc = chip.value === 'discrepancias';
-                                    const ChipIcon = chip.icon;
-                                    return (
-                                        <button
-                                            key={chip.value}
-                                            onClick={() => setStatusFilter(chip.value)}
-                                            title={chip.label}
-                                            className={cn(
-                                                "relative flex flex-col items-center justify-center gap-1 rounded-xl py-2 px-2 flex-1 min-w-0 transition-all",
-                                                isActive
-                                                    ? isDisc
-                                                        ? "bg-red-500 text-white shadow-sm"
-                                                        : "bg-brand-primary text-white shadow-sm"
-                                                    : isDisc && pendientesCount > 0
-                                                        ? "text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30"
-                                                        : "text-muted-foreground hover:bg-background hover:text-brand-dark"
-                                            )}
-                                        >
-                                            <div className="relative flex items-center">
-                                                <ChipIcon className="h-[18px] w-[18px]" />
-                                                {isDisc && pendientesCount > 0 && !isActive && (
-                                                    <span className="absolute -top-1.5 -right-2.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
-                                                        {pendientesCount}
-                                                    </span>
-                                                )}
-                                            </div>
-                                            <span className="text-[10px] font-black uppercase tracking-tight leading-none truncate w-full text-center">
-                                                {chip.shortLabel}
-                                            </span>
-                                        </button>
-                                    );
-                                })}
-                            </div>
                             {/* Discrepancias list (with its own sub-filter and search) */}
                             <DiscrepanciasList
                                 discrepancias={trfHook.discrepancias}
@@ -414,9 +307,12 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     )}
                 </div>
 
-                {/* RIGHT: Detail — siempre visible en desktop, en mobile solo con selección */}
+                {/* RIGHT: Detalle — siempre 50% del card para balance visual con la lista.
+                    pt alineado con el panel izquierdo para que "DETALLE SOLICITUD" arranque
+                    a la misma altura que la primera fila TRF. */}
                 <div className={cn(
-                    "flex-1 min-h-0",
+                    "min-h-0 md:border-l md:border-border pt-4 md:pt-5",
+                    "flex-1 min-w-0",
                     detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
                 )}>
                     {isDiscrepanciasMode ? (
@@ -578,3 +474,95 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 };
 
 export default TransferenciasPanel;
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  BarraFiltros                                                               */
+/*  Layout: [+] [filtros auto-width] [espacio flexible] [🔍 expandible]       */
+/* ─────────────────────────────────────────────────────────────────────────── */
+interface BarraFiltrosProps {
+    statusFilter: string;
+    onStatusChange: (v: string) => void;
+    pendientesCount: number;
+    canVerDiscrepancias: boolean;
+    searchQuery: string;
+    onSearchChange: (q: string) => void;
+    canNuevoMovimiento: boolean;
+    onNuevoMovimiento: () => void;
+}
+
+const BarraFiltros: React.FC<BarraFiltrosProps> = ({
+    statusFilter, onStatusChange, pendientesCount, canVerDiscrepancias,
+    searchQuery, onSearchChange, canNuevoMovimiento, onNuevoMovimiento,
+}) => {
+    const [searchOpen, setSearchOpen] = React.useState(false);
+    const inputRef = React.useRef<HTMLInputElement>(null);
+
+    const openSearch = () => {
+        setSearchOpen(true);
+        setTimeout(() => inputRef.current?.focus(), 50);
+    };
+
+    const closeSearch = () => {
+        setSearchOpen(false);
+        onSearchChange('');
+    };
+
+    return (
+        <div className="flex items-center gap-2 shrink-0 mb-2">
+            {/* Filtros auto-width — ocupan su ancho natural */}
+            <StatusFilterBar
+                active={statusFilter}
+                onChange={onStatusChange}
+                discrepanciasCount={pendientesCount}
+                canVerDiscrepancias={canVerDiscrepancias}
+            />
+
+            {/* Espacio flexible — empuja lupa y + hacia la derecha */}
+            <div className="flex-1" />
+
+            {/* Derecha: lupa expandible + botón + juntos */}
+            <div className="flex items-center gap-1.5 shrink-0">
+                {/* Lupa: ícono solo → expandible con input al hacer clic */}
+                {searchOpen ? (
+                    <div className="relative flex items-center animate-in fade-in slide-in-from-right-2 duration-150">
+                        <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+                        <input
+                            ref={inputRef}
+                            type="text"
+                            value={searchQuery}
+                            onChange={e => onSearchChange(e.target.value)}
+                            placeholder="Buscar código..."
+                            className="w-44 pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                        />
+                        <button
+                            onClick={closeSearch}
+                            className="absolute right-2 p-0.5 hover:bg-muted rounded"
+                            title="Cerrar búsqueda"
+                        >
+                            <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                    </div>
+                ) : (
+                    <button
+                        onClick={openSearch}
+                        title="Buscar por código"
+                        className="flex items-center justify-center h-8 w-8 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5 rounded-xl border border-border bg-card transition-all"
+                    >
+                        <Search className="h-3.5 w-3.5" />
+                    </button>
+                )}
+
+                {/* Botón + al lado de la lupa */}
+                {canNuevoMovimiento && (
+                    <button
+                        onClick={onNuevoMovimiento}
+                        title="Nuevo movimiento"
+                        className="flex items-center justify-center h-8 w-8 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
+                    >
+                        <Plus className="h-4 w-4" />
+                    </button>
+                )}
+            </div>
+        </div>
+    );
+};

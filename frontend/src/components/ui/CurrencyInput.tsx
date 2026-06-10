@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { cn } from '../../utils/cn';
 import { formatCLP, parseCLP } from '../../utils/currency';
+import { FieldError } from './FieldError';
 
 interface CurrencyInputProps {
     label?: string;
@@ -52,9 +53,7 @@ export const CurrencyInput = React.forwardRef<HTMLInputElement, CurrencyInputPro
                         className
                     )}
                 />
-                {error && (
-                    <p className="text-xs text-destructive font-medium ml-0.5">{error}</p>
-                )}
+                <FieldError message={error} />
             </div>
         );
     }

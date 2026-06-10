@@ -227,7 +227,7 @@ const Dashboard: React.FC = () => {
     // ─── Loading State ───
     if (loading || !data) {
         return (
-            <div className="h-[80vh] flex flex-col items-center justify-center">
+            <div className="h-[80dvh] flex flex-col items-center justify-center">
                 <Loader2 className="h-10 w-10 animate-spin text-brand-primary" />
                 <p className="mt-4 text-muted-foreground text-sm animate-pulse">Analizando bóveda...</p>
             </div>

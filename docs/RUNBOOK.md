@@ -269,6 +269,40 @@ Gráficos en HTML puro (compatibles con Gmail/Outlook/móvil), logo LOLS embebid
 > código a un entorno donde la migración no corrió, falla con
 > `Unknown column 't.es_prueba'`. Ver § 6 — "deploy de código acoplado a migración".
 
+### Caso concreto: Alertas de Vehículos (todos los días 08:00)
+
+Avisa por **email** (y deja el texto de WhatsApp en el log) cuando a un seguro,
+revisión técnica o mantención le faltan **exactamente** los días configurados
+(`dias_alerta`, típicamente 30) para su fecha. El correo es HTML responsive con el
+header verde de Bóveda y el número de días en grande.
+
+- **Script:** `backend/scripts/alertas_vehiculos.js` · alias `npm run alertas-vehiculos`
+- **Horario:** `0 8 * * *` (todos los días a las 08:00)
+- **Command staging:**
+  ```
+  cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/alertas_vehiculos.js >> ~/alertas-vehiculos.log 2>&1
+  ```
+- **Command producción:** igual con `~/boveda` y su ruta de node correspondiente.
+- **Modo normal (sin flags) = el que va en el cron.** Solo envía cuando
+  `DATEDIFF(fecha, CURDATE()) = dias_alerta` → **un solo aviso por evento**, no
+  molesta a diario. Por eso es seguro correrlo cada mañana.
+- **Flags útiles (para probar a mano):**
+  - `--forzar` (alias `alertas-vehiculos-forzar`) → envía TODO lo que tenga
+    `email_alerta`, ignorando la fecha. Para demos/pruebas.
+  - `--test` (alias `alertas-vehiculos-test`) → no envía, solo imprime qué enviaría.
+  - `--dias N` → cambia la ventana (default 30).
+- **Qué fecha cuenta:** seguros usan `fecha_vencimiento`; revisiones y mantenciones
+  usan `fecha` (la "Fecha por realizar" / cita), NO `fecha_vencimiento`.
+- **Solo email:** el módulo NO usa WhatsApp (se quitó por no contar con un número para
+  envío automático). La columna `tel_alerta` queda en la DB pero sin uso. Si en el
+  futuro se integra WhatsApp Business API, se puede reactivar.
+- **Variables `.env` requeridas:** `MAIL_HOST`, `MAIL_USER`, `MAIL_PASS` (puerto 465 SSL
+  por defecto). Sin ellas el envío lanza error.
+- **Depende de las migraciones 069–073** (módulo vehículos + alertas + periodicidad).
+- **Probar el cron sin esperar:** crear un cron temporal "+2 min" con el mismo command
+  pero agregando `--forzar`, verificar `~/alertas-vehiculos.log` (debe mostrar
+  `✅ Email enviado`), y luego **borrarlo** dejando solo el definitivo sin `--forzar`.
+
 ---
 
 ## 5. Variables de Entorno
@@ -364,6 +398,41 @@ Para que las páginas llenen el viewport y permitan sticky headers/footers sin a
 ```
 
 **Clave:** Cada contenedor en la cadena tiene `flex flex-col` + `flex-1 min-h-0` (excepto shrink-0). Esto propaga altura dinámica desde viewport → página → tabla. Sin esto, sticky no funciona correctamente.
+
+---
+
+## 7.1 Estándar de Mensajes de Error (FieldError / FormError)
+
+Para que el rojo de validación se vea **igual en toda la app**, hay dos componentes
+estándar en `frontend/src/components/ui/`:
+
+- **`<FieldError message={...} />`** — error de **campo inline** (texto rojo bajo el input).
+  Estilo canónico: `text-xs text-destructive font-medium ml-0.5`. No renderiza nada si el
+  mensaje es vacío. Acepta `icon` (variante carrito/fila) y `className` (ej. `pl-8`, `mt-1`).
+  Lo consumen internamente `Input`, `Select`, `CurrencyInput`, `SearchableSelect` y
+  `TimeStepperInput` → **cualquier form que use el prop `error` de esos componentes ya hereda
+  el estándar** sin tocarlo.
+- **`<FormError message={...} />`** — **banner** de error de acción/formulario persistente en
+  página (no transitorio). Usa el token semántico `destructive`. Para errores de API
+  transitorios usar `showApiError(err, fallback)` (toast), NO un banner.
+
+**Regla de oro contra tooltips nativos del navegador:** los atributos HTML `min`/`max`/
+`required`/`pattern` en `<input>`/`<select>` dentro de un `<form onSubmit>` disparan el globo
+nativo (ej. *"El valor debe ser superior o igual a 0"*), que **no** queremos. Para evitarlo:
+
+1. Agregar `noValidate` al `<form>` (desactiva TODA la validación nativa del navegador), y
+2. Mover la regla a la validación de la app (reglas de `register()` en react-hook-form, o un
+   handler en forms controlados) mostrando el mensaje con `<FieldError>`.
+3. Se conservan `step="0.5"`/`step="any"` (UX de decimales/medias horas) y `maxLength` (topes benignos).
+
+**Color:** usar siempre el token `destructive` (`text-destructive`, `border-destructive`,
+`var(--destructive)` en estilos inline de react-select) — nunca hex sueltos (`#FF3B30`) ni
+utilidades `red-*`, para respetar el tema claro/oscuro.
+
+> Origen: auditoría de manejo de errores del frontend (46 hallazgos). Pendientes de menor
+> prioridad (backlog): edición inline con `min`/`max` sin `<form>` (StockUbicacionTable,
+> ResumenMensualTable, TransferenciaDetail, MovimientoForm) — no disparan tooltip, es solo
+> limpieza de consistencia; y unificar todos los `catch` al helper `showApiError`.
 
 ---
 

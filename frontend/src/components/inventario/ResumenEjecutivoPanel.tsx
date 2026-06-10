@@ -19,6 +19,7 @@ import { cn } from '../../utils/cn';
 import api from '../../services/api';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
 import { useAuth } from '../../context/AuthContext';
+import { FormError } from '../ui/FormError';
 
 interface ObraOpcion { id: number; nombre: string; }
 
@@ -562,11 +563,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 </div>
             </div>
 
-            {error && (
-                <div className="p-4 rounded-xl bg-red-50 border-2 border-red-200 text-sm text-red-800 font-semibold dark:bg-red-950/40 dark:border-red-900 dark:text-red-200">
-                    {error}
-                </div>
-            )}
+            <FormError message={error} />
 
             {obraFilter && obraSeleccionada && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-primary/5 border border-brand-primary/20 text-xs">

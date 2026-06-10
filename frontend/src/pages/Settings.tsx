@@ -55,7 +55,9 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive } from 'lucide-react';
+import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
+import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
 import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
@@ -165,6 +167,11 @@ const obraCols: ColumnDef<Obra>[] = [
                 {!!row.es_prueba && (
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-500/15 text-amber-600 border border-amber-500/30">
                         Prueba
+                    </span>
+                )}
+                {!!row.finalizada && (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-muted text-muted-foreground border border-border">
+                        Finalizada
                     </span>
                 )}
             </span>
@@ -324,6 +331,12 @@ const SettingsPage: React.FC = () => {
     
     // Estados para gestión de permisos
     const [rolPermsModal, setRolPermsModal] = useState<{ open: boolean; rol: RoleData | null }>({ open: false, rol: null });
+    // Finalizar obra: obra seleccionada para el modal + nonce para remontar la
+    // CrudTable de obras tras finalizar (fuerza refetch).
+    const [obraAFinalizar, setObraAFinalizar] = useState<Obra | null>(null);
+    const [obrasNonce, setObrasNonce] = useState(0);
+    // Nonce para remontar la CrudTable de bodegas tras togglear participación.
+    const [bodegasNonce, setBodegasNonce] = useState(0);
     const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: UserData | null }>({ open: false, user: null });
 
     // Find current active group for navigation
@@ -343,7 +356,7 @@ const SettingsPage: React.FC = () => {
     useSetPageHeader(headerTitle);
 
     return (
-        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-3 md:gap-4 lg:gap-5 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             {/* ── Mobile: Icon + Short Label Category Tabs (all 5 visible) ── */}
             <div className="md:hidden flex-none bg-card/80 backdrop-blur-xl rounded-2xl border border-border p-1 flex items-center gap-0.5 shadow-sm">
                 {tabGroups.map((group, idx) => {
@@ -482,18 +495,47 @@ const SettingsPage: React.FC = () => {
                         />
                     )}
                     {activeTab === 'obras' && (
-                        <CrudTable
-                            endpoint="/obras"
-                            columns={obraCols}
-                            entityName="Obra"
-                            entityNamePlural="Obras"
-                            FormComponent={ObraForm}
-                            queryParams={{ activo: true, incluir_prueba: true }}
-                            canCreate={hasPermission('obras.crear')}
-                            canEdit={hasPermission('obras.editar')}
-                            canDelete={hasPermission('obras.eliminar')}
-                            canExport={false}
-                        />
+                        <>
+                            <CrudTable
+                                key={`obras-${obrasNonce}`}
+                                endpoint="/obras"
+                                columns={obraCols}
+                                entityName="Obra"
+                                entityNamePlural="Obras"
+                                FormComponent={ObraForm}
+                                queryParams={{ activo: true, incluir_prueba: true, incluir_finalizadas: true }}
+                                canCreate={hasPermission('obras.crear')}
+                                canEdit={hasPermission('obras.editar')}
+                                canDelete={hasPermission('obras.eliminar')}
+                                canExport={false}
+                                renderActions={(row) => (
+                                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                                        {hasPermission('obras.editar') && (
+                                            <div className="hidden sm:flex items-center gap-1 flex-wrap">
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_inventario" value={row.participa_inventario} label="Inv" onDone={() => setObrasNonce(n => n + 1)} />
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_asistencia" value={row.participa_asistencia} label="Asis" onDone={() => setObrasNonce(n => n + 1)} />
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_transferencias" value={row.participa_transferencias} label="Transf" onDone={() => setObrasNonce(n => n + 1)} />
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_bombas" value={row.participa_bombas} label="Bombas" onDone={() => setObrasNonce(n => n + 1)} />
+                                            </div>
+                                        )}
+                                        {hasPermission('obras.finalizar') && !row.finalizada && (
+                                            <button
+                                                onClick={() => setObraAFinalizar(row)}
+                                                className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 text-muted-foreground hover:text-amber-600 transition-colors"
+                                                title="Finalizar obra (concluida)"
+                                            >
+                                                <Archive className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
+                                )}
+                            />
+                            <FinalizarObraModal
+                                obra={obraAFinalizar}
+                                onClose={() => setObraAFinalizar(null)}
+                                onSuccess={() => setObrasNonce(n => n + 1)}
+                            />
+                        </>
                     )}
                     {activeTab === 'cargos' && (
                         <CrudTable
@@ -668,6 +710,7 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'bodegas' && (
                         <CrudTable<Bodega>
+                            key={`bodegas-${bodegasNonce}`}
                             endpoint="/bodegas"
                             columns={[
                                 { key: 'nombre', label: 'Nombre' },
@@ -691,6 +734,14 @@ const SettingsPage: React.FC = () => {
                             canEdit={hasPermission('inventario.editar')}
                             canDelete={hasPermission('inventario.eliminar')}
                             canExport={false}
+                            renderActions={(row) => (
+                                hasPermission('inventario.editar') ? (
+                                    <div className="hidden sm:flex items-center gap-1 flex-wrap justify-end">
+                                        <ParticipaToggle id={row.id} endpoint="/bodegas" field="participa_inventario" value={row.participa_inventario} label="Inv" onDone={() => setBodegasNonce(n => n + 1)} />
+                                        <ParticipaToggle id={row.id} endpoint="/bodegas" field="participa_transferencias" value={row.participa_transferencias} label="Transf" onDone={() => setBodegasNonce(n => n + 1)} />
+                                    </div>
+                                ) : null
+                            )}
                         />
                     )}
                     {activeTab === 'items_inventario' && (

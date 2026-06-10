@@ -14,7 +14,7 @@ export const MainLayout: React.FC = () => {
     const location = useLocation();
 
     return (
-        <div className="flex min-h-screen bg-background">
+        <div className="flex min-h-[100dvh] bg-background">
             {/* Mobile Orientation Lock Overlay */}
             <div className="fixed inset-0 z-[9999] bg-[#1D1D1F] flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
                 <motion.div 
@@ -46,7 +46,7 @@ export const MainLayout: React.FC = () => {
             />
 
             {/* Main Content Area */}
-            <main className="flex-1 flex flex-col min-w-0 h-screen">
+            <main className="flex-1 flex flex-col min-w-0 h-[100dvh]">
                 {/* Top Navbar — fixed above scroll area */}
                 <header className="shrink-0 h-14 md:h-16 border-b border-border bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}
@@ -83,7 +83,7 @@ export const MainLayout: React.FC = () => {
                 </header>
 
                 {/* Page Content — actual scroll container */}
-                <div className="flex-1 min-h-0 p-3 md:p-5 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
+                <div className="flex-1 min-h-0 p-2 md:px-5 md:pt-2 pb-12 overflow-y-auto overflow-x-hidden relative flex flex-col">
                     <AnimatePresence mode="wait">
                         <motion.div
                             key={location.pathname}

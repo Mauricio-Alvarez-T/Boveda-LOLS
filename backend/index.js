@@ -106,9 +106,16 @@ try {
     activeColumn: 'activa',
     useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
-    allowedFilters: ['participa_inventario', 'es_prueba'],
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'encargado_nombre', 'es_prueba'],
-    testFlagColumn: 'es_prueba'
+    allowedFilters: ['participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'es_prueba', 'finalizada'],
+    // 'finalizada' NO va en allowedFields: finalizar/reactivar es exclusivo de
+    // los endpoints /finalizar y /reactivar (permiso obras.finalizar + validación).
+    // Dejarlo aquí permitía finalizar vía el PUT genérico con solo obras.editar.
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'encargado_nombre', 'es_prueba', 'fecha_inicio', 'fecha_termino'],
+    testFlagColumn: 'es_prueba',
+    // Aislamiento de obras finalizadas: GET /obras las excluye por defecto;
+    // ?incluir_finalizadas=true las incluye; ?finalizada=1 sólo finalizadas.
+    hiddenFlagColumn: 'finalizada',
+    hiddenFlagParam: 'incluir_finalizadas'
   };
 
   // Custom PUT /obras/:id: aplica cascada es_prueba a los trabajadores de la obra.
@@ -128,6 +135,97 @@ try {
       res.json(updated);
     } catch (err) { next(err); }
   });
+
+  // GET /api/obras/finalizadas — tarjetas con stats históricos para la sección
+  // "Obras Finalizadas". Va en este router (montado ANTES del CRUD genérico)
+  // para no colisionar con GET /:id. Conteo y fechas DERIVADOS de asistencias
+  // (un trabajador solo guarda su obra actual; tras finalizar suele estar en otra).
+  obrasCascadeRouter.get('/finalizadas', authMw, checkPermission('obras.ver'), async (req, res, next) => {
+    try {
+      const [obras] = await db.query(`
+        SELECT o.id, o.nombre, e.razon_social AS empresa_nombre,
+               COALESCE(o.fecha_inicio,  MIN(a.fecha)) AS fecha_inicio,
+               COALESCE(o.fecha_termino, MAX(a.fecha)) AS fecha_termino,
+               GREATEST(DATEDIFF(COALESCE(o.fecha_termino, MAX(a.fecha)),
+                        COALESCE(o.fecha_inicio,  MIN(a.fecha))), 0) AS dias_duracion,
+               COUNT(DISTINCT t.id) AS total_trabajadores
+        FROM obras o
+        LEFT JOIN empresas e ON e.id = o.empresa_id
+        LEFT JOIN asistencias a ON a.obra_id = o.id
+        LEFT JOIN trabajadores t ON t.id = a.trabajador_id AND t.es_prueba = 0
+        WHERE o.finalizada = 1 AND o.es_prueba = 0
+        GROUP BY o.id, o.nombre, e.razon_social, o.fecha_inicio, o.fecha_termino
+        ORDER BY fecha_termino DESC, o.nombre ASC
+      `);
+
+      const byObra = {};
+      if (obras.length > 0) {
+        const ids = obras.map(o => o.id);
+        const [rows] = await db.query(`
+          SELECT a.obra_id, COALESCE(c.nombre, 'Sin cargo') AS cargo,
+                 COUNT(DISTINCT a.trabajador_id) AS cantidad
+          FROM asistencias a
+          JOIN trabajadores t ON t.id = a.trabajador_id
+          LEFT JOIN cargos c ON c.id = t.cargo_id
+          WHERE a.obra_id IN (?) AND t.es_prueba = 0
+          GROUP BY a.obra_id, c.id, c.nombre
+          ORDER BY cantidad DESC
+        `, [ids]);
+        rows.forEach(r => {
+          (byObra[r.obra_id] = byObra[r.obra_id] || []).push({ cargo: r.cargo, cantidad: Number(r.cantidad) || 0 });
+        });
+      }
+
+      const data = obras.map(o => ({
+        id: o.id,
+        nombre: o.nombre,
+        empresa_nombre: o.empresa_nombre,
+        fecha_inicio: o.fecha_inicio,
+        fecha_termino: o.fecha_termino,
+        dias_duracion: o.dias_duracion != null ? Number(o.dias_duracion) : null,
+        total_trabajadores: Number(o.total_trabajadores) || 0,
+        por_cargo: byObra[o.id] || [],
+      }));
+      res.json({ data });
+    } catch (err) { next(err); }
+  });
+
+  // PUT /api/obras/:id/finalizar — marca la obra como concluida. NO cascadea a
+  // trabajadores (siguen reales / probablemente ya trasladados).
+  obrasCascadeRouter.put('/:id/finalizar', authMw, checkPermission('obras.finalizar'), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const { fecha_termino, fecha_inicio } = req.body || {};
+      const dateRe = /^\d{4}-\d{2}-\d{2}$/;
+      if (!fecha_termino || !dateRe.test(String(fecha_termino))) {
+        return res.status(400).json({ error: 'fecha_termino es requerida (formato YYYY-MM-DD)' });
+      }
+      if (fecha_inicio && !dateRe.test(String(fecha_inicio))) {
+        return res.status(400).json({ error: 'fecha_inicio inválida (formato YYYY-MM-DD)' });
+      }
+      if (fecha_inicio && String(fecha_termino) < String(fecha_inicio)) {
+        return res.status(400).json({ error: 'fecha_termino no puede ser anterior a fecha_inicio' });
+      }
+      const sets = ['finalizada = 1', 'fecha_termino = ?'];
+      const params = [fecha_termino];
+      if (fecha_inicio) { sets.push('fecha_inicio = ?'); params.push(fecha_inicio); }
+      params.push(id);
+      const [r] = await db.query(`UPDATE obras SET ${sets.join(', ')} WHERE id = ?`, params);
+      if (r.affectedRows === 0) return res.status(404).json({ error: 'Obra no encontrada' });
+      res.json({ id: Number(id), finalizada: true, fecha_termino, fecha_inicio: fecha_inicio || undefined });
+    } catch (err) { next(err); }
+  });
+
+  // PUT /api/obras/:id/reactivar — revierte la finalización (conserva fecha_termino).
+  obrasCascadeRouter.put('/:id/reactivar', authMw, checkPermission('obras.finalizar'), async (req, res, next) => {
+    try {
+      const { id } = req.params;
+      const [r] = await db.query('UPDATE obras SET finalizada = 0 WHERE id = ?', [id]);
+      if (r.affectedRows === 0) return res.status(404).json({ error: 'Obra no encontrada' });
+      res.json({ id: Number(id), finalizada: false });
+    } catch (err) { next(err); }
+  });
+
   app.use('/api/obras', obrasCascadeRouter);
   app.use('/api/obras', createCrudRoutes('obras', 'obras', obrasOptions));
 
@@ -140,7 +238,7 @@ try {
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
-    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as celebrity_nombre, c.nombre as cargo_nombre', // Wait, celebrity_nombre? That looks like a typo in original code but I'll fix it if it's obra_nombre
+    selectFields: 'trabajadores.*, e.razon_social as empresa_nombre, o.nombre as obra_nombre, c.nombre as cargo_nombre',
     allowedFilters: ['obra_id', 'empresa_id', 'cargo_id', 'es_prueba'],
     useSoftDelete: true,
     orderBy: 'trabajadores.apellido_paterno ASC, trabajadores.apellido_materno ASC, trabajadores.nombres ASC',
@@ -192,7 +290,8 @@ try {
     activeColumn: 'activa',
     useSoftDelete: true,
     orderBy: 'bodegas.nombre ASC',
-    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa']
+    allowedFilters: ['participa_inventario', 'participa_transferencias'],
+    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa', 'participa_inventario', 'participa_transferencias']
   }));
   // Middleware sanitiza valor_compra/valor_arriendo si el usuario no tiene
   // `inventario.costos.ver`. Aplica antes de la ruta CRUD genérica porque

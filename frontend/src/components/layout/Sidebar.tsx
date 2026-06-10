@@ -12,7 +12,8 @@ import {
     X,
     SearchCheck,
     Package,
-    Truck
+    Truck,
+    Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -37,7 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
     }, [location.pathname]);
 
     const menuItems = [
-        { icon: LayoutDashboard, label: 'Dashboard', path: '/', visible: true },
+        { icon: LayoutDashboard, label: 'Inicio', path: '/', visible: true },
         {
             icon: CheckSquare,
             label: 'Asistencia',
@@ -61,6 +62,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Vehículos',
             path: '/vehiculos',
             visible: hasPermission('vehiculos.ver')
+        },
+        {
+            icon: Archive,
+            label: 'Obras Finalizadas',
+            path: '/obras-finalizadas',
+            visible: hasPermission('obras.ver')
         },
         {
             icon: Settings,
@@ -154,7 +161,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             {/* Desktop Sidebar */}
             <motion.aside
                 animate={{ width: isCollapsed ? '72px' : '260px' }}
-                className="hidden md:flex h-screen sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
+                className="hidden md:flex h-[100dvh] sticky top-0 bg-card/80 backdrop-blur-xl border-r border-border flex-col z-60 transition-all duration-300"
             >
                 {sidebarContent(false)}
 

@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ChevronLeft } from 'lucide-react';
@@ -36,6 +36,25 @@ export const Modal: React.FC<ModalProps> = ({
     noBodyPadding = false,
     headerAction
 }) => {
+    // ⚠️ Render condicional móvil/desktop (NO ambos a la vez).
+    // Antes se renderizaban los dos bloques y se ocultaba uno con `md:hidden` /
+    // `hidden md:flex`. Eso montaba {children} y {headerAction} DOS veces en el
+    // DOM. Si el contenido tenía un `id` (ej. <form id="worker-form">) quedaban
+    // ids DUPLICADOS, y un botón con `form="worker-form"` apuntaba al PRIMER form
+    // (el oculto, con valores sin editar) → los cambios "no se guardaban".
+    // Renderizar un solo layout según el ancho elimina el id duplicado.
+    const [isDesktop, setIsDesktop] = useState(
+        () => typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches
+    );
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const mq = window.matchMedia('(min-width: 768px)');
+        const handler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+        mq.addEventListener('change', handler);
+        setIsDesktop(mq.matches);
+        return () => mq.removeEventListener('change', handler);
+    }, []);
+
     // Desktop-only max-widths
     const desktopSizes: Record<string, string> = {
         sm: 'md:max-w-md',
@@ -43,7 +62,7 @@ export const Modal: React.FC<ModalProps> = ({
         lg: 'md:max-w-3xl',
         xl: 'md:max-w-5xl',
         '2xl': 'md:max-w-7xl',
-        full: 'md:max-w-[95vw] md:h-[90vh]',
+        full: 'md:max-w-[95vw] md:h-[90dvh]',
         dynamic: 'md:max-w-4xl',
     };
 
@@ -72,118 +91,116 @@ export const Modal: React.FC<ModalProps> = ({
 
     return createPortal(
         <AnimatePresence>
-            {isOpen && (
-                <>
-                    {/* ─── MOBILE: Bottom Sheet ─── */}
-                    <div className="md:hidden fixed inset-0 z-[1000] flex items-end">
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={handleClose}
-                            className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
-                        />
-                        
-                        {/* Sheet Container */}
-                        <motion.div
-                            drag="y"
-                            dragConstraints={{ top: 0 }}
-                            dragElastic={0.1}
-                            onDragEnd={(_, info) => {
-                                if (info.offset.y > 150 || info.velocity.y > 500) {
-                                    handleClose();
-                                }
-                            }}
-                            initial={{ y: '100%' }}
-                            animate={{ y: 0 }}
-                            exit={{ y: '100%' }}
-                            transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                            className="relative w-full max-h-[92vh] bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
-                        >
-                            {/* Handle & Header */}
-                            <div className="shrink-0">
-                                <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
-                                    <div className="w-12 h-1.5 rounded-full bg-muted" />
-                                </div>
-                                <div className="flex items-center justify-between px-5 pb-4 pt-1">
-                                    <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
-                                    <div className="flex items-center gap-2 shrink-0">
-                                        {headerAction}
-                                        <button
-                                            onClick={handleClose}
-                                            className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
-                                        >
-                                            <X className="h-5 w-5" />
-                                        </button>
-                                    </div>
-                                </div>
+            {isOpen && (isDesktop ? (
+                /* ─── DESKTOP: Classic centered card modal ─── */
+                <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={handleClose}
+                        className="absolute inset-0 bg-black/30 backdrop-blur-sm"
+                    />
+                    {/* Card */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+                        animate={{ opacity: 1, scale: 1, y: 0 }}
+                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        className={cn(
+                            "relative bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] w-full",
+                            desktopSizes[size]
+                        )}
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between px-6 py-5 border-b border-border gap-3">
+                            <h3 className="text-lg font-semibold text-brand-dark truncate pr-2">{title}</h3>
+                            <div className="flex items-center gap-3 shrink-0">
+                                {headerAction}
+                                <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-muted-foreground hover:text-brand-dark shrink-0">
+                                    <X className="h-4 w-4" />
+                                </Button>
                             </div>
-
-                            {/* Body */}
-                            <div className={cn(
-                                "flex-1 relative min-h-0",
-                                noBodyPadding ? "overflow-hidden" : "overflow-y-auto px-5 py-2 custom-scrollbar"
-                            )}>
-                                {children}
+                        </div>
+                        {/* Body */}
+                        <div className={cn(
+                            "flex-1 relative min-h-0",
+                            noBodyPadding ? "overflow-hidden" : "p-6 overflow-y-auto custom-scrollbar"
+                        )}>
+                            {children}
+                        </div>
+                        {/* Footer */}
+                        {footer && (
+                            <div className="px-6 py-4 border-t border-border bg-background flex justify-end gap-3">
+                                {footer}
                             </div>
+                        )}
+                    </motion.div>
+                </div>
+            ) : (
+                /* ─── MOBILE: Bottom Sheet ─── */
+                <div className="fixed inset-0 z-[1000] flex items-end">
+                    {/* Backdrop */}
+                    <motion.div
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        onClick={handleClose}
+                        className="absolute inset-0 bg-black/40 backdrop-blur-[2px]"
+                    />
 
-                            {/* Footer */}
-                            {footer && (
-                                <div className="px-5 py-4 border-t border-border bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
-                                    {footer}
-                                </div>
-                            )}
-                        </motion.div>
-                    </div>
-
-                    {/* ─── DESKTOP: Classic centered card modal ─── */}
-                    <div className="hidden md:flex fixed inset-0 z-[1000] items-center justify-center p-4">
-                        {/* Backdrop */}
-                        <motion.div
-                            initial={{ opacity: 0 }}
-                            animate={{ opacity: 1 }}
-                            exit={{ opacity: 0 }}
-                            onClick={handleClose}
-                            className="absolute inset-0 bg-black/30 backdrop-blur-sm"
-                        />
-                        {/* Card */}
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                            className={cn(
-                                "relative bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh] w-full",
-                                desktopSizes[size]
-                            )}
-                        >
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-6 py-5 border-b border-border gap-3">
-                                <h3 className="text-lg font-semibold text-brand-dark truncate pr-2">{title}</h3>
-                                <div className="flex items-center gap-3 shrink-0">
+                    {/* Sheet Container */}
+                    <motion.div
+                        drag="y"
+                        dragConstraints={{ top: 0 }}
+                        dragElastic={0.1}
+                        onDragEnd={(_, info) => {
+                            if (info.offset.y > 150 || info.velocity.y > 500) {
+                                handleClose();
+                            }
+                        }}
+                        initial={{ y: '100%' }}
+                        animate={{ y: 0 }}
+                        exit={{ y: '100%' }}
+                        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+                        className="relative w-full max-h-[92dvh] bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
+                    >
+                        {/* Handle & Header */}
+                        <div className="shrink-0">
+                            <div className="pt-3 pb-2 flex justify-center" onClick={handleClose}>
+                                <div className="w-12 h-1.5 rounded-full bg-muted" />
+                            </div>
+                            <div className="flex items-center justify-between px-5 pb-4 pt-1">
+                                <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
+                                <div className="flex items-center gap-2 shrink-0">
                                     {headerAction}
-                                    <Button variant="ghost" size="icon" onClick={handleClose} className="rounded-full h-8 w-8 text-muted-foreground hover:text-brand-dark shrink-0">
-                                        <X className="h-4 w-4" />
-                                    </Button>
+                                    <button
+                                        onClick={handleClose}
+                                        className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
+                                    >
+                                        <X className="h-5 w-5" />
+                                    </button>
                                 </div>
                             </div>
-                            {/* Body */}
-                            <div className={cn(
-                                "flex-1 relative min-h-0",
-                                noBodyPadding ? "overflow-hidden" : "p-6 overflow-y-auto custom-scrollbar"
-                            )}>
-                                {children}
+                        </div>
+
+                        {/* Body */}
+                        <div className={cn(
+                            "flex-1 relative min-h-0",
+                            noBodyPadding ? "overflow-hidden" : "overflow-y-auto px-5 py-2 custom-scrollbar"
+                        )}>
+                            {children}
+                        </div>
+
+                        {/* Footer */}
+                        {footer && (
+                            <div className="px-5 py-4 border-t border-border bg-background flex justify-end gap-3 shrink-0 safe-area-bottom">
+                                {footer}
                             </div>
-                            {/* Footer */}
-                            {footer && (
-                                <div className="px-6 py-4 border-t border-border bg-background flex justify-end gap-3">
-                                    {footer}
-                                </div>
-                            )}
-                        </motion.div>
-                    </div>
-                </>
-            )}
+                        )}
+                    </motion.div>
+                </div>
+            ))}
         </AnimatePresence>,
         document.body
     );

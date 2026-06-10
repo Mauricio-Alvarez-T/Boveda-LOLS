@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import {
     CheckSquare, Users, CalendarDays, CalendarRange, ChevronDown,
-    AlertTriangle, FileDown, Search, X
+    AlertTriangle, FileDown, Search, X, Save
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -13,10 +13,12 @@ import { Modal } from '../ui/Modal';
 import { Select } from '../ui/Select';
 import { WorkerForm } from '../workers/WorkerForm';
 import WorkerLink from '../workers/WorkerLink';
+import { EmpresaBadge } from './ui/EmpresaBadge';
 import WorkerQuickView from '../workers/WorkerQuickView';
 
 import { cn } from '../../utils/cn';
 import { useObra } from '../../context/ObraContext';
+import { flagOff } from '../../utils/flags';
 import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
@@ -33,8 +35,15 @@ import type { Trabajador, Asistencia } from '../../types/entities';
  * cambios funcionales: solo se relocó como sub-componente para permitir
  * la coexistencia con el tab "Sábados Extra".
  */
-const AttendanceDailyTab: React.FC = () => {
-    const { selectedObra, obras } = useObra();
+interface DailyTabProps {
+    /** Si se pasa, muestra el ícono de Sábados Extra en la barra de búsqueda. */
+    onGoSabados?: () => void;
+}
+
+const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
+    const { selectedObra, obras, setSelectedObra } = useObra();
+    // Picker propio de Asistencia: solo obras con participa_asistencia (mig 075).
+    const obrasAsistencia = useMemo(() => obras.filter(o => !flagOff(o.participa_asistencia)), [obras]);
     const { hasPermission } = useAuth();
     const canTakeGlobal = hasPermission('asistencia.tomar.global');
     // Gate financiero: HE es insumo de pago. Sin este permiso se ocultan los
@@ -189,7 +198,7 @@ const AttendanceDailyTab: React.FC = () => {
 
     if (!selectedObra && !canTakeGlobal) {
         return (
-            <div className="h-[50vh] flex flex-col items-center justify-center text-center p-8">
+            <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
                 <div className="h-14 w-14 bg-background rounded-full flex items-center justify-center mb-4">
                     <CheckSquare className="h-7 w-7 text-muted-foreground" />
                 </div>
@@ -234,8 +243,32 @@ const AttendanceDailyTab: React.FC = () => {
         );
     }
 
+    // Guard: la obra seleccionada (vía selector global) no participa en Asistencia.
+    // Picker propio filtrado para cambiar a una obra válida sin tomar asistencia aquí.
+    if (selectedObra && flagOff(selectedObra.participa_asistencia)) {
+        return (
+            <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
+                <div className="h-14 w-14 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mb-4">
+                    <CheckSquare className="h-7 w-7 text-amber-600 dark:text-amber-300" />
+                </div>
+                <h2 className="text-lg font-semibold text-brand-dark">"{selectedObra.nombre}" no participa en Asistencia</h2>
+                <p className="text-muted-foreground mt-2 mb-6 max-w-md text-sm">
+                    Esta obra está deshabilitada para Asistencia en Configuración. Elige otra obra para registrar asistencia.
+                </p>
+                <select
+                    value=""
+                    onChange={(e) => { const o = obrasAsistencia.find(x => x.id === Number(e.target.value)); if (o) setSelectedObra(o); }}
+                    className="w-full max-w-sm h-11 px-3 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                >
+                    <option value="" disabled>Selecciona una obra...</option>
+                    {obrasAsistencia.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                </select>
+            </div>
+        );
+    }
+
     return (
-        <div className="h-[calc(100vh-116px)] md:h-[calc(100vh-132px)] flex flex-col gap-4 lg:gap-5 p-0 overflow-hidden w-full">
+        <div className="h-[calc(100dvh-116px)] md:h-[calc(100dvh-120px)] flex flex-col gap-2 p-0 overflow-hidden w-full">
             <AnimatePresence>
                 {showSearchBox && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="md:hidden space-y-2 overflow-hidden pb-2">
@@ -286,6 +319,7 @@ const AttendanceDailyTab: React.FC = () => {
                         onStatusFilter={setStatusFilter}
                         searchQuery={searchQuery}
                         setSearchQuery={setSearchQuery}
+                        onGoSabados={onGoSabados}
                     />
 
                     <div className="flex-1 overflow-y-auto custom-scrollbar bg-muted/80 p-2 md:p-4 flex flex-col gap-2 relative">
@@ -347,7 +381,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                         <span className="text-[12px] font-black text-brand-dark uppercase tracking-tight">{worker.apellido_paterno} {worker.apellido_materno || ''}</span>
                                                         <span className="text-[11px] font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">{worker.nombres}</span>
                                                     </WorkerLink>
-                                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
+                                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} className="mr-1 align-middle" />{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
                                                     {workerAlerta && (
                                                         <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[9px] font-bold text-red-600 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
                                                     )}
@@ -387,7 +421,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                 <div className="flex items-center gap-3 min-w-0 border-l border-border/40 pl-3 group-hover:border-brand-primary/30 transition-colors">
                                                     <div className="min-w-0">
                                                         <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[12px] truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
-                                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><span className="bg-slate-100 dark:bg-muted px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1.5">{worker.cargo_nombre}</span>}</p>
+                                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1.5">{worker.cargo_nombre}</span>}</p>
                                                         {workerAlerta && (<div className="flex items-center gap-1.5 mt-1"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[10px] font-bold text-red-600 dark:text-red-300 leading-tight">{workerAlerta.alertas.map(a => a.mensaje).join(' · ')}</span></div>)}
                                                     </div>
                                                 </div>
@@ -430,7 +464,7 @@ const AttendanceDailyTab: React.FC = () => {
                                                     <button onClick={() => toggleMarkedRow(idx)} className={cn("w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-black transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border hover:border-brand-primary/30 active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button>
                                                     <div className="flex-1 min-w-0">
                                                         <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[11px] truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors leading-tight">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
-                                                        <p className="text-[9px] text-muted-foreground font-medium flex items-center gap-1 mt-0.5"><span className="bg-slate-100 dark:bg-muted px-0.5 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1">{worker.cargo_nombre}</span>}</p>
+                                                        <p className="text-[9px] text-muted-foreground font-medium flex items-center gap-1 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-0.5 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1">{worker.cargo_nombre}</span>}</p>
                                                         {workerAlerta && (<div className="flex items-center gap-1 mt-0.5"><AlertTriangle className="h-2.5 w-2.5 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[9px] font-bold text-red-600 dark:text-red-300 leading-tight truncate">{workerAlerta.alertas[0]?.mensaje}</span></div>)}
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
@@ -524,7 +558,7 @@ const AttendanceDailyTab: React.FC = () => {
                 worker={trasladoWorker}
                 obraActualId={selectedObra?.id || null}
                 obraActualNombre={selectedObra?.nombre || ''}
-                obras={obras}
+                obras={obrasAsistencia}
                 fecha={date}
                 onSuccess={(obraDestinoNombre) => {
                     const toEstado = estados.find(e => e.codigo === 'TO');
@@ -555,6 +589,18 @@ const AttendanceDailyTab: React.FC = () => {
                 onClose={() => { setModalType(null); setIsUploading(false); }}
                 title={modalType === 'form' ? "Editar Trabajador" : `Documentos: ${selectedWorker?.apellido_paterno} ${selectedWorker?.apellido_materno || ''} ${selectedWorker?.nombres}`}
                 size={modalType === 'docs' ? 'dynamic' : 'md'}
+                headerAction={
+                    modalType === 'form' ? (
+                        <Button
+                            type="submit"
+                            form="worker-form"
+                            size="sm"
+                            leftIcon={<Save className="h-3.5 w-3.5" />}
+                        >
+                            Guardar
+                        </Button>
+                    ) : undefined
+                }
             >
                 {modalType === 'form' && selectedWorker && (
                     <WorkerForm initialData={selectedWorker} onSuccess={() => { setModalType(null); fetchAttendanceInfo(); }} onCancel={() => setModalType(null)} />

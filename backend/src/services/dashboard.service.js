@@ -289,7 +289,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                    COUNT(a.id) as registros
             FROM obras o
             LEFT JOIN asistencias a ON a.obra_id = o.id AND a.fecha = ?
-            WHERE o.activa = 1 AND o.es_prueba = 0
+            WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0
             GROUP BY o.id, o.nombre
         `, [today]);
 
@@ -334,7 +334,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
                 ) as trabajadores_docs_ok
             FROM obras o
             LEFT JOIN trabajadores t ON o.id = t.obra_id AND t.activo = 1 AND t.es_prueba = 0
-            WHERE o.activa = 1 AND o.es_prueba = 0
+            WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0
             GROUP BY o.id, o.nombre
             HAVING total_trabajadores > 0
             ORDER BY total_trabajadores DESC

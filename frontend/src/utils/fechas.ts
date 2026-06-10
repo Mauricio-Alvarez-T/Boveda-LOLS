@@ -56,3 +56,20 @@ export function diaDelMes(raw: string | null | undefined): string {
     const parts = normalizarFecha(raw).split('-');
     return parts.length === 3 ? parts[2] : '';
 }
+
+/**
+ * Duración legible a partir de días. Para tarjetas de "Obras Finalizadas".
+ * Ej.: 12 → "12 días" · 243 → "8 meses (243 días)" · 400 → "1 año 1 mes (400 días)".
+ * null/negativo → "—" (obra sin asistencias ni fechas manuales).
+ */
+export function formatDuracion(dias: number | null | undefined): string {
+    if (dias == null || isNaN(dias) || dias < 0) return '—';
+    if (dias < 31) return `${dias} día${dias === 1 ? '' : 's'}`;
+    const meses = Math.floor(dias / 30.44);
+    if (meses < 12) return `${meses} mes${meses === 1 ? '' : 'es'} (${dias} días)`;
+    const anios = Math.floor(meses / 12);
+    const mesesResto = meses % 12;
+    const partes = [`${anios} año${anios === 1 ? '' : 's'}`];
+    if (mesesResto > 0) partes.push(`${mesesResto} mes${mesesResto === 1 ? '' : 'es'}`);
+    return `${partes.join(' ')} (${dias} días)`;
+}

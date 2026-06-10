@@ -19,6 +19,8 @@ export interface UseItemDetailReturn {
     stockLoading: boolean;
     openItem: (itemId: number, preloadedData?: Partial<ItemInventario>) => void;
     closeItem: () => void;
+    /** Aplica una edición al ítem abierto: actualiza el estado visible y el cache. */
+    applyItemUpdate: (patch: Partial<ItemInventario>) => void;
 }
 
 /**
@@ -128,6 +130,18 @@ export function useItemDetail(): UseItemDetailReturn {
         setStockLocations([]);
     }, []);
 
+    const applyItemUpdate = useCallback((patch: Partial<ItemInventario>) => {
+        setItemData(prev => (prev ? { ...prev, ...patch } : prev));
+        // Mantener el cache coherente para que reabrir el ítem no muestre datos viejos.
+        setSelectedItemId(curr => {
+            if (curr != null) {
+                const cached = cache.current.get(curr);
+                if (cached) cache.current.set(curr, { ...cached, ...patch });
+            }
+            return curr;
+        });
+    }, []);
+
     return {
         selectedItemId,
         itemData,
@@ -136,5 +150,6 @@ export function useItemDetail(): UseItemDetailReturn {
         stockLoading,
         openItem,
         closeItem,
+        applyItemUpdate,
     };
 }

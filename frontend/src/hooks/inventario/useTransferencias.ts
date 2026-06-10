@@ -108,6 +108,20 @@ interface AprobarData {
             }[];
         }
     >;
+    // Solicitud de Materiales (ítems custom): ediciones del aprobador por ítem
+    // existente (ajustar cantidad, corregir desc/unidad, nota, o quitar con
+    // aprobado=false) + ítems que el aprobador agrega.
+    items_custom?: Array<{
+        id: number;
+        descripcion?: string;
+        unidad?: string;
+        cantidad_aprobada?: number;
+        aprobado?: boolean;
+        nota_aprobador?: string;
+        fuente?: 'comprar' | 'obra';
+        origen_obra_id?: number | null;
+    }>;
+    items_custom_nuevos?: Array<{ descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }>;
 }
 
 export function useTransferencias() {
@@ -283,10 +297,11 @@ export function useTransferencias() {
     const recibir = useCallback(async (
         id: number,
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
-        tipo: 'parcial' | 'total' = 'total'
+        tipo: 'parcial' | 'total' = 'total',
+        observacion?: string
     ) => {
         try {
-            await api.put(`/transferencias/${id}/recibir`, { items, tipo });
+            await api.put(`/transferencias/${id}/recibir`, { items, tipo, observacion });
             if (tipo === 'parcial') {
                 toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { duration: 5000 });
             } else {

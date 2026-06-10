@@ -15,7 +15,10 @@
     "fix-stock-reconciliar": "node scripts/fix_stock_transferencias_aprobadas.js",
     "snapshot-dashboard": "node scripts/snapshot_dashboard.js",
     "reporte-semanal": "node scripts/reporte_semanal.js",
-    "diag-estados": "node scripts/diag_estados.js"
+    "diag-estados": "node scripts/diag_estados.js",
+    "alertas-vehiculos": "node scripts/alertas_vehiculos.js",
+    "alertas-vehiculos-test": "node scripts/alertas_vehiculos.js --test",
+    "alertas-vehiculos-forzar": "node scripts/alertas_vehiculos.js --forzar"
   },
   "keywords": [],
   "author": "",

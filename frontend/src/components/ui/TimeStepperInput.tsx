@@ -1,6 +1,7 @@
 import React from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { FieldError } from './FieldError';
 
 interface TimeStepperInputProps {
     value: string; // format "HH:MM"
@@ -8,6 +9,7 @@ interface TimeStepperInputProps {
     disabled?: boolean;
     className?: string;
     label?: string;
+    error?: string;
 }
 
 export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
@@ -15,7 +17,8 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
     onChange,
     disabled = false,
     className,
-    label
+    label,
+    error
 }) => {
     // "HH:MM" -> add or subtract 1 hour
     const adjustHour = (amount: number) => {
@@ -51,6 +54,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
                     disabled={disabled}
                     className={cn(
                         "w-full h-10 px-3 pr-10 rounded-xl border border-border bg-card text-sm text-brand-dark transition-all focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary disabled:bg-background disabled:text-muted disabled:cursor-not-allowed",
+                        error && "border-destructive focus:ring-destructive/20 focus:border-destructive",
                         // Ocultamos el icono de reloj nativo de WebKit/Blink ya que los nuestros de flechas irán encima
                         "[&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:right-0 [&::-webkit-calendar-picker-indicator]:w-8 [&::-webkit-calendar-picker-indicator]:h-full [&::-webkit-calendar-picker-indicator]:cursor-pointer [&::-webkit-calendar-picker-indicator]:z-10"
                     )}
@@ -79,6 +83,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
                     </button>
                 </div>
             </div>
+            <FieldError message={error} />
         </div>
     );
 };

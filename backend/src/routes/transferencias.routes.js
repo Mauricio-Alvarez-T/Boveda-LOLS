@@ -172,14 +172,17 @@ router.put('/:id/despachar', auth, checkPermission('inventario.transferencias.de
 router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.recibir'), async (req, res, next) => {
     try {
         const tipo = req.body.tipo === 'parcial' ? 'parcial' : 'total';
-        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo);
+        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo, req.body.observacion);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
 
 // GET /api/transferencias/:id/recepciones — historial de eventos de recepción
 // Cualquier usuario con permiso de ver la TRF puede ver su historial.
-router.get('/:id/recepciones', auth, checkPermission('inventario.transferencias.ver'), async (req, res, next) => {
+// Usa 'inventario.ver' (mismo que GET / y GET /:id). El antiguo
+// 'inventario.transferencias.ver' NO existe en permisos.config → daba 403 a
+// TODOS (incl. Super Admin) y dejaba el historial de entregas vacío.
+router.get('/:id/recepciones', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getRecepciones(req.params.id);
         res.json({ data: result });

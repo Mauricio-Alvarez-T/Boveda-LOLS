@@ -149,6 +149,18 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
     //  CATEGORÍAS + ÍTEMS
     // ══════════════════════════════════════════════
     for (const cat of data.categorias) {
+        // En modo normal se ocultan los ítems sin stock (cantidad 0) — pedido
+        // RRHH: el reporte por obra/bodega solo lista lo que realmente hay.
+        // El checklist NO filtra: es planilla de conteo físico y debe listar
+        // todos los ítems para verificarlos a mano.
+        const visibleItems = isChecklist
+            ? cat.items
+            : cat.items.filter(it => (it.cantidad || 0) > 0);
+
+        // Si la categoría queda sin ítems visibles (todos en 0), omitirla
+        // completa — sin encabezado ni subtotal — para no dejar bloques vacíos.
+        if (!isChecklist && visibleItems.length === 0) continue;
+
         // ── Fila de categoría ──
         ws.mergeCells(`A${currentRow}:${lastCol}${currentRow}`);
         row = ws.getRow(currentRow);
@@ -162,7 +174,7 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
         currentRow++;
 
         // ── Ítems ──
-        cat.items.forEach((item, idx) => {
+        visibleItems.forEach((item, idx) => {
             row = ws.getRow(currentRow);
             // En checklist usamos filas más altas para que el operario tenga espacio cómodo
             // para escribir a mano la cantidad contada.

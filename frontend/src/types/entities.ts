@@ -16,10 +16,34 @@ export interface Obra {
     empresa_nombre?: string;
     activa: boolean;
     participa_inventario?: boolean;
+    /** Participación por apartado (mig 075): si FALSE, la obra no aparece en ese módulo. */
+    participa_asistencia?: boolean;
+    participa_transferencias?: boolean;
+    participa_bombas?: boolean;
     /** Encargado que solicita material en obras de inventario (texto libre). */
     encargado_nombre?: string | null;
     /** Si TRUE, obra de prueba: aislada de reportes/inventario/dashboard/asistencia/selectores. */
     es_prueba?: boolean;
+    /** Si TRUE, obra concluida: fuera de toda la operación; visible solo en "Obras Finalizadas". */
+    finalizada?: boolean;
+    /** Fecha de inicio de la obra (manual; fallback a primera asistencia). */
+    fecha_inicio?: string | null;
+    /** Fecha de término (se setea al finalizar; fallback a última asistencia). */
+    fecha_termino?: string | null;
+}
+
+/** Tarjeta de la sección "Obras Finalizadas" (GET /obras/finalizadas). */
+export interface ObraFinalizada {
+    id: number;
+    nombre: string;
+    empresa_nombre: string | null;
+    fecha_inicio: string | null;
+    fecha_termino: string | null;
+    dias_duracion: number | null;
+    /** Histórico: trabajadores DISTINTOS que registraron asistencia en la obra. */
+    total_trabajadores: number;
+    /** Desglose por cargo actual del trabajador, ordenado desc. */
+    por_cargo: { cargo: string; cantidad: number }[];
 }
 
 export interface Cargo {
@@ -97,7 +121,12 @@ export interface VehiculoRevision {
     fecha_vencimiento: string;
     resultado: 'aprobado' | 'rechazado' | 'pendiente';
     planta?: string | null;
+    direccion?: string | null;
     observaciones?: string | null;
+    periodicidad_anios?: number | null;
+    dias_alerta?: number | null;
+    email_alerta?: string | null;
+    tel_alerta?: string | null;
     activo: boolean;
 }
 
@@ -110,6 +139,21 @@ export interface VehiculoMantencion {
     descripcion?: string | null;
     costo?: number | null;
     taller?: string | null;
+    activo: boolean;
+}
+
+export interface VehiculoPermiso {
+    id: number;
+    vehiculo_id: number;
+    numero_permiso?: string | null;
+    fecha_emision?: string | null;
+    fecha_vencimiento: string;
+    monto?: number | null;
+    municipalidad?: string | null;
+    observaciones?: string | null;
+    dias_alerta?: number | null;
+    email_alerta?: string | null;
+    tel_alerta?: string | null;
     activo: boolean;
 }
 
@@ -250,6 +294,9 @@ export interface Bodega {
     /** Texto libre editable desde BodegaForm (mig 060). */
     responsable_nombre?: string | null;
     activa: boolean;
+    /** Participación por apartado (mig 075): si FALSE, la bodega no aparece en ese módulo. */
+    participa_inventario?: boolean;
+    participa_transferencias?: boolean;
 }
 
 export interface ItemInventario {
