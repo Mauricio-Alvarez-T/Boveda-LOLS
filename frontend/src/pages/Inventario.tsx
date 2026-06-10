@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
+import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList, Building2, ArrowLeftRight, ArrowRight, LayoutGrid, History, ChevronDown, FileSpreadsheet, ClipboardCheck, Receipt, Eye, EyeOff } from 'lucide-react';
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -149,7 +149,7 @@ const InventarioPage: React.FC = () => {
                     <h1 className="text-lg font-bold text-brand-dark">Inventario</h1>
                     {activeTabDef && (
                         <>
-                            <ArrowLeftRight className="h-3.5 w-3.5 text-muted-foreground/50 rotate-90" />
+                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50" />
                             <span className="text-lg font-bold text-brand-primary">{activeTabDef.shortLabel}</span>
                         </>
                     )}
