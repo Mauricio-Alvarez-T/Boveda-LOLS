@@ -12,7 +12,8 @@ import {
     X,
     SearchCheck,
     Package,
-    Truck
+    Truck,
+    Archive
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -61,6 +62,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Vehículos',
             path: '/vehiculos',
             visible: hasPermission('vehiculos.ver')
+        },
+        {
+            icon: Archive,
+            label: 'Obras Finalizadas',
+            path: '/obras-finalizadas',
+            visible: hasPermission('obras.ver')
         },
         {
             icon: Settings,

@@ -7,8 +7,8 @@ const { registrarMovimiento } = require('./stockMovimiento.service');
 // obra_id NULL). Se concatena al WHERE de los listados; funciona también en el
 // COUNT (no depende de los alias de JOIN, sólo de las columnas base de `t`).
 const EXCLUIR_OBRAS_PRUEBA =
-    ' AND (t.origen_obra_id IS NULL OR t.origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))' +
-    ' AND (t.destino_obra_id IS NULL OR t.destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))';
+    ' AND (t.origen_obra_id IS NULL OR t.origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))' +
+    ' AND (t.destino_obra_id IS NULL OR t.destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))';
 
 /**
  * Helper SoD: ¿el usuario tiene el permiso especial para saltarse las reglas

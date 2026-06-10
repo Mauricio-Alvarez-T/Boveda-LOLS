@@ -18,7 +18,13 @@ const createCrudService = (tableName, options = {}) => {
         allowedFilters = [],
         allowedFields = [], // Whitelist for create/update
         beforeCreate = null, // async (safeData, db) => void — mutate safeData before INSERT
-        testFlagColumn = null // Columna de aislamiento (ej. 'es_prueba'); si está, getAll excluye por defecto las filas marcadas salvo ?incluir_prueba=true
+        testFlagColumn = null, // Columna de aislamiento (ej. 'es_prueba'); si está, getAll excluye por defecto las filas marcadas salvo ?incluir_prueba=true
+        // Segundo flag genérico de ocultamiento (ej. 'finalizada'). Igual que
+        // testFlagColumn pero con su propio query param de override y sin la
+        // semántica de "prueba". getAll/exportToExcel excluyen `=1` por defecto
+        // salvo que se pase ?<hiddenFlagParam>=true o el filtro explícito.
+        hiddenFlagColumn = null,
+        hiddenFlagParam = null
     } = options;
 
     return {
@@ -53,6 +59,13 @@ const createCrudService = (tableName, options = {}) => {
             if (testFlagColumn && query[testFlagColumn] === undefined) {
                 const incluir = query.incluir_prueba === 'true' || query.incluir_prueba === true;
                 if (!incluir) where.push(`${tableName}.${testFlagColumn} = 0`);
+            }
+
+            // Segundo flag de ocultamiento (ej. 'finalizada'): mismo mecanismo,
+            // override vía ?<hiddenFlagParam>=true o filtro explícito ?<col>=...
+            if (hiddenFlagColumn && query[hiddenFlagColumn] === undefined) {
+                const incluir = hiddenFlagParam && (query[hiddenFlagParam] === 'true' || query[hiddenFlagParam] === true);
+                if (!incluir) where.push(`${tableName}.${hiddenFlagColumn} = 0`);
             }
 
             if (q && searchFields.length > 0) {
@@ -291,6 +304,13 @@ const createCrudService = (tableName, options = {}) => {
             if (testFlagColumn && query[testFlagColumn] === undefined) {
                 const incluir = query.incluir_prueba === 'true' || query.incluir_prueba === true;
                 if (!incluir) where.push(`${tableName}.${testFlagColumn} = 0`);
+            }
+
+            // Segundo flag de ocultamiento (ej. 'finalizada'): mismo mecanismo,
+            // override vía ?<hiddenFlagParam>=true o filtro explícito ?<col>=...
+            if (hiddenFlagColumn && query[hiddenFlagColumn] === undefined) {
+                const incluir = hiddenFlagParam && (query[hiddenFlagParam] === 'true' || query[hiddenFlagParam] === true);
+                if (!incluir) where.push(`${tableName}.${hiddenFlagColumn} = 0`);
             }
 
             if (q && searchFields.length > 0) {

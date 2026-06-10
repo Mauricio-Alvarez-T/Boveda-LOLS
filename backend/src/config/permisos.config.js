@@ -57,6 +57,7 @@ const MAESTRO_PERMISOS = [
     ['obras.crear',                 'Obras', 'Crear Obra',                       'Registrar nuevas obras', 2],
     ['obras.editar',                'Obras', 'Editar Obra',                      'Modificar datos de obras', 3],
     ['obras.eliminar',              'Obras', 'Eliminar Obra',                    'Eliminar obras', 4],
+    ['obras.finalizar',             'Obras', 'Finalizar/Reactivar Obra',         'Marcar una obra como concluida (la saca de asistencia/consultas/inventario/selectores) o reactivarla. Acción de alto impacto.', 5],
 
     // CONFIGURACIÓN: CARGOS
     ['cargos.ver',                  'Cargos', 'Ver Cargos',                      'Ver el catálogo de cargos', 1],

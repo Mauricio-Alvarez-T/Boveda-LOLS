@@ -737,7 +737,8 @@ const asistenciaService = {
              LEFT JOIN cargos c ON t.cargo_id = c.id
              LEFT JOIN tipos_ausencia ta ON a.tipo_ausencia_id = ta.id
              LEFT JOIN usuarios u ON a.registrado_por = u.id
-             WHERE a.fecha = ? AND t.activo = 1 AND t.es_prueba = 0`;
+             WHERE a.fecha = ? AND t.activo = 1 AND t.es_prueba = 0
+                   AND a.obra_id NOT IN (SELECT id FROM obras WHERE finalizada = 1)`;
 
         if (obraId !== 'ALL') {
             queryStr += ` AND a.obra_id = ?`;
@@ -1106,7 +1107,7 @@ const asistenciaService = {
             LEFT JOIN cargos c ON t.cargo_id = c.id
             LEFT JOIN obras o ON t.obra_id = o.id
             LEFT JOIN empresas e ON t.empresa_id = e.id
-            WHERE 1=1 AND t.es_prueba = 0
+            WHERE 1=1 AND t.es_prueba = 0 AND (o.finalizada = 0 OR o.id IS NULL)
         `;
 
         if (obra_id && obra_id !== 'null' && obra_id !== 'undefined' && obra_id !== '') {

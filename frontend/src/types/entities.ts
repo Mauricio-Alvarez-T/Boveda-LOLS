@@ -20,6 +20,26 @@ export interface Obra {
     encargado_nombre?: string | null;
     /** Si TRUE, obra de prueba: aislada de reportes/inventario/dashboard/asistencia/selectores. */
     es_prueba?: boolean;
+    /** Si TRUE, obra concluida: fuera de toda la operación; visible solo en "Obras Finalizadas". */
+    finalizada?: boolean;
+    /** Fecha de inicio de la obra (manual; fallback a primera asistencia). */
+    fecha_inicio?: string | null;
+    /** Fecha de término (se setea al finalizar; fallback a última asistencia). */
+    fecha_termino?: string | null;
+}
+
+/** Tarjeta de la sección "Obras Finalizadas" (GET /obras/finalizadas). */
+export interface ObraFinalizada {
+    id: number;
+    nombre: string;
+    empresa_nombre: string | null;
+    fecha_inicio: string | null;
+    fecha_termino: string | null;
+    dias_duracion: number | null;
+    /** Histórico: trabajadores DISTINTOS que registraron asistencia en la obra. */
+    total_trabajadores: number;
+    /** Desglose por cargo actual del trabajador, ordenado desc. */
+    por_cargo: { cargo: string; cantidad: number }[];
 }
 
 export interface Cargo {

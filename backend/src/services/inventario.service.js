@@ -6,8 +6,8 @@ const { registrarMovimiento } = require('./stockMovimiento.service');
 // NULL-safe (origen/destino puede ser bodega → obra_id NULL). `pre` = prefijo
 // del alias de la tabla transferencias ('' si no hay alias, 't.' si lo hay).
 const _exclTransfPrueba = (pre = '') =>
-    ` AND (${pre}origen_obra_id IS NULL OR ${pre}origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))` +
-    ` AND (${pre}destino_obra_id IS NULL OR ${pre}destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))`;
+    ` AND (${pre}origen_obra_id IS NULL OR ${pre}origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))` +
+    ` AND (${pre}destino_obra_id IS NULL OR ${pre}destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))`;
 
 const inventarioService = {
     /**
@@ -35,7 +35,7 @@ const inventarioService = {
             [stock],
             descuentoMapInstance,
         ] = await Promise.all([
-            db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND es_prueba = 0 AND participa_inventario = 1 ORDER BY nombre'),
+            db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND es_prueba = 0 AND finalizada = 0 AND participa_inventario = 1 ORDER BY nombre'),
             db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
             db.query(`
                 SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
@@ -475,7 +475,7 @@ const inventarioService = {
         // Aislamiento: excluir movimientos de obras de prueba (NULL-safe: obra_id
         // puede ser NULL si el movimiento es de bodega). Subconsulta sobre la
         // columna base para que funcione también en el COUNT (sin join a obras).
-        where.push('(m.obra_id IS NULL OR m.obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))');
+        where.push('(m.obra_id IS NULL OR m.obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))');
         const whereClause = where.length ? `WHERE ${where.join(' AND ')}` : '';
 
         const [rows] = await db.query(`
@@ -584,7 +584,7 @@ const inventarioService = {
                 LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
                 LEFT JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
-                WHERE o.activa = 1 AND o.es_prueba = 0 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
+                WHERE o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0 AND o.participa_inventario = 1 ${obraIdNum ? 'AND o.id = ?' : ''}
                 GROUP BY o.id, o.nombre
                 ORDER BY valor_neto DESC
             `, obraIdNum ? [obraIdNum] : []),
@@ -698,7 +698,7 @@ const inventarioService = {
                 LEFT JOIN items_inventario i ON i.categoria_id = c.id AND i.activo = 1
                 LEFT JOIN ubicaciones_stock us ON us.item_id = i.id AND us.obra_id IS NOT NULL
                     ${obraIdNum ? 'AND us.obra_id = ?' : ''}
-                LEFT JOIN obras o ON us.obra_id = o.id AND o.activa = 1 AND o.es_prueba = 0 AND o.participa_inventario = 1
+                LEFT JOIN obras o ON us.obra_id = o.id AND o.activa = 1 AND o.es_prueba = 0 AND o.finalizada = 0 AND o.participa_inventario = 1
                 LEFT JOIN descuentos_obra d ON d.obra_id = o.id
                 GROUP BY c.id, c.nombre, c.orden
                 ORDER BY c.orden ASC

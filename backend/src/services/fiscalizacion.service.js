@@ -57,6 +57,10 @@ class FiscalizacionService {
             query += ` AND t.es_prueba = 0`;
         }
 
+        // Obras finalizadas: SIEMPRE fuera de Consultas (no es concepto de prueba;
+        // las obras concluidas viven solo en la sección "Obras Finalizadas").
+        query += ` AND (t.obra_id IS NULL OR t.obra_id NOT IN (SELECT id FROM obras WHERE finalizada = 1))`;
+
         if (activo !== undefined && activo !== '') {
             query += ` AND t.activo = ?`;
             params.push(activo === 'true' || activo === true ? 1 : 0);

@@ -55,7 +55,8 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive } from 'lucide-react';
+import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
 import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
@@ -165,6 +166,11 @@ const obraCols: ColumnDef<Obra>[] = [
                 {!!row.es_prueba && (
                     <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-500/15 text-amber-600 border border-amber-500/30">
                         Prueba
+                    </span>
+                )}
+                {!!row.finalizada && (
+                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-muted text-muted-foreground border border-border">
+                        Finalizada
                     </span>
                 )}
             </span>
@@ -324,6 +330,10 @@ const SettingsPage: React.FC = () => {
     
     // Estados para gestión de permisos
     const [rolPermsModal, setRolPermsModal] = useState<{ open: boolean; rol: RoleData | null }>({ open: false, rol: null });
+    // Finalizar obra: obra seleccionada para el modal + nonce para remontar la
+    // CrudTable de obras tras finalizar (fuerza refetch).
+    const [obraAFinalizar, setObraAFinalizar] = useState<Obra | null>(null);
+    const [obrasNonce, setObrasNonce] = useState(0);
     const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: UserData | null }>({ open: false, user: null });
 
     // Find current active group for navigation
@@ -482,18 +492,37 @@ const SettingsPage: React.FC = () => {
                         />
                     )}
                     {activeTab === 'obras' && (
-                        <CrudTable
-                            endpoint="/obras"
-                            columns={obraCols}
-                            entityName="Obra"
-                            entityNamePlural="Obras"
-                            FormComponent={ObraForm}
-                            queryParams={{ activo: true, incluir_prueba: true }}
-                            canCreate={hasPermission('obras.crear')}
-                            canEdit={hasPermission('obras.editar')}
-                            canDelete={hasPermission('obras.eliminar')}
-                            canExport={false}
-                        />
+                        <>
+                            <CrudTable
+                                key={`obras-${obrasNonce}`}
+                                endpoint="/obras"
+                                columns={obraCols}
+                                entityName="Obra"
+                                entityNamePlural="Obras"
+                                FormComponent={ObraForm}
+                                queryParams={{ activo: true, incluir_prueba: true, incluir_finalizadas: true }}
+                                canCreate={hasPermission('obras.crear')}
+                                canEdit={hasPermission('obras.editar')}
+                                canDelete={hasPermission('obras.eliminar')}
+                                canExport={false}
+                                renderActions={(row) => (
+                                    hasPermission('obras.finalizar') && !row.finalizada ? (
+                                        <button
+                                            onClick={() => setObraAFinalizar(row)}
+                                            className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 text-muted-foreground hover:text-amber-600 transition-colors"
+                                            title="Finalizar obra (concluida)"
+                                        >
+                                            <Archive className="h-3.5 w-3.5" />
+                                        </button>
+                                    ) : null
+                                )}
+                            />
+                            <FinalizarObraModal
+                                obra={obraAFinalizar}
+                                onClose={() => setObraAFinalizar(null)}
+                                onSuccess={() => setObrasNonce(n => n + 1)}
+                            />
+                        </>
                     )}
                     {activeTab === 'cargos' && (
                         <CrudTable

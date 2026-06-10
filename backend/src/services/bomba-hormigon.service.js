@@ -29,7 +29,7 @@ const bombaHormigonService = {
 
     async getAll(query = {}) {
         const { obra_id, fecha_desde, fecha_hasta, page = 1, limit = 50 } = query;
-        let where = 'WHERE r.activo = 1 AND o.es_prueba = 0';
+        let where = 'WHERE r.activo = 1 AND o.es_prueba = 0 AND o.finalizada = 0';
         const params = [];
         if (obra_id) { where += ' AND r.obra_id = ?'; params.push(obra_id); }
         if (fecha_desde) { where += ' AND r.fecha >= ?'; params.push(fecha_desde); }
