@@ -107,7 +107,10 @@ try {
     useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
     allowedFilters: ['participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'es_prueba', 'finalizada'],
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'encargado_nombre', 'es_prueba', 'finalizada', 'fecha_inicio', 'fecha_termino'],
+    // 'finalizada' NO va en allowedFields: finalizar/reactivar es exclusivo de
+    // los endpoints /finalizar y /reactivar (permiso obras.finalizar + validación).
+    // Dejarlo aquí permitía finalizar vía el PUT genérico con solo obras.editar.
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'encargado_nombre', 'es_prueba', 'fecha_inicio', 'fecha_termino'],
     testFlagColumn: 'es_prueba',
     // Aislamiento de obras finalizadas: GET /obras las excluye por defecto;
     // ?incluir_finalizadas=true las incluye; ?finalizada=1 sólo finalizadas.
@@ -143,13 +146,14 @@ try {
         SELECT o.id, o.nombre, e.razon_social AS empresa_nombre,
                COALESCE(o.fecha_inicio,  MIN(a.fecha)) AS fecha_inicio,
                COALESCE(o.fecha_termino, MAX(a.fecha)) AS fecha_termino,
-               DATEDIFF(COALESCE(o.fecha_termino, MAX(a.fecha)),
-                        COALESCE(o.fecha_inicio,  MIN(a.fecha))) AS dias_duracion,
-               COUNT(DISTINCT a.trabajador_id) AS total_trabajadores
+               GREATEST(DATEDIFF(COALESCE(o.fecha_termino, MAX(a.fecha)),
+                        COALESCE(o.fecha_inicio,  MIN(a.fecha))), 0) AS dias_duracion,
+               COUNT(DISTINCT t.id) AS total_trabajadores
         FROM obras o
         LEFT JOIN empresas e ON e.id = o.empresa_id
         LEFT JOIN asistencias a ON a.obra_id = o.id
-        WHERE o.finalizada = 1
+        LEFT JOIN trabajadores t ON t.id = a.trabajador_id AND t.es_prueba = 0
+        WHERE o.finalizada = 1 AND o.es_prueba = 0
         GROUP BY o.id, o.nombre, e.razon_social, o.fecha_inicio, o.fecha_termino
         ORDER BY fecha_termino DESC, o.nombre ASC
       `);
@@ -163,7 +167,7 @@ try {
           FROM asistencias a
           JOIN trabajadores t ON t.id = a.trabajador_id
           LEFT JOIN cargos c ON c.id = t.cargo_id
-          WHERE a.obra_id IN (?)
+          WHERE a.obra_id IN (?) AND t.es_prueba = 0
           GROUP BY a.obra_id, c.id, c.nombre
           ORDER BY cantidad DESC
         `, [ids]);

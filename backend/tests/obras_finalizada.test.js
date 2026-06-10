@@ -63,6 +63,15 @@ describe('PUT /api/obras/:id/finalizar y /reactivar', () => {
         expect(upd[1]).toContain('2026-06-08');
     });
 
+    test('NO se puede finalizar vía PUT genérico /:id con solo obras.editar (bypass cerrado)', async () => {
+        db.query.mockResolvedValue([{ affectedRows: 1 }]);
+        const token = makeToken(['obras.ver', 'obras.editar']);
+        await request(app).put('/api/obras/5').set('Authorization', `Bearer ${token}`).send({ nombre: 'X', finalizada: 1 });
+        // 'finalizada' fue removido de allowedFields → ningún UPDATE debe setearlo.
+        const setFinalizada = db.query.mock.calls.find(c => /UPDATE obras SET[\s\S]*finalizada/.test(c[0]));
+        expect(setFinalizada).toBeUndefined();
+    });
+
     test('finalizar 403 sin permiso obras.finalizar', async () => {
         const token = makeToken(['obras.ver', 'obras.editar']);
         const res = await request(app).put('/api/obras/5/finalizar').set('Authorization', `Bearer ${token}`).send({ fecha_termino: '2026-06-08' });
