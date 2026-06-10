@@ -339,7 +339,7 @@ const MatRequestRow: React.FC<{
                         </span>
                     )}
                     {estado !== 'pendiente' && !rechazado && it.fuente !== 'obra' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[9px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-[9px] font-bold">
                             <ShoppingBag className="h-2.5 w-2.5" /> Comprar
                         </span>
                     )}
@@ -354,7 +354,7 @@ const MatRequestRow: React.FC<{
                 </p>
                 {it.observacion && <p className="text-[10px] text-muted-foreground/70 italic">{it.observacion}</p>}
                 {it.nota_aprobador && (
-                    <p className="text-[10px] text-amber-700 dark:text-amber-300 inline-flex items-center gap-1">
+                    <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
                         <MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}
                     </p>
                 )}
@@ -1006,37 +1006,25 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={() => setHistorialOpen(o => !o)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-purple-50/60 hover:bg-purple-50 border border-purple-200 dark:bg-purple-950/30 dark:hover:bg-purple-950/50 dark:border-purple-900 rounded-xl transition-all"
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/60 hover:bg-muted border border-border rounded-xl transition-all"
                     >
-                        <h4 className="text-xs font-bold text-purple-900 dark:text-purple-300 flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
                             <History className="h-3.5 w-3.5" />
                             Historial de recepciones ({recepciones.length})
                         </h4>
-                        {historialOpen ? <ChevronUp className="h-4 w-4 text-purple-700 dark:text-purple-400" /> : <ChevronDown className="h-4 w-4 text-purple-700 dark:text-purple-400" />}
+                        {historialOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
                     </button>
                     {historialOpen && (
                         <div className="mt-2 space-y-2">
                             {recepciones.map((rec, idx) => (
                                 <div
                                     key={rec.id}
-                                    className={cn(
-                                        "border rounded-xl p-3",
-                                        rec.tipo === 'total'
-                                            ? "bg-green-50/40 border-green-200 dark:bg-green-950/30 dark:border-green-900"
-                                            : "bg-purple-50/40 border-purple-200 dark:bg-purple-950/30 dark:border-purple-900"
-                                    )}
+                                    className="border border-border rounded-xl p-3 bg-muted/40"
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-1.5">
                                             <span className="text-[10px] font-bold text-muted-foreground">#{idx + 1}</span>
-                                            <span
-                                                className={cn(
-                                                    "text-[10px] font-bold px-2 py-0.5 rounded-full border",
-                                                    rec.tipo === 'total'
-                                                        ? "bg-green-100 text-green-800 border-green-300 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800"
-                                                        : "bg-purple-100 text-purple-800 border-purple-300 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800"
-                                                )}
-                                            >
+                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground">
                                                 {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
                                             </span>
                                             <span className="text-[10px] text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
@@ -1069,17 +1057,17 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
                 <div className="shrink-0 mb-5">
-                    <h4 className="text-xs font-bold text-amber-800 dark:text-amber-300 mb-2 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
                         <ShoppingBag className="h-3.5 w-3.5" />
                         Items personalizados ({itemsCustom.length})
                     </h4>
-                    <div className="border border-amber-200 rounded-xl overflow-hidden bg-amber-50/30 dark:border-amber-900 dark:bg-amber-950/20">
+                    <div className="border border-border rounded-xl overflow-hidden bg-muted/30">
                         <table className="w-full text-[11px]">
                             <thead>
-                                <tr className="bg-amber-50 dark:bg-amber-950/40">
-                                    <th className="text-left px-3 py-2 font-bold text-amber-900 dark:text-amber-300">Descripción</th>
-                                    <th className="text-center px-2 py-2 font-bold text-amber-900 dark:text-amber-300 w-20">Cantidad</th>
-                                    <th className="text-left px-2 py-2 font-bold text-amber-900 dark:text-amber-300 w-24">Unidad</th>
+                                <tr className="bg-muted">
+                                    <th className="text-left px-3 py-2 font-bold text-brand-dark">Descripción</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Cantidad</th>
+                                    <th className="text-left px-2 py-2 font-bold text-brand-dark w-24">Unidad</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -1087,7 +1075,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                     const rechazado = it.aprobado === false;
                                     const ajustada = it.cantidad_aprobada != null && Number(it.cantidad_aprobada) !== Number(it.cantidad);
                                     return (
-                                        <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-amber-50/40 dark:bg-amber-950/20", rechazado && "opacity-50")}>
+                                        <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted/40", rechazado && "opacity-50")}>
                                             <td className="px-3 py-1.5 font-medium text-brand-dark">
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <span className={cn(rechazado && "line-through")}>{it.descripcion}</span>
@@ -1103,14 +1091,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                         <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold"><MapPin className="h-2.5 w-2.5" /> Traer de {it.origen_obra_nombre || 'otra obra'}</span>
                                                     )}
                                                     {t.estado !== 'pendiente' && !rechazado && it.fuente !== 'obra' && (
-                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300 text-[9px] font-bold"><ShoppingBag className="h-2.5 w-2.5" /> Comprar</span>
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-[9px] font-bold"><ShoppingBag className="h-2.5 w-2.5" /> Comprar</span>
                                                     )}
                                                 </div>
                                                 {it.observacion && (
                                                     <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
                                                 )}
                                                 {it.nota_aprobador && (
-                                                    <div className="text-[10px] text-amber-700 dark:text-amber-300 mt-0.5 inline-flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}</div>
+                                                    <div className="text-[10px] text-muted-foreground mt-0.5 inline-flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}</div>
                                                 )}
                                             </td>
                                             <td className="px-2 py-1.5 text-center font-semibold">

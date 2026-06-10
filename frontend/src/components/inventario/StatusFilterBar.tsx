@@ -40,7 +40,6 @@ const StatusFilterBar: React.FC<Props> = ({
     const activeChip = chips.find(c => c.value === active) || chips[0];
     const ActiveIcon = activeChip.icon;
     const isActiveDiscrep = !!activeChip.discrepancia;
-    const flaggedDiscrep = !isActiveDiscrep && discrepanciasCount > 0;
 
     // Click fuera cierra el dropdown.
     useEffect(() => {
@@ -78,12 +77,6 @@ const StatusFilterBar: React.FC<Props> = ({
             >
                 <ActiveIcon className="h-3.5 w-3.5 shrink-0" />
                 <span>{activeChip.label}</span>
-                {/* Badge rojo si hay discrepancias y el filtro activo NO es discrepancias */}
-                {flaggedDiscrep && (
-                    <span className="ml-0.5 px-1 py-[1px] rounded-full text-[8px] font-black leading-none bg-red-500 text-white">
-                        {discrepanciasCount}
-                    </span>
-                )}
                 <ChevronDown className={cn("h-3.5 w-3.5 transition-transform shrink-0", open && "rotate-180")} />
             </button>
 
