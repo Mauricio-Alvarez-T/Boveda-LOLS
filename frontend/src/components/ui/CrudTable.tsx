@@ -47,6 +47,13 @@ interface CrudTableProps<T extends { id: number }> {
     canExport?: boolean;
     queryParams?: Record<string, string | number | boolean>;
     renderActions?: (row: T) => React.ReactNode;
+    /**
+     * Señal de recarga externa: al cambiar su valor, la tabla re-fetchea SIN
+     * remontarse (no usar `key` para refrescar — eso desmonta el componente y
+     * cierra el modal de edición abierto). Útil cuando una acción externa
+     * (toggles de participación, finalizar obra) modifica filas.
+     */
+    reloadSignal?: number;
 }
 
 export function CrudTable<T extends { id: number; activo?: boolean }>({
@@ -62,6 +69,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
     canExport = true,
     queryParams = {},
     renderActions,
+    reloadSignal,
 }: CrudTableProps<T>) {
     const [rows, setRows] = useState<T[]>([]);
     const [loading, setLoading] = useState(true);
@@ -96,10 +104,12 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
         }
     }, [endpoint, search, page, entityNamePlural, JSON.stringify(queryParams)]);
 
+    // reloadSignal en las deps: una acción externa que cambie su valor dispara
+    // un refetch (debounced) sin remontar la tabla ni cerrar el modal abierto.
     useEffect(() => {
         const timer = setTimeout(fetchData, 400);
         return () => clearTimeout(timer);
-    }, [fetchData]);
+    }, [fetchData, reloadSignal]);
 
     const handleDelete = (id: number) => {
         showDeleteToast({

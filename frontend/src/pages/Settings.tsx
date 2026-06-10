@@ -497,7 +497,7 @@ const SettingsPage: React.FC = () => {
                     {activeTab === 'obras' && (
                         <>
                             <CrudTable
-                                key={`obras-${obrasNonce}`}
+                                reloadSignal={obrasNonce}
                                 endpoint="/obras"
                                 columns={obraCols}
                                 entityName="Obra"
@@ -710,7 +710,7 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'bodegas' && (
                         <CrudTable<Bodega>
-                            key={`bodegas-${bodegasNonce}`}
+                            reloadSignal={bodegasNonce}
                             endpoint="/bodegas"
                             columns={[
                                 { key: 'nombre', label: 'Nombre' },
