@@ -3,7 +3,7 @@ import { Plus, Minus, Trash2, Send, Search, Package, AlertCircle } from 'lucide-
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
-import type { ItemInventario, Bodega } from '../../types/entities';
+import type { ItemInventario, Bodega, Obra } from '../../types/entities';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import type { StockUbicacion } from './StockBadge';
@@ -14,7 +14,8 @@ type Flujo = 'push_directo' | 'intra_bodega' | 'devolucion' | 'intra_obra' | 'or
 
 interface Props {
     flujo: Flujo;
-    obras: { id: number; nombre: string }[];
+    /** Ya no se usa: el form fetchea sus propias obras filtradas por participa_transferencias. */
+    obras?: { id: number; nombre: string }[];
     onSubmit: (data: any) => Promise<any>;
     onClose: () => void;
 }
@@ -67,13 +68,15 @@ const FLUJO_LABELS: Record<Flujo, { title: string; origenLabel: string; destinoL
     },
 };
 
-const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) => {
+const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
     const labels = FLUJO_LABELS[flujo];
     const shape = FLUJO_SHAPES[flujo];
     const { fetchStockPorItems } = useTransferencias();
 
     const [catalogo, setCatalogo] = useState<ItemInventario[]>([]);
     const [bodegas, setBodegas] = useState<Bodega[]>([]);
+    // Obras filtradas por participa_transferencias (no usamos el prop inventario-scoped).
+    const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
     const [stockMap, setStockMap] = useState<Record<number, StockUbicacion[]>>({});
     const [loading, setLoading] = useState(true);
 
@@ -89,11 +92,13 @@ const MovimientoForm: React.FC<Props> = ({ flujo, obras, onSubmit, onClose }) =>
     useEffect(() => {
         Promise.all([
             api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500'),
-            api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&limit=50'),
-        ]).then(async ([itemsRes, bodRes]) => {
+            api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&participa_transferencias=true&limit=50'),
+            api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=true&limit=500'),
+        ]).then(async ([itemsRes, bodRes, obrasRes]) => {
             const items = itemsRes.data.data;
             setCatalogo(items);
             setBodegas(bodRes.data.data || []);
+            setObras((obrasRes.data.data || []).map(o => ({ id: o.id, nombre: o.nombre })));
             if (items.length) {
                 const stock = await fetchStockPorItems(items.map(i => i.id));
                 setStockMap(stock);

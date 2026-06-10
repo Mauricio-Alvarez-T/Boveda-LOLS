@@ -40,7 +40,9 @@ interface DailyTabProps {
 }
 
 const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
-    const { selectedObra, obras } = useObra();
+    const { selectedObra, obras, setSelectedObra } = useObra();
+    // Picker propio de Asistencia: solo obras con participa_asistencia (mig 075).
+    const obrasAsistencia = useMemo(() => obras.filter(o => o.participa_asistencia !== false), [obras]);
     const { hasPermission } = useAuth();
     const canTakeGlobal = hasPermission('asistencia.tomar.global');
     // Gate financiero: HE es insumo de pago. Sin este permiso se ocultan los
@@ -236,6 +238,30 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                         Exportar Reporte Global
                     </Button>
                 </div>
+            </div>
+        );
+    }
+
+    // Guard: la obra seleccionada (vía selector global) no participa en Asistencia.
+    // Picker propio filtrado para cambiar a una obra válida sin tomar asistencia aquí.
+    if (selectedObra && selectedObra.participa_asistencia === false) {
+        return (
+            <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
+                <div className="h-14 w-14 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mb-4">
+                    <CheckSquare className="h-7 w-7 text-amber-600 dark:text-amber-300" />
+                </div>
+                <h2 className="text-lg font-semibold text-brand-dark">"{selectedObra.nombre}" no participa en Asistencia</h2>
+                <p className="text-muted-foreground mt-2 mb-6 max-w-md text-sm">
+                    Esta obra está deshabilitada para Asistencia en Configuración. Elige otra obra para registrar asistencia.
+                </p>
+                <select
+                    value=""
+                    onChange={(e) => { const o = obrasAsistencia.find(x => x.id === Number(e.target.value)); if (o) setSelectedObra(o); }}
+                    className="w-full max-w-sm h-11 px-3 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                >
+                    <option value="" disabled>Selecciona una obra...</option>
+                    {obrasAsistencia.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
+                </select>
             </div>
         );
     }
@@ -531,7 +557,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 worker={trasladoWorker}
                 obraActualId={selectedObra?.id || null}
                 obraActualNombre={selectedObra?.nombre || ''}
-                obras={obras}
+                obras={obrasAsistencia}
                 fecha={date}
                 onSuccess={(obraDestinoNombre) => {
                     const toEstado = estados.find(e => e.codigo === 'TO');

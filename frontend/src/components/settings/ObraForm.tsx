@@ -16,6 +16,9 @@ const schema = z.object({
     direccion: z.string().optional(),
     encargado_nombre: z.string().optional(),
     participa_inventario: z.boolean().optional(),
+    participa_asistencia: z.boolean().optional(),
+    participa_transferencias: z.boolean().optional(),
+    participa_bombas: z.boolean().optional(),
     es_prueba: z.boolean().optional(),
 });
 
@@ -24,6 +27,9 @@ type FormData = {
     direccion?: string;
     encargado_nombre?: string;
     participa_inventario?: boolean;
+    participa_asistencia?: boolean;
+    participa_transferencias?: boolean;
+    participa_bombas?: boolean;
     es_prueba?: boolean;
 };
 
@@ -45,6 +51,9 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
             // Default TRUE para obras nuevas (se comportan como antes).
             // En edición respetamos el valor actual.
             participa_inventario: initialData ? (initialData.participa_inventario ?? true) : true,
+            participa_asistencia: initialData ? (initialData.participa_asistencia ?? true) : true,
+            participa_transferencias: initialData ? (initialData.participa_transferencias ?? true) : true,
+            participa_bombas: initialData ? (initialData.participa_bombas ?? true) : true,
             es_prueba: initialData?.es_prueba ?? false,
         },
     });
@@ -56,6 +65,9 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
             const payload = {
                 ...data,
                 participa_inventario: data.participa_inventario ?? true,
+                participa_asistencia: data.participa_asistencia ?? true,
+                participa_transferencias: data.participa_transferencias ?? true,
+                participa_bombas: data.participa_bombas ?? true,
                 es_prueba: data.es_prueba ?? false,
             };
             if (initialData) {
@@ -102,6 +114,29 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
                         </span>
                     </div>
                 </label>
+            </div>
+
+            {/* Participación por apartado (mig 075). También editable rápido con los
+                botones toggle de la fila en Configuración → Obras. */}
+            <div className="rounded-xl border border-border p-3">
+                <span className="text-xs font-bold text-brand-dark/60 uppercase tracking-wider">Participa en otros apartados</span>
+                <div className="mt-2 space-y-2">
+                    {[
+                        { field: 'participa_asistencia' as const, label: 'Asistencia' },
+                        { field: 'participa_transferencias' as const, label: 'Transferencias' },
+                        { field: 'participa_bombas' as const, label: 'Bombas de hormigón' },
+                    ].map(({ field, label }) => (
+                        <label key={field} className="flex items-center gap-3 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                id={field}
+                                {...register(field)}
+                                className="h-5 w-5 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
+                            />
+                            <span className="text-sm text-brand-dark">{label}</span>
+                        </label>
+                    ))}
+                </div>
             </div>
 
             <div className="py-2">

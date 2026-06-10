@@ -3,7 +3,7 @@ import { Plus, Minus, Trash2, Send, Search, Package, AlertCircle, ShoppingCart, 
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
-import type { ItemInventario, CategoriaInventario } from '../../types/entities';
+import type { ItemInventario, CategoriaInventario, Obra } from '../../types/entities';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { FieldError } from '../ui/FieldError';
 import { StockBadge, type StockUbicacion } from './StockBadge';
@@ -41,7 +41,8 @@ const ItemThumb: React.FC<{ src: string | null; alt: string; size: 'sm' | 'md' }
 };
 
 interface Props {
-    obras: { id: number; nombre: string }[];
+    /** Ya no se usa: el form fetchea sus obras filtradas por participa_transferencias. */
+    obras?: { id: number; nombre: string }[];
     onCrear: (data: any) => Promise<any>;
     onClose: () => void;
     /**
@@ -66,9 +67,12 @@ interface CustomItem {
     observacion: string;
 }
 
-const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog = false }) => {
+const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false }) => {
     const { fetchStockPorItems } = useTransferencias();
     const itemDetail = useItemDetail();
+
+    // Obras destino filtradas por participa_transferencias (no el prop inventario-scoped).
+    const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
 
     // Catálogo + stock
     const [catalogo, setCatalogo] = useState<ItemInventario[]>([]);
@@ -101,9 +105,11 @@ const SolicitudForm: React.FC<Props> = ({ obras, onCrear, onClose, hideCatalog =
         Promise.all([
             api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500'),
             api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=50'),
-        ]).then(async ([itemsRes, catRes]) => {
+            api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=true&limit=500'),
+        ]).then(async ([itemsRes, catRes, obrasRes]) => {
             const items = itemsRes.data.data;
             setCatalogo(items);
+            setObras((obrasRes.data.data || []).map(o => ({ id: o.id, nombre: o.nombre })));
             setCategorias(catRes.data.data.sort((a, b) => (a.orden || 0) - (b.orden || 0)));
             if (items.length) {
                 const stock = await fetchStockPorItems(items.map(i => i.id));

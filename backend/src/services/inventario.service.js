@@ -36,7 +36,7 @@ const inventarioService = {
             descuentoMapInstance,
         ] = await Promise.all([
             db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND es_prueba = 0 AND finalizada = 0 AND participa_inventario = 1 ORDER BY nombre'),
-            db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 ORDER BY nombre'),
+            db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
             db.query(`
                 SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
                 FROM items_inventario i

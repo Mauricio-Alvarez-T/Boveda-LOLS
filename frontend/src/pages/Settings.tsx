@@ -57,6 +57,7 @@ import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
 import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
+import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
 import { BodegaForm } from '../components/settings/BodegaForm';
 import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
@@ -334,6 +335,8 @@ const SettingsPage: React.FC = () => {
     // CrudTable de obras tras finalizar (fuerza refetch).
     const [obraAFinalizar, setObraAFinalizar] = useState<Obra | null>(null);
     const [obrasNonce, setObrasNonce] = useState(0);
+    // Nonce para remontar la CrudTable de bodegas tras togglear participación.
+    const [bodegasNonce, setBodegasNonce] = useState(0);
     const [userPermsModal, setUserPermsModal] = useState<{ open: boolean; user: UserData | null }>({ open: false, user: null });
 
     // Find current active group for navigation
@@ -506,15 +509,25 @@ const SettingsPage: React.FC = () => {
                                 canDelete={hasPermission('obras.eliminar')}
                                 canExport={false}
                                 renderActions={(row) => (
-                                    hasPermission('obras.finalizar') && !row.finalizada ? (
-                                        <button
-                                            onClick={() => setObraAFinalizar(row)}
-                                            className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 text-muted-foreground hover:text-amber-600 transition-colors"
-                                            title="Finalizar obra (concluida)"
-                                        >
-                                            <Archive className="h-3.5 w-3.5" />
-                                        </button>
-                                    ) : null
+                                    <div className="flex items-center gap-1 flex-wrap justify-end">
+                                        {hasPermission('obras.editar') && (
+                                            <div className="hidden sm:flex items-center gap-1 flex-wrap">
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_inventario" value={row.participa_inventario} label="Inv" onDone={() => setObrasNonce(n => n + 1)} />
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_asistencia" value={row.participa_asistencia} label="Asis" onDone={() => setObrasNonce(n => n + 1)} />
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_transferencias" value={row.participa_transferencias} label="Transf" onDone={() => setObrasNonce(n => n + 1)} />
+                                                <ParticipaToggle id={row.id} endpoint="/obras" field="participa_bombas" value={row.participa_bombas} label="Bombas" onDone={() => setObrasNonce(n => n + 1)} />
+                                            </div>
+                                        )}
+                                        {hasPermission('obras.finalizar') && !row.finalizada && (
+                                            <button
+                                                onClick={() => setObraAFinalizar(row)}
+                                                className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 text-muted-foreground hover:text-amber-600 transition-colors"
+                                                title="Finalizar obra (concluida)"
+                                            >
+                                                <Archive className="h-3.5 w-3.5" />
+                                            </button>
+                                        )}
+                                    </div>
                                 )}
                             />
                             <FinalizarObraModal
@@ -697,6 +710,7 @@ const SettingsPage: React.FC = () => {
                     )}
                     {activeTab === 'bodegas' && (
                         <CrudTable<Bodega>
+                            key={`bodegas-${bodegasNonce}`}
                             endpoint="/bodegas"
                             columns={[
                                 { key: 'nombre', label: 'Nombre' },
@@ -720,6 +734,14 @@ const SettingsPage: React.FC = () => {
                             canEdit={hasPermission('inventario.editar')}
                             canDelete={hasPermission('inventario.eliminar')}
                             canExport={false}
+                            renderActions={(row) => (
+                                hasPermission('inventario.editar') ? (
+                                    <div className="hidden sm:flex items-center gap-1 flex-wrap justify-end">
+                                        <ParticipaToggle id={row.id} endpoint="/bodegas" field="participa_inventario" value={row.participa_inventario} label="Inv" onDone={() => setBodegasNonce(n => n + 1)} />
+                                        <ParticipaToggle id={row.id} endpoint="/bodegas" field="participa_transferencias" value={row.participa_transferencias} label="Transf" onDone={() => setBodegasNonce(n => n + 1)} />
+                                    </div>
+                                ) : null
+                            )}
                         />
                     )}
                     {activeTab === 'items_inventario' && (

@@ -3,14 +3,16 @@ import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X,
 import { MixerTruck } from '../icons/MixerTruck';
 import { toast } from 'sonner';
 import api from '../../services/api';
-import type { RegistroBombaHormigon } from '../../types/entities';
+import type { ApiResponse } from '../../types';
+import type { RegistroBombaHormigon, Obra } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
 
 interface Props {
-    obras: { id: number; nombre: string }[];
+    /** Ya no se usa: el tab fetchea sus obras filtradas por participa_bombas. */
+    obras?: { id: number; nombre: string }[];
     canCreate: boolean;
     /** Permite editar/eliminar registros existentes. Default false. */
     canEdit?: boolean;
@@ -41,7 +43,7 @@ const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmtDateShort = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 
-const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false }) => {
+const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     // Gate financiero: usuarios sin `inventario.bombas.ver_costos` no ven
     // el StatCard "Costo Total" ni la columna costo por registro (el backend
     // ya sanitiza `r.costo` → undefined, aquí cubrimos la parte UI).
@@ -49,6 +51,8 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
     const verCostos = hasPermission('inventario.bombas.ver_costos');
 
     const [registros, setRegistros] = useState<RegistroBombaHormigon[]>([]);
+    // Obras filtradas por participa_bombas (selector + filtro). Fetch propio.
+    const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
     const [loading, setLoading] = useState(false);
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
@@ -72,6 +76,13 @@ const BombasHormigonTab: React.FC<Props> = ({ obras, canCreate, canEdit = false 
     };
 
     useEffect(() => { fetchData(); }, [filterObraId]);
+
+    // Obras que participan en Bombas (independiente de inventario).
+    useEffect(() => {
+        api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_bombas=true&limit=500')
+            .then(res => setObras((res.data.data || []).map(o => ({ id: o.id, nombre: o.nombre }))))
+            .catch(() => setObras([]));
+    }, []);
 
     // ── Abrir modal en modo crear ──
     const openCreate = () => {

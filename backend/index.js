@@ -106,8 +106,8 @@ try {
     activeColumn: 'activa',
     useSoftDelete: true,
     orderBy: 'obras.nombre ASC',
-    allowedFilters: ['participa_inventario', 'es_prueba', 'finalizada'],
-    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'encargado_nombre', 'es_prueba', 'finalizada', 'fecha_inicio', 'fecha_termino'],
+    allowedFilters: ['participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'es_prueba', 'finalizada'],
+    allowedFields: ['nombre', 'direccion', 'empresa_id', 'activa', 'participa_inventario', 'participa_asistencia', 'participa_transferencias', 'participa_bombas', 'encargado_nombre', 'es_prueba', 'finalizada', 'fecha_inicio', 'fecha_termino'],
     testFlagColumn: 'es_prueba',
     // Aislamiento de obras finalizadas: GET /obras las excluye por defecto;
     // ?incluir_finalizadas=true las incluye; ?finalizada=1 sólo finalizadas.
@@ -286,7 +286,8 @@ try {
     activeColumn: 'activa',
     useSoftDelete: true,
     orderBy: 'bodegas.nombre ASC',
-    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa']
+    allowedFilters: ['participa_inventario', 'participa_transferencias'],
+    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa', 'participa_inventario', 'participa_transferencias']
   }));
   // Middleware sanitiza valor_compra/valor_arriendo si el usuario no tiene
   // `inventario.costos.ver`. Aplica antes de la ruta CRUD genérica porque

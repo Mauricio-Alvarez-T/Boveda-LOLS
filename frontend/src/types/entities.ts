@@ -16,6 +16,10 @@ export interface Obra {
     empresa_nombre?: string;
     activa: boolean;
     participa_inventario?: boolean;
+    /** Participación por apartado (mig 075): si FALSE, la obra no aparece en ese módulo. */
+    participa_asistencia?: boolean;
+    participa_transferencias?: boolean;
+    participa_bombas?: boolean;
     /** Encargado que solicita material en obras de inventario (texto libre). */
     encargado_nombre?: string | null;
     /** Si TRUE, obra de prueba: aislada de reportes/inventario/dashboard/asistencia/selectores. */
@@ -290,6 +294,9 @@ export interface Bodega {
     /** Texto libre editable desde BodegaForm (mig 060). */
     responsable_nombre?: string | null;
     activa: boolean;
+    /** Participación por apartado (mig 075): si FALSE, la bodega no aparece en ese módulo. */
+    participa_inventario?: boolean;
+    participa_transferencias?: boolean;
 }
 
 export interface ItemInventario {
