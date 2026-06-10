@@ -5,6 +5,14 @@
 **Si vas a tocar base de datos, migraciones, workflows de deploy, o scripts de servidor:**
 → Lee primero `docs/RUNBOOK.md`. Contiene contexto crítico que evita errores graves en producción.
 
+## 📐 Reglas de negocio y arquitectura
+
+- **`docs/reglas/`** — TODAS las reglas de negocio por categoría (asistencia, inventario, obras,
+  RRHH, seguridad, vehículos, bombas, infraestructura). **Léelas antes de modificar lógica de un
+  dominio**; si cambias una regla en el código, actualiza su archivo (parte del Definition of Done).
+- **`docs/ARQUITECTURA.md`** — arquitectura objetivo, plan v2 por fases, decisiones (no-ORM,
+  TanStack Query, design system) y métricas baseline. Las features nuevas siguen estas convenciones.
+
 ---
 
 ## Resumen del Proyecto
