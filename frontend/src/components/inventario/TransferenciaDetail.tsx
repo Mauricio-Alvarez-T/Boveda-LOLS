@@ -2270,12 +2270,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
                                     <div className="flex items-center gap-1.5">
                                         <span className="text-[10px] font-bold text-muted-foreground">Viaje #{idx + 1}</span>
-                                        <span className={cn(
-                                            "text-[9px] font-bold px-1.5 py-0.5 rounded-full border leading-none",
-                                            rec.tipo === 'total'
-                                                ? "bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800"
-                                                : "bg-purple-100 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800"
-                                        )}>
+                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-border bg-muted text-muted-foreground leading-none">
                                             {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
                                         </span>
                                     </div>
