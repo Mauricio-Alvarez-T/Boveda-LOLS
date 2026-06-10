@@ -2,6 +2,7 @@ import type { SabadoExtraDetalle, SabadoExtraTrabajador } from '../../../types/s
 // Re-exportamos los helpers centralizados (ahora en utils/fechas) para no romper
 // imports externos que aún esperen estas funciones desde acá.
 import { normalizarFecha, fmtFechaCorta, diaDelMes } from '../../../utils/fechas';
+import { flagOn, flagOff } from '../../../utils/flags';
 export { normalizarFecha, fmtFechaCorta, diaDelMes };
 
 /**
@@ -129,8 +130,8 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
  */
 export function buildAsistenciaMessage(s: SabadoExtraDetalle): string {
     const fechaStr = fmtFechaCorta(s.fecha);
-    const asistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => w.asistio === 1);
-    const noAsistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => w.asistio === 0);
+    const asistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => flagOn(w.asistio));
+    const noAsistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => flagOff(w.asistio));
 
     const lines: string[] = [];
     lines.push('*Asistencia trabajo extraordinario*');

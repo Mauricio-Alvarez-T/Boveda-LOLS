@@ -49,16 +49,19 @@ hooks, helpers de formato locales.
 | asistencia.service.js / transferencia.service.js | 2.196 / 1.604 | divididos (Fase 4) |
 | Rutas inline en index.js | ~227 líneas | 0 (Fase 4) |
 | Rutas con validación de body | ~5% | 100% escritura (Fase 1) |
-| Booleans API | 0/1 (sin typeCast) | boolean real (Fase 1) |
+| Booleans API | ~~0/1 (sin typeCast)~~ → **boolean real ✓ (F1.1, 2026-06-10)** | boolean real (Fase 1) |
 | Tests backend | 373 ✓ | mantener verdes siempre |
 
 ## Fases
 
 - [x] **F0 — Documentación y línea base** (2026-06-10): `docs/reglas/` (9), este documento, puntero CLAUDE.md.
-- [ ] **F1 — Núcleo backend**: typeCast en db.js (tarea delicada: ajustar workarounds `!!`/flagOff y
-  mocks; QA staging exhaustivo); validateBody v2 con zod + strip de keys (oleadas: asistencias,
-  transferencias, usuarios, obras → resto; schemas en `backend/src/schemas/`); guard
-  anti-duplicados en migrate.js; request-id en logs; matar console.log.
+- [ ] **F1 — Núcleo backend** (en curso):
+  - [x] F1.1 typeCast en db.js (2026-06-10): TINYINT(1)→boolean; barrido de comparaciones estrictas
+    (1 fix backend: asistencia.service workersToInclude; frontend sabados → flagOn/flagOff
+    dual-aware). PENDIENTE QA staging exhaustivo antes de F1.3.
+  - [ ] F1.2 guard anti-duplicados en migrate.js; request-id en logs; matar console.log.
+  - [ ] F1.3 validateBody v2 con zod + strip de keys (oleadas: asistencias, transferencias,
+    usuarios, obras → resto; schemas en `backend/src/schemas/`).
 - [ ] **F2 — Design system**: escala tipográfica semántica en `@theme` (~5 tokens) y migración de
   los 555 usos POR PÁGINA; componentes IconButton/Chip/StatusBadge/EmptyState/Section; adopción
   total de Button/Input; `utils/format.ts` + `utils/statusConfig.ts` únicos; reglas ESLint

@@ -53,8 +53,9 @@ cd backend && npm test          # 373+ tests, mocks de DB
 
 ## Datos y API
 
-- mysql2 **sin typeCast**: BOOLEAN llegan como 0/1 — usar `flagOff()` / `!!`, query params `=1`
-  (se corrige de raíz en Fase 1 plan v2).
+- mysql2 **con typeCast** (Fase 1 v2): BOOLEAN/TINYINT(1) llegan como **boolean real**; TINYINT
+  "plano" (ej. `periodicidad_anios`) sigue numérico. Frontend usa helpers dual-aware
+  `flagOn()`/`flagOff()` (`utils/flags.ts`); query params de filtro siguen siendo `=1`.
 - Proxy cPanel: `/api/*` → Node; resto → estáticos. Uploads con prefijo `/api/uploads/...`.
 - Logs: `logs/app_YYYY-MM-DD.log` JSON por línea, rotación 5MB; logger estructurado
   (`src/utils/logger-structured.js`), no console.log.

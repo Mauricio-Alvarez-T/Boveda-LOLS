@@ -101,6 +101,6 @@ Implementación: `backend/src/services/transferencia.service.js`.
   como origen/destino en formularios de movimiento (filtro `?participa_transferencias=1`).
 - Bodegas con `participa_inventario=0` no aparecen en resumen/stock (filtro SQL en
   `inventario.service.js`).
-- **OJO**: los flags BOOLEAN llegan del API como **0/1** (mysql2 sin typeCast — se corrige en Fase 1
-  del plan v2). Frontend usa `flagOff()` de `utils/flags.ts`; nunca `=== false`. Query params: `=1`,
-  nunca `=true`.
+- **OJO**: desde Fase 1 (typeCast) los flags BOOLEAN llegan como **boolean real**. Frontend usa
+  `flagOn()`/`flagOff()` de `utils/flags.ts` (dual-aware: aceptan 0/1 y true/false); nunca comparar
+  `=== 1`/`=== false` a pelo. Query params de filtro: `=1`, nunca `=true`.

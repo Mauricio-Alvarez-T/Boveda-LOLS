@@ -3,6 +3,7 @@ import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban, CheckCircle2, Clock 
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
 import { cn } from '../../../utils/cn';
+import { flagOn } from '../../../utils/flags';
 import { useAuth } from '../../../context/AuthContext';
 import { useObra } from '../../../context/ObraContext';
 import { useSabadosExtra } from '../../../hooks/attendance/useSabadosExtra';
@@ -70,7 +71,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             // Si ya está realizada, respetar el valor persistido.
             const asistio = isCitada
                 ? true
-                : (w.asistio === 1);
+                : flagOn(w.asistio);
             const horas = w.horas_trabajadas !== null && w.horas_trabajadas !== undefined
                 ? String(w.horas_trabajadas)
                 : (current.horas_default !== null && current.horas_default !== undefined ? String(current.horas_default) : '');
@@ -85,7 +86,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                 asistio,
                 horas_trabajadas: horas,
                 observacion: w.observacion || '',
-                citado: w.citado === 1,
+                citado: flagOn(w.citado),
                 obra_origen_id: w.obra_origen_id ?? null,
             };
         });

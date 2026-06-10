@@ -11,7 +11,18 @@ const pool = mysql.createPool({
     // y liberan pronto). waitForConnections:true encola en vez de rechazar.
     connectionLimit: Number(process.env.DB_POOL_LIMIT) || 50,
     queueLimit: 50,
-    charset: 'utf8mb4'
+    charset: 'utf8mb4',
+    // Fase 1 plan v2: BOOLEAN/TINYINT(1) → boolean real en todo el API (antes
+    // llegaban como 0/1 y obligaban a workarounds !!flag / flagOff en frontend).
+    // Solo castea TINY con display width 1 (los BOOLEAN); TINYINT "plano"
+    // (ej. periodicidad_anios, width 4) sigue siendo número. NULL se preserva.
+    typeCast: (field, next) => {
+        if (field.type === 'TINY' && field.length === 1) {
+            const v = field.string();
+            return v === null ? null : v === '1';
+        }
+        return next();
+    }
 });
 
 // Test connection on startup

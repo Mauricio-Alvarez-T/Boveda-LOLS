@@ -1203,7 +1203,8 @@ const asistenciaService = {
         // Filtrar trabajadores: incluir activos, y los inactivos solo si tienen asistencia este mes
         // Lo verificamos directamente de 'registros'
         const activeWorkersThisMonth = new Set(registros.map(r => r.trabajador_id));
-        const workersToInlude = workers.filter(w => w.activo === 1 || activeWorkersThisMonth.has(w.id));
+        // Boolean(w.activo): tolera 1/0 (mocks/legacy) y true/false (typeCast Fase 1).
+        const workersToInlude = workers.filter(w => Boolean(w.activo) || activeWorkersThisMonth.has(w.id));
 
         // Helper para fechas seguras
         const formatDate = (date) => {
