@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { HardHat, ChevronUp, Home, Check, Map } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { flagOff } from '../../utils/flags';
 import { useObra } from '../../context/ObraContext';
 
 export const ObraSelector: React.FC = () => {
@@ -11,7 +12,7 @@ export const ObraSelector: React.FC = () => {
     // En Asistencia el selector global respeta participa_asistencia (mig 075):
     // las obras deshabilitadas para asistencia no aparecen en la lista.
     const enAsistencia = location.pathname.startsWith('/asistencia');
-    const visibleObras = enAsistencia ? obras.filter(o => o.participa_asistencia !== false) : obras;
+    const visibleObras = enAsistencia ? obras.filter(o => !flagOff(o.participa_asistencia)) : obras;
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
 

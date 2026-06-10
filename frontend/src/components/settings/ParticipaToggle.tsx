@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
+import { flagOff } from '../../utils/flags';
 import api from '../../services/api';
 
 interface Props {
@@ -25,7 +26,7 @@ interface Props {
  */
 export const ParticipaToggle: React.FC<Props> = ({ id, endpoint, field, value, label, onDone, disabled }) => {
     const [saving, setSaving] = useState(false);
-    const on = value !== false; // undefined/null/true => participa
+    const on = !flagOff(value); // 0/false => off; undefined/null/1/true => participa
 
     const toggle = async () => {
         if (saving || disabled) return;

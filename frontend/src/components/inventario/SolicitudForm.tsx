@@ -105,7 +105,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
         Promise.all([
             api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500'),
             api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=50'),
-            api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=true&limit=500'),
+            api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=1&limit=500'),
         ]).then(async ([itemsRes, catRes, obrasRes]) => {
             const items = itemsRes.data.data;
             setCatalogo(items);

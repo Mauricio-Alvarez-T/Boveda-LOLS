@@ -3,6 +3,7 @@ import { Package, Loader2, Download, Warehouse, MapPin, BarChart3, ClipboardList
 import { MixerTruck } from '../components/icons/MixerTruck';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../utils/cn';
+import { flagOff } from '../utils/flags';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
@@ -182,7 +183,7 @@ const InventarioPage: React.FC = () => {
     // Si resumen ya llegó usa esa lista (filtrada server-side); durante la carga inicial
     // cae al contexto global de obras filtrado client-side.
     const allObras = resumen?.obras || obras
-        .filter(o => o.participa_inventario !== false)
+        .filter(o => !flagOff(o.participa_inventario))
         .map(o => ({ id: o.id, nombre: o.nombre }));
     const allBodegas = resumen?.bodegas || [];
 

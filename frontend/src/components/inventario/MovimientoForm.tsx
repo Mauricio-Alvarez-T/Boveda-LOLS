@@ -92,8 +92,8 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
     useEffect(() => {
         Promise.all([
             api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500'),
-            api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&participa_transferencias=true&limit=50'),
-            api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=true&limit=500'),
+            api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&participa_transferencias=1&limit=50'),
+            api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=1&limit=500'),
         ]).then(async ([itemsRes, bodRes, obrasRes]) => {
             const items = itemsRes.data.data;
             setCatalogo(items);

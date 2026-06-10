@@ -18,6 +18,7 @@ import WorkerQuickView from '../workers/WorkerQuickView';
 
 import { cn } from '../../utils/cn';
 import { useObra } from '../../context/ObraContext';
+import { flagOff } from '../../utils/flags';
 import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
 import { WorkerDocsContent } from './modals/WorkerDocsContent';
@@ -42,7 +43,7 @@ interface DailyTabProps {
 const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     const { selectedObra, obras, setSelectedObra } = useObra();
     // Picker propio de Asistencia: solo obras con participa_asistencia (mig 075).
-    const obrasAsistencia = useMemo(() => obras.filter(o => o.participa_asistencia !== false), [obras]);
+    const obrasAsistencia = useMemo(() => obras.filter(o => !flagOff(o.participa_asistencia)), [obras]);
     const { hasPermission } = useAuth();
     const canTakeGlobal = hasPermission('asistencia.tomar.global');
     // Gate financiero: HE es insumo de pago. Sin este permiso se ocultan los
@@ -244,7 +245,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
 
     // Guard: la obra seleccionada (vía selector global) no participa en Asistencia.
     // Picker propio filtrado para cambiar a una obra válida sin tomar asistencia aquí.
-    if (selectedObra && selectedObra.participa_asistencia === false) {
+    if (selectedObra && flagOff(selectedObra.participa_asistencia)) {
         return (
             <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
                 <div className="h-14 w-14 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mb-4">

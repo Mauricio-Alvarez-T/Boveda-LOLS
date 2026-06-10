@@ -79,7 +79,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
 
     // Obras que participan en Bombas (independiente de inventario).
     useEffect(() => {
-        api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_bombas=true&limit=500')
+        api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_bombas=1&limit=500')
             .then(res => setObras((res.data.data || []).map(o => ({ id: o.id, nombre: o.nombre }))))
             .catch(() => setObras([]));
     }, []);
