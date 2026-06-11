@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const path = require('path');
+const logger = require('../utils/logger-structured');
 
 const emailService = {
     /**
@@ -22,7 +23,7 @@ const emailService = {
                 pass: fromPassword ? '***' + fromPassword.slice(-4) : 'MISSING'
             }
         };
-        console.log('[EMAIL DEBUG] Nodemailer Config:', JSON.stringify(smtpConfig, null, 2));
+        logger.debug('[EMAIL] Nodemailer Config', { smtpConfig });
 
         const transporter = nodemailer.createTransport({
             host: smtpConfig.host,

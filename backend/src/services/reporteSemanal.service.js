@@ -22,6 +22,7 @@
 const fs = require('fs');
 const path = require('path');
 const emailService = require('./email.service');
+const logger = require('../utils/logger-structured');
 
 // ── Helpers de fecha (timezone-safe: opera en hora local del server = Chile) ──
 
@@ -681,7 +682,7 @@ async function resolveRecipients(db, cliTo) {
     } catch (err) {
         // ER_NO_SUCH_TABLE (1146): tabla aún no creada. Cae a env REPORTE_TO.
         if (err && err.errno !== 1146) throw err;
-        console.warn('⚠️  Tabla reportes_suscriptores no existe todavía — usando REPORTE_TO.');
+        logger.warn('Tabla reportes_suscriptores no existe todavía — usando REPORTE_TO.');
     }
     return (process.env.REPORTE_TO || '').split(',').map(s => s.trim()).filter(Boolean);
 }

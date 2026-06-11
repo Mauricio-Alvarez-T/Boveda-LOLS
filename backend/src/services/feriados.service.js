@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../utils/logger-structured');
 
 class FeriadosService {
     async getAll() {
@@ -62,7 +63,7 @@ class FeriadosService {
             
             return { success: true, count };
         } catch (error) {
-            console.error('Error syncing holidays:', error);
+            logger.error('Error syncing holidays', { err: error.message });
             // Fallback opcional aquí si es necesario
             throw error;
         }

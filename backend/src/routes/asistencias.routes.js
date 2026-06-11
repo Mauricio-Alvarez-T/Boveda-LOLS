@@ -2,6 +2,7 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const asistenciaService = require('../services/asistencia.service');
+const logger = require('../utils/logger-structured');
 
 /**
  * RUTAS DE EXPORTACIÓN (Poner arriba para evitar conflictos)
@@ -164,8 +165,7 @@ router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel')
         res.setHeader('Content-Disposition', `attachment; filename="${fileName}"`);
         res.send(buffer);
     } catch (err) {
-        console.error('[CRITICAL ERROR] Fallo en /exportar/excel:', err.message);
-        console.error(err.stack);
+        logger.error('[CRITICAL ERROR] Fallo en /exportar/excel', { err: err.message, stack: err.stack });
         next(err);
     }
 });

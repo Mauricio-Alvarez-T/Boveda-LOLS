@@ -1,5 +1,6 @@
 const pool = require('../config/db');
 const asistenciaService = require('./asistencia.service');
+const logger = require('../utils/logger-structured');
 
 /**
  * Helper: check if user can see a module
@@ -456,7 +457,7 @@ const getSummary = async (obraId = null, permisos = [], userName = '') => {
             const alertasFaltas = await asistenciaService.getAlertasFaltas(obraIdParam, now.getMonth() + 1, now.getFullYear());
             result.trabajadoresConAlertas = alertasFaltas.slice(0, 20);
         } catch (e) {
-            console.error('[Dashboard] Error fetching alertas de faltas:', e.message);
+            logger.error('[Dashboard] Error fetching alertas de faltas', { err: e.message });
             result.trabajadoresConAlertas = [];
         }
     }

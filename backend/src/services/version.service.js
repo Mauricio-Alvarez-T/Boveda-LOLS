@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../utils/logger-structured');
 
 /**
  * Servicio para gestionar las versiones de los roles en memoria.
@@ -21,9 +22,9 @@ class VersionService {
                     this.versions.set(Number(r.id), Number(r.version));
                 });
                 this.initialized = true;
-                console.log(`[VersionService] Cargadas versiones para ${this.versions.size} roles.`);
+                logger.info(`[VersionService] Cargadas versiones para ${this.versions.size} roles.`);
             } catch (err) {
-                console.error('[VersionService] Error inicializando versiones:', err);
+                logger.error('[VersionService] Error inicializando versiones', { err: err.message });
                 this.initPromise = null; // allow retry
                 throw err;
             }
@@ -46,10 +47,10 @@ class VersionService {
         try {
             await db.query('UPDATE roles SET version = ? WHERE id = ?', [next, id]);
             this.versions.set(id, next);
-            console.log(`[VersionService] Rol #${id} incrementado a versión ${next}. Sesiones previas liquidadas.`);
+            logger.info(`[VersionService] Rol #${id} incrementado a versión ${next}. Sesiones previas liquidadas.`);
             return next;
         } catch (err) {
-            console.error(`[VersionService] Error incrementando versión rol #${id}:`, err);
+            logger.error(`[VersionService] Error incrementando versión rol #${id}`, { err: err.message });
             throw err;
         }
     }

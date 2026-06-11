@@ -64,6 +64,29 @@ function getMigrationNumber(filename) {
     return match ? match[1] : null;
 }
 
+// Prefijos NNN_ que históricamente tienen 2 archivos (líneas paralelas que colisionaron al
+// numerar). Se toleran; cualquier OTRO prefijo duplicado es un error de numeración a corregir.
+const KNOWN_DUPLICATE_PREFIXES = new Set(['007', '032', '054', '070', '071', '074']);
+
+/**
+ * Detecta prefijos NNN_ duplicados que NO estén en la whitelist conocida.
+ * Función pura (sin DB) → testeable. Devuelve [{ n, list }].
+ */
+function findUnexpectedDuplicates(files) {
+    const byPrefix = new Map();
+    for (const f of files) {
+        const n = getMigrationNumber(f);
+        if (!n) continue;
+        if (!byPrefix.has(n)) byPrefix.set(n, []);
+        byPrefix.get(n).push(f);
+    }
+    const offenders = [];
+    for (const [n, list] of byPrefix) {
+        if (list.length > 1 && !KNOWN_DUPLICATE_PREFIXES.has(n)) offenders.push({ n, list });
+    }
+    return offenders;
+}
+
 async function ensureSchemaMigrationsTable(conn) {
     await conn.query(`
         CREATE TABLE IF NOT EXISTS schema_migrations (
@@ -171,7 +194,7 @@ async function runMaintenanceTasks(conn) {
 
 /* ──────────────────────── main ──────────────────────── */
 
-(async () => {
+async function main() {
     log.info('🚀 Iniciando runner de migraciones…');
 
     if (!fs.existsSync(MIGRATIONS_DIR)) {
@@ -192,6 +215,14 @@ async function runMaintenanceTasks(conn) {
     try {
         const files = listMigrationFiles();
         log.info(`Encontrados ${files.length} archivos en db/migrations/`);
+
+        // 0. Guard anti-duplicados: aborta si hay un prefijo NNN_ repetido fuera de la whitelist.
+        const dups = findUnexpectedDuplicates(files);
+        if (dups.length) {
+            const detalle = dups.map(d => `  ${d.n}: ${d.list.join(', ')}`).join('\n');
+            log.err(`Prefijos de migración duplicados NO esperados:\n${detalle}`);
+            throw new Error('Migración duplicada detectada — renumera el archivo nuevo antes de migrar.');
+        }
 
         // 1. Asegurar tabla de control
         const schemaExisted = (await conn.query(`
@@ -234,4 +265,12 @@ async function runMaintenanceTasks(conn) {
         await conn.end();
         process.exit(0);
     }
-})();
+}
+
+// Solo auto-ejecuta cuando se corre como script (node scripts/migrate.js).
+// Al hacer require() desde tests, NO conecta a DB — solo expone las funciones puras.
+if (require.main === module) {
+    main();
+}
+
+module.exports = { findUnexpectedDuplicates, getMigrationNumber, KNOWN_DUPLICATE_PREFIXES };

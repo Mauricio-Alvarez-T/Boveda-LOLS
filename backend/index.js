@@ -49,6 +49,7 @@ app.use('/api/uploads/inventario', express.static(path.join(__dirname, 'uploads/
 app.use('/api/', generalLimiter);
 const activityLogger = require('./src/middleware/logger').activityLogger;
 const logger = require('./src/utils/logger-structured');
+app.use(logger.requestContext);   // primero: establece el reqId (ALS) para toda la cadena
 app.use(activityLogger);
 app.use(logger.requestLogger);
 
@@ -436,12 +437,12 @@ if (process.env.NODE_ENV !== 'test') {
   versionService.init()
     .then(() => {
       app.listen(PORT, () => {
-        console.log(`🚀 SGDL API corriendo en http://localhost:${PORT}`);
-        console.log(`📡 Health check: http://localhost:${PORT}/api/health`);
+        logger.info(`SGDL API corriendo en http://localhost:${PORT}`);
+        logger.info(`Health check: http://localhost:${PORT}/api/health`);
       });
     })
     .catch(err => {
-      console.error('[startup] versionService.init falló — no se levantará el servidor:', err);
+      logger.fatal('[startup] versionService.init falló — no se levantará el servidor', { err: err.message });
       process.exit(1);
     });
 }

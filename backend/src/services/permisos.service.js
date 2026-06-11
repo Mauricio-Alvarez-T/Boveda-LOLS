@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../utils/logger-structured');
 
 const permisosService = {
     /**
@@ -178,9 +179,9 @@ const permisosService = {
                  modulo = VALUES(modulo)`,
                 [MAESTRO_PERMISOS]
             );
-            console.log(`✅ Catálogo de Permisos Sincronizado (${MAESTRO_PERMISOS.length} permisos).`);
+            logger.info(`Catálogo de Permisos Sincronizado (${MAESTRO_PERMISOS.length} permisos).`);
         } catch (error) {
-            console.error('❌ Error sincronizando catálogo de permisos:', error.message);
+            logger.error('Error sincronizando catálogo de permisos', { err: error.message });
         }
     }
 };

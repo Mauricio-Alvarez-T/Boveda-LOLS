@@ -5,6 +5,7 @@ const db = require('../config/db');
 const { cleanRut } = require('../utils/rut');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger-structured');
 
 // Verificar si un RUT ya existe — usado por el formulario de creación para
 // avisar en vivo "este trabajador ya existe" sin tener que enviar el form.
@@ -129,7 +130,7 @@ router.delete('/:id/depurar', auth, checkPermission('trabajadores.depurar'), asy
                 }
             });
         } catch (fileErr) {
-            console.error('Error al borrar archivos físicos del trabajador depurado:', fileErr);
+            logger.error('Error al borrar archivos físicos del trabajador depurado', { err: fileErr.message });
         }
 
         res.json({ success: true, message: 'Registro del trabajador depurado exitosamente' });

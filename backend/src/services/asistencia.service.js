@@ -2,6 +2,7 @@ const db = require('../config/db');
 const ExcelJS = require('exceljs');
 const { logManualActivity } = require('../middleware/logger');
 const jwt = require('jsonwebtoken');
+const logger = require('../utils/logger-structured');
 
 // ── Monkey patch: tamaño dinámico del cuadro de comentarios (.xlsx) ──
 // ExcelJS 4.4.0 hardcodea el shape VML de las notas en 97.8pt × 59.1pt
@@ -74,7 +75,7 @@ try {
         VmlClientDataXform.prototype.__patchedAnchor = true;
     }
 } catch (e) {
-    console.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape/anchor:', e.message);
+    logger.warn('[asistencia] no se pudo aplicar monkey patch a ExcelJS comment shape/anchor', { err: e.message });
 }
 
 /**
@@ -100,7 +101,7 @@ function computeNoteSize(text) {
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
-    console.error('⛔ FATAL: JWT_SECRET no está configurado en las variables de entorno.');
+    logger.fatal('JWT_SECRET no está configurado en las variables de entorno.');
     process.exit(1);
 }
 
@@ -349,7 +350,7 @@ const asistenciaService = {
             // Después del commit, registrar logs (no bloquea la respuesta)
             if (logEntries.length > 0) {
                 this._logBulkChanges(logEntries, obraId, registradoPor, req).catch(err => {
-                    console.error('Error al registrar logs de asistencia:', err);
+                    logger.error('Error al registrar logs de asistencia', { err: err.message });
                 });
             }
 
@@ -638,7 +639,7 @@ const asistenciaService = {
         try {
             [periodos] = await db.query(sql, params);
         } catch (e) {
-            console.warn('[_filasDePeriodos] query falló:', e.message);
+            logger.warn('[_filasDePeriodos] query falló', { err: e.message });
             return [];
         }
         if (!Array.isArray(periodos) || periodos.length === 0) return [];
@@ -711,7 +712,7 @@ const asistenciaService = {
 
         return filas;
         } catch (e) {
-            console.warn('[_filasDePeriodos] error inesperado:', e.message);
+            logger.warn('[_filasDePeriodos] error inesperado', { err: e.message });
             return [];
         }
     },
@@ -1291,7 +1292,7 @@ const asistenciaService = {
                 }
             }
         } catch (e) {
-            console.warn('[asistencia.generarExcel] no se pudieron leer períodos:', e.message);
+            logger.warn('[asistencia.generarExcel] no se pudieron leer períodos', { err: e.message });
         }
 
         let maxStrDateInRecords = '';
@@ -2058,7 +2059,7 @@ const asistenciaService = {
                     req
                 );
             } catch (logErr) {
-                console.error('Error registrando log de período:', logErr);
+                logger.error('Error registrando log de período', { err: logErr.message });
             }
 
             return {
@@ -2166,7 +2167,7 @@ const asistenciaService = {
                     req
                 );
             } catch (logErr) {
-                console.error('Error registrando log:', logErr);
+                logger.error('Error registrando log', { err: logErr.message });
             }
 
             return { id: periodoId, cancelado: true };
@@ -2347,7 +2348,7 @@ const asistenciaService = {
         params.push(MAX_FALTAS);
         const [faltas] = await db.query(faltasQuery, params);
         if (faltas.length >= MAX_FALTAS) {
-            console.warn(`⚠️  getAlertasFaltas alcanzó el tope de ${MAX_FALTAS} filas (obra=${obraId}, ${mes}/${anio}). Resultado posiblemente truncado.`);
+            logger.warn(`getAlertasFaltas alcanzó el tope de ${MAX_FALTAS} filas — resultado posiblemente truncado`, { obraId, mes, anio });
         }
 
         // 4. Agrupar por trabajador

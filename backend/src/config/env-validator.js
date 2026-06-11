@@ -3,6 +3,8 @@
  * Se ejecuta al arranque del servidor para garantizar que todas
  * las configuraciones críticas estén presentes ANTES de aceptar tráfico.
  */
+const logger = require('../utils/logger-structured');
+
 const REQUIRED_ENV_VARS = [
     { key: 'JWT_SECRET',   hint: 'Clave secreta para firmar tokens JWT' },
     { key: 'DB_HOST',      hint: 'Host de la base de datos MySQL' },
@@ -14,14 +16,9 @@ function validateEnv() {
     const missing = REQUIRED_ENV_VARS.filter(v => !process.env[v.key]);
 
     if (missing.length > 0) {
-        console.error('\n⛔ ══════════════════════════════════════════════════');
-        console.error('   VARIABLES DE ENTORNO FALTANTES');
-        console.error('══════════════════════════════════════════════════\n');
-        missing.forEach(v => {
-            console.error(`   ❌ ${v.key} — ${v.hint}`);
+        logger.fatal('Variables de entorno faltantes — revisa tu .env o las variables del sistema', {
+            missing: missing.map(v => `${v.key} (${v.hint})`)
         });
-        console.error('\n   Revisa tu archivo .env o las variables del sistema.');
-        console.error('══════════════════════════════════════════════════\n');
         if (process.env.NODE_ENV === 'test') {
             throw new Error(`Variables de entorno faltantes: ${missing.map(v => v.key).join(', ')}`);
         }

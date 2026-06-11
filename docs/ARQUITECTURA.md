@@ -50,7 +50,7 @@ hooks, helpers de formato locales.
 | Rutas inline en index.js | ~227 líneas | 0 (Fase 4) |
 | Rutas con validación de body | ~5% | 100% escritura (Fase 1) |
 | Booleans API | ~~0/1 (sin typeCast)~~ → **boolean real ✓ (F1.1, 2026-06-10)** | boolean real (Fase 1) |
-| Tests backend | 373 ✓ | mantener verdes siempre |
+| Tests backend | 379 ✓ | mantener verdes siempre |
 
 ## Fases
 
@@ -59,7 +59,10 @@ hooks, helpers de formato locales.
   - [x] F1.1 typeCast en db.js (2026-06-10): TINYINT(1)→boolean; barrido de comparaciones estrictas
     (1 fix backend: asistencia.service workersToInclude; frontend sabados → flagOn/flagOff
     dual-aware). PENDIENTE QA staging exhaustivo antes de F1.3.
-  - [ ] F1.2 guard anti-duplicados en migrate.js; request-id en logs; matar console.log.
+  - [x] F1.2 (2026-06-11): guard anti-duplicados en migrate.js (whitelist 007/032/054/070/071/074 +
+    test `migrate_guard.test.js`); request-id por request vía AsyncLocalStorage (`utils/request-context.js`,
+    header `X-Request-Id`, reqId auto en todos los logs); barrido de los ~43 `console.*` runtime de
+    `src/` al logger estructurado (scripts/ CLI se dejan).
   - [ ] F1.3 validateBody v2 con zod + strip de keys (oleadas: asistencias, transferencias,
     usuarios, obras → resto; schemas en `backend/src/schemas/`).
 - [ ] **F2 — Design system**: escala tipográfica semántica en `@theme` (~5 tokens) y migración de

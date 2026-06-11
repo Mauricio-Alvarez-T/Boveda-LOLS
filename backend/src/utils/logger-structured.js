@@ -1,5 +1,7 @@
 const fs = require('fs');
 const path = require('path');
+const { randomUUID } = require('crypto');
+const { getRequestId, run } = require('./request-context');
 
 const LOG_DIR = path.join(__dirname, '../../logs');
 const MAX_LOG_SIZE = 5 * 1024 * 1024; // 5 MB
@@ -18,10 +20,12 @@ const currentLevel = LEVELS[process.env.LOG_LEVEL] || LEVELS.INFO;
  */
 const logger = {
     _format(level, message, meta = {}) {
+        const reqId = getRequestId();
         return JSON.stringify({
             ts: new Date().toISOString(),
             level,
             msg: message,
+            ...(reqId ? { reqId } : {}),
             ...meta
         });
     },
@@ -56,6 +60,20 @@ const logger = {
     fatal(msg, meta) { this._write('FATAL', msg, meta); },
 
     /**
+     * Express middleware: establece el contexto AsyncLocalStorage del request.
+     * Genera (u honra el header entrante) un reqId, lo expone en req.id y en el
+     * header de respuesta X-Request-Id, y envuelve el resto de la cadena para que
+     * todo log emitido durante el request incluya el reqId automáticamente.
+     * Debe montarse ANTES de cualquier middleware que loguee.
+     */
+    requestContext(req, res, next) {
+        const reqId = req.headers['x-request-id'] || randomUUID();
+        req.id = reqId;
+        res.setHeader('X-Request-Id', reqId);
+        run({ reqId }, () => next());
+    },
+
+    /**
      * Express middleware that logs every request with timing.
      */
     requestLogger(req, res, next) {
@@ -65,6 +83,7 @@ const logger = {
         res.end = function (...args) {
             const duration = Date.now() - start;
             const meta = {
+                reqId: req.id,
                 method: req.method,
                 url: req.originalUrl,
                 status: res.statusCode,

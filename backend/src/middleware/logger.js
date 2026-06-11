@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const logger = require('../utils/logger-structured');
 const {
     EXCLUDED_KEYS,
     LABEL_MAP,
@@ -48,7 +49,7 @@ const resolveNames = async (obj) => {
                         const nameMap = Object.fromEntries(rows.map(r => [String(r.id), r.label]));
                         if (val.de !== null) result[key].de = nameMap[String(val.de)] || val.de;
                         if (val.a !== null) result[key].a = nameMap[String(val.a)] || val.a;
-                    } catch (err) { console.error(`Error resolving ${key} (multi):`, err); }
+                    } catch (err) { logger.error(`Error resolving ${key} (multi)`, { err: err.message }); }
                 }
             }
             // Caso 2: Valor plano (CREATE)
@@ -56,7 +57,7 @@ const resolveNames = async (obj) => {
                 try {
                     const [rows] = await db.query(`SELECT ${config.field} as label FROM ${config.table} WHERE id = ?`, [val]);
                     if (rows.length > 0) result[key] = rows[0].label;
-                } catch (err) { console.error(`Error resolving ${key} (single):`, err); }
+                } catch (err) { logger.error(`Error resolving ${key} (single)`, { err: err.message }); }
             }
         }
     }
@@ -207,7 +208,7 @@ const activityLogger = async (req, res, next) => {
                 }
             }
         } catch (err) {
-            console.error('Error al capturar estado anterior para log:', err);
+            logger.error('Error al capturar estado anterior para log', { err: err.message });
         }
     }
 
@@ -277,7 +278,7 @@ const activityLogger = async (req, res, next) => {
                     [usuario_id, modulo, accion, item_id, entidad_tipo, entidad_label, detalle, ip, req.get('User-Agent')]
                 );
             } catch (err) {
-                console.error('Error al guardar log de actividad:', err);
+                logger.error('Error al guardar log de actividad', { err: err.message });
             }
         }
     });
@@ -307,7 +308,7 @@ const logManualActivity = async (
             [usuario_id, modulo, accion, item_id, entidad_tipo || null, entidad_label || null, detalle, ip, user_agent]
         );
     } catch (err) {
-        console.error('Error al guardar log manual:', err);
+        logger.error('Error al guardar log manual', { err: err.message });
     }
 };
 

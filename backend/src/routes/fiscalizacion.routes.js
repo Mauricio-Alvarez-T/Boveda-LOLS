@@ -7,6 +7,7 @@ const asistenciaService = require('../services/asistencia.service');
 const emailService = require('../services/email.service');
 const fs = require('fs');
 const path = require('path');
+const logger = require('../utils/logger-structured');
 
 // Advanced Search Endpoint
 router.get('/trabajadores-avanzado', auth, checkPermission('documentos.ver'), async (req, res, next) => {
@@ -33,14 +34,14 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
         const credentials = await emailConfigRoutes.getDecryptedPassword(req.user.id);
 
         if (!credentials || !credentials.email || !credentials.password) {
-            console.error('[EMAIL ERROR] No credentials found for user', req.user.id);
+            logger.error('[EMAIL ERROR] No credentials found for user', { userId: req.user.id });
             return res.status(400).json({
                 error: 'El usuario no tiene credenciales de correo configuradas. Ve a Configuración > Mi Correo para guardarlas.',
                 code: 'NO_EMAIL_CREDENTIALS'
             });
         }
 
-        console.log(`[EMAIL DEBUG] Autenticando con: ${credentials.email}`);
+        logger.debug('[EMAIL] Autenticando', { email: credentials.email });
         
         // Generar Excel usando el servicio de asistencia (nuevo formato unificado)
         const buffer = await asistenciaService.generarExcel({
@@ -60,7 +61,7 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
             try {
                 zipPath = await zipService.createZip(workerIds);
             } catch (e) {
-                console.error('Error generando ZIP de documentos:', e);
+                logger.error('Error generando ZIP de documentos', { err: e.message });
             }
         }
 
@@ -68,7 +69,7 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
         if (zipPath && fs.existsSync(zipPath)) {
             attachmentPaths.push(zipPath);
         }
-        console.log(`[EMAIL DEBUG] Adjuntos preparados: ${attachmentPaths.length} archivos`);
+        logger.debug('[EMAIL] Adjuntos preparados', { archivos: attachmentPaths.length });
 
         const result = await emailService.sendWithAttachment({
             from: credentials.email,

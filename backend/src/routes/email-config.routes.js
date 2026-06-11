@@ -2,12 +2,13 @@ const express = require('express');
 const router = express.Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
+const logger = require('../utils/logger-structured');
 
 let emailService;
 try {
     emailService = require('../services/email.service');
 } catch (e) {
-    console.warn('[EMAIL-CONFIG] email.service no disponible:', e.message);
+    logger.warn('[EMAIL-CONFIG] email.service no disponible', { err: e.message });
 }
 
 router.get('/', auth, checkPermission('sistema.email.configurar'), async (req, res, next) => {

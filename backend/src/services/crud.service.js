@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const ExcelJS = require('exceljs');
+const logger = require('../utils/logger-structured');
 
 /**
  * Genera un servicio CRUD genérico para cualquier tabla.
@@ -157,7 +158,7 @@ const createCrudService = (tableName, options = {}) => {
                 // Si no hay whitelist, por ahora permitimos todo pero logueamos peligro
                 // TODO: Hacer esto estricto una vez configurado en index.js
                 Object.assign(safeData, data);
-                console.warn(`⚠️ ALERTA DE SEGURIDAD: Tabla [${tableName}] no tiene whitelist de campos definida.`);
+                logger.warn(`ALERTA DE SEGURIDAD: Tabla [${tableName}] no tiene whitelist de campos definida.`);
             }
 
             if (safeData.rut) {
@@ -229,7 +230,7 @@ const createCrudService = (tableName, options = {}) => {
                 });
             } else {
                 Object.assign(safeData, data);
-                console.warn(`⚠️ ALERTA DE SEGURIDAD: Tabla [${tableName}] no tiene whitelist de campos definida (update).`);
+                logger.warn(`ALERTA DE SEGURIDAD: Tabla [${tableName}] no tiene whitelist de campos definida (update).`);
             }
 
             if (safeData.rut) {
