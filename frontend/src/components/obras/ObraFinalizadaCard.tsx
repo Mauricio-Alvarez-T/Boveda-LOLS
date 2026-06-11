@@ -2,9 +2,10 @@ import React, { useState } from 'react';
 import { Building2, Calendar, Clock, Users, RotateCcw, HardHat } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { cn } from '../../utils/cn';
 import api from '../../services/api';
-import { fmtFecha, formatDuracion } from '../../utils/fechas';
+import { fmtFecha, formatDuracion } from '../../utils/format';
+import { Button } from '../ui/Button';
+import { StatusBadge } from '../ui/StatusBadge';
 import type { ObraFinalizada } from '../../types/entities';
 
 interface Props {
@@ -51,14 +52,12 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
         >
             {/* Header: badge + nombre + empresa */}
             <div className="p-4 pb-3 border-b border-border/60">
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-muted-foreground text-[9px] font-black uppercase tracking-wider mb-2">
-                    Finalizada
-                </span>
+                <StatusBadge domain="obra" status="finalizada" className="mb-2" />
                 <h3 className="text-sm font-black text-brand-dark leading-tight truncate" title={obra.nombre}>
                     {obra.nombre}
                 </h3>
                 {obra.empresa_nombre && (
-                    <p className="flex items-center gap-1 text-[10px] text-muted-foreground mt-0.5 truncate">
+                    <p className="flex items-center gap-1 text-caption text-muted-foreground mt-0.5 truncate">
                         <Building2 className="h-3 w-3 shrink-0" /> {obra.empresa_nombre}
                     </p>
                 )}
@@ -67,7 +66,7 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
             <div className="p-4 pt-3 flex flex-col gap-3 flex-1">
                 {/* Fechas + duración */}
                 <div className="space-y-1.5">
-                    <p className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                    <p className="flex items-center gap-1.5 text-label text-muted-foreground">
                         <Calendar className="h-3.5 w-3.5 text-brand-primary shrink-0" />
                         <span>
                             {obra.fecha_inicio ? fmtFecha(obra.fecha_inicio) : '—'}
@@ -75,7 +74,7 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
                             {obra.fecha_termino ? fmtFecha(obra.fecha_termino) : '—'}
                         </span>
                     </p>
-                    <p className="flex items-center gap-1.5 text-[11px]">
+                    <p className="flex items-center gap-1.5 text-label">
                         <Clock className="h-3.5 w-3.5 text-brand-primary shrink-0" />
                         <span className="font-bold text-brand-dark">{formatDuracion(obra.dias_duracion)}</span>
                     </p>
@@ -86,7 +85,7 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
                     <Users className="h-4 w-4 text-brand-primary shrink-0" />
                     <div className="leading-tight">
                         <p className="text-lg font-black text-brand-dark">{obra.total_trabajadores}</p>
-                        <p className="text-[9px] text-muted-foreground uppercase font-bold tracking-wide">
+                        <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">
                             Trabajadores (histórico)
                         </p>
                     </div>
@@ -94,16 +93,16 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
 
                 {/* Por cargo — barras */}
                 <div className="flex-1">
-                    <p className="flex items-center gap-1 text-[9px] font-black uppercase tracking-widest text-brand-dark/50 mb-1.5">
+                    <p className="flex items-center gap-1 text-micro font-black uppercase tracking-widest text-brand-dark/50 mb-1.5">
                         <HardHat className="h-3 w-3" /> Por cargo
                     </p>
                     {cargosVisibles.length === 0 ? (
-                        <p className="text-[10px] text-muted-foreground italic">Sin asistencias registradas</p>
+                        <p className="text-caption text-muted-foreground italic">Sin asistencias registradas</p>
                     ) : (
                         <div className="space-y-1">
                             {cargosVisibles.map(c => (
                                 <div key={c.cargo} className="flex items-center gap-2">
-                                    <span className="w-24 shrink-0 text-[10px] text-muted-foreground truncate" title={c.cargo}>
+                                    <span className="w-24 shrink-0 text-caption text-muted-foreground truncate" title={c.cargo}>
                                         {c.cargo}
                                     </span>
                                     <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
@@ -112,13 +111,13 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
                                             style={{ width: `${maxCantidad > 0 ? Math.max((c.cantidad / maxCantidad) * 100, 6) : 0}%` }}
                                         />
                                     </div>
-                                    <span className="w-6 shrink-0 text-right text-[10px] font-bold text-brand-dark tabular-nums">
+                                    <span className="w-6 shrink-0 text-right text-caption font-bold text-brand-dark tabular-nums">
                                         {c.cantidad}
                                     </span>
                                 </div>
                             ))}
                             {cargosOcultos > 0 && (
-                                <p className="text-[9px] text-muted-foreground/70 pt-0.5">+{cargosOcultos} cargo{cargosOcultos > 1 ? 's' : ''} más</p>
+                                <p className="text-micro text-muted-foreground/70 pt-0.5">+{cargosOcultos} cargo{cargosOcultos > 1 ? 's' : ''} más</p>
                             )}
                         </div>
                     )}
@@ -128,28 +127,33 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
                 {canReactivar && (
                     <div className="mt-auto pt-1">
                         {!confirming ? (
-                            <button
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full"
+                                leftIcon={<RotateCcw className="h-3 w-3" />}
                                 onClick={() => setConfirming(true)}
-                                className="w-full flex items-center justify-center gap-1.5 py-2 text-[11px] font-bold text-muted-foreground border border-border rounded-xl hover:text-brand-primary hover:border-brand-primary/30 transition-all"
                             >
-                                <RotateCcw className="h-3 w-3" /> Reactivar obra
-                            </button>
+                                Reactivar obra
+                            </Button>
                         ) : (
                             <div className="flex gap-1.5">
-                                <button
+                                <Button
+                                    size="sm"
+                                    className="flex-1"
+                                    isLoading={reactivating}
                                     onClick={handleReactivar}
-                                    disabled={reactivating}
-                                    className="flex-1 py-2 text-[11px] font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all"
                                 >
-                                    {reactivating ? 'Reactivando...' : 'Confirmar'}
-                                </button>
-                                <button
-                                    onClick={() => setConfirming(false)}
+                                    Confirmar
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
                                     disabled={reactivating}
-                                    className={cn("px-3 py-2 text-[11px] font-bold text-muted-foreground hover:text-brand-dark transition-colors")}
+                                    onClick={() => setConfirming(false)}
                                 >
                                     Cancelar
-                                </button>
+                                </Button>
                             </div>
                         )}
                     </div>

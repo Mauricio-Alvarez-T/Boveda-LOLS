@@ -4,6 +4,8 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ObraFinalizadaCard } from '../components/obras/ObraFinalizadaCard';
+import { IconButton } from '../components/ui/IconButton';
+import { EmptyState } from '../components/ui/EmptyState';
 import api from '../services/api';
 import type { ObraFinalizada } from '../types/entities';
 
@@ -77,13 +79,14 @@ const ObrasFinalizadasPage: React.FC = () => {
                     className="w-full pl-9 pr-8 py-2 text-sm border border-border rounded-xl bg-card focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary"
                 />
                 {filtro && (
-                    <button
-                        onClick={() => setFiltro('')}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-md hover:bg-muted text-muted-foreground"
+                    <IconButton
+                        variant="ghost"
+                        size="sm"
                         aria-label="Limpiar búsqueda"
-                    >
-                        <X className="h-3.5 w-3.5" />
-                    </button>
+                        onClick={() => setFiltro('')}
+                        className="absolute right-1 top-1/2 -translate-y-1/2"
+                        icon={<X className="h-3.5 w-3.5" />}
+                    />
                 )}
             </div>
 
@@ -94,22 +97,16 @@ const ObrasFinalizadasPage: React.FC = () => {
                         {[1, 2, 3, 4].map(i => <Skeleton key={i} />)}
                     </div>
                 ) : obras.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-3 py-20">
-                        <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center">
-                            <Archive className="h-8 w-8 text-muted-foreground/40" />
-                        </div>
-                        <div className="text-center">
-                            <p className="text-sm font-semibold text-brand-dark">Sin obras finalizadas</p>
-                            <p className="text-xs text-muted-foreground mt-1 max-w-xs">
-                                Cuando concluyas una obra desde Configuración → Obras, aparecerá aquí con sus datos históricos.
-                            </p>
-                        </div>
-                    </div>
+                    <EmptyState
+                        icon={Archive}
+                        title="Sin obras finalizadas"
+                        description="Cuando concluyas una obra desde Configuración → Obras, aparecerá aquí con sus datos históricos."
+                    />
                 ) : obrasFiltradas.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center gap-2 py-20">
-                        <Search className="h-8 w-8 text-muted-foreground/40" />
-                        <p className="text-sm text-muted-foreground">No se encontraron resultados para "{filtro}"</p>
-                    </div>
+                    <EmptyState
+                        icon={Search}
+                        title={`No se encontraron resultados para "${filtro}"`}
+                    />
                 ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
                         {obrasFiltradas.map((obra, idx) => (
