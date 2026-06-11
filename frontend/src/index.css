@@ -49,6 +49,28 @@
   --color-info-foreground: var(--info-foreground);
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Tipografía — escala semántica (Design System, Fase 2)
+   Tailwind v4: `--text-<n>` genera la utilidad `text-<n>`; el par
+   `--text-<n>--line-height` fija su interlineado.
+   NOMBRES PROPIOS a propósito: NO redefinimos text-xs/sm/base/lg de
+   Tailwind (eso desplazaría toda la app). Mapea la distribución real
+   de los `text-[Npx]` arbitrarios (ver docs/reglas/diseno.md):
+     micro 9px · caption 10px · label 11px · section 13px.
+   Migración: 7/8/9px→micro · 10px→caption · 11px→label · 12px→text-xs
+   (Tailwind) · 13px→section · 14px→text-sm.
+   ────────────────────────────────────────────────────────────────── */
+@theme {
+  --text-micro: 0.5625rem;
+  --text-micro--line-height: 0.875rem;
+  --text-caption: 0.625rem;
+  --text-caption--line-height: 0.9375rem;
+  --text-label: 0.6875rem;
+  --text-label--line-height: 1rem;
+  --text-section: 0.8125rem;
+  --text-section--line-height: 1.25rem;
+}
+
 /* ── Modo claro (default) ─────────────────────────────────────────── */
 :root {
   color-scheme: light;

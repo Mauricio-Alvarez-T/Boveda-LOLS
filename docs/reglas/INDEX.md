@@ -14,6 +14,7 @@ Catálogo de TODAS las reglas de negocio de Bóveda LOLS, separadas por categor�
 | Vehículos | [vehiculos.md](vehiculos.md) | Seguros, revisiones, mantenciones, permisos de circulación, alertas email |
 | Bombas de Hormigón | [bombas.md](bombas.md) | Registro por obra, costos gateados |
 | Infraestructura | [infraestructura.md](infraestructura.md) | Migraciones, deploy, cron, env, logs, worktrees, pre-deploy checks |
+| Diseño (Design System) | [diseno.md](diseno.md) | Tokens tipográficos, colores, primitivas ui/, statusConfig, helpers de formato, reglas ESLint, migración F2 |
 
 > Documento creado en Fase 0 del plan v2 (ver `docs/ARQUITECTURA.md`). Fuente: auditoría de código
 > de junio 2026; ubicaciones de código aproximadas (las líneas se mueven, los archivos no tanto).
