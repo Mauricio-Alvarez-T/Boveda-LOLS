@@ -129,6 +129,15 @@ export const vehiculoRevisionConfig: StatusMap<VehiculoRevision> = {
     pendiente: { label: 'Pendiente', classes: AMBER },
 };
 
+/* ── Sábado Extra: estado de citación ───────────────────────────────── */
+export type SabadoEstado = 'citada' | 'realizada' | 'cancelada';
+
+export const sabadoEstadoConfig: StatusMap<SabadoEstado> = {
+    citada:    { label: 'Citada',    classes: AMBER,   icon: Clock },
+    realizada: { label: 'Realizada', classes: GREEN,   icon: CheckCircle2 },
+    cancelada: { label: 'Cancelada', classes: NEUTRAL, icon: Ban },
+};
+
 /* ── Registro por dominio (para <StatusBadge domain=... />) ─────────── */
 export const statusDomains = {
     transferencia: transferenciaEstadoConfig,
@@ -139,6 +148,7 @@ export const statusDomains = {
     asistencia: asistenciaConfig,
     obra: obraEstadoConfig,
     vehiculoRevision: vehiculoRevisionConfig,
+    sabadoEstado: sabadoEstadoConfig,
 } as const;
 
 export type StatusDomain = keyof typeof statusDomains;

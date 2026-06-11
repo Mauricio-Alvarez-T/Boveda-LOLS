@@ -1,5 +1,6 @@
 import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { Button } from '../../ui/Button';
 
 interface Props {
     children: React.ReactNode;
@@ -50,17 +51,18 @@ export class SabadosErrorBoundary extends React.Component<Props, State> {
                         <p className="text-xs text-red-800 dark:text-red-300 mt-1 font-medium">
                             {this.state.error?.message || 'Ocurrió un error inesperado.'}
                         </p>
-                        <p className="text-[10px] text-red-700 dark:text-red-400 mt-2">
+                        <p className="text-caption text-red-700 dark:text-red-400 mt-2">
                             Detalles en la consola del navegador (F12). El resto de la app sigue funcionando.
                         </p>
                     </div>
-                    <button
-                        type="button"
+                    <Button
+                        variant="primary"
                         onClick={this.handleReset}
-                        className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white bg-red-600 hover:bg-red-700 rounded-xl transition-colors"
+                        leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
+                        className="text-xs font-bold bg-red-600 hover:bg-red-700 text-white"
                     >
-                        <RefreshCw className="h-3.5 w-3.5" /> Reintentar
-                    </button>
+                        Reintentar
+                    </Button>
                 </div>
             );
         }

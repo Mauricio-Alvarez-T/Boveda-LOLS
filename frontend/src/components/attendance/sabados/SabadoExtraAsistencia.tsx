@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban, CheckCircle2, Clock } from 'lucide-react';
+import { ChevronLeft, Save, Send, MessageCircle, Plus, Ban } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../../ui/Button';
+import { StatusBadge } from '../../ui/StatusBadge';
+import { Chip } from '../../ui/Chip';
 import { cn } from '../../../utils/cn';
 import { flagOn } from '../../../utils/flags';
 import { useAuth } from '../../../context/AuthContext';
@@ -279,12 +281,15 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         <div className="flex flex-col gap-4 pb-24 md:pb-4">
             {/* Header */}
             <div className="flex items-center gap-3">
-                <button
+                <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={onBack}
-                    className="flex items-center gap-1 text-sm text-muted-foreground hover:text-brand-dark"
+                    leftIcon={<ChevronLeft className="h-4 w-4" />}
+                    className="text-sm text-muted-foreground hover:text-brand-dark"
                 >
-                    <ChevronLeft className="h-4 w-4" /> Volver
-                </button>
+                    Volver
+                </Button>
             </div>
 
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
@@ -295,17 +300,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                             Obra {current.obra_nombre} · Solicitado por {current.creado_por_nombre || '—'}
                         </p>
                     </div>
-                    <span className={cn(
-                        'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-black uppercase border',
-                        current.estado === 'citada' && 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900/60 text-amber-800 dark:text-amber-300',
-                        current.estado === 'realizada' && 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900/60 text-emerald-800 dark:text-emerald-300',
-                        current.estado === 'cancelada' && 'bg-gray-50 border-gray-200 text-gray-600',
-                    )}>
-                        {current.estado === 'citada' && <Clock className="h-3 w-3" />}
-                        {current.estado === 'realizada' && <CheckCircle2 className="h-3 w-3" />}
-                        {current.estado === 'cancelada' && <Ban className="h-3 w-3" />}
-                        {current.estado}
-                    </span>
+                    <StatusBadge domain="sabadoEstado" status={current.estado} showIcon />
                 </div>
             </div>
 
@@ -322,7 +317,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                     <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             <div>
-                                <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                                <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                                     Horas (default)
                                 </label>
                                 <div className="flex gap-2">
@@ -336,18 +331,18 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                         disabled={!canRegistrar}
                                         className="flex-1 h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
                                     />
-                                    <button
-                                        type="button"
+                                    <Button
+                                        variant="outline"
                                         onClick={aplicarHorasDefault}
                                         disabled={!canRegistrar || !horasDefault}
-                                        className="px-3 h-10 text-xs font-bold text-brand-primary border border-brand-primary/30 rounded-xl hover:bg-brand-primary/5 disabled:opacity-50"
+                                        className="h-10 px-3 text-xs font-bold"
                                     >
                                         Aplicar a todos
-                                    </button>
+                                    </Button>
                                 </div>
                             </div>
                             <div className="md:col-span-2">
-                                <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                                <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                                     Observación general
                                 </label>
                                 <input
@@ -368,13 +363,15 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                             Asistieron: {totalAsistio} / {Object.keys(rows).length}
                         </div>
                         {canCrear && (
-                            <button
-                                type="button"
+                            <Button
+                                variant="ghost"
+                                size="sm"
                                 onClick={() => setShowAddOther(true)}
-                                className="text-xs font-bold text-brand-primary hover:underline flex items-center gap-1"
+                                leftIcon={<Plus className="h-3.5 w-3.5" />}
+                                className="text-xs font-bold text-brand-primary"
                             >
-                                <Plus className="h-3.5 w-3.5" /> Agregar trabajador no citado
-                            </button>
+                                Agregar trabajador no citado
+                            </Button>
                         )}
                     </div>
 
@@ -383,7 +380,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                         {grupos.map(({ cargo, items }) => (
                             <div key={cargo} className="border border-border rounded-2xl overflow-hidden bg-card">
                                 <div className="bg-muted px-4 py-2.5 flex items-center justify-between">
-                                    <span className="text-[11px] font-black uppercase tracking-wider text-brand-dark">
+                                    <span className="text-label font-black uppercase tracking-wider text-brand-dark">
                                         {cargo} ({items.length})
                                     </span>
                                 </div>
@@ -397,25 +394,24 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                             {row.apellido_paterno}{row.apellido_materno ? ` ${row.apellido_materno}` : ''} {row.nombres}
                                                         </span>
                                                         {!row.citado && (
-                                                            <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-900/60">
-                                                                No citado
-                                                            </span>
+                                                            <Chip tone="info" label="No citado" />
                                                         )}
                                                     </div>
-                                                    <div className="text-[10px] text-muted-foreground font-medium">
+                                                    <div className="text-caption text-muted-foreground font-medium">
                                                         {row.rut}
                                                     </div>
                                                 </div>
 
                                                 {/* Toggle Asistió / No */}
                                                 <div className="flex gap-1 shrink-0">
+                                                    {/* eslint-disable-next-line no-restricted-syntax -- toggle segmentado Asistió/No con color de estado (emerald/red); Button no soporta el par segmentado */}
                                                     <button
                                                         type="button"
                                                         aria-label={`${row.apellido_paterno} ${row.nombres}: marcar asistió`}
                                                         onClick={() => setAsistio(trabajadorId, true)}
                                                         disabled={!canRegistrar}
                                                         className={cn(
-                                                            'px-3 h-9 text-[11px] font-bold rounded-lg transition-all',
+                                                            'px-3 h-9 text-label font-bold rounded-lg transition-all',
                                                             row.asistio
                                                                 ? 'bg-emerald-500 text-white shadow'
                                                                 : 'bg-card border border-border text-muted-foreground'
@@ -423,13 +419,14 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                     >
                                                         Asistió
                                                     </button>
+                                                    {/* eslint-disable-next-line no-restricted-syntax -- toggle segmentado Asistió/No con color de estado (emerald/red); Button no soporta el par segmentado */}
                                                     <button
                                                         type="button"
                                                         aria-label={`${row.apellido_paterno} ${row.nombres}: marcar no asistió`}
                                                         onClick={() => setAsistio(trabajadorId, false)}
                                                         disabled={!canRegistrar}
                                                         className={cn(
-                                                            'px-3 h-9 text-[11px] font-bold rounded-lg transition-all',
+                                                            'px-3 h-9 text-label font-bold rounded-lg transition-all',
                                                             !row.asistio
                                                                 ? 'bg-red-500 text-white shadow'
                                                                 : 'bg-card border border-border text-muted-foreground'

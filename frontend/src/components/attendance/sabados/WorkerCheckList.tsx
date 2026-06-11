@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Check } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { Chip } from '../../ui/Chip';
 import type { Trabajador } from '../../../types/entities';
 
 interface Props {
@@ -53,10 +54,10 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                 return (
                     <div key={cargo} className="border border-border rounded-xl overflow-hidden">
                         <div className="bg-muted px-3 py-2 flex items-center justify-between">
-                            <span className="text-[11px] font-black uppercase tracking-wider text-brand-dark">
+                            <span className="text-label font-black uppercase tracking-wider text-brand-dark">
                                 {cargo}
                             </span>
-                            <span className="text-[10px] font-semibold text-muted-foreground">
+                            <span className="text-caption font-semibold text-muted-foreground">
                                 {selectedInGroup} / {ws.length}
                             </span>
                         </div>
@@ -68,6 +69,7 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                                     w.obra_id !== null &&
                                     w.obra_id !== obraAnfitrionaId;
                                 return (
+                                    // eslint-disable-next-line no-restricted-syntax -- fila-checkbox full-width (checkbox + nombre + badge, left-align); Button centra y rompe el patrón de lista
                                     <button
                                         key={w.id}
                                         type="button"
@@ -91,12 +93,10 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                                                     {w.apellido_paterno}{w.apellido_materno ? ` ${w.apellido_materno}` : ''} {w.nombres}
                                                 </span>
                                                 {isExterno && (
-                                                    <span className="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded bg-amber-100 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-900/60">
-                                                        Otra obra
-                                                    </span>
+                                                    <Chip tone="warning" label="Otra obra" className="shrink-0" />
                                                 )}
                                             </div>
-                                            <div className="text-[10px] text-muted-foreground font-medium">
+                                            <div className="text-caption text-muted-foreground font-medium">
                                                 {w.rut}
                                                 {isExterno && w.obra_nombre && ` · ${w.obra_nombre}`}
                                             </div>

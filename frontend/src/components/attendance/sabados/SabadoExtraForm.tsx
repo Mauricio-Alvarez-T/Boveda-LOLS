@@ -194,7 +194,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             {/* Cabecera */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                    <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                    <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                         Fecha (sábado)
                     </label>
                     <input
@@ -209,7 +209,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     <FieldError message={fechaError} className="mt-1" />
                 </div>
                 <div>
-                    <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                    <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                         Obra anfitriona
                     </label>
                     <div className="h-10 px-3 bg-muted border border-border rounded-xl text-sm font-bold text-brand-dark flex items-center">
@@ -217,7 +217,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     </div>
                 </div>
                 <div>
-                    <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                    <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                         Horas (default por trabajador)
                     </label>
                     <input
@@ -247,11 +247,12 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 />
                 {externalWorkers.length > 0 && (
                     <div className="mt-3 p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 rounded-xl">
-                        <p className="text-[10px] font-bold uppercase text-amber-800 dark:text-amber-300 mb-2">Externos agregados</p>
+                        <p className="text-caption font-bold uppercase text-amber-800 dark:text-amber-300 mb-2">Externos agregados</p>
                         <div className="flex flex-wrap gap-1.5">
                             {externalWorkers.map(w => (
-                                <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-card border border-amber-300 dark:border-amber-900/60 rounded-lg text-[11px] font-semibold">
+                                <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-card border border-amber-300 dark:border-amber-900/60 rounded-lg text-label font-semibold">
                                     {w.apellido_paterno} {w.nombres}
+                                    {/* eslint-disable-next-line no-restricted-syntax -- X de quitar dentro de chip-tag (icono inline mínimo); IconButton fijo lo agranda */}
                                     <button onClick={() => removeExternal(w.id)} className="ml-0.5 hover:text-red-600 dark:hover:text-red-400">
                                         <X className="h-3 w-3" />
                                     </button>
@@ -260,6 +261,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                         </div>
                     </div>
                 )}
+                {/* eslint-disable-next-line no-restricted-syntax -- afordancia "agregar" dashed full-width (border punteado, patrón propio); Button no replica el dashed */}
                 <button
                     type="button"
                     onClick={() => setShowAddOther(true)}
@@ -276,13 +278,13 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-2">
                         Trabajos a realizar (por cargo)
                     </h3>
-                    <p className="text-[11px] text-muted-foreground mb-3">
+                    <p className="text-label text-muted-foreground mb-3">
                         Opcional. Lo que escribas acá aparecerá en el mensaje de WhatsApp agrupado por cargo.
                     </p>
                     <div className="flex flex-col gap-2">
                         {cargosConSeleccion.map(c => (
                             <div key={c.id}>
-                                <label className="text-[10px] font-bold uppercase text-muted-foreground mb-1 block">
+                                <label className="text-caption font-bold uppercase text-muted-foreground mb-1 block">
                                     {c.nombre}
                                 </label>
                                 <input
@@ -300,7 +302,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
 
             {/* Observación global */}
             <div>
-                <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                     Observación general (opcional)
                 </label>
                 <textarea

@@ -100,7 +100,7 @@ const AddFromOtherObraModal: React.FC<Props> = ({
         >
             <div className="flex flex-col gap-4 p-4">
                 <div>
-                    <label className="text-[11px] font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
+                    <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                         Obra de origen
                     </label>
                     <select
