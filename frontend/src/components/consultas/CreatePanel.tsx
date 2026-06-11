@@ -1,6 +1,6 @@
 import React from 'react';
 import { Building2, Briefcase, FileText, UserPlus, PlusCircle } from 'lucide-react';
-import { cn } from '../../utils/cn';
+import { Button } from '../ui/Button';
 
 interface CreatePanelProps {
     hasPermission: (perm: string) => boolean;
@@ -48,18 +48,17 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
             {visible.map(item => {
                 const Icon = item.icon;
                 return (
-                    <button
+                    <Button
                         key={item.label}
+                        variant="ghost"
+                        size="sm"
                         onClick={item.onClick}
                         title={`Nuevo ${item.label}`}
-                        className={cn(
-                            "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] whitespace-nowrap shrink-0 transition-all",
-                            "text-muted-foreground hover:bg-background hover:text-brand-primary"
-                        )}
+                        leftIcon={<Icon className="h-4 w-4 shrink-0" />}
+                        className="shrink-0 whitespace-nowrap uppercase tracking-[0.12em] text-caption font-black text-muted-foreground hover:text-brand-primary"
                     >
-                        <Icon className="h-4 w-4 shrink-0 text-muted-foreground/60 group-hover:text-brand-primary" />
-                        <span>{item.label}</span>
-                    </button>
+                        {item.label}
+                    </Button>
                 );
             })}
         </div>

@@ -26,6 +26,9 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '../components/ui/Button';
+import { IconButton } from '../components/ui/IconButton';
+import { Chip } from '../components/ui/Chip';
+import { EmptyState } from '../components/ui/EmptyState';
 import { Input } from '../components/ui/Input';
 import { Modal } from '../components/ui/Modal';
 import { WorkerForm } from '../components/workers/WorkerForm';
@@ -200,7 +203,7 @@ const ConsultasPage: React.FC = () => {
                     <span>Filtros</span>
                     {activeFilterCount > 0 && (
                         <span className={cn(
-                            "flex h-4 w-4 items-center justify-center rounded-full text-[9px] transition-colors duration-300",
+                            "flex h-4 w-4 items-center justify-center rounded-full text-micro transition-colors duration-300",
                             showMobileFilters ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
                         )}>
                             {activeFilterCount}
@@ -236,60 +239,42 @@ const ConsultasPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Mobile Actions */}
+            {/* Mobile Actions — icon-buttons del DS: gris idle → verde hover, sin
+                relleno activo. El estado se indica por el icono (Plus rota, Filter↔X)
+                y el badge, no por el color de fondo. */}
             <div className="lg:hidden flex items-center gap-2">
-                <button
-                    onClick={() => {
-                        setShowCreatePanel(prev => !prev);
-                        setShowMobileFilters(false);
-                    }}
-                    className={cn(
-                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
-                        showCreatePanel ? "bg-brand-primary border-transparent text-white" : "bg-card border-border text-brand-dark active:bg-background"
-                    )}
-                    title="Crear"
-                >
-                    <Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />
-                </button>
+                <IconButton
+                    variant="ghost"
+                    aria-label="Crear"
+                    onClick={() => { setShowCreatePanel(prev => !prev); setShowMobileFilters(false); }}
+                    className="rounded-xl border border-border shadow-sm"
+                    icon={<Plus className={cn("h-4 w-4 transition-transform duration-300 ease-out", showCreatePanel ? "rotate-45 scale-110" : "")} />}
+                />
                 {/* Export Excel — paridad con desktop. Mismo gating de permiso/data. */}
-                <button
+                <IconButton
+                    variant="ghost"
+                    aria-label="Exportar Excel"
                     onClick={() => handleExportExcel()}
                     disabled={workers.length === 0 || !hasPermission('reportes.exportar') || exporting}
-                    className={cn(
-                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm transition-all duration-300 ease-in-out",
-                        "bg-card border-border text-brand-dark active:bg-background",
-                        (workers.length === 0 || !hasPermission('reportes.exportar')) && "opacity-40 grayscale pointer-events-none",
-                        exporting && "opacity-60"
-                    )}
-                    title="Exportar Excel"
-                >
-                    <FileDown className={cn("h-4 w-4 text-brand-primary", exporting && "animate-pulse")} />
-                </button>
-                <button
-                    onClick={() => {
-                        setShowMobileFilters(prev => !prev);
-                        setShowCreatePanel(false);
-                    }}
-                    className={cn(
-                        "flex items-center justify-center h-9 w-9 rounded-xl border shadow-sm relative transition-all duration-300 ease-in-out",
-                        showMobileFilters ? "bg-brand-primary border-transparent text-white" : "bg-card border-border text-brand-dark active:bg-background"
-                    )}
-                    title="Filtros"
-                >
-                    {showMobileFilters ? (
-                        <X className="h-4 w-4 animate-in zoom-in spin-in-12 duration-300" />
-                    ) : (
-                        <Filter className="h-4 w-4 animate-in fade-in zoom-in duration-300" />
-                    )}
-                    {activeFilterCount > 0 && (
-                        <span className={cn(
-                            "absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold transition-colors duration-300",
-                            showMobileFilters ? "bg-card text-brand-primary shadow-sm" : "bg-brand-primary text-white shadow-sm"
-                        )}>
-                            {activeFilterCount}
-                        </span>
-                    )}
-                </button>
+                    className={cn("rounded-xl border border-border shadow-sm", exporting && "opacity-60")}
+                    icon={<FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />}
+                />
+                <IconButton
+                    variant="ghost"
+                    aria-label="Filtros"
+                    onClick={() => { setShowMobileFilters(prev => !prev); setShowCreatePanel(false); }}
+                    className="relative rounded-xl border border-border shadow-sm"
+                    icon={<>
+                        {showMobileFilters
+                            ? <X className="h-4 w-4 animate-in zoom-in spin-in-12 duration-300" />
+                            : <Filter className="h-4 w-4 animate-in fade-in zoom-in duration-300" />}
+                        {activeFilterCount > 0 && (
+                            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full text-micro font-bold bg-brand-primary text-white shadow-sm">
+                                {activeFilterCount}
+                            </span>
+                        )}
+                    </>}
+                />
             </div>
         </div>
     ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel]);
@@ -375,14 +360,15 @@ const ConsultasPage: React.FC = () => {
                             {aniversario10mLabel && <> en {aniversario10mLabel}</>}
                         </p>
                     </div>
-                    <button
+                    <Button
+                        variant="ghost"
+                        size="sm"
                         onClick={clearAniversario10m}
-                        className="flex items-center gap-1 text-[11px] font-bold text-brand-primary hover:underline shrink-0"
-                        title="Quitar filtro"
+                        leftIcon={<X className="h-3.5 w-3.5" />}
+                        className="shrink-0 text-brand-primary hover:text-brand-primary"
                     >
-                        <X className="h-3.5 w-3.5" />
                         Quitar
-                    </button>
+                    </Button>
                 </div>
             )}
 
@@ -462,18 +448,17 @@ const ConsultasPage: React.FC = () => {
                             ))}
                         </div>
                     ) : workers.length === 0 ? (
-                        <div className="h-full flex flex-col items-center justify-center text-muted-foreground p-6 text-center">
-                            <div className="w-16 h-16 rounded-2xl bg-card shadow-sm flex items-center justify-center mb-4">
-                                <Search className="h-8 w-8 text-muted-foreground" />
-                            </div>
-                            <h3 className="text-base font-bold text-brand-dark mb-1">Sin resultados</h3>
-                            <p className="text-sm max-w-[250px]">No se encontraron trabajadores que coincidan con los filtros aplicados.</p>
-                            {activeFilterCount > 0 && (
-                                <Button variant="outline" size="sm" onClick={handleClearFilters} className="mt-4">
+                        <EmptyState
+                            icon={Search}
+                            title="Sin resultados"
+                            description="No se encontraron trabajadores que coincidan con los filtros aplicados."
+                            className="h-full justify-center"
+                            action={activeFilterCount > 0 ? (
+                                <Button variant="outline" size="sm" onClick={handleClearFilters}>
                                     Limpiar Búsqueda
                                 </Button>
-                            )}
-                        </div>
+                            ) : undefined}
+                        />
                     ) : (
                         <motion.div
                             className="flex flex-col gap-2.5 pb-10 sm:pb-5"
@@ -500,7 +485,7 @@ const ConsultasPage: React.FC = () => {
                                         <div className="flex flex-col items-center justify-center shrink-0">
                                             <div
                                                 className={cn(
-                                                    "w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-[10px] sm:text-xs transition-all border shrink-0",
+                                                    "w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-caption sm:text-xs transition-all border shrink-0",
                                                     selectedWorkers.has(worker.id)
                                                         ? "bg-brand-dark text-white border-brand-dark shadow-md"
                                                         : "bg-background text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
@@ -522,20 +507,16 @@ const ConsultasPage: React.FC = () => {
                                         <div className="flex-1 min-w-0 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                                             {/* Nombres y RUT */}
                                             <div className="flex-1 min-w-0 flex flex-col" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
-                                                <span className="text-[13px] sm:text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors truncate">
+                                                <span className="text-section sm:text-sm font-bold text-brand-dark hover:text-brand-primary transition-colors truncate">
                                                     {worker.apellido_paterno} {worker.apellido_materno} {worker.nombres}
                                                 </span>
                                                 <div className="flex items-center gap-2 mt-0.5">
-                                                    <span className="text-[10px] sm:text-[11px] font-medium text-muted-foreground">{worker.rut}</span>
+                                                    <span className="text-caption sm:text-label font-medium text-muted-foreground">{worker.rut}</span>
                                                     {!worker.activo && (
-                                                        <span className="px-1 py-0.5 rounded-[4px] bg-destructive/10 text-destructive text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">
-                                                            Finiquitado
-                                                        </span>
+                                                        <Chip tone="danger" label="Finiquitado" className="text-micro px-1" />
                                                     )}
                                                     {!!worker.es_prueba && (
-                                                        <span className="px-1 py-0.5 rounded-[4px] bg-amber-500/15 text-amber-600 border border-amber-500/30 text-[8px] sm:text-[9px] font-bold uppercase tracking-wider">
-                                                            Prueba
-                                                        </span>
+                                                        <Chip tone="warning" label="Prueba" className="text-micro px-1" />
                                                     )}
                                                 </div>
                                             </div>
@@ -544,11 +525,11 @@ const ConsultasPage: React.FC = () => {
                                             <div className="flex-1 min-w-0 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-4 items-center" onClick={(e) => { e.stopPropagation(); setQuickViewId(worker.id); }}>
                                                 {/* Empresa & Obra */}
                                                 <div className="flex flex-col gap-0.5 min-w-0">
-                                                    <div className="flex items-center gap-1.5 text-[10px] sm:text-[11px] text-muted-foreground">
+                                                    <div className="flex items-center gap-1.5 text-caption sm:text-label text-muted-foreground">
                                                         <Building2 className="h-3 w-3 shrink-0" />
                                                         <span className="truncate">{worker.empresa_nombre || '—'}</span>
                                                     </div>
-                                                    <div className="flex items-center gap-1.5 text-[11px] sm:text-xs font-semibold text-brand-dark">
+                                                    <div className="flex items-center gap-1.5 text-label sm:text-xs font-semibold text-brand-dark">
                                                         <div className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0" />
                                                         <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
                                                     </div>
@@ -556,7 +537,7 @@ const ConsultasPage: React.FC = () => {
 
                                                 {/* Documentación */}
                                                 <div className="flex flex-col gap-1 min-w-[80px]">
-                                                    <div className="flex items-center justify-between text-[9px] sm:text-[10px] font-bold">
+                                                    <div className="flex items-center justify-between text-micro sm:text-caption font-bold">
                                                         <span className="text-muted-foreground uppercase tracking-widest hidden sm:inline">Docs</span>
                                                         <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
                                                             {worker.docs_porcentaje}%
@@ -580,67 +561,58 @@ const ConsultasPage: React.FC = () => {
                                         {/* 3. Acciones (Derecha) */}
                                         <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-2 shrink-0" onClick={(e) => e.stopPropagation()}>
                                             {/* Constancia: genera Carta de Amonestación (Word). Solo ícono + tooltip. */}
-                                            <Button
-                                                variant="glass"
-                                                size="icon"
+                                            <IconButton
+                                                variant="ghost"
+                                                size="sm"
+                                                aria-label="Constancia"
                                                 title="Constancia"
                                                 onClick={() => setConstanciaWorker(worker)}
-                                                className="h-7 w-7 sm:h-8 sm:w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all"
-                                            >
-                                                <FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                            </Button>
-                                            <Button
-                                                variant="glass"
-                                                size="icon"
-                                                className={cn(
-                                                    "h-7 w-7 sm:h-8 sm:w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all",
-                                                    !hasPermission('trabajadores.editar') && "opacity-40 grayscale cursor-not-allowed"
-                                                )}
+                                                className="h-7 w-7 sm:h-8 sm:w-8"
+                                                icon={<FileText className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                            />
+                                            <IconButton
+                                                variant="ghost"
+                                                size="sm"
+                                                aria-label="Editar trabajador"
                                                 disabled={!hasPermission('trabajadores.editar')}
+                                                className="h-7 w-7 sm:h-8 sm:w-8"
                                                 onClick={() => {
                                                     setSelectedWorkerForAction(worker);
                                                     setModalType('form');
                                                 }}
-                                            >
-                                                <UserPen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                            </Button>
+                                                icon={<UserPen className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                            />
                                             
                                             {worker.activo ? (
-                                                <Button
-                                                    variant="glass"
-                                                    size="icon"
-                                                    className={cn(
-                                                        "h-7 w-7 sm:h-8 sm:w-8 text-destructive hover:scale-110 active:scale-95 transition-all",
-                                                        !hasPermission('trabajadores.eliminar') && "opacity-40 grayscale cursor-not-allowed"
-                                                    )}
+                                                <IconButton
+                                                    variant="danger"
+                                                    size="sm"
+                                                    aria-label="Eliminar trabajador"
                                                     disabled={!hasPermission('trabajadores.eliminar')}
+                                                    className="h-7 w-7 sm:h-8 sm:w-8"
                                                     onClick={() => handleDelete(worker)}
-                                                >
-                                                    <Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                </Button>
+                                                    icon={<Trash2 className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                                />
                                             ) : (
                                                 <div className="flex flex-col sm:flex-row gap-1">
-                                                    <Button
-                                                        variant="glass"
-                                                        size="icon"
-                                                        className={cn(
-                                                            "h-7 w-7 sm:h-8 sm:w-8 text-brand-primary hover:scale-110 active:scale-95 transition-all",
-                                                            !hasPermission('trabajadores.reactivar') && "opacity-40 grayscale cursor-not-allowed"
-                                                        )}
+                                                    <IconButton
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        aria-label="Reactivar trabajador"
                                                         disabled={!hasPermission('trabajadores.reactivar')}
+                                                        className="h-7 w-7 sm:h-8 sm:w-8"
                                                         onClick={(e) => { e.stopPropagation(); handleReactivate(worker.id); }}
-                                                    >
-                                                        <UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                    </Button>
+                                                        icon={<UserCheck className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                                    />
                                                     {hasPermission('trabajadores.depurar') && (
-                                                        <Button
-                                                            variant="glass"
-                                                            size="icon"
-                                                            className="h-7 w-7 sm:h-8 sm:w-8 text-red-700 bg-red-50 hover:bg-red-100 hover:text-red-900 border border-red-200"
+                                                        <IconButton
+                                                            variant="danger"
+                                                            size="sm"
+                                                            aria-label="Depurar trabajador"
+                                                            className="h-7 w-7 sm:h-8 sm:w-8"
                                                             onClick={(e) => { e.stopPropagation(); handleDepurar(worker); }}
-                                                        >
-                                                            <Eraser className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                                        </Button>
+                                                            icon={<Eraser className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                                                        />
                                                     )}
                                                 </div>
                                             )}
@@ -653,7 +625,7 @@ const ConsultasPage: React.FC = () => {
                 </div>
 
                 {/* Status Bar */}
-                <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
+                <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-label font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
                     <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
                         <span>{workers.length} {workers.length === 1 ? 'coincidencia' : 'coincidencias'}</span>
@@ -872,12 +844,13 @@ const ConsultasPage: React.FC = () => {
                             {/* Header */}
                             <div className="flex items-center justify-between px-5 pb-4 pt-1 shrink-0">
                                 <h3 className="text-lg font-bold text-brand-dark">Filtros de Búsqueda</h3>
-                                <button 
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Cerrar filtros"
                                     onClick={() => setShowMobileFilters(false)}
-                                    className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
-                                >
-                                    <X className="h-5 w-5" />
-                                </button>
+                                    className="bg-background"
+                                    icon={<X className="h-5 w-5" />}
+                                />
                             </div>
 
                             {/* Body */}
@@ -905,7 +878,7 @@ const ConsultasPage: React.FC = () => {
                                     <Button 
                                         variant="glass" 
                                         onClick={handleClearFilters}
-                                        className="w-full mt-6 text-destructive font-bold uppercase tracking-widest text-[11px] h-11 rounded-xl"
+                                        className="w-full mt-6 text-destructive font-bold uppercase tracking-widest text-label h-11 rounded-xl"
                                     >
                                         Limpiar Selecciones
                                     </Button>
