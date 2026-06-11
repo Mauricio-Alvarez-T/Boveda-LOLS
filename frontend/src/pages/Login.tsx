@@ -147,7 +147,7 @@ const LoginPage: React.FC = () => {
                         <div className="mt-8 pt-6 border-t border-gray-100 text-center">
                             <div className="flex items-center justify-center gap-2">
                                 <Fingerprint className="h-3.5 w-3.5 text-muted-foreground" />
-                                <p className="text-[10px] text-muted-foreground font-bold tracking-widest uppercase">
+                                <p className="text-caption text-muted-foreground font-bold tracking-widest uppercase">
                                     Acceso Seguro Verificado
                                 </p>
                             </div>
@@ -158,7 +158,7 @@ const LoginPage: React.FC = () => {
 
             {/* Subtle bottom brand text */}
             <div className="absolute bottom-6 w-full text-center pointer-events-none">
-                <p className="text-muted-foreground text-[10px] font-medium tracking-widest uppercase opacity-70">
+                <p className="text-muted-foreground text-caption font-medium tracking-widest uppercase opacity-70">
                     LOLS Ingeniería © {new Date().getFullYear()}
                 </p>
             </div>
