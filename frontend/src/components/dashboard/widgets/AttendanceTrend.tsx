@@ -4,6 +4,7 @@ import {
 } from 'recharts';
 import { Activity, CheckSquare } from 'lucide-react';
 import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
 
 interface Props {
     data: { fecha: string; tasa: number }[];
@@ -21,13 +22,16 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
                     </div>
                     <Activity className="h-5 w-5 text-brand-accent" />
                 </div>
-                <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground">
-                    <CheckSquare className="h-10 w-10 opacity-20 mb-4" />
-                    <p className="text-sm">No hay registros de asistencia recientes.</p>
-                    <Button variant="ghost" className="mt-3 text-xs" onClick={onNavigate}>
-                        Ir a Asistencia
-                    </Button>
-                </div>
+                <EmptyState
+                    className="flex-1 py-8"
+                    icon={CheckSquare}
+                    title="No hay registros de asistencia recientes."
+                    action={
+                        <Button variant="ghost" size="sm" onClick={onNavigate}>
+                            Ir a Asistencia
+                        </Button>
+                    }
+                />
             </div>
         );
     }

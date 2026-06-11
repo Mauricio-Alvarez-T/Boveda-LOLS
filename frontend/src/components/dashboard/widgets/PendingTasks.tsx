@@ -6,6 +6,9 @@ import {
     AlertTriangle, AlertCircle, Info
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
+import { Chip } from '../../ui/Chip';
+import { EmptyState } from '../../ui/EmptyState';
 
 interface PendingTask {
     severity: 'critical' | 'warning' | 'info';
@@ -65,13 +68,12 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
 
     if (tasks.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-brand-accent/10 flex items-center justify-center mb-3">
-                    <Zap className="h-6 w-6 text-brand-accent" />
-                </div>
-                <h4 className="text-sm font-bold text-brand-dark mb-1">¡Todo al día!</h4>
-                <p className="text-xs text-muted-foreground max-w-[200px]">No hay tareas pendientes. Buen trabajo.</p>
-            </div>
+            <EmptyState
+                className="py-8"
+                icon={Zap}
+                title="¡Todo al día!"
+                description="No hay tareas pendientes. Buen trabajo."
+            />
         );
     }
 
@@ -85,14 +87,10 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                 </div>
                 <div className="flex items-center gap-1.5">
                     {criticalCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold">
-                            {criticalCount} 🔴
-                        </span>
+                        <Chip tone="danger" label={`${criticalCount} 🔴`} />
                     )}
                     {warningCount > 0 && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-warning/10 text-warning text-[9px] font-bold">
-                            {warningCount} 🟡
-                        </span>
+                        <Chip tone="warning" label={`${warningCount} 🟡`} />
                     )}
                 </div>
             </div>
@@ -130,7 +128,7 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                                         <p className="text-xs font-semibold text-brand-dark leading-snug truncate">
                                             {task.title}
                                         </p>
-                                        <p className={cn("text-[10px] font-medium mt-0.5", config.text)}>
+                                        <p className={cn("text-caption font-medium mt-0.5", config.text)}>
                                             {task.description}
                                         </p>
                                     </div>
@@ -146,22 +144,15 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
 
             {/* Show more/less */}
             {hasMore && (
-                <button
+                <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setExpanded(prev => !prev)}
-                    className="w-full mt-3 flex items-center justify-center gap-1.5 py-2 text-[11px] font-semibold text-muted-foreground hover:text-brand-primary transition-colors rounded-lg hover:bg-background"
+                    leftIcon={expanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                    className="w-full mt-3 text-muted-foreground"
                 >
-                    {expanded ? (
-                        <>
-                            <ChevronUp className="h-3 w-3" />
-                            Mostrar menos
-                        </>
-                    ) : (
-                        <>
-                            <ChevronDown className="h-3 w-3" />
-                            Ver {tasks.length - 4} más
-                        </>
-                    )}
-                </button>
+                    {expanded ? 'Mostrar menos' : `Ver ${tasks.length - 4} más`}
+                </Button>
             )}
         </div>
     );

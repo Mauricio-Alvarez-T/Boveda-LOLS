@@ -55,7 +55,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
                         <p className="text-3xl font-bold text-brand-dark mt-0.5 tracking-tight">{value}</p>
                         {hasDelta && (
                             <div className={cn(
-                                "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[9px] font-bold mb-1",
+                                "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-micro font-bold mb-1",
                                 isGood ? "bg-brand-accent/10 text-brand-accent"
                                     : isBad ? "bg-destructive/10 text-destructive"
                                         : "bg-muted/10 text-muted-foreground"
@@ -71,9 +71,9 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
             <div className="flex items-end justify-between mt-auto relative z-10">
                 <div className="flex flex-col gap-0.5">
                     {deltaLabel && (
-                        <span className="text-[9px] text-muted-foreground font-medium">{deltaLabel}</span>
+                        <span className="text-micro text-muted-foreground font-medium">{deltaLabel}</span>
                     )}
-                    <div className="flex items-center gap-1 text-[10px] text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity">
+                    <div className="flex items-center gap-1 text-caption text-muted-foreground opacity-60 group-hover:opacity-100 transition-opacity">
                         <ArrowRight className="h-3 w-3" />
                         <span className="truncate max-w-[120px]">{description}</span>
                     </div>

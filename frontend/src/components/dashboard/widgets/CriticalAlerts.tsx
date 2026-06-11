@@ -1,6 +1,8 @@
 import React from 'react';
 import { AlertTriangle, CheckCircle2, Info, ArrowRight } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
+import { EmptyState } from '../../ui/EmptyState';
 
 interface Alert {
     tipo: 'critical' | 'warning' | 'info';
@@ -53,29 +55,28 @@ const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
                                 <div className="flex items-start gap-2">
                                     <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", style.text)} />
                                     <div className="flex-1 min-w-0">
-                                        <p className={cn("text-[10px] font-semibold uppercase tracking-widest", style.text)}>
+                                        <p className={cn("text-caption font-semibold uppercase tracking-widest", style.text)}>
                                             {alert.titulo}
                                         </p>
                                         <p className="text-xs text-brand-dark mt-1 leading-relaxed">
                                             {alert.mensaje}
                                         </p>
-                                        <button
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
                                             onClick={() => onNavigate(alert.ruta)}
-                                            className={cn("text-[10px] font-bold mt-2 flex items-center gap-1 hover:underline", style.text)}
+                                            leftIcon={<ArrowRight className="h-3 w-3" />}
+                                            className={cn("mt-2", style.text)}
                                         >
-                                            <ArrowRight className="h-3 w-3" />
                                             Ver detalle
-                                        </button>
+                                        </Button>
                                     </div>
                                 </div>
                             </div>
                         );
                     })
                 ) : (
-                    <div className="p-4 text-center border border-dashed border-border rounded-xl">
-                        <CheckCircle2 className="h-7 w-7 text-brand-accent mx-auto mb-2 opacity-50" />
-                        <p className="text-xs text-muted-foreground italic">No hay alertas pendientes.</p>
-                    </div>
+                    <EmptyState className="py-8" icon={CheckCircle2} title="No hay alertas pendientes." />
                 )}
             </div>
         </div>

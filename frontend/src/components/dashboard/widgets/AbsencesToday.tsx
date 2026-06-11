@@ -1,5 +1,7 @@
 import React from 'react';
 import { UserX } from 'lucide-react';
+import { Chip } from '../../ui/Chip';
+import { EmptyState } from '../../ui/EmptyState';
 
 interface Ausente {
     nombres: string;
@@ -35,16 +37,11 @@ const AbsencesToday: React.FC<Props> = ({ data }) => {
                                 </p>
                                 <p className="text-xs text-muted-foreground truncate">{a.obra || 'Sin obra'}</p>
                             </div>
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-warning/10 text-warning uppercase tracking-wider shrink-0">
-                                {a.estado}
-                            </span>
+                            <Chip tone="warning" label={a.estado} className="shrink-0" />
                         </div>
                     ))
                 ) : (
-                    <div className="py-6 text-center text-muted-foreground">
-                        <UserX className="h-8 w-8 mx-auto opacity-20 mb-2" />
-                        <p className="text-xs italic">Asistencia perfecta hoy. 🎉</p>
-                    </div>
+                    <EmptyState className="py-8" icon={UserX} title="Asistencia perfecta hoy. 🎉" />
                 )}
                 {data.length > 8 && (
                     <p className="text-xs text-muted text-center pt-1">

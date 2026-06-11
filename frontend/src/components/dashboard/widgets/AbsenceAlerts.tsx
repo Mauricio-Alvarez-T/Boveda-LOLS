@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, ArrowRight, ShieldAlert } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { EmptyState } from '../../ui/EmptyState';
 
 interface Alerta {
     tipo: 'consecutivas' | 'lunes' | 'acumuladas';
@@ -30,13 +31,12 @@ const tipoColor = (tipo: Alerta['tipo']) => {
 const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
     if (data.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center py-8 text-center">
-                <div className="h-12 w-12 rounded-2xl bg-brand-accent/10 flex items-center justify-center mb-3">
-                    <ShieldAlert className="h-6 w-6 text-brand-accent" />
-                </div>
-                <h4 className="text-sm font-bold text-brand-dark mb-1">Sin alertas este mes</h4>
-                <p className="text-xs text-muted-foreground max-w-[200px]">Ningún trabajador presenta faltas acumuladas o consecutivas.</p>
-            </div>
+            <EmptyState
+                className="py-8"
+                icon={ShieldAlert}
+                title="Sin alertas este mes"
+                description="Ningún trabajador presenta faltas acumuladas o consecutivas."
+            />
         );
     }
 
@@ -47,7 +47,7 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
                     <AlertTriangle className="h-4 w-4 text-destructive" />
                     <h4 className="text-sm font-semibold text-brand-dark">Alertas de Inasistencia</h4>
                 </div>
-                <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>
+                <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>
             </div>
 
             <div className="space-y-2">
@@ -65,10 +65,10 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
                             <p className="text-xs font-bold text-brand-dark truncate">
                                 {t.apellido_paterno} {t.nombres}
                             </p>
-                            <p className="text-[10px] text-muted-foreground mb-1">{t.rut}</p>
+                            <p className="text-caption text-muted-foreground mb-1">{t.rut}</p>
                             <div className="flex flex-col gap-0.5">
                                 {t.alertas.map((a, i) => (
-                                    <p key={i} className={cn("text-[10px] font-semibold", tipoColor(a.tipo))}>
+                                    <p key={i} className={cn("text-caption font-semibold", tipoColor(a.tipo))}>
                                         · {a.mensaje}
                                     </p>
                                 ))}

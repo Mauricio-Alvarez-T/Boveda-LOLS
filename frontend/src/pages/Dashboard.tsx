@@ -24,13 +24,14 @@ import {
     SortableContext,
     rectSortingStrategy,
 } from '@dnd-kit/sortable';
-import { motion } from 'framer-motion';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
+import { Button } from '../components/ui/Button';
+import { IconButton } from '../components/ui/IconButton';
 
 // Widgets
 import WidgetWrapper from '../components/dashboard/WidgetWrapper';
@@ -140,29 +141,35 @@ const Dashboard: React.FC = () => {
             {/* Date Display — hidden on mobile to save space */}
             <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-border pr-4 mr-1">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-[13px] font-medium text-brand-dark capitalize">
+                <span className="text-section font-medium text-brand-dark capitalize">
                     {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
                 </span>
             </div>
 
-            {/* Reset Button — hidden on mobile */}
-            <button
-                onClick={resetLayout}
-                className="hidden md:flex px-4 py-1.5 rounded-full bg-card border border-border items-center gap-2 shadow-sm hover:bg-background hover:border-[var(--border-hover)] transition-all text-xs font-semibold text-muted-foreground group"
-                title="Vuelve a poner todos los cuadros en su posición original"
-            >
-                <LayoutGrid className="h-3.5 w-3.5 text-brand-primary group-hover:scale-110 transition-transform" />
-                Restaurar Diseño
-            </button>
+            {/* Reset Button — hidden on mobile (wrapper evita que el inline-flex base del Button pise el hidden) */}
+            <div className="hidden md:block">
+                <Button
+                    variant="glass"
+                    size="sm"
+                    onClick={resetLayout}
+                    leftIcon={<LayoutGrid className="h-3.5 w-3.5 text-brand-primary" />}
+                    className="text-xs font-semibold text-muted-foreground"
+                    title="Vuelve a poner todos los cuadros en su posición original"
+                >
+                    Restaurar Diseño
+                </Button>
+            </div>
 
             {/* Mobile: compact reset icon only */}
-            <button
-                onClick={resetLayout}
-                className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl border border-border bg-card text-muted-foreground shadow-sm"
-                title="Restaurar Diseño"
-            >
-                <LayoutGrid className="h-4 w-4 text-brand-primary" />
-            </button>
+            <div className="md:hidden">
+                <IconButton
+                    onClick={resetLayout}
+                    aria-label="Restaurar Diseño"
+                    title="Restaurar Diseño"
+                    className="border border-border bg-card shadow-sm"
+                    icon={<LayoutGrid className="h-4 w-4 text-brand-primary" />}
+                />
+            </div>
         </div>
     ), [resetLayout]);
 

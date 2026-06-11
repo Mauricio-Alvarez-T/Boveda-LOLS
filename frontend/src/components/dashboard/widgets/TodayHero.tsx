@@ -5,6 +5,7 @@ import {
     ArrowRight, ClipboardCheck, FileWarning
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
 
 interface AttendanceStatusEntry {
     nombre: string;
@@ -119,7 +120,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                     {pendingTasksCount > 0 && (
                         <div className="mt-3 flex items-center gap-1.5">
                             <Zap className="h-3 w-3 text-brand-primary" />
-                            <span className="text-[11px] font-semibold text-brand-primary">
+                            <span className="text-label font-semibold text-brand-primary">
                                 {pendingTasksCount} tarea{pendingTasksCount !== 1 ? 's' : ''} pendiente{pendingTasksCount !== 1 ? 's' : ''}
                             </span>
                         </div>
@@ -129,14 +130,15 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                 {/* Right: CTA */}
                 {primaryCTA && (
                     <div className="shrink-0">
-                        <button
+                        <Button
+                            variant="primary"
                             onClick={() => onNavigate(primaryCTA.route)}
-                            className="flex items-center gap-2.5 px-5 py-2.5 rounded-xl bg-brand-primary text-white text-sm font-bold shadow-md hover:shadow-lg hover:scale-[1.02] active:scale-[0.98] transition-all"
+                            leftIcon={<primaryCTA.icon className="h-4 w-4" />}
+                            rightIcon={<ArrowRight className="h-3.5 w-3.5" />}
+                            className="shadow-md hover:shadow-lg"
                         >
-                            <primaryCTA.icon className="h-4 w-4" />
                             {primaryCTA.label}
-                            <ArrowRight className="h-3.5 w-3.5" />
-                        </button>
+                        </Button>
                     </div>
                 )}
             </div>
