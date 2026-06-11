@@ -1,10 +1,11 @@
 /**
- * Auditoría 4.4 — middleware de validación de body para rutas principales.
+ * Auditoría 4.4 / Plan v2 F1.3 — middleware de validación de body para rutas principales.
  *
- * No usamos Joi (no queríamos agregar otra dep) — implementamos un mini-DSL
- * declarativo que cubre los chequeos básicos: required, type, min/max,
- * arrayOf{...}. Suficiente para los pocos endpoints críticos del módulo
- * Inventario. Para validaciones más complejas habría que migrar a Joi/Zod.
+ * No usamos Joi/zod (no queríamos agregar otra dep; además el deploy excluye
+ * node_modules → una dep nueva exigiría npm install manual en cPanel). En su
+ * lugar, mini-DSL declarativo propio: required, type, min/max, minLength,
+ * maxLength, in[], format ('email'|'date'), pattern (RegExp) y arrayOf vía
+ * itemRules. Para los pocos endpoints críticos alcanza de sobra.
  *
  * Uso:
  *   router.put('/stock', validateBody({
@@ -12,8 +13,15 @@
  *     cantidad: { type: 'integer', min: 0, max: 999999 },
  *   }), handler);
  *
+ * Strip de claves desconocidas (opt-in, F1.3): validateBody(schema, { strip: true })
+ * reemplaza req.body por SOLO las claves declaradas en el schema (anti
+ * mass-assignment). Solo top-level — arrays/objetos anidados pasan intactos.
+ *
  * Si la validación falla → res.status(400).json({ error: 'detalle...' }).
  */
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
 function _checkValue(name, value, rule) {
     if (value === undefined || value === null) {
@@ -32,8 +40,20 @@ function _checkValue(name, value, rule) {
             break;
         case 'string':
             if (typeof value !== 'string') return `${name} debe ser un string`;
+            if (rule.minLength && value.length < rule.minLength) {
+                return `${name} debe tener al menos ${rule.minLength} caracteres`;
+            }
             if (rule.maxLength && value.length > rule.maxLength) {
                 return `${name} excede ${rule.maxLength} caracteres`;
+            }
+            if (rule.format === 'email' && !EMAIL_RE.test(value)) {
+                return `${name} debe ser un email válido`;
+            }
+            if (rule.format === 'date' && !DATE_RE.test(value)) {
+                return `${name} debe tener formato YYYY-MM-DD`;
+            }
+            if (rule.pattern && !rule.pattern.test(value)) {
+                return `${name} tiene un formato inválido`;
             }
             break;
         case 'boolean':
@@ -68,12 +88,24 @@ function _checkValue(name, value, rule) {
     return null;
 }
 
-function validateBody(schema) {
+function validateBody(schema, options = {}) {
+    const { strip = false } = options;
     return (req, res, next) => {
         const body = req.body || {};
         for (const [name, rule] of Object.entries(schema)) {
             const err = _checkValue(name, body[name], rule);
             if (err) return res.status(400).json({ error: err });
+        }
+        // Strip de claves desconocidas (anti mass-assignment). Solo top-level:
+        // conserva las claves declaradas que estén presentes (incluido null);
+        // descarta undefined y todo lo no declarado. Los valores anidados
+        // (arrays/objetos) pasan tal cual.
+        if (strip) {
+            const clean = {};
+            for (const key of Object.keys(schema)) {
+                if (body[key] !== undefined) clean[key] = body[key];
+            }
+            req.body = clean;
         }
         next();
     };

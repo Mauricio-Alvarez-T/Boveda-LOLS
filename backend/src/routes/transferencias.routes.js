@@ -3,22 +3,12 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
+const { crearTransferencia, aprobar, recibir, resolverDiscrepancia } = require('../schemas/transferencias.schema');
 
-// Auditoría 4.4: schema mínimo común para crear transferencias.
-// Cada flujo extiende esto si necesita campos extra (motivo obligatorio, etc.).
-// items e items_custom son ambos opcionales aquí — el service valida que
-// al menos uno tenga elementos (items_custom = items personalizados fuera
-// de catálogo, p.ej. cosas a comprar).
-const crearTransferenciaSchema = {
-    items: { type: 'array' },
-    items_custom: { type: 'array' },
-};
-// `items` no es required: una transferencia puede contener sólo items_custom
-// (ej. solicitud_materiales) — el servicio detecta ese caso y bypasea el flujo
-// de splits/stock, sólo transiciona el estado.
-const aprobarTransferenciaSchema = {
-    items: { type: 'array' },
-};
+// F1.3 plan v2: schemas movidos a src/schemas/transferencias.schema.js.
+// crear/aprobar validan sin strip (el service destructura explícito y el
+// payload de aprobar es variable: legacy vs multi-origen). recibir y
+// resolverDiscrepancia sí usan strip (campos acotados y verificados).
 
 // GET /api/transferencias
 // Si NO tiene `inventario.transferencias.ver_todas` → backend scopea por
@@ -59,7 +49,7 @@ router.get('/discrepancias', auth, checkPermission('inventario.transferencias.ap
 });
 
 // PUT /api/transferencias/discrepancias/:id/resolver  body: { estado, resolucion }
-router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
+router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.transferencias.aprobar'), validateBody(resolverDiscrepancia, { strip: true }), async (req, res, next) => {
     try {
         const { estado, resolucion } = req.body;
         const result = await transferenciaService.resolverDiscrepancia(
@@ -87,7 +77,7 @@ router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, nex
 });
 
 // POST /api/transferencias — solicitud normal (flujo con aprobación)
-router.post('/', auth, checkPermission('inventario.transferencias.solicitar'), validateBody(crearTransferenciaSchema), async (req, res, next) => {
+router.post('/', auth, checkPermission('inventario.transferencias.solicitar'), validateBody(crearTransferencia), async (req, res, next) => {
     try {
         const result = await transferenciaService.crear(req.body, req.user.id);
         res.status(201).json({ data: result });
@@ -97,7 +87,7 @@ router.post('/', auth, checkPermission('inventario.transferencias.solicitar'), v
 // POST /api/transferencias/solicitud-materiales — obra pide materiales de construcción.
 // Misma lógica que solicitud estándar (flujo con aprobación, SoD aplica) pero con
 // permiso independiente para gating granular por rol.
-router.post('/solicitud-materiales', auth, checkPermission('inventario.transferencias.solicitud_materiales'), validateBody(crearTransferenciaSchema), async (req, res, next) => {
+router.post('/solicitud-materiales', auth, checkPermission('inventario.transferencias.solicitud_materiales'), validateBody(crearTransferencia), async (req, res, next) => {
     try {
         req.body.tipo_flujo = 'solicitud_materiales';
         const result = await transferenciaService.crear(req.body, req.user.id);
@@ -150,7 +140,7 @@ router.post('/orden-gerencia', auth, checkPermission('inventario.transferencias.
 });
 
 // PUT /api/transferencias/:id/aprobar — SoD: el aprobador no puede ser el solicitante
-router.put('/:id/aprobar', auth, checkPermission('inventario.transferencias.aprobar'), validateBody(aprobarTransferenciaSchema), async (req, res, next) => {
+router.put('/:id/aprobar', auth, checkPermission('inventario.transferencias.aprobar'), validateBody(aprobar), async (req, res, next) => {
     try {
         const result = await transferenciaService.aprobar(req.params.id, req.user.id, req.body, req.user.p);
         res.json({ data: result });
@@ -169,7 +159,7 @@ router.put('/:id/despachar', auth, checkPermission('inventario.transferencias.de
 // Body acepta `tipo: 'parcial' | 'total'` (default 'total' por back-compat).
 // En modo parcial: deja la TRF en estado 'recepcion_parcial' para múltiples viajes.
 // En modo total: cierra la TRF (estado 'recibida') y genera discrepancias por gaps.
-router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.recibir'), async (req, res, next) => {
+router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.recibir'), validateBody(recibir, { strip: true }), async (req, res, next) => {
     try {
         const tipo = req.body.tipo === 'parcial' ? 'parcial' : 'total';
         const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo, req.body.observacion);

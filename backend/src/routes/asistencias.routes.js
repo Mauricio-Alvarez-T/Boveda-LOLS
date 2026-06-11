@@ -3,6 +3,8 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const asistenciaService = require('../services/asistencia.service');
 const logger = require('../utils/logger-structured');
+const validateBody = require('../middleware/validateBody');
+const asistenciaSchemas = require('../schemas/asistencias.schema');
 
 /**
  * RUTAS DE EXPORTACIÓN (Poner arriba para evitar conflictos)
@@ -42,28 +44,19 @@ router.get('/estados', auth, async (req, res, next) => {
 });
 
 // Batch upsert multi-obra / multi-fecha (usado por "Repetir día anterior" y futuras cargas masivas)
-router.post('/batch', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+router.post('/batch', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.batch, { strip: true }), async (req, res, next) => {
     try {
         const { registros } = req.body;
-        if (!registros || !Array.isArray(registros)) {
-            return res.status(400).json({ error: 'registros[] es requerido' });
-        }
-        if (registros.length === 0) {
-            return res.status(400).json({ error: 'registros[] no puede estar vacío' });
-        }
         const result = await asistenciaService.batchSave(registros, req.user.id, req);
         res.status(201).json({ data: result });
     } catch (err) { next(err); }
 });
 
 // Bulk create/update
-router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+router.post('/bulk/:obra_id', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.bulk, { strip: true }), async (req, res, next) => {
     try {
         const { obra_id } = req.params;
         const { registros } = req.body;
-        if (!obra_id || !registros || !Array.isArray(registros)) {
-            return res.status(400).json({ error: 'obra_id y registros[] son requeridos' });
-        }
         const result = await asistenciaService.bulkCreate(obra_id, registros, req.user.id, req);
         res.status(201).json({ data: result });
     } catch (err) { next(err); }
@@ -109,7 +102,7 @@ router.get('/resumen/:obraId', auth, checkPermission('asistencia.ver'), async (r
 });
 
 // Update with audit log
-router.put('/:id', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+router.put('/:id', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.actualizar, { strip: true }), async (req, res, next) => {
     try {
         const result = await asistenciaService.update(req.params.id, req.body, req.user.id);
         res.json(result);
@@ -140,7 +133,7 @@ router.get('/horarios/:obraId', auth, checkPermission('asistencia.horarios.ver')
     } catch (err) { next(err); }
 });
 
-router.post('/horarios/:obraId', auth, checkPermission('asistencia.horarios.editar'), async (req, res, next) => {
+router.post('/horarios/:obraId', auth, checkPermission('asistencia.horarios.editar'), validateBody(asistenciaSchemas.guardarHorarios, { strip: true }), async (req, res, next) => {
     try {
         const { horarios } = req.body;
         if (!horarios || !Array.isArray(horarios)) {
@@ -175,7 +168,7 @@ router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel')
 // ═══ PERÍODOS DE AUSENCIA ═══
 
 // Períodos de ausencia
-router.post('/periodos', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+router.post('/periodos', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.crearPeriodo, { strip: true }), async (req, res, next) => {
     try {
         const result = await asistenciaService.crearPeriodo(req.body, req.user.id, req);
         res.status(201).json({ data: result });
@@ -183,7 +176,7 @@ router.post('/periodos', auth, checkPermission('asistencia.guardar'), async (req
 });
 
 // Traslado de Obra (TO)
-router.post('/traslado-obra', auth, checkPermission('asistencia.guardar'), async (req, res, next) => {
+router.post('/traslado-obra', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.trasladoObra, { strip: true }), async (req, res, next) => {
     try {
         const result = await asistenciaService.trasladoObra(req.body, req.user.id, req);
         res.status(201).json({ data: result });

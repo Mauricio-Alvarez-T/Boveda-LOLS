@@ -286,7 +286,7 @@ describe('Registro Masivo de Asistencia (bulkCreate)', () => {
             .send({});
 
         expect(res.status).toBe(400);
-        expect(res.body.error).toContain('requeridos');
+        expect(res.body.error).toMatch(/requerido/);
     });
 
     test('POST /api/asistencias/bulk/1 → 400 con registros no-array', async () => {
@@ -512,13 +512,14 @@ describe('Períodos de Ausencia', () => {
         expect(conn.commit).toHaveBeenCalled();
     });
 
-    test('POST /api/asistencias/periodos → 500 sin campos requeridos', async () => {
+    test('POST /api/asistencias/periodos → 400 sin campos requeridos', async () => {
+        // F1.3: validateBody rechaza temprano con 400 (antes el service tronaba con 500).
         const res = await request(app)
             .post('/api/asistencias/periodos')
             .set('Authorization', `Bearer ${fullToken}`)
             .send({ trabajador_id: 1 });  // faltan campos
 
-        expect(res.status).toBe(500);
+        expect(res.status).toBe(400);
     });
 
     test('POST /api/asistencias/periodos → 500 si fecha_fin < fecha_inicio', async () => {

@@ -8,6 +8,8 @@ const versionService = require('../services/version.service');
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
 const createCrudRoutes = require('./crud.routes');
+const validateBody = require('../middleware/validateBody');
+const { crearUsuario, editarUsuario } = require('../schemas/usuarios.schema');
 
 // Instantiate missing user service dynamically since the file doesnt exist
 const usuariosService = createCrudService('usuarios', { 
@@ -132,12 +134,9 @@ router.get('/', auth, checkPermission('usuarios.ver'), async (req, res, next) =>
     } catch (err) { next(err); }
 });
 
-router.post('/', auth, checkPermission('usuarios.crear'), async (req, res, next) => {
+router.post('/', auth, checkPermission('usuarios.crear'), validateBody(crearUsuario, { strip: true }), async (req, res, next) => {
     try {
         const { nombre, email, password, rol_id, obra_id, email_corporativo } = req.body;
-        if (!nombre || !email || !password || !rol_id) {
-            return res.status(400).json({ error: 'nombre, email, password y rol_id son requeridos' });
-        }
         const hash = await bcrypt.hash(password, 10);
         const [result] = await db.query(
             'INSERT INTO usuarios (nombre, email, password_hash, rol_id, obra_id, email_corporativo) VALUES (?, ?, ?, ?, ?, ?)',
@@ -147,7 +146,7 @@ router.post('/', auth, checkPermission('usuarios.crear'), async (req, res, next)
     } catch (err) { next(err); }
 });
 
-router.put('/:id', auth, checkPermission('usuarios.editar'), async (req, res, next) => {
+router.put('/:id', auth, checkPermission('usuarios.editar'), validateBody(editarUsuario, { strip: true }), async (req, res, next) => {
     try {
         const data = { ...req.body };
         if (data.password) {

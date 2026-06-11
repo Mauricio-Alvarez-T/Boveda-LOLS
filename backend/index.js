@@ -100,6 +100,9 @@ try {
   const authMw = require('./src/middleware/auth');
   const { checkPermission } = require('./src/middleware/rbac');
 
+  const validateBody = require('./src/middleware/validateBody');
+  const { crearObra, editarObra, finalizarObra } = require('./src/schemas/obras.schema');
+
   const obrasOptions = {
     searchFields: ['nombre', 'direccion'],
     joins: 'LEFT JOIN empresas e ON obras.empresa_id = e.id',
@@ -124,7 +127,7 @@ try {
   // GET/POST/DELETE caen al router genérico de abajo.
   const obrasService = createCrudService('obras', obrasOptions);
   const obrasCascadeRouter = express.Router();
-  obrasCascadeRouter.put('/:id', authMw, checkPermission('obras.editar'), async (req, res, next) => {
+  obrasCascadeRouter.put('/:id', authMw, checkPermission('obras.editar'), validateBody(editarObra, { strip: true }), async (req, res, next) => {
     try {
       const { id } = req.params;
       const updated = await obrasService.update(id, req.body);
@@ -193,17 +196,11 @@ try {
 
   // PUT /api/obras/:id/finalizar — marca la obra como concluida. NO cascadea a
   // trabajadores (siguen reales / probablemente ya trasladados).
-  obrasCascadeRouter.put('/:id/finalizar', authMw, checkPermission('obras.finalizar'), async (req, res, next) => {
+  obrasCascadeRouter.put('/:id/finalizar', authMw, checkPermission('obras.finalizar'), validateBody(finalizarObra, { strip: true }), async (req, res, next) => {
     try {
       const { id } = req.params;
       const { fecha_termino, fecha_inicio } = req.body || {};
-      const dateRe = /^\d{4}-\d{2}-\d{2}$/;
-      if (!fecha_termino || !dateRe.test(String(fecha_termino))) {
-        return res.status(400).json({ error: 'fecha_termino es requerida (formato YYYY-MM-DD)' });
-      }
-      if (fecha_inicio && !dateRe.test(String(fecha_inicio))) {
-        return res.status(400).json({ error: 'fecha_inicio inválida (formato YYYY-MM-DD)' });
-      }
+      // Formato/required ya validados por finalizarObra; aquí solo el check cruzado.
       if (fecha_inicio && String(fecha_termino) < String(fecha_inicio)) {
         return res.status(400).json({ error: 'fecha_termino no puede ser anterior a fecha_inicio' });
       }
@@ -228,7 +225,8 @@ try {
   });
 
   app.use('/api/obras', obrasCascadeRouter);
-  app.use('/api/obras', createCrudRoutes('obras', 'obras', obrasOptions));
+  // createSchema valida+strip el POST /; el PUT /:id lo intercepta el cascade router (arriba).
+  app.use('/api/obras', createCrudRoutes('obras', 'obras', obrasOptions, { createSchema: crearObra }));
 
   app.use('/api/cargos', createCrudRoutes('cargos', 'cargos', {
     searchFields: ['nombre'],

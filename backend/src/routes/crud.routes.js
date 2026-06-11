@@ -4,15 +4,21 @@ const { checkPermission } = require('../middleware/rbac');
 
 const createCrudService = require('../services/crud.service');
 const createCrudController = require('../controllers/crud.controller');
+const validateBody = require('../middleware/validateBody');
 
 /**
  * Genera rutas CRUD completas para una entidad.
  * @param {object|string} controllerOrModulo - Controlador instanciado O string del módulo (ej. 'empresas')
  * @param {object|string} permisosOrTable - Mapa de permisos O nombre de tabla
  * @param {object} optionsOrEmpty - Opciones genéricas para crud.service si se usa formato string
+ * @param {object} routeOptions - Opt-in (F1.3): { createSchema, updateSchema } para validar+strip
+ *   el body en POST / y PUT /:id con el mini-DSL de validateBody. Sin esto, nada cambia.
  */
-const createCrudRoutes = (controllerOrModulo, permisosOrTable = {}, optionsOrEmpty = {}) => {
+const createCrudRoutes = (controllerOrModulo, permisosOrTable = {}, optionsOrEmpty = {}, routeOptions = {}) => {
     const router = express.Router();
+    const { createSchema, updateSchema } = routeOptions;
+    const createMw = createSchema ? [validateBody(createSchema, { strip: true })] : [];
+    const updateMw = updateSchema ? [validateBody(updateSchema, { strip: true })] : [];
 
     let controller, permisos;
 
@@ -38,11 +44,11 @@ const createCrudRoutes = (controllerOrModulo, permisosOrTable = {}, optionsOrEmp
     }
     
     if (getP('crear')) {
-        router.post('/', auth, checkPermission(getP('crear')), controller.create);
+        router.post('/', auth, checkPermission(getP('crear')), ...createMw, controller.create);
     }
-    
+
     if (getP('editar')) {
-        router.put('/:id', auth, checkPermission(getP('editar')), controller.update);
+        router.put('/:id', auth, checkPermission(getP('editar')), ...updateMw, controller.update);
     }
     
     if (getP('eliminar')) {

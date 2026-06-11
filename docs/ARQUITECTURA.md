@@ -29,7 +29,7 @@ hooks, helpers de formato locales.
 
 | Decisión | Elección | Razón |
 |---|---|---|
-| Capa de datos | **typeCast + zod + SQL crudo; SIN ORM** | 335 queries ya parametrizadas; SQL complejo (FIFO/SoD) se expresa mal en ORM; cPanel limita tooling; typeCast+zod dan el 80% del valor a 5% del costo |
+| Capa de datos | **typeCast + validateBody propio + SQL crudo; SIN ORM** | 335 queries ya parametrizadas; SQL complejo (FIFO/SoD) se expresa mal en ORM; cPanel limita tooling. NO zod: el deploy excluye `node_modules` → dep nueva = npm install manual + ventana de crash; el mini-DSL propio (`middleware/validateBody.js`) cubre required/tipos/format/strip sin dep (decidido en F1.3, 2026-06-11) |
 | Estado servidor FE | **TanStack Query**, migración gradual por módulo | caché + dedup + fin de los nonce-remount; convive con hooks actuales |
 | Tests FE | **Vitest + RTL**, solo flujos críticos + ui/ | red de seguridad para refactor, no cobertura total |
 | Hosting/deploy | cPanel + Passenger + lftp (SIN CAMBIO) | restricción fija |
@@ -48,14 +48,14 @@ hooks, helpers de formato locales.
 | TransferenciaDetail.tsx | 2.430 líneas | <500/archivo (Fase 4) |
 | asistencia.service.js / transferencia.service.js | 2.196 / 1.604 | divididos (Fase 4) |
 | Rutas inline en index.js | ~227 líneas | 0 (Fase 4) |
-| Rutas con validación de body | ~5% | 100% escritura (Fase 1) |
+| Rutas con validación de body | ~~5%~~ → **escritura oleada 1 ✓ (F1.3, asistencias/transferencias/usuarios/obras)** | 100% escritura (resto en oleadas siguientes) |
 | Booleans API | ~~0/1 (sin typeCast)~~ → **boolean real ✓ (F1.1, 2026-06-10)** | boolean real (Fase 1) |
-| Tests backend | 379 ✓ | mantener verdes siempre |
+| Tests backend | 396 ✓ | mantener verdes siempre |
 
 ## Fases
 
 - [x] **F0 — Documentación y línea base** (2026-06-10): `docs/reglas/` (9), este documento, puntero CLAUDE.md.
-- [ ] **F1 — Núcleo backend** (en curso):
+- [x] **F1 — Núcleo backend** (completada 2026-06-11):
   - [x] F1.1 typeCast en db.js (2026-06-10): TINYINT(1)→boolean; barrido de comparaciones estrictas
     (1 fix backend: asistencia.service workersToInclude; frontend sabados → flagOn/flagOff
     dual-aware). PENDIENTE QA staging exhaustivo antes de F1.3.
@@ -63,8 +63,11 @@ hooks, helpers de formato locales.
     test `migrate_guard.test.js`); request-id por request vía AsyncLocalStorage (`utils/request-context.js`,
     header `X-Request-Id`, reqId auto en todos los logs); barrido de los ~43 `console.*` runtime de
     `src/` al logger estructurado (scripts/ CLI se dejan).
-  - [ ] F1.3 validateBody v2 con zod + strip de keys (oleadas: asistencias, transferencias,
-    usuarios, obras → resto; schemas en `backend/src/schemas/`).
+  - [x] F1.3 (2026-06-11): validateBody v2 **sin zod** (mini-DSL propio extendido: strip de keys
+    desconocidas + format email/date + minLength). Schemas en `backend/src/schemas/` (asistencias,
+    transferencias, usuarios, obras). Aplicado a create/update + payloads anidados de oleada 1; strip
+    activo donde es seguro (usuarios PUT — única protección, sin allowedFields; recibir; resolver;
+    obras vía factory). 17 tests nuevos. Decisión: NO zod porque el deploy excluye node_modules.
 - [ ] **F2 — Design system**: escala tipográfica semántica en `@theme` (~5 tokens) y migración de
   los 555 usos POR PÁGINA; componentes IconButton/Chip/StatusBadge/EmptyState/Section; adopción
   total de Button/Input; `utils/format.ts` + `utils/statusConfig.ts` únicos; reglas ESLint
