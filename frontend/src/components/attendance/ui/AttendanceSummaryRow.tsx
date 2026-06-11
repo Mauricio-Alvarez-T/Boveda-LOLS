@@ -2,6 +2,7 @@ import React from 'react';
 import { ChevronLeft, ChevronRight, Calendar, CheckSquare, Users, BarChart3, Search, X, CalendarDays } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Button } from '../../ui/Button';
+import { IconButton } from '../../ui/IconButton';
 import { useTheme } from '../../../context/ThemeContext';
 import type { EstadoAsistencia } from '../../../types/entities';
 
@@ -77,8 +78,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
 
                 <div className="flex items-center gap-2 overflow-x-auto scrollbar-none pb-0.5">
                     <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-dark/5 rounded-xl border border-brand-dark/10 shrink-0">
-                        <span className="text-[12px] font-black text-brand-dark tabular-nums">{summary.total}</span>
-                        <span className="text-[8px] font-bold text-brand-dark/40 uppercase tracking-tighter">Total</span>
+                        <span className="text-xs font-black text-brand-dark tabular-nums">{summary.total}</span>
+                        <span className="text-micro font-bold text-brand-dark/40 uppercase tracking-tighter">Total</span>
                     </div>
                     {summary.desglose.map(({ count, estado }) => {
                         const isActive = statusFilter === estado.id;
@@ -89,8 +90,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border transition-all shrink-0 cursor-pointer ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
                                 style={chipStyle(estado.color, isActive, isDark)}
                             >
-                                <span className="text-[9px] font-black opacity-60 uppercase">{estado.codigo}</span>
-                                <span className="text-[12px] font-black tabular-nums">{count}</span>
+                                <span className="text-micro font-black opacity-60 uppercase">{estado.codigo}</span>
+                                <span className="text-xs font-black tabular-nums">{count}</span>
                             </div>
                         );
                     })}
@@ -123,7 +124,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         value={date}
                                         max={maxFecha}
                                         onChange={(e) => setDate(e.target.value)}
-                                        className="w-[105px] lg:w-[115px] bg-transparent text-[10px] lg:text-[11px] text-brand-dark font-black focus:outline-none text-center cursor-pointer"
+                                        className="w-[105px] lg:w-[115px] bg-transparent text-caption lg:text-label text-brand-dark font-black focus:outline-none text-center cursor-pointer"
                                     />
                                 </div>
                                 <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(1)}>
@@ -135,12 +136,12 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             <div className="flex items-center gap-1.5 lg:gap-2 shrink-0">
                                 <div className="flex items-center gap-1 px-2 lg:px-3 py-1 bg-brand-dark/5 rounded-lg lg:rounded-xl border border-brand-dark/10 shrink-0">
                                     <Users className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-dark/60" />
-                                    <span className="text-[11px] lg:text-[13px] font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
-                                    <span className="text-[8px] lg:text-[9px] font-bold text-brand-dark/40 uppercase tracking-tighter hidden lg:inline">Total</span>
+                                    <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
+                                    <span className="text-micro lg:text-micro font-bold text-brand-dark/40 uppercase tracking-tighter hidden lg:inline">Total</span>
                                 </div>
                                 <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg lg:rounded-xl border border-brand-accent/10 shrink-0">
                                     <BarChart3 className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-accent/60" />
-                                    <span className="text-[11px] lg:text-[13px] font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
+                                    <span className="text-label lg:text-section font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
                                 </div>
                             </div>
 
@@ -153,27 +154,27 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         placeholder="Buscar..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-[10px] lg:text-[11px] font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
+                                        className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-caption lg:text-label font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
                                     />
                                     {searchQuery && (
-                                        <button
+                                        <IconButton
                                             onClick={() => setSearchQuery('')}
-                                            className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all"
+                                            aria-label="Limpiar búsqueda"
                                             title="Limpiar búsqueda"
-                                        >
-                                            <X className="h-2.5 w-2.5" />
-                                        </button>
+                                            className="absolute right-2 top-1/2 -translate-y-1/2 h-5 w-5 bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20"
+                                            icon={<X className="h-2.5 w-2.5" />}
+                                        />
                                     )}
                                 </div>
                                 {/* Ícono Sábados Extra — solo visible si el tab está disponible */}
                                 {onGoSabados && (
-                                    <button
+                                    <IconButton
                                         onClick={onGoSabados}
+                                        aria-label="Sábados Extra"
                                         title="Sábados Extra"
-                                        className="flex items-center justify-center h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40 transition-all"
-                                    >
-                                        <CalendarDays className="h-3.5 w-3.5" />
-                                    </button>
+                                        className="h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40"
+                                        icon={<CalendarDays className="h-3.5 w-3.5" />}
+                                    />
                                 )}
                             </div>
                         </>
@@ -194,8 +195,8 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     className={`flex items-center gap-1 px-2 py-1 rounded-lg lg:rounded-xl border transition-all shrink-0 shadow-sm cursor-pointer hover:brightness-90 hover:shadow-md ${isActive ? 'ring-2 ring-offset-1 ring-offset-background shadow-md' : ''}`}
                                     style={chipStyle(estado.color, isActive, isDark)}
                                 >
-                                    <span className="text-[9px] lg:text-[10px] font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
-                                    <span className="text-[11px] lg:text-[13px] font-black tabular-nums">{count}</span>
+                                    <span className="text-micro lg:text-caption font-black opacity-70 uppercase tracking-widest">{estado.codigo}</span>
+                                    <span className="text-label lg:text-section font-black tabular-nums">{count}</span>
                                 </motion.div>
                             );
                         })}

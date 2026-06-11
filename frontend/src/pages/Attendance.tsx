@@ -84,13 +84,14 @@ const AttendancePage: React.FC = () => {
                         const TabIcon = tab.icon;
                         const isActive = effectiveTab === tab.key;
                         return (
+                            // eslint-disable-next-line no-restricted-syntax -- control de tab segmentado (flex-1 + estado activo full-bleed); el primitivo Button (pill rounded-full, scale) rompe el layout
                             <button
                                 key={tab.key}
                                 type="button"
                                 onClick={() => setActiveTab(tab.key)}
                                 className={cn(
                                     'flex items-center justify-center gap-1.5 rounded-xl font-bold uppercase tracking-wider transition-all whitespace-nowrap',
-                                    'flex-1 px-3 py-2 text-[11px]',
+                                    'flex-1 px-3 py-2 text-label',
                                     isActive
                                         ? 'bg-brand-primary text-white shadow-lg shadow-brand-primary/25'
                                         : 'text-muted-foreground hover:bg-background hover:text-brand-dark'

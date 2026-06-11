@@ -7,6 +7,7 @@ import { useObra } from '../../context/ObraContext';
 import { useSetPageHeader } from '../../context/PageHeaderContext';
 import { useAttendanceData, useAttendanceActions, useAttendanceExport } from '../../hooks/attendance';
 import RequirePermission from '../auth/RequirePermission';
+import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
 
 interface Props {
@@ -65,7 +66,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                 <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
                     Más Acciones
                 </h1>
-                <p className="text-[10px] text-muted-foreground font-bold truncate opacity-80">
+                <p className="text-caption text-muted-foreground font-bold truncate opacity-80">
                     {selectedObra ? selectedObra.nombre : 'Asistencia'}
                 </p>
             </div>
@@ -85,22 +86,24 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
     return (
         <div className="flex flex-col gap-3 pb-8">
             {/* Volver — link superior */}
-            <button
+            <Button
+                variant="ghost"
+                size="sm"
                 onClick={onBack}
-                className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-brand-primary self-start px-1 py-1 rounded-lg active:scale-95 transition-all"
+                leftIcon={<ChevronLeft className="h-4 w-4" />}
+                className="self-start text-label font-bold uppercase tracking-wider text-brand-primary"
             >
-                <ChevronLeft className="h-4 w-4" />
-                <span>Volver a la lista</span>
-            </button>
+                Volver a la lista
+            </Button>
 
             {/* ═══ Filtros ═══ */}
             <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 <header className="px-4 py-3 border-b border-border bg-muted">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Filtros</p>
+                    <p className="text-caption font-black uppercase tracking-wider text-muted-foreground">Filtros</p>
                 </header>
                 <div className="p-4 space-y-3">
                     <label className="block">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 flex items-center gap-1.5">
+                        <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 flex items-center gap-1.5">
                             <Building2 className="h-3 w-3" /> Empresa
                         </span>
                         <select
@@ -120,10 +123,11 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
             {/* ═══ Acciones del día ═══ */}
             <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 <header className="px-4 py-3 border-b border-border bg-muted">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Acciones del día</p>
+                    <p className="text-caption font-black uppercase tracking-wider text-muted-foreground">Acciones del día</p>
                 </header>
 
                 <div className="divide-y divide-border">
+                    {/* eslint-disable-next-line no-restricted-syntax -- fila de acción (icono 44px + título + descripción, left-align); Button centraría el contenido y rompe el patrón de lista */}
                     <button
                         onClick={triggerRepeat}
                         disabled={isRepeatDisabled || !repetirDiaAnterior}
@@ -142,6 +146,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                     </button>
 
                     <RequirePermission permiso="asistencia.feriado.gestionar">
+                        {/* eslint-disable-next-line no-restricted-syntax -- fila de acción (icono 44px + título + descripción, left-align); Button centraría el contenido y rompe el patrón de lista */}
                         <button
                             onClick={toggleFeriado}
                             className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors"
@@ -166,12 +171,12 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
             {/* ═══ Reporte mensual ═══ */}
             <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
                 <header className="px-4 py-3 border-b border-border bg-muted">
-                    <p className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Reporte mensual</p>
+                    <p className="text-caption font-black uppercase tracking-wider text-muted-foreground">Reporte mensual</p>
                 </header>
                 <div className="p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">
                         <label className="block">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 block">Mes</span>
+                            <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 block">Mes</span>
                             <select
                                 value={reportMonth}
                                 onChange={(e) => setReportMonth(e.target.value)}
@@ -185,7 +190,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                             </select>
                         </label>
                         <label className="block">
-                            <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 block">Año</span>
+                            <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 block">Año</span>
                             <select
                                 value={reportYear}
                                 onChange={(e) => setReportYear(e.target.value)}
@@ -195,17 +200,18 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                             </select>
                         </label>
                     </div>
-                    <button
+                    <Button
+                        variant="primary"
                         onClick={() => handleExportExcel(false)}
                         disabled={!hasPermission('asistencia.exportar_excel')}
+                        leftIcon={<FileDown className="h-4 w-4" />}
                         className={cn(
-                            "w-full h-12 rounded-xl bg-brand-primary text-white font-black uppercase tracking-wider text-xs shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2",
+                            "w-full h-12 font-black uppercase tracking-wider text-xs shadow-md",
                             !hasPermission('asistencia.exportar_excel') && "opacity-40 grayscale pointer-events-none"
                         )}
                     >
-                        <FileDown className="h-4 w-4" />
                         Exportar Excel
-                    </button>
+                    </Button>
                 </div>
             </section>
         </div>

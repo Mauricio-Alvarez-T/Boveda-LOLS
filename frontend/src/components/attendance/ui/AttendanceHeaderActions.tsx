@@ -107,7 +107,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     <select
                         value={selectedEmpresaId || ""}
                         onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
-                        className="h-9 bg-transparent text-[10px] font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[140px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
+                        className="h-9 bg-transparent text-caption font-black uppercase text-muted-foreground/80 px-3 pr-8 min-w-[140px] appearance-none cursor-pointer outline-none focus:text-brand-primary"
                         style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`, backgroundPosition: 'right 10px center', backgroundRepeat: 'no-repeat' }}
                     >
                         <option value="">Todas las Empresas</option>
@@ -252,6 +252,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
 
     return (
         <div ref={ref} className="relative lg:hidden">
+            {/* eslint-disable-next-line no-restricted-syntax -- trigger de dropdown (estado abierto/cerrado, shape rounded-xl custom); IconButton no encaja */}
             <button
                 onClick={() => setOpen(v => !v)}
                 className={cn(
@@ -268,11 +269,11 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                 <div className="absolute top-full right-0 mt-2 w-56 bg-card rounded-xl border border-border shadow-xl z-[200] py-1.5 animate-in fade-in slide-in-from-top-2 duration-150">
                     {/* Empresa selector — only shown here below lg */}
                     <div className="px-3 py-2 border-b border-border">
-                        <label className="text-[9px] font-black uppercase text-muted-foreground/60 tracking-wider block mb-1">Empresa</label>
+                        <label className="text-micro font-black uppercase text-muted-foreground/60 tracking-wider block mb-1">Empresa</label>
                         <select
                             value={selectedEmpresaId || ""}
                             onChange={(e) => { setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null); }}
-                            className="w-full h-8 bg-background border border-border rounded-lg text-[11px] font-bold text-brand-dark px-2 outline-none focus:border-brand-primary cursor-pointer"
+                            className="w-full h-8 bg-background border border-border rounded-lg text-label font-bold text-brand-dark px-2 outline-none focus:border-brand-primary cursor-pointer"
                         >
                             <option value="">Todas las Empresas</option>
                             {availableEmpresas.map(emp => (
@@ -281,6 +282,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                         </select>
                     </div>
 
+                    {/* eslint-disable-next-line no-restricted-syntax -- fila de menú dropdown (left-align icono+texto); Button centra y rompe el patrón de menú */}
                     <button
                         onClick={() => { handleShareWhatsApp(); setOpen(false); }}
                         disabled={!hasPermission('asistencia.enviar_whatsapp') || isGlobal}
@@ -290,6 +292,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                         <Send className="h-4 w-4 text-brand-primary" fill="currentColor" />
                         Compartir WhatsApp
                     </button>
+                    {/* eslint-disable-next-line no-restricted-syntax -- fila de menú dropdown (left-align icono+texto); Button centra y rompe el patrón de menú */}
                     <button
                         onClick={() => { handleExportExcel(); setOpen(false); }}
                         disabled={!hasPermission('asistencia.exportar_excel')}
@@ -299,6 +302,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                         Reporte Mensual
                     </button>
                     {repetirDiaAnterior && (
+                        // eslint-disable-next-line no-restricted-syntax -- fila de menú dropdown (left-align icono+texto); Button centra y rompe el patrón de menú
                         <button
                             onClick={() => { repetirDiaAnterior(); setOpen(false); }}
                             disabled={isRepeatDisabled}
@@ -309,6 +313,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                         </button>
                     )}
                     {hasPermission('asistencia.feriado.gestionar') && (
+                        // eslint-disable-next-line no-restricted-syntax -- fila de menú dropdown (left-align icono+texto); Button centra y rompe el patrón de menú
                         <button
                             onClick={() => { toggleFeriado(); setOpen(false); }}
                             disabled={isGlobal}
@@ -381,6 +386,7 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
 
     return (
         <div ref={wrapperRef} className="relative md:hidden">
+            {/* eslint-disable-next-line no-restricted-syntax -- trigger "+" de popover con badge de filtro activo + ref de posición; IconButton (sin badge/ref) no aplica */}
             <button
                 ref={buttonRef}
                 onClick={() => setOpen(v => !v)}
@@ -410,10 +416,11 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                     >
                         <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border">
                             <Building2 className="h-3.5 w-3.5 text-muted-foreground/60" />
-                            <label className="text-[10px] font-black uppercase text-muted-foreground/70 tracking-wider">Filtrar por empresa</label>
+                            <label className="text-caption font-black uppercase text-muted-foreground/70 tracking-wider">Filtrar por empresa</label>
                         </div>
 
                         <div className="flex-1 overflow-y-auto py-1.5">
+                            {/* eslint-disable-next-line no-restricted-syntax -- opción de menú radio (left-align texto + check); Button centra y rompe el patrón */}
                             <button
                                 onClick={() => handleSelect(null)}
                                 className={cn(
@@ -430,6 +437,7 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                             {availableEmpresas.map(emp => {
                                 const isActive = selectedEmpresaId === emp.id;
                                 return (
+                                    // eslint-disable-next-line no-restricted-syntax -- opción de menú radio (left-align texto + check); Button centra y rompe el patrón
                                     <button
                                         key={emp.id}
                                         onClick={() => handleSelect(emp.id)}

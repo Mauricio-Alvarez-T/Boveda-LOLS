@@ -6,6 +6,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 
 import { Button } from '../ui/Button';
+import { EmptyState } from '../ui/EmptyState';
 import { TimeStepperInput } from '../ui/TimeStepperInput';
 import { WorkerCalendarModal } from './WorkerCalendarModal';
 import { TrasladoObraModal } from './TrasladoObraModal';
@@ -159,7 +160,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
                     {selectedObra ? 'Asistencia' : 'Reporte Global'}
                 </h1>
-                <p className="text-[10px] text-muted-foreground font-bold truncate opacity-80">
+                <p className="text-caption text-muted-foreground font-bold truncate opacity-80">
                     {selectedObra ? selectedObra.nombre : 'Consolidado'}
                 </p>
             </div>
@@ -284,6 +285,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                 className="w-full h-11 pl-11 pr-10 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-4 focus:ring-brand-primary/5 shadow-sm transition-all"
                             />
                             {searchQuery && (
+                                // eslint-disable-next-line no-restricted-syntax -- X de limpiar dentro del input (absolute, tamaño mínimo); IconButton no encaja aquí
                                 <button onClick={() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 active:scale-90 transition-all">
                                     <X className="h-3.5 w-3.5" />
                                 </button>
@@ -303,9 +305,8 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                     ))}
                 </div>
             ) : workers.length === 0 ? (
-                <div className="bg-card rounded-2xl border border-border py-20 text-center">
-                    <Users className="h-10 w-10 text-muted mx-auto mb-4 opacity-40" />
-                    <p className="text-muted-foreground text-sm">No hay trabajadores asignados a esta obra.</p>
+                <div className="bg-card rounded-2xl border border-border">
+                    <EmptyState icon={Users} title="No hay trabajadores asignados a esta obra." />
                 </div>
             ) : (
                 <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
@@ -329,7 +330,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                 <motion.div initial={{ opacity: 0, scale: 0.95, y: -10 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: -10 }} className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/60 p-4 rounded-2xl flex items-center gap-4 mb-2 shadow-sm shrink-0">
                                     <div className="h-10 w-10 flex-shrink-0 bg-amber-100 dark:bg-amber-950/40 rounded-xl flex items-center justify-center text-amber-600 dark:text-amber-300 border border-amber-200/50 dark:border-amber-900/50"><CalendarRange className="h-5 w-5" /></div>
                                     <div className="min-w-0">
-                                        <h3 className="text-[11px] font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider mb-0.5">Día No Laboral</h3>
+                                        <h3 className="text-label font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider mb-0.5">Día No Laboral</h3>
                                         <p className="text-xs text-amber-800 dark:text-amber-300 font-bold opacity-80 decoration-amber-300">
                                             {feriadoActual ? `Hoy es Feriado (${feriadoActual.nombre}). No se registra asistencia.` : `Hoy es ${isSunday ? 'Domingo' : 'Sábado'}. No se registra asistencia los fines de semana.`}
                                         </p>
@@ -376,17 +377,19 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                     >
                                         <div className="md:hidden p-3 pb-4">
                                             <div className="flex items-center gap-3 mb-3">
-                                                <button onClick={() => toggleMarkedRow(idx)} className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-[10px] transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border")}>{(idx + 1).toString().padStart(2, '0')}</button>
+                                                {/* eslint-disable-next-line no-restricted-syntax -- checkbox de fila (nº marcado) tuneado al grid; no es un Button */}
+                                                <button onClick={() => toggleMarkedRow(idx)} className={cn("h-10 w-10 rounded-xl flex items-center justify-center font-black text-caption transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-lg scale-110" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border")}>{(idx + 1).toString().padStart(2, '0')}</button>
                                                 <div className="flex-1 min-w-0">
                                                     <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="w-full text-left truncate block leading-tight">
-                                                        <span className="text-[12px] font-black text-brand-dark uppercase tracking-tight">{worker.apellido_paterno} {worker.apellido_materno || ''}</span>
-                                                        <span className="text-[11px] font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">{worker.nombres}</span>
+                                                        <span className="text-xs font-black text-brand-dark uppercase tracking-tight">{worker.apellido_paterno} {worker.apellido_materno || ''}</span>
+                                                        <span className="text-label font-semibold text-brand-dark/65 ml-1.5 lowercase first-letter:uppercase">{worker.nombres}</span>
                                                     </WorkerLink>
-                                                    <p className="text-[10px] text-muted-foreground font-medium mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} className="mr-1 align-middle" />{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
+                                                    <p className="text-caption text-muted-foreground font-medium mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} className="mr-1 align-middle" />{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
                                                     {workerAlerta && (
-                                                        <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[9px] font-bold text-red-600 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
+                                                        <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-micro font-bold text-red-600 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
                                                     )}
                                                 </div>
+                                                {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila, tamaño/forma tuneados al grid (h-10 rounded-xl); IconButton fijo regresa layout */}
                                                 <button onClick={() => setCalendarWorker(worker)} className="h-10 w-10 rounded-xl bg-card flex items-center justify-center text-brand-primary border border-brand-primary/20 shadow-sm active:scale-90 transition-all shrink-0" title="Ver Calendario"><CalendarDays className="h-5 w-5" /></button>
                                             </div>
 
@@ -396,7 +399,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                     if (activeSecondary) {
                                                         // Período del calendario: pill SOLO-LECTURA con rango (reemplaza los botones).
                                                         return (
-                                                            <div className="flex-1 rounded-xl text-[10px] font-black uppercase text-white text-center leading-tight px-2 py-1.5 flex items-center justify-center shadow-md" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
+                                                            <div className="flex-1 rounded-xl text-caption font-black uppercase text-white text-center leading-tight px-2 py-1.5 flex items-center justify-center shadow-md" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
                                                         );
                                                     }
                                                     return ['A', 'F', 'JI', 'TO'].map(code => {
@@ -404,12 +407,14 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                         if (!est) return null;
                                                         const isActive = state.estado_id === est.id;
                                                         return (
+                                                            // eslint-disable-next-line no-restricted-syntax -- toggle de estado A/F/JI/TO con color de BD inline (estado.color) y tamaño de grid; el primitivo Button no soporta este patrón
                                                             <button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("flex-1 rounded-xl text-xs font-black uppercase transition-all border shrink-0 active:scale-95", isActive ? "text-white border-transparent shadow-md" : "bg-card border-border text-muted-foreground/60")} style={isActive ? { backgroundColor: est.color } : undefined}>{est.codigo}</button>
                                                         );
                                                     });
                                                 })()}
                                             </div>
-                                            <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-[10px] text-brand-primary font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 dark:bg-muted/40 border border-slate-100 dark:border-border transition-all active:scale-98", (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale")}>
+                                            {/* eslint-disable-next-line no-restricted-syntax -- toggle "Detalle" full-width tuneado a la fila; mantiene layout del grid */}
+                                            <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("mt-2 flex items-center justify-center gap-1.5 w-full py-2 text-caption text-brand-primary font-bold uppercase tracking-tight rounded-xl bg-slate-50/50 dark:bg-muted/40 border border-slate-100 dark:border-border transition-all active:scale-98", (!!feriadoActual || isSunday || isSaturday || isOutOfRange) && "opacity-50 cursor-not-allowed grayscale")}>
                                                 <span>{isExpanded ? 'Cerrar' : 'Detalle'}</span><ChevronDown className={cn("h-3 w-3 transition-transform", isExpanded && "rotate-180")} />
                                             </button>
                                         </div>
@@ -418,12 +423,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                         <div className={cn("hidden md:block px-4 lg:px-6 py-3 lg:py-4 group", markedRows.has(idx) && "bg-brand-primary/5 rounded-2xl")}>
                                             {/* ── lg+: original 5-column grid ── */}
                                             <div className="hidden lg:grid grid-cols-[50px_minmax(180px,280px)_1fr_140px_56px] gap-3 items-center">
-                                                <div className="flex justify-center"><button onClick={() => toggleMarkedRow(idx)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black transition-all border", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border hover:border-brand-primary/30 hover:bg-card hover:text-brand-primary active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button></div>
+                                                {/* eslint-disable-next-line no-restricted-syntax -- checkbox de fila (nº marcado) tuneado al grid; no es un Button */}
+                                                <div className="flex justify-center"><button onClick={() => toggleMarkedRow(idx)} className={cn("w-7 h-7 rounded-lg flex items-center justify-center text-caption font-black transition-all border", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md scale-110" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border hover:border-brand-primary/30 hover:bg-card hover:text-brand-primary active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button></div>
                                                 <div className="flex items-center gap-3 min-w-0 border-l border-border/40 pl-3 group-hover:border-brand-primary/30 transition-colors">
                                                     <div className="min-w-0">
-                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[12px] truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
-                                                        <p className="text-[10px] text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1.5">{worker.cargo_nombre}</span>}</p>
-                                                        {workerAlerta && (<div className="flex items-center gap-1.5 mt-1"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[10px] font-bold text-red-600 dark:text-red-300 leading-tight">{workerAlerta.alertas.map(a => a.mensaje).join(' · ')}</span></div>)}
+                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-xs truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
+                                                        <p className="text-caption text-muted-foreground font-medium flex items-center gap-1.5 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-1 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1.5">{worker.cargo_nombre}</span>}</p>
+                                                        {workerAlerta && (<div className="flex items-center gap-1.5 mt-1"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-caption font-bold text-red-600 dark:text-red-300 leading-tight">{workerAlerta.alertas.map(a => a.mensaje).join(' · ')}</span></div>)}
                                                     </div>
                                                 </div>
                                                 <div className="flex justify-center">
@@ -432,7 +438,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                         if (activeSecondary) {
                                                             // Período del calendario: pill SOLO-LECTURA con rango (reemplaza los botones).
                                                             return (
-                                                                <div className="h-8 px-3.5 rounded-xl text-[10px] font-black uppercase flex items-center justify-center text-white shadow-md whitespace-nowrap" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
+                                                                <div className="h-8 px-3.5 rounded-xl text-caption font-black uppercase flex items-center justify-center text-white shadow-md whitespace-nowrap" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
                                                             );
                                                         }
                                                         return (
@@ -441,19 +447,22 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                                     const est = estados.find(e => e.codigo === code);
                                                                     if (!est) return null;
                                                                     const isActive2 = state.estado_id === est.id;
-                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                                    // eslint-disable-next-line no-restricted-syntax -- toggle de estado A/F/JI/TO con color de BD inline (estado.color) y tamaño de grid; Button no soporta este patrón
+                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-8 px-3 rounded-xl text-caption font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[36px]", isActive2 ? "text-white border-transparent shadow-md scale-105" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                                 })}
                                                             </div>
                                                         );
                                                     })()}
                                                 </div>
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"} className={cn("text-[10px] text-brand-primary font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
+                                                    {/* eslint-disable-next-line no-restricted-syntax -- link "Detalle" inline en el grid (text-only, hover:underline); Button (pill) rompe la celda */}
+                                                    <div className="flex-1"><button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} title={isOutOfRange ? (isPreContrato ? "Bloqueado: Aún no contratado" : "Bloqueado por Finiquito") : "Ver detalle"} className={cn("text-caption text-brand-primary font-medium hover:underline w-full text-center", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed no-underline grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button></div>
+                                                    {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila (forma/tamaño tuneados al grid); IconButton fijo regresa layout */}
                                                     <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1.5 rounded-full text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors flex-shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-4 w-4" /></button>
                                                 </div>
                                                 {verHorasExtra && (
                                                     <div className="w-[56px]">
-                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full bg-background border border-border rounded-lg px-2 py-1.5 text-[10px] text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full bg-background border border-border rounded-lg px-2 py-1.5 text-caption text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     </div>
                                                 )}
                                             </div>
@@ -462,14 +471,17 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                             <div className="lg:hidden flex flex-col gap-2">
                                                 {/* Row 1: Number + Name/Info + Action buttons */}
                                                 <div className="flex items-center gap-2.5">
-                                                    <button onClick={() => toggleMarkedRow(idx)} className={cn("w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-black transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border hover:border-brand-primary/30 active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button>
+                                                    {/* eslint-disable-next-line no-restricted-syntax -- checkbox de fila (nº marcado) tuneado al grid; no es un Button */}
+                                                    <button onClick={() => toggleMarkedRow(idx)} className={cn("w-6 h-6 rounded-md flex items-center justify-center text-micro font-black transition-all border shrink-0", markedRows.has(idx) ? "bg-brand-dark text-white border-brand-dark shadow-md" : "bg-slate-50 dark:bg-muted text-slate-500 dark:text-muted-foreground border-slate-200 dark:border-border hover:border-brand-primary/30 active:scale-95")}>{(idx + 1).toString().padStart(2, '0')}</button>
                                                     <div className="flex-1 min-w-0">
-                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-[11px] truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors leading-tight">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
-                                                        <p className="text-[9px] text-muted-foreground font-medium flex items-center gap-1 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-0.5 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1">{worker.cargo_nombre}</span>}</p>
-                                                        {workerAlerta && (<div className="flex items-center gap-1 mt-0.5"><AlertTriangle className="h-2.5 w-2.5 text-red-500 dark:text-red-400 shrink-0" /><span className="text-[9px] font-bold text-red-600 dark:text-red-300 leading-tight truncate">{workerAlerta.alertas[0]?.mensaje}</span></div>)}
+                                                        <WorkerLink workerId={worker.id} onClick={setQuickViewId} className="text-label truncate block font-bold text-slate-700 dark:text-slate-200 hover:text-brand-primary transition-colors leading-tight">{worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}</WorkerLink>
+                                                        <p className="text-micro text-muted-foreground font-medium flex items-center gap-1 mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} /><span className="bg-slate-100 dark:bg-muted px-0.5 rounded uppercase tracking-tighter">{worker.rut}</span>{worker.cargo_nombre && <span className="text-brand-primary/80 font-bold border-l border-slate-200 dark:border-border pl-1">{worker.cargo_nombre}</span>}</p>
+                                                        {workerAlerta && (<div className="flex items-center gap-1 mt-0.5"><AlertTriangle className="h-2.5 w-2.5 text-red-500 dark:text-red-400 shrink-0" /><span className="text-micro font-bold text-red-600 dark:text-red-300 leading-tight truncate">{workerAlerta.alertas[0]?.mensaje}</span></div>)}
                                                     </div>
                                                     <div className="flex items-center gap-1 shrink-0">
-                                                        <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("text-[9px] text-brand-primary font-bold px-2 py-1 rounded-md hover:bg-brand-primary/5 transition-colors", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button>
+                                                        {/* eslint-disable-next-line no-restricted-syntax -- "Detalle" inline compacto del grid md; Button (pill) rompe la fila */}
+                                                        <button onClick={() => setExpandedWorkerId(isExpanded ? null : worker.id)} disabled={isOutOfRange || !!feriadoActual || isSunday || isSaturday} className={cn("text-micro text-brand-primary font-bold px-2 py-1 rounded-md hover:bg-brand-primary/5 transition-colors", (isOutOfRange || !!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed grayscale")}>{isExpanded ? 'Cerrar' : 'Detalle'}</button>
+                                                        {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila (md), forma/tamaño tuneados al grid; IconButton fijo regresa layout */}
                                                         <button onClick={() => setCalendarWorker(worker)} disabled={!!feriadoActual || isSunday || isSaturday} className={cn("p-1 rounded-md text-muted-foreground border border-border hover:bg-background hover:text-brand-primary transition-colors", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} title="Ver Calendario / Asignar Período"><CalendarDays className="h-3.5 w-3.5" /></button>
                                                     </div>
                                                 </div>
@@ -480,7 +492,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                         if (activeSecondary) {
                                                             // Período del calendario: pill SOLO-LECTURA con rango (reemplaza los botones).
                                                             return (
-                                                                <div className="flex-1 min-w-0 rounded-lg text-[9px] font-black uppercase text-white text-center leading-tight px-2 py-1 flex items-center justify-center shadow-md" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
+                                                                <div className="flex-1 min-w-0 rounded-lg text-micro font-black uppercase text-white text-center leading-tight px-2 py-1 flex items-center justify-center shadow-md" style={{ backgroundColor: activeSecondary.color }} title={activeSecondary.nombre}>{periodoLabel(worker.id, activeSecondary)}</div>
                                                             );
                                                         }
                                                         return (
@@ -489,13 +501,14 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                                     const est = estados.find(e => e.codigo === code);
                                                                     if (!est) return null;
                                                                     const isActive2 = state.estado_id === est.id;
-                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-[9px] font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
+                                                                    // eslint-disable-next-line no-restricted-syntax -- toggle de estado A/F/JI/TO con color de BD inline (estado.color) y tamaño de grid; Button no soporta este patrón
+                                                                    return (<button key={est.id} onClick={() => applyStatusChange(worker, est)} disabled={isOutOfRange || !hasPermission('asistencia.guardar') || !!feriadoActual || isSunday || isSaturday} className={cn("h-7 px-2 rounded-lg text-micro font-black uppercase transition-all whitespace-nowrap border shrink-0 flex items-center justify-center min-w-[28px]", isActive2 ? "text-white border-transparent shadow-md" : "bg-card border-slate-200 dark:border-border text-slate-400 dark:text-muted-foreground hover:border-slate-300 dark:hover:border-[var(--border-hover)] hover:text-slate-600 dark:hover:text-foreground active:scale-95")} style={isActive2 ? { backgroundColor: est.color, borderColor: est.color } : undefined}>{est.codigo}</button>);
                                                                 })}
                                                             </div>
                                                         );
                                                     })()}
                                                     {verHorasExtra && (
-                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-[48px] bg-background border border-border rounded-lg px-1.5 py-1 text-[9px] text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-[48px] bg-background border border-border rounded-lg px-1.5 py-1 text-micro text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     )}
                                                 </div>
                                             </div>
@@ -512,12 +525,12 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                         <div className={cn("col-span-2 md:col-span-1 grid gap-3", verHorasExtra ? "grid-cols-2" : "grid-cols-1")}>
                                                             {verHorasExtra && (
                                                                 <div>
-                                                                    <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
+                                                                    <label className="text-micro font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
                                                                     <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                                 </div>
                                                             )}
                                                             <div>
-                                                                <label className="text-[9px] font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
+                                                                <label className="text-micro font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
                                                                 <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
                                                             </div>
                                                         </div>
@@ -531,7 +544,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                         </AnimatePresence>
                     </div>
 
-                    <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-[11px] font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
+                    <div className="h-9 bg-muted border-t border-border flex items-center justify-between px-5 text-label font-bold text-muted-foreground shrink-0 uppercase tracking-widest rounded-b-3xl">
                         <div className="flex items-center gap-2">
                             <div className="h-1.5 w-1.5 rounded-full bg-brand-primary/40" />
                             <span>{filteredWorkers.length} {filteredWorkers.length === 1 ? 'trabajador' : 'trabajadores'}</span>
