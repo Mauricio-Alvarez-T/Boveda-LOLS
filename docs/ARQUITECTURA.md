@@ -86,3 +86,7 @@ hooks, helpers de formato locales.
 3. Cada item: `tsc --noEmit` + `npm run build` + `npm test` backend (+ Vitest desde F3).
 4. Cada fase cierra actualizando este documento (checkbox + métricas) y `docs/reglas/`.
 5. Migraciones siempre idempotentes; las corre el humano (cPanel `migrate`) + re-login si tocan permisos.
+6. **Prohibido `git push --force` a `develop`/`main`.** Una sesión paralela force-pusheó develop
+   (2026-06) y borró 2 commits (docs F0 + typeCast F1.1); se recuperaron por cherry-pick. Si un push
+   es rechazado por non-fast-forward: `git fetch` + rebase + reintento, nunca `--force`. Recomendado:
+   branch protection en GitHub con force-push bloqueado.
