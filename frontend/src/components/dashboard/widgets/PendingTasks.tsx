@@ -87,10 +87,10 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                 </div>
                 <div className="flex items-center gap-1.5">
                     {criticalCount > 0 && (
-                        <Chip tone="danger" label={`${criticalCount} 🔴`} />
+                        <Chip tone="danger" label={`${criticalCount} 🔴`} className="text-micro" />
                     )}
                     {warningCount > 0 && (
-                        <Chip tone="warning" label={`${warningCount} 🟡`} />
+                        <Chip tone="warning" label={`${warningCount} 🟡`} className="text-micro" />
                     )}
                 </div>
             </div>

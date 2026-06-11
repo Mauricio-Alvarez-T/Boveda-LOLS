@@ -57,6 +57,20 @@ Tokens en `index.css` (`@theme inline` + `:root`/`.dark`): `brand-primary`,
 **Anti-pattern:** `<button>` crudo. Usar `Button` (texto) o `IconButton` (icono).
 Excepción legítima rara → `// eslint-disable-next-line no-restricted-syntax` + comentario.
 
+### Regla de iconos (botones-icono)
+**TODOS los botones-icono van GRISES en reposo** (`text-muted-foreground`) y solo
+cambian a su color **al hover**. **Sin relleno persistente** — ni los toggles
+activos ni los CTA conservan color de fondo; el estado activo se indica por el
+panel abierto / un badge / el cambio de icono (ej. Plus rota, Filter↔X), nunca por
+el color del botón. Implementado en `IconButton`:
+- `variant="ghost"` → gris → **verde** (brand-primary) al hover · acciones neutras
+  (calendario, ver, editar, constancia, reactivar, crear, filtros, exportar, cerrar).
+- `variant="danger"` → gris → **rojo** (destructive) al hover · eliminar / depurar / baja.
+- `variant="primary"` (relleno) **NO** se usa para icon-buttons (rompe la regla);
+  reservado para casos no-icono excepcionales.
+No usar `<Button size="icon">` con color idle (ej. `text-brand-primary`/`text-destructive`):
+migrar a `IconButton`. Las páginas ya migradas heredan la regla del primitivo.
+
 ## 4. statusConfig — `frontend/src/utils/statusConfig.ts`
 
 Mapas de estado tipados por dominio. Shape:

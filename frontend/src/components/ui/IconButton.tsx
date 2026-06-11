@@ -16,9 +16,14 @@ type IconButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> & {
     'aria-label': string;
 };
 
+// Regla de iconos (design system): idle SIEMPRE gris (text-muted-foreground);
+// al hover transiciona al color que le corresponde a la acción.
+//   ghost   → gris → verde (brand-primary)  [acción neutra: calendarios, ver, editar…]
+//   danger  → gris → rojo (destructive)      [eliminar/baja]
+//   primary → relleno verde                  [CTA principal explícito, sin idle gris]
 const variants = {
-    ghost: 'text-muted-foreground hover:bg-black/5 hover:text-brand-dark dark:hover:bg-white/10',
-    danger: 'text-destructive hover:bg-destructive/10',
+    ghost: 'text-muted-foreground hover:bg-brand-primary/10 hover:text-brand-primary dark:hover:bg-brand-primary/15',
+    danger: 'text-muted-foreground hover:bg-destructive/10 hover:text-destructive',
     primary: 'bg-brand-primary text-white hover:bg-[#027A3B]',
 };
 
