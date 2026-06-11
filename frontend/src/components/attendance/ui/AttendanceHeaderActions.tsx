@@ -20,6 +20,7 @@ interface AttendanceHeaderActionsProps {
     availableEmpresas: { id: number, nombre: string }[];
     repetirDiaAnterior?: () => void;
     repeating?: boolean;
+    isGlobal?: boolean;
 }
 
 /**
@@ -48,10 +49,13 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     setSelectedEmpresaId,
     availableEmpresas,
     repetirDiaAnterior,
-    repeating = false
+    repeating = false,
+    isGlobal = false
 }) => {
     const isSaveDisabled = saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend;
     const isRepeatDisabled = repeating || saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend || !repetirDiaAnterior;
+    const canSendWhatsApp = hasPermission('asistencia.enviar_whatsapp') && !isGlobal;
+    const whatsAppTitle = isGlobal ? "Disponible al seleccionar una obra" : "Enviar por WhatsApp";
 
     return (
         <div className="flex items-center gap-2">
@@ -69,12 +73,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
 
                 <Button
                     onClick={handleShareWhatsApp}
-                    disabled={!hasPermission('asistencia.enviar_whatsapp')}
+                    disabled={!canSendWhatsApp}
                     className={cn(
                         "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
-                        !hasPermission('asistencia.enviar_whatsapp') && "opacity-40 grayscale pointer-events-none"
+                        !canSendWhatsApp && "opacity-40 grayscale pointer-events-none"
                     )}
-                    title="Enviar por WhatsApp"
+                    title={whatsAppTitle}
                 >
                     <Send className="h-4 w-4" fill="currentColor" />
                 </Button>
@@ -124,12 +128,12 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 <Button
                     onClick={handleShareWhatsApp}
                     variant="glass"
-                    disabled={!hasPermission('asistencia.enviar_whatsapp')}
+                    disabled={!canSendWhatsApp}
                     className={cn(
                         "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl bg-card border border-border text-brand-primary shadow-sm",
-                        hasPermission('asistencia.enviar_whatsapp') ? "hover:bg-brand-primary/5" : "opacity-40 grayscale pointer-events-none"
+                        canSendWhatsApp ? "hover:bg-brand-primary/5" : "opacity-40 grayscale pointer-events-none"
                     )}
-                    title="Compartir por WhatsApp"
+                    title={isGlobal ? "Disponible al seleccionar una obra" : "Compartir por WhatsApp"}
                 >
                     <Send className="h-4 w-4" fill="currentColor" />
                 </Button>
@@ -186,6 +190,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     isFeriado={isFeriado}
                     isRepeatDisabled={!!isRepeatDisabled}
                     repeating={repeating}
+                    isGlobal={isGlobal}
                     selectedEmpresaId={selectedEmpresaId}
                     setSelectedEmpresaId={setSelectedEmpresaId}
                     availableEmpresas={availableEmpresas}
@@ -221,6 +226,7 @@ interface DesktopOverflowMenuProps {
     isFeriado: boolean;
     isRepeatDisabled: boolean;
     repeating: boolean;
+    isGlobal?: boolean;
     selectedEmpresaId: number | null;
     setSelectedEmpresaId: (val: number | null) => void;
     availableEmpresas: { id: number; nombre: string }[];
@@ -228,7 +234,7 @@ interface DesktopOverflowMenuProps {
 
 const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
     handleShareWhatsApp, handleExportExcel, toggleFeriado,
-    repetirDiaAnterior, hasPermission, isFeriado, isRepeatDisabled, repeating,
+    repetirDiaAnterior, hasPermission, isFeriado, isRepeatDisabled, repeating, isGlobal = false,
     selectedEmpresaId, setSelectedEmpresaId, availableEmpresas
 }) => {
     const [open, setOpen] = useState(false);
@@ -275,7 +281,8 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
 
                     <button
                         onClick={() => { handleShareWhatsApp(); setOpen(false); }}
-                        disabled={!hasPermission('asistencia.enviar_whatsapp')}
+                        disabled={!hasPermission('asistencia.enviar_whatsapp') || isGlobal}
+                        title={isGlobal ? "Disponible al seleccionar una obra" : undefined}
                         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-brand-dark hover:bg-background transition-colors disabled:opacity-40 disabled:pointer-events-none"
                     >
                         <Send className="h-4 w-4 text-brand-primary" fill="currentColor" />

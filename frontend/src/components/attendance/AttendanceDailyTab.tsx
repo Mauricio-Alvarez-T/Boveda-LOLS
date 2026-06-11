@@ -190,6 +190,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                     }
                 }}
                 repeating={repeating}
+                isGlobal={isGlobalActive}
             />
         );
     }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating]);

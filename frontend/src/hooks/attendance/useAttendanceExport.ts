@@ -95,7 +95,10 @@ export function useAttendanceExport({
         }
 
         const { selectedObra: currentObra, date: currentDate, workers: currentWorkers, attendance: currentAttendance, estados: currentEstados } = latestData.current;
-        if (!currentObra) return;
+        if (!currentObra) {
+            toast.info('Selecciona una obra para enviar el reporte por WhatsApp', { id: 'whatsapp-share' });
+            return;
+        }
 
         toast.info('Preparando reporte...', { id: 'whatsapp-share', duration: 2000 });
 
