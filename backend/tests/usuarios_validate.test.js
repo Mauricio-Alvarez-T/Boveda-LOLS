@@ -42,9 +42,17 @@ describe('POST /usuarios — validateBody (F1.3)', () => {
         expect(res.body.error).toMatch(/email/);
     });
 
-    test('password corta (<4) → 400', async () => {
+    test('password corta (<5) → 400', async () => {
         const res = await request(app).post('/usuarios').send({ nombre: 'Ana', email: 'a@b.cl', password: 'ab', rol_id: 2 });
         expect(res.status).toBe(400);
+    });
+
+    // Boundary del bug: 4 chars pasaba el backend (min 4) pero el login exige 5
+    // → usuario creable que no podía loguear. Ahora backend tambien exige 5.
+    test('password de 4 chars → 400 (no crear usuario que no puede loguear)', async () => {
+        const res = await request(app).post('/usuarios').send({ nombre: 'Ana', email: 'a@b.cl', password: '1234', rol_id: 2 });
+        expect(res.status).toBe(400);
+        expect(db.query).not.toHaveBeenCalled();
     });
 
     test('body válido con clave basura extra → 201 y la basura NO llega al INSERT', async () => {

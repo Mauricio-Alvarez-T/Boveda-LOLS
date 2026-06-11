@@ -17,6 +17,10 @@ const ChangePasswordForm: React.FC = () => {
             toast.error('Ambas contraseñas son requeridas');
             return;
         }
+        if (newPassword.length < 5) {
+            toast.error('La nueva contraseña debe tener al menos 5 caracteres');
+            return;
+        }
 
         setSaving(true);
         try {

@@ -36,7 +36,11 @@ interface UserData {
 const schema = z.object({
     nombre: z.string().min(1, 'Nombre es requerido'),
     email: z.string().email('Email inválido'),
-    password: z.string().optional(),
+    // optional() porque en edición vacío = "no cambiar". Si viene, min 5 para
+    // no crear usuarios que el login (min 5) luego rechace ("muy corta").
+    password: z.string().optional().refine(v => !v || v.length >= 5, {
+        message: 'La contraseña debe tener al menos 5 caracteres',
+    }),
     email_corporativo: z.string().optional(),
     rol_id: z.preprocess((val) => Number(val), z.number().min(1, 'Selecciona un rol')),
     obra_id: z.preprocess((val) => Number(val), z.number().optional()),

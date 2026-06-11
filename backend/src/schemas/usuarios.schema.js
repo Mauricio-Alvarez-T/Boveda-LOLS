@@ -10,7 +10,7 @@
 const crearUsuario = {
     nombre: { required: true, type: 'string', maxLength: 200 },
     email: { required: true, type: 'string', format: 'email', maxLength: 255 },
-    password: { required: true, type: 'string', minLength: 4, maxLength: 200 },
+    password: { required: true, type: 'string', minLength: 5, maxLength: 200 },
     rol_id: { required: true, type: 'integer', min: 1 },
     obra_id: { type: 'integer', min: 1 },                 // nullable: null pasa el strip
     email_corporativo: { type: 'string', format: 'email', maxLength: 255 },
@@ -19,7 +19,7 @@ const crearUsuario = {
 const editarUsuario = {
     nombre: { type: 'string', maxLength: 200 },
     email: { type: 'string', format: 'email', maxLength: 255 },
-    password: { type: 'string', minLength: 4, maxLength: 200 },  // handler → password_hash
+    password: { type: 'string', minLength: 5, maxLength: 200 },  // handler → password_hash
     rol_id: { type: 'integer', min: 1 },
     obra_id: { type: 'integer', min: 1 },
     email_corporativo: { type: 'string', format: 'email', maxLength: 255 },
@@ -28,7 +28,7 @@ const editarUsuario = {
 
 const cambiarPassword = {
     currentPassword: { required: true, type: 'string' },
-    newPassword: { required: true, type: 'string', minLength: 4, maxLength: 200 },
+    newPassword: { required: true, type: 'string', minLength: 5, maxLength: 200 },
 };
 
 module.exports = { crearUsuario, editarUsuario, cambiarPassword };
