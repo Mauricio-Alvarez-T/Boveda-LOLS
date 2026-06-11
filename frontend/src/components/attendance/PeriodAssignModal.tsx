@@ -2,6 +2,7 @@ import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, CalendarRange, AlertTriangle, Check, Loader2, ChevronLeft, Trash2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { Modal } from '../ui/Modal';
 import api from '../../services/api';
 import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/entities';
@@ -142,6 +143,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                 </label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                     {estadosAusencia.map(est => (
+                        // eslint-disable-next-line no-restricted-syntax -- card selector de estado con color de BD inline (est.color border+bg) y left-align; Button no soporta este patrón
                         <button
                             key={est.id}
                             onClick={() => setEstadoId(est.id)}
@@ -159,7 +161,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                 />
                                 <span className="text-sm font-semibold text-brand-dark">{est.nombre}</span>
                             </div>
-                            <span className="text-[10px] text-muted-foreground font-medium mt-0.5 block">{est.codigo}</span>
+                            <span className="text-caption text-muted-foreground font-medium mt-0.5 block">{est.codigo}</span>
                         </button>
                     ))}
                 </div>
@@ -270,7 +272,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                             <Button 
                                                 size="sm" 
                                                 variant="ghost" 
-                                                className="h-7 px-2 text-[10px] font-bold text-muted-foreground hover:bg-muted"
+                                                className="h-7 px-2 text-caption font-bold text-muted-foreground hover:bg-muted"
                                                 onClick={() => setDeletingPeriodId(null)}
                                             >
                                                 No
@@ -278,7 +280,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                             <Button 
                                                 size="sm" 
                                                 variant="primary" 
-                                                className="h-7 px-2 text-[10px] font-bold bg-destructive hover:bg-destructive/90 border-none"
+                                                className="h-7 px-2 text-caption font-bold bg-destructive hover:bg-destructive/90 border-none"
                                                 onClick={() => handleDeletePeriod(p.id)}
                                             >
                                                 Sí, borrar
@@ -286,22 +288,23 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                         </div>
                                     ) : (
                                         hasPermission('asistencia.periodo.eliminar') && (
-                                            <button 
+                                            <IconButton
+                                                size="sm"
                                                 onClick={() => setDeletingPeriodId(p.id)}
-                                                className="p-1.5 rounded-lg hover:bg-destructive/5 text-muted-foreground hover:text-destructive transition-colors shrink-0"
+                                                aria-label="Eliminar período"
                                                 title="Eliminar período"
-                                            >
-                                                <Trash2 className="h-3.5 w-3.5" />
-                                            </button>
+                                                className="rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/5 shrink-0"
+                                                icon={<Trash2 className="h-3.5 w-3.5" />}
+                                            />
                                         )
                                     )}
                                 </div>
-                                <div className="flex items-center justify-between text-[10px] font-medium text-muted-foreground pl-4">
+                                <div className="flex items-center justify-between text-caption font-medium text-muted-foreground pl-4">
                                     <span>
                                         {p.fecha_inicio.split('T')[0].split('-').reverse().join('/')} al {p.fecha_fin.split('T')[0].split('-').reverse().join('/')}
                                     </span>
                                     {p.observacion && (
-                                        <span className="text-[9px] italic truncate max-w-[120px]" title={p.observacion}>
+                                        <span className="text-micro italic truncate max-w-[120px]" title={p.observacion}>
                                             • {p.observacion}
                                         </span>
                                     )}

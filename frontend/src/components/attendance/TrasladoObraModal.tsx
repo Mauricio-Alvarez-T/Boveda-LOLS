@@ -85,7 +85,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                     </div>
                     <div className="text-left">
                         <h3 className="text-lg font-bold text-brand-dark leading-tight">Traslado de Obra</h3>
-                        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
+                        <p className="text-label text-muted-foreground font-medium uppercase tracking-wider">
                             {worker.apellido_paterno} {worker.nombres}
                         </p>
                     </div>
@@ -121,7 +121,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                         <Building2 size={120} />
                     </div>
                     
-                    <label className="text-[10px] font-bold text-brand-primary uppercase tracking-widest mb-2 block">
+                    <label className="text-caption font-bold text-brand-primary uppercase tracking-widest mb-2 block">
                         Ubicación Actual
                     </label>
                     <div className="flex items-center gap-3">
@@ -130,7 +130,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                         </div>
                         <div className="text-left">
                             <p className="text-base font-bold text-brand-dark">{obraActualNombre}</p>
-                            <p className="text-[11px] text-muted-foreground">Obra de origen para el día {fecha}</p>
+                            <p className="text-label text-muted-foreground">Obra de origen para el día {fecha}</p>
                         </div>
                     </div>
                 </div>
@@ -167,7 +167,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
                 </div>
 
                 <div className="bg-yellow-50/50 dark:bg-yellow-950/20 border border-yellow-200/50 dark:border-yellow-900/40 p-3 rounded-xl border-dashed">
-                    <p className="text-[11px] text-yellow-700 dark:text-yellow-300 leading-relaxed font-medium">
+                    <p className="text-label text-yellow-700 dark:text-yellow-300 leading-relaxed font-medium">
                         <span className="font-bold">Aviso:</span> Al completar el traslado, se generará un registro de asistencia tipo <span className="font-bold">TO</span> en la obra actual y el trabajador se asignará permanentemente a la nueva obra.
                     </p>
                 </div>

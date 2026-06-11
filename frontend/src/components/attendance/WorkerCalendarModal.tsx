@@ -140,18 +140,18 @@ export const WorkerCalendarModal: React.FC<Props> = ({
 
     const modalTitle = (
         <div className="flex flex-col min-w-0 pr-8">
-            <span className="text-[10px] uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-1">
+            <span className="text-caption uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-1">
                 Calendario de Asistencia
             </span>
             <div className="flex items-center gap-2">
                 <h3 className="text-sm md:text-base font-bold text-brand-dark truncate">
                     {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                 </h3>
-                <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-dark text-[10px] font-bold">
+                <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-dark text-caption font-bold">
                     {worker.rut}
                 </span>
                 <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-[10px] font-black text-white shrink-0"
+                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-caption font-black text-white shrink-0"
                     style={{ backgroundColor: empresaInfo.color }}
                     title={`Empresa: ${empresaInfo.nombre}`}
                 >
@@ -174,7 +174,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                         {/* Rango seleccionado — visible solo cuando hay fechas */}
                         {(fechaInicio || fechaFin) && (
                             <div className="flex flex-col leading-tight">
-                                <span className="text-[9px] uppercase font-black text-muted-foreground/70 tracking-widest">Rango seleccionado</span>
+                                <span className="text-micro uppercase font-black text-muted-foreground/70 tracking-widest">Rango seleccionado</span>
                                 <span className="text-xs font-bold text-brand-dark tabular-nums">
                                     {fechaInicio ? fechaInicio.split('-').reverse().join('/') : '—'}
                                     {fechaFin && fechaFin !== fechaInicio && ` — ${fechaFin.split('-').reverse().join('/')}`}
@@ -242,6 +242,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 {/* Compacto: nombre y código en UNA sola línea. 2 columnas en desktop. */}
                                 <div className="grid grid-cols-2 gap-1.5">
                                     {estadosAusencia.map(est => (
+                                        // eslint-disable-next-line no-restricted-syntax -- card selector de estado con color de BD inline (est.color border+bg) y left-align; Button no soporta este patrón
                                         <button
                                             key={est.id}
                                             onClick={() => setEstadoId(est.id)}
@@ -263,7 +264,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                             <span className="text-xs font-semibold text-brand-dark truncate flex-1 min-w-0">
                                                 {est.nombre}
                                             </span>
-                                            <span className="text-[9px] font-bold text-muted-foreground/70 shrink-0">
+                                            <span className="text-micro font-bold text-muted-foreground/70 shrink-0">
                                                 {est.codigo}
                                             </span>
                                         </button>

@@ -29,7 +29,7 @@ export const WorkerDocsContent: React.FC<WorkerDocsContentProps> = ({
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-muted p-5 rounded-2xl border border-border">
                 <div>
                     <h4 className="text-base font-bold text-brand-dark tracking-tight">Bóveda de Documentos</h4>
-                    <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider opacity-70">
+                    <p className="text-label text-muted-foreground font-medium uppercase tracking-wider opacity-70">
                         Expediente digital de {worker.apellido_paterno} {worker.nombres}
                     </p>
                 </div>
