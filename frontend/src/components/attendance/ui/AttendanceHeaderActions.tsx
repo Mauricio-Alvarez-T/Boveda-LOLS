@@ -168,13 +168,15 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     <Button
                         onClick={toggleFeriado}
                         variant={isFeriado ? "outline" : "glass"}
+                        disabled={isGlobal}
                         className={cn(
                             "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl transition-all shadow-sm border",
-                            isFeriado 
-                                ? "bg-destructive text-white border-transparent" 
-                                : "bg-card border-border text-muted-foreground hover:text-brand-primary"
+                            isFeriado
+                                ? "bg-destructive text-white border-transparent"
+                                : "bg-card border-border text-muted-foreground hover:text-brand-primary",
+                            isGlobal && "opacity-40 grayscale pointer-events-none"
                         )}
-                        title={isFeriado ? "Quitar Feriado" : "Marcar Feriado"}
+                        title={isGlobal ? "Disponible al seleccionar una obra" : (isFeriado ? "Quitar Feriado" : "Marcar Feriado")}
                     >
                         <CalendarRange className="h-4 w-4" />
                     </Button>
@@ -309,7 +311,9 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                     {hasPermission('asistencia.feriado.gestionar') && (
                         <button
                             onClick={() => { toggleFeriado(); setOpen(false); }}
-                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-brand-dark hover:bg-background transition-colors"
+                            disabled={isGlobal}
+                            title={isGlobal ? "Disponible al seleccionar una obra" : undefined}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-brand-dark hover:bg-background transition-colors disabled:opacity-40 disabled:pointer-events-none"
                         >
                             <CalendarRange className={cn("h-4 w-4", isFeriado ? "text-destructive" : "text-muted-foreground")} />
                             {isFeriado ? 'Quitar Feriado' : 'Marcar Feriado'}

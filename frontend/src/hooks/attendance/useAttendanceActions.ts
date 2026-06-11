@@ -79,7 +79,11 @@ export function useAttendanceActions({
 
     const toggleFeriado = useCallback(async () => {
         const { selectedObra: currentObra, feriadoActual: currentFeriado, date: currentDate } = latestData.current;
-        if (!currentObra || !hasPermission('asistencia.feriado.gestionar')) return;
+        if (!hasPermission('asistencia.feriado.gestionar')) return;
+        if (!currentObra) {
+            toast.info('Selecciona una obra para marcar feriado', { id: 'feriado-toggle' });
+            return;
+        }
 
         if (currentFeriado) {
             if (window.confirm(`¿Seguro que deseas quitar el feriado "${currentFeriado.nombre}"?`)) {
