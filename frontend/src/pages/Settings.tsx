@@ -10,7 +10,8 @@ import {
     CheckSquare,
     AlertTriangle,
     Clock,
-    Mail
+    Mail,
+    Truck
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { cn } from '../utils/cn';
@@ -22,7 +23,7 @@ import { IconButton } from '../components/ui/IconButton';
 import { Chip } from '../components/ui/Chip';
 import { StatusBadge } from '../components/ui/StatusBadge';
 import { fmtMoney } from '../utils/format';
-import type { Empresa, Obra, Cargo, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
+import type { Empresa, Obra, Cargo, Conductor, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
 
 interface UserData {
     id: number;
@@ -47,6 +48,7 @@ interface RoleData {
 import { EmpresaForm } from '../components/settings/EmpresaForm';
 import { ObraForm } from '../components/settings/ObraForm';
 import { CargoForm } from '../components/settings/CargoForm';
+import { ConductorForm } from '../components/settings/ConductorForm';
 import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
 import { UsuarioForm } from '../components/settings/UsuarioForm';
 import { RolForm } from '../components/settings/RolForm';
@@ -70,7 +72,7 @@ import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
 import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
 import { Modal } from '../components/ui/Modal';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
 interface TabDef {
     key: TabKey;
@@ -104,6 +106,7 @@ const tabGroups: TabGroup[] = [
         items: [
             { key: 'usuarios', label: 'Usuarios', shortLabel: 'Usuarios', icon: Users },
             { key: 'roles', label: 'Roles', shortLabel: 'Roles', icon: Shield },
+            { key: 'conductores', label: 'Conductores', shortLabel: 'Conduct.', icon: Truck },
             { key: 'tipos_doc', label: 'Tipos de Documento', shortLabel: 'Tipos Doc.', icon: FileText },
         ]
     },
@@ -182,6 +185,16 @@ const cargoCols: ColumnDef<Cargo>[] = [
         key: 'activo', label: 'Estado',
         render: (v) => (
             <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Finiquitado'} className="text-caption" />
+        ),
+    },
+];
+
+const conductorCols: ColumnDef<Conductor>[] = [
+    { key: 'nombre', label: 'Nombre' },
+    {
+        key: 'activo', label: 'Estado',
+        render: (v) => (
+            <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Inactivo'} className="text-caption" />
         ),
     },
 ];
@@ -508,6 +521,20 @@ const SettingsPage: React.FC = () => {
                             canCreate={hasPermission('cargos.crear')}
                             canEdit={hasPermission('cargos.editar')}
                             canDelete={hasPermission('cargos.eliminar')}
+                            canExport={false}
+                        />
+                    )}
+                    {activeTab === 'conductores' && (
+                        <CrudTable
+                            endpoint="/conductores"
+                            columns={conductorCols}
+                            entityName="Conductor"
+                            entityNamePlural="Conductores"
+                            FormComponent={ConductorForm}
+                            queryParams={{ activo: true }}
+                            canCreate={hasPermission('conductores.crear')}
+                            canEdit={hasPermission('conductores.editar')}
+                            canDelete={hasPermission('conductores.eliminar')}
                             canExport={false}
                         />
                     )}

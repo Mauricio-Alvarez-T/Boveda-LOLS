@@ -52,6 +52,12 @@ export interface Cargo {
     activo: boolean;
 }
 
+export interface Conductor {
+    id: number;
+    nombre: string;
+    activo: boolean;
+}
+
 export interface Trabajador {
     id: number;
     rut: string;
@@ -89,11 +95,14 @@ export interface Vehiculo {
     modelo: string;
     anio: number;
     tipo: 'camioneta' | 'camion' | 'auto' | 'furgon' | 'bus' | 'otro';
+    empresa?: 'LOLS' | 'TRANSPORTE' | null;
+    conductor_id?: number | null;
     kilometraje_actual: number;
     color?: string | null;
     observaciones?: string | null;
     activo: boolean;
     // Campos enriquecidos por el backend (subconsultas)
+    conductor_nombre?: string | null;
     seguro_tipo?: string | null;
     seguro_vencimiento?: string | null;
     revision_tecnica_vencimiento?: string | null;

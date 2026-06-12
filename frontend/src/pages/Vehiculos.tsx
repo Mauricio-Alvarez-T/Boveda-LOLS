@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Truck, Plus, Shield, Wrench, ClipboardList, ScrollText,
-    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter, Save
+    Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter, Save, User
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -264,12 +264,22 @@ const VehiculosPage: React.FC = () => {
                             )}>
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 min-w-0">
+                                    {/* Nombre del vehículo en orden: empresa · marca · patente · conductor asignado */}
                                     <div className="flex items-center gap-2 flex-wrap">
+                                        {v.empresa && (
+                                            <span className="text-caption font-bold px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-primary uppercase tracking-wide">{v.empresa}</span>
+                                        )}
+                                        <span className="font-semibold text-brand-dark text-sm">{v.marca}</span>
                                         <span className="font-black text-brand-dark text-sm">{v.patente}</span>
-                                        <span className="text-xs text-muted-foreground">{v.marca} {v.modelo} {v.anio}</span>
-                                        <span className="text-caption px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
+                                        {v.conductor_nombre && (
+                                            <span className="inline-flex items-center gap-1 text-caption text-muted-foreground">
+                                                <User className="h-3 w-3" /> {v.conductor_nombre}
+                                            </span>
+                                        )}
                                     </div>
                                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                                        <span className="text-caption text-muted-foreground">{v.modelo} {v.anio}</span>
+                                        <span className="text-caption px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
                                         <EstadoVencimiento fecha={v.seguro_vencimiento} label="seguro" />
                                         <EstadoVencimiento fecha={v.revision_tecnica_vencimiento} label="revisión" />
                                         <span className="text-caption text-muted-foreground">{fmtNumber(v.kilometraje_actual || 0)} km</span>

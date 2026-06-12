@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -6,7 +6,8 @@ import { toast } from 'sonner';
 import { CalendarCheck } from 'lucide-react';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
-import type { Vehiculo } from '../../types/entities';
+import type { Vehiculo, Conductor } from '../../types/entities';
+import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { mesRevisionPorPatente } from '../../utils/revisionTecnica';
 
@@ -27,6 +28,8 @@ const schema = z.object({
         .min(1990, 'El año debe ser 1990 o posterior')
         .max(new Date().getFullYear() + 1, 'El año no puede ser futuro'),
     tipo:    z.enum(['camioneta','camion','auto','furgon','bus','otro']),
+    empresa: z.string().optional(),       // 'LOLS' | 'TRANSPORTE' | '' (sin asignar)
+    conductor_id: z.string().optional(),  // id del conductor como string del <select>; se convierte al enviar
     kilometraje_actual: z.coerce.number()
         .min(0, 'Los kilómetros no pueden ser negativos')
         .optional(),
@@ -50,25 +53,40 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
             modelo:  initialData.modelo,
             anio:    initialData.anio,
             tipo:    initialData.tipo,
+            empresa: initialData.empresa || '',
+            conductor_id: initialData.conductor_id ? String(initialData.conductor_id) : '',
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
             observaciones: initialData.observaciones || '',
-        } : { tipo: 'camioneta', kilometraje_actual: 0 },
+        } : { tipo: 'camioneta', empresa: '', conductor_id: '', kilometraje_actual: 0 },
     });
 
     useFormDirtyProtection(isDirty);
+
+    // Catálogo de conductores (se administra en Configuración → Conductores)
+    const [conductores, setConductores] = useState<Conductor[]>([]);
+    useEffect(() => {
+        api.get<ApiResponse<Conductor[]>>('/conductores?activo=true')
+            .then(res => setConductores(res.data.data))
+            .catch(() => { /* si falla la carga, el select queda vacío; no bloquea el alta */ });
+    }, []);
 
     // Mes de revisión técnica según el último dígito de la patente (calendario MTT)
     const patente = watch('patente');
     const mesRevision = mesRevisionPorPatente(patente);
 
     const onSubmit = async (data: FormData) => {
+        const payload = {
+            ...data,
+            empresa: data.empresa || null,
+            conductor_id: data.conductor_id ? Number(data.conductor_id) : null,
+        };
         try {
             if (initialData) {
-                await api.put(`/vehiculos/${initialData.id}`, data);
+                await api.put(`/vehiculos/${initialData.id}`, payload);
                 toast.success('Vehículo actualizado');
             } else {
-                await api.post('/vehiculos', data);
+                await api.post('/vehiculos', payload);
                 toast.success('Vehículo registrado');
             }
             onSuccess();
@@ -109,6 +127,28 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                     </p>
                 </div>
             )}
+
+            <div className="grid grid-cols-2 gap-4">
+                <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Empresa</label>
+                    <select {...register('empresa')}
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                        <option value="">Sin asignar</option>
+                        <option value="LOLS">LOLS</option>
+                        <option value="TRANSPORTE">TRANSPORTE</option>
+                    </select>
+                </div>
+                <div>
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Conductor asignado</label>
+                    <select {...register('conductor_id')}
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                        <option value="">Sin asignar</option>
+                        {conductores.map(c => (
+                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                        ))}
+                    </select>
+                </div>
+            </div>
 
             <div className="grid grid-cols-2 gap-4">
                 <Input label="Marca" placeholder="Toyota" {...register('marca')} error={errors.marca?.message} />

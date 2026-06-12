@@ -56,6 +56,7 @@ const vehiculosService = {
 
         const [rows] = await db.query(`
             SELECT v.*,
+                c.nombre AS conductor_nombre,
                 -- Último seguro activo y su vencimiento
                 (SELECT tipo FROM vehiculo_seguros WHERE vehiculo_id = v.id AND activo = 1
                     ORDER BY fecha_vencimiento DESC LIMIT 1) AS seguro_tipo,
@@ -70,6 +71,7 @@ const vehiculosService = {
                     WHERE vehiculo_id = v.id AND tipo = 'gases' AND activo = 1
                     ORDER BY fecha_vencimiento DESC LIMIT 1) AS revision_gases_vencimiento
             FROM vehiculos v
+            LEFT JOIN conductores c ON c.id = v.conductor_id
             ${whereClause}
             ORDER BY v.patente ASC
         `, params);
@@ -79,27 +81,30 @@ const vehiculosService = {
 
     async getById(id) {
         const [rows] = await db.query(
-            'SELECT * FROM vehiculos WHERE id = ? AND activo = 1', [id]
+            `SELECT v.*, c.nombre AS conductor_nombre
+             FROM vehiculos v
+             LEFT JOIN conductores c ON c.id = v.conductor_id
+             WHERE v.id = ? AND v.activo = 1`, [id]
         );
         if (!rows.length) throw Object.assign(new Error('Vehículo no encontrado'), { statusCode: 404 });
         return rows[0];
     },
 
     async create(data) {
-        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones } = data;
+        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa, conductor_id } = data;
         if (!patente || !marca || !modelo || !anio) {
             throw Object.assign(new Error('patente, marca, modelo y anio son obligatorios'), { statusCode: 400 });
         }
         const [result] = await db.query(
-            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null]
+            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa, conductor_id)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa || null, conductor_id || null]
         );
         return this.getById(result.insertId);
     },
 
     async update(id, data) {
-        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo'];
+        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa', 'conductor_id'];
         const fields = [];
         const params = [];
         allowed.forEach(f => {

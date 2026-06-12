@@ -65,6 +65,12 @@ const MAESTRO_PERMISOS = [
     ['cargos.editar',               'Cargos', 'Editar Cargo',                    'Modificar cargos', 3],
     ['cargos.eliminar',             'Cargos', 'Eliminar Cargo',                  'Eliminar cargos', 4],
 
+    // CONFIGURACIÓN: CONDUCTORES
+    ['conductores.ver',             'Conductores', 'Ver Conductores',           'Ver el catálogo de conductores', 1],
+    ['conductores.crear',           'Conductores', 'Crear Conductor',           'Registrar nuevos conductores', 2],
+    ['conductores.editar',          'Conductores', 'Editar Conductor',          'Modificar conductores', 3],
+    ['conductores.eliminar',        'Conductores', 'Eliminar Conductor',        'Eliminar conductores', 4],
+
     // CONFIGURACIÓN: USUARIOS Y ROLES
     ['usuarios.ver',                'Usuarios', 'Ver Usuarios',                  'Ver la lista de usuarios del sistema', 1],
     ['usuarios.crear',              'Usuarios', 'Crear Usuario',                 'Registrar nuevos usuarios', 2],

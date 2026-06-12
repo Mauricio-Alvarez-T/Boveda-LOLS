@@ -234,6 +234,12 @@ try {
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
+  app.use('/api/conductores', createCrudRoutes('conductores', 'conductores', {
+    searchFields: ['nombre'],
+    useSoftDelete: true,
+    orderBy: 'nombre ASC',
+    allowedFields: ['nombre', 'activo']
+  }));
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',
