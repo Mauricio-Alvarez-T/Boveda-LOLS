@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
 
 /**
  * Footer fijo del modal de permisos.
@@ -43,28 +44,12 @@ export const StickyFooter: React.FC<Props> = ({
                 )}
             </div>
             <div className="flex items-center gap-2">
-                <button
-                    type="button"
-                    onClick={onCancel}
-                    disabled={saving}
-                    className="px-5 py-2 text-sm border border-gray-300 dark:border-border rounded-lg hover:bg-gray-50 dark:hover:bg-white/5 text-gray-700 dark:text-muted-foreground transition-colors disabled:opacity-50"
-                >
+                <Button variant="ghost" onClick={onCancel} disabled={saving}>
                     Cancelar
-                </button>
-                <button
-                    type="button"
-                    onClick={onSave}
-                    disabled={saving || !hasChanges}
-                    className="px-6 py-2 text-sm bg-primary text-white rounded-lg hover:bg-primary/90 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed inline-flex items-center gap-2"
-                >
-                    {saving && (
-                        <svg className="animate-spin h-4 w-4" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
-                        </svg>
-                    )}
+                </Button>
+                <Button variant="primary" onClick={onSave} isLoading={saving} disabled={saving || !hasChanges}>
                     {saving ? 'Guardando...' : saveLabel}
-                </button>
+                </Button>
             </div>
         </div>
     );

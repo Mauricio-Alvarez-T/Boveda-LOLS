@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Search, X } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { IconButton } from '../../ui/IconButton';
 
 /**
  * Input de búsqueda controlado con debounce visual (200ms).
@@ -49,14 +50,12 @@ export const PermissionsSearchBar: React.FC<Props> = ({
                 className="w-full pl-9 pr-9 py-2 text-sm rounded-lg border border-border bg-card focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
             />
             {local && (
-                <button
+                <IconButton
                     onClick={() => setLocal('')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded hover:bg-gray-100 dark:hover:bg-white/10 text-muted-foreground"
                     aria-label="Limpiar búsqueda"
-                    type="button"
-                >
-                    <X className="h-3.5 w-3.5" />
-                </button>
+                    className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
+                    icon={<X className="h-3.5 w-3.5" />}
+                />
             )}
         </div>
     );

@@ -125,13 +125,14 @@ interface TristateProps {
 const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) => {
     return (
         <div className="inline-flex items-center bg-gray-100 dark:bg-white/10 p-0.5 rounded-lg" role="radiogroup">
+            {/* eslint-disable-next-line no-restricted-syntax -- radio segmentado tristate; verde/rojo = semántica conceder/denegar (dato, como estados A/F/JI), no decoración */}
             <button
                 type="button"
                 role="radio"
                 aria-checked={value === 'grant'}
                 onClick={() => onChange('grant')}
                 className={cn(
-                    'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
+                    'px-2.5 py-1 text-label font-semibold rounded transition-all',
                     value === 'grant'
                         ? 'bg-green-500 text-white shadow'
                         : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-white/15'
@@ -139,13 +140,14 @@ const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) 
             >
                 Conceder
             </button>
+            {/* eslint-disable-next-line no-restricted-syntax -- radio segmentado tristate (ver arriba) */}
             <button
                 type="button"
                 role="radio"
                 aria-checked={value === 'default'}
                 onClick={() => onChange('default')}
                 className={cn(
-                    'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
+                    'px-2.5 py-1 text-label font-semibold rounded transition-all',
                     value === 'default'
                         ? 'bg-card text-gray-800 dark:text-foreground shadow'
                         : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-white/15'
@@ -154,13 +156,14 @@ const TristatePill: React.FC<TristateProps> = ({ value, rolDefault, onChange }) 
             >
                 Defecto {rolDefault ? '✓' : '✗'}
             </button>
+            {/* eslint-disable-next-line no-restricted-syntax -- radio segmentado tristate (ver arriba) */}
             <button
                 type="button"
                 role="radio"
                 aria-checked={value === 'deny'}
                 onClick={() => onChange('deny')}
                 className={cn(
-                    'px-2.5 py-1 text-[11px] font-semibold rounded transition-all',
+                    'px-2.5 py-1 text-label font-semibold rounded transition-all',
                     value === 'deny'
                         ? 'bg-red-500 text-white shadow'
                         : 'text-gray-600 dark:text-muted-foreground hover:bg-gray-200 dark:hover:bg-white/15'

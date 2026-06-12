@@ -83,6 +83,7 @@ interface RolCheckboxProps {
 }
 
 const RolCheckbox: React.FC<RolCheckboxProps> = ({ checked, onChange }) => (
+    // eslint-disable-next-line no-restricted-syntax -- checkbox custom (no hay primitivo Checkbox); estado por relleno+Check estándar de checkbox, no es icon-button
     <button
         type="button"
         role="checkbox"

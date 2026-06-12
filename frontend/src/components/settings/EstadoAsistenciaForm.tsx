@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Input } from '../ui/Input';
+import { Button } from '../ui/Button';
 import api from '../../services/api';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
@@ -103,18 +104,14 @@ export const EstadoAsistenciaForm: React.FC<Props> = ({ initialData, onSuccess, 
                     Cuenta como día trabajado (paga nómina)
                 </label>
             </div>
-            <p className="text-[10px] text-muted-foreground -mt-2">
+            <p className="text-caption text-muted-foreground -mt-2">
                 Tip: Vacaciones / Nacimiento / Defunción / Matrimonio tienen "presente=No" pero "día trabajado=Sí".
             </p>
 
             <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
-                <button
-                    type="submit"
-                    disabled={isSubmitting}
-                    className="w-full sm:w-auto bg-brand-primary text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
-                >
+                <Button type="submit" variant="primary" isLoading={isSubmitting} className="w-full sm:w-auto">
                     {isSubmitting ? 'Guardando...' : 'Guardar'}
-                </button>
+                </Button>
             </div>
         </form>
     );

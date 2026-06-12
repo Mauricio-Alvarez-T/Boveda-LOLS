@@ -21,6 +21,7 @@ export const PermissionsSidebar: React.FC<Props> = ({ tree, activeSeccion, onSel
             {tree.map((sec) => {
                 const isActive = sec.seccion === activeSeccion;
                 return (
+                    // eslint-disable-next-line no-restricted-syntax -- item de nav vertical (tab); estado activo por border-l-4 + aria-current, no es un Button/IconButton
                     <button
                         key={sec.seccion}
                         type="button"
@@ -45,7 +46,7 @@ export const PermissionsSidebar: React.FC<Props> = ({ tree, activeSeccion, onSel
                         </div>
                         <span
                             className={cn(
-                                'shrink-0 text-[11px] px-1.5 py-0.5 rounded font-mono',
+                                'shrink-0 text-label px-1.5 py-0.5 rounded font-mono',
                                 isActive
                                     ? 'bg-primary/10 text-primary'
                                     : 'bg-gray-100 dark:bg-white/10 text-gray-600 dark:text-muted-foreground group-hover:bg-gray-200 dark:group-hover:bg-white/15'

@@ -64,6 +64,7 @@ export const PermissionsTree: React.FC<Props> = ({
             <div className="md:hidden border-b border-border p-3">
                 <PermissionsSearchBar value={search} onChange={onSearchChange} />
                 {onToggleDiffOnly && (
+                    // eslint-disable-next-line no-restricted-syntax -- toggle de filtro labeled (estado por ✓ + texto, no por icono); no es icon-button
                     <button
                         type="button"
                         onClick={onToggleDiffOnly}
@@ -93,6 +94,7 @@ export const PermissionsTree: React.FC<Props> = ({
                 </div>
                 {onToggleDiffOnly && (
                     <div className="p-3 border-t border-border bg-card">
+                        {/* eslint-disable-next-line no-restricted-syntax -- toggle de filtro labeled (estado por ✓ + texto, no por icono); no es icon-button */}
                         <button
                             type="button"
                             onClick={onToggleDiffOnly}
@@ -187,7 +189,7 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
                         <div className="px-4 py-2 bg-gray-50/70 dark:bg-white/5 flex items-center justify-between gap-3 border-y border-gray-200 dark:border-border">
                             <h3 className="text-xs font-bold text-gray-600 dark:text-muted-foreground uppercase tracking-wider">
                                 {sub.nombre}
-                                <span className="ml-2 text-[10px] font-mono text-gray-400 dark:text-muted-foreground/60">
+                                <span className="ml-2 text-caption font-mono text-gray-400 dark:text-muted-foreground/60">
                                     {sub.activeCount}/{sub.perms.length}
                                 </span>
                             </h3>

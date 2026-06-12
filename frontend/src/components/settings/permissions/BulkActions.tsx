@@ -20,6 +20,7 @@ export const BulkActions: React.FC<Props> = ({ perms, onBulk, activeCount, total
     const allOff = activeCount === 0;
     return (
         <div className="flex items-center gap-1.5 text-xs">
+            {/* eslint-disable-next-line no-restricted-syntax -- par bulk marcar/desmarcar (idle neutro → hover verde/rojo, ya cumple la regla); Button no soporta el par bicolor */}
             <button
                 type="button"
                 disabled={allOn}
@@ -28,6 +29,7 @@ export const BulkActions: React.FC<Props> = ({ perms, onBulk, activeCount, total
             >
                 <Check className="h-3 w-3" /> Marcar todos
             </button>
+            {/* eslint-disable-next-line no-restricted-syntax -- par bulk marcar/desmarcar (idle neutro → hover verde/rojo, ya cumple la regla); Button no soporta el par bicolor */}
             <button
                 type="button"
                 disabled={allOff}

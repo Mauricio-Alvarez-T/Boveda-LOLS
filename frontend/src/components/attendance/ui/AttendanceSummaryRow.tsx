@@ -58,7 +58,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
             {/* Sub-header Móvil: Selector de Fecha y Estadísticas */}
             <div className="md:hidden flex flex-col gap-2 px-4 pt-4 pb-3 bg-card border-b border-border shrink-0">
                 <div className="flex items-center justify-between bg-card rounded-2xl p-1 border border-border shadow-sm">
-                    <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(-1)}>
                         <ChevronLeft className="h-5 w-5" />
                     </Button>
                     <div className="flex-1 flex items-center justify-center gap-2">
@@ -71,7 +71,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                             className="bg-transparent text-sm text-brand-dark font-black focus:outline-none text-center cursor-pointer uppercase tracking-tight"
                         />
                     </div>
-                    <Button variant="ghost" size="icon" className="h-10 w-10 text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(1)}>
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-muted-foreground hover:text-brand-primary active:bg-brand-primary/10 rounded-xl shrink-0" onClick={() => navigateDate(1)}>
                         <ChevronRight className="h-5 w-5" />
                     </Button>
                 </div>

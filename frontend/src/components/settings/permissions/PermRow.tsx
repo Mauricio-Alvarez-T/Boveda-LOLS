@@ -72,7 +72,7 @@ export const PermRow: React.FC<Props> = ({ perm, renderControl, renderMeta, modi
                     <span className="text-sm font-medium text-gray-900 dark:text-foreground truncate">{def.nombre}</span>
                     <span
                         className={cn(
-                            'text-[10px] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0',
+                            'text-caption font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0',
                             verboColors[entry.verbo]
                         )}
                     >

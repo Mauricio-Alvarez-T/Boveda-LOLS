@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Pencil, Trash2, Star, StarOff, Loader2, Mail, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { showDeleteToast } from '../../utils/toastUtils';
 import api from '../../services/api';
@@ -198,9 +199,7 @@ const PlantillasEmailPanel: React.FC = () => {
                     >
                         <div className="flex items-center justify-between">
                             <h4 className="font-semibold text-brand-dark">{editingId ? 'Editar Plantilla' : 'Nueva Plantilla'}</h4>
-                            <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-brand-dark">
-                                <X className="h-4 w-4" />
-                            </button>
+                            <IconButton onClick={() => setShowForm(false)} aria-label="Cerrar" icon={<X className="h-4 w-4" />} />
                         </div>
                         <Input
                             label="Nombre de la Plantilla"
@@ -256,7 +255,7 @@ const PlantillasEmailPanel: React.FC = () => {
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <h4 className="font-semibold text-brand-dark">{p.nombre}</h4>
                                         {p.es_predeterminada && (
-                                            <span className="text-[10px] font-bold uppercase tracking-wide bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
+                                            <span className="text-caption font-bold uppercase tracking-wide bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-full">
                                                 Predeterminada
                                             </span>
                                         )}
@@ -265,28 +264,28 @@ const PlantillasEmailPanel: React.FC = () => {
                                     <p className="text-xs text-muted-foreground mt-1 line-clamp-2 whitespace-pre-line">{p.cuerpo}</p>
                                 </div>
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
+                                    {/* eslint-disable-next-line no-restricted-syntax -- toggle "predeterminada": color representativo = warning/amber (no cubierto por IconButton ghost/danger); gris idle, hover amber, estado por icono Star/StarOff */}
                                     <button
+                                        type="button"
                                         onClick={() => handleSetDefault(p.id)}
-                                        className={cn(
-                                            "p-2 rounded-lg text-sm transition-colors",
-                                            p.es_predeterminada ? "text-warning" : "text-muted-foreground hover:text-warning hover:bg-warning/8"
-                                        )}
+                                        className="inline-flex items-center justify-center h-9 w-9 rounded-full text-muted-foreground hover:text-warning hover:bg-warning/10 transition-colors"
                                         title={p.es_predeterminada ? 'Ya es predeterminada' : 'Marcar como predeterminada'}
+                                        aria-label={p.es_predeterminada ? 'Predeterminada' : 'Marcar como predeterminada'}
+                                        aria-pressed={p.es_predeterminada}
                                     >
                                         {p.es_predeterminada ? <Star className="h-4 w-4 fill-current" /> : <StarOff className="h-4 w-4" />}
                                     </button>
-                                    <button
+                                    <IconButton
                                         onClick={() => handleOpenEdit(p)}
-                                        className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/8 transition-colors"
-                                    >
-                                        <Pencil className="h-4 w-4" />
-                                    </button>
-                                    <button
+                                        aria-label="Editar"
+                                        icon={<Pencil className="h-4 w-4" />}
+                                    />
+                                    <IconButton
+                                        variant="danger"
                                         onClick={() => handleDelete(p)}
-                                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                        aria-label="Eliminar"
+                                        icon={<Trash2 className="h-4 w-4" />}
+                                    />
                                 </div>
                             </div>
                         </div>

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Pencil, Trash2, Loader2, Mail, Save, X, Send, Power } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, Mail, Save, X, Send, Power, PowerOff } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { showDeleteToast } from '../../utils/toastUtils';
 import api from '../../services/api';
@@ -163,9 +164,7 @@ const ReporteSuscriptoresPanel: React.FC = () => {
                     >
                         <div className="flex items-center justify-between">
                             <h4 className="font-semibold text-brand-dark">{editingId ? 'Editar Suscriptor' : 'Nuevo Suscriptor'}</h4>
-                            <button onClick={() => setShowForm(false)} className="text-muted-foreground hover:text-brand-dark">
-                                <X className="h-4 w-4" />
-                            </button>
+                            <IconButton onClick={() => setShowForm(false)} aria-label="Cerrar" icon={<X className="h-4 w-4" />} />
                         </div>
                         <Input
                             label="Email"
@@ -220,7 +219,7 @@ const ReporteSuscriptoresPanel: React.FC = () => {
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <h4 className="font-semibold text-brand-dark">{s.nombre || s.email}</h4>
                                     <span className={cn(
-                                        "text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full",
+                                        "text-caption font-bold uppercase tracking-wide px-2 py-0.5 rounded-full",
                                         s.activo ? "bg-brand-primary/10 text-brand-primary" : "bg-muted text-muted-foreground"
                                     )}>
                                         {s.activo ? 'Activo' : 'Inactivo'}
@@ -230,38 +229,32 @@ const ReporteSuscriptoresPanel: React.FC = () => {
                             </div>
                             {puedeGestionar && (
                                 <div className="flex items-center gap-1.5 flex-shrink-0">
-                                    <button
+                                    <IconButton
                                         onClick={() => handleSendTest({ id: s.id, email: s.email })}
                                         disabled={sendingId === s.id}
-                                        className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/8 transition-colors disabled:opacity-50"
+                                        aria-label="Enviar prueba"
                                         title="Enviar reporte de prueba a este correo"
-                                    >
-                                        {sendingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                                    </button>
-                                    <button
+                                        icon={sendingId === s.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                                    />
+                                    <IconButton
                                         onClick={() => handleToggleActivo(s)}
-                                        className={cn(
-                                            "p-2 rounded-lg transition-colors",
-                                            s.activo ? "text-brand-primary hover:bg-brand-primary/8" : "text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/8"
-                                        )}
+                                        aria-label={s.activo ? 'Desactivar' : 'Activar'}
                                         title={s.activo ? 'Desactivar' : 'Activar'}
-                                    >
-                                        <Power className="h-4 w-4" />
-                                    </button>
-                                    <button
+                                        icon={s.activo ? <Power className="h-4 w-4" /> : <PowerOff className="h-4 w-4" />}
+                                    />
+                                    <IconButton
                                         onClick={() => handleOpenEdit(s)}
-                                        className="p-2 rounded-lg text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/8 transition-colors"
+                                        aria-label="Editar"
                                         title="Editar"
-                                    >
-                                        <Pencil className="h-4 w-4" />
-                                    </button>
-                                    <button
+                                        icon={<Pencil className="h-4 w-4" />}
+                                    />
+                                    <IconButton
+                                        variant="danger"
                                         onClick={() => handleDelete(s)}
-                                        className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/8 transition-colors"
+                                        aria-label="Quitar"
                                         title="Quitar"
-                                    >
-                                        <Trash2 className="h-4 w-4" />
-                                    </button>
+                                        icon={<Trash2 className="h-4 w-4" />}
+                                    />
                                 </div>
                             )}
                         </div>

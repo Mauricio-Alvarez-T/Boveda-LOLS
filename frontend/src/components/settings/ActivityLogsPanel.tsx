@@ -7,6 +7,7 @@ import { format } from 'date-fns';
 import { es } from 'date-fns/locale';
 import api from '../../services/api';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
@@ -99,7 +100,7 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
                 <div className="flex flex-wrap items-center gap-3">
                     {responsable && (
                         <div className="flex items-center gap-2 bg-brand-primary/5 px-3 py-1.5 rounded-full border border-brand-primary/10">
-                            <span className="text-[10px] font-bold text-brand-primary uppercase tracking-tighter">Hecho por:</span>
+                            <span className="text-caption font-bold text-brand-primary uppercase tracking-tighter">Hecho por:</span>
                             <span className="text-xs font-bold text-brand-dark">{responsable}</span>
                         </div>
                     )}
@@ -129,7 +130,7 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <div className="h-2 w-2 rounded-full bg-destructive opacity-40" />
-                                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Valor Anterior</span>
+                                    <span className="text-caption font-black text-brand-dark uppercase tracking-widest">Valor Anterior</span>
                                 </div>
                                 <div className="bg-destructive/5 p-4 rounded-xl border border-destructive/10 min-h-[56px] flex items-center">
                                     <span className="text-base text-destructive font-medium line-through decoration-destructive/30 underline-offset-4 decoration-2">
@@ -140,7 +141,7 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
                             <div className="flex flex-col gap-2">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <div className="h-2 w-2 rounded-full bg-brand-accent opacity-40" />
-                                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Valor Actualizado</span>
+                                    <span className="text-caption font-black text-brand-dark uppercase tracking-widest">Valor Actualizado</span>
                                 </div>
                                 <div className="bg-brand-accent/5 p-4 rounded-xl border border-brand-accent/10 min-h-[56px] flex items-center">
                                     <span className="text-base text-brand-dark font-bold">
@@ -189,7 +190,7 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                 </div>
                 {responsable && (
                     <div className="bg-brand-primary/5 px-3 py-1.5 rounded-full border border-brand-primary/10 flex items-center gap-2">
-                        <span className="text-[10px] font-bold text-brand-primary uppercase tracking-tighter">Registrado por:</span>
+                        <span className="text-caption font-bold text-brand-primary uppercase tracking-tighter">Registrado por:</span>
                         <span className="text-xs font-bold text-brand-dark">{responsable}</span>
                     </div>
                 )}
@@ -257,7 +258,7 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
                 <div className="flex flex-wrap items-center gap-2">
                     {responsable && (
                         <div className="flex items-center gap-2 bg-brand-primary/5 px-3 py-1.5 rounded-full border border-brand-primary/10">
-                            <span className="text-[10px] font-bold text-brand-primary uppercase tracking-tighter">Tomada por:</span>
+                            <span className="text-caption font-bold text-brand-primary uppercase tracking-tighter">Tomada por:</span>
                             <span className="text-xs font-bold text-brand-dark">{responsable}</span>
                         </div>
                     )}
@@ -270,18 +271,18 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
 
             <div className="grid grid-cols-2 gap-3">
                 <div className="bg-brand-accent/5 border border-brand-accent/15 rounded-2xl p-3 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Registrados</span>
+                    <span className="text-caption font-black text-brand-dark uppercase tracking-widest">Registrados</span>
                     <span className="text-xl font-black text-brand-accent tabular-nums">{data.creados}</span>
                 </div>
                 <div className="bg-warning/5 border border-warning/15 rounded-2xl p-3 flex items-center justify-between">
-                    <span className="text-[10px] font-black text-brand-dark uppercase tracking-widest">Modificados</span>
+                    <span className="text-caption font-black text-brand-dark uppercase tracking-widest">Modificados</span>
                     <span className="text-xl font-black text-warning tabular-nums">{data.actualizados}</span>
                 </div>
             </div>
 
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
                 <div className="px-4 py-2.5 bg-background border-b border-border">
-                    <span className="text-[11px] font-black text-brand-dark uppercase tracking-widest opacity-80">Trabajadores</span>
+                    <span className="text-label font-black text-brand-dark uppercase tracking-widest opacity-80">Trabajadores</span>
                 </div>
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
                     {data.trabajadores.map((t, i) => {
@@ -292,7 +293,7 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
                                 <div className={cn("flex items-center justify-between gap-3", hasCambios && "cursor-pointer")} onClick={() => hasCambios && toggle(i)}>
                                     <div className="flex items-center gap-2 min-w-0">
                                         <span className={cn(
-                                            "text-[9px] font-black px-1.5 py-0.5 rounded",
+                                            "text-micro font-black px-1.5 py-0.5 rounded",
                                             t.accion === 'CREATE' ? "bg-brand-accent/10 text-brand-accent" : "bg-warning/10 text-warning"
                                         )}>
                                             {t.accion === 'CREATE' ? 'NUEVO' : 'EDITADO'}
@@ -301,7 +302,7 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
                                     </div>
                                     <div className="flex items-center gap-2 shrink-0">
                                         {t.estado && (
-                                            <span className="text-[10px] font-bold bg-background border border-border/50 px-2 py-0.5 rounded-full text-brand-dark">{t.estado}</span>
+                                            <span className="text-caption font-bold bg-background border border-border/50 px-2 py-0.5 rounded-full text-brand-dark">{t.estado}</span>
                                         )}
                                         {hasCambios && (
                                             <ChevronDown className={cn("h-3.5 w-3.5 text-muted-foreground transition-transform", isOpen && "rotate-180")} />
@@ -311,7 +312,7 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
                                 {hasCambios && isOpen && (
                                     <div className="mt-2 ml-4 space-y-1">
                                         {Object.entries(t.cambios!).map(([campo, val]) => (
-                                            <div key={campo} className="flex items-center gap-2 text-[10px]">
+                                            <div key={campo} className="flex items-center gap-2 text-caption">
                                                 <span className="font-black uppercase tracking-wider text-muted-foreground">{campo}:</span>
                                                 <span className="text-destructive line-through decoration-destructive/30">{val.de ?? '—'}</span>
                                                 <span className="text-muted-foreground">→</span>
@@ -532,12 +533,12 @@ export const ActivityLogsPanel: React.FC = () => {
                             onChange={(e) => setFilters(f => ({ ...f, q: e.target.value }))}
                         />
                         {filters.q && (
-                            <button
+                            <IconButton
                                 onClick={() => setFilters(f => ({ ...f, q: '' }))}
-                                className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full bg-muted-foreground/10 text-muted-foreground hover:bg-muted-foreground/20 transition-all"
-                            >
-                                <X className="h-3 w-3" />
-                            </button>
+                                aria-label="Limpiar búsqueda"
+                                className="absolute right-3 top-1/2 -translate-y-1/2 h-6 w-6"
+                                icon={<X className="h-3 w-3" />}
+                            />
                         )}
                     </div>
 
@@ -554,7 +555,7 @@ export const ActivityLogsPanel: React.FC = () => {
                         >
                             Filtros
                             {activeFilterCount > 0 && (
-                                <span className="ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 text-[9px] font-black bg-brand-primary text-white rounded-full">
+                                <span className="ml-1 inline-flex items-center justify-center h-4 min-w-4 px-1 text-micro font-black bg-brand-primary text-white rounded-full">
                                     {activeFilterCount}
                                 </span>
                             )}
@@ -576,7 +577,7 @@ export const ActivityLogsPanel: React.FC = () => {
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 pt-3 border-t border-border">
                         {/* Usuario */}
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Usuario</label>
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Usuario</label>
                             <select
                                 value={filters.usuario_id}
                                 onChange={(e) => setFilters(f => ({ ...f, usuario_id: e.target.value }))}
@@ -591,7 +592,7 @@ export const ActivityLogsPanel: React.FC = () => {
 
                         {/* Módulo */}
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Módulo</label>
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Módulo</label>
                             <select
                                 value={filters.modulo}
                                 onChange={(e) => setFilters(f => ({ ...f, modulo: e.target.value }))}
@@ -606,7 +607,7 @@ export const ActivityLogsPanel: React.FC = () => {
 
                         {/* Tipo entidad */}
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Tipo Entidad</label>
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Tipo Entidad</label>
                             <select
                                 value={filters.entidad_tipo}
                                 onChange={(e) => setFilters(f => ({ ...f, entidad_tipo: e.target.value }))}
@@ -621,7 +622,7 @@ export const ActivityLogsPanel: React.FC = () => {
 
                         {/* Desde / Hasta */}
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Desde</label>
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Desde</label>
                             <input
                                 type="date"
                                 value={filters.desde}
@@ -630,7 +631,7 @@ export const ActivityLogsPanel: React.FC = () => {
                             />
                         </div>
                         <div>
-                            <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Hasta</label>
+                            <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1 block">Hasta</label>
                             <input
                                 type="date"
                                 value={filters.hasta}
@@ -655,16 +656,17 @@ export const ActivityLogsPanel: React.FC = () => {
                         {/* Línea 3: chips acciones + toggle accesos */}
                         <div className="md:col-span-2 lg:col-span-3 pt-3 border-t border-border space-y-3">
                             <div>
-                                <label className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70 mb-2 block">Acción</label>
+                                <label className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-2 block">Acción</label>
                                 <div className="flex flex-wrap gap-2">
                                     {(filterOptions?.acciones || ['CREATE', 'UPDATE', 'DELETE', 'UPLOAD', 'EMAIL', 'LOGIN']).map(acc => {
                                         const active = filters.accion.includes(acc);
                                         return (
+                                            // eslint-disable-next-line no-restricted-syntax -- chip de filtro multi-select labeled (estado por texto + fill); no es icon-button
                                             <button
                                                 key={acc}
                                                 onClick={() => toggleAccion(acc)}
                                                 className={cn(
-                                                    "px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border transition-all",
+                                                    "px-3 py-1.5 rounded-full text-caption font-black uppercase tracking-wider border transition-all",
                                                     active
                                                         ? "bg-brand-primary text-white border-brand-primary shadow-md"
                                                         : "bg-background text-muted-foreground border-border hover:border-brand-primary/30"
@@ -685,7 +687,7 @@ export const ActivityLogsPanel: React.FC = () => {
                                     className="h-4 w-4 rounded accent-brand-primary cursor-pointer"
                                 />
                                 <span className="text-xs font-medium text-brand-dark">Incluir accesos (LOGIN)</span>
-                                <span className="text-[10px] text-muted-foreground/70">— ocultos por default para reducir ruido</span>
+                                <span className="text-caption text-muted-foreground/70">— ocultos por default para reducir ruido</span>
                             </label>
                         </div>
                     </div>
@@ -705,9 +707,9 @@ export const ActivityLogsPanel: React.FC = () => {
                         <History className="h-8 w-8 text-border mb-2" />
                         <p className="text-sm text-muted-foreground">No hay registros con estos filtros</p>
                         {(activeFilterCount > 0 || filters.q) && (
-                            <button onClick={clearFilters} className="text-xs text-brand-primary font-bold mt-2 hover:underline">
+                            <Button variant="ghost" size="sm" onClick={clearFilters} className="mt-2 text-xs font-bold">
                                 Limpiar filtros
-                            </button>
+                            </Button>
                         )}
                     </div>
                 ) : (
@@ -729,35 +731,32 @@ export const ActivityLogsPanel: React.FC = () => {
 
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center flex-wrap gap-1.5">
-                                        <span className={cn("text-[9px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0", getActionDisplay(log.accion).color)}>
+                                        <span className={cn("text-micro font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0", getActionDisplay(log.accion).color)}>
                                             {getActionDisplay(log.accion).label}
                                         </span>
-                                        <span className="text-[11px] font-bold text-brand-dark">{log.usuario_nombre || 'Sistema'}</span>
-                                        <span className="text-[10px] text-muted-foreground uppercase">{log.modulo}</span>
+                                        <span className="text-label font-bold text-brand-dark">{log.usuario_nombre || 'Sistema'}</span>
+                                        <span className="text-caption text-muted-foreground uppercase">{log.modulo}</span>
                                         {log.entidad_label && (
-                                            <span className="text-[11px] font-bold text-brand-primary truncate max-w-[200px]" title={log.entidad_label}>
+                                            <span className="text-label font-bold text-brand-primary truncate max-w-[200px]" title={log.entidad_label}>
                                                 → {log.entidad_label}
                                             </span>
                                         )}
                                     </div>
                                     {resumen && (
-                                        <p className="text-[11px] text-muted-foreground truncate mt-0.5" title={resumen}>
+                                        <p className="text-label text-muted-foreground truncate mt-0.5" title={resumen}>
                                             {resumen}
                                         </p>
                                     )}
                                 </div>
 
-                                <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums" title={log.created_at}>
+                                <span className="text-caption text-muted-foreground shrink-0 tabular-nums" title={log.created_at}>
                                     {format(new Date(log.created_at), "HH:mm · d MMM", { locale: es })}
                                 </span>
 
                                 {showDetailButton && (
-                                    <button
-                                        onClick={() => setOpenLog(log)}
-                                        className="text-[10px] font-extrabold text-brand-primary hover:bg-brand-primary/10 px-2 py-1 rounded-full bg-brand-primary/5 transition-all active:scale-95 shrink-0"
-                                    >
+                                    <Button variant="ghost" size="sm" onClick={() => setOpenLog(log)} className="text-caption font-extrabold shrink-0">
                                         Detalle
-                                    </button>
+                                    </Button>
                                 )}
                             </div>
                         );
@@ -768,7 +767,7 @@ export const ActivityLogsPanel: React.FC = () => {
             {/* ═══ Paginación ═══ */}
             {logs.length > 0 && (
                 <div className="bg-card rounded-2xl border border-border p-3 flex items-center justify-between">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                    <span className="text-caption font-bold uppercase tracking-widest text-muted-foreground">
                         {total} {total === 1 ? 'registro' : 'registros'} · Página {page} de {totalPages}
                     </span>
                     <div className="flex items-center gap-2">
