@@ -250,8 +250,8 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     if (selectedObra && flagOff(selectedObra.participa_asistencia)) {
         return (
             <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
-                <div className="h-14 w-14 bg-amber-100 dark:bg-amber-950/40 rounded-full flex items-center justify-center mb-4">
-                    <CheckSquare className="h-7 w-7 text-amber-600 dark:text-amber-300" />
+                <div className="h-14 w-14 bg-muted rounded-full flex items-center justify-center mb-4">
+                    <CheckSquare className="h-7 w-7 text-muted-foreground" />
                 </div>
                 <h2 className="text-lg font-semibold text-brand-dark">"{selectedObra.nombre}" no participa en Asistencia</h2>
                 <p className="text-muted-foreground mt-2 mb-6 max-w-md text-sm">

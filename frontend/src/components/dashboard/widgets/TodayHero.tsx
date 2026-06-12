@@ -28,10 +28,11 @@ interface Props {
 const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, attendanceStatus, onNavigate }) => {
     const hour = new Date().getHours();
 
+    // Paleta neutra del DS: icono y lavado en verde marca, sin colores cálidos por franja
     const timeConfig = useMemo(() => {
-        if (hour < 12) return { greeting: 'Buenos días', icon: Sun, gradient: 'from-amber-500/10 via-orange-400/5 to-transparent', iconColor: 'text-amber-500' };
-        if (hour < 19) return { greeting: 'Buenas tardes', icon: Sunset, gradient: 'from-orange-500/10 via-rose-400/5 to-transparent', iconColor: 'text-orange-500' };
-        return { greeting: 'Buenas noches', icon: Moon, gradient: 'from-indigo-500/10 via-purple-400/5 to-transparent', iconColor: 'text-indigo-400' };
+        if (hour < 12) return { greeting: 'Buenos días', icon: Sun };
+        if (hour < 19) return { greeting: 'Buenas tardes', icon: Sunset };
+        return { greeting: 'Buenas noches', icon: Moon };
     }, [hour]);
 
     const TimeIcon = timeConfig.icon;
@@ -85,13 +86,13 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
             )}
         >
             {/* Background gradient */}
-            <div className={cn("absolute inset-0 bg-gradient-to-br pointer-events-none", timeConfig.gradient)} />
+            <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 via-brand-primary/5 to-transparent pointer-events-none" />
 
             <div className="relative z-10 flex flex-col md:flex-row md:items-center gap-4">
                 {/* Left: Greeting */}
                 <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2.5 mb-2">
-                        <div className={cn("p-2 rounded-xl bg-card shadow-sm border border-border/50", timeConfig.iconColor)}>
+                        <div className="p-2 rounded-xl bg-card shadow-sm border border-border/50 text-brand-primary">
                             <TimeIcon className="h-4 w-4" />
                         </div>
                         <div>

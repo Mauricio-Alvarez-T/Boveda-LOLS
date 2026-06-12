@@ -153,7 +153,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                         >
                             <div className={cn(
                                 "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",
-                                isFeriado ? "bg-destructive/10 text-destructive" : "bg-purple-50 text-purple-600"
+                                isFeriado ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"
                             )}>
                                 <CalendarRange className="h-5 w-5" />
                             </div>

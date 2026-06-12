@@ -213,7 +213,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             )}
                                             {worker.empresa_nombre && (
                                                 <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-card rounded-xl text-xs font-medium text-brand-dark border border-border">
-                                                    <Building2 className="h-3.5 w-3.5 text-warning" /> {worker.empresa_nombre}
+                                                    <Building2 className="h-3.5 w-3.5 text-brand-primary" /> {worker.empresa_nombre}
                                                 </span>
                                             )}
                                             {worker.obra_nombre && (
@@ -321,10 +321,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                     setModalType('docs');
                                                 }
                                             }}
-                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-warning/5 hover:bg-warning/10 border border-warning/10 transition-colors group"
+                                            className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 transition-colors group"
                                         >
-                                            <FileText className="h-5 w-5 text-warning group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-warning">Docs</span>
+                                            <FileText className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
+                                            <span className="text-label font-semibold text-brand-primary">Docs</span>
                                         </button>
                                         <button
                                             onClick={() => {

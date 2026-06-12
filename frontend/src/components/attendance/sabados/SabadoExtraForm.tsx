@@ -246,14 +246,14 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     obraAnfitrionaId={selectedObra.id}
                 />
                 {externalWorkers.length > 0 && (
-                    <div className="mt-3 p-3 bg-amber-50/50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-900/60 rounded-xl">
-                        <p className="text-caption font-bold uppercase text-amber-800 dark:text-amber-300 mb-2">Externos agregados</p>
+                    <div className="mt-3 p-3 bg-muted/50 border border-border rounded-xl">
+                        <p className="text-caption font-bold uppercase text-muted-foreground mb-2">Externos agregados</p>
                         <div className="flex flex-wrap gap-1.5">
                             {externalWorkers.map(w => (
-                                <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-card border border-amber-300 dark:border-amber-900/60 rounded-lg text-label font-semibold">
+                                <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-card border border-border rounded-lg text-label font-semibold">
                                     {w.apellido_paterno} {w.nombres}
                                     {/* eslint-disable-next-line no-restricted-syntax -- X de quitar dentro de chip-tag (icono inline mínimo); IconButton fijo lo agranda */}
-                                    <button onClick={() => removeExternal(w.id)} className="ml-0.5 hover:text-red-600 dark:hover:text-red-400">
+                                    <button onClick={() => removeExternal(w.id)} className="ml-0.5 hover:text-destructive">
                                         <X className="h-3 w-3" />
                                     </button>
                                 </span>

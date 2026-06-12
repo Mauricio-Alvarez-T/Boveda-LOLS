@@ -12,16 +12,8 @@ import type { Verbo } from '../../../config/permisosHierarchy';
  * - Control de la derecha (render-prop desde PermissionsTree).
  */
 
-const verboColors: Record<Verbo, string> = {
-    ver:      'bg-blue-100 text-blue-800 dark:bg-blue-950/40 dark:text-blue-300',
-    crear:    'bg-emerald-100 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300',
-    editar:   'bg-amber-100 text-amber-800 dark:bg-amber-950/40 dark:text-amber-300',
-    eliminar: 'bg-red-100 text-red-800 dark:bg-red-950/40 dark:text-red-300',
-    aprobar:  'bg-purple-100 text-purple-800 dark:bg-purple-950/40 dark:text-purple-300',
-    enviar:   'bg-indigo-100 text-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-300',
-    exportar: 'bg-teal-100 text-teal-800 dark:bg-teal-950/40 dark:text-teal-300',
-    otro:     'bg-gray-100 text-gray-700 dark:bg-white/10 dark:text-muted-foreground',
-};
+// Etiqueta de categoría (no estado de dato) → paleta neutra del DS
+const verboBadge = 'bg-muted text-muted-foreground dark:bg-white/10';
 
 const verboLabels: Record<Verbo, string> = {
     ver: 'Ver',
@@ -73,7 +65,7 @@ export const PermRow: React.FC<Props> = ({ perm, renderControl, renderMeta, modi
                     <span
                         className={cn(
                             'text-caption font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded shrink-0',
-                            verboColors[entry.verbo]
+                            verboBadge
                         )}
                     >
                         {verboLabels[entry.verbo]}

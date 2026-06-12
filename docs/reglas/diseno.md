@@ -71,6 +71,24 @@ el color del botón. Implementado en `IconButton`:
 No usar `<Button size="icon">` con color idle (ej. `text-brand-primary`/`text-destructive`):
 migrar a `IconButton`. Las páginas ya migradas heredan la regla del primitivo.
 
+**Tercer color de hover permitido — ámbar (warning):** acciones de *archivar* o
+*destacar* (finalizar obra, plantilla predeterminada) pueden hacer hover
+gris→ámbar (`hover:text-warning hover:bg-warning/10` o equivalente). Sigue
+aplicando gris en reposo.
+
+### CTAs destructivas y decoración (F2.9)
+- **CTA destructiva** (confirmar finiquito / depurar / borrar): `<Button
+  variant="destructive">` — tinte `bg-destructive/10 text-destructive`, relleno
+  solo al hover. **Prohibido** `bg-destructive` sólido en reposo. CTA de
+  *archivado* (reversible, ej. finalizar obra): tinte warning
+  (`bg-warning/10 text-warning hover:bg-warning hover:text-warning-foreground`).
+- **Decoración = paleta neutra.** Todo color fuera de verde/blanco/negro/gris
+  debe representar un DATO (estado de dominio, criticidad, advertencia de
+  consecuencia). Iconos de saludo, tiles de acción, gradientes y badges de
+  categoría (ej. verbos de permisos) van en `brand-*`/`muted`. Lo semántico se
+  escribe con **tokens** (`destructive`/`warning`/`success`), nunca
+  rose/amber/purple/yellow hardcodeados.
+
 ## 4. statusConfig — `frontend/src/utils/statusConfig.ts`
 
 Mapas de estado tipados por dominio. Shape:

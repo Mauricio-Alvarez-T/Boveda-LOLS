@@ -63,7 +63,7 @@ export const FinalizarObraModal: React.FC<Props> = ({ obra, onClose, onSuccess }
             onClose={onClose}
             title={
                 <div className="flex items-center gap-2">
-                    <Archive className="h-4 w-4 text-amber-600" />
+                    <Archive className="h-4 w-4 text-muted-foreground" />
                     <span>Finalizar obra</span>
                 </div>
             }
@@ -99,7 +99,7 @@ export const FinalizarObraModal: React.FC<Props> = ({ obra, onClose, onSuccess }
                         disabled={saving || !fechaTermino}
                         isLoading={saving}
                         leftIcon={<Archive className="h-4 w-4" />}
-                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
+                        className="flex-1 bg-warning/10 text-warning hover:bg-warning hover:text-warning-foreground border-none"
                     >
                         Finalizar obra
                     </Button>
