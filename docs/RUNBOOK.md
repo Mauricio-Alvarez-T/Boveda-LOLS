@@ -74,13 +74,20 @@ main     →  GitHub Actions  →  Producción  (boveda.lols.cl)
 7. **Reinicia Passenger** subiendo un `restart.txt` vía `curl` FTP directo al `tmp/` del backend
 
 ### Por qué lftp (y no FTP-Deploy-Action)
-`FTP-Deploy-Action` hace un diff completo del directorio remoto al conectar. Con `/boveda/` creciendo por logs/xlsx en runtime, el scan se excedía del timeout del control socket (~60s default). `lftp mirror --only-newer` compara solo timestamps, mucho más rápido. Configuración clave:
+`FTP-Deploy-Action` hace un diff completo del directorio remoto al conectar. Con `/boveda/` creciendo por logs/xlsx en runtime, el scan se excedía del timeout del control socket (~60s default). `lftp mirror --only-newer` compara solo timestamps, mucho más rápido. Configuración clave (endurecida 2026-06-12 para tolerar `Connection refused` transitorio):
 ```bash
 set net:timeout 30
-set net:max-retries 3
-set net:reconnect-interval-base 5
+set net:max-retries 6
+set net:persist-retries 6          # reintenta incluso errores "fatales" (Connection refused)
+set net:reconnect-interval-base 10
+set net:reconnect-interval-multiplier 1.5
+set net:reconnect-interval-max 30
 set mirror:parallel-transfer-count 4
 ```
+Además, cada step de sync envuelve `lftp` en un **loop bash de 3 intentos** (con `sleep 20`
+entre intentos); como `mirror --only-newer` es idempotente, reintentar es seguro. El step de
+`restart.txt` usa `curl --retry 4 --retry-delay 10 --retry-all-errors`. Resultado: un corte
+transitorio del FTP de cPanel se auto-resuelve sin intervención.
 
 ### Secrets requeridos en GitHub
 | Secret | Descripción |
@@ -354,7 +361,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | App da 500 al arrancar | Passenger crasheó al iniciar `index.js`. | Revisar `/boveda/logs/app_YYYY-MM-DD.log` o `/boveda/startup_debug.log`. |
 | `env-validator: variable faltante` al arrancar | Falta alguna variable en el `.env` del servidor. | SSH/FTP al servidor, editar `/boveda/.env`, añadir la variable faltante, reiniciar. |
 | JWT inválido / login loop | Token de versión de rol desactualizado. | El usuario debe cerrar sesión, borrar `localStorage` (`sgdl_token`, `sgdl_user`), y volver a entrar. |
-| Deploy falla con `mirror: Fatal error: max-retries exceeded (Connection refused)` | Error transitorio de conexión FTP al servidor cPanel. El código está bien (Backend Tests CI pasó). | Re-ejecutar solo los jobs fallidos: `gh run rerun RUN_ID --failed`. NO re-commitear ni cambiar código. |
+| Deploy falla con `mirror: Fatal error: max-retries exceeded (Connection refused)` | Error transitorio de conexión FTP al servidor cPanel. El código está bien (Backend Tests CI pasó). Desde 2026-06-12 el workflow reintenta solo (lftp 6 retries + loop bash 3×), así que un corte corto se auto-resuelve. | Si AÚN falla tras los reintentos automáticos: re-ejecutar los jobs fallidos (`gh run rerun RUN_ID --failed` o UI → "Re-run failed jobs"). NO re-commitear ni cambiar código. Si persiste varias veces, el FTP del host está caído/bloqueando la IP del runner → revisar cPanel. |
 | Imágenes 404 en producción (pero OK en local) | URLs de imagen sin prefijo `/api/`. cPanel proxy solo routea `/api/*` al Node.js. | Asegurarse de servir imagen URL como `/api/uploads/inventario/...`, no `/uploads/...` |
 | Sticky header no se pega al scroll | Contenedor intermedio con `overflow-x-hidden` crea un scroll context incorrecto. | El scroll container **real** debe tener `flex-1 min-h-0 overflow-y-auto`. Sticky es relativo a su contenedor scroll más cercano. |
 | `main` aparece **adelante** de `develop` tras un release (`git rev-list develop..main` > 0), o un merge develop→main parece "perder" un fix de producción | Hotfix aplicado **directo a `main`** (urgencia de prod, ej: `fix_prod_migrations.js` — commits `e77b263` / `aaed9a5`). El fix vive solo en `main`; `develop` nunca lo vio. Al mergear develop→main para el próximo release, el árbol de develop no contiene ese cambio, pero el merge **conserva** la versión de main (no la pierde). Lo que queda mal es `develop`, que sigue sin el hotfix. | **Re-sincronizar main→develop después de todo hotfix directo.** Verificar el alcance real (ignorando merges): `git rev-list --no-merges main ^develop` lista los commits que solo están en main. Antes de mergear, dry-run de conflictos: `git merge-tree --write-tree origin/develop origin/main` (exit 0 y sin la palabra `conflict` = limpio). Luego `git checkout develop && git merge origin/main`, push. Confirmación final: `git diff origin/main..develop` **vacío** = ambas ramas alineadas. Regla CLAUDE.md: nunca mergear a main sin pasar por develop+staging; el hotfix directo es la excepción de emergencia que **obliga** a este paso de re-sync. |

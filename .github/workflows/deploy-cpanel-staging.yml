@@ -40,38 +40,63 @@ jobs:
         env:
           FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
         run: |
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 30;
-            set net:max-retries 3;
-            set net:reconnect-interval-base 5;
-            set mirror:parallel-transfer-count 4;
-            open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
-            mirror -R --only-newer --parallel=4 \
-              --exclude-glob .git* \
-              --exclude node_modules/ \
-              ./frontend/dist/ /public_html/test.boveda.lols.cl/;
-          "
+          sync_frontend() {
+            lftp -c "
+              set ftp:ssl-allow no;
+              set net:timeout 30;
+              set net:max-retries 6;
+              set net:persist-retries 6;
+              set net:reconnect-interval-base 10;
+              set net:reconnect-interval-multiplier 1.5;
+              set net:reconnect-interval-max 30;
+              set mirror:parallel-transfer-count 4;
+              open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
+              mirror -R --only-newer --parallel=4 \
+                --exclude-glob .git* \
+                --exclude node_modules/ \
+                ./frontend/dist/ /public_html/test.boveda.lols.cl/;
+            "
+          }
+          # Reintento externo (además de los reintentos internos de lftp): cubre
+          # 'Connection refused' transitorio del FTP de cPanel. --only-newer hace
+          # cada reintento idempotente.
+          for i in 1 2 3; do
+            echo "▶ Sync frontend — intento #$i";
+            if sync_frontend; then echo "✅ Frontend sincronizado"; exit 0; fi
+            echo "⚠️ Intento #$i falló; reintentando en 20s..."; sleep 20;
+          done
+          echo "❌ Frontend no se pudo sincronizar tras 3 intentos"; exit 1
 
       - name: ⚙️ Sincronizar Backend vía lftp (Staging)
         env:
           FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
         run: |
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 30;
-            set net:max-retries 3;
-            set net:reconnect-interval-base 5;
-            set mirror:parallel-transfer-count 4;
-            open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
-            mirror -R --only-newer --parallel=4 \
-              --exclude-glob .git* \
-              --exclude node_modules/ \
-              --exclude tmp/ \
-              --exclude uploads/ \
-              --exclude-glob .env* \
-              ./backend/ /test-boveda/;
-          "
+          sync_backend() {
+            lftp -c "
+              set ftp:ssl-allow no;
+              set net:timeout 30;
+              set net:max-retries 6;
+              set net:persist-retries 6;
+              set net:reconnect-interval-base 10;
+              set net:reconnect-interval-multiplier 1.5;
+              set net:reconnect-interval-max 30;
+              set mirror:parallel-transfer-count 4;
+              open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
+              mirror -R --only-newer --parallel=4 \
+                --exclude-glob .git* \
+                --exclude node_modules/ \
+                --exclude tmp/ \
+                --exclude uploads/ \
+                --exclude-glob .env* \
+                ./backend/ /test-boveda/;
+            "
+          }
+          for i in 1 2 3; do
+            echo "▶ Sync backend — intento #$i";
+            if sync_backend; then echo "✅ Backend sincronizado"; exit 0; fi
+            echo "⚠️ Intento #$i falló; reintentando en 20s..."; sleep 20;
+          done
+          echo "❌ Backend no se pudo sincronizar tras 3 intentos"; exit 1
 
       - name: 🚀 Reiniciar Passenger Staging (restart.txt vía curl)
         run: |
@@ -80,6 +105,7 @@ jobs:
           curl --fail --silent --show-error \
             --connect-timeout 30 \
             --max-time 120 \
+            --retry 4 --retry-delay 10 --retry-all-errors \
             --ftp-create-dirs \
             -T ./restart-trigger/restart.txt \
             -u "lolscl:${{ secrets.CPANEL_FTP_PASSWORD }}" \
