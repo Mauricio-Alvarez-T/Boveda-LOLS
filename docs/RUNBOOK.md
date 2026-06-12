@@ -63,31 +63,28 @@ main     →  GitHub Actions  →  Producción  (boveda.lols.cl)
 
 **Regla fundamental:** nunca hacer merge directo a `main` sin pasar por `develop` + staging primero.
 
-### Qué hace el workflow (mismo patrón en ambos)
-1. `actions/checkout@v4`
-2. `actions/setup-node@v4` (Node 20)
-3. `npm ci` en `/frontend/` → `npm run build` → genera `/frontend/dist/`
-4. Instala `lftp` en el runner de Ubuntu
-5. **Sincroniza frontend** con `lftp mirror -R --only-newer` hacia el directorio `public_html/` correspondiente
-6. **Sincroniza backend** con `lftp mirror -R --only-newer` hacia `/boveda/` o `/test-boveda/`
-   - Excluye: `.git*`, `node_modules/`, `tmp/`, `uploads/`, `.env*`
-7. **Reinicia Passenger** subiendo un `restart.txt` vía `curl` FTP directo al `tmp/` del backend
+### Métodos de deploy (cambió 2026-06-12)
+| Entorno | Método | Por qué |
+|---|---|---|
+| **Staging** (`develop`) | **Pull-side**: Actions compila y publica la rama `deploy-staging`; el servidor hace `git pull` (cron) y se auto-despliega | El FTP de cPanel empezó a **rechazar la IP entrante** del runner (`Connection refused`, baneo cPHulk/firewall de IPs cloud). El servidor saliendo a GitHub NO está bloqueado. |
+| **Producción** (`main`) | FTP `lftp` (reintentos suaves) | Sigue por FTP hasta probar pull-side en staging; luego se migra igual (rama `deploy-main` + cron). |
 
-### Por qué lftp (y no FTP-Deploy-Action)
-`FTP-Deploy-Action` hace un diff completo del directorio remoto al conectar. Con `/boveda/` creciendo por logs/xlsx en runtime, el scan se excedía del timeout del control socket (~60s default). `lftp mirror --only-newer` compara solo timestamps, mucho más rápido. Configuración clave (endurecida 2026-06-12 para tolerar `Connection refused` transitorio):
+### Pull-side (staging) — cómo funciona
+1. **GitHub Actions** (`deploy-cpanel-staging.yml`): `checkout` (historial completo) → `npm ci` + `npm run build` (frontend) → `git add -f frontend/dist` + commit → **`git push -f origin HEAD:deploy-staging`**. NO toca el host. La rama `deploy-staging` no dispara workflows (solo `develop`/`main`).
+2. **Servidor cPanel** (setup una vez):
+   - **Git™ Version Control** → clonar el repo, rama `deploy-staging`, en `~/deploy-staging`. Repo privado → URL HTTPS con un **PAT de GitHub** (scope `repo`, solo lectura).
+   - **Cron Jobs** → `*/5 * * * * bash ~/deploy-staging/scripts/cpanel-deploy-staging.sh >> ~/deploy-staging.log 2>&1`.
+   - El script (`scripts/cpanel-deploy-staging.sh`) hace `git fetch && reset --hard origin/deploy-staging`, copia `frontend/dist`→docroot y `backend/`→`/test-boveda/` (excluye node_modules/tmp/uploads/.env) y toca `tmp/restart.txt`. Idempotente.
+   - Verificar: `tail ~/deploy-staging.log`.
+
+### FTP prod — por qué lftp (y no FTP-Deploy-Action)
+`FTP-Deploy-Action` hace un diff completo del directorio remoto al conectar; con `/boveda/` creciendo por logs/xlsx en runtime, el scan se excedía del timeout del control socket (~60s). `lftp mirror --only-newer` compara solo timestamps. Config (reintentos suaves; NO endurecer con loops agresivos: hammerear el FTP dispara el baneo cPHulk):
 ```bash
 set net:timeout 30
-set net:max-retries 6
-set net:persist-retries 6          # reintenta incluso errores "fatales" (Connection refused)
-set net:reconnect-interval-base 10
-set net:reconnect-interval-multiplier 1.5
-set net:reconnect-interval-max 30
+set net:max-retries 2
+set net:reconnect-interval-base 5
 set mirror:parallel-transfer-count 4
 ```
-Además, cada step de sync envuelve `lftp` en un **loop bash de 3 intentos** (con `sleep 20`
-entre intentos); como `mirror --only-newer` es idempotente, reintentar es seguro. El step de
-`restart.txt` usa `curl --retry 4 --retry-delay 10 --retry-all-errors`. Resultado: un corte
-transitorio del FTP de cPanel se auto-resuelve sin intervención.
 
 ### Secrets requeridos en GitHub
 | Secret | Descripción |
@@ -361,7 +358,7 @@ Estos fallbacks evitan que `env-validator.js` lance excepción al importar el ap
 | App da 500 al arrancar | Passenger crasheó al iniciar `index.js`. | Revisar `/boveda/logs/app_YYYY-MM-DD.log` o `/boveda/startup_debug.log`. |
 | `env-validator: variable faltante` al arrancar | Falta alguna variable en el `.env` del servidor. | SSH/FTP al servidor, editar `/boveda/.env`, añadir la variable faltante, reiniciar. |
 | JWT inválido / login loop | Token de versión de rol desactualizado. | El usuario debe cerrar sesión, borrar `localStorage` (`sgdl_token`, `sgdl_user`), y volver a entrar. |
-| Deploy falla con `mirror: Fatal error: max-retries exceeded (Connection refused)` | Error transitorio de conexión FTP al servidor cPanel. El código está bien (Backend Tests CI pasó). Desde 2026-06-12 el workflow reintenta solo (lftp 6 retries + loop bash 3×), así que un corte corto se auto-resuelve. | Si AÚN falla tras los reintentos automáticos: re-ejecutar los jobs fallidos (`gh run rerun RUN_ID --failed` o UI → "Re-run failed jobs"). NO re-commitear ni cambiar código. Si persiste varias veces, el FTP del host está caído/bloqueando la IP del runner → revisar cPanel. |
+| Deploy FTP falla con `mirror: Fatal error: max-retries exceeded (Connection refused)` | El FTP de cPanel rechaza la **IP entrante** del runner de GitHub (baneo cPHulk anti-fuerza-bruta / firewall de IPs cloud). NO se arregla con reintentos — hammerear lo **empeora**. El código está bien (Backend Tests CI pasó). | **Staging ya migró a pull-side** (servidor hace `git pull`, inmune al baneo) — ver "Pull-side (staging)" arriba. **Prod** (aún FTP): si falla, re-ejecutar 1 vez (UI → "Re-run failed jobs"); si persiste, dejar pasar el baneo (cPHulk suele expirar en 15min–24h) o desbanear en cPanel → Security → cPHulk/IP Blocker. Para arreglar de raíz: migrar prod a pull-side. Stopgap inmediato: subir por **cPanel File Manager** (HTTPS, no afectado por el baneo FTP). |
 | Imágenes 404 en producción (pero OK en local) | URLs de imagen sin prefijo `/api/`. cPanel proxy solo routea `/api/*` al Node.js. | Asegurarse de servir imagen URL como `/api/uploads/inventario/...`, no `/uploads/...` |
 | Sticky header no se pega al scroll | Contenedor intermedio con `overflow-x-hidden` crea un scroll context incorrecto. | El scroll container **real** debe tener `flex-1 min-h-0 overflow-y-auto`. Sticky es relativo a su contenedor scroll más cercano. |
 | `main` aparece **adelante** de `develop` tras un release (`git rev-list develop..main` > 0), o un merge develop→main parece "perder" un fix de producción | Hotfix aplicado **directo a `main`** (urgencia de prod, ej: `fix_prod_migrations.js` — commits `e77b263` / `aaed9a5`). El fix vive solo en `main`; `develop` nunca lo vio. Al mergear develop→main para el próximo release, el árbol de develop no contiene ese cambio, pero el merge **conserva** la versión de main (no la pierde). Lo que queda mal es `develop`, que sigue sin el hotfix. | **Re-sincronizar main→develop después de todo hotfix directo.** Verificar el alcance real (ignorando merges): `git rev-list --no-merges main ^develop` lista los commits que solo están en main. Antes de mergear, dry-run de conflictos: `git merge-tree --write-tree origin/develop origin/main` (exit 0 y sin la palabra `conflict` = limpio). Luego `git checkout develop && git merge origin/main`, push. Confirmación final: `git diff origin/main..develop` **vacío** = ambas ramas alineadas. Regla CLAUDE.md: nunca mergear a main sin pasar por develop+staging; el hotfix directo es la excepción de emergencia que **obliga** a este paso de re-sync. |
