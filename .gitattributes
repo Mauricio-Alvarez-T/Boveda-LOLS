@@ -1,0 +1,3 @@
+# Los scripts de shell DEBEN tener line-endings LF: corren en el servidor Linux
+# (cPanel) y un CRLF rompe el shebang ("bad interpreter: /bin/bash^M").
+*.sh text eol=lf
