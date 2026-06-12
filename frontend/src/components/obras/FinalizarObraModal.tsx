@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Archive, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import type { Obra } from '../../types/entities';
@@ -93,20 +94,22 @@ export const FinalizarObraModal: React.FC<Props> = ({ obra, onClose, onSuccess }
                 />
 
                 <div className="flex gap-2 pt-1">
-                    <button
+                    <Button
                         onClick={handleFinalizar}
                         disabled={saving || !fechaTermino}
-                        className="flex-1 py-2.5 text-sm font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        isLoading={saving}
+                        leftIcon={<Archive className="h-4 w-4" />}
+                        className="flex-1 bg-amber-600 hover:bg-amber-700 text-white"
                     >
-                        {saving ? 'Finalizando...' : 'Finalizar obra'}
-                    </button>
-                    <button
+                        Finalizar obra
+                    </Button>
+                    <Button
+                        variant="ghost"
                         onClick={onClose}
                         disabled={saving}
-                        className="px-4 py-2.5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors"
                     >
                         Cancelar
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Modal>

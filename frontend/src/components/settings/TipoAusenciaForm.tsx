@@ -1,6 +1,8 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
+import { Save } from 'lucide-react';
+import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
@@ -70,13 +72,14 @@ export const TipoAusenciaForm: React.FC<Props> = ({ initialData, onSuccess, onCa
                 </label>
             </div>
             <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
-                <button
+                <Button
                     type="submit"
-                    disabled={isSubmitting}
-                    className="w-full sm:w-auto bg-brand-primary text-white text-sm font-semibold px-6 py-2.5 rounded-xl hover:bg-[#027A3B] transition-colors disabled:opacity-50 flex items-center gap-2 justify-center"
+                    isLoading={isSubmitting}
+                    leftIcon={<Save className="h-4 w-4" />}
+                    className="w-full sm:w-auto"
                 >
-                    {isSubmitting ? 'Guardando...' : 'Guardar'}
-                </button>
+                    Guardar
+                </Button>
             </div>
         </form>
     );

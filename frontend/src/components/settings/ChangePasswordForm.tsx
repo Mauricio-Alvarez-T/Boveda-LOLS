@@ -57,10 +57,12 @@ const ChangePasswordForm: React.FC = () => {
                         onChange={(e) => setCurrentPassword(e.target.value)}
                         leftIcon={<Lock className="h-4 w-4 text-muted-foreground" />}
                     />
+                    {/* eslint-disable-next-line no-restricted-syntax -- toggle ojo integrado al Input (posición absoluta) */}
                     <button
                         type="button"
+                        aria-label={showCurrent ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                         onClick={() => setShowCurrent(!showCurrent)}
-                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-dark transition-colors"
+                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-primary transition-colors"
                     >
                         {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
@@ -75,10 +77,12 @@ const ChangePasswordForm: React.FC = () => {
                         onChange={(e) => setNewPassword(e.target.value)}
                         leftIcon={<Lock className="h-4 w-4 text-brand-primary" />}
                     />
+                    {/* eslint-disable-next-line no-restricted-syntax -- toggle ojo integrado al Input (posición absoluta) */}
                     <button
                         type="button"
+                        aria-label={showNew ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                         onClick={() => setShowNew(!showNew)}
-                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-dark transition-colors"
+                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-primary transition-colors"
                     >
                         {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>

@@ -196,8 +196,10 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                                 alt="Preview"
                                 className="w-24 h-24 object-cover rounded-xl border border-border"
                             />
+                            {/* eslint-disable-next-line no-restricted-syntax -- badge de borrar superpuesto a la imagen (aparece en hover) */}
                             <button
                                 type="button"
+                                aria-label="Quitar imagen"
                                 onClick={removeImage}
                                 className="absolute -top-2 -right-2 p-1 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                             >
@@ -210,7 +212,7 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                             className="w-24 h-24 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 cursor-pointer hover:border-brand-primary/50 hover:bg-brand-primary/5 transition-all"
                         >
                             <ImageIcon className="h-6 w-6 text-muted-foreground/40" />
-                            <span className="text-[9px] text-muted-foreground/60 font-medium">Subir foto</span>
+                            <span className="text-micro text-muted-foreground/60 font-medium">Subir foto</span>
                         </div>
                     )}
                     <div className="flex flex-col gap-2 flex-1">
@@ -221,15 +223,17 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                             onChange={handleImageSelect}
                             className="hidden"
                         />
-                        <button
+                        <Button
                             type="button"
+                            variant="outline"
+                            size="sm"
                             onClick={() => fileInputRef.current?.click()}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold border border-border rounded-xl hover:bg-muted/50 transition-all w-fit"
+                            leftIcon={<Upload className="h-3.5 w-3.5" />}
+                            className="w-fit"
                         >
-                            <Upload className="h-3.5 w-3.5" />
                             {imagePreview ? 'Cambiar imagen' : 'Seleccionar imagen'}
-                        </button>
-                        <p className="text-[10px] text-muted-foreground">JPG, PNG o WEBP. Máx 5 MB.</p>
+                        </Button>
+                        <p className="text-caption text-muted-foreground">JPG, PNG o WEBP. Máx 5 MB.</p>
                     </div>
                 </div>
             </div>

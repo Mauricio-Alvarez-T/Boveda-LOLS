@@ -100,7 +100,7 @@ export const TipoDocumentoForm: React.FC<Props> = ({ initialData, onSuccess, onC
                 <div className="sticky -bottom-6 -mx-6 px-6 py-4 bg-background border-t border-border flex justify-end gap-3 mt-6 z-10">
                     <Button
                         type="submit"
-                        className="w-full sm:w-auto bg-brand-primary text-white hover:bg-[#027A3B]"
+                        className="w-full sm:w-auto"
                         isLoading={isSubmitting}
                         leftIcon={<Save className="h-4 w-4" />}
                     >

@@ -43,6 +43,7 @@ export const ParticipaToggle: React.FC<Props> = ({ id, endpoint, field, value, l
     };
 
     return (
+        // eslint-disable-next-line no-restricted-syntax -- toggle de estado on/off; no hay primitivo Toggle (ver diseno.md)
         <button
             type="button"
             onClick={toggle}
@@ -50,7 +51,7 @@ export const ParticipaToggle: React.FC<Props> = ({ id, endpoint, field, value, l
             title={`${on ? 'Deshabilitar' : 'Habilitar'} ${label}`}
             aria-pressed={on}
             className={cn(
-                'text-[10px] font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wide transition-colors disabled:opacity-50',
+                'text-caption font-bold px-2 py-0.5 rounded-lg border uppercase tracking-wide transition-colors disabled:opacity-50',
                 on
                     ? 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30 dark:text-emerald-400'
                     : 'bg-muted text-muted-foreground border-border hover:border-brand-primary/30'

@@ -105,10 +105,12 @@ const EmailConfigForm: React.FC<EmailConfigFormProps> = () => {
                         onChange={(e) => setPassword(e.target.value)}
                         leftIcon={<Lock className="h-4 w-4 text-muted-foreground" />}
                     />
+                    {/* eslint-disable-next-line no-restricted-syntax -- toggle ojo integrado al Input (posición absoluta) */}
                     <button
                         type="button"
+                        aria-label={showPassword ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                         onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-dark transition-colors"
+                        className="absolute right-3 top-[2.15rem] text-muted-foreground hover:text-brand-primary transition-colors"
                     >
                         {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
