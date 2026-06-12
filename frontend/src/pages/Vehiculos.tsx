@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Truck, Plus, Shield, Wrench, ClipboardList, ScrollText,
+    Truck, Plus, Shield, ScrollText,
     Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter, Save, User
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,15 +11,12 @@ import { Modal } from '../components/ui/Modal';
 import { Button } from '../components/ui/Button';
 import { IconButton } from '../components/ui/IconButton';
 import { EmptyState } from '../components/ui/EmptyState';
-import { StatusBadge } from '../components/ui/StatusBadge';
 import { fmtMoney, fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { SeguroForm } from '../components/vehiculos/SeguroForm';
-import { RevisionForm } from '../components/vehiculos/RevisionForm';
-import { MantencionForm } from '../components/vehiculos/MantencionForm';
 import { PermisoCirculacionForm } from '../components/vehiculos/PermisoCirculacionForm';
 import api from '../services/api';
-import type { Vehiculo, VehiculoSeguro, VehiculoRevision, VehiculoMantencion, VehiculoPermiso } from '../types/entities';
+import type { Vehiculo, VehiculoSeguro, VehiculoPermiso } from '../types/entities';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -73,8 +70,6 @@ const VehiculosPage: React.FC = () => {
     const [showFiltros, setShowFiltros] = useState(false);
 
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
-    const [revisiones, setRevisiones] = useState<VehiculoRevision[]>([]);
-    const [mantenciones, setMantenciones] = useState<VehiculoMantencion[]>([]);
     const [permisos, setPermisos] = useState<VehiculoPermiso[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
 
@@ -82,10 +77,6 @@ const VehiculosPage: React.FC = () => {
     const [editVehiculo, setEditVehiculo] = useState<Vehiculo | null>(null);
     const [modalSeguro, setModalSeguro] = useState(false);
     const [editSeguro, setEditSeguro] = useState<VehiculoSeguro | null>(null);
-    const [modalRevision, setModalRevision] = useState(false);
-    const [editRevision, setEditRevision] = useState<VehiculoRevision | null>(null);
-    const [modalMantencion, setModalMantencion] = useState(false);
-    const [editMantencion, setEditMantencion] = useState<VehiculoMantencion | null>(null);
     const [modalPermiso, setModalPermiso] = useState(false);
     const [editPermiso, setEditPermiso] = useState<VehiculoPermiso | null>(null);
 
@@ -103,15 +94,11 @@ const VehiculosPage: React.FC = () => {
     const fetchDetail = useCallback(async (vId: number) => {
         setDetailLoading(true);
         try {
-            const [s, r, m, p] = await Promise.all([
+            const [s, p] = await Promise.all([
                 api.get<{ data: VehiculoSeguro[] }>(`/vehiculos/${vId}/seguros`),
-                api.get<{ data: VehiculoRevision[] }>(`/vehiculos/${vId}/revisiones`),
-                api.get<{ data: VehiculoMantencion[] }>(`/vehiculos/${vId}/mantenciones`),
                 api.get<{ data: VehiculoPermiso[] }>(`/vehiculos/${vId}/permisos`),
             ]);
             setSeguros(s.data.data || []);
-            setRevisiones(r.data.data || []);
-            setMantenciones(m.data.data || []);
             setPermisos(p.data.data || []);
         } catch { /* silencioso */ }
         finally { setDetailLoading(false); }
@@ -166,7 +153,7 @@ const VehiculosPage: React.FC = () => {
                         {vehiculos.length}
                     </span>
                 </h1>
-                <p className="text-muted-foreground text-xs">Seguros, Revisiones Técnicas y Mantenciones</p>
+                <p className="text-muted-foreground text-xs">Seguros y Permisos de Circulación</p>
             </div>
         </div>
     ), [vehiculos.length]);
@@ -281,7 +268,6 @@ const VehiculosPage: React.FC = () => {
                                         <span className="text-caption text-muted-foreground">{v.modelo} {v.anio}</span>
                                         <span className="text-caption px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
                                         <EstadoVencimiento fecha={v.seguro_vencimiento} label="seguro" />
-                                        <EstadoVencimiento fecha={v.revision_tecnica_vencimiento} label="revisión" />
                                         <span className="text-caption text-muted-foreground">{fmtNumber(v.kilometraje_actual || 0)} km</span>
                                     </div>
                                 </div>
@@ -351,62 +337,6 @@ const VehiculosPage: React.FC = () => {
                                         {(s as any).monto ? ` · ${fmtMoney((s as any).monto)}` : ''}
                                     </p>
                                     <AlertaBadge diasAlerta={(s as any).dias_alerta} emailAlerta={(s as any).email_alerta} />
-                                </ItemRow>
-                            ))
-                        }
-                    </Section>
-
-                    {/* REVISIONES */}
-                    <Section
-                        icon={<ClipboardList className="h-3.5 w-3.5" />}
-                        title="Revisiones Técnicas"
-                        onAdd={hasPermission('vehiculos.crear') ? () => setModalRevision(true) : undefined}
-                    >
-                        {revisiones.length === 0
-                            ? <Empty>Sin revisiones registradas</Empty>
-                            : revisiones.map(r => (
-                                <ItemRow key={r.id}
-                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditRevision(r); setModalRevision(true); } : undefined}
-                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('revisiones', r.id) : undefined}>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-xs font-bold text-brand-dark capitalize">{r.tipo}</span>
-                                        <StatusBadge domain="vehiculoRevision" status={r.resultado} />
-                                        <EstadoVencimiento fecha={r.fecha_vencimiento} label="revisión" />
-                                    </div>
-                                    <p className="text-caption text-muted-foreground mt-0.5">
-                                        {fmtDate(r.fecha)} → {fmtDate(r.fecha_vencimiento)}
-                                        {r.planta ? ` · ${r.planta}` : ''}
-                                    </p>
-                                    <AlertaBadge diasAlerta={(r as any).dias_alerta} emailAlerta={(r as any).email_alerta} />
-                                </ItemRow>
-                            ))
-                        }
-                    </Section>
-
-                    {/* MANTENCIONES */}
-                    <Section
-                        icon={<Wrench className="h-3.5 w-3.5" />}
-                        title="Mantenciones"
-                        onAdd={hasPermission('vehiculos.crear') ? () => setModalMantencion(true) : undefined}
-                    >
-                        {mantenciones.length === 0
-                            ? <Empty>Sin mantenciones registradas</Empty>
-                            : mantenciones.map(m => (
-                                <ItemRow key={m.id}
-                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditMantencion(m); setModalMantencion(true); } : undefined}
-                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('mantenciones', m.id) : undefined}>
-                                    <div className="flex items-center gap-2">
-                                        <span className="text-xs font-bold text-brand-dark">{m.tipo}</span>
-                                        <span className="text-caption text-muted-foreground">{fmtNumber(m.km_al_realizar || 0)} km</span>
-                                        {(m as any).fecha_proxima && <EstadoVencimiento fecha={(m as any).fecha_proxima} label="próx. mantención" />}
-                                    </div>
-                                    <p className="text-caption text-muted-foreground mt-0.5">
-                                        {fmtDate(m.fecha)}
-                                        {m.taller ? ` · ${m.taller}` : ''}
-                                        {m.costo ? ` · ${fmtMoney(m.costo)}` : ''}
-                                    </p>
-                                    {m.descripcion && <p className="text-caption text-muted-foreground/70 italic">{m.descripcion}</p>}
-                                    <AlertaBadge diasAlerta={(m as any).dias_alerta} emailAlerta={(m as any).email_alerta} />
                                 </ItemRow>
                             ))
                         }
@@ -597,23 +527,6 @@ const VehiculosPage: React.FC = () => {
                         <SeguroForm vehiculoId={selected.id} initialData={editSeguro}
                             onCancel={() => { setModalSeguro(false); setEditSeguro(null); }}
                             onSuccess={() => { setModalSeguro(false); setEditSeguro(null); fetchDetail(selected.id); fetchVehiculos(); }} />
-                    </Modal>
-                    <Modal isOpen={modalRevision}
-                        onClose={() => { setModalRevision(false); setEditRevision(null); }}
-                        title={editRevision ? 'Editar Revisión Técnica' : 'Agregar Revisión Técnica'} size="lg"
-                        headerAction={formActions('revision-form', () => { setModalRevision(false); setEditRevision(null); })}>
-                        <RevisionForm vehiculoId={selected.id} initialData={editRevision}
-                            onCancel={() => { setModalRevision(false); setEditRevision(null); }}
-                            onSuccess={() => { setModalRevision(false); setEditRevision(null); fetchDetail(selected.id); fetchVehiculos(); }} />
-                    </Modal>
-                    <Modal isOpen={modalMantencion}
-                        onClose={() => { setModalMantencion(false); setEditMantencion(null); }}
-                        title={editMantencion ? 'Editar Mantención' : 'Registrar Mantención'} size="lg"
-                        headerAction={formActions('mantencion-form', () => { setModalMantencion(false); setEditMantencion(null); })}>
-                        <MantencionForm vehiculoId={selected.id} kmActual={selected.kilometraje_actual}
-                            initialData={editMantencion}
-                            onCancel={() => { setModalMantencion(false); setEditMantencion(null); }}
-                            onSuccess={() => { setModalMantencion(false); setEditMantencion(null); fetchDetail(selected.id); }} />
                     </Modal>
                     <Modal isOpen={modalPermiso}
                         onClose={() => { setModalPermiso(false); setEditPermiso(null); }}
