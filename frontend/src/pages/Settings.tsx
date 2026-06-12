@@ -18,6 +18,10 @@ import { useAuth } from '../context/AuthContext';
 
 import { CrudTable } from '../components/ui/CrudTable';
 import type { ColumnDef } from '../components/ui/CrudTable';
+import { IconButton } from '../components/ui/IconButton';
+import { Chip } from '../components/ui/Chip';
+import { StatusBadge } from '../components/ui/StatusBadge';
+import { fmtMoney } from '../utils/format';
 import type { Empresa, Obra, Cargo, TipoDocumento, EstadoAsistencia, TipoAusencia, CategoriaInventario, Bodega, ItemInventario } from '../types/entities';
 
 interface UserData {
@@ -147,13 +151,7 @@ const empresaCols: ColumnDef<Empresa>[] = [
     {
         key: 'activo', label: 'Estado',
         render: (v) => (
-            <span className={cn(
-                "text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider",
-                v ? "bg-brand-accent/10 text-brand-accent border border-brand-accent/20"
-                    : "bg-destructive/10 text-destructive border border-destructive/20"
-            )}>
-                {v ? 'Activo' : 'Finiquitado'}
-            </span>
+            <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Finiquitado'} className="text-caption" />
         ),
     },
 ];
@@ -164,16 +162,8 @@ const obraCols: ColumnDef<Obra>[] = [
         render: (v, row) => (
             <span className="inline-flex items-center gap-2">
                 {v}
-                {!!row.es_prueba && (
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-amber-500/15 text-amber-600 border border-amber-500/30">
-                        Prueba
-                    </span>
-                )}
-                {!!row.finalizada && (
-                    <span className="text-[9px] font-black px-1.5 py-0.5 rounded uppercase tracking-wider bg-muted text-muted-foreground border border-border">
-                        Finalizada
-                    </span>
-                )}
+                {!!row.es_prueba && <StatusBadge domain="obra" status="prueba" className="text-micro" />}
+                {!!row.finalizada && <StatusBadge domain="obra" status="finalizada" className="text-micro" />}
             </span>
         ),
     },
@@ -181,13 +171,7 @@ const obraCols: ColumnDef<Obra>[] = [
     {
         key: 'activa', label: 'Estado',
         render: (v) => (
-            <span className={cn(
-                "text-[10px] font-black px-2.5 py-1 rounded-lg uppercase tracking-wider",
-                v ? "bg-brand-accent/10 text-brand-accent border border-brand-accent/20"
-                    : "bg-destructive/10 text-destructive border border-destructive/20"
-            )}>
-                {v ? 'Activa' : 'Inactiva'}
-            </span>
+            <StatusBadge domain="obra" status={v ? 'activa' : 'inactiva'} className="text-caption" />
         ),
     },
 ];
@@ -197,13 +181,7 @@ const cargoCols: ColumnDef<Cargo>[] = [
     {
         key: 'activo', label: 'Estado',
         render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent"
-                    : "bg-destructive/10 text-destructive"
-            )}>
-                {v ? 'Activo' : 'Finiquitado'}
-            </span>
+            <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Finiquitado'} className="text-caption" />
         ),
     },
 ];
@@ -217,13 +195,7 @@ const tipoDocCols: ColumnDef<TipoDocumento>[] = [
     {
         key: 'obligatorio', label: 'Obligatorio',
         render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-warning/10 text-warning"
-                    : "bg-muted text-muted-foreground"
-            )}>
-                {v ? 'Sí' : 'No'}
-            </span>
+            <Chip tone={v ? 'warning' : 'neutral'} label={v ? 'Sí' : 'No'} className="text-caption" />
         ),
     },
 ];
@@ -236,13 +208,7 @@ const usuarioCols: ColumnDef<UserData>[] = [
     {
         key: 'activo', label: 'Estado',
         render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent"
-                    : "bg-destructive/10 text-destructive"
-            )}>
-                {v ? 'Activo' : 'Finiquitado'}
-            </span>
+            <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Finiquitado'} className="text-caption" />
         ),
     },
 ];
@@ -275,31 +241,25 @@ const estadoAsistenciaCols: ColumnDef<EstadoAsistencia>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'codigo', label: 'Código', render: (v) => (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-background">{v}</span>
+            <span className="text-caption font-bold px-2 py-0.5 rounded-full bg-background">{v}</span>
         )
     },
     {
         key: 'color', label: 'Color', render: (v) => (
             <div className="flex items-center gap-2">
                 <div className="h-4 w-4 rounded-full border border-border" style={{ backgroundColor: v }} />
-                <span className="text-[10px] text-muted-foreground">{v}</span>
+                <span className="text-caption text-muted-foreground">{v}</span>
             </div>
         )
     },
     {
         key: 'es_presente', label: 'Cuenta como Presente', render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted text-muted-foreground"
-            )}>{v ? 'Sí' : 'No'}</span>
+            <Chip tone={v ? 'success' : 'neutral'} label={v ? 'Sí' : 'No'} className="text-caption" />
         )
     },
     {
         key: 'cuenta_dia_trabajado', label: 'Cuenta Día Trabajado', render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent" : "bg-muted text-muted-foreground"
-            )}>{v ? 'Sí' : 'No'}</span>
+            <Chip tone={v ? 'success' : 'neutral'} label={v ? 'Sí' : 'No'} className="text-caption" />
         )
     },
 ];
@@ -308,19 +268,13 @@ const tipoAusenciaCols: ColumnDef<TipoAusencia>[] = [
     { key: 'nombre', label: 'Nombre' },
     {
         key: 'es_justificada', label: 'Justificada', render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
-            )}>{v ? 'Sí' : 'No'}</span>
+            <Chip tone={v ? 'success' : 'danger'} label={v ? 'Sí' : 'No'} className="text-caption" />
         )
     },
     {
         key: 'activo', label: 'Estado',
         render: (v) => (
-            <span className={cn(
-                "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
-            )}>{v ? 'Activo' : 'Finiquitado'}</span>
+            <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Finiquitado'} className="text-caption" />
         ),
     },
 ];
@@ -363,6 +317,7 @@ const SettingsPage: React.FC = () => {
                     const isActive = activeGroup.title === group.title;
                     const GroupIcon = group.icon;
                     return (
+                        // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
                         <button
                             key={idx}
                             onClick={() => setActiveTab(group.items[0].key)}
@@ -374,7 +329,7 @@ const SettingsPage: React.FC = () => {
                             )}
                         >
                             <GroupIcon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
-                            <span className="text-[7px] font-black uppercase tracking-tight leading-none relative z-10">
+                            <span className="text-micro font-black uppercase tracking-tight leading-none relative z-10">
                                 {group.shortTitle}
                             </span>
                             {isActive && (
@@ -395,11 +350,12 @@ const SettingsPage: React.FC = () => {
                     const isActive = activeGroup.title === group.title;
                     const GroupIcon = group.icon;
                     return (
+                        // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
                         <button
                             key={idx}
                             onClick={() => setActiveTab(group.items[0].key)}
                             className={cn(
-                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
+                                "flex items-center gap-2 px-6 py-2.5 rounded-xl text-caption font-black uppercase tracking-[0.15em] transition-all whitespace-nowrap shrink-0 relative overflow-hidden group",
                                 isActive
                                     ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25 translate-y-[-1px]"
                                     : "text-muted-foreground hover:bg-background hover:text-brand-dark"
@@ -426,6 +382,7 @@ const SettingsPage: React.FC = () => {
                     {activeGroup.items.map(tab => {
                         const isActive = activeTab === tab.key;
                         return (
+                            // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
@@ -437,7 +394,7 @@ const SettingsPage: React.FC = () => {
                                 )}
                             >
                                 <tab.icon className={cn("h-[18px] w-[18px] relative z-10", isActive && "drop-shadow-sm")} />
-                                <span className="text-[7px] font-black uppercase tracking-tight leading-none relative z-10">
+                                <span className="text-micro font-black uppercase tracking-tight leading-none relative z-10">
                                     {tab.shortLabel || tab.label}
                                 </span>
                                 {isActive && (
@@ -455,6 +412,7 @@ const SettingsPage: React.FC = () => {
                 {/* ── Desktop Sub-Tabs: pills con icono + texto ── */}
                 <div className="hidden md:flex h-[60px] border-b border-border bg-white/50 dark:bg-white/5 px-3 lg:px-5 items-center shrink-0 overflow-x-auto scrollbar-none gap-2">
                     {activeGroup.items.map(tab => (
+                        // eslint-disable-next-line no-restricted-syntax -- tab nav con estado activo; no hay primitivo Tab (ver diseno.md)
                         <button
                             key={tab.key}
                             onClick={() => setActiveTab(tab.key)}
@@ -519,13 +477,15 @@ const SettingsPage: React.FC = () => {
                                             </div>
                                         )}
                                         {hasPermission('obras.finalizar') && !row.finalizada && (
-                                            <button
-                                                onClick={() => setObraAFinalizar(row)}
-                                                className="p-1.5 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-950/40 text-muted-foreground hover:text-amber-600 transition-colors"
+                                            <IconButton
+                                                variant="ghost"
+                                                size="sm"
+                                                aria-label="Finalizar obra"
                                                 title="Finalizar obra (concluida)"
-                                            >
-                                                <Archive className="h-3.5 w-3.5" />
-                                            </button>
+                                                onClick={() => setObraAFinalizar(row)}
+                                                className="hover:bg-amber-100 dark:hover:bg-amber-950/40 hover:text-amber-600"
+                                                icon={<Archive className="h-3.5 w-3.5" />}
+                                            />
                                         )}
                                     </div>
                                 )}
@@ -577,13 +537,13 @@ const SettingsPage: React.FC = () => {
                             canDelete={hasPermission('usuarios.eliminar')}
                             canExport={false}
                             renderActions={(row) => (
-                                <button 
-                                    onClick={() => setUserPermsModal({ open: true, user: row })}
-                                    className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/8 transition-colors"
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Gestionar permisos especiales"
                                     title="Gestionar Permisos Especiales"
-                                >
-                                    <UserCog className="h-4 w-4" />
-                                </button>
+                                    onClick={() => setUserPermsModal({ open: true, user: row })}
+                                    icon={<UserCog className="h-4 w-4" />}
+                                />
                             )}
                         />
                     )}
@@ -599,13 +559,13 @@ const SettingsPage: React.FC = () => {
                             canDelete={hasPermission('usuarios.roles.eliminar')}
                             canExport={false}
                             renderActions={(row) => (
-                                <button 
-                                    onClick={() => setRolPermsModal({ open: true, rol: row })}
-                                    className="p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/8 transition-colors"
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Configurar permisos del rol"
                                     title="Configurar Permisos del Rol"
-                                >
-                                    <ShieldCheck className="h-4 w-4" />
-                                </button>
+                                    onClick={() => setRolPermsModal({ open: true, rol: row })}
+                                    icon={<ShieldCheck className="h-4 w-4" />}
+                                />
                             )}
                         />
                     )}
@@ -691,10 +651,7 @@ const SettingsPage: React.FC = () => {
                                 {
                                     key: 'activo', label: 'Estado',
                                     render: (v) => (
-                                        <span className={cn(
-                                            "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                                            v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
-                                        )}>{v ? 'Activo' : 'Inactivo'}</span>
+                                        <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activo' : 'Inactivo'} className="text-caption" />
                                     ),
                                 },
                             ]}
@@ -719,10 +676,7 @@ const SettingsPage: React.FC = () => {
                                 {
                                     key: 'activa', label: 'Estado',
                                     render: (v) => (
-                                        <span className={cn(
-                                            "text-[10px] font-semibold px-2.5 py-0.5 rounded-full",
-                                            v ? "bg-brand-accent/10 text-brand-accent" : "bg-destructive/10 text-destructive"
-                                        )}>{v ? 'Activa' : 'Inactiva'}</span>
+                                        <Chip tone={v ? 'success' : 'danger'} label={v ? 'Activa' : 'Inactiva'} className="text-caption" />
                                     ),
                                 },
                             ]}
@@ -752,8 +706,8 @@ const SettingsPage: React.FC = () => {
                                 { key: 'descripcion', label: 'Descripción' },
                                 { key: 'categoria_nombre', label: 'Categoría' },
                                 { key: 'm2', label: 'M2', render: (v) => v ? Number(v).toFixed(2) : '—' },
-                                { key: 'valor_compra', label: 'V. Compra', render: (v) => v ? `$${Number(v).toLocaleString('es-CL')}` : '—' },
-                                { key: 'valor_arriendo', label: 'V. Arriendo', render: (v) => `$${Number(v).toLocaleString('es-CL')}` },
+                                { key: 'valor_compra', label: 'V. Compra', render: (v) => v ? fmtMoney(v) : '—' },
+                                { key: 'valor_arriendo', label: 'V. Arriendo', render: (v) => fmtMoney(v) },
                                 { key: 'unidad', label: 'Unidad' },
                             ]}
                             entityName="Ítem"
