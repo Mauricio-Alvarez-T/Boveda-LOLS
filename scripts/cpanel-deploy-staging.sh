@@ -44,7 +44,12 @@ git reset --hard "origin/$BRANCH" --quiet
 # 2) Frontend: copiar dist prebuildeado → docroot de staging
 mkdir -p "$FRONT_DEST"
 if command -v rsync >/dev/null 2>&1; then
-    rsync -a --delete "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
+    # --delete para que el docroot espeje dist exactamente, pero preservar
+    # .well-known (AutoSSL/Let's Encrypt) y .htaccess si los hubiera.
+    rsync -a --delete \
+        --exclude '.well-known/' \
+        --exclude '.htaccess' \
+        "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
     # Fallback sin rsync: limpiar y copiar (preserva dotfiles del docroot si los hubiera)
     find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' -exec rm -rf {} +
