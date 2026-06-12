@@ -109,6 +109,22 @@ export interface Vehiculo {
     revision_gases_vencimiento?: string | null;
 }
 
+export type VehiculoDocumentoCategoria =
+    | 'seguro_terceros'
+    | 'primera_inscripcion'
+    | 'poliza'
+    | 'permiso_circulacion'
+    | 'otro';
+
+export interface VehiculoDocumento {
+    id: number;
+    vehiculo_id: number;
+    categoria: VehiculoDocumentoCategoria;
+    nombre_archivo: string;
+    fecha_subida?: string;
+    created_at?: string;
+}
+
 export interface VehiculoSeguro {
     id: number;
     vehiculo_id: number;
