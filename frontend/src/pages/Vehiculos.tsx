@@ -406,7 +406,7 @@ const VehiculosPage: React.FC = () => {
                                 variant="ghost"
                                 size="sm"
                                 onClick={limpiarFiltros}
-                                className="ml-auto text-destructive hover:text-destructive"
+                                className="ml-auto text-muted-foreground hover:text-destructive hover:bg-destructive/10"
                             >
                                 Limpiar filtros
                             </Button>

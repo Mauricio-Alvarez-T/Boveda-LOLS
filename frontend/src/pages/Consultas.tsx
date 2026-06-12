@@ -215,15 +215,14 @@ const ConsultasPage: React.FC = () => {
                 </Button>
 
                 {activeFilterCount > 0 && (
-                    <Button
-                        size="sm"
-                        variant="glass"
-                        onClick={handleClearFilters}
-                        className="h-9 px-3 text-destructive hover:bg-destructive/10 border-border shadow-sm flex items-center justify-center p-0 w-9"
+                    <IconButton
+                        variant="danger"
+                        aria-label="Limpiar Filtros"
                         title="Limpiar Filtros"
-                    >
-                        <X className="h-4 w-4" />
-                    </Button>
+                        onClick={handleClearFilters}
+                        className="rounded-xl border border-border shadow-sm"
+                        icon={<X className="h-4 w-4" />}
+                    />
                 )}
             </div>
 

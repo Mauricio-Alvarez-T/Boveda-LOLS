@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { Upload, FileText, X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { Select } from '../ui/Select';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
@@ -142,9 +143,14 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                                 )}
                                 <div className="flex items-center gap-2 justify-center">
                                     <span className="text-sm font-semibold text-brand-dark truncate max-w-[200px]">{file.name}</span>
-                                    <button type="button" onClick={() => { setFile(null); setPreview(null); }} className="text-rose-400 hover:text-rose-300">
-                                        <X className="h-4 w-4" />
-                                    </button>
+                                    <IconButton
+                                        variant="danger"
+                                        size="sm"
+                                        aria-label="Quitar archivo"
+                                        className="h-6 w-6"
+                                        onClick={() => { setFile(null); setPreview(null); }}
+                                        icon={<X className="h-4 w-4" />}
+                                    />
                                 </div>
                                 <p className="text-xs text-muted-foreground">{(file.size / 1024 / 1024).toFixed(2)} MB</p>
                             </div>
@@ -157,7 +163,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                                     <p className="text-base font-medium text-brand-dark">Haz clic o arrastra un archivo</p>
                                     <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB)</p>
                                 </div>
-                                <p className="text-xs text-emerald-400 font-bold bg-emerald-500/10 px-3 py-1 rounded-full inline-block">
+                                <p className="text-xs text-muted-foreground font-bold bg-muted px-3 py-1 rounded-full inline-block">
                                     Auto-conversión a PDF activa
                                 </p>
                             </div>

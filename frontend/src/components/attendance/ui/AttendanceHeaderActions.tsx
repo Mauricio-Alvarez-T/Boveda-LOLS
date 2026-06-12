@@ -167,18 +167,19 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                 <RequirePermission permiso="asistencia.feriado.gestionar">
                     <Button
                         onClick={toggleFeriado}
-                        variant={isFeriado ? "outline" : "glass"}
+                        variant="glass"
                         disabled={isGlobal}
                         className={cn(
-                            "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl transition-all shadow-sm border",
-                            isFeriado
-                                ? "bg-destructive text-white border-transparent"
-                                : "bg-card border-border text-muted-foreground hover:text-brand-primary",
+                            "hidden lg:flex h-9 w-9 p-0 items-center justify-center rounded-xl transition-all shadow-sm border relative",
+                            "bg-card border-border text-muted-foreground",
+                            isFeriado ? "hover:text-destructive hover:bg-destructive/10" : "hover:text-brand-primary",
                             isGlobal && "opacity-40 grayscale pointer-events-none"
                         )}
                         title={isGlobal ? "Disponible al seleccionar una obra" : (isFeriado ? "Quitar Feriado" : "Marcar Feriado")}
                     >
                         <CalendarRange className="h-4 w-4" />
+                        {/* Regla de iconos: estado activo por badge, no por relleno del botón */}
+                        {isFeriado && <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-destructive rounded-full border-2 border-card" />}
                     </Button>
                 </RequirePermission>
 

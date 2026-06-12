@@ -13,7 +13,7 @@ import { toast } from 'sonner';
 import { showDeleteToast } from '../../utils/toastUtils';
 import { useAuth } from '../../context/AuthContext';
 
-import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import api from '../../services/api';
 import type { Documento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
@@ -134,7 +134,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         className={cn(
                                             "group border-l-4 border-l-transparent hover:border-l-brand-primary hover:bg-background/80 transition-all duration-300 relative",
                                             !doc.activo && "opacity-50 grayscale",
-                                            isExpired(doc.fecha_vencimiento) && "bg-rose-50/20 hover:border-l-rose-500"
+                                            isExpired(doc.fecha_vencimiento) && "bg-destructive/5 dark:bg-destructive/10 hover:border-l-destructive"
                                         )}
                                     >
                                         <td className="px-4 py-3">
@@ -142,7 +142,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                 <div className={cn(
                                                     "h-10 w-10 rounded-lg flex items-center justify-center shrink-0 shadow-sm border",
                                                     isExpired(doc.fecha_vencimiento)
-                                                        ? "bg-rose-500/10 text-rose-500 border-rose-500/20"
+                                                        ? "bg-destructive/10 text-destructive border-destructive/20"
                                                         : "bg-brand-primary/10 text-brand-primary border-brand-primary/20"
                                                 )}>
                                                     <FileText className="h-5 w-5" />
@@ -183,28 +183,23 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right w-[100px]">
                                             <div className="flex justify-end gap-2">
-                                                <Button
-                                                    variant="glass"
-                                                    size="icon"
-                                                    className="h-9 w-9 text-brand-primary shadow-sm hover:scale-110 active:scale-95 transition-all"
+                                                <IconButton
+                                                    variant="ghost"
+                                                    aria-label="Descargar"
+                                                    title="Descargar"
+                                                    className="shadow-sm"
                                                     onClick={() => handleDownload(doc)}
-                                                >
-                                                    <Download className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="glass"
-                                                    size="icon"
-                                                    className={cn(
-                                                        "h-9 w-9 shadow-sm hover:scale-110 active:scale-95 transition-all text-rose-500",
-                                                        !doc.activo && "text-emerald-500",
-                                                        !hasPermission('documentos.eliminar') && "opacity-30 grayscale cursor-not-allowed"
-                                                    )}
+                                                    icon={<Download className="h-4 w-4" />}
+                                                />
+                                                <IconButton
+                                                    variant={doc.activo ? 'danger' : 'ghost'}
+                                                    aria-label={doc.activo ? 'Eliminar' : 'Restaurar'}
+                                                    className="shadow-sm"
                                                     onClick={() => hasPermission('documentos.eliminar') && handleToggleActive(doc)}
                                                     disabled={!hasPermission('documentos.eliminar')}
                                                     title={!hasPermission('documentos.eliminar') ? "No tienes permisos" : (doc.activo ? "Eliminar" : "Restaurar")}
-                                                >
-                                                    {doc.activo ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
-                                                </Button>
+                                                    icon={doc.activo ? <Trash2 className="h-4 w-4" /> : <CheckCircle2 className="h-4 w-4" />}
+                                                />
                                             </div>
                                         </td>
                                     </motion.tr>

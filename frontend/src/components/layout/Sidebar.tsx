@@ -20,6 +20,7 @@ import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../ui/Logo';
 import { ThemeToggle } from '../ui/ThemeToggle';
+import { IconButton } from '../ui/IconButton';
 
 interface SidebarProps {
     isCollapsed: boolean;
@@ -147,9 +148,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                         </div>
                     )}
                     {(isMobile || !isCollapsed) && (
-                        <button onClick={logout} className="p-1.5 hover:bg-muted rounded-lg text-destructive transition-colors shrink-0">
-                            <LogOut className="h-4 w-4" />
-                        </button>
+                        <IconButton
+                            variant="danger"
+                            size="sm"
+                            aria-label="Cerrar sesión"
+                            title="Cerrar sesión"
+                            onClick={logout}
+                            className="shrink-0"
+                            icon={<LogOut className="h-4 w-4" />}
+                        />
                     )}
                 </div>
             </div>
