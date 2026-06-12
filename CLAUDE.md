@@ -48,14 +48,16 @@ El deploy es automático vía GitHub Actions al hacer push a `main` o `develop`.
 
 ### Deploy
 1. Siempre probar en staging (`develop`) antes de mergear a `main`.
-2. **Staging y Prod = lftp FTP-push** desde Actions (decisión usuario 2026-06-12: se revirtió el
-   experimento pull-side; el sistema FTP llevaba 4 meses estable). Reintentos SUAVES — NO meter
-   reintentos agresivos (el hammering dispara el ban de cPHulk con `Connection refused`).
-3. **Si el FTP da `Connection refused` sostenido**: las IPs del runner están baneadas por
-   cPHulk/firewall. Solución: cPanel → cPHulk Brute Force Protection → flush/desbloquear IPs (o
-   contactar al hosting). Luego re-lanzar con `gh workflow run deploy-cpanel-staging.yml --ref develop`.
-4. El restart de Passenger se hace escribiendo `tmp/restart.txt` vía FTP — automatizado en el workflow.
-5. Verificar runs desde la CLI: `gh run list --workflow deploy-cpanel-staging.yml` (gh ya autenticado).
+2. **Staging (`develop`) = PULL-SIDE** (definitivo 2026-06-12; se intentó volver a FTP pero el ban
+   de cPHulk a IPs del runner es persistente, no transitorio): el workflow compila y publica
+   `frontend/dist` + `backend/` en la rama **`deploy-staging`**; el SERVIDOR hace `git pull`
+   saliente vía cron cada 5 min y se auto-despliega. Ver `scripts/cpanel-deploy-staging.sh`
+   (incluye instrucciones de setup). El repo es PÚBLICO → el clon en cPanel no necesita token.
+3. **Prod (`main`) = lftp FTP** con reintentos SUAVES. Si da `Connection refused` sostenido: cPanel
+   → cPHulk Brute Force Protection → flush/desbloquear IPs del runner (o ticket al hosting). NO
+   meter reintentos agresivos (el hammering re-dispara el ban). El restart de Passenger se escribe
+   en `tmp/restart.txt` vía FTP — automatizado en el workflow.
+4. Verificar runs desde la CLI: `gh run list --workflow deploy-cpanel-staging.yml` (gh ya autenticado).
 
 ### Tests
 - Correr antes de cualquier PR: `cd backend && npm test`
