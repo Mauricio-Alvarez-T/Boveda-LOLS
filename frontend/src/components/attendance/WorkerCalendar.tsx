@@ -377,8 +377,8 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                                     </Button>
                                                     <Button
                                                         size="sm"
-                                                        variant="primary"
-                                                        className="h-7 px-2 text-caption font-bold bg-destructive hover:bg-destructive/90 border-none"
+                                                        variant="destructive"
+                                                        className="h-7 px-2 text-caption font-bold"
                                                         onClick={() => handleDeletePeriod(p.id)}
                                                     >
                                                         Sí, borrar

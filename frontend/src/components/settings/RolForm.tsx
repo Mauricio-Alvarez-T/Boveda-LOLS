@@ -95,7 +95,6 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
                             variant="destructive"
                             onClick={handleResetSessions}
                             isLoading={resetingSessions}
-                            className="bg-destructive/10 text-destructive hover:bg-destructive hover:text-white border-none"
                             leftIcon={<LogOut className="h-4 w-4" />}
                         >
                             Liquidar Sesiones Activas

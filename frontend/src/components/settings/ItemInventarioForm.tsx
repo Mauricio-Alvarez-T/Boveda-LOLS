@@ -201,7 +201,7 @@ export const ItemInventarioForm: React.FC<Props> = ({ initialData, onSuccess, on
                                 type="button"
                                 aria-label="Quitar imagen"
                                 onClick={removeImage}
-                                className="absolute -top-2 -right-2 p-1 bg-destructive text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+                                className="absolute -top-2 -right-2 p-1 bg-card text-destructive border border-border rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
                             >
                                 <Trash2 className="h-3 w-3" />
                             </button>

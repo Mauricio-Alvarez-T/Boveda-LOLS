@@ -689,7 +689,7 @@ const ConsultasPage: React.FC = () => {
                         </div>
                         <div className="flex justify-end gap-3 mt-8">
                             <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
-                            <Button className="bg-destructive text-white hover:bg-destructive/90 active:bg-destructive border-transparent flex-1" onClick={() => {
+                            <Button variant="destructive" className="flex-1" onClick={() => {
                                 const dateInput = document.getElementById('fecha_finiquito_input_consultas') as HTMLInputElement;
                                 if (!dateInput?.value) {
                                     toast.error("Debe especificar una fecha.");
@@ -735,8 +735,9 @@ const ConsultasPage: React.FC = () => {
 
                         <div className="flex gap-3 pt-6 mt-6 border-t border-border">
                             <Button variant="outline" onClick={() => setModalType(null)} className="flex-1">Cancelar</Button>
-                            <Button 
-                                className="flex-1 font-bold bg-destructive text-white hover:bg-red-700 border-none shadow-lg shadow-destructive/20"
+                            <Button
+                                variant="destructive"
+                                className="flex-1 font-bold"
                                 disabled={depurarConfirmationRut !== selectedWorkerForAction.rut}
                                 onClick={confirmDepurar}
                                 leftIcon={<Trash2 className="h-4 w-4" />}
@@ -863,10 +864,10 @@ const ConsultasPage: React.FC = () => {
                                     setFilterAusentes={setFilterAusentes}
                                 />
                                 {activeFilterCount > 0 && (
-                                    <Button 
-                                        variant="glass" 
+                                    <Button
+                                        variant="destructive"
                                         onClick={handleClearFilters}
-                                        className="w-full mt-6 text-destructive font-bold uppercase tracking-widest text-label h-11 rounded-xl"
+                                        className="w-full mt-6 font-bold uppercase tracking-widest text-label h-11 rounded-xl"
                                     >
                                         Limpiar Selecciones
                                     </Button>

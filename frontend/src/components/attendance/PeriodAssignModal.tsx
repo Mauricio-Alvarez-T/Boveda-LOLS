@@ -277,10 +277,10 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
                                             >
                                                 No
                                             </Button>
-                                            <Button 
-                                                size="sm" 
-                                                variant="primary" 
-                                                className="h-7 px-2 text-caption font-bold bg-destructive hover:bg-destructive/90 border-none"
+                                            <Button
+                                                size="sm"
+                                                variant="destructive"
+                                                className="h-7 px-2 text-caption font-bold"
                                                 onClick={() => handleDeletePeriod(p.id)}
                                             >
                                                 Sí, borrar

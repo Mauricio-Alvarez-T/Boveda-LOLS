@@ -59,7 +59,7 @@ export class SabadosErrorBoundary extends React.Component<Props, State> {
                         variant="primary"
                         onClick={this.handleReset}
                         leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
-                        className="text-xs font-bold bg-red-600 hover:bg-red-700 text-white"
+                        className="text-xs font-bold"
                     >
                         Reintentar
                     </Button>
