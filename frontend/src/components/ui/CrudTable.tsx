@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import { showDeleteToast } from '../../utils/toastUtils';
 
 import { Button } from './Button';
+import { IconButton } from './IconButton';
 import { SearchBar } from './SearchBar';
 import { Modal } from './Modal';
 import api from '../../services/api';
@@ -248,26 +249,22 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                     </div>
                                     <div className="flex items-center gap-1 shrink-0">
                                         {renderActions && renderActions(row)}
-                                        <button
+                                        <IconButton
+                                            variant="ghost"
+                                            size="sm"
+                                            aria-label="Editar"
                                             onClick={() => canEdit && openEdit(row)}
                                             disabled={!canEdit}
-                                            className={cn(
-                                                "p-1.5 rounded-lg text-brand-primary hover:bg-brand-primary/8 transition-colors",
-                                                !canEdit && "opacity-30 cursor-not-allowed"
-                                            )}
-                                        >
-                                            <Pencil className="h-4 w-4" />
-                                        </button>
-                                        <button
+                                            icon={<Pencil className="h-4 w-4" />}
+                                        />
+                                        <IconButton
+                                            variant="danger"
+                                            size="sm"
+                                            aria-label="Eliminar"
                                             onClick={() => canDelete && handleDelete(row.id)}
                                             disabled={!canDelete}
-                                            className={cn(
-                                                "p-1.5 rounded-lg text-destructive hover:bg-destructive/8 transition-colors",
-                                                !canDelete && "opacity-30 cursor-not-allowed"
-                                            )}
-                                        >
-                                            <Trash2 className="h-4 w-4" />
-                                        </button>
+                                            icon={<Trash2 className="h-4 w-4" />}
+                                        />
                                     </div>
                                 </div>
                                 {/* Card detail rows */}
@@ -296,7 +293,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-muted border-b border-border uppercase text-[10px] tracking-[0.1em] font-bold text-muted-foreground/70">
+                            <tr className="bg-muted border-b border-border uppercase text-caption tracking-[0.1em] font-bold text-muted-foreground/70">
                                 {columns.map(col => (
                                     <th key={String(col.key)} className={cn("px-6 py-4", col.className)}>
                                         {col.label}
@@ -339,30 +336,22 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex justify-end gap-2">
                                                 {renderActions && renderActions(row)}
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className={cn(
-                                                        "h-9 w-9 rounded-full text-brand-primary hover:bg-brand-primary/8",
-                                                        !canEdit && "opacity-30 grayscale cursor-not-allowed"
-                                                    )}
+                                                <IconButton
+                                                    variant="ghost"
+                                                    aria-label="Editar"
                                                     onClick={() => canEdit && openEdit(row)}
                                                     disabled={!canEdit}
                                                     title={!canEdit ? "No tienes permisos para editar" : "Editar"}
-                                                >
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                                <Button
-                                                    variant="ghost" size="icon"
-                                                    className={cn(
-                                                        "h-9 w-9 rounded-full text-destructive hover:bg-destructive/8",
-                                                        !canDelete && "opacity-30 grayscale cursor-not-allowed"
-                                                    )}
+                                                    icon={<Pencil className="h-4 w-4" />}
+                                                />
+                                                <IconButton
+                                                    variant="danger"
+                                                    aria-label="Eliminar"
                                                     onClick={() => canDelete && handleDelete(row.id)}
                                                     disabled={!canDelete}
                                                     title={!canDelete ? "No tienes permisos para eliminar" : "Eliminar"}
-                                                >
-                                                    <Trash2 className="h-4 w-4" />
-                                                </Button>
+                                                    icon={<Trash2 className="h-4 w-4" />}
+                                                />
                                             </div>
                                         </td>
                                     </motion.tr>
@@ -378,25 +367,23 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                 <div className="flex items-center justify-between text-sm text-muted-foreground">
                     <span>{pagination.total} registro{pagination.total !== 1 ? 's' : ''}</span>
                     <div className="flex items-center gap-2">
-                        <Button
-                            variant="ghost" size="icon"
-                            className="h-9 w-9 rounded-full"
+                        <IconButton
+                            variant="ghost"
+                            aria-label="Página anterior"
                             disabled={page <= 1}
                             onClick={() => setPage(p => p - 1)}
-                        >
-                            <ChevronLeft className="h-4 w-4" />
-                        </Button>
+                            icon={<ChevronLeft className="h-4 w-4" />}
+                        />
                         <span className="text-brand-dark font-medium">
                             {page} / {pagination.pages}
                         </span>
-                        <Button
-                            variant="ghost" size="icon"
-                            className="h-7 w-7 rounded-full"
+                        <IconButton
+                            variant="ghost"
+                            aria-label="Página siguiente"
                             disabled={page >= pagination.pages}
                             onClick={() => setPage(p => p + 1)}
-                        >
-                            <ChevronRight className="h-4 w-4" />
-                        </Button>
+                            icon={<ChevronRight className="h-4 w-4" />}
+                        />
                     </div>
                 </div>
             )}
