@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'; // Mobile UX Unified Commit 01
+import React, { useState, useMemo } from 'react';
 import {
     Search,
     Filter,
@@ -8,17 +8,12 @@ import {
     X,
     Building2,
     CheckSquare,
-    Briefcase,
-    Users,
     UserCheck,
     FileText,
-    UserPlus,
-    UserX,
     Trash2,
     UserPen,
     Plus,
     Eraser,
-    PlusCircle,
     CalendarClock,
     Save
 } from 'lucide-react';
@@ -36,12 +31,8 @@ import { EmpresaForm } from '../components/settings/EmpresaForm';
 import { ObraForm } from '../components/settings/ObraForm';
 import { CargoForm } from '../components/settings/CargoForm';
 import { TipoDocumentoForm } from '../components/settings/TipoDocumentoForm';
-import { FilterSelect } from '../components/ui/Filters';
-import api from '../services/api';
-import type { Trabajador, Empresa, Obra, Cargo } from '../types/entities';
-import type { ApiResponse } from '../types';
+import type { Trabajador } from '../types/entities';
 import { cn } from '../utils/cn';
-import { useObra } from '../context/ObraContext';
 import EnvioEmailModal from '../components/workers/EnvioEmailModal';
 import WorkerQuickView from '../components/workers/WorkerQuickView';
 import { ConstanciaModal } from '../components/workers/ConstanciaModal';
@@ -56,12 +47,9 @@ import {
     useConsultasSelection,
     useConsultasExport,
     useConsultasActions,
-    TrabajadorAvanzado
 } from '../hooks/consultas';
 
 const ConsultasPage: React.FC = () => {
-    const { selectedObra } = useObra();
-
     // --- Custom Hooks ---
     // 1. Filtros
     const {
