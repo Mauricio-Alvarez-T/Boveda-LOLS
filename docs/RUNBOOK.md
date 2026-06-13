@@ -24,13 +24,13 @@
 | Dominio frontend | `test.boveda.lols.cl` |
 | Directorio en servidor | `/public_html/test.boveda.lols.cl/` (frontend static) |
 | Directorio backend | `/test-boveda/` (Node.js via Passenger) |
-| Base de datos | MySQL · misma instancia, DB `lolscl_testbov` |
+| Base de datos | MySQL · misma instancia, DB `lolscl_boveda_test` (⚠️ confirmar el nombre real en el `.env` del servidor; ver §1 setup) |
 | Branch que dispara deploy | `develop` |
 | Workflow | `.github/workflows/deploy-cpanel-staging.yml` |
 
 ### Runtime
 - **Node.js + Phusion Passenger** — cPanel arranca la app con `passenger_wsgi.py` / `app.js` (entry: `index.js`).
-- **Reinicio de app:** escribir cualquier cosa en `tmp/restart.txt` dentro del directorio del backend. El deploy lo hace automáticamente via curl FTP.
+- **Reinicio de app:** escribir cualquier cosa en `tmp/restart.txt` dentro del directorio del backend. En **prod (FTP)** lo hace el workflow vía curl-FTP; en **staging (pull-side)** lo hace el propio script de deploy (`scripts/cpanel-deploy-staging.sh`) tocando `tmp/restart.txt` localmente en el servidor.
 - **Logs del servidor:** `/boveda/logs/app_YYYY-MM-DD.log` (JSON por línea, rotación a 5 MB).
 
 ### Configuración Inicial de Staging (si se necesita recrear)
@@ -72,7 +72,7 @@ main     →  GitHub Actions  →  Producción  (boveda.lols.cl)
 ### Pull-side (staging) — cómo funciona
 1. **GitHub Actions** (`deploy-cpanel-staging.yml`): `checkout` (historial completo) → `npm ci` + `npm run build` (frontend) → `git add -f frontend/dist` + commit → **`git push -f origin HEAD:deploy-staging`**. NO toca el host. La rama `deploy-staging` no dispara workflows (solo `develop`/`main`).
 2. **Servidor cPanel** (setup una vez):
-   - **Git™ Version Control** → clonar el repo, rama `deploy-staging`, en `~/deploy-staging`. Repo privado → URL HTTPS con un **PAT de GitHub** (scope `repo`, solo lectura).
+   - **Git™ Version Control** → clonar el repo, rama `deploy-staging`, en `~/deploy-staging`. **El repo es PÚBLICO → usar la URL HTTPS SIN token** (`https://github.com/Mauricio-Alvarez-T/Boveda-LOLS.git`). Guía paso a paso: `docs/PLAYBOOK_PULL_SIDE_CPANEL.md`.
    - **Cron Jobs** → `*/5 * * * * bash ~/deploy-staging/scripts/cpanel-deploy-staging.sh >> ~/deploy-staging.log 2>&1`.
    - El script (`scripts/cpanel-deploy-staging.sh`) hace `git fetch && reset --hard origin/deploy-staging`, copia `frontend/dist`→docroot y `backend/`→`/test-boveda/` (excluye node_modules/tmp/uploads/.env) y toca `tmp/restart.txt`. Idempotente.
    - Verificar: `tail ~/deploy-staging.log`.
