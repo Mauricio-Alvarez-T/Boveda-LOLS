@@ -153,7 +153,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     // Global Header (Contexto)
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20 shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shadow-sm border border-border shrink-0">
                 <CheckSquare className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -309,7 +309,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                     <EmptyState icon={Users} title="No hay trabajadores asignados a esta obra." />
                 </div>
             ) : (
-                <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
+                <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
 
                     <AttendanceSummaryRow
                         date={date}
@@ -368,11 +368,11 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                         title={workerAlerta ? `⚠️ ${workerAlerta.alertas.map(a => a.mensaje).join(' | ')}` : undefined}
                                         style={cardTint ? { backgroundColor: cardTint } : undefined}
                                         className={cn(
-                                            "transition-all duration-200 bg-card rounded-2xl border border-border shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg hover:border-brand-primary/30 group relative",
+                                            "transition-all duration-200 bg-card rounded-2xl border border-border shadow-[var(--shadow-sm)] hover:shadow-lg hover:border-brand-primary/30 group relative",
                                             markedRows.has(idx) && "ring-2 ring-brand-primary/20 border-brand-primary bg-brand-primary/[0.02]",
                                             (isNotPresent || isOutOfRange) && !markedRows.has(idx) && "bg-card/90",
                                             feriadoActual && "bg-destructive/[0.02]",
-                                            workerAlerta && "bg-red-50/80 dark:bg-red-950/30 border-red-300/60 dark:border-red-900/60 ring-1 ring-red-200/50 dark:ring-red-900/40 shadow-[0_4px_16px_rgb(239,68,68,0.10)]"
+                                            workerAlerta && "bg-red-50/80 dark:bg-red-950/30 border-red-300/60 dark:border-red-900/60 ring-1 ring-red-200/50 dark:ring-red-900/40 shadow-[var(--shadow-md)]"
                                         )}
                                     >
                                         <div className="md:hidden p-3 pb-4">
@@ -386,7 +386,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                     </WorkerLink>
                                                     <p className="text-caption text-muted-foreground font-medium mt-0.5"><EmpresaBadge empresaNombre={worker.empresa_nombre} className="mr-1 align-middle" />{worker.rut}{worker.cargo_nombre && <> · <span className="text-brand-primary font-bold">{worker.cargo_nombre}</span></>}</p>
                                                     {workerAlerta && (
-                                                        <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-micro font-bold text-red-600 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
+                                                        <div className="flex items-center gap-1 mt-1 px-1.5 py-0.5 bg-red-100 dark:bg-red-950/40 border border-red-200/60 dark:border-red-900/60 rounded-lg w-fit"><AlertTriangle className="h-3 w-3 text-red-500 dark:text-red-400 shrink-0" /><span className="text-micro font-bold text-red-700 dark:text-red-300 leading-tight truncate max-w-[180px]">{workerAlerta.alertas[0].mensaje}</span></div>
                                                     )}
                                                 </div>
                                                 {/* eslint-disable-next-line no-restricted-syntax -- botón calendario por fila, tamaño/forma tuneados al grid (h-10 rounded-xl); IconButton fijo regresa layout */}
@@ -637,7 +637,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                             <motion.div key="search" initial={{ rotate: 90, opacity: 0 }} animate={{ rotate: 0, opacity: 1 }} exit={{ rotate: -90, opacity: 0 }} transition={{ duration: 0.15 }}><Search className="h-5 w-5" /></motion.div>
                         )}
                     </AnimatePresence>
-                    {!showSearchBox && searchQuery && (<span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-red-500 rounded-full border-2 border-white" />)}
+                    {!showSearchBox && searchQuery && (<span className="absolute -top-0.5 -right-0.5 h-3.5 w-3.5 bg-brand-primary rounded-full border-2 border-card" />)}
                 </motion.button>
             </div>
         </div>

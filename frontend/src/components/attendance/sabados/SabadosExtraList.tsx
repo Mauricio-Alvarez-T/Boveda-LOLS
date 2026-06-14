@@ -124,7 +124,7 @@ const SabadosExtraList: React.FC<Props> = ({ onSelect, onCreate }) => {
                                     </div>
                                     {s.estado !== 'citada' && (
                                         <div className="text-center">
-                                            <div className="text-xs font-bold text-emerald-700 dark:text-emerald-400">
+                                            <div className="text-xs font-bold text-brand-dark">
                                                 {s.total_asistio}
                                             </div>
                                             <div className="text-micro text-muted-foreground uppercase font-bold">Asistió</div>

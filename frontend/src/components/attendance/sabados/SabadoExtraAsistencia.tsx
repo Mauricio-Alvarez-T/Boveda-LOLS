@@ -306,7 +306,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
 
             {/* Si está cancelada, no mostrar formulario de edición */}
             {isCancelada && (
-                <div className="bg-gray-50 border border-gray-200 rounded-2xl p-6 text-center text-sm text-muted-foreground">
+                <div className="bg-muted border border-border rounded-2xl p-6 text-center text-sm text-muted-foreground">
                     Esta citación fue cancelada y no se puede modificar.
                 </div>
             )}
@@ -413,7 +413,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                         className={cn(
                                                             'px-3 h-9 text-label font-bold rounded-lg transition-all',
                                                             row.asistio
-                                                                ? 'bg-emerald-500 text-white shadow'
+                                                                ? 'bg-emerald-700 text-white shadow'
                                                                 : 'bg-card border border-border text-muted-foreground'
                                                         )}
                                                     >
@@ -428,7 +428,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                         className={cn(
                                                             'px-3 h-9 text-label font-bold rounded-lg transition-all',
                                                             !row.asistio
-                                                                ? 'bg-red-500 text-white shadow'
+                                                                ? 'bg-red-600 text-white shadow'
                                                                 : 'bg-card border border-border text-muted-foreground'
                                                         )}
                                                     >

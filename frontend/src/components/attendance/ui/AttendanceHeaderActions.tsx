@@ -103,7 +103,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
             {/* ═══════════════════════════════════════════ */}
             <div className="hidden lg:flex items-center gap-2 shrink-0">
                 {/* Filtro empresa — caja propia */}
-                <div className="bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-xl shadow-sm overflow-hidden shrink-0">
+                <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl shadow-sm overflow-hidden shrink-0">
                     <select
                         value={selectedEmpresaId || ""}
                         onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
@@ -403,7 +403,7 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
             >
                 <Plus className={cn("h-5 w-5 transition-transform duration-200", open && "rotate-45")} />
                 {hasActiveFilter && !open && (
-                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-brand-accent rounded-full border-2 border-white" />
+                    <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 bg-brand-primary rounded-full border-2 border-card" />
                 )}
             </button>
 

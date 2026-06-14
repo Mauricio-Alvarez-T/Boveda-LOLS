@@ -341,7 +341,7 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             size="2xl"
         >
             <div className="flex flex-col">
-                <div className="mb-6 bg-brand-primary/5 p-4 rounded-2xl flex items-center justify-between border border-brand-primary/10">
+                <div className="mb-6 bg-muted p-4 rounded-2xl flex items-center justify-between border border-border">
                     <div>
                         <h4 className="text-sm font-bold text-brand-dark">
                             {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}

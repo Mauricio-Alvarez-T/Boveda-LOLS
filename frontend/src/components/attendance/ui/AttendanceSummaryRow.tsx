@@ -102,11 +102,11 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                 Izquierda (estática): icon + título + date picker + KPIs Total/Porcentaje.
                 Derecha (dinámica):   chips clickeables de estados.
                 Esto evita que la fecha cambie de posición según haya más o menos estados. */}
-            <div className="min-h-[48px] border-b border-border bg-white/50 dark:bg-white/5 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3 flex-wrap">
+            <div className="min-h-[48px] border-b border-border bg-card/50 px-4 lg:px-5 py-2 shrink-0 hidden md:flex items-center justify-between gap-3 flex-wrap">
                 <div className="flex items-center gap-3 shrink-0 flex-wrap">
                     <div className="flex items-center gap-3 shrink-0">
-                        <div className="h-7 w-7 lg:h-8 lg:w-8 rounded-xl bg-brand-primary/10 flex items-center justify-center">
-                            <CheckSquare className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-brand-primary" />
+                        <div className="h-7 w-7 lg:h-8 lg:w-8 rounded-xl bg-muted flex items-center justify-center">
+                            <CheckSquare className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-muted-foreground" />
                         </div>
                         <h2 className="text-xs lg:text-sm font-bold text-brand-dark whitespace-nowrap">Registro Diario</h2>
                     </div>
@@ -114,7 +114,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                     {hasActiveContext && (
                         <>
                             {/* Date picker — siempre en posición fija junto al título */}
-                            <div className="flex items-center bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-xl p-0.5 shadow-sm shrink-0">
+                            <div className="flex items-center bg-card/50 backdrop-blur-sm border border-border rounded-xl p-0.5 shadow-sm shrink-0">
                                 <Button variant="ghost" size="icon" className="h-7 w-7 lg:h-8 lg:w-8 text-muted-foreground hover:text-brand-primary shrink-0" onClick={() => navigateDate(-1)}>
                                     <ChevronLeft className="h-4 w-4" />
                                 </Button>
@@ -139,9 +139,9 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                     <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums">{summary.total}</span>
                                     <span className="text-micro lg:text-micro font-bold text-brand-dark/40 uppercase tracking-tighter hidden lg:inline">Total</span>
                                 </div>
-                                <div className="flex items-center gap-1 px-2 py-1 bg-brand-accent/5 rounded-lg lg:rounded-xl border border-brand-accent/10 shrink-0">
-                                    <BarChart3 className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-accent/60" />
-                                    <span className="text-label lg:text-section font-black text-brand-accent uppercase tabular-nums">{summary.porcentaje}%</span>
+                                <div className="flex items-center gap-1 px-2 py-1 bg-brand-dark/5 rounded-lg lg:rounded-xl border border-brand-dark/10 shrink-0">
+                                    <BarChart3 className="h-3 w-3 lg:h-3.5 lg:w-3.5 text-brand-dark/60" />
+                                    <span className="text-label lg:text-section font-black text-brand-dark uppercase tabular-nums">{summary.porcentaje}%</span>
                                 </div>
                             </div>
 
@@ -154,7 +154,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         placeholder="Buscar..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="h-7 lg:h-8 pl-8 pr-7 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-caption lg:text-label font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
+                                        className="h-7 lg:h-8 pl-8 pr-7 bg-card/50 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-caption lg:text-label font-medium focus:outline-none focus:border-brand-primary/40 focus:ring-2 focus:ring-brand-primary/5 transition-all w-[150px] lg:w-[200px]"
                                     />
                                     {searchQuery && (
                                         <IconButton
@@ -172,7 +172,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                                         onClick={onGoSabados}
                                         aria-label="Sábados Extra"
                                         title="Sábados Extra"
-                                        className="h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-white/50 dark:bg-white/5 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40"
+                                        className="h-7 lg:h-8 w-7 lg:w-8 shrink-0 bg-card/50 backdrop-blur-sm border border-border rounded-lg lg:rounded-xl shadow-sm text-muted-foreground hover:text-brand-primary hover:border-brand-primary/40"
                                         icon={<CalendarDays className="h-3.5 w-3.5" />}
                                     />
                                 )}

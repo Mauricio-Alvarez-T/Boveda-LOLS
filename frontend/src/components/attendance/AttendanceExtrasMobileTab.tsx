@@ -59,7 +59,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
     // Header — sólo título, sin actions (el header siempre visible)
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-brand-primary/10 flex items-center justify-center text-brand-primary shadow-sm border border-brand-primary/20 shrink-0">
+            <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shadow-sm border border-border shrink-0">
                 <MoreHorizontal className="h-5 w-5" />
             </div>
             <div className="min-w-0">
@@ -132,7 +132,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                         onClick={triggerRepeat}
                         disabled={isRepeatDisabled || !repetirDiaAnterior}
                         className={cn(
-                            "w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors",
+                            "w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:active:bg-muted transition-colors",
                             (isRepeatDisabled || !repetirDiaAnterior) && "opacity-40 grayscale pointer-events-none"
                         )}
                     >
@@ -149,7 +149,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                         {/* eslint-disable-next-line no-restricted-syntax -- fila de acción (icono 44px + título + descripción, left-align); Button centraría el contenido y rompe el patrón de lista */}
                         <button
                             onClick={toggleFeriado}
-                            className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:bg-muted transition-colors"
+                            className="w-full flex items-center gap-4 px-4 py-4 text-left active:bg-slate-50 dark:active:bg-muted transition-colors"
                         >
                             <div className={cn(
                                 "h-11 w-11 rounded-xl flex items-center justify-center shrink-0",

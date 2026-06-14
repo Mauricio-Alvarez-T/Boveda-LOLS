@@ -115,18 +115,18 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
         >
             <div className="space-y-6">
                 {/* Obra Origen (Read only) */}
-                <div className="p-4 bg-brand-primary/5 rounded-2xl border border-brand-primary/10 relative overflow-hidden group">
+                <div className="p-4 bg-muted rounded-2xl border border-border relative overflow-hidden group">
                      {/* Decorative background element */}
                     <div className="absolute -right-4 -bottom-4 opacity-5 group-hover:scale-110 transition-transform duration-500">
                         <Building2 size={120} />
                     </div>
                     
-                    <label className="text-caption font-bold text-brand-primary uppercase tracking-widest mb-2 block">
+                    <label className="text-caption font-bold text-muted-foreground uppercase tracking-widest mb-2 block">
                         Ubicación Actual
                     </label>
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-xl bg-card shadow-sm flex items-center justify-center border border-brand-primary/20">
-                            <Building2 className="h-5 w-5 text-brand-primary" />
+                        <div className="h-10 w-10 rounded-xl bg-card shadow-sm flex items-center justify-center border border-border">
+                            <Building2 className="h-5 w-5 text-muted-foreground" />
                         </div>
                         <div className="text-left">
                             <p className="text-base font-bold text-brand-dark">{obraActualNombre}</p>

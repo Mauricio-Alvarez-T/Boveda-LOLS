@@ -243,7 +243,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
                         let buttonClass = "absolute inset-0 p-1 md:p-1.5 flex flex-col items-center rounded-xl border z-10 transition-all group ";
                         if (isOutOfRange) {
-                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,rgba(128,128,128,0.08),rgba(128,128,128,0.08)_5px,transparent_5px,transparent_10px)] border-border";
+                            buttonClass += "opacity-30 cursor-not-allowed bg-[repeating-linear-gradient(45deg,color-mix(in_srgb,var(--muted-foreground)_8%,transparent),color-mix(in_srgb,var(--muted-foreground)_8%,transparent)_5px,transparent_5px,transparent_10px)] border-border";
                         } else if (!periodo && !isSelected) {
                             buttonClass += "border-border hover:shadow-md hover:border-brand-primary/30";
                         } else if (isSelected) {
@@ -353,7 +353,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                         {periodos.map(p => (
                             <div 
                                 key={p.id} 
-                                className="flex flex-col gap-2 p-3 rounded-2xl border border-brand-primary/10 bg-brand-primary/[0.02] hover:bg-brand-primary/[0.04] transition-all group"
+                                className="flex flex-col gap-2 p-3 rounded-2xl border border-border bg-card hover:bg-muted transition-all group"
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
