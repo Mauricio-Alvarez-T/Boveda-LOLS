@@ -19,6 +19,7 @@ import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
 import { buildTransferenciaWhatsappText } from '../../utils/transferenciaWhatsApp';
 import { showConfirmToast } from '../../utils/toastUtils';
+import { useTransferenciaDetail, type StockLocation } from '../../hooks/inventario/useTransferenciaDetail';
 
 // ════════════════════════════════════════════════════════════════════
 // Paneles del flujo "Solicitud de Materiales" (ítems a comprar / custom).
@@ -378,14 +379,8 @@ const DetailSection: React.FC<{ icon: React.ReactNode; title: string; children: 
     </section>
 );
 
-interface StockLocation {
-    type: string;
-    id: number;
-    nombre: string;
-    cantidad: number;
-    /** Solo aplica cuando type === 'bodega' (mig 060). */
-    responsable_nombre?: string | null;
-}
+// StockLocation se movió a hooks/inventario/useTransferenciaDetail.ts (refactor Fase 1)
+// y se importa arriba — sigue usándose en Props y en los handlers del JSX.
 
 interface Props {
     transferencia: Transferencia;
@@ -480,70 +475,25 @@ const TransferenciaDetail: React.FC<Props> = ({
             : null)
         || '—';
 
-    // ── Action permissions + SoD identity checks ──
-    // SoD: solicitante ≠ aprobador ≠ transportista ≠ receptor. UI oculta el
-    // botón cuando el usuario actual tiene rol previo en la TRF. Backend
-    // valida igual con 403 (defensa en profundidad). El permiso especial
-    // `sod_bypass` permite a un usuario ejecutar acciones consecutivas
-    // (obras unipersonales, emergencias) — queda en audit log.
-    const hasBypass = hasPermission('inventario.transferencias.sod_bypass');
-    const isSolicitante = t.solicitante_id === userId;
-    const isAprobador = (t as any).aprobador_id === userId;
-    const isTransportista = (t as any).transportista_id === userId;
-
-    const canAprobar =
-        t.estado === 'pendiente' &&
-        hasPermission('inventario.transferencias.aprobar') &&
-        (!isSolicitante || hasBypass);
-    const canRechazar = canAprobar;
-    const canDespachar =
-        t.estado === 'aprobada' &&
-        hasPermission('inventario.transferencias.despachar') &&
-        (!isAprobador || hasBypass);
-    const canRecibir =
-        (t.estado === 'en_transito' || t.estado === 'aprobada' || t.estado === 'recepcion_parcial') &&
-        hasPermission('inventario.transferencias.recibir') &&
-        // si estado aprobada (sin paso por despacho), bloquea si soy el aprobador
-        (t.estado === 'aprobada' ? (!isAprobador || hasBypass) : (!isTransportista || hasBypass));
-    // Rechazo de recepción: solo en en_transito (antes de recibir nada). Una
-    // vez en recepcion_parcial el receptor ya movió stock, por lo que rechazar
-    // dejaría inventario inconsistente. Para "abortar" desde parcial, usar
-    // "Recepción Total" con cantidad=0 en los pendientes → cierra el flujo y
-    // genera discrepancia por lo no llegado.
-    const canRechazarRecepcion =
-        t.estado === 'en_transito' &&
-        hasPermission('inventario.transferencias.recibir') &&
-        (!isTransportista || hasBypass) &&
-        !!onRechazarRecepcion;
-    // Cancelar: el solicitante siempre puede cancelar su propia TRF pendiente/aprobada
-    // (caso de usuario que se arrepiente). Para cancelar TRF ajena se requiere permiso.
-    // Punto 34: una transferencia DESPACHADA (en_transito) solo se cancela con el
-    // permiso especial "Cancelar en Tránsito" (o sod_bypass) — su stock ya viaja.
-    const puedeCancelarBase = hasPermission('inventario.transferencias.cancelar') || isSolicitante;
-    const puedeCancelarEnTransito = hasPermission('inventario.transferencias.cancelar_en_transito') || hasBypass;
-    const canCancelar =
-        (['pendiente', 'aprobada'].includes(t.estado) && puedeCancelarBase) ||
-        (t.estado === 'en_transito' && puedeCancelarEnTransito);
-
-    // Banners SoD: alertar visualmente cuando el user actual no puede avanzar
-    // la TRF por su rol previo. Educa al usuario sobre por qué la acción no
-    // aparece (evita "¿por qué no veo el botón Aprobar?").
-    const showSodBannerSolicitante =
-        isSolicitante && t.estado === 'pendiente' &&
-        hasPermission('inventario.transferencias.aprobar') && !hasBypass;
-    const showSodBannerAprobador =
-        isAprobador && t.estado === 'aprobada' &&
-        hasPermission('inventario.transferencias.despachar') && !hasBypass;
-    const showSodBannerTransportista =
-        isTransportista && (t.estado === 'en_transito' || t.estado === 'recepcion_parcial') &&
-        hasPermission('inventario.transferencias.recibir') && !hasBypass;
-    // Pendiente entra en la lista porque RRHH/operaciones quieren notificar al
-    // grupo WhatsApp para que el aprobador a cargo abra la app y revise la
-    // factibilidad. El mensaje pendiente lleva las cantidades solicitadas
-    // (la rama del `if` por estado en handleShareWhatsApp ya cubre eso).
-    // recepcion_parcial también comparte (caso útil: "ya llegó la mitad, faltan X").
-    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial', 'recibida'].includes(t.estado);
-    const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
+    // ── Estado, efectos y permisos/SoD: orquestados por el hook (refactor Fase 1) ──
+    // El hook centraliza el estado de los formularios, los 3 efectos y toda la
+    // lógica de permisos/SoD. La vista (abajo) consume estos valores por nombre.
+    const {
+        activeForm, setActiveForm,
+        stockData, stockLoading,
+        approvalItems, setApprovalItems,
+        faltanteModal, setFaltanteModal,
+        receiveItems, setReceiveItems,
+        recepciones,
+        historialOpen, setHistorialOpen,
+        cierreFinal, setCierreFinal,
+        confirmMermaOpen, setConfirmMermaOpen,
+        rejectMotivo, setRejectMotivo,
+        canAprobar, canRechazar, canRecibir, canRechazarRecepcion, canCancelar,
+        canCompartirWhatsApp,
+        showSodBannerSolicitante, showSodBannerAprobador, showSodBannerTransportista,
+        pendientePorItem,
+    } = useTransferenciaDetail({ t, items, userId, hasPermission, onFetchStock, onFetchRecepciones, onRechazarRecepcion });
 
     // ── WhatsApp share ──
     // Patrón replicado del módulo de asistencia (useAttendanceExport):
@@ -584,105 +534,8 @@ const TransferenciaDetail: React.FC<Props> = ({
     };
 
     // ── Inline form states ──
-    const [activeForm, setActiveForm] = useState<'aprobar' | 'rechazar' | 'rechazar_recepcion' | 'recibir' | null>(null);
-
-    // Approval state — cada ítem puede tener N splits (multi-origen).
-    const [stockData, setStockData] = useState<Record<number, StockLocation[]>>({});
-    const [stockLoading, setStockLoading] = useState(false);
-    const [approvalItems, setApprovalItems] = useState<ApprovalItemState[]>([]);
-    const [faltanteModal, setFaltanteModal] = useState<{
-        isOpen: boolean;
-        loading: boolean;
-        faltantes: { item_descripcion: string; cantidad_faltante: number; unidad?: string }[];
-    }>({ isOpen: false, loading: false, faltantes: [] });
-
-    // Receive state — cantidad_recibida representa "cantidad de ESTE viaje".
-    // Para parciales, el default es lo PENDIENTE (enviada - recibida_acumulada),
-    // no la enviada total. Permite que el usuario solo edite las cantidades que
-    // efectivamente trajo el camión.
-    const [receiveItems, setReceiveItems] = useState<{ item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string }[]>([]);
-
-    // Historial de eventos de recepción (parciales + total). Se carga cuando la
-    // TRF está en recepcion_parcial o recibida y existe al menos 1 evento.
-    const [recepciones, setRecepciones] = useState<TransferenciaRecepcion[]>([]);
-    const [historialOpen, setHistorialOpen] = useState(false);
-
-    // Cierre final con merma:
-    // - `cierreFinal` checkbox dentro del form. Marca "esta es la última entrega"
-    //   cuando hay pendientes sin recibir. Oculta el botón "Faltan más viajes"
-    //   (contradictorio) y dispara directo el cierre total sin modal.
-    // - `confirmMermaOpen` modal defensivo cuando el user clickea "Esta es toda
-    //   la entrega" con cantidades < Falta SIN haber marcado el checkbox.
-    const [cierreFinal, setCierreFinal] = useState(false);
-    const [confirmMermaOpen, setConfirmMermaOpen] = useState(false);
-
-    // Reject state
-    const [rejectMotivo, setRejectMotivo] = useState('');
-
-    // Helper: cantidad ya recibida acumulada por item (de transferencia_items).
-    // Usada para calcular "pendiente" en cada viaje sucesivo.
-    // Number() defensivo: mysql2 puede devolver DECIMAL como string.
-    const recibidaPrevia = (item: TransferenciaItem) => Number(item.cantidad_recibida) || 0;
-    const pendientePorItem = (item: TransferenciaItem) =>
-        (Number(item.cantidad_enviada) || Number(item.cantidad_solicitada)) - recibidaPrevia(item);
-
-    // Reset forms when transferencia changes.
-    // useEffect (no useMemo): los useMemo no garantizan ejecutar side effects
-    // de forma confiable y React puede skipearlos en re-renders idénticos.
-    useEffect(() => {
-        setActiveForm(null);
-        setStockData({});
-        setApprovalItems(items.map(i => ({
-            item_id: i.item_id,
-            cantidad_solicitada: i.cantidad_solicitada,
-            splits: [],
-        })));
-        // Default cantidad este viaje = pendiente (lo que aún no ha llegado).
-        // Permite al usuario simplemente confirmar si trajeron todo lo pendiente.
-        setReceiveItems(items.map(i => ({
-            item_id: i.item_id,
-            cantidad_recibida: pendientePorItem(i),
-            correcto: true,
-            observacion: '',
-        })));
-        setRejectMotivo('');
-        setRecepciones([]);
-        setHistorialOpen(false);
-        setCierreFinal(false);
-        setConfirmMermaOpen(false);
-        // Historial empieza cerrado pero se abre automáticamente cuando se
-        // detectan eventos previos (efecto separado abajo).
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [t.id]);
-
-    // Cargar historial de recepciones cuando la TRF tiene eventos previos.
-    // Disparado al cambiar de TRF o cuando se cierra el form de recepción
-    // (después de un parcial) para reflejar el nuevo evento.
-    useEffect(() => {
-        if (!onFetchRecepciones) return;
-        if (t.estado !== 'recepcion_parcial' && t.estado !== 'recibida') return;
-        let cancelled = false;
-        onFetchRecepciones(t.id).then(rows => {
-            if (cancelled) return;
-            setRecepciones(rows);
-            // Default open si hay 1+ viajes previos — info contextual relevante
-            // al receptor (saber qué llegó antes para ajustar el viaje actual).
-            if (rows.length > 0) setHistorialOpen(true);
-        });
-        return () => { cancelled = true; };
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [t.id, t.estado, activeForm]);
-
-    // Load stock when approval form opens
-    useEffect(() => {
-        if (activeForm === 'aprobar' && items.length > 0) {
-            setStockLoading(true);
-            onFetchStock(items.map(i => i.item_id)).then(data => {
-                setStockData(data);
-                setStockLoading(false);
-            });
-        }
-    }, [activeForm]);
+    // (Estado de formularios, helpers de recepción y los 3 efectos se movieron al
+    //  hook useTransferenciaDetail — ver el destructure de arriba. Refactor Fase 1.)
 
     // ── Timeline ──
     const activeStep = STEP_INDEX[t.estado] ?? -1;
