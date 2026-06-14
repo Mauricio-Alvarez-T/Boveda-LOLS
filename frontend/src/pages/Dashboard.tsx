@@ -1,13 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import {
-    Users,
-    FileText,
-    CheckSquare,
-    AlertTriangle,
-    Calendar,
-    Loader2,
-    LayoutGrid,
-} from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -29,17 +21,13 @@ import api from '../services/api';
 import type { ApiResponse } from '../types';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
-import { Button } from '../components/ui/Button';
-import { IconButton } from '../components/ui/IconButton';
 
 // Widgets
 import WidgetWrapper from '../components/dashboard/WidgetWrapper';
-import KpiCard from '../components/dashboard/widgets/KpiCard';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import CriticalAlerts from '../components/dashboard/widgets/CriticalAlerts';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
-import TodayHero from '../components/dashboard/widgets/TodayHero';
 import PendingTasks from '../components/dashboard/widgets/PendingTasks';
 import AbsenceAlerts from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
@@ -105,20 +93,9 @@ interface DashboardData {
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
-// Tinte suave de fondo por panel (paleta verde+neutros): positivo/activo en
-// verde/teal; alertas en rojo muy tenue; resto neutro. Da identidad sin recargar.
-// Superficies NEUTRAS (sistema validado): cards/paneles blancos; se separan por
-// borde/sombra, no por tinte de color. El verde queda solo para acciones.
+// Superficies NEUTRAS (sistema validado): paneles blancos; se separan por borde,
+// no por tinte de color. El verde queda solo para acciones.
 const PANEL_TINT = 'bg-card';
-const WIDGET_TINTS: Record<string, string> = {
-    pending_tasks: PANEL_TINT,
-    obra_ranking: PANEL_TINT,
-    chart_attendance_trend: PANEL_TINT,
-    absence_alerts: PANEL_TINT,
-    alerts_critical: PANEL_TINT,
-    list_absences_today: PANEL_TINT,
-    quick_actions: PANEL_TINT,
-};
 
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
@@ -129,7 +106,7 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const permisos = user?.permisos ?? [];
-    const { kpiWidgets, gridWidgets, reorder, resetLayout } = useDashboardLayout(user?.id ?? 0, permisos);
+    const { gridWidgets, reorder } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // DnD sensors
     const sensors = useSensors(
@@ -137,75 +114,12 @@ const Dashboard: React.FC = () => {
         useSensor(KeyboardSensor)
     );
 
-    // ─── Page Header ───
-    // El saludo personalizado vive en el TodayHero (evita duplicarlo); el header
-    // de página solo rotula la sección.
+    // ─── Page Header (solo el rótulo de sección) ───
     const headerTitle = useMemo(() => (
         <h1 className="text-base font-semibold text-foreground">Inicio</h1>
     ), []);
 
-    const headerActions = useMemo(() => (
-        <div className="flex items-center gap-2 md:gap-3">
-            {/* Date Display — hidden on mobile to save space */}
-            <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-transparent border-r border-border pr-4 mr-1">
-                <Calendar className="h-4 w-4 text-muted-foreground" />
-                <span className="text-section font-medium text-brand-dark capitalize">
-                    {new Date().toLocaleDateString('es-CL', { weekday: 'long', day: 'numeric', month: 'short' })}
-                </span>
-            </div>
-
-            {/* Reset Button — hidden on mobile (wrapper evita que el inline-flex base del Button pise el hidden) */}
-            <div className="hidden md:block">
-                <Button
-                    variant="glass"
-                    size="sm"
-                    onClick={resetLayout}
-                    leftIcon={<LayoutGrid className="h-3.5 w-3.5 text-brand-primary" />}
-                    className="text-xs font-semibold text-muted-foreground"
-                    title="Vuelve a poner todos los cuadros en su posición original"
-                >
-                    Restaurar Diseño
-                </Button>
-            </div>
-
-            {/* Mobile: compact reset icon only */}
-            <div className="md:hidden">
-                <IconButton
-                    onClick={resetLayout}
-                    aria-label="Restaurar Diseño"
-                    title="Restaurar Diseño"
-                    className="border border-border bg-card shadow-sm"
-                    icon={<LayoutGrid className="h-4 w-4 text-brand-primary" />}
-                />
-            </div>
-        </div>
-    ), [resetLayout]);
-
-    const notifications = useMemo(() => {
-        if (!data || !data.alerts || data.alerts.length === 0) return undefined;
-        return {
-            count: data.saludo.totalAlertas,
-            content: (
-                <div className="flex flex-col gap-2">
-                    {data.alerts.map((alert, idx) => (
-                        <div
-                            key={idx}
-                            onClick={() => navigate(alert.ruta)}
-                            className="p-3 bg-background rounded-xl flex items-start gap-3 hover:bg-muted transition-colors cursor-pointer"
-                        >
-                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' : alert.tipo === 'warning' ? 'text-warning' : 'text-info'}`} />
-                            <div className="flex-1 min-w-0">
-                                <p className="text-xs font-semibold text-brand-dark">{alert.titulo}</p>
-                                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )
-        };
-    }, [data, navigate]);
-
-    useSetPageHeader(headerTitle, headerActions, notifications);
+    useSetPageHeader(headerTitle);
 
     // ─── Fetch Data ───
     useEffect(() => {
@@ -247,56 +161,6 @@ const Dashboard: React.FC = () => {
         );
     }
 
-    // ─── KPI Config ───
-    const kpiConfig: Record<string, { label: string; value: string | number; icon: React.ElementType; color: string; bg: string; route: string; description: string; delta?: number; deltaLabel?: string; deltaInverted?: boolean }> = {
-        kpi_workers: {
-            label: 'Trabajadores',
-            value: data.counters.trabajadores ?? 0,
-            icon: Users,
-            color: 'text-muted-foreground',
-            bg: PANEL_TINT,
-            route: '/consultas?activo=true',
-            description: 'Gestión de personal',
-            delta: data.deltas?.trabajadores_nuevos_semana ?? 0,
-            deltaLabel: 'nuevos esta semana',
-        },
-        kpi_docs: {
-            label: 'Documentos',
-            value: data.counters.documentos ?? 0,
-            icon: FileText,
-            color: 'text-muted-foreground',
-            bg: PANEL_TINT,
-            route: '/consultas?completitud=faltantes',
-            description: 'Bóveda documental',
-            delta: data.deltas?.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
-            deltaLabel: data.deltas?.docs_vencidos_hoy ? `${data.deltas.docs_vencidos_hoy} vencido${data.deltas.docs_vencidos_hoy !== 1 ? 's' : ''} hoy` : undefined,
-            deltaInverted: true,
-        },
-        kpi_attendance: {
-            label: 'Asistencia Hoy',
-            value: `${data.counters.asistencia_hoy ?? 0}%`,
-            icon: CheckSquare,
-            color: 'text-muted-foreground',
-            bg: PANEL_TINT,
-            route: '/asistencia',
-            description: 'Tasa de presencia hoy',
-            delta: data.deltas?.asistencia_delta ?? 0,
-            deltaLabel: 'vs ayer',
-        },
-        kpi_absences: {
-            label: 'Ausencias Hoy',
-            value: data.counters.ausentes_hoy ?? 0,
-            icon: AlertTriangle,
-            color: 'text-muted-foreground',
-            bg: PANEL_TINT,
-            route: '/consultas?ausentes=true',
-            description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta',
-            delta: data.deltas?.ausentes_delta ?? 0,
-            deltaLabel: 'vs ayer',
-            deltaInverted: true,
-        },
-    };
-
     // ─── Render Widget by ID ───
     const renderWidget = (widgetId: string) => {
         switch (widgetId) {
@@ -328,46 +192,7 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="space-y-10">
-            {/* ── Today Hero (always on top, not draggable) ── */}
-            {!loading && data && (
-                <TodayHero
-                    userName={user?.nombre || 'Operador'}
-                    counters={data.counters}
-                    pendingTasksCount={(data.pendingTasks ?? []).length}
-                    attendanceStatus={data.attendanceStatus}
-                    onNavigate={(route) => navigate(route)}
-                    tint={PANEL_TINT}
-                />
-            )}
-
-            {/* ── KPI Cards (static top row, not draggable) ── */}
-            {kpiWidgets.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {kpiWidgets.map((w, i) => {
-                        const config = kpiConfig[w.id];
-                        if (!config) return null;
-                        return (
-                            <KpiCard
-                                key={w.id}
-                                label={config.label}
-                                value={config.value}
-                                icon={config.icon}
-                                color={config.color}
-                                bg={config.bg}
-                                description={config.description}
-                                onClick={() => navigate(config.route)}
-                                index={i}
-                                delta={config.delta}
-                                deltaLabel={config.deltaLabel}
-                                deltaInverted={config.deltaInverted}
-                            />
-                        );
-                    })}
-                </div>
-            )}
-
-            {/* ── Draggable Widget Grid ── */}
+        <div>
             {gridWidgets.length > 0 && (
                 <DndContext
                     sensors={sensors}
@@ -384,7 +209,7 @@ const Dashboard: React.FC = () => {
                                 if (!content) return null;
 
                                 return (
-                                    <WidgetWrapper key={widget.id} widget={widget} tint={WIDGET_TINTS[widget.id]}>
+                                    <WidgetWrapper key={widget.id} widget={widget} tint={PANEL_TINT}>
                                         {content}
                                     </WidgetWrapper>
                                 );

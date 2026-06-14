@@ -3,14 +3,15 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
-import { NotificationBell } from './NotificationBell';
 import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
+import { useAuth } from '../../context/AuthContext';
 
 export const MainLayout: React.FC = () => {
     const [isCollapsed, setIsCollapsed] = useState(false);
     const [mobileOpen, setMobileOpen] = useState(false);
     const { title, actions } = usePageHeader();
+    const { user } = useAuth();
     const location = useLocation();
 
     return (
@@ -72,10 +73,15 @@ export const MainLayout: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Notifications Bell */}
-                        <div className="hidden md:block">
-                            <NotificationBell />
-                        </div>
+                        {/* Usuario (nombre en el header) */}
+                        {user && (
+                            <div className="hidden md:flex items-center gap-2 min-w-0">
+                                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-semibold text-foreground">
+                                    {user.nombre?.charAt(0)?.toUpperCase() ?? 'U'}
+                                </span>
+                                <span className="text-sm font-medium text-foreground truncate max-w-[180px]">{user.nombre}</span>
+                            </div>
+                        )}
 
                         <div className="hidden md:block h-6 w-px bg-border mx-1" />
                         <ObraSelector />
