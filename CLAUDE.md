@@ -48,11 +48,14 @@ El deploy es automático vía GitHub Actions al hacer push a `main` o `develop`.
 
 ### Deploy
 1. Siempre probar en staging (`develop`) antes de mergear a `main`.
-2. **Staging (`develop`) = PULL-SIDE** (definitivo 2026-06-12; se intentó volver a FTP pero el ban
-   de cPHulk a IPs del runner es persistente, no transitorio): el workflow compila y publica
-   `frontend/dist` + `backend/` en la rama **`deploy-staging`**; el SERVIDOR hace `git pull`
-   saliente vía cron cada 5 min y se auto-despliega. Ver `scripts/cpanel-deploy-staging.sh`
-   (incluye instrucciones de setup). El repo es PÚBLICO → el clon en cPanel no necesita token.
+2. **Staging (`develop`) = PULL-SIDE cron-only ✅ LIVE (verificado 2026-06-13).** El workflow compila y
+   publica `frontend/dist` + `backend/` en la rama **`deploy-staging`**; un **cron en cPanel** (cada 5
+   min) hace `git pull` saliente y auto-despliega. **Este hosting NO tiene Terminal ni Git VC** → el
+   setup es 100% por Cron Jobs + File Manager. **Guía: `docs/PLAYBOOK_PULL_SIDE_CPANEL.md`.** Repo
+   PÚBLICO → clon sin token. **⚠️ La carpeta `api/` del docroot de staging es el mount de Passenger del
+   backend — el deploy la excluye del `rsync --delete`; NUNCA borrarla** (si se borra → login 404 →
+   restaurar con playbook §7bis). El cron usa la variante **self-healing** (pre-carga el `.sh` antes de
+   correr) para evitar la carrera de auto-modificación del script.
 3. **Prod (`main`) = lftp FTP** con reintentos SUAVES. Si da `Connection refused` sostenido: cPanel
    → cPHulk Brute Force Protection → flush/desbloquear IPs del runner (o ticket al hosting). NO
    meter reintentos agresivos (el hammering re-dispara el ban). El restart de Passenger se escribe

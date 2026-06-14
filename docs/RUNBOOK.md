@@ -66,16 +66,29 @@ main     →  GitHub Actions  →  Producción  (boveda.lols.cl)
 ### Métodos de deploy (cambió 2026-06-12)
 | Entorno | Método | Por qué |
 |---|---|---|
-| **Staging** (`develop`) | **Pull-side**: Actions compila y publica la rama `deploy-staging`; el servidor hace `git pull` (cron) y se auto-despliega | El FTP de cPanel empezó a **rechazar la IP entrante** del runner (`Connection refused`, baneo cPHulk/firewall de IPs cloud). El servidor saliendo a GitHub NO está bloqueado. |
+| **Staging** (`develop`) | **Pull-side cron-only ✅ LIVE (2026-06-13)**: Actions compila y publica la rama `deploy-staging`; un **cron en cPanel** (cada 5 min) hace `git pull` y auto-despliega (no hay Terminal/Git VC en este host) | El FTP de cPanel **rechaza/banea la IP del runner** (`Connection refused`, cPHulk). El servidor saliendo a GitHub NO está bloqueado. |
 | **Producción** (`main`) | FTP `lftp` (reintentos suaves) | Sigue por FTP hasta probar pull-side en staging; luego se migra igual (rama `deploy-main` + cron). |
 
-### Pull-side (staging) — cómo funciona
+### Pull-side (staging) — cómo funciona  ✅ LIVE y verificado (2026-06-13)
+> Este hosting **NO tiene Terminal ni Git™ Version Control** — solo Cron Jobs, File Manager y Setup
+> Node.js App. Todo el setup se hace **vía Cron Jobs** (`git` está disponible en el entorno del cron).
+> **Guía operativa completa: `docs/PLAYBOOK_PULL_SIDE_CPANEL.md` (Camino C).**
+
 1. **GitHub Actions** (`deploy-cpanel-staging.yml`): `checkout` (historial completo) → `npm ci` + `npm run build` (frontend) → `git add -f frontend/dist` + commit → **`git push -f origin HEAD:deploy-staging`**. NO toca el host. La rama `deploy-staging` no dispara workflows (solo `develop`/`main`).
-2. **Servidor cPanel** (setup una vez):
-   - **Git™ Version Control** → clonar el repo, rama `deploy-staging`, en `~/deploy-staging`. **El repo es PÚBLICO → usar la URL HTTPS SIN token** (`https://github.com/Mauricio-Alvarez-T/Boveda-LOLS.git`). Guía paso a paso: `docs/PLAYBOOK_PULL_SIDE_CPANEL.md`.
-   - **Cron Jobs** → `*/5 * * * * bash ~/deploy-staging/scripts/cpanel-deploy-staging.sh >> ~/deploy-staging.log 2>&1`.
-   - El script (`scripts/cpanel-deploy-staging.sh`) hace `git fetch && reset --hard origin/deploy-staging`, copia `frontend/dist`→docroot y `backend/`→`/test-boveda/` (excluye node_modules/tmp/uploads/.env) y toca `tmp/restart.txt`. Idempotente.
-   - Verificar: `tail ~/deploy-staging.log`.
+2. **Servidor cPanel** (setup hecho; repo PÚBLICO → clone sin token):
+   - Clone de la rama `deploy-staging` en `~/deploy-staging` (bootstrap vía cron one-shot — ver playbook §C.1).
+   - **Cron de deploy `*/5`** (versión self-healing que pre-carga el script más reciente para evitar la
+     carrera de auto-modificación):
+     ```
+     cd /home/lolscl/deploy-staging && git fetch -q origin deploy-staging && git checkout -q -f origin/deploy-staging -- scripts/cpanel-deploy-staging.sh 2>/dev/null; HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-staging/scripts/cpanel-deploy-staging.sh >> /home/lolscl/deploy-staging.log 2>&1
+     ```
+   - El script (`scripts/cpanel-deploy-staging.sh`) hace `git fetch && reset --hard origin/deploy-staging`, copia `frontend/dist`→docroot (`rsync --delete` excluyendo `.well-known/`, `.htaccess` y **`api/`**) y `backend/`→`/test-boveda/` (excluye node_modules/tmp/uploads/.env) y toca `tmp/restart.txt`. Idempotente.
+   - Verificar: `tail ~/deploy-staging.log` → `… · deploy OK → <sha>`.
+
+> ⚠️ **`api/` en el docroot de staging** (`…/test.boveda.lols.cl/api/`) es el **mount de Passenger** del
+> backend (su `.htaccess` enruta `/api` → Node `test-boveda`). El deploy lo **excluye** del
+> `rsync --delete`; **nunca debe borrarse**. Si se borra, el login da 404 → restaurarlo con el bloque
+> de `docs/PLAYBOOK_PULL_SIDE_CPANEL.md` §7bis y reiniciar la app.
 
 ### FTP prod — por qué lftp (y no FTP-Deploy-Action)
 `FTP-Deploy-Action` hace un diff completo del directorio remoto al conectar; con `/boveda/` creciendo por logs/xlsx en runtime, el scan se excedía del timeout del control socket (~60s). `lftp mirror --only-newer` compara solo timestamps. Config (reintentos suaves; NO endurecer con loops agresivos: hammerear el FTP dispara el baneo cPHulk):
