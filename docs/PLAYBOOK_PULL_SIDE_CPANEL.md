@@ -162,14 +162,23 @@ volver a publicar `deploy-staging`.
 
 ## 4. El CRON de deploy (todos los caminos)
 
-### 4.1 Comando exacto
+### 4.1 Comando exacto (versión self-healing — RECOMENDADA)
 cPanel → **Cron Jobs** → **Add New Cron Job**:
 - **Common Settings:** "Every 5 Minutes" (o campos: `*/5 * * * *`).
 - **Command** (en cPanel se escribe SOLO la parte del comando; los 5 campos de tiempo van en los selectores):
 ```
-HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-staging/scripts/cpanel-deploy-staging.sh >> /home/lolscl/deploy-staging.log 2>&1
+cd /home/lolscl/deploy-staging && git fetch -q origin deploy-staging && git checkout -q -f origin/deploy-staging -- scripts/cpanel-deploy-staging.sh 2>/dev/null; HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-staging/scripts/cpanel-deploy-staging.sh >> /home/lolscl/deploy-staging.log 2>&1
 ```
-(`HOME=…` asegura que `$HOME` del script resuelva bien en el entorno mínimo del cron.)
+**Por qué este preámbulo** (`git fetch … && git checkout -f origin/deploy-staging -- scripts/…`): evita
+la **condición de carrera del script auto-modificándose**. El script hace `git reset --hard` a mitad de
+su ejecución; si su contenido cambió respecto al que había en disco, bash seguiría corriendo la versión
+vieja (ya bufferizada) durante ESE deploy. Pre-cargar el `.sh` más reciente ANTES de invocar bash
+garantiza que siempre corre la versión actual. `HOME=…` asegura que `$HOME` resuelva en el entorno
+mínimo del cron.
+
+> Versión simple (sin blindaje), si se prefiere — funciona, pero el **primer deploy tras editar el
+> `.sh` correrá la versión anterior** (ver gotcha en §5):
+> `HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-staging/scripts/cpanel-deploy-staging.sh >> /home/lolscl/deploy-staging.log 2>&1`
 
 ### 4.2 Variante a-prueba-de-PATH (usar SOLO si el log muestra `command not found`)
 El cron corre con un PATH mínimo. Si aparece `git: command not found` o `rsync: command not found`,
@@ -199,10 +208,37 @@ tail -n 40 ~/deploy-staging.log
 | Sitio carga viejo pese a `deploy OK` | Caché del navegador, o assets stale | Hard-refresh (Ctrl+Shift+R). Comparar hash del bundle (§6). |
 | `Permission denied` al escribir docroot | Permisos del docroot | Confirmar que `~/public_html/test.boveda.lols.cl` pertenece a `lolscl`. |
 | Cron no corre nunca (log vacío/inexistente) | Cron no guardado | Confirmar que el job aparece en "Current Cron Jobs". |
+| **El login falla / `POST /api/...` da 404 HTML tras un deploy** | La carpeta **`api/` del docroot** (mount de Passenger del backend) **fue borrada** por el `rsync --delete` | Recrear `…/test.boveda.lols.cl/api/.htaccess` con el bloque Passenger (ver §7bis) y reiniciar. Asegurar que el `.sh` excluye `api/` (ya lo hace) y usar el cron self-healing de §4.1. |
+| **El primer deploy tras editar el `.sh` se comporta como la versión vieja** | **Carrera de auto-modificación:** el script se `git reset` a sí mismo a mitad de ejecución; bash ya tenía bufferizada la versión anterior | Usar el cron **self-healing** de §4.1 (pre-carga el `.sh` antes de ejecutarlo). Si usas la versión simple: tras editar el `.sh`, corre el deploy DOS veces (el 2º ya usa la versión nueva) y restaura manualmente cualquier daño del 1º. |
 
-> **Clave sobre el cron y la rama:** el script NO hace `checkout`; hace
+> **Clave sobre el cron y la rama:** el script NO hace `checkout` de rama; hace
 > `git fetch origin deploy-staging` + `git reset --hard origin/deploy-staging`. **El clone DEBE estar
 > en la rama `deploy-staging`** para que funcione correctamente.
+
+> **Clave sobre `api/` (staging):** el docroot de staging contiene una carpeta `api/` con un `.htaccess`
+> de Passenger que enruta `test.boveda.lols.cl/api` → el backend Node. El deploy la **excluye** del
+> `rsync --delete` (igual que `.htaccess` y `.well-known/`). **Nunca debe borrarse.**
+
+---
+
+## 7bis. Restaurar `api/.htaccess` de staging (si se borró)
+
+Si el login da 404 porque `…/test.boveda.lols.cl/api/` desapareció: File Manager → crear la carpeta
+`api/` dentro del docroot → crear dentro un archivo `.htaccess` con EXACTAMENTE este contenido, y luego
+reiniciar (Setup Node.js App → test-boveda → Restart, o tocar `~/test-boveda/tmp/restart.txt`):
+```
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION BEGIN
+PassengerAppRoot "/home/lolscl/test-boveda"
+PassengerBaseURI "/"
+PassengerNodejs "/home/lolscl/nodevenv/test-boveda/20/bin/node"
+PassengerAppType node
+PassengerStartupFile index.js
+# DO NOT REMOVE. CLOUDLINUX PASSENGER CONFIGURATION END
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION BEGIN
+<IfModule Litespeed>
+</IfModule>
+# DO NOT REMOVE OR MODIFY. CLOUDLINUX ENV VARS CONFIGURATION END
+```
 
 ---
 
