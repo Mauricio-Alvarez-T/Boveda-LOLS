@@ -47,16 +47,21 @@ git reset --hard "origin/$BRANCH" --quiet
 # 2) Frontend: copiar dist prebuildeado → docroot de staging
 mkdir -p "$FRONT_DEST"
 if command -v rsync >/dev/null 2>&1; then
-    # --delete para que el docroot espeje dist exactamente, pero preservar
-    # .well-known (AutoSSL/Let's Encrypt) y .htaccess si los hubiera.
+    # --delete para que el docroot espeje dist exactamente, PERO preservar lo que
+    # NO pertenece al build del frontend y vive en el mismo docroot:
+    #   .well-known/ → AutoSSL/Let's Encrypt
+    #   .htaccess    → routing del SPA (borrarlo rompe el front)
+    #   api/         → punto de montaje de Passenger del backend Node
+    #                  (URL test.boveda.lols.cl/api) — borrarlo ROMPE la API
     rsync -a --delete \
         --exclude '.well-known/' \
         --exclude '.htaccess' \
+        --exclude 'api/' \
         "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
-    # Fallback sin rsync: limpiar y copiar, preservando .well-known (AutoSSL) y
-    # .htaccess (routing del SPA — borrarlo rompe el front).
-    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' -exec rm -rf {} +
+    # Fallback sin rsync: limpiar y copiar, preservando .well-known (AutoSSL),
+    # .htaccess (routing del SPA) y api/ (mount de Passenger del backend).
+    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' ! -name 'api' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
 
