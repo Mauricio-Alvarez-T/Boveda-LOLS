@@ -30,14 +30,12 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.06, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
             onClick={onClick}
-            className="group flex cursor-pointer flex-col gap-5 rounded-card border border-border bg-card p-6 transition-all duration-200 ease-apple hover:border-[var(--border-hover)]"
+            className={cn("group flex cursor-pointer flex-col gap-5 rounded-card p-6 transition-all duration-200 ease-apple", bg)}
         >
-            {/* Cabecera: etiqueta + icono sutil */}
+            {/* Cabecera: etiqueta + icono prominente de color (color = categoría, suave) */}
             <div className="flex items-start justify-between">
                 <p className="text-sm font-medium text-muted-foreground">{label}</p>
-                <div className={cn("rounded-xl p-2", bg, color)}>
-                    <Icon className="h-4 w-4" />
-                </div>
+                <Icon className={cn("h-6 w-6 shrink-0", color)} />
             </div>
 
             {/* Número protagonista */}

@@ -40,9 +40,11 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <ClipboardCheck className="h-4 w-4 text-brand-primary" />
-                    <h4 className="text-sm font-semibold text-brand-dark">Asistencia por Obra</h4>
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-500/10">
+                        <ClipboardCheck className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                    </span>
+                    <h4 className="text-sm font-semibold text-foreground">Asistencia por Obra</h4>
                 </div>
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>
             </div>

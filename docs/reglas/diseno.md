@@ -162,14 +162,16 @@ Principios y reglas concretas:
    centrados en superficies de lectura; gutters amplios. "Minimalismo en todo": las
    superficies de datos también respiran (filas altas, padding cómodo), conservando
    función (orden/filtros/paginación).
-3. **PALETA ESTRICTA — blanco / negro / gris + verde.** El verde LOLS (`#029E4D`) es el
-   ÚNICO acento de acción (botones primary, links, focus, estado positivo). **El rojo
-   (`destructive`) se reserva SOLO para lo verdaderamente crítico** (vencidos, faltas
-   consecutivas, borrar) y SIEMPRE discreto: ícono + texto + punto pequeño, **nunca**
-   rellenos/bordes/círculos rojos grandes. **Ámbar (`warning`) y azul (`info`) NO se usan
-   como color de UI → gris** (`muted-foreground`/`muted`). Decoración nunca lleva color.
-   Prohibido usar emojis de color (🔴🟡) como indicadores. Color = dato crítico o acción;
-   todo lo demás, neutro.
+3. **PALETA — neutro + verde + color suave CON SENTIDO.** Dominante **blanco/negro/gris**;
+   **verde LOLS (`#029E4D`) = único acento de ACCIÓN** (botones primary, links, focus). Se
+   permite **color suave para categorizar y dar vida** (estilo tiles de apple.com): como
+   **tinte de fondo** muy claro y en **iconografía prominente** — NUNCA saturado ni
+   protagonista (números/texto siguen neutros). Paleta categórica curada (suave):
+   Trabajadores=**verde**, Documentos=**azul**, Asistencia=**teal**, Ausencias=**ámbar**;
+   tinte `bg-{c}-50 dark:bg-{c}-500/10`, ícono `text-{c}-600 dark:text-{c}-400`. **El rojo
+   (`destructive`) = SOLO crítico** (vencidos, faltas, borrar), discreto (ícono+texto, sin
+   rellenos rojos grandes) — nunca como categoría. **Prohibido:** color saturado en
+   bordes/círculos/texto, emojis de color (🔴🟡), colores fuera de la paleta curada.
 4. **Botones.** Acción = **pill** con acento verde sólido (`<Button variant="primary">`,
    ya `rounded-full`). Navegación/secundario sutil = `<Button variant="link">` (texto
    verde + chevron `›`, estilo "Más información ›"). El press oscurece a verde, **nunca

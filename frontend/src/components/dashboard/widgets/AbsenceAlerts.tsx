@@ -43,9 +43,11 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                    <h4 className="text-sm font-semibold text-brand-dark">Alertas de Inasistencia</h4>
+                <div className="flex items-center gap-2.5">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/[0.08]">
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                    </span>
+                    <h4 className="text-sm font-semibold text-foreground">Alertas de Inasistencia</h4>
                 </div>
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>
             </div>

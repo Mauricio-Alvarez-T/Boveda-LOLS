@@ -20,7 +20,9 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
                         <h3 className="text-base font-semibold text-brand-dark">Tendencia de Asistencia</h3>
                         <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
                     </div>
-                    <Activity className="h-5 w-5 text-brand-accent" />
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-500/10">
+                        <Activity className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                    </span>
                 </div>
                 <EmptyState
                     className="flex-1 py-8"

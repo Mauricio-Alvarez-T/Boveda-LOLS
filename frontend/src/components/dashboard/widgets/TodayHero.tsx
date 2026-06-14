@@ -79,15 +79,14 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
     return (
         <motion.div
             {...reveal}
-            className="relative overflow-hidden rounded-card border border-border bg-card p-8 md:p-10"
+            className="relative overflow-hidden rounded-card bg-brand-primary/[0.05] dark:bg-brand-primary/10 p-8 md:p-10"
         >
-            {/* Resplandor de marca muy sutil */}
-            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-brand-primary/[0.04] to-transparent" />
-
             <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2.5 text-brand-primary">
-                        <TimeIcon className="h-5 w-5" />
+                    <div className="flex items-center gap-2.5">
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10">
+                            <TimeIcon className="h-5 w-5 text-brand-primary" />
+                        </span>
                         <span className="text-sm font-medium text-muted-foreground">{timeConfig.greeting}</span>
                     </div>
                     <h2 className="mt-2 text-title font-semibold tracking-title text-foreground md:text-headline md:tracking-headline">
