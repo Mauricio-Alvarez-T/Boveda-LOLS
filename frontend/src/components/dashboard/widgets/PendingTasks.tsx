@@ -38,8 +38,8 @@ const categoryIcons = {
 
 // Tile de categoría (paleta verde+neutros): activo=verde/teal, resto=gris.
 const categoryStyle: Record<string, { tile: string; icon: string }> = {
-    asistencia: { tile: 'bg-teal-50 dark:bg-teal-500/10', icon: 'text-teal-600 dark:text-teal-400' },
-    contratos: { tile: 'bg-brand-primary/[0.08]', icon: 'text-brand-primary' },
+    asistencia: { tile: 'bg-muted', icon: 'text-muted-foreground' },
+    contratos: { tile: 'bg-muted', icon: 'text-muted-foreground' },
     documentos: { tile: 'bg-muted', icon: 'text-muted-foreground' },
 };
 
@@ -67,8 +67,8 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
             {/* Header */}
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/[0.08]">
-                        <Zap className="h-5 w-5 text-brand-primary" />
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
+                        <Zap className="h-5 w-5 text-muted-foreground" />
                     </span>
                     <h4 className="text-sm font-semibold text-foreground">Tareas Pendientes</h4>
                 </div>

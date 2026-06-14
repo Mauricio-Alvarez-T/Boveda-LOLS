@@ -29,13 +29,13 @@ const alertStyles = {
     warning: {
         border: 'border-border',
         bg: 'bg-background',
-        text: 'text-muted-foreground',
+        text: 'text-warning',
         icon: AlertTriangle,
     },
     info: {
         border: 'border-border',
         bg: 'bg-background',
-        text: 'text-muted-foreground',
+        text: 'text-info',
         icon: Info,
     },
 };

@@ -41,8 +41,8 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
         <div>
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-teal-50 dark:bg-teal-500/10">
-                        <ClipboardCheck className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
+                        <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
                     </span>
                     <h4 className="text-sm font-semibold text-foreground">Asistencia por Obra</h4>
                 </div>
@@ -61,10 +61,10 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                             {/* Tile de estado — teal si cumple; gris neutro si sin registro (no crítico) */}
                             <span className={cn(
                                 "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                                ok ? "bg-teal-50 dark:bg-teal-500/10" : "bg-muted"
+                                ok ? "bg-brand-primary/10" : "bg-muted"
                             )}>
                                 {ok ? (
-                                    <CheckCircle2 className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                                    <CheckCircle2 className="h-5 w-5 text-brand-primary" />
                                 ) : (
                                     <Circle className="h-5 w-5 text-muted-foreground" />
                                 )}
@@ -76,7 +76,7 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                                 <p className="text-caption text-muted-foreground mt-0.5">
                                     {obra.trabajadores} trabajador{obra.trabajadores !== 1 ? 'es' : ''}
                                     {!obra.asistencia_guardada && (
-                                        <span className="ml-1.5 text-destructive font-semibold">· Sin registro</span>
+                                        <span className="ml-1.5 text-warning font-semibold">· Sin registro</span>
                                     )}
                                 </p>
                             </div>
@@ -85,7 +85,7 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                             <div className="shrink-0 text-right">
                                 <span className={cn(
                                     "text-sm font-bold tabular-nums",
-                                    ok ? "text-teal-600 dark:text-teal-400" : "text-destructive"
+                                    ok ? "text-brand-primary" : "text-muted-foreground"
                                 )}>
                                     {obra.asistencia_guardada ? `${obra.asistencia_tasa}%` : '—'}
                                 </span>

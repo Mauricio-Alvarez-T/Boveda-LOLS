@@ -31,10 +31,10 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children, tint }) => {
             ref={setNodeRef}
             style={style}
             className={cn(
-                "rounded-card p-5 relative group transition-shadow",
+                "rounded-card border border-border p-5 relative group transition-shadow",
                 tint || "bg-card",
                 isDragging && "shadow-xl ring-2 ring-brand-primary/20 z-50 opacity-90",
-                !isDragging && "hover:shadow-md"
+                !isDragging && "hover:shadow-md hover:border-[var(--border-hover)]"
             )}
         >
             {/* Drag Handle */}

@@ -107,8 +107,9 @@ interface DashboardData {
 
 // Tinte suave de fondo por panel (paleta verde+neutros): positivo/activo en
 // verde/teal; alertas en rojo muy tenue; resto neutro. Da identidad sin recargar.
-// Fondo verde unificado (feedback: "todos los elementos con fondo verde").
-const PANEL_TINT = 'bg-brand-primary/[0.12] dark:bg-brand-primary/[0.22]';
+// Superficies NEUTRAS (sistema validado): cards/paneles blancos; se separan por
+// borde/sombra, no por tinte de color. El verde queda solo para acciones.
+const PANEL_TINT = 'bg-card';
 const WIDGET_TINTS: Record<string, string> = {
     pending_tasks: PANEL_TINT,
     obra_ranking: PANEL_TINT,
@@ -192,7 +193,7 @@ const Dashboard: React.FC = () => {
                             onClick={() => navigate(alert.ruta)}
                             className="p-3 bg-background rounded-xl flex items-start gap-3 hover:bg-muted transition-colors cursor-pointer"
                         >
-                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' : 'text-muted-foreground'}`} />
+                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' : alert.tipo === 'warning' ? 'text-warning' : 'text-info'}`} />
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-brand-dark">{alert.titulo}</p>
                                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
@@ -252,7 +253,7 @@ const Dashboard: React.FC = () => {
             label: 'Trabajadores',
             value: data.counters.trabajadores ?? 0,
             icon: Users,
-            color: 'text-brand-primary',
+            color: 'text-muted-foreground',
             bg: PANEL_TINT,
             route: '/consultas?activo=true',
             description: 'Gestión de personal',
@@ -275,7 +276,7 @@ const Dashboard: React.FC = () => {
             label: 'Asistencia Hoy',
             value: `${data.counters.asistencia_hoy ?? 0}%`,
             icon: CheckSquare,
-            color: 'text-teal-700 dark:text-teal-300',
+            color: 'text-muted-foreground',
             bg: PANEL_TINT,
             route: '/asistencia',
             description: 'Tasa de presencia hoy',

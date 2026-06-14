@@ -25,7 +25,7 @@ interface Props {
     tint?: string;
 }
 
-const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, attendanceStatus, onNavigate, tint = 'bg-brand-primary/[0.12] dark:bg-brand-primary/[0.22]' }) => {
+const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, attendanceStatus, onNavigate, tint = 'bg-card' }) => {
     const hour = new Date().getHours();
     const reduceMotion = useReducedMotion();
 
@@ -80,13 +80,13 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
     return (
         <motion.div
             {...reveal}
-            className={`relative overflow-hidden rounded-card ${tint} p-8 md:p-10`}
+            className={`relative overflow-hidden rounded-card border border-border ${tint} p-8 md:p-10`}
         >
             <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2.5">
-                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-primary/10">
-                            <TimeIcon className="h-5 w-5 text-brand-primary" />
+                        <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
+                            <TimeIcon className="h-5 w-5 text-muted-foreground" />
                         </span>
                         <span className="text-sm font-medium text-muted-foreground">{timeConfig.greeting}</span>
                     </div>
@@ -97,10 +97,10 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                     {/* Insights */}
                     <div className="mt-5 space-y-2">
                         {insights.map((insight, idx) => {
-                            // Convención: hecho/al día = verde · pendiente/falta = rojo.
+                            // Semántica: al día = verde · pendiente/precaución = ámbar · crítico = rojo.
                             const isOk = insight.severity === 'ok';
                             const Icon = isOk ? CheckCircle2 : AlertTriangle;
-                            const tone = isOk ? 'text-brand-primary' : 'text-destructive';
+                            const tone = isOk ? 'text-brand-primary' : insight.severity === 'critical' ? 'text-destructive' : 'text-warning';
                             return (
                                 <div key={idx} className="flex items-start gap-2.5">
                                     <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} />
@@ -112,8 +112,8 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
 
                     {pendingTasksCount > 0 && (
                         <div className="mt-4 flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-destructive" />
-                            <span className="text-sm font-medium text-destructive">
+                            <Zap className="h-3.5 w-3.5 text-warning" />
+                            <span className="text-sm font-medium text-warning">
                                 {pendingTasksCount} tarea{pendingTasksCount !== 1 ? 's' : ''} pendiente{pendingTasksCount !== 1 ? 's' : ''}
                             </span>
                         </div>
