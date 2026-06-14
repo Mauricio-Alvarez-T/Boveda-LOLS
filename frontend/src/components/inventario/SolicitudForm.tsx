@@ -627,7 +627,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                     <button
                         type="button"
                         onClick={addCustomItem}
-                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 border border-brand-primary rounded-lg shadow-sm transition-colors md:px-3 md:py-1.5 md:text-xs md:text-amber-800 md:bg-amber-50 md:hover:bg-amber-100 md:border-amber-200 md:shadow-none"
+                        className="flex items-center gap-1.5 px-4 py-2 text-sm font-bold text-white bg-brand-primary hover:bg-brand-primary/90 border border-brand-primary rounded-lg shadow-sm transition-colors md:px-3 md:py-1.5 md:text-xs md:text-amber-800 dark:md:text-amber-300 md:bg-amber-50 dark:md:bg-amber-950/30 md:hover:bg-amber-100 md:border-amber-200 dark:md:border-amber-800/60 md:shadow-none"
                     >
                         <Plus className="h-4 w-4 md:h-3.5 md:w-3.5" strokeWidth={3} />
                         Agregar ítem

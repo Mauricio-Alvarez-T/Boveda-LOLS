@@ -209,7 +209,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                 >
                                     #{item.nro_item}
                                     {copied
-                                        ? <Check className="h-3 w-3 text-green-600 dark:text-green-400" />
+                                        ? <Check className="h-3 w-3 text-green-700 dark:text-green-300" />
                                         : <Copy className="h-3 w-3" />
                                     }
                                 </button>

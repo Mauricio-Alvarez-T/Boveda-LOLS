@@ -126,7 +126,7 @@ const NewMovimientoModal: React.FC<Props> = ({ isOpen, onClose, onSelect, hasPer
                                 className={cn(
                                     'w-full text-left p-3 rounded-xl border transition-all',
                                     opt.critico
-                                        ? 'border-amber-200 hover:border-amber-400 hover:bg-amber-50/50'
+                                        ? 'border-amber-200 dark:border-amber-800/60 hover:border-amber-400 hover:bg-amber-50/50 dark:hover:bg-amber-950/20'
                                         : 'border-border hover:border-brand-primary/50 hover:bg-brand-primary/5',
                                     'flex gap-3 items-start'
                                 )}

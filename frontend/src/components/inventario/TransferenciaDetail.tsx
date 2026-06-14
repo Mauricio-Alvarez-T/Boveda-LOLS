@@ -1150,7 +1150,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── SoD Banner: explica por qué el botón de acción no aparece ── */}
             {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && !activeForm && (
                 <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
-                    <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                    <Info className="h-4 w-4 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
                     <div>
                         <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
                         <span className="text-amber-800 dark:text-amber-300">
@@ -1507,7 +1507,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 })}
                                             </div>
                                         ) : (
-                                            <p className="text-caption text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
+                                            <p className="text-caption text-red-700 dark:text-red-300 mb-2 flex items-center gap-1">
                                                 <AlertTriangle className="h-3 w-3" /> Sin stock disponible
                                             </p>
                                         )}
@@ -1527,7 +1527,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     return (
                                                         <div key={sIdx} className="flex items-center gap-2 text-caption">
                                                             {loc?.type === 'bodega'
-                                                                ? <Warehouse className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
+                                                                ? <Warehouse className="h-3 w-3 text-amber-700 dark:text-amber-300 shrink-0" />
                                                                 : <MapPin className="h-3 w-3 text-green-700 dark:text-green-400 shrink-0" />
                                                             }
                                                             <span className="font-medium text-brand-dark truncate flex-1">
@@ -1642,7 +1642,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                                         {/* Mensaje de error de split */}
                                         {status.error && (
-                                            <p className="mt-1 text-micro text-red-600 dark:text-red-400 font-medium flex items-center gap-0.5">
+                                            <p className="mt-1 text-micro text-red-700 dark:text-red-300 font-medium flex items-center gap-0.5">
                                                 <AlertTriangle className="h-2.5 w-2.5" /> Revisa las cantidades: exceden el stock o lo solicitado.
                                             </p>
                                         )}
@@ -2240,7 +2240,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 {/* SoD banner */}
                 {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && (
                     <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
-                        <Info className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <Info className="h-4 w-4 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
                         <div>
                             <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
                             <span className="text-amber-800 dark:text-amber-300">

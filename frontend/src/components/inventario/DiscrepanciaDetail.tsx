@@ -194,7 +194,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {/* Métricas cant. enviada vs recibida */}
                                 <div className="grid grid-cols-3 gap-1.5 mb-2">
                                     <div className="rounded-lg bg-blue-50 border border-blue-100 dark:bg-blue-950/30 dark:border-blue-900 px-2 py-1.5">
-                                        <p className="text-micro text-blue-600 dark:text-blue-400 uppercase font-bold leading-none mb-0.5">Enviado</p>
+                                        <p className="text-micro text-blue-700 dark:text-blue-300 uppercase font-bold leading-none mb-0.5">Enviado</p>
                                         <p className="text-xs font-black text-blue-700 dark:text-blue-300 leading-none">
                                             {Number(item.cantidad_enviada)} <span className="font-normal text-micro">{item.unidad}</span>
                                         </p>
@@ -302,7 +302,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                 title={
                     <div className="flex items-center gap-2">
                         {modalAction === 'resuelta'
-                            ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
+                            ? <Check className="h-4 w-4 text-green-700 dark:text-green-300" />
                             : <XCircle className="h-4 w-4 text-muted-foreground" />}
                         <span>{modalAction === 'resuelta' ? 'Resolver discrepancia' : 'Descartar discrepancia'}</span>
                     </div>
@@ -336,7 +336,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {' · '}
                                 Recibido: <span className="font-semibold text-brand-dark">{Number(modalItem.cantidad_recibida)}</span>
                                 {' · '}
-                                Diferencia: <span className="font-semibold text-red-600 dark:text-red-400">
+                                Diferencia: <span className="font-semibold text-red-700 dark:text-red-300">
                                     {modalItem.diferencia > 0 ? '-' : '+'}{Math.abs(modalItem.diferencia)}
                                 </span>
                             </p>
