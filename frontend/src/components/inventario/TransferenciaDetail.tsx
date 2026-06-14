@@ -26,6 +26,7 @@ import { MatEmpty, MatRequestRow, DetailSection } from './transferencia-detail/M
 import { SodBanner } from './transferencia-detail/SodBanner';
 import { TransferenciaTimeline } from './transferencia-detail/TransferenciaTimeline';
 import { ItemsTable } from './transferencia-detail/ItemsTable';
+import { RechazarForm } from './transferencia-detail/RechazarForm';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -995,29 +996,19 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
                         <XCircle className="h-4 w-4" /> Rechazar Transferencia
                     </h4>
-                    <textarea
+                    <RechazarForm
                         value={rejectMotivo}
-                        onChange={e => setRejectMotivo(e.target.value)}
-                        placeholder="Motivo del rechazo..."
-                        className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
-                        required
+                        onChange={setRejectMotivo}
+                        onConfirm={async () => {
+                            if (!rejectMotivo.trim()) return;
+                            const ok = await onRechazar(rejectMotivo);
+                            if (ok) setActiveForm(null);
+                        }}
+                        onCancel={() => setActiveForm(null)}
+                        loading={actionLoading}
+                        confirmLabel="Confirmar Rechazo"
+                        compact
                     />
-                    <div className="flex gap-2">
-                        <button
-                            onClick={async () => {
-                                if (!rejectMotivo.trim()) return;
-                                const ok = await onRechazar(rejectMotivo);
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading || !rejectMotivo.trim()}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
-                        >
-                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
                 </div>
             )}
 
@@ -1029,32 +1020,21 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
                         <XCircle className="h-4 w-4" /> Rechazar Recepción
                     </h4>
-                    <p className="text-label text-muted-foreground">
-                        Rechaza físicamente el material recibido. La transferencia pasa a "rechazada" y el stock no se actualiza.
-                    </p>
-                    <textarea
+                    <RechazarForm
                         value={rejectMotivo}
-                        onChange={e => setRejectMotivo(e.target.value)}
+                        onChange={setRejectMotivo}
+                        onConfirm={async () => {
+                            if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
+                            const ok = await onRechazarRecepcion(rejectMotivo);
+                            if (ok) setActiveForm(null);
+                        }}
+                        onCancel={() => setActiveForm(null)}
+                        loading={actionLoading}
+                        confirmLabel="Confirmar Rechazo de Recepción"
                         placeholder="Motivo del rechazo de recepción..."
-                        className="w-full px-3 py-2 text-xs border border-red-200 dark:border-red-900 rounded-xl resize-none h-20 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
-                        required
+                        description='Rechaza físicamente el material recibido. La transferencia pasa a "rechazada" y el stock no se actualiza.'
+                        compact
                     />
-                    <div className="flex gap-2">
-                        <button
-                            onClick={async () => {
-                                if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
-                                const ok = await onRechazarRecepcion(rejectMotivo);
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading || !rejectMotivo.trim()}
-                            className="flex-1 py-2.5 text-xs font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
-                        >
-                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo de Recepción'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
                 </div>
             )}
 
@@ -1562,60 +1542,37 @@ const TransferenciaDetail: React.FC<Props> = ({
 
             <Modal isOpen={activeForm === 'rechazar'} onClose={() => setActiveForm(null)} title="Rechazar solicitud" size="sm">
                 <div className="space-y-3">
-                    <textarea
+                    <RechazarForm
                         value={rejectMotivo}
-                        onChange={e => setRejectMotivo(e.target.value)}
-                        placeholder="Motivo del rechazo..."
-                        className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-24 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
-                        required
+                        onChange={setRejectMotivo}
+                        onConfirm={async () => {
+                            if (!rejectMotivo.trim()) return;
+                            const ok = await onRechazar(rejectMotivo);
+                            if (ok) setActiveForm(null);
+                        }}
+                        onCancel={() => setActiveForm(null)}
+                        loading={actionLoading}
+                        confirmLabel="Confirmar Rechazo"
                     />
-                    <div className="flex gap-2">
-                        <button
-                            onClick={async () => {
-                                if (!rejectMotivo.trim()) return;
-                                const ok = await onRechazar(rejectMotivo);
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading || !rejectMotivo.trim()}
-                            className="flex-1 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
-                        >
-                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
                 </div>
             </Modal>
 
             <Modal isOpen={activeForm === 'rechazar_recepcion'} onClose={() => setActiveForm(null)} title="Rechazar recepción" size="sm">
                 <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">
-                        Rechaza físicamente el material recibido. La solicitud pasa a "rechazada" y el stock no se actualiza.
-                    </p>
-                    <textarea
+                    <RechazarForm
                         value={rejectMotivo}
-                        onChange={e => setRejectMotivo(e.target.value)}
+                        onChange={setRejectMotivo}
+                        onConfirm={async () => {
+                            if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
+                            const ok = await onRechazarRecepcion(rejectMotivo);
+                            if (ok) setActiveForm(null);
+                        }}
+                        onCancel={() => setActiveForm(null)}
+                        loading={actionLoading}
+                        confirmLabel="Confirmar Rechazo"
                         placeholder="Motivo del rechazo de recepción..."
-                        className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-24 focus:ring-2 focus:ring-red-300/20 dark:focus:ring-red-500/20 outline-none"
-                        required
+                        description='Rechaza físicamente el material recibido. La solicitud pasa a "rechazada" y el stock no se actualiza.'
                     />
-                    <div className="flex gap-2">
-                        <button
-                            onClick={async () => {
-                                if (!rejectMotivo.trim() || !onRechazarRecepcion) return;
-                                const ok = await onRechazarRecepcion(rejectMotivo);
-                                if (ok) setActiveForm(null);
-                            }}
-                            disabled={actionLoading || !rejectMotivo.trim()}
-                            className="flex-1 py-2.5 text-sm font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all"
-                        >
-                            {actionLoading ? 'Rechazando...' : 'Confirmar Rechazo'}
-                        </button>
-                        <button onClick={() => setActiveForm(null)} className="px-4 py-2.5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors">
-                            Cancelar
-                        </button>
-                    </div>
                 </div>
             </Modal>
         </div>
