@@ -33,6 +33,25 @@ la utilidad `text-<n>` desde `--text-<n>`.
 Los tokens usan **nombres propios** (no `xs/sm/base/lg`) para NO pisar la escala de
 Tailwind y evitar un desplazamiento global.
 
+### Escala GRANDE — jerarquía de página (F5, espíritu Apple)
+Para heros, encabezados, títulos de card/sección, leads y texto base **cómodo**. La
+escala diminuta de arriba queda para metadata terciaria. Tracking negativo obligatorio
+en `display`/`headline`/`title` (da el look SF Pro).
+
+| Token | Tamaño / tracking | Uso |
+|---|---|---|
+| `text-display` | 56px / `tracking-display` | hero (login, marketing) |
+| `text-display-sm` | 44px | hero móvil/secundario |
+| `text-headline` | 32px / `tracking-headline` | título de página (PageHeader) |
+| `text-title` | 24px / `tracking-title` | título de card/sección |
+| `text-title-sm` | 20px | subtítulo de bloque |
+| `text-body-lg` | 19px | lead/intro |
+| `text-body` | 17px | cuerpo en superficies que respiran |
+| `text-ui` | 15px | **texto base cómodo** de app/tablas/inputs |
+
+Tracking: `tracking-display` (-0.03em), `tracking-headline` (-0.022em), `tracking-title`
+(-0.018em), `tracking-tight` (-0.01em). Siguen siendo tokens → **nunca `text-[Npx]`**.
+
 ## 2. Colores
 
 Tokens en `index.css` (`@theme inline` + `:root`/`.dark`): `brand-primary`,
@@ -127,3 +146,38 @@ al cerrar F2**. Lint NO está en el gate de deploy (gate = `tsc` + `npm test` + 
 3. `fmtMoney`/`fmtDate` local → import de `utils/format`.
 4. Estado inline / mapa local → `<StatusBadge>` + entrada en `statusConfig.ts`.
 5. `tsc --noEmit` + `npm run build` + eyeball en claro **y** oscuro (los pills tienen `dark:`).
+
+---
+
+## 7. Espíritu Apple — guía visual (F5, rediseño)
+
+El norte es apple.com: **simplicidad y belleza**. Recuperar eso de forma integral.
+Principios y reglas concretas:
+
+1. **Jerarquía tipográfica fuerte.** Titulares grandes con tracking negativo (escala
+   §1 "GRANDE"); cuerpo regular. La jerarquía se logra por **escala + peso**, no por
+   color. Texto base cómodo (`text-ui` 15px); evitar las tallas diminutas (9–11px)
+   salvo metadata terciaria real.
+2. **Whitespace generoso.** Dejar respirar. Contenedores `max-w-marketing` (960px) /
+   centrados en superficies de lectura; gutters amplios. "Minimalismo en todo": las
+   superficies de datos también respiran (filas altas, padding cómodo), conservando
+   función (orden/filtros/paginación).
+3. **Restraint cromático — el verde LOLS (`#029E4D`) es el ÚNICO acento de acción**
+   (botones primary, links, focus). Azul (`info`) solo para datos informativos.
+   Neutro dominante: una pantalla debe leerse en blanco/negro/gris + un toque verde.
+   Color = dato; decoración = neutra (ver §3).
+4. **Botones.** Acción = **pill** con acento verde sólido (`<Button variant="primary">`,
+   ya `rounded-full`). Navegación/secundario sutil = `<Button variant="link">` (texto
+   verde + chevron `›`, estilo "Más información ›"). El press oscurece a verde, **nunca
+   azul**.
+5. **Interacción sutil.** Hover = cambio de **brillo/opacidad**, NO `scale`. Transición
+   `duration-200 ease-apple`. Reveals suaves solo en heros/headers, respetando
+   `prefers-reduced-motion` (ver `Login.tsx`).
+6. **Bordes y sombras casi invisibles.** Preferir **borde hairline** (`border-border`)
+   a sombras marcadas. Sombra sutil solo en hover/elevación real (modales). No acumular
+   borde + sombra + gradiente en la misma card.
+7. **Radios.** `rounded-card` (20px) en cards/secciones, `rounded-control` (12px) en
+   inputs/selects, `rounded-pill` en botones de acción.
+
+**Referencia canónica del look:** `frontend/src/pages/Login.tsx` (hero a pantalla
+dividida) — úsalo como ancla al migrar otras pantallas en F5.

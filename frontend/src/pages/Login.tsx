@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { motion } from 'framer-motion';
-import { LogIn, Mail, Lock, Fingerprint } from 'lucide-react';
+import { motion, useReducedMotion } from 'framer-motion';
 import { toast } from 'sonner';
 
 import { Button } from '../components/ui/Button';
@@ -25,6 +24,8 @@ const LoginPage: React.FC = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
     const [isLoading, setIsLoading] = useState(false);
+    const reduceMotion = useReducedMotion();
+    const year = new Date().getFullYear();
 
     const {
         register,
@@ -63,105 +64,89 @@ const LoginPage: React.FC = () => {
         }
     }, []);
 
+    const reveal = reduceMotion
+        ? {}
+        : {
+            initial: { opacity: 0, y: 12 },
+            animate: { opacity: 1, y: 0 },
+            transition: { duration: 0.4, ease: [0.25, 0.1, 0.25, 1] as const },
+        };
+
     return (
-        <div className="relative min-h-[100dvh] w-full flex items-center justify-center overflow-hidden bg-muted"
-            style={{
-                backgroundImage: `linear-gradient(to right, #E5E7EB 1px, transparent 1px), linear-gradient(to bottom, #E5E7EB 1px, transparent 1px)`,
-                backgroundSize: '40px 40px'
-            }}>
+        <div className="min-h-[100dvh] w-full bg-background lg:grid lg:grid-cols-[44%_56%]">
 
-            {/* Blueprint Grid Overlay for aesthetic engineering feel */}
-            <div className="absolute inset-0 pointer-events-none"
-                style={{
-                    backgroundImage: `linear-gradient(to right, #F3F4F6 1px, transparent 1px), linear-gradient(to bottom, #F3F4F6 1px, transparent 1px)`,
-                    backgroundSize: '10px 10px',
-                    opacity: 0.5
-                }}
-            />
-
-            {/* Solid Engineering-Style Card */}
-            <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, ease: "easeOut" }}
-                className="relative z-10 w-full max-w-[440px] px-6"
+            {/* ── Panel de marca (hero) — solo desktop ───────────────────── */}
+            {/* Superficie deliberadamente oscura con un sutil resplandor verde de marca:
+                neutro dominante + un toque del verde LOLS, estilo hero de apple.com. */}
+            <aside
+                className="relative hidden flex-col justify-between overflow-hidden p-14 text-white lg:flex"
+                style={{ background: 'radial-gradient(125% 125% at 0% 0%, #0d2c1c 0%, #0a0a0b 58%)' }}
             >
-                <div className="bg-card border border-gray-200 shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] rounded-2xl overflow-hidden">
+                <Logo variant="white" className="w-[176px] h-auto" />
 
-                    {/* Top Green Accent Bar */}
-                    <div className="h-2 w-full bg-brand-primary" />
-
-                    <div className="p-8 md:p-10">
-                        <div className="flex flex-col items-center mb-10 w-full px-2">
-                            <motion.div
-                                whileHover={{ scale: 1.02 }}
-                                className="w-full max-w-[260px] mb-6"
-                            >
-                                <Logo variant="green" className="w-full h-auto" />
-                            </motion.div>
-                            <div className="h-px w-16 bg-brand-primary/20 mb-4" />
-                            <p className="text-muted-foreground text-xs text-center font-bold uppercase tracking-[0.2em]">
-                                Gestión Documental & Asistencia
-                            </p>
-                        </div>
-
-                        <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-                            <div className="space-y-5">
-                                <div className="relative group">
-                                    <Input
-                                        label="Correo Corporativo"
-                                        placeholder="ejemplo@lols.cl"
-                                        type="email"
-                                        error={errors.email?.message}
-                                        {...register('email')}
-                                        className="pl-11 bg-card border-gray-200 focus:bg-card focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
-                                    />
-                                    <Mail className="absolute left-4 top-[38px] h-4 w-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors" />
-                                </div>
-
-                                <div className="relative group">
-                                    <Input
-                                        label="Contraseña"
-                                        placeholder="••••••••"
-                                        type="password"
-                                        error={errors.password?.message}
-                                        {...register('password')}
-                                        className="pl-11 bg-card border-gray-200 focus:bg-card focus:border-brand-primary focus:ring-1 focus:ring-brand-primary h-12 rounded-lg transition-all"
-                                    />
-                                    <Lock className="absolute left-4 top-[38px] h-4 w-4 text-muted-foreground group-focus-within:text-brand-primary transition-colors" />
-                                </div>
-                            </div>
-
-                            <div className="pt-4">
-                                <Button
-                                    type="submit"
-                                    className="w-full h-12 text-base font-semibold bg-brand-primary text-white hover:bg-[#027A3B] rounded-lg shadow-sm transition-all active:scale-[0.98]"
-                                    isLoading={isLoading}
-                                    rightIcon={<LogIn className="h-4 w-4" />}
-                                >
-                                    Iniciar Sesión
-                                </Button>
-                            </div>
-                        </form>
-
-                        <div className="mt-8 pt-6 border-t border-gray-100 text-center">
-                            <div className="flex items-center justify-center gap-2">
-                                <Fingerprint className="h-3.5 w-3.5 text-muted-foreground" />
-                                <p className="text-caption text-muted-foreground font-bold tracking-widest uppercase">
-                                    Acceso Seguro Verificado
-                                </p>
-                            </div>
-                        </div>
-                    </div>
+                <div className="max-w-md">
+                    <p className="text-display font-semibold leading-[1.05] tracking-display">
+                        Toda tu obra,<br />en orden.
+                    </p>
+                    <p className="mt-6 text-body-lg text-white/55">
+                        Documentación, asistencia e inventario en un solo lugar. Simple, claro y seguro.
+                    </p>
                 </div>
-            </motion.div>
 
-            {/* Subtle bottom brand text */}
-            <div className="absolute bottom-6 w-full text-center pointer-events-none">
-                <p className="text-muted-foreground text-caption font-medium tracking-widest uppercase opacity-70">
-                    LOLS Ingeniería © {new Date().getFullYear()}
-                </p>
-            </div>
+                <p className="text-ui text-white/40">LOLS Ingeniería © {year}</p>
+            </aside>
+
+            {/* ── Panel de formulario ────────────────────────────────────── */}
+            <main className="flex items-center justify-center px-6 py-12 sm:px-12">
+                <motion.div {...reveal} className="w-full max-w-[400px]">
+
+                    {/* Logo compacto solo en móvil (el hero no se muestra) */}
+                    <div className="mb-12 flex justify-center lg:hidden">
+                        <Logo variant="green" className="w-[176px] h-auto" />
+                    </div>
+
+                    <h1 className="text-headline font-semibold tracking-headline text-foreground">
+                        Inicia sesión
+                    </h1>
+                    <p className="mt-2 text-body text-muted-foreground">
+                        Accede a tu cuenta de Bóveda LOLS.
+                    </p>
+
+                    <form onSubmit={handleSubmit(onSubmit)} className="mt-8 space-y-5">
+                        <Input
+                            label="Correo corporativo"
+                            placeholder="nombre@lols.cl"
+                            type="email"
+                            autoComplete="email"
+                            error={errors.email?.message}
+                            {...register('email')}
+                            className="h-12"
+                        />
+                        <Input
+                            label="Contraseña"
+                            placeholder="••••••••"
+                            type="password"
+                            autoComplete="current-password"
+                            error={errors.password?.message}
+                            {...register('password')}
+                            className="h-12"
+                        />
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            size="lg"
+                            className="w-full"
+                            isLoading={isLoading}
+                        >
+                            Iniciar sesión
+                        </Button>
+                    </form>
+
+                    <p className="mt-12 text-center text-sm text-muted-foreground lg:hidden">
+                        LOLS Ingeniería © {year}
+                    </p>
+                </motion.div>
+            </main>
         </div>
     );
 };

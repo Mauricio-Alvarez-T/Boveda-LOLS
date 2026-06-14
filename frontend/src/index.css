@@ -71,6 +71,41 @@
   --text-section--line-height: 1.25rem;
 }
 
+/* ──────────────────────────────────────────────────────────────────
+   Escala tipográfica GRANDE — espíritu Apple (Fase 5, rediseño visual)
+   Para jerarquía de página: heros, encabezados, títulos de card/sección,
+   leads y texto base cómodo. La escala diminuta de arriba (micro/caption/
+   label/section) queda para metadata terciaria. Usar SIEMPRE estos tokens
+   (nunca text-[Npx]). El tracking negativo en grandes da el look SF Pro.
+   ────────────────────────────────────────────────────────────────── */
+@theme {
+  --text-display: 3.5rem;      --text-display--line-height: 1.05;
+  --text-display-sm: 2.75rem;  --text-display-sm--line-height: 1.07;
+  --text-headline: 2rem;       --text-headline--line-height: 1.1;
+  --text-title: 1.5rem;        --text-title--line-height: 1.2;
+  --text-title-sm: 1.25rem;    --text-title-sm--line-height: 1.3;
+  --text-body-lg: 1.1875rem;   --text-body-lg--line-height: 1.55;
+  --text-body: 1.0625rem;      --text-body--line-height: 1.55;
+  --text-ui: 0.9375rem;        --text-ui--line-height: 1.5;
+
+  /* tracking → utilidades tracking-display, tracking-headline, … */
+  --tracking-display: -0.03em;
+  --tracking-headline: -0.022em;
+  --tracking-title: -0.018em;
+  --tracking-tight: -0.01em;
+
+  /* radios nombrados → rounded-card / rounded-control / rounded-pill */
+  --radius-card: 1.25rem;
+  --radius-control: 0.75rem;
+  --radius-pill: 9999px;
+
+  /* contenedor de superficies "marketing" → max-w-marketing (960px) */
+  --container-marketing: 60rem;
+
+  /* easing Apple → ease-apple */
+  --ease-apple: cubic-bezier(0.25, 0.1, 0.25, 1);
+}
+
 /* ── Modo claro (default) ─────────────────────────────────────────── */
 :root {
   color-scheme: light;
@@ -177,6 +212,7 @@
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    font-optical-sizing: auto;
     font-feature-settings: "rlig" 1, "calt" 1;
     min-height: 100vh; /* fallback navegadores viejos */
     min-height: 100dvh; /* viewport visible real en móvil (barra del navegador) */
