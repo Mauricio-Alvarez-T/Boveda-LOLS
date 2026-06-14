@@ -61,7 +61,7 @@ interface Props {
         items_custom?: Array<{ id: number; descripcion?: string; unidad?: string; cantidad_aprobada?: number; aprobado?: boolean; nota_aprobador?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }>;
         items_custom_nuevos?: { descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }[];
     }) => Promise<boolean>;
-    onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items: number } | null>;
+    onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items?: number; ya_existia?: boolean } | null>;
     onRecibir: (
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
         tipo?: 'parcial' | 'total',
