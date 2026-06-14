@@ -178,9 +178,7 @@ const Dashboard: React.FC = () => {
                             onClick={() => navigate(alert.ruta)}
                             className="p-3 bg-background rounded-xl flex items-start gap-3 hover:bg-muted transition-colors cursor-pointer"
                         >
-                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' :
-                                alert.tipo === 'warning' ? 'text-warning' : 'text-brand-primary'
-                                }`} />
+                            <AlertTriangle className={`h-4 w-4 mt-0.5 shrink-0 ${alert.tipo === 'critical' ? 'text-destructive' : 'text-muted-foreground'}`} />
                             <div className="flex-1 min-w-0">
                                 <p className="text-xs font-semibold text-brand-dark">{alert.titulo}</p>
                                 <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
@@ -240,8 +238,8 @@ const Dashboard: React.FC = () => {
             label: 'Trabajadores',
             value: data.counters.trabajadores ?? 0,
             icon: Users,
-            color: 'text-brand-primary',
-            bg: 'bg-brand-primary/8',
+            color: 'text-muted-foreground',
+            bg: 'bg-muted',
             route: '/consultas?activo=true',
             description: 'Gestión de personal',
             delta: data.deltas?.trabajadores_nuevos_semana ?? 0,
@@ -251,8 +249,8 @@ const Dashboard: React.FC = () => {
             label: 'Documentos',
             value: data.counters.documentos ?? 0,
             icon: FileText,
-            color: 'text-info',
-            bg: 'bg-info/10',
+            color: 'text-muted-foreground',
+            bg: 'bg-muted',
             route: '/consultas?completitud=faltantes',
             description: 'Bóveda documental',
             delta: data.deltas?.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
@@ -263,8 +261,8 @@ const Dashboard: React.FC = () => {
             label: 'Asistencia Hoy',
             value: `${data.counters.asistencia_hoy ?? 0}%`,
             icon: CheckSquare,
-            color: 'text-brand-accent',
-            bg: 'bg-brand-accent/8',
+            color: 'text-muted-foreground',
+            bg: 'bg-muted',
             route: '/asistencia',
             description: 'Tasa de presencia hoy',
             delta: data.deltas?.asistencia_delta ?? 0,
@@ -274,8 +272,8 @@ const Dashboard: React.FC = () => {
             label: 'Ausencias Hoy',
             value: data.counters.ausentes_hoy ?? 0,
             icon: AlertTriangle,
-            color: (data.counters.ausentes_hoy ?? 0) > 0 ? 'text-warning' : 'text-muted',
-            bg: (data.counters.ausentes_hoy ?? 0) > 0 ? 'bg-warning/8' : 'bg-muted/8',
+            color: 'text-muted-foreground',
+            bg: 'bg-muted',
             route: '/consultas?ausentes=true',
             description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta',
             delta: data.deltas?.ausentes_delta ?? 0,

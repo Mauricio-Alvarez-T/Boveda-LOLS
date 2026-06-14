@@ -22,7 +22,6 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
     const isPositive = delta !== undefined && delta > 0;
     const isNegative = delta !== undefined && delta < 0;
     const isGood = deltaInverted ? isNegative : isPositive;
-    const isBad = deltaInverted ? isPositive : isNegative;
     const DeltaIcon = isPositive ? TrendingUp : TrendingDown;
 
     return (
@@ -47,7 +46,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
                 {(hasDelta || deltaLabel) && (
                     <p className={cn(
                         "mt-2 flex items-center gap-1 text-sm font-medium",
-                        isGood ? "text-brand-accent" : isBad ? "text-destructive" : "text-muted-foreground"
+                        isGood ? "text-brand-accent" : "text-muted-foreground"
                     )}>
                         {hasDelta && <DeltaIcon className="h-3.5 w-3.5" />}
                         <span>{isPositive ? '+' : ''}{hasDelta ? delta : ''} {deltaLabel}</span>

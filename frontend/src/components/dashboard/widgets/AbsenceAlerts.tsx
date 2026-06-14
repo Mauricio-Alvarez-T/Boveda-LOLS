@@ -25,7 +25,7 @@ interface Props {
 const tipoColor = (tipo: Alerta['tipo']) => {
     if (tipo === 'consecutivas') return 'text-destructive';
     if (tipo === 'acumuladas')   return 'text-destructive/80';
-    return 'text-warning';
+    return 'text-muted-foreground';
 };
 
 const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
@@ -55,7 +55,7 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
                     <div
                         key={t.trabajador_id}
                         onClick={() => onNavigate(t.rut)}
-                        className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-destructive/15 bg-destructive/[0.04] hover:bg-destructive/[0.08] hover:border-destructive/25 transition-all cursor-pointer group"
+                        className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-border bg-card hover:bg-background hover:border-[var(--border-hover)] transition-all duration-200 cursor-pointer group"
                     >
                         {/* Icono */}
                         <AlertTriangle className="h-3.5 w-3.5 text-destructive/60 mt-0.5 shrink-0" />

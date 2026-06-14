@@ -103,7 +103,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                                 ) : insight.severity === 'critical' ? (
                                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
                                 ) : (
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
                                 )}
                                 <p className="text-base leading-relaxed text-muted-foreground">{insight.text}</p>
                             </div>

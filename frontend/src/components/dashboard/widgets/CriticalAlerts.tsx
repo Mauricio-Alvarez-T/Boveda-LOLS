@@ -17,23 +17,25 @@ interface Props {
     onNavigate: (route: string) => void;
 }
 
+// Paleta estricta: fondo neutro siempre. Solo el texto/ícono de "critical" usa
+// rojo (discreto); warning/info en gris.
 const alertStyles = {
     critical: {
-        border: 'border-destructive/30',
-        bg: 'bg-destructive/5',
+        border: 'border-border',
+        bg: 'bg-background',
         text: 'text-destructive',
         icon: AlertTriangle,
     },
     warning: {
-        border: 'border-warning/30',
-        bg: 'bg-warning/5',
-        text: 'text-warning',
+        border: 'border-border',
+        bg: 'bg-background',
+        text: 'text-muted-foreground',
         icon: AlertTriangle,
     },
     info: {
-        border: 'border-brand-primary/20',
-        bg: 'bg-brand-primary/5',
-        text: 'text-brand-primary',
+        border: 'border-border',
+        bg: 'bg-background',
+        text: 'text-muted-foreground',
         icon: Info,
     },
 };

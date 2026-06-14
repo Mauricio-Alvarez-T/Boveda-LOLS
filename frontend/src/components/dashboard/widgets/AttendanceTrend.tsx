@@ -65,14 +65,14 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
                         <YAxis axisLine={false} tickLine={false} tick={{ fill: '#86868B', fontSize: 10 }} domain={[0, 100]} />
                         <ReferenceLine
                             y={80}
-                            stroke="#FF9F0A"
+                            stroke="#86868B"
                             strokeDasharray="6 4"
                             strokeWidth={1.5}
                             strokeOpacity={0.6}
                             label={{
                                 value: 'Meta 80%',
                                 position: 'right',
-                                fill: '#FF9F0A',
+                                fill: '#86868B',
                                 fontSize: 9,
                                 fontWeight: 600,
                             }}

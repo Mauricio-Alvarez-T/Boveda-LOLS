@@ -162,10 +162,14 @@ Principios y reglas concretas:
    centrados en superficies de lectura; gutters amplios. "Minimalismo en todo": las
    superficies de datos también respiran (filas altas, padding cómodo), conservando
    función (orden/filtros/paginación).
-3. **Restraint cromático — el verde LOLS (`#029E4D`) es el ÚNICO acento de acción**
-   (botones primary, links, focus). Azul (`info`) solo para datos informativos.
-   Neutro dominante: una pantalla debe leerse en blanco/negro/gris + un toque verde.
-   Color = dato; decoración = neutra (ver §3).
+3. **PALETA ESTRICTA — blanco / negro / gris + verde.** El verde LOLS (`#029E4D`) es el
+   ÚNICO acento de acción (botones primary, links, focus, estado positivo). **El rojo
+   (`destructive`) se reserva SOLO para lo verdaderamente crítico** (vencidos, faltas
+   consecutivas, borrar) y SIEMPRE discreto: ícono + texto + punto pequeño, **nunca**
+   rellenos/bordes/círculos rojos grandes. **Ámbar (`warning`) y azul (`info`) NO se usan
+   como color de UI → gris** (`muted-foreground`/`muted`). Decoración nunca lleva color.
+   Prohibido usar emojis de color (🔴🟡) como indicadores. Color = dato crítico o acción;
+   todo lo demás, neutro.
 4. **Botones.** Acción = **pill** con acento verde sólido (`<Button variant="primary">`,
    ya `rounded-full`). Navegación/secundario sutil = `<Button variant="link">` (texto
    verde + chevron `›`, estilo "Más información ›"). El press oscurece a verde, **nunca
