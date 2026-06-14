@@ -56,12 +56,12 @@ export const showConfirmToast = ({
     errorMessage = "Error",
 }: ConfirmToastOptions) => {
     toast.custom((t) => (
-        <div className="bg-card px-4 py-2.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border/40 flex items-center gap-4 w-auto min-w-[280px] animate-in fade-in slide-in-from-top-2 duration-300">
-            <span className="font-bold text-brand-dark text-[14px] whitespace-nowrap ml-1">{message}</span>
-            <div className="flex gap-1.5 ml-auto">
+        <div className="bg-card px-4 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border/40 flex items-center gap-3 w-auto max-w-[92vw] sm:max-w-md animate-in fade-in slide-in-from-top-2 duration-300">
+            <span className="flex-1 min-w-0 font-semibold text-brand-dark text-[13px] leading-snug">{message}</span>
+            <div className="flex gap-1.5 shrink-0">
                 <button
                     onClick={() => toast.dismiss(t)}
-                    className="py-1.5 px-4 rounded-full text-[12px] font-bold text-muted-foreground bg-background hover:bg-muted transition-all active:scale-95"
+                    className="py-1.5 px-3 rounded-lg text-[12px] font-bold text-muted-foreground bg-background hover:bg-muted transition-all active:scale-95 whitespace-nowrap"
                 >
                     {cancelLabel}
                 </button>
@@ -81,7 +81,7 @@ export const showConfirmToast = ({
                             }
                         }
                     }}
-                    className="py-1.5 px-4 rounded-full text-[12px] font-bold text-white bg-brand-primary hover:bg-[#027A3B] shadow-sm transition-all active:scale-95"
+                    className="py-1.5 px-3 rounded-lg text-[12px] font-bold text-white bg-brand-primary hover:bg-[#027A3B] shadow-sm transition-all active:scale-95 whitespace-nowrap"
                 >
                     {confirmLabel}
                 </button>
