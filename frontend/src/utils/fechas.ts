@@ -50,6 +50,17 @@ export function fmtFecha(raw: string | null | undefined): string {
 }
 
 /**
+ * Formato corto CON hora "28 abr, 14:30" (es-CL). Para timelines, historial de
+ * recepciones y mensajes donde importa la hora. Centraliza el `fmtDateTime` que
+ * antes vivía local en TransferenciaDetail.tsx (refactor Fase 1).
+ */
+export function fmtFechaHora(raw: string | null | undefined): string {
+    return raw
+        ? new Date(raw).toLocaleString('es-CL', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
+        : '';
+}
+
+/**
  * Día del mes (DD) desde la fecha. Útil para encabezados de tablas mensuales.
  */
 export function diaDelMes(raw: string | null | undefined): string {
