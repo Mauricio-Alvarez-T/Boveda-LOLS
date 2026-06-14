@@ -16,6 +16,8 @@ import FaltanteDecisionModal from './FaltanteDecisionModal';
 import { Modal } from '../ui/Modal';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import { prepareAndShareWithToast } from '../../utils/whatsappShare';
+import { showConfirmToast } from '../../utils/toastUtils';
 
 // ════════════════════════════════════════════════════════════════════
 // Paneles del flujo "Solicitud de Materiales" (ítems a comprar / custom).
@@ -543,31 +545,6 @@ const TransferenciaDetail: React.FC<Props> = ({
     const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial', 'recibida'].includes(t.estado);
     const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
-    // ── Clipboard helper con fallback para navegadores sin clipboard API ──
-    const copyToClipboard = async (text: string): Promise<boolean> => {
-        try {
-            if (navigator.clipboard?.writeText) {
-                await navigator.clipboard.writeText(text);
-                return true;
-            }
-        } catch { /* fallback */ }
-        try {
-            const textArea = document.createElement('textarea');
-            textArea.value = text;
-            textArea.style.position = 'fixed';
-            textArea.style.left = '-9999px';
-            textArea.style.top = '0';
-            document.body.appendChild(textArea);
-            textArea.focus();
-            textArea.select();
-            const ok = document.execCommand('copy');
-            document.body.removeChild(textArea);
-            return ok;
-        } catch {
-            return false;
-        }
-    };
-
     // ── WhatsApp share ──
     // Patrón replicado del módulo de asistencia (useAttendanceExport):
     //  1) Copia al portapapeles (respaldo ante mangling de URL)
@@ -701,46 +678,26 @@ const TransferenciaDetail: React.FC<Props> = ({
 
         const text = lines.join('\n');
 
-        try {
-            toast.loading('Preparando mensaje...', { id: TOAST_ID });
+        // Mecanismo de envío centralizado (copia al portapapeles + toast con
+        // botón "ENVIAR AHORA" dentro del user-gesture + fallback). Vive en
+        // utils/whatsappShare.ts y lo reusan asistencia y sábados extra.
+        await prepareAndShareWithToast({
+            text,
+            title: `Transferencia ${t.codigo}`,
+            toastId: TOAST_ID,
+        });
+    };
 
-            const copied = await copyToClipboard(text);
-
-            toast.success(copied ? '¡Mensaje listo!' : 'Mensaje preparado', {
-                id: TOAST_ID,
-                description: copied
-                    ? 'Copiado al portapapeles. Pulsa ENVIAR AHORA para abrir WhatsApp.'
-                    : 'Pulsa ENVIAR AHORA para abrir WhatsApp.',
-                duration: 15000,
-                action: {
-                    label: 'ENVIAR AHORA',
-                    onClick: async () => {
-                        const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
-                        if (isMobile && (navigator as any).share) {
-                            try {
-                                await (navigator as any).share({
-                                    text,
-                                    title: `Transferencia ${t.codigo}`,
-                                });
-                                return;
-                            } catch (e: any) {
-                                if (e?.name === 'AbortError') return;
-                                // si falla share, caemos al open
-                            }
-                        }
-                        // api.whatsapp.com preserva emojis mejor que wa.me
-                        window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-                    },
-                },
-            });
-        } catch (error: any) {
-            console.error('Error preparing WhatsApp share', error);
-            toast.error('Error al preparar el mensaje', { id: TOAST_ID, duration: 6000 });
-            // Último recurso: abre WhatsApp tras un delay
-            setTimeout(() => {
-                window.open(`https://api.whatsapp.com/send?text=${encodeURIComponent(text)}`, '_blank');
-            }, 2000);
-        }
+    // Confirmación antes de cancelar (acción de alto impacto: la TRF queda
+    // cancelada y, si era legacy aprobada, revierte stock). Usa el toast-confirm
+    // del Design System en vez de disparar onCancelar directo desde el menú.
+    const handleCancelarConfirm = () => {
+        showConfirmToast({
+            message: `¿Cancelar la transferencia ${t.codigo}?`,
+            confirmLabel: 'Sí, cancelar',
+            cancelLabel: 'No',
+            onConfirm: async () => { await onCancelar(); },
+        });
     };
 
     // ── Inline form states ──
@@ -904,7 +861,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             onRechazar={() => setActiveForm('rechazar')}
                             onRecibir={() => setActiveForm('recibir')}
                             onRechazarRecepcion={() => setActiveForm('rechazar_recepcion')}
-                            onCancelar={async () => { await onCancelar(); }}
+                            onCancelar={handleCancelarConfirm}
                             onWhatsApp={handleShareWhatsApp}
                             isPendiente={t.estado === 'pendiente'}
                         />

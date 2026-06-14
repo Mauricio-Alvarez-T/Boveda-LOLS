@@ -65,4 +65,60 @@ const resolverDiscrepancia = {
     resolucion: { required: true, type: 'string', minLength: 1, maxLength: 1000 },
 };
 
-module.exports = { crearTransferencia, aprobar, recibir, resolverDiscrepancia };
+// ── Flujos especiales (antes sin validateBody) ──
+// Items de catálogo: { item_id, cantidad }. Sin items_custom (esos flujos los
+// rechaza el service). Validación de presencia/tipo acá; la lógica de negocio
+// (stock, origen≠destino, etc.) sigue en el service como defensa en profundidad.
+// Sin strip: el service destructura explícito y los wrappers agregan tipo_flujo.
+const _itemsCatalogo = {
+    required: true, type: 'array', minLength: 1,
+    itemRules: {
+        item_id: { required: true, type: 'integer', min: 1 },
+        cantidad: { type: 'number', min: 0 },
+    },
+};
+
+// POST /push-directo — bodega → obra sin aprobación
+const pushDirecto = {
+    origen_bodega_id: { required: true, type: 'integer', min: 1 },
+    destino_obra_id: { required: true, type: 'integer', min: 1 },
+    items: _itemsCatalogo,
+    observaciones: { type: 'string', maxLength: 1000 },
+    motivo: { type: 'string', maxLength: 1000 },
+};
+
+// POST /intra-bodega — bodega → bodega con aprobación
+const intraBodega = {
+    origen_bodega_id: { required: true, type: 'integer', min: 1 },
+    destino_bodega_id: { required: true, type: 'integer', min: 1 },
+    items: _itemsCatalogo,
+    observaciones: { type: 'string', maxLength: 1000 },
+    motivo: { type: 'string', maxLength: 1000 },
+};
+
+// POST /devolucion — obra → bodega con aprobación
+const devolucion = {
+    origen_obra_id: { required: true, type: 'integer', min: 1 },
+    destino_bodega_id: { required: true, type: 'integer', min: 1 },
+    items: _itemsCatalogo,
+    observaciones: { type: 'string', maxLength: 1000 },
+    motivo: { type: 'string', maxLength: 1000 },
+    requiere_pionetas: { type: 'boolean' },
+    cantidad_pionetas: { type: 'integer', min: 0 },
+};
+
+// POST /intra-obra — obra → obra con aprobación
+const intraObra = {
+    origen_obra_id: { required: true, type: 'integer', min: 1 },
+    destino_obra_id: { required: true, type: 'integer', min: 1 },
+    items: _itemsCatalogo,
+    observaciones: { type: 'string', maxLength: 1000 },
+    motivo: { type: 'string', maxLength: 1000 },
+    requiere_pionetas: { type: 'boolean' },
+    cantidad_pionetas: { type: 'integer', min: 0 },
+};
+
+module.exports = {
+    crearTransferencia, aprobar, recibir, resolverDiscrepancia,
+    pushDirecto, intraBodega, devolucion, intraObra,
+};

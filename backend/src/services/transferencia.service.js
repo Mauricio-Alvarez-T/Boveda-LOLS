@@ -606,10 +606,24 @@ const transferenciaService = {
             await conn.beginTransaction();
 
             const [[origRow]] = await conn.query(
-                'SELECT destino_obra_id, destino_bodega_id FROM transferencias WHERE id = ?',
+                'SELECT destino_obra_id, destino_bodega_id FROM transferencias WHERE id = ? FOR UPDATE',
                 [transferenciaOriginalId]
             );
             if (!origRow) throw new Error('Transferencia original no encontrada');
+
+            // Idempotencia: si ya existe una solicitud de faltante para esta
+            // original (doble click / doble submit con red lenta), devolver la
+            // existente en vez de crear duplicados. El FOR UPDATE sobre la fila
+            // original serializa llamadas concurrentes: la segunda espera, luego
+            // encuentra acá el faltante que creó la primera y lo retorna.
+            const [[faltanteExistente]] = await conn.query(
+                'SELECT id, codigo FROM transferencias WHERE es_faltante_de_id = ? AND activo = 1 ORDER BY id ASC LIMIT 1',
+                [transferenciaOriginalId]
+            );
+            if (faltanteExistente) {
+                await conn.commit();
+                return { id: faltanteExistente.id, codigo: faltanteExistente.codigo, ya_existia: true };
+            }
 
             const [origItems] = await conn.query(
                 `SELECT item_id, cantidad_solicitada, COALESCE(cantidad_enviada, 0) AS cantidad_enviada

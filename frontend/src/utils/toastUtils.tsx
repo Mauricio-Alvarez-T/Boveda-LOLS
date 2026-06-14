@@ -29,19 +29,32 @@ export function showApiError(err: unknown, fallback = 'Ocurrió un error'): void
     }
 }
 
-interface DeleteToastOptions {
+interface ConfirmToastOptions {
     onConfirm: () => Promise<void> | void;
     message?: string;
+    confirmLabel?: string;
+    cancelLabel?: string;
     successMessage?: string;
     errorMessage?: string;
 }
 
-export const showDeleteToast = ({
+/**
+ * Toast de confirmación genérico (patrón "toast-confirm" — el idioma de la app
+ * para confirmar acciones sin abrir un modal). Muestra un mensaje + botones
+ * cancelar/confirmar; ejecuta onConfirm al confirmar y reporta éxito/error.
+ *
+ * `showDeleteToast` es el caso particular de borrado (delega aquí). Para otras
+ * acciones destructivas/irreversibles (ej. Cancelar transferencia) usar
+ * `showConfirmToast` directamente con su propio copy.
+ */
+export const showConfirmToast = ({
     onConfirm,
-    message = "¿Eliminar?",
-    successMessage = "Eliminado",
-    errorMessage = "Error"
-}: DeleteToastOptions) => {
+    message = "¿Confirmar?",
+    confirmLabel = "Sí",
+    cancelLabel = "No",
+    successMessage,
+    errorMessage = "Error",
+}: ConfirmToastOptions) => {
     toast.custom((t) => (
         <div className="bg-card px-4 py-2.5 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border/40 flex items-center gap-4 w-auto min-w-[280px] animate-in fade-in slide-in-from-top-2 duration-300">
             <span className="font-bold text-brand-dark text-[14px] whitespace-nowrap ml-1">{message}</span>
@@ -50,7 +63,7 @@ export const showDeleteToast = ({
                     onClick={() => toast.dismiss(t)}
                     className="py-1.5 px-4 rounded-full text-[12px] font-bold text-muted-foreground bg-background hover:bg-muted transition-all active:scale-95"
                 >
-                    No
+                    {cancelLabel}
                 </button>
                 <button
                     onClick={async () => {
@@ -70,7 +83,7 @@ export const showDeleteToast = ({
                     }}
                     className="py-1.5 px-4 rounded-full text-[12px] font-bold text-white bg-brand-primary hover:bg-[#027A3B] shadow-sm transition-all active:scale-95"
                 >
-                    Sí
+                    {confirmLabel}
                 </button>
             </div>
         </div>
@@ -79,3 +92,19 @@ export const showDeleteToast = ({
         duration: 5000,
     });
 };
+
+interface DeleteToastOptions {
+    onConfirm: () => Promise<void> | void;
+    message?: string;
+    successMessage?: string;
+    errorMessage?: string;
+}
+
+export const showDeleteToast = ({
+    onConfirm,
+    message = "¿Eliminar?",
+    successMessage = "Eliminado",
+    errorMessage = "Error",
+}: DeleteToastOptions) => showConfirmToast({
+    onConfirm, message, successMessage, errorMessage, confirmLabel: "Sí", cancelLabel: "No",
+});

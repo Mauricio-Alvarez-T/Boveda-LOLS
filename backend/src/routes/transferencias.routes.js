@@ -3,7 +3,10 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
-const { crearTransferencia, aprobar, recibir, resolverDiscrepancia } = require('../schemas/transferencias.schema');
+const {
+    crearTransferencia, aprobar, recibir, resolverDiscrepancia,
+    pushDirecto, intraBodega, devolucion, intraObra,
+} = require('../schemas/transferencias.schema');
 
 // F1.3 plan v2: schemas movidos a src/schemas/transferencias.schema.js.
 // crear/aprobar validan sin strip (el service destructura explícito y el
@@ -97,7 +100,7 @@ router.post('/solicitud-materiales', auth, checkPermission('inventario.transfere
 
 // POST /api/transferencias/push-directo — bodega → obra sin aprobación.
 // Por diseño consolida solicitante + aprobador + transportista en 1 user; SoD no aplica.
-router.post('/push-directo', auth, checkPermission('inventario.transferencias.push_directo'), async (req, res, next) => {
+router.post('/push-directo', auth, checkPermission('inventario.transferencias.push_directo'), validateBody(pushDirecto), async (req, res, next) => {
     try {
         const result = await transferenciaService.pushDirecto(req.body, req.user.id);
         res.status(201).json({ data: result });
@@ -107,7 +110,7 @@ router.post('/push-directo', auth, checkPermission('inventario.transferencias.pu
 // POST /api/transferencias/intra-bodega — bodega → bodega CON aprobación.
 // Nace 'pendiente'; sigue el flujo normal (aprobar → despachar → recibir).
 // El stock se mueve recién en la recepción (decisión jefatura mayo 2026).
-router.post('/intra-bodega', auth, checkPermission('inventario.transferencias.intra_bodega'), async (req, res, next) => {
+router.post('/intra-bodega', auth, checkPermission('inventario.transferencias.intra_bodega'), validateBody(intraBodega), async (req, res, next) => {
     try {
         const result = await transferenciaService.intraBodega(req.body, req.user.id);
         res.status(201).json({ data: result });
@@ -115,7 +118,7 @@ router.post('/intra-bodega', auth, checkPermission('inventario.transferencias.in
 });
 
 // POST /api/transferencias/devolucion — obra → bodega, con aprobación
-router.post('/devolucion', auth, checkPermission('inventario.transferencias.solicitar'), async (req, res, next) => {
+router.post('/devolucion', auth, checkPermission('inventario.transferencias.solicitar'), validateBody(devolucion), async (req, res, next) => {
     try {
         const result = await transferenciaService.devolucion(req.body, req.user.id);
         res.status(201).json({ data: result });
@@ -123,7 +126,7 @@ router.post('/devolucion', auth, checkPermission('inventario.transferencias.soli
 });
 
 // POST /api/transferencias/intra-obra — obra → obra, con aprobación
-router.post('/intra-obra', auth, checkPermission('inventario.transferencias.solicitar'), async (req, res, next) => {
+router.post('/intra-obra', auth, checkPermission('inventario.transferencias.solicitar'), validateBody(intraObra), async (req, res, next) => {
     try {
         const result = await transferenciaService.intraObra(req.body, req.user.id);
         res.status(201).json({ data: result });

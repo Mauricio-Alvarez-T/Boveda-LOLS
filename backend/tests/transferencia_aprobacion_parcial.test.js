@@ -210,8 +210,10 @@ describe('transferenciaService.crearFaltante', () => {
         db.query.mockResolvedValueOnce([[]]); // no hay códigos previos → seq=1
 
         conn.query
-            // SELECT destino
+            // SELECT destino (FOR UPDATE)
             .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null }]])
+            // SELECT faltante existente (idempotencia) → ninguno
+            .mockResolvedValueOnce([[]])
             // SELECT items originales
             .mockResolvedValueOnce([[
                 { item_id: 1, cantidad_solicitada: 5, cantidad_enviada: 2 },
@@ -257,7 +259,11 @@ describe('transferenciaService.crearFaltante', () => {
         db.getConnection.mockResolvedValue(conn);
 
         conn.query
+            // SELECT destino (FOR UPDATE)
             .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null }]])
+            // SELECT faltante existente (idempotencia) → ninguno
+            .mockResolvedValueOnce([[]])
+            // SELECT items originales (todo enviado → sin faltante)
             .mockResolvedValueOnce([[
                 { item_id: 1, cantidad_solicitada: 2, cantidad_enviada: 2 },
             ]]);
@@ -266,5 +272,24 @@ describe('transferenciaService.crearFaltante', () => {
         expect(res).toBeNull();
         expect(conn.rollback).toHaveBeenCalled();
         expect(conn.commit).not.toHaveBeenCalled();
+    });
+
+    test('idempotencia: si ya existe un faltante para la original, lo retorna sin crear otro', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+
+        conn.query
+            // SELECT destino (FOR UPDATE)
+            .mockResolvedValueOnce([[{ destino_obra_id: 10, destino_bodega_id: null }]])
+            // SELECT faltante existente (idempotencia) → YA existe
+            .mockResolvedValueOnce([[{ id: 777, codigo: 'TRF-202606-0042' }]]);
+
+        const res = await transferenciaService.crearFaltante(123, 77);
+
+        expect(res).toMatchObject({ id: 777, codigo: 'TRF-202606-0042', ya_existia: true });
+        expect(conn.commit).toHaveBeenCalled();
+        // No debe insertar una nueva transferencia ni items
+        const inserts = conn.query.mock.calls.filter(c => /INSERT INTO/.test(c[0]));
+        expect(inserts).toHaveLength(0);
     });
 });
