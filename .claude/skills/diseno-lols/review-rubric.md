@@ -37,5 +37,30 @@ PASA / FALLA + hallazgo concreto + fix. Es el "diseñador" que revisa con criter
 - [ ] Respiración generosa entre secciones y dentro de las cards; jerarquía por tipografía + espacio.
 - [ ] Sin densidad innecesaria ni decoración; el contenido es el protagonista.
 
+## 8. Anti-patrones frecuentes (verificados en auditorías reales)
+Errores que se cuelan una y otra vez. Revisar SIEMPRE con grep antes de cerrar una pantalla:
+
+- ❌ **`text-warning` / `text-info` / `text-destructive` como color de TEXTO pequeño.** Esos tokens
+  saturados (#FF9F0A, #147CE5, #FF3B30) se diseñaron como **relleno/ícono con texto oscuro encima**,
+  NO como color de texto: sobre blanco/tinte dan **1.9–4.1:1** (fallan AA). Para texto con color usar
+  la rampa accesible `text-{red,amber,blue,green}-700 dark:text-*-300` (patrón de `ui/Chip.tsx`).
+  Excepción ámbar: sobre `bg-muted` usar **`amber-800`** (amber-700 ahí da 4.11:1).
+- ❌ **`text-muted` / `bg-*` como color de texto o ícono.** `text-muted` apunta al token de
+  **superficie** (#E8E8ED) → ~**1.2:1**, invisible. El color de texto tenue correcto es
+  **`text-muted-foreground`**; para íconos también.
+- ❌ **`bg-background` en tarjetas/filas internas.** En oscuro `--background` es **negro puro** y queda
+  MÁS oscuro que la card → invierte la elevación. Para superficies internas estáticas usar **`bg-muted`**
+  (en oscuro es más claro que la card). `hover:bg-background` (transitorio) sí es aceptable.
+- ❌ **Hex crudo en gráficos recharts.** `stroke="#34C759"` no reacciona al tema → en modo oscuro la
+  grilla/tooltip quedan claros. Usar `var(--border|muted-foreground|card|foreground|brand-accent)` en
+  `stroke`/`fill`/`contentStyle` (recharts acepta strings CSS). El verde de la **serie de datos** sí se
+  conserva (color con significado en data-viz), pero tokenizado.
+- ❌ **Tokens inexistentes.** Verificar que la clase exista en `index.css` (p.ej. `text-brand-light` NO
+  existe → el texto cae a herencia). Grep del token en `@theme`/`:root` antes de usarlo.
+- ❌ **Significado por opacidad** (`text-destructive/80` vs `/100`): indistinguible. El rol se comunica
+  con color + **texto/ícono**, no con grados de opacidad.
+- ❌ **Títulos de panel con niveles tipográficos mezclados** (unos `h3 text-base`, otros `h4 text-sm`).
+  Cards hermanas del mismo grid → un único nivel: **`<h3 className="text-sm font-semibold text-foreground">`**.
+
 ---
 **Veredicto:** lista de FALLA con su fix concreto. Si todo PASA → la pantalla cumple el sistema.
