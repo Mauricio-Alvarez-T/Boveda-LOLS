@@ -56,21 +56,19 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                         <div
                             key={obra.id}
                             onClick={() => onNavigate(obra.id)}
-                            className={cn(
-                                "flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all duration-200 cursor-pointer group",
-                                ok
-                                    ? "bg-brand-accent/[0.06] border-brand-accent/20 hover:bg-brand-accent/10 hover:border-brand-accent/30"
-                                    : "bg-card border-border hover:bg-background hover:border-[var(--border-hover)]"
-                            )}
+                            className="flex items-center gap-3 px-2.5 py-2 rounded-xl transition-colors duration-200 cursor-pointer group hover:bg-background"
                         >
-                            {/* Estado icon — verde si cumple; gris neutro si no (sin registro ≠ crítico) */}
-                            <div className="shrink-0">
+                            {/* Tile de estado — teal si cumple; gris neutro si sin registro (no crítico) */}
+                            <span className={cn(
+                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
+                                ok ? "bg-teal-50 dark:bg-teal-500/10" : "bg-muted"
+                            )}>
                                 {ok ? (
-                                    <CheckCircle2 className="h-4 w-4 text-brand-accent" />
+                                    <CheckCircle2 className="h-5 w-5 text-teal-600 dark:text-teal-400" />
                                 ) : (
-                                    <Circle className="h-4 w-4 text-muted-foreground" />
+                                    <Circle className="h-5 w-5 text-muted-foreground" />
                                 )}
-                            </div>
+                            </span>
 
                             {/* Obra info */}
                             <div className="flex-1 min-w-0">
@@ -87,7 +85,7 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                             <div className="shrink-0 text-right">
                                 <span className={cn(
                                     "text-sm font-bold tabular-nums",
-                                    ok ? "text-brand-accent" : "text-muted-foreground"
+                                    ok ? "text-teal-600 dark:text-teal-400" : "text-muted-foreground"
                                 )}>
                                     {obra.asistencia_guardada ? `${obra.asistencia_tasa}%` : '—'}
                                 </span>

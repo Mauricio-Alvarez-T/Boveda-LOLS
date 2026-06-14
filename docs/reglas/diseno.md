@@ -162,16 +162,15 @@ Principios y reglas concretas:
    centrados en superficies de lectura; gutters amplios. "Minimalismo en todo": las
    superficies de datos también respiran (filas altas, padding cómodo), conservando
    función (orden/filtros/paginación).
-3. **PALETA — neutro + verde + color suave CON SENTIDO.** Dominante **blanco/negro/gris**;
-   **verde LOLS (`#029E4D`) = único acento de ACCIÓN** (botones primary, links, focus). Se
-   permite **color suave para categorizar y dar vida** (estilo tiles de apple.com): como
-   **tinte de fondo** muy claro y en **iconografía prominente** — NUNCA saturado ni
-   protagonista (números/texto siguen neutros). Paleta categórica curada (suave):
-   Trabajadores=**verde**, Documentos=**azul**, Asistencia=**teal**, Ausencias=**ámbar**;
-   tinte `bg-{c}-50 dark:bg-{c}-500/10`, ícono `text-{c}-600 dark:text-{c}-400`. **El rojo
-   (`destructive`) = SOLO crítico** (vencidos, faltas, borrar), discreto (ícono+texto, sin
-   rellenos rojos grandes) — nunca como categoría. **Prohibido:** color saturado en
-   bordes/círculos/texto, emojis de color (🔴🟡), colores fuera de la paleta curada.
+3. **PALETA — verde + neutros (cohesiva).** Dominante **blanco/negro/gris**; **verde LOLS
+   (`#029E4D`) = acento de ACCIÓN** (botones/links/focus). Color suave **solo en familia
+   verde/teal para lo positivo/activo** (KPIs Trabajadores/Asistencia, estados "cumple/OK") y
+   **gris elegante** para lo neutro (Documentos, Ausencias, pendientes, "sin registro"). Se usa
+   como **tinte de fondo** claro y en **iconografía prominente** (tile `h-9 w-9 rounded-xl` +
+   ícono `h-5`), NUNCA saturado ni protagonista (números/texto siguen neutros). **El rojo
+   (`destructive`) = SOLO crítico** (vencidos, faltas consecutivas, borrar), discreto. **Prohibido:**
+   multicolor (azul/ámbar como categoría), color saturado en bordes/texto, emojis de color (🔴🟡),
+   hex fuera de paleta.
 4. **Botones.** Acción = **pill** con acento verde sólido (`<Button variant="primary">`,
    ya `rounded-full`). Navegación/secundario sutil = `<Button variant="link">` (texto
    verde + chevron `›`, estilo "Más información ›"). El press oscurece a verde, **nunca

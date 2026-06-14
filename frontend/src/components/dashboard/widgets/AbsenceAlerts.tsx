@@ -57,10 +57,12 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
                     <div
                         key={t.trabajador_id}
                         onClick={() => onNavigate(t.rut)}
-                        className="flex items-start gap-3 px-3 py-2.5 rounded-xl border border-border bg-card hover:bg-background hover:border-[var(--border-hover)] transition-all duration-200 cursor-pointer group"
+                        className="flex items-start gap-3 px-2.5 py-2 rounded-xl hover:bg-background transition-colors duration-200 cursor-pointer group"
                     >
-                        {/* Icono */}
-                        <AlertTriangle className="h-3.5 w-3.5 text-destructive/60 mt-0.5 shrink-0" />
+                        {/* Tile crítico (faltas) — rojo solo aquí, que es crítico */}
+                        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/[0.08]">
+                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                        </span>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">

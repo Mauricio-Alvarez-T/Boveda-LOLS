@@ -36,6 +36,13 @@ const categoryIcons = {
     contratos: Users
 };
 
+// Tile de categoría (paleta verde+neutros): activo=verde/teal, resto=gris.
+const categoryStyle: Record<string, { tile: string; icon: string }> = {
+    asistencia: { tile: 'bg-teal-50 dark:bg-teal-500/10', icon: 'text-teal-600 dark:text-teal-400' },
+    contratos: { tile: 'bg-brand-primary/[0.08]', icon: 'text-brand-primary' },
+    documentos: { tile: 'bg-muted', icon: 'text-muted-foreground' },
+};
+
 const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
     const [expanded, setExpanded] = useState(false);
     const visibleCount = expanded ? tasks.length : 4;
@@ -79,6 +86,7 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                     {visibleTasks.map((task, idx) => {
                         const config = severityConfig[task.severity];
                         const CategoryIcon = categoryIcons[task.category] || FileText;
+                        const catStyle = categoryStyle[task.category] || categoryStyle.documentos;
 
                         return (
                             <motion.div
@@ -91,11 +99,13 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                                 className="p-3 rounded-xl border border-border bg-card cursor-pointer group transition-all duration-200 hover:bg-background"
                             >
                                 <div className="flex items-start gap-2.5">
-                                    {/* Severity dot + Category icon */}
-                                    <div className="relative shrink-0 mt-0.5">
-                                        <CategoryIcon className="h-4 w-4 text-muted-foreground" />
-                                        <div className={cn("absolute -top-0.5 -right-0.5 h-2 w-2 rounded-full ring-2 ring-card", config.dot)} />
-                                    </div>
+                                    {/* Tile de categoría + punto rojo SOLO si crítico */}
+                                    <span className={cn("relative flex h-9 w-9 shrink-0 items-center justify-center rounded-xl", catStyle.tile)}>
+                                        <CategoryIcon className={cn("h-5 w-5", catStyle.icon)} />
+                                        {task.severity === 'critical' && (
+                                            <span className="absolute -top-0.5 -right-0.5 h-2.5 w-2.5 rounded-full bg-destructive ring-2 ring-card" />
+                                        )}
+                                    </span>
 
                                     {/* Content */}
                                     <div className="flex-1 min-w-0">
