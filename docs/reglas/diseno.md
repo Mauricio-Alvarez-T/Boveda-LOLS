@@ -162,19 +162,22 @@ Principios y reglas concretas:
    centrados en superficies de lectura; gutters amplios. "Minimalismo en todo": las
    superficies de datos también respiran (filas altas, padding cómodo), conservando
    función (orden/filtros/paginación).
-3. **PALETA — fondo verde unificado + convención de color de TEXTO.** Superficies (cards/paneles):
-   **tinte verde de marca uniforme** (`bg-brand-primary/[0.12] dark:bg-brand-primary/[0.22]`,
-   centralizado en `PANEL_TINT` del Dashboard), **sin bordes duros**. **Color de TEXTO por significado**
-   (pensado en modo claro):
-   - **Verde** (`text-brand-primary`) = constructivo / hecho: crear, aceptar, guardar, aprobar,
-     "al día", deltas positivos, valores OK.
-   - **Rojo** (`text-destructive`) = pendiente / falta / destructivo: eliminar, rechazar, dar de baja,
-     vencido, "sin registro", faltas, deltas negativos.
-   - **Neutro** (`text-foreground` / `text-muted-foreground`) = todo lo demás (nombres, títulos, datos,
-     labels). **El contenido NO se colorea** — solo estados y acciones.
-   Aplica a textos de estado, deltas y **botones de acción** (los íconos pueden seguir la misma lógica).
-   **Prohibido:** color saturado decorativo, multicolor de categoría, emojis de color (🔴🟡), hex fuera
-   de paleta. (Propagar a `statusConfig.ts` y a las pantallas en el rollout.)
+3. **PALETA — neutral-dominante + verde SOLO para ACCIÓN (sistema validado).** Fuente única de verdad:
+   la skill **`.claude/skills/diseno-lols/`** (fundamentada con investigación citada: shadcn/ui +
+   Linear/Stripe + Atlassian/Fluent 2 + WCAG). Resumen:
+   - **Superficies NEUTRAS:** página gris muy claro, cards/paneles **blancos** (`bg-card`) con **borde
+     fino** (`border-border`). Se separan por **borde/sombra** (claro) o neutro más claro (oscuro),
+     **NUNCA por tinte de color**. (El "fondo verde uniforme" previo se revierte: usar color de marca en
+     superficies grandes diluye la jerarquía — Fluent 2.)
+   - **Verde `#029E4D` = SOLO acción** (botón primario, anillo de foco, nav activo, selección, delta ↑).
+     Nunca en superficies grandes/encabezados.
+   - **Color = significado:** verde = éxito/constructivo · rojo (`destructive`) = **destructivo/error** ·
+     ámbar (`warning`) = precaución / **pendiente / por hacer / por vencer / "sin registro"** · azul
+     (`info`) = en progreso. **El contenido va neutro** (nombres/títulos/datos).
+   - Contraste **WCAG AA** (4.5:1 texto <24px; 3:1 texto grande/íconos/bordes/foco). Solo **tokens** (cero
+     hex, cero `text-[Npx]`). Sin emojis de color.
+   **Invocar la skill `diseno-lols` al diseñar o revisar UI; pasar `review-rubric.md` antes de cerrar una
+   pantalla.** (Propagar a `statusConfig.ts` y a las pantallas en el rollout.)
 4. **Botones.** Acción = **pill** con acento verde sólido (`<Button variant="primary">`,
    ya `rounded-full`). Navegación/secundario sutil = `<Button variant="link">` (texto
    verde + chevron `›`, estilo "Más información ›"). El press oscurece a verde, **nunca
