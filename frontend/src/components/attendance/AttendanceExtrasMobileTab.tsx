@@ -109,7 +109,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                         <select
                             value={selectedEmpresaId || ''}
                             onChange={(e) => setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null)}
-                            className="w-full h-11 bg-background border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
+                            className="w-full h-11 bg-muted border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
                         >
                             <option value="">Todas las empresas</option>
                             {availableEmpresas.map(emp => (
@@ -180,7 +180,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                             <select
                                 value={reportMonth}
                                 onChange={(e) => setReportMonth(e.target.value)}
-                                className="w-full h-11 bg-background border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
+                                className="w-full h-11 bg-muted border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
                             >
                                 {[
                                     ['01', 'Enero'], ['02', 'Febrero'], ['03', 'Marzo'], ['04', 'Abril'],
@@ -194,7 +194,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                             <select
                                 value={reportYear}
                                 onChange={(e) => setReportYear(e.target.value)}
-                                className="w-full h-11 bg-background border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
+                                className="w-full h-11 bg-muted border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
                             >
                                 {['2024', '2025', '2026', '2027'].map(y => <option key={y} value={y}>{y}</option>)}
                             </select>

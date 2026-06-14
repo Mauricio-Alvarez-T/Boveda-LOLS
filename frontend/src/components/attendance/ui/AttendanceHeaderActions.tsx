@@ -274,7 +274,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                         <select
                             value={selectedEmpresaId || ""}
                             onChange={(e) => { setSelectedEmpresaId(e.target.value ? parseInt(e.target.value) : null); }}
-                            className="w-full h-8 bg-background border border-border rounded-lg text-label font-bold text-brand-dark px-2 outline-none focus:border-brand-primary cursor-pointer"
+                            className="w-full h-8 bg-muted border border-border rounded-lg text-label font-bold text-brand-dark px-2 outline-none focus:border-brand-primary cursor-pointer"
                         >
                             <option value="">Todas las Empresas</option>
                             {availableEmpresas.map(emp => (

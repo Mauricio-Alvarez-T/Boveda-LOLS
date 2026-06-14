@@ -221,9 +221,9 @@ export const PeriodAssignModal: React.FC<Props> = ({ isOpen, onClose, worker, ob
             {overlappingPeriods.length > 0 && (
                 <div className="mb-5 p-3 rounded-xl bg-warning/10 border border-warning/30">
                     <div className="flex items-start gap-2">
-                        <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                        <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
                         <div>
-                            <p className="text-xs font-bold text-warning">Superposición detectada</p>
+                            <p className="text-xs font-bold text-amber-700 dark:text-amber-300">Superposición detectada</p>
                             <p className="text-xs text-muted-foreground mt-1">
                                 {overlappingPeriods.length === 1 ? 'Un período existente' : `${overlappingPeriods.length} períodos existentes`} se
                                 superpone{overlappingPeriods.length > 1 ? 'n' : ''} con este rango y será{overlappingPeriods.length > 1 ? 'n' : ''} reemplazado{overlappingPeriods.length > 1 ? 's' : ''}:

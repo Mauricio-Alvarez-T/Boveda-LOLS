@@ -7,6 +7,7 @@ import api from '../../services/api';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 import type { Trabajador, EstadoAsistencia, PeriodoAusencia } from '../../types/entities';
+import { empresaTag } from '../../utils/empresaTag';
 
 interface Props {
     isOpen: boolean;
@@ -41,16 +42,9 @@ export const WorkerCalendarModal: React.FC<Props> = ({
 
     // Sigla de la empresa a la que pertenece el trabajador (L=LOLS, M=MAUA,
     // D=Dedalius, P=Provisorio). Mapea desde empresa_nombre (razon_social).
-    const empresaInfo = useMemo(() => {
-        const raw = (worker?.empresa_nombre || '').toUpperCase().trim();
-        if (!raw) return { sigla: 'P', nombre: 'Provisorio', color: '#86868B' };
-        if (raw.includes('LOLS')) return { sigla: 'L', nombre: 'LOLS', color: '#16A34A' };
-        if (raw.includes('URRUTIA') || raw.includes('MAUA') || raw.includes('MIGUEL ANGEL'))
-            return { sigla: 'M', nombre: 'MAUA', color: '#2563EB' };
-        if (raw.includes('DEDALIUS')) return { sigla: 'D', nombre: 'Dedalius', color: '#9333EA' };
-        if (raw.includes('PROVIS')) return { sigla: 'P', nombre: 'Provisorio', color: '#86868B' };
-        return { sigla: raw[0], nombre: worker?.empresa_nombre || '', color: '#86868B' };
-    }, [worker]);
+    // Etiqueta de empresa: usa el util canónico (clases tokenizadas + dark-mode),
+    // igual que <EmpresaBadge>. Evita duplicar el mapeo con hex crudo.
+    const empresaInfo = useMemo(() => empresaTag(worker?.empresa_nombre), [worker]);
 
     const diasAfectados = useMemo(() => {
         if (!fechaInicio || !fechaFin) return 0;
@@ -150,14 +144,15 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                 <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-dark text-caption font-bold">
                     {worker.rut}
                 </span>
-                <span
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-caption font-black text-white shrink-0"
-                    style={{ backgroundColor: empresaInfo.color }}
-                    title={`Empresa: ${empresaInfo.nombre}`}
-                >
-                    {empresaInfo.sigla}
-                    <span className="hidden md:inline font-bold opacity-90">{empresaInfo.nombre}</span>
-                </span>
+                {empresaInfo && (
+                    <span
+                        className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md text-caption font-black shrink-0 ${empresaInfo.color}`}
+                        title={`Empresa: ${empresaInfo.label}`}
+                    >
+                        {empresaInfo.letra.charAt(0)}
+                        <span className="hidden md:inline font-bold opacity-90">{empresaInfo.label}</span>
+                    </span>
+                )}
             </div>
         </div>
     );
@@ -330,9 +325,9 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                                 {overlappingPeriods.length > 0 && (
                                     <div className="p-3 rounded-xl bg-warning/10 border border-warning/30">
                                         <div className="flex items-start gap-2">
-                                            <AlertTriangle className="h-4 w-4 text-warning mt-0.5 shrink-0" />
+                                            <AlertTriangle className="h-4 w-4 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
                                             <div>
-                                                <p className="text-xs font-bold text-warning">Superposición detectada</p>
+                                                <p className="text-xs font-bold text-amber-700 dark:text-amber-300">Superposición detectada</p>
                                                 <p className="text-xs text-muted-foreground mt-1">
                                                     {overlappingPeriods.length === 1
                                                         ? 'Un período existente'

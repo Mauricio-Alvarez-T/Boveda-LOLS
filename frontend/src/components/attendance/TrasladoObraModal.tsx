@@ -168,7 +168,7 @@ export const TrasladoObraModal: React.FC<TrasladoObraModalProps> = ({
 
                 <div className="bg-warning/10 border border-warning/30 p-3 rounded-xl border-dashed">
                     <p className="text-label text-brand-dark/80 leading-relaxed font-medium">
-                        <span className="font-bold text-warning">Aviso:</span> Al completar el traslado, se generará un registro de asistencia tipo <span className="font-bold">TO</span> en la obra actual y el trabajador se asignará permanentemente a la nueva obra.
+                        <span className="font-bold text-amber-700 dark:text-amber-300">Aviso:</span> Al completar el traslado, se generará un registro de asistencia tipo <span className="font-bold">TO</span> en la obra actual y el trabajador se asignará permanentemente a la nueva obra.
                     </p>
                 </div>
             </div>

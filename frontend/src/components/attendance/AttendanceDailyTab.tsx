@@ -201,7 +201,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
     if (!selectedObra && !canTakeGlobal) {
         return (
             <div className="h-[50dvh] flex flex-col items-center justify-center text-center p-8">
-                <div className="h-14 w-14 bg-background rounded-full flex items-center justify-center mb-4">
+                <div className="h-14 w-14 bg-muted rounded-full flex items-center justify-center mb-4">
                     <CheckSquare className="h-7 w-7 text-muted-foreground" />
                 </div>
                 <h2 className="text-lg font-semibold text-brand-dark">Reporte Global de Asistencia</h2>
@@ -462,7 +462,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                 </div>
                                                 {verHorasExtra && (
                                                     <div className="w-[56px]">
-                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full bg-background border border-border rounded-lg px-2 py-1.5 text-caption text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full bg-muted border border-border rounded-lg px-2 py-1.5 text-caption text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     </div>
                                                 )}
                                             </div>
@@ -508,7 +508,7 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                         );
                                                     })()}
                                                     {verHorasExtra && (
-                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-[48px] bg-background border border-border rounded-lg px-1.5 py-1 text-micro text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                        <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-[48px] bg-muted border border-border rounded-lg px-1.5 py-1 text-micro text-center text-brand-dark focus:outline-none focus:border-brand-primary shrink-0", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                     )}
                                                 </div>
                                             </div>
@@ -526,12 +526,12 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                                                             {verHorasExtra && (
                                                                 <div>
                                                                     <label className="text-micro font-semibold text-muted-foreground uppercase block mb-1">H. Extra</label>
-                                                                    <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
+                                                                    <input type="number" min="0" max="24" step="any" placeholder="0" disabled={!!feriadoActual || isSunday || isSaturday} inputMode="decimal" className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-center text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-muted")} value={state.horas_extra || ''} onChange={(e) => updateAttendance(worker.id, { horas_extra: parseFloat(e.target.value) || 0 })} />
                                                                 </div>
                                                             )}
                                                             <div>
                                                                 <label className="text-micro font-semibold text-muted-foreground uppercase block mb-1">Nota</label>
-                                                                <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-background")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
+                                                                <input type="text" placeholder="..." disabled={!!feriadoActual || isSunday || isSaturday} className={cn("w-full h-10 md:h-10 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary", (!!feriadoActual || isSunday || isSaturday) && "opacity-50 cursor-not-allowed bg-muted")} value={state.observacion || ''} onChange={(e) => updateAttendance(worker.id, { observacion: e.target.value })} />
                                                             </div>
                                                         </div>
                                                     </div>

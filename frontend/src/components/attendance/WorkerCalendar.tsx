@@ -206,7 +206,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                     ))}
 
                     {Array.from({ length: startingDay }).map((_, i) => (
-                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-background/30 rounded-xl border border-border/30" />
+                        <div key={`empty-${i}`} className="h-10 md:h-14 bg-muted/30 rounded-xl border border-border/30" />
                     ))}
 
                     {Array.from({ length: daysInMonth }).map((_, i) => {
@@ -273,12 +273,12 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                     className={buttonClass}
                                     style={!isOutOfRange && !periodo && !isSelected ? {
                                         backgroundColor: estado
-                                            ? (isDark ? `color-mix(in srgb, ${estado.color} 22%, #2E2E30)` : `${estado.color}05`)
+                                            ? (isDark ? `color-mix(in srgb, ${estado.color} 22%, var(--card))` : `${estado.color}05`)
                                             : (holiday
-                                                ? (isDark ? 'color-mix(in srgb, #FF3B30 20%, #2E2E30)' : '#FF3B3010')
+                                                ? (isDark ? 'color-mix(in srgb, var(--destructive) 20%, var(--card))' : 'color-mix(in srgb, var(--destructive) 8%, transparent)')
                                                 : (isWeekend
-                                                    ? (isDark ? '#242426' : 'var(--muted)')
-                                                    : (isDark ? '#2E2E30' : 'var(--card)')))
+                                                    ? 'var(--muted)'
+                                                    : 'var(--card)'))
                                     } : undefined}
                                     title={buttonTitle}
                                 >
@@ -357,7 +357,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                             >
                                 <div className="flex items-center justify-between">
                                     <div className="flex items-center gap-2">
-                                        <span className="w-2 h-2 rounded-full shadow-inner" style={{ backgroundColor: p.estado_color || '#6E6E73' }} />
+                                        <span className="w-2 h-2 rounded-full shadow-inner" style={{ backgroundColor: p.estado_color || 'var(--muted-foreground)' }} />
                                         <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
