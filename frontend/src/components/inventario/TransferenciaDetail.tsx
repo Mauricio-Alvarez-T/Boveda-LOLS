@@ -25,6 +25,7 @@ import MaterialesRecepcionPanel from './transferencia-detail/MaterialesRecepcion
 import { MatEmpty, MatRequestRow, DetailSection } from './transferencia-detail/MaterialesReadonly';
 import { SodBanner } from './transferencia-detail/SodBanner';
 import { TransferenciaTimeline } from './transferencia-detail/TransferenciaTimeline';
+import { ItemsTable } from './transferencia-detail/ItemsTable';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -184,6 +185,28 @@ const TransferenciaDetail: React.FC<Props> = ({
         });
     };
 
+    // Menú de acciones — UNA sola fuente (antes duplicado en los 2 layouts, origen
+    // del bug de Cancelar). El guard `!activeForm` se aplica por-layout (catálogo
+    // lo oculta con forms inline; materiales lo deja visible bajo el modal).
+    const actionsMenu = (
+        <TransferenciaActionsMenu
+            canAprobar={canAprobar}
+            canRechazar={canRechazar}
+            canRecibir={canRecibir}
+            canRechazarRecepcion={canRechazarRecepcion}
+            canCancelar={canCancelar}
+            canCompartirWhatsApp={canCompartirWhatsApp}
+            actionLoading={actionLoading}
+            onAprobar={() => setActiveForm('aprobar')}
+            onRechazar={() => setActiveForm('rechazar')}
+            onRecibir={() => setActiveForm('recibir')}
+            onRechazarRecepcion={() => setActiveForm('rechazar_recepcion')}
+            onCancelar={handleCancelarConfirm}
+            onWhatsApp={handleShareWhatsApp}
+            isPendiente={t.estado === 'pendiente'}
+        />
+    );
+
     // ── Inline form states ──
     // (Estado de formularios, helpers de recepción y los 3 efectos se movieron al
     //  hook useTransferenciaDetail — ver el destructure de arriba. Refactor Fase 1.)
@@ -234,24 +257,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <Icon className="h-3.5 w-3.5" />
                         {cfg.label}
                     </div>
-                    {!activeForm && (
-                        <TransferenciaActionsMenu
-                            canAprobar={canAprobar}
-                            canRechazar={canRechazar}
-                            canRecibir={canRecibir}
-                            canRechazarRecepcion={canRechazarRecepcion}
-                            canCancelar={canCancelar}
-                            canCompartirWhatsApp={canCompartirWhatsApp}
-                            actionLoading={actionLoading}
-                            onAprobar={() => setActiveForm('aprobar')}
-                            onRechazar={() => setActiveForm('rechazar')}
-                            onRecibir={() => setActiveForm('recibir')}
-                            onRechazarRecepcion={() => setActiveForm('rechazar_recepcion')}
-                            onCancelar={handleCancelarConfirm}
-                            onWhatsApp={handleShareWhatsApp}
-                            isPendiente={t.estado === 'pendiente'}
-                        />
-                    )}
+                    {!activeForm && actionsMenu}
                 </div>
             </div>
 
@@ -264,40 +270,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             </div>
 
             {/* ── Items Table ── */}
-            {items.length > 0 && (
-                <div className="shrink-0 mb-5">
-                    <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
-                        <Package className="h-3.5 w-3.5" />
-                        Items ({items.length})
-                    </h4>
-                    <div className="border border-border rounded-xl overflow-hidden">
-                        <table className="w-full text-label">
-                            <thead>
-                                <tr className="bg-muted">
-                                    <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Solicit.</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Enviada</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-16">Recibida</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {items.map((item, idx) => (
-                                    <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted/40")}>
-                                        <td className="px-3 py-1.5 font-medium text-brand-dark">
-                                            <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
-                                                {item.item_descripcion || `Item #${item.item_id}`}
-                                            </button>
-                                        </td>
-                                        <td className="px-2 py-1.5 text-center font-semibold">{Number(item.cantidad_solicitada)}</td>
-                                        <td className="px-2 py-1.5 text-center">{item.cantidad_enviada != null ? Number(item.cantidad_enviada) : '—'}</td>
-                                        <td className="px-2 py-1.5 text-center">{item.cantidad_recibida != null ? Number(item.cantidad_recibida) : '—'}</td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
-            )}
+            <ItemsTable items={items} onOpenItem={itemDetail.openItem} />
 
             {/* ── Historial de recepciones (parciales + total) ──
                 Solo se muestra si hubo al menos 1 evento. Permite al receptor
@@ -1469,22 +1442,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 <span className={cn("hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-label font-bold shrink-0", cfg.color)}>
                     <Icon className="h-3 w-3" /> {cfg.label}
                 </span>
-                <TransferenciaActionsMenu
-                    canAprobar={canAprobar}
-                    canRechazar={canRechazar}
-                    canRecibir={canRecibir}
-                    canRechazarRecepcion={canRechazarRecepcion}
-                    canCancelar={canCancelar}
-                    canCompartirWhatsApp={canCompartirWhatsApp}
-                    actionLoading={actionLoading}
-                    onAprobar={() => setActiveForm('aprobar')}
-                    onRechazar={() => setActiveForm('rechazar')}
-                    onRecibir={() => setActiveForm('recibir')}
-                    onRechazarRecepcion={() => setActiveForm('rechazar_recepcion')}
-                    onCancelar={handleCancelarConfirm}
-                    onWhatsApp={handleShareWhatsApp}
-                    isPendiente={t.estado === 'pendiente'}
-                />
+                {actionsMenu}
                 <button onClick={onBack} className="hidden md:flex p-1.5 rounded-full hover:bg-muted text-muted-foreground shrink-0">
                     <XIcon className="h-4 w-4" />
                 </button>
