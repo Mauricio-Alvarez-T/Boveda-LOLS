@@ -91,7 +91,7 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
                 size="sm"
                 onClick={onBack}
                 leftIcon={<ChevronLeft className="h-4 w-4" />}
-                className="self-start text-label font-bold uppercase tracking-wider text-brand-primary"
+                className="self-start text-label font-bold uppercase tracking-wider text-green-700 dark:text-green-300"
             >
                 Volver a la lista
             </Button>

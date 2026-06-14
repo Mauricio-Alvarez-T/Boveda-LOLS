@@ -61,6 +61,12 @@ Errores que se cuelan una y otra vez. Revisar SIEMPRE con grep antes de cerrar u
   con color + **texto/ícono**, no con grados de opacidad.
 - ❌ **Títulos de panel con niveles tipográficos mezclados** (unos `h3 text-base`, otros `h4 text-sm`).
   Cards hermanas del mismo grid → un único nivel: **`<h3 className="text-sm font-semibold text-foreground">`**.
+- ❌ **`text-brand-primary` (verde de marca #029E4D) como color de TEXTO chico (<24px).** Sobre blanco
+  solo da **~3.5:1** → falla AA (y `/80` cae a ~2.7:1). Para TEXTO verde usar la rampa accesible
+  **`text-green-700 dark:text-green-300`** (≈5:1). `brand-primary` queda reservado para **íconos**
+  (≥3:1), **fills** (botón primario), **foco/borde de acción** y **texto grande** (≥24px). Mismo
+  criterio que el badge de empresa (`utils/empresaTag.ts`, que ya usa `green-700`). Excepciones que NO
+  son hallazgo: estados `hover:`/`focus:` (transitorios) e íconos.
 
 ---
 **Veredicto:** lista de FALLA con su fix concreto. Si todo PASA → la pantalla cumple el sistema.

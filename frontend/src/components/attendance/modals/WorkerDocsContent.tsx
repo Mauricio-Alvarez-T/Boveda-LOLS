@@ -57,7 +57,7 @@ export const WorkerDocsContent: React.FC<WorkerDocsContentProps> = ({
                                     toast.error('Error al descargar documentos');
                                 }
                             }}
-                            className="text-brand-primary font-bold border-brand-primary/20 flex-1 sm:flex-initial"
+                            className="text-green-700 dark:text-green-300 font-bold border-brand-primary/20 flex-1 sm:flex-initial"
                             leftIcon={<FileDown className="h-4 w-4" />}
                         >
                             <span className="hidden sm:inline">Descargar (.zip)</span>

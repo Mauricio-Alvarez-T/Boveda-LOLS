@@ -368,7 +368,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                 size="sm"
                                 onClick={() => setShowAddOther(true)}
                                 leftIcon={<Plus className="h-3.5 w-3.5" />}
-                                className="text-xs font-bold text-brand-primary"
+                                className="text-xs font-bold text-green-700 dark:text-green-300"
                             >
                                 Agregar trabajador no citado
                             </Button>
