@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { ArrowRight, TrendingUp, TrendingDown } from 'lucide-react';
+import { TrendingUp, TrendingDown } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
 interface KpiCardProps {
@@ -24,6 +24,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
     const isGood = deltaInverted ? isNegative : isPositive;
     const isBad = deltaInverted ? isPositive : isNegative;
     const DeltaIcon = isPositive ? TrendingUp : TrendingDown;
+    const hasSub = hasDelta || !!deltaLabel;
 
     return (
         <motion.div
@@ -33,16 +34,16 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
             onClick={onClick}
             className={cn("group flex cursor-pointer flex-col gap-5 rounded-card border border-border p-6 transition-all duration-200 ease-apple hover:border-[var(--border-hover)]", bg)}
         >
-            {/* Cabecera: etiqueta + icono prominente de color (color = categoría, suave) */}
+            {/* Cabecera: etiqueta + icono neutro */}
             <div className="flex items-start justify-between">
                 <p className="text-sm font-medium text-muted-foreground">{label}</p>
                 <Icon className={cn("h-6 w-6 shrink-0", color)} />
             </div>
 
-            {/* Número protagonista */}
+            {/* Número protagonista + UNA sub-línea (delta si hay; si no, descripción) */}
             <div>
                 <p className="text-4xl font-semibold tracking-tight text-foreground tabular-nums">{value}</p>
-                {(hasDelta || deltaLabel) && (
+                {hasSub ? (
                     <p className={cn(
                         "mt-2 flex items-center gap-1 text-sm font-medium",
                         isGood ? "text-brand-primary" : isBad ? "text-destructive" : "text-muted-foreground"
@@ -50,13 +51,9 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
                         {hasDelta && <DeltaIcon className="h-3.5 w-3.5" />}
                         <span>{isPositive ? '+' : ''}{hasDelta ? delta : ''} {deltaLabel}</span>
                     </p>
+                ) : (
+                    <p className="mt-2 text-sm text-muted-foreground">{description}</p>
                 )}
-            </div>
-
-            {/* Pie: descripción con flecha al hover */}
-            <div className="mt-auto flex items-center gap-1 text-sm text-muted-foreground/70 transition-colors group-hover:text-brand-primary">
-                <span className="truncate">{description}</span>
-                <ArrowRight className="h-3.5 w-3.5 shrink-0 -translate-x-1 opacity-0 transition-all duration-200 group-hover:translate-x-0 group-hover:opacity-100" />
             </div>
         </motion.div>
     );

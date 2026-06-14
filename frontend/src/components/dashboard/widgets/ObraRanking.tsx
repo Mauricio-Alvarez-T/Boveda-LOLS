@@ -1,6 +1,5 @@
 import React from 'react';
-import { ClipboardCheck, ArrowRight, CheckCircle2, Circle } from 'lucide-react';
-import { cn } from '../../../utils/cn';
+import { ClipboardCheck } from 'lucide-react';
 import { EmptyState } from '../../ui/EmptyState';
 
 interface ObraRankingItem {
@@ -39,7 +38,7 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
                 <div className="flex items-center gap-2.5">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                         <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
@@ -49,50 +48,35 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>
             </div>
 
-            <div className="space-y-1.5">
+            <div>
                 {[...cumple, ...noCumple].map((obra) => {
                     const ok = cumpleAsistencia(obra);
                     return (
                         <div
                             key={obra.id}
                             onClick={() => onNavigate(obra.id)}
-                            className="flex items-center gap-3 px-2.5 py-2 rounded-xl transition-colors duration-200 cursor-pointer group hover:bg-background"
+                            className="flex items-center justify-between gap-3 py-2.5 border-t border-border cursor-pointer transition-colors hover:bg-background -mx-2 px-2 rounded-md"
                         >
-                            {/* Tile de estado — teal si cumple; gris neutro si sin registro (no crítico) */}
-                            <span className={cn(
-                                "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl",
-                                ok ? "bg-brand-primary/10" : "bg-muted"
-                            )}>
-                                {ok ? (
-                                    <CheckCircle2 className="h-5 w-5 text-brand-primary" />
-                                ) : (
-                                    <Circle className="h-5 w-5 text-muted-foreground" />
-                                )}
-                            </span>
+                            {/* Nombre + Nº trabajadores (contenido neutro) */}
+                            <p className="min-w-0 truncate text-sm text-foreground">
+                                <span className="font-medium">{obra.nombre}</span>
+                                <span className="text-muted-foreground"> · {obra.trabajadores} trabajador{obra.trabajadores !== 1 ? 'es' : ''}</span>
+                            </p>
 
-                            {/* Obra info */}
-                            <div className="flex-1 min-w-0">
-                                <p className="text-sm font-semibold text-foreground truncate">{obra.nombre}</p>
-                                <p className="text-caption text-muted-foreground mt-0.5">
-                                    {obra.trabajadores} trabajador{obra.trabajadores !== 1 ? 'es' : ''}
-                                    {!obra.asistencia_guardada && (
-                                        <span className="ml-1.5 text-warning font-semibold">· Sin registro</span>
-                                    )}
-                                </p>
-                            </div>
-
-                            {/* Tasa */}
-                            <div className="shrink-0 text-right">
-                                <span className={cn(
-                                    "text-sm font-bold tabular-nums",
-                                    ok ? "text-brand-primary" : "text-muted-foreground"
-                                )}>
-                                    {obra.asistencia_guardada ? `${obra.asistencia_tasa}%` : '—'}
+                            {/* Badge de estado (color = significado): al día = verde · pendiente/bajo = ámbar */}
+                            {ok ? (
+                                <span className="shrink-0 rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-xs font-medium text-brand-primary">
+                                    Al día · {obra.asistencia_tasa}%
                                 </span>
-                                <p className="text-micro text-muted-foreground uppercase tracking-wider">asist</p>
-                            </div>
-
-                            <ArrowRight className="h-3.5 w-3.5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0" />
+                            ) : obra.asistencia_guardada ? (
+                                <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
+                                    {obra.asistencia_tasa}%
+                                </span>
+                            ) : (
+                                <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
+                                    Sin registro
+                                </span>
+                            )}
                         </div>
                     );
                 })}
