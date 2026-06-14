@@ -24,6 +24,7 @@ import MaterialesAprobacionPanel from './transferencia-detail/MaterialesAprobaci
 import MaterialesRecepcionPanel from './transferencia-detail/MaterialesRecepcionPanel';
 import { MatEmpty, MatRequestRow, DetailSection } from './transferencia-detail/MaterialesReadonly';
 import { SodBanner } from './transferencia-detail/SodBanner';
+import { TransferenciaTimeline } from './transferencia-detail/TransferenciaTimeline';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -76,18 +77,7 @@ interface Props {
 }
 
 // ── Timeline: 3 steps (no "Despachada") ──
-const STEPS = [
-    { key: 'pendiente', label: 'Solicitada', icon: FileText },
-    { key: 'aprobada', label: 'Aprobada', icon: CheckCircle2 },
-    { key: 'recibida', label: 'Recibida', icon: PackageCheck },
-];
-
-// recepcion_parcial entra como step 1 (junto con aprobada/en_transito) porque
-// aún no termina el flujo — la TRF sigue abierta hasta el cierre total.
-const STEP_INDEX: Record<string, number> = {
-    pendiente: 0, aprobada: 1, en_transito: 1, recepcion_parcial: 1, recibida: 2,
-    rechazada: -1, cancelada: -1,
-};
+// STEPS/STEP_INDEX viven ahora en ./transferencia-detail/TransferenciaTimeline.tsx
 
 // Auditoría 4.2: usar helper centralizado de fechas (utils/fechas.ts) para formato día/mes/año.
 const fmtDate = (d: string | null) => fmtFecha(d);
@@ -199,8 +189,7 @@ const TransferenciaDetail: React.FC<Props> = ({
     //  hook useTransferenciaDetail — ver el destructure de arriba. Refactor Fase 1.)
 
     // ── Timeline ──
-    const activeStep = STEP_INDEX[t.estado] ?? -1;
-    const isTerminated = t.estado === 'rechazada' || t.estado === 'cancelada';
+    // estado/stepper → <TransferenciaTimeline> (computa activeStep/terminada internamente)
 
     // Nota: `correcto` y `observacion` del state se mantienen en el shape por
     // back-compat con onRecibir(), pero ya no se exponen en UI tras el rediseño
@@ -268,51 +257,10 @@ const TransferenciaDetail: React.FC<Props> = ({
 
             {/* ── Timeline Stepper (3 steps) ── */}
             <div className="shrink-0 mb-5">
-                {isTerminated ? (
-                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-muted border-border")}>
-                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-muted-foreground" />}
-                        <div>
-                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-muted-foreground")}>
-                                {t.estado === 'rechazada' ? 'Transferencia Rechazada' : 'Transferencia Cancelada'}
-                            </p>
-                            {t.observaciones_rechazo && (
-                                <p className="text-caption text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-between px-4">
-                        {STEPS.map((step, idx) => {
-                            const completed = idx <= activeStep;
-                            const isCurrent = idx === activeStep;
-                            const StepIcon = step.icon;
-                            return (
-                                <React.Fragment key={step.key}>
-                                    {idx > 0 && (
-                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
-                                    )}
-                                    <div className="flex flex-col items-center gap-1.5">
-                                        <div className={cn(
-                                            "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all",
-                                            completed
-                                                ? "bg-brand-primary border-brand-primary text-white"
-                                                : "bg-card border-border text-muted-foreground/40",
-                                            isCurrent && "ring-4 ring-brand-primary/20 scale-110"
-                                        )}>
-                                            <StepIcon className="h-4.5 w-4.5" />
-                                        </div>
-                                        <span className={cn(
-                                            "text-caption font-bold whitespace-nowrap",
-                                            completed ? "text-green-700 dark:text-green-300" : "text-muted-foreground/40"
-                                        )}>
-                                            {step.label}
-                                        </span>
-                                    </div>
-                                </React.Fragment>
-                            );
-                        })}
-                    </div>
-                )}
+                <TransferenciaTimeline
+                    estado={t.estado}
+                    observacionesRechazo={t.observaciones_rechazo}
+                />
             </div>
 
             {/* ── Items Table ── */}
@@ -1544,46 +1492,12 @@ const TransferenciaDetail: React.FC<Props> = ({
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
                 {/* Estado: stepper o banner terminado */}
-                {isTerminated ? (
-                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-muted border-border")}>
-                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-muted-foreground" />}
-                        <div>
-                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-muted-foreground")}>
-                                {t.estado === 'rechazada' ? 'Solicitud Rechazada' : 'Solicitud Cancelada'}
-                            </p>
-                            {t.observaciones_rechazo && (
-                                <p className="text-caption text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
-                            )}
-                        </div>
-                    </div>
-                ) : (
-                    <div className="flex items-center justify-between px-2">
-                        {STEPS.map((step, idx) => {
-                            const completed = idx <= activeStep;
-                            const isCurrent = idx === activeStep;
-                            const StepIcon = step.icon;
-                            return (
-                                <React.Fragment key={step.key}>
-                                    {idx > 0 && (
-                                        <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
-                                    )}
-                                    <div className="flex flex-col items-center gap-1.5">
-                                        <div className={cn(
-                                            "w-9 h-9 rounded-full flex items-center justify-center border-2 transition-all",
-                                            completed ? "bg-brand-primary border-brand-primary text-white" : "bg-card border-border text-muted-foreground/40",
-                                            isCurrent && "ring-4 ring-brand-primary/20 scale-110"
-                                        )}>
-                                            <StepIcon className="h-4 w-4" />
-                                        </div>
-                                        <span className={cn("text-caption font-bold whitespace-nowrap", completed ? "text-green-700 dark:text-green-300" : "text-muted-foreground/40")}>
-                                            {step.label}
-                                        </span>
-                                    </div>
-                                </React.Fragment>
-                            );
-                        })}
-                    </div>
-                )}
+                <TransferenciaTimeline
+                    estado={t.estado}
+                    observacionesRechazo={t.observaciones_rechazo}
+                    noun="Solicitud"
+                    compact
+                />
 
                 {/* SoD banner */}
                 <SodBanner
