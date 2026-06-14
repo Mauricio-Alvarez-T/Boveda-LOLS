@@ -25,6 +25,7 @@ import { ItemsTable } from './transferencia-detail/ItemsTable';
 import { RechazarForm } from './transferencia-detail/RechazarForm';
 import { RecibirForm } from './transferencia-detail/RecibirForm';
 import { AprobarForm } from './transferencia-detail/AprobarForm';
+import { ActivityLog } from './transferencia-detail/ActivityLog';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -327,6 +328,9 @@ const TransferenciaDetail: React.FC<Props> = ({
                     )}
                 </div>
             )}
+
+            {/* ── Actividad (bitácora del ciclo de vida) ── */}
+            <ActivityLog t={t} />
 
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
@@ -663,6 +667,9 @@ const TransferenciaDetail: React.FC<Props> = ({
                         </div>
                     </div>
                 </DetailSection>
+
+                {/* ── Actividad (bitácora del ciclo de vida) ── */}
+                <ActivityLog t={t} />
             </div>
 
             {/* ── MODALES (solo flujo materiales) ── */}
