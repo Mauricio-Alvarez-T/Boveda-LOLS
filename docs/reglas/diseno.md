@@ -162,15 +162,19 @@ Principios y reglas concretas:
    centrados en superficies de lectura; gutters amplios. "Minimalismo en todo": las
    superficies de datos también respiran (filas altas, padding cómodo), conservando
    función (orden/filtros/paginación).
-3. **PALETA — verde + neutros (cohesiva).** Dominante **blanco/negro/gris**; **verde LOLS
-   (`#029E4D`) = acento de ACCIÓN** (botones/links/focus). Color suave **solo en familia
-   verde/teal para lo positivo/activo** (KPIs Trabajadores/Asistencia, estados "cumple/OK") y
-   **gris elegante** para lo neutro (Documentos, Ausencias, pendientes, "sin registro"). Se usa
-   como **tinte de fondo** claro y en **iconografía prominente** (tile `h-9 w-9 rounded-xl` +
-   ícono `h-5`), NUNCA saturado ni protagonista (números/texto siguen neutros). **El rojo
-   (`destructive`) = SOLO crítico** (vencidos, faltas consecutivas, borrar), discreto. **Prohibido:**
-   multicolor (azul/ámbar como categoría), color saturado en bordes/texto, emojis de color (🔴🟡),
-   hex fuera de paleta.
+3. **PALETA — fondo verde unificado + convención de color de TEXTO.** Superficies (cards/paneles):
+   **tinte verde de marca uniforme** (`bg-brand-primary/[0.12] dark:bg-brand-primary/[0.22]`,
+   centralizado en `PANEL_TINT` del Dashboard), **sin bordes duros**. **Color de TEXTO por significado**
+   (pensado en modo claro):
+   - **Verde** (`text-brand-primary`) = constructivo / hecho: crear, aceptar, guardar, aprobar,
+     "al día", deltas positivos, valores OK.
+   - **Rojo** (`text-destructive`) = pendiente / falta / destructivo: eliminar, rechazar, dar de baja,
+     vencido, "sin registro", faltas, deltas negativos.
+   - **Neutro** (`text-foreground` / `text-muted-foreground`) = todo lo demás (nombres, títulos, datos,
+     labels). **El contenido NO se colorea** — solo estados y acciones.
+   Aplica a textos de estado, deltas y **botones de acción** (los íconos pueden seguir la misma lógica).
+   **Prohibido:** color saturado decorativo, multicolor de categoría, emojis de color (🔴🟡), hex fuera
+   de paleta. (Propagar a `statusConfig.ts` y a las pantallas en el rollout.)
 4. **Botones.** Acción = **pill** con acento verde sólido (`<Button variant="primary">`,
    ya `rounded-full`). Navegación/secundario sutil = `<Button variant="link">` (texto
    verde + chevron `›`, estilo "Más información ›"). El press oscurece a verde, **nunca

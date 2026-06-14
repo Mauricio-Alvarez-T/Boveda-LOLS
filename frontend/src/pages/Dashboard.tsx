@@ -108,7 +108,7 @@ interface DashboardData {
 // Tinte suave de fondo por panel (paleta verde+neutros): positivo/activo en
 // verde/teal; alertas en rojo muy tenue; resto neutro. Da identidad sin recargar.
 // Fondo verde unificado (feedback: "todos los elementos con fondo verde").
-const PANEL_TINT = 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]';
+const PANEL_TINT = 'bg-brand-primary/[0.12] dark:bg-brand-primary/[0.22]';
 const WIDGET_TINTS: Record<string, string> = {
     pending_tasks: PANEL_TINT,
     obra_ranking: PANEL_TINT,
@@ -253,7 +253,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.trabajadores ?? 0,
             icon: Users,
             color: 'text-brand-primary',
-            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
+            bg: PANEL_TINT,
             route: '/consultas?activo=true',
             description: 'Gestión de personal',
             delta: data.deltas?.trabajadores_nuevos_semana ?? 0,
@@ -264,7 +264,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.documentos ?? 0,
             icon: FileText,
             color: 'text-muted-foreground',
-            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
+            bg: PANEL_TINT,
             route: '/consultas?completitud=faltantes',
             description: 'Bóveda documental',
             delta: data.deltas?.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
@@ -276,7 +276,7 @@ const Dashboard: React.FC = () => {
             value: `${data.counters.asistencia_hoy ?? 0}%`,
             icon: CheckSquare,
             color: 'text-teal-700 dark:text-teal-300',
-            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
+            bg: PANEL_TINT,
             route: '/asistencia',
             description: 'Tasa de presencia hoy',
             delta: data.deltas?.asistencia_delta ?? 0,
@@ -287,7 +287,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.ausentes_hoy ?? 0,
             icon: AlertTriangle,
             color: 'text-muted-foreground',
-            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
+            bg: PANEL_TINT,
             route: '/consultas?ausentes=true',
             description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta',
             delta: data.deltas?.ausentes_delta ?? 0,
@@ -336,6 +336,7 @@ const Dashboard: React.FC = () => {
                     pendingTasksCount={(data.pendingTasks ?? []).length}
                     attendanceStatus={data.attendanceStatus}
                     onNavigate={(route) => navigate(route)}
+                    tint={PANEL_TINT}
                 />
             )}
 

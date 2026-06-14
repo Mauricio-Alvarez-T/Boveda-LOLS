@@ -22,9 +22,10 @@ interface Props {
     pendingTasksCount: number;
     attendanceStatus: Record<string, AttendanceStatusEntry>;
     onNavigate: (route: string) => void;
+    tint?: string;
 }
 
-const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, attendanceStatus, onNavigate }) => {
+const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, attendanceStatus, onNavigate, tint = 'bg-brand-primary/[0.12] dark:bg-brand-primary/[0.22]' }) => {
     const hour = new Date().getHours();
     const reduceMotion = useReducedMotion();
 
@@ -79,7 +80,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
     return (
         <motion.div
             {...reveal}
-            className="relative overflow-hidden rounded-card bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16] p-8 md:p-10"
+            className={`relative overflow-hidden rounded-card ${tint} p-8 md:p-10`}
         >
             <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1">
@@ -95,24 +96,24 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
 
                     {/* Insights */}
                     <div className="mt-5 space-y-2">
-                        {insights.map((insight, idx) => (
-                            <div key={idx} className="flex items-start gap-2.5">
-                                {insight.severity === 'ok' ? (
-                                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-brand-accent" />
-                                ) : insight.severity === 'critical' ? (
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
-                                ) : (
-                                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
-                                )}
-                                <p className="text-base leading-relaxed text-muted-foreground">{insight.text}</p>
-                            </div>
-                        ))}
+                        {insights.map((insight, idx) => {
+                            // Convención: hecho/al día = verde · pendiente/falta = rojo.
+                            const isOk = insight.severity === 'ok';
+                            const Icon = isOk ? CheckCircle2 : AlertTriangle;
+                            const tone = isOk ? 'text-brand-primary' : 'text-destructive';
+                            return (
+                                <div key={idx} className="flex items-start gap-2.5">
+                                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} />
+                                    <p className={`text-base leading-relaxed ${tone}`}>{insight.text}</p>
+                                </div>
+                            );
+                        })}
                     </div>
 
                     {pendingTasksCount > 0 && (
                         <div className="mt-4 flex items-center gap-1.5">
-                            <Zap className="h-3.5 w-3.5 text-brand-primary" />
-                            <span className="text-sm font-medium text-brand-primary">
+                            <Zap className="h-3.5 w-3.5 text-destructive" />
+                            <span className="text-sm font-medium text-destructive">
                                 {pendingTasksCount} tarea{pendingTasksCount !== 1 ? 's' : ''} pendiente{pendingTasksCount !== 1 ? 's' : ''}
                             </span>
                         </div>
