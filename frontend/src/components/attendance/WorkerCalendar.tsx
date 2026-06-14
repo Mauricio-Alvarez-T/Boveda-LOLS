@@ -361,7 +361,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
                                         <span className="text-xs font-bold text-brand-dark">{p.estado_nombre || p.estado_codigo}</span>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <div className="px-2 py-0.5 rounded-lg bg-card border border-brand-primary/10 text-caption font-black text-brand-dark tracking-tight">
+                                        <div className="px-2 py-0.5 rounded-lg bg-card border border-border text-caption font-black text-brand-dark tracking-tight">
                                             ACTIVO
                                         </div>
                                         {!readOnly && hasPermission('asistencia.periodo.eliminar') && (

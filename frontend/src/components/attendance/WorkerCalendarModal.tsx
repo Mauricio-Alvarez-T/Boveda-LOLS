@@ -141,7 +141,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                 <h3 className="text-sm md:text-base font-bold text-brand-dark truncate">
                     {worker.apellido_paterno} {worker.apellido_materno || ''} {worker.nombres}
                 </h3>
-                <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-dark text-caption font-bold">
+                <span className="hidden md:inline px-1.5 py-0.5 rounded-md bg-muted text-brand-dark text-caption font-bold">
                     {worker.rut}
                 </span>
                 {empresaInfo && (
