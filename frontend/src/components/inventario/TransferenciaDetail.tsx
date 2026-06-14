@@ -23,6 +23,7 @@ import { useTransferenciaDetail, type StockLocation } from '../../hooks/inventar
 import MaterialesAprobacionPanel from './transferencia-detail/MaterialesAprobacionPanel';
 import MaterialesRecepcionPanel from './transferencia-detail/MaterialesRecepcionPanel';
 import { MatEmpty, MatRequestRow, DetailSection } from './transferencia-detail/MaterialesReadonly';
+import { SodBanner } from './transferencia-detail/SodBanner';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -501,19 +502,13 @@ const TransferenciaDetail: React.FC<Props> = ({
             </div>
 
             {/* ── SoD Banner: explica por qué el botón de acción no aparece ── */}
-            {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && !activeForm && (
-                <div className="shrink-0 mb-3 bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
-                    <Info className="h-4 w-4 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
-                    <div>
-                        <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
-                        <span className="text-amber-800 dark:text-amber-300">
-                            {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
-                            {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
-                            {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
-                            Si no hay otra persona disponible, contacta al admin para que conceda el permiso "Bypass SoD".
-                        </span>
-                    </div>
-                </div>
+            {!activeForm && (
+                <SodBanner
+                    solicitante={showSodBannerSolicitante}
+                    aprobador={showSodBannerAprobador}
+                    transportista={showSodBannerTransportista}
+                    className="shrink-0 mb-3"
+                />
             )}
 
 
@@ -1591,20 +1586,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                 )}
 
                 {/* SoD banner */}
-                {(showSodBannerSolicitante || showSodBannerAprobador || showSodBannerTransportista) && (
-                    <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-xl p-3 flex items-start gap-2.5 text-sm">
-                        <Info className="h-4 w-4 text-amber-700 dark:text-amber-300 mt-0.5 shrink-0" />
-                        <div>
-                            <strong className="text-amber-900 dark:text-amber-300">SoD activo:</strong>
-                            <span className="text-amber-800 dark:text-amber-300">
-                                {showSodBannerSolicitante && ' tú creaste esta solicitud — otro usuario con permiso "Aprobar Transferencia" debe revisarla. '}
-                                {showSodBannerAprobador && ' tú aprobaste esta transferencia — otro usuario debe despacharla o recibirla. '}
-                                {showSodBannerTransportista && ' tú despachaste esta transferencia — otro usuario debe confirmar la recepción. '}
-                                Si no hay otra persona disponible, contacta al admin para que conceda el permiso "Bypass SoD".
-                            </span>
-                        </div>
-                    </div>
-                )}
+                <SodBanner
+                    solicitante={showSodBannerSolicitante}
+                    aprobador={showSodBannerAprobador}
+                    transportista={showSodBannerTransportista}
+                />
 
                 {/* Materiales pedidos (solo lectura) */}
                 <DetailSection icon={<ShoppingBag className="h-3.5 w-3.5" />} title={`Materiales pedidos (${itemsCustom.length})`}>
