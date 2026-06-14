@@ -8,9 +8,10 @@ import type { WidgetConfig } from '../../config/WidgetRegistry';
 interface Props {
     widget: WidgetConfig;
     children: React.ReactNode;
+    tint?: string;
 }
 
-const WidgetWrapper: React.FC<Props> = ({ widget, children }) => {
+const WidgetWrapper: React.FC<Props> = ({ widget, children, tint }) => {
     const {
         attributes,
         listeners,
@@ -30,7 +31,8 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children }) => {
             ref={setNodeRef}
             style={style}
             className={cn(
-                "bg-card rounded-2xl border border-border p-5 relative group transition-shadow",
+                "rounded-card border border-border p-5 relative group transition-shadow",
+                tint || "bg-card",
                 isDragging && "shadow-xl ring-2 ring-brand-primary/20 z-50 opacity-90",
                 !isDragging && "hover:shadow-md hover:border-[var(--border-hover)]"
             )}

@@ -105,6 +105,18 @@ interface DashboardData {
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
+// Tinte suave de fondo por panel (paleta verde+neutros): positivo/activo en
+// verde/teal; alertas en rojo muy tenue; resto neutro. Da identidad sin recargar.
+const WIDGET_TINTS: Record<string, string> = {
+    pending_tasks: 'bg-brand-primary/[0.05] dark:bg-brand-primary/10',
+    obra_ranking: 'bg-teal-50 dark:bg-teal-500/10',
+    chart_attendance_trend: 'bg-teal-50 dark:bg-teal-500/10',
+    absence_alerts: 'bg-destructive/[0.04] dark:bg-destructive/[0.08]',
+    alerts_critical: 'bg-destructive/[0.04] dark:bg-destructive/[0.08]',
+    list_absences_today: 'bg-muted/50',
+    quick_actions: 'bg-brand-primary/[0.05] dark:bg-brand-primary/10',
+};
+
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
     const { user } = useAuth();
@@ -239,7 +251,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.trabajadores ?? 0,
             icon: Users,
             color: 'text-brand-primary',
-            bg: 'bg-brand-primary/[0.07] dark:bg-brand-primary/[0.14]',
+            bg: 'bg-brand-primary/[0.10] dark:bg-brand-primary/20',
             route: '/consultas?activo=true',
             description: 'Gestión de personal',
             delta: data.deltas?.trabajadores_nuevos_semana ?? 0,
@@ -261,8 +273,8 @@ const Dashboard: React.FC = () => {
             label: 'Asistencia Hoy',
             value: `${data.counters.asistencia_hoy ?? 0}%`,
             icon: CheckSquare,
-            color: 'text-teal-600 dark:text-teal-400',
-            bg: 'bg-teal-50 dark:bg-teal-500/10',
+            color: 'text-teal-700 dark:text-teal-300',
+            bg: 'bg-teal-100/80 dark:bg-teal-500/20',
             route: '/asistencia',
             description: 'Tasa de presencia hoy',
             delta: data.deltas?.asistencia_delta ?? 0,
@@ -368,7 +380,7 @@ const Dashboard: React.FC = () => {
                                 if (!content) return null;
 
                                 return (
-                                    <WidgetWrapper key={widget.id} widget={widget}>
+                                    <WidgetWrapper key={widget.id} widget={widget} tint={WIDGET_TINTS[widget.id]}>
                                         {content}
                                     </WidgetWrapper>
                                 );
