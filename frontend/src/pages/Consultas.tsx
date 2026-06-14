@@ -192,7 +192,7 @@ const ConsultasPage: React.FC = () => {
                     {activeFilterCount > 0 && (
                         <span className={cn(
                             "flex h-4 w-4 items-center justify-center rounded-full text-micro transition-colors duration-300",
-                            showMobileFilters ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
+                            showMobileFilters ? "bg-card text-green-700 dark:text-green-300" : "bg-brand-primary text-white"
                         )}>
                             {activeFilterCount}
                         </span>
@@ -707,14 +707,14 @@ const ConsultasPage: React.FC = () => {
             {modalType === 'depurar' && selectedWorkerForAction && (
                 <Modal isOpen={true} onClose={() => setModalType(null)} title="Depurar Registro de Trabajador">
                     <div className="p-6">
-                        <div className="bg-amber-50 text-amber-950 p-5 rounded-2xl border border-amber-200 mb-6 flex items-start gap-4">
-                            <div className="h-10 w-10 rounded-xl bg-amber-100 flex items-center justify-center shrink-0 text-amber-700">
+                        <div className="bg-amber-50 dark:bg-amber-500/10 text-amber-950 dark:text-amber-200 p-5 rounded-2xl border border-amber-200 dark:border-amber-800/60 mb-6 flex items-start gap-4">
+                            <div className="h-10 w-10 rounded-xl bg-amber-100 dark:bg-amber-500/15 flex items-center justify-center shrink-0 text-amber-700 dark:text-amber-300">
                                 <Eraser className="h-6 w-6" />
                             </div>
                             <div>
-                                <h4 className="font-bold text-amber-900 mb-1">Confirmar Limpieza de Registro</h4>
-                                <p className="text-sm text-amber-800 leading-relaxed">
-                                    Estás a punto de eliminar definitivamente a <strong className="text-amber-950 font-black">{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong> de la base de datos.
+                                <h4 className="font-bold text-amber-900 dark:text-amber-200 mb-1">Confirmar Limpieza de Registro</h4>
+                                <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
+                                    Estás a punto de eliminar definitivamente a <strong className="text-amber-950 dark:text-amber-100 font-black">{selectedWorkerForAction.nombres} {selectedWorkerForAction.apellido_paterno}</strong> de la base de datos.
                                     Esta acción es **irreversible** y borrará todos sus documentos y registros de asistencia.
                                 </p>
                             </div>
