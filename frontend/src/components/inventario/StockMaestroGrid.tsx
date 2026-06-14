@@ -161,7 +161,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                         />
                     </div>
                 )}
-                <span className="text-[11px] text-muted-foreground ml-auto">
+                <span className="text-label text-muted-foreground ml-auto">
                     {ubi ? `${filteredRows.length} de ${rows.length} ítems` : 'Selecciona una ubicación'}
                 </span>
                 {dirtyCount > 0 && (
@@ -199,7 +199,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                 ) : filteredRows.length === 0 ? (
                     <div className="py-12 text-center text-xs text-muted-foreground">Sin ítems que coincidan.</div>
                 ) : (
-                    <table className="w-full text-[11px] border-collapse">
+                    <table className="w-full text-label border-collapse">
                         <thead className="bg-muted sticky top-0 z-10">
                             <tr>
                                 <th className="text-left px-2 py-2 font-bold text-brand-dark w-12">Nº</th>
@@ -235,7 +235,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                                 min={0}
                                                 value={nueva}
                                                 onChange={e => setCantidad(r, Number(e.target.value))}
-                                                className="w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none font-bold"
+                                                className="w-full px-1.5 py-1 text-label text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none font-bold"
                                             />
                                         </td>
                                         <td className={cn(
@@ -253,8 +253,8 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
             </div>
 
             {dirtyCount > 0 && (
-                <p className="text-[10px] text-amber-700 dark:text-amber-400 shrink-0">
-                    {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar.
+                <p className="text-caption text-amber-700 dark:text-amber-400 shrink-0">
+                    {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-caption">Ctrl/⌘+S</kbd> para guardar.
                 </p>
             )}
         </div>

@@ -113,20 +113,20 @@ const TransferenciasList: React.FC<Props> = ({
                                 <div className="flex items-center gap-1.5 min-w-0">
                                     <span className={cn(
                                         "text-xs font-bold shrink-0",
-                                        isSelected ? "text-brand-primary" : "text-brand-dark"
+                                        isSelected ? "text-green-700 dark:text-green-300" : "text-brand-dark"
                                     )}>
                                         {t.codigo}
                                     </span>
-                                    <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded border leading-none shrink-0", cfg.color)}>
+                                    <span className={cn("text-caption font-bold px-1.5 py-0.5 rounded border leading-none shrink-0", cfg.color)}>
                                         {cfg.label}
                                     </span>
-                                    <span className="text-[11px] text-muted-foreground/60 tabular-nums ml-auto shrink-0">
+                                    <span className="text-label text-muted-foreground/60 tabular-nums ml-auto shrink-0">
                                         {fechaStr}
                                     </span>
                                 </div>
 
                                 {/* Fila 2: Destino · tipo de flujo */}
-                                <div className="flex items-center gap-1 mt-0.5 text-[11px] text-muted-foreground min-w-0">
+                                <div className="flex items-center gap-1 mt-0.5 text-label text-muted-foreground min-w-0">
                                     <ArrowRight className="h-2.5 w-2.5 shrink-0 text-muted-foreground/40" />
                                     <span className="truncate font-medium">{destino}</span>
                                     {flujo && (

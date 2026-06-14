@@ -326,7 +326,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             />
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-center">
-                                <AlertTriangle className="h-10 w-10 text-red-500/15 mb-3" />
+                                <AlertTriangle className="h-10 w-10 text-muted-foreground/30 mb-3" />
                                 <p className="text-sm font-medium text-muted-foreground">Selecciona una discrepancia</p>
                                 <p className="text-xs text-muted-foreground/60 mt-1">para ver los ítems afectados</p>
                             </div>
@@ -350,7 +350,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                         />
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center">
-                            <ArrowLeftRight className="h-10 w-10 text-brand-primary/15 mb-3" />
+                            <ArrowLeftRight className="h-10 w-10 text-muted-foreground/30 mb-3" />
                             <p className="text-sm font-medium text-muted-foreground">Selecciona una transferencia</p>
                             <p className="text-xs text-muted-foreground/60 mt-1">para ver su detalle y acciones</p>
                         </div>

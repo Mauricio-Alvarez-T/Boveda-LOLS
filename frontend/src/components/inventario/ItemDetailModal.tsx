@@ -187,7 +187,7 @@ const ItemDetailModal: React.FC<Props> = ({
                         ) : (
                             <div className="w-full h-64 sm:h-72 rounded-xl border border-border bg-muted flex flex-col items-center justify-center gap-2">
                                 <ImageOff className="h-10 w-10 text-muted-foreground/20" />
-                                <p className="text-[10px] text-muted-foreground/50">Sin imagen</p>
+                                <p className="text-caption text-muted-foreground/50">Sin imagen</p>
                             </div>
                         )}
 
@@ -196,7 +196,7 @@ const ItemDetailModal: React.FC<Props> = ({
                             {/* Categoría + nro_item + acciones de edición */}
                             <div className="flex items-center gap-2 flex-wrap">
                                 {(item as any).categoria_nombre && (
-                                    <span className="px-2.5 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-[10px] font-bold">
+                                    <span className="px-2.5 py-1 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-caption font-bold">
                                         {(item as any).categoria_nombre}
                                     </span>
                                 )}
@@ -204,7 +204,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                     type="button"
                                     aria-label={`Copiar número de ítem ${item.nro_item}`}
                                     onClick={copyNroItem}
-                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted border border-border hover:border-brand-primary/30 text-[10px] font-bold text-muted-foreground transition-all"
+                                    className="flex items-center gap-1 px-2 py-1 rounded-lg bg-muted border border-border hover:border-brand-primary/30 text-caption font-bold text-muted-foreground transition-all"
                                     title="Copiar número de ítem"
                                 >
                                     #{item.nro_item}
@@ -221,7 +221,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                             <button
                                                 type="button"
                                                 onClick={startEdit}
-                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary/10 text-brand-primary text-[11px] font-bold hover:bg-brand-primary/15 transition-colors"
+                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary/10 text-green-700 dark:text-green-300 text-label font-bold hover:bg-brand-primary/15 transition-colors"
                                             >
                                                 <Pencil className="h-3 w-3" /> Editar
                                             </button>
@@ -231,7 +231,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                                     type="button"
                                                     onClick={cancelEdit}
                                                     disabled={saving}
-                                                    className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-muted-foreground hover:text-brand-dark transition-colors disabled:opacity-50"
+                                                    className="px-2.5 py-1 rounded-lg text-label font-bold text-muted-foreground hover:text-brand-dark transition-colors disabled:opacity-50"
                                                 >
                                                     Cancelar
                                                 </button>
@@ -239,7 +239,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                                     type="button"
                                                     onClick={saveEdit}
                                                     disabled={saving}
-                                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary text-white text-[11px] font-bold hover:bg-brand-primary/90 transition-colors disabled:opacity-50"
+                                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary text-white text-label font-bold hover:bg-brand-primary/90 transition-colors disabled:opacity-50"
                                                 >
                                                     <Save className="h-3 w-3" /> {saving ? 'Guardando...' : 'Guardar'}
                                                 </button>
@@ -269,8 +269,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                             onChange={v => setDraft(d => d ? { ...d, valor_arriendo: v } : d)}
                                         />
                                     ) : (
-                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
+                                        <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                            <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
                                             <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_arriendo)}</p>
                                         </div>
                                     )}
@@ -281,8 +281,8 @@ const ItemDetailModal: React.FC<Props> = ({
                                             onChange={v => setDraft(d => d ? { ...d, valor_compra: v } : d)}
                                         />
                                     ) : item.valor_compra > 0 ? (
-                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
+                                        <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                            <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
                                             <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_compra)}</p>
                                         </div>
                                     ) : null}
@@ -303,23 +303,23 @@ const ItemDetailModal: React.FC<Props> = ({
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                                    <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                        <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">V. Arriendo</p>
                                         <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_arriendo)}</p>
                                     </div>
                                     {item.valor_compra > 0 && (
-                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
+                                        <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                            <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">V. Compra</p>
                                             <p className="text-sm font-black text-brand-dark">{fmtMoney(item.valor_compra)}</p>
                                         </div>
                                     )}
-                                    <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                        <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">Unidad</p>
+                                    <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                        <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">Unidad</p>
                                         <p className="text-sm font-black text-brand-dark">{item.unidad}</p>
                                     </div>
                                     {item.m2 && item.m2 > 0 && (
-                                        <div className="rounded-xl border border-border bg-card px-3 py-2">
-                                            <p className="text-[8px] text-muted-foreground uppercase font-bold mb-0.5">M²</p>
+                                        <div className="rounded-xl border border-border bg-muted px-3 py-2">
+                                            <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">M²</p>
                                             <p className="text-sm font-black text-brand-dark">{item.m2.toFixed(2)}</p>
                                         </div>
                                     )}
@@ -330,12 +330,12 @@ const ItemDetailModal: React.FC<Props> = ({
                         {/* ═══ STOCK POR UBICACIÓN ═══ */}
                         <div className="rounded-xl border border-border overflow-hidden">
                             <div className="px-3 py-2 bg-muted border-b border-border flex items-center justify-between">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-brand-dark">
+                                <span className="text-caption font-black uppercase tracking-wider text-brand-dark">
                                     Ubicaciones
                                 </span>
                                 {!stockLoading && (
-                                    <span className="text-[10px] font-bold text-muted-foreground">
-                                        Total: <span className="text-brand-primary font-black">{totalStock}</span> {item.unidad}
+                                    <span className="text-caption font-bold text-muted-foreground">
+                                        Total: <span className="text-foreground font-black">{totalStock}</span> {item.unidad}
                                     </span>
                                 )}
                             </div>
@@ -362,7 +362,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                             </div>
                                             <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
                                             <span className={cn(
-                                                "px-2 py-0.5 rounded-full text-[11px] font-black",
+                                                "px-2 py-0.5 rounded-full text-label font-black",
                                                 qtyColor(loc.cantidad)
                                             )}>
                                                 {loc.cantidad}
@@ -377,7 +377,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                             </div>
                                             <span className="flex-1 text-xs font-medium text-brand-dark truncate">{loc.nombre}</span>
                                             <span className={cn(
-                                                "px-2 py-0.5 rounded-full text-[11px] font-black",
+                                                "px-2 py-0.5 rounded-full text-label font-black",
                                                 qtyColor(loc.cantidad)
                                             )}>
                                                 {loc.cantidad}

@@ -77,7 +77,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
             {/* Barra de filtros */}
             <div className="flex flex-wrap items-end gap-3 shrink-0 bg-card border border-border rounded-2xl p-3">
                 <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Tipo</label>
+                    <label className="text-caption font-semibold text-muted-foreground uppercase">Tipo</label>
                     <select
                         value={tipo}
                         onChange={(e) => setTipo(e.target.value as TipoMovimiento | '')}
@@ -90,14 +90,14 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                     </select>
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Desde</label>
+                    <label className="text-caption font-semibold text-muted-foreground uppercase">Desde</label>
                     <input
                         type="date" value={desde} onChange={(e) => setDesde(e.target.value)}
                         className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     />
                 </div>
                 <div className="flex flex-col gap-1">
-                    <label className="text-[10px] font-semibold text-muted-foreground uppercase">Hasta</label>
+                    <label className="text-caption font-semibold text-muted-foreground uppercase">Hasta</label>
                     <input
                         type="date" value={hasta} onChange={(e) => setHasta(e.target.value)}
                         className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
@@ -132,7 +132,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                 ) : (
                     <table className="w-full text-sm">
                         <thead className="sticky top-0 bg-muted border-b border-border z-10">
-                            <tr className="text-[10px] font-bold text-muted-foreground uppercase tracking-wide">
+                            <tr className="text-caption font-bold text-muted-foreground uppercase tracking-wide">
                                 <th className="text-left px-3 py-2.5">Fecha</th>
                                 <th className="text-left px-3 py-2.5">Tipo</th>
                                 <th className="text-left px-3 py-2.5">Ítem</th>
@@ -151,33 +151,33 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                                 const ubic = m.obra_nombre || m.bodega_nombre || '—';
                                 return (
                                     <tr key={m.id} className="border-b border-border hover:bg-muted transition-colors">
-                                        <td className="px-3 py-2 text-[11px] text-muted-foreground whitespace-nowrap">{fmtFecha(m.created_at)}</td>
+                                        <td className="px-3 py-2 text-label text-muted-foreground whitespace-nowrap">{fmtFecha(m.created_at)}</td>
                                         <td className="px-3 py-2">
-                                            <span className={cn('inline-block px-2 py-0.5 rounded-md text-[10px] font-bold border', meta.badge)}>
+                                            <span className={cn('inline-block px-2 py-0.5 rounded-md text-caption font-bold border', meta.badge)}>
                                                 {meta.label}
                                             </span>
                                         </td>
                                         <td className="px-3 py-2">
                                             <span className="font-semibold text-brand-dark">#{m.nro_item}</span>
-                                            <span className="text-[11px] text-muted-foreground ml-1.5">{m.item_descripcion}</span>
+                                            <span className="text-label text-muted-foreground ml-1.5">{m.item_descripcion}</span>
                                         </td>
-                                        <td className="px-3 py-2 text-[11px]">
+                                        <td className="px-3 py-2 text-label">
                                             {m.obra_nombre
-                                                ? <span className="text-brand-secondary font-medium">{ubic}</span>
-                                                : <span className="text-brand-primary font-medium">{ubic}</span>}
+                                                ? <span className="text-foreground font-medium">{ubic}</span>
+                                                : <span className="text-foreground font-medium">{ubic}</span>}
                                         </td>
                                         <td className="px-3 py-2 text-right tabular-nums text-muted-foreground">{fmtNum(m.cantidad_anterior)}</td>
                                         <td className="px-3 py-2 text-right tabular-nums font-semibold text-brand-dark">{fmtNum(m.cantidad_nueva)}</td>
                                         <td className={cn(
                                             'px-3 py-2 text-right tabular-nums font-bold flex items-center justify-end gap-0.5',
-                                            delta > 0 ? 'text-green-600' : delta < 0 ? 'text-red-600' : 'text-muted-foreground'
+                                            delta > 0 ? 'text-green-700 dark:text-green-300' : delta < 0 ? 'text-red-700 dark:text-red-300' : 'text-muted-foreground'
                                         )}>
                                             {delta > 0 && <ArrowUp className="h-3 w-3" />}
                                             {delta < 0 && <ArrowDown className="h-3 w-3" />}
                                             {fmtNum(Math.abs(delta))}
                                         </td>
-                                        <td className="px-3 py-2 text-[11px] text-muted-foreground max-w-[200px] truncate" title={m.motivo || ''}>{m.motivo || '—'}</td>
-                                        <td className="px-3 py-2 text-[11px] text-muted-foreground">{m.usuario_nombre || '—'}</td>
+                                        <td className="px-3 py-2 text-label text-muted-foreground max-w-[200px] truncate" title={m.motivo || ''}>{m.motivo || '—'}</td>
+                                        <td className="px-3 py-2 text-label text-muted-foreground">{m.usuario_nombre || '—'}</td>
                                     </tr>
                                 );
                             })}

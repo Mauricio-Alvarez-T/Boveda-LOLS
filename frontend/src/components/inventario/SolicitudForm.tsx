@@ -271,7 +271,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                 type="button"
                 onClick={() => setCategoriaFilter('todas')}
                 className={cn(
-                    'shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors',
+                    'shrink-0 text-label font-bold px-3 py-1.5 rounded-full border transition-colors',
                     categoriaFilter === 'todas'
                         ? 'bg-brand-primary text-white border-brand-primary'
                         : 'bg-card text-brand-dark border-border hover:border-brand-primary/40'
@@ -288,7 +288,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                         type="button"
                         onClick={() => setCategoriaFilter(cat.id)}
                         className={cn(
-                            'shrink-0 text-[11px] font-bold px-3 py-1.5 rounded-full border transition-colors',
+                            'shrink-0 text-label font-bold px-3 py-1.5 rounded-full border transition-colors',
                             active
                                 ? 'bg-brand-primary text-white border-brand-primary'
                                 : 'bg-card text-brand-dark border-border hover:border-brand-primary/40'
@@ -337,7 +337,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                 <div className="flex-1 min-w-0 flex flex-col">
                     <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                            <div className="text-[9px] font-bold text-muted-foreground uppercase tracking-wider">
+                            <div className="text-micro font-bold text-muted-foreground uppercase tracking-wider">
                                 #{item.nro_item} · {item.unidad}
                             </div>
                             <button
@@ -368,7 +368,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                 type="button"
                                 onClick={() => addToCart(item.id)}
                                 disabled={sinStock}
-                                className="flex items-center gap-1 px-2.5 py-1 text-[10px] font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                className="flex items-center gap-1 px-2.5 py-1 text-caption font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                             >
                                 <Plus className="h-3 w-3" strokeWidth={3} />
                                 Agregar
@@ -388,7 +388,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                     value={enCarrito}
                                     onChange={e => updateCartQty(item.id, parseInt(e.target.value) || 0)}
                                     className={cn(
-                                        'w-10 h-6 px-1 text-[11px] font-bold text-center border rounded-md',
+                                        'w-10 h-6 px-1 text-label font-bold text-center border rounded-md',
                                         excede ? 'border-red-400 text-red-700' : 'border-border'
                                     )}
                                 />
@@ -424,7 +424,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                 </div>
                 <CategoriaChips />
                 <div className="flex items-center justify-between">
-                    <label className="flex items-center gap-1.5 text-[11px] text-muted-foreground cursor-pointer select-none">
+                    <label className="flex items-center gap-1.5 text-label text-muted-foreground cursor-pointer select-none">
                         <input
                             type="checkbox"
                             checked={mostrarSinStock}
@@ -433,7 +433,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                         />
                         Mostrar ítems sin stock
                     </label>
-                    <span className="text-[10px] text-muted-foreground font-medium">
+                    <span className="text-caption text-muted-foreground font-medium">
                         {filteredCatalog.length} {filteredCatalog.length === 1 ? 'resultado' : 'resultados'}
                     </span>
                 </div>
@@ -450,7 +450,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                         <button
                             type="button"
                             onClick={() => { setSearch(''); setCategoriaFilter('todas'); }}
-                            className="text-xs font-bold text-brand-primary hover:underline"
+                            className="text-xs font-bold text-green-700 dark:text-green-300 hover:underline"
                         >
                             Limpiar filtros
                         </button>
@@ -503,12 +503,12 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                     <div className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
                         <ShoppingCart className="h-3.5 w-3.5" />
                         Tu solicitud
-                        <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary/10 text-brand-primary">
+                        <span className="ml-1 px-1.5 py-0.5 text-caption rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300">
                             {cart.length + customItems.length}
                         </span>
                     </div>
                     {(totalItemsCart > 0 || customItems.length > 0) && (
-                        <span className="text-[10px] text-muted-foreground font-medium">
+                        <span className="text-caption text-muted-foreground font-medium">
                             {cart.length} catálogo · {customItems.length} personalizado(s)
                         </span>
                     )}
@@ -552,7 +552,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                         type="button"
                                         onClick={() => d.item && itemDetail.openItem(d.item.id, d.item)}
                                         disabled={!d.item}
-                                        className="text-[11px] font-bold text-brand-dark leading-tight line-clamp-2 text-left hover:text-brand-primary hover:underline transition-colors disabled:hover:no-underline disabled:hover:text-brand-dark"
+                                        className="text-label font-bold text-brand-dark leading-tight line-clamp-2 text-left hover:text-brand-primary hover:underline transition-colors disabled:hover:no-underline disabled:hover:text-brand-dark"
                                         title="Ver ficha del ítem"
                                     >
                                         {d.item?.descripcion || `Ítem #${d.item_id}`}
@@ -571,7 +571,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                             value={d.cantidad}
                                             onChange={e => updateCartQty(d.item_id, parseInt(e.target.value) || 0)}
                                             className={cn(
-                                                'w-10 h-5 px-1 text-[11px] font-bold text-center border rounded-md',
+                                                'w-10 h-5 px-1 text-label font-bold text-center border rounded-md',
                                                 d.excede ? 'border-red-400 text-red-700' : 'border-border'
                                             )}
                                         />
@@ -582,7 +582,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                         >
                                             <Plus className="h-2.5 w-2.5" strokeWidth={3} />
                                         </button>
-                                        <span className="text-[10px] text-muted-foreground ml-1">{d.item?.unidad || 'U'}</span>
+                                        <span className="text-caption text-muted-foreground ml-1">{d.item?.unidad || 'U'}</span>
                                     </div>
                                     {d.excede && (
                                         <FieldError
@@ -619,7 +619,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                         <ShoppingBag className="h-4 w-4 text-amber-600" />
                         Personalizados (a comprar)
                         {customItems.length > 0 && (
-                            <span className="ml-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-black">
+                            <span className="ml-0.5 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 text-caption font-black">
                                 {customItems.length}
                             </span>
                         )}
@@ -640,7 +640,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                     )}>
                         <ShoppingBag className="h-8 w-8 text-amber-400/70 mb-2" />
                         <p className="text-xs text-muted-foreground max-w-[280px]">
-                            Ítems que no están en el catálogo (ej. cosas a comprar). Toca <span className="font-bold text-amber-700">Agregar ítem</span> para empezar.
+                            Ítems que no están en el catálogo (ej. cosas a comprar). Toca <span className="font-bold text-amber-700 dark:text-amber-300">Agregar ítem</span> para empezar.
                         </p>
                     </div>
                 ) : (
@@ -670,7 +670,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                 >
                                     {/* Descripción + eliminar */}
                                     <div className="flex gap-2 items-center">
-                                        <span className="shrink-0 w-6 h-6 rounded-lg bg-amber-100 text-amber-800 text-[11px] font-black flex items-center justify-center">
+                                        <span className="shrink-0 w-6 h-6 rounded-lg bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-300 text-label font-black flex items-center justify-center">
                                             {idx + 1}
                                         </span>
                                         <input
@@ -730,7 +730,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                             message={!desc ? 'Falta la descripción del ítem' : 'La cantidad debe ser 1 o más'}
                                         />
                                     ) : esVacio ? (
-                                        <p className="mt-2 pl-8 flex items-center gap-1 text-[11px] text-muted-foreground/70">
+                                        <p className="mt-2 pl-8 flex items-center gap-1 text-label text-muted-foreground/70">
                                             <AlertCircle className="h-3 w-3 shrink-0" />
                                             Vacío — se ignora al crear. Complétalo o bórralo.
                                         </p>
@@ -745,7 +745,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
             {/* Observaciones + Pionetas */}
             <div className="shrink-0 space-y-2">
                 <div>
-                    <label className="text-[10px] font-bold text-brand-dark block mb-1">Observaciones</label>
+                    <label className="text-caption font-bold text-brand-dark block mb-1">Observaciones</label>
                     <textarea
                         value={observaciones}
                         onChange={e => setObservaciones(e.target.value)}
@@ -791,7 +791,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
 
             {/* Aviso de qué falta para crear (guía de flujo, resalta lo que necesita atención) */}
             {!puedeCrear && !submitting && (
-                <div className="shrink-0 flex items-start gap-1.5 text-[11px] font-medium text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                <div className="shrink-0 flex items-start gap-1.5 text-label font-medium text-amber-800 bg-amber-50 border border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-800/60 rounded-lg px-3 py-2">
                     <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                     <span>{
                         !destinoObraId ? 'Selecciona la obra destino para continuar.'
@@ -856,7 +856,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                             mobileTab === 'sol' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground'
                         )}
                     >
-                        Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-[10px] rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
+                        Mi solicitud {(cart.length + customItems.length) > 0 && <span className="ml-1 px-1.5 py-0.5 text-caption rounded-full bg-brand-primary text-white">{cart.length + customItems.length}</span>}
                     </button>
                 </div>
             )}

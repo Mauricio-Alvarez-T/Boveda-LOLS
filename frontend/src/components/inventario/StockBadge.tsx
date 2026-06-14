@@ -69,7 +69,7 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
                 ref={chipRef}
                 onMouseEnter={() => hasBreakdown && setHover(true)}
                 onMouseLeave={() => setHover(false)}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-bold border rounded-full ${colors[estado]} ${hasBreakdown ? 'cursor-help' : ''} ${className}`}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 text-caption font-bold border rounded-full ${colors[estado]} ${hasBreakdown ? 'cursor-help' : ''} ${className}`}
             >
                 {label}
             </span>
@@ -77,7 +77,7 @@ export const StockBadge: React.FC<Props> = ({ disponible, solicitado, ubicacione
             {hover && hasBreakdown && coords && createPortal(
                 <div
                     style={{ top: coords.top, left: coords.left, position: 'fixed', zIndex: 9999 }}
-                    className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-[11px] min-w-[180px] pointer-events-none"
+                    className="bg-card border border-border rounded-xl shadow-lg px-3 py-2 text-label min-w-[180px] pointer-events-none"
                 >
                     <div className="font-bold text-brand-dark mb-1.5">Stock por ubicación</div>
                     <div className="space-y-0.5">

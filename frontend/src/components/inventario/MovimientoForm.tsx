@@ -277,7 +277,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                                 return (
                                     <li key={item.id} className="flex items-center gap-2 px-3 py-2">
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-[10px] font-bold text-muted-foreground">
+                                            <div className="text-caption font-bold text-muted-foreground">
                                                 #{item.nro_item} · {disponible} {item.unidad}
                                             </div>
                                             <div className="text-xs font-bold text-brand-dark truncate">{item.descripcion}</div>
@@ -286,7 +286,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                                             <button
                                                 type="button"
                                                 onClick={() => addToCart(item.id)}
-                                                className="shrink-0 flex items-center gap-1 px-2 py-1 text-[10px] font-bold text-white bg-brand-primary rounded-lg"
+                                                className="shrink-0 flex items-center gap-1 px-2 py-1 text-caption font-bold text-white bg-brand-primary rounded-lg"
                                             >
                                                 <Plus className="h-3 w-3" strokeWidth={3} /> Agregar
                                             </button>
@@ -305,7 +305,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                                                     value={enCarrito}
                                                     onChange={e => updateQty(item.id, parseInt(e.target.value) || 0)}
                                                     className={cn(
-                                                        'w-10 h-5 px-1 text-[11px] font-bold text-center border rounded-md',
+                                                        'w-10 h-5 px-1 text-label font-bold text-center border rounded-md',
                                                         enCarrito > disponible ? 'border-red-400 text-red-700' : 'border-border'
                                                     )}
                                                 />
@@ -335,14 +335,14 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                                 key={d.item_id}
                                 className={cn(
                                     'flex items-center justify-between gap-2 text-xs px-2 py-1 rounded-md',
-                                    d.excede && 'bg-red-50 text-red-700'
+                                    d.excede && 'bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300'
                                 )}
                             >
                                 <span className="truncate font-medium">{d.item?.descripcion}</span>
                                 <div className="shrink-0 flex items-center gap-2">
                                     <span>{d.cantidad} {d.item?.unidad || 'u'}</span>
                                     {d.excede && (
-                                        <span className="flex items-center gap-0.5 text-[10px]">
+                                        <span className="flex items-center gap-0.5 text-caption">
                                             <AlertCircle className="h-3 w-3" /> solo {d.disponible}
                                         </span>
                                     )}
@@ -363,7 +363,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
             {/* Motivo + observaciones */}
             <div className="shrink-0 grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                    <label className="text-[10px] font-bold text-brand-dark block mb-1">
+                    <label className="text-caption font-bold text-brand-dark block mb-1">
                         Motivo {shape.motivoRequerido ? <span className="text-red-500">*</span> : '(opcional)'}
                     </label>
                     <input
@@ -378,7 +378,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                     />
                 </div>
                 <div>
-                    <label className="text-[10px] font-bold text-brand-dark block mb-1">Observaciones</label>
+                    <label className="text-caption font-bold text-brand-dark block mb-1">Observaciones</label>
                     <input
                         type="text"
                         value={observaciones}

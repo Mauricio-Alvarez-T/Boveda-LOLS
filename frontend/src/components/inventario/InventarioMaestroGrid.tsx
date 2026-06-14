@@ -241,7 +241,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 <div className="flex-1" />
 
                 {/* Item count */}
-                <span className="text-[11px] text-muted-foreground">
+                <span className="text-label text-muted-foreground">
                     {filteredItems.length} de {items.length} ítems
                 </span>
 
@@ -250,9 +250,9 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                     <button
                         onClick={() => setViewMode('cards')}
                         className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all",
+                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-label font-bold transition-all",
                             viewMode === 'cards'
-                                ? "bg-card text-brand-primary shadow-sm"
+                                ? "bg-card text-green-700 dark:text-green-300 shadow-sm"
                                 : "text-muted-foreground hover:text-brand-dark"
                         )}
                         title="Vista Cards"
@@ -263,9 +263,9 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                     <button
                         onClick={() => setViewMode('table')}
                         className={cn(
-                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-[11px] font-bold transition-all",
+                            "flex items-center gap-1 px-2.5 py-1 rounded-md text-label font-bold transition-all",
                             viewMode === 'table'
-                                ? "bg-card text-brand-primary shadow-sm"
+                                ? "bg-card text-green-700 dark:text-green-300 shadow-sm"
                                 : "text-muted-foreground hover:text-brand-dark"
                         )}
                         title="Vista Tabla"
@@ -327,16 +327,16 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                         className="w-full flex items-center gap-2 mb-3 group/cat"
                                     >
                                         <ChevronRight className={cn(
-                                            "h-4 w-4 text-brand-primary transition-transform duration-200",
+                                            "h-4 w-4 text-muted-foreground transition-transform duration-200",
                                             !collapsed && "rotate-90"
                                         )} />
-                                        <span className="text-[11px] font-black uppercase tracking-widest text-brand-primary">
+                                        <span className="text-label font-black uppercase tracking-widest text-muted-foreground">
                                             {group.catNombre}
                                         </span>
-                                        <span className="text-[10px] font-bold text-muted-foreground">
+                                        <span className="text-caption font-bold text-muted-foreground">
                                             {group.items.length} ítem{group.items.length !== 1 ? 's' : ''}
                                         </span>
-                                        <div className="flex-1 h-px bg-gradient-to-r from-brand-primary/20 to-transparent ml-2" />
+                                        <div className="flex-1 h-px bg-gradient-to-r from-border to-transparent ml-2" />
                                     </button>
 
                                     {/* Cards Grid */}
@@ -375,7 +375,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                        ── TABLE VIEW (original) ──
                        ═══════════════════════════════ */
                     <div className="border border-border rounded-xl bg-card">
-                        <table className="w-full text-[11px] border-collapse">
+                        <table className="w-full text-label border-collapse">
                             <thead className="bg-muted sticky top-0 z-10">
                                 <tr>
                                     <th className="text-left px-2 py-2 font-bold text-brand-dark w-12">Nº</th>
@@ -431,14 +431,14 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     type="text"
                                                     value={String(getVal(it, 'descripcion'))}
                                                     onChange={e => setField(it, 'descripcion', e.target.value)}
-                                                    className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1.5 py-1 text-label bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 />
                                             </td>
                                             <td className={cn("px-1 py-0.5", isFieldDirty(it.id, 'categoria_id') && "ring-1 ring-amber-300 dark:ring-amber-500/40 rounded")}>
                                                 <select
                                                     value={getVal(it, 'categoria_id')}
                                                     onChange={e => setField(it, 'categoria_id', Number(e.target.value))}
-                                                    className="w-full px-1 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1 py-1 text-label bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 >
                                                     {categorias.map(c => (
                                                         <option key={c.id} value={c.id}>{c.nombre}</option>
@@ -454,7 +454,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                     type="text"
                                                     value={String(getVal(it, 'unidad') ?? '')}
                                                     onChange={e => setField(it, 'unidad', e.target.value)}
-                                                    className="w-full px-1.5 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1.5 py-1 text-label bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 />
                                             </td>
                                             {verCostos && (
@@ -465,8 +465,8 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                         onChange={e => setField(it, 'valor_compra', Number(e.target.value))}
                                                         disabled={!editarCostos}
                                                         className={cn(
-                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
-                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
+                                                            "w-full px-1.5 py-1 text-label text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
+                                                            !editarCostos && "bg-muted text-muted-foreground cursor-not-allowed"
                                                         )}
                                                         title={fmtCLP(Number(getVal(it, 'valor_compra')))}
                                                     />
@@ -480,8 +480,8 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                         onChange={e => setField(it, 'valor_arriendo', Number(e.target.value))}
                                                         disabled={!editarCostos}
                                                         className={cn(
-                                                            "w-full px-1.5 py-1 text-[11px] text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
-                                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
+                                                            "w-full px-1.5 py-1 text-label text-right bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none",
+                                                            !editarCostos && "bg-muted text-muted-foreground cursor-not-allowed"
                                                         )}
                                                         title={fmtCLP(Number(getVal(it, 'valor_arriendo')))}
                                                     />
@@ -498,7 +498,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                                                 <select
                                                     value={getVal(it, 'propietario')}
                                                     onChange={e => setField(it, 'propietario', e.target.value as ItemInventario['propietario'])}
-                                                    className="w-full px-1 py-1 text-[11px] bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
+                                                    className="w-full px-1 py-1 text-label bg-transparent border-0 focus:bg-card focus:ring-1 focus:ring-brand-primary/40 rounded outline-none"
                                                 >
                                                     {PROPIETARIOS.map(p => <option key={p} value={p}>{p}</option>)}
                                                 </select>
@@ -521,8 +521,8 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
 
             {/* ── Dirty indicator footer ── */}
             {dirtyCount > 0 && (
-                <p className="text-[10px] text-amber-700 dark:text-amber-400 shrink-0">
-                    Hay {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-[10px]">Ctrl/⌘+S</kbd> para guardar todo.
+                <p className="text-caption text-amber-700 dark:text-amber-400 shrink-0">
+                    Hay {dirtyCount} fila(s) con cambios sin guardar. <kbd className="px-1 py-0.5 bg-amber-100 border border-amber-300 dark:bg-amber-500/15 dark:border-amber-700 rounded text-caption">Ctrl/⌘+S</kbd> para guardar todo.
                 </p>
             )}
         </div>

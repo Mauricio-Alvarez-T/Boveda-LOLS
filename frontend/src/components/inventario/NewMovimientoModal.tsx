@@ -133,7 +133,7 @@ const NewMovimientoModal: React.FC<Props> = ({ isOpen, onClose, onSelect, hasPer
                             >
                                 <div className={cn(
                                     'shrink-0 w-10 h-10 rounded-lg flex items-center justify-center',
-                                    `bg-${opt.accent}/10 text-${opt.accent}`
+                                    'bg-muted text-muted-foreground'
                                 )}>
                                     {opt.icon}
                                 </div>
@@ -141,12 +141,12 @@ const NewMovimientoModal: React.FC<Props> = ({ isOpen, onClose, onSelect, hasPer
                                     <div className="flex items-center gap-2 flex-wrap">
                                         <span className="text-sm font-bold text-brand-dark">{opt.title}</span>
                                         {opt.critico && (
-                                            <span className="inline-flex items-center gap-0.5 text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300">
+                                            <span className="inline-flex items-center gap-0.5 text-micro font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-amber-100 text-amber-900 border border-amber-300 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60">
                                                 <AlertTriangle className="h-2.5 w-2.5" />
                                                 Crítico
                                             </span>
                                         )}
-                                        <span className="text-[10px] text-muted-foreground font-medium">{opt.subtitle}</span>
+                                        <span className="text-caption text-muted-foreground font-medium">{opt.subtitle}</span>
                                     </div>
                                     <p className="text-xs text-muted-foreground mt-0.5">{opt.description}</p>
                                 </div>

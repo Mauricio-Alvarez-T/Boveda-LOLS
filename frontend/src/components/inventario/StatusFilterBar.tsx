@@ -68,7 +68,7 @@ const StatusFilterBar: React.FC<Props> = ({
             <button
                 onClick={() => setOpen(v => !v)}
                 className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-[11px] font-bold transition-all",
+                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-label font-bold transition-all",
                     open
                         ? "bg-card border-brand-primary/40 shadow-sm"
                         : "bg-card border-border hover:border-brand-primary/30",
@@ -96,7 +96,7 @@ const StatusFilterBar: React.FC<Props> = ({
                                     isActive
                                         ? isDiscrep
                                             ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400"
-                                            : "bg-brand-primary/10 text-brand-primary"
+                                            : "bg-brand-primary/10 text-green-700 dark:text-green-300"
                                         : isDiscrep
                                             ? "text-red-600 dark:text-red-400 hover:bg-muted"
                                             : "text-brand-dark hover:bg-muted"
@@ -105,7 +105,7 @@ const StatusFilterBar: React.FC<Props> = ({
                                 <Icon className="h-3.5 w-3.5 shrink-0" />
                                 <span className="flex-1 truncate">{chip.label}</span>
                                 {isDiscrep && discrepanciasCount > 0 && (
-                                    <span className="px-1.5 py-[1px] rounded-full text-[9px] font-black leading-none bg-red-500 text-white shrink-0">
+                                    <span className="px-1.5 py-[1px] rounded-full text-micro font-black leading-none bg-red-500 text-white shrink-0">
                                         {discrepanciasCount}
                                     </span>
                                 )}

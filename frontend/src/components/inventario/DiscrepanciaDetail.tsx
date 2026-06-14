@@ -22,7 +22,7 @@ interface Props {
 const estadoItemConfig: Record<string, { label: string; color: string; icon: React.ElementType }> = {
     pendiente:  { label: 'Pendiente',  color: 'bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60',  icon: Clock },
     resuelta:   { label: 'Resuelta',   color: 'bg-green-100 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60', icon: CheckCircle2 },
-    descartada: { label: 'Descartada', color: 'bg-gray-100 text-gray-500 border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border',    icon: Ban },
+    descartada: { label: 'Descartada', color: 'bg-muted text-muted-foreground border-border',    icon: Ban },
 };
 
 const fmtFecha = (s: string | null) => s
@@ -102,11 +102,11 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                 <div className="rounded-2xl bg-gradient-to-br from-red-500 to-red-600 p-4 text-white shadow-lg shadow-red-500/20">
                     <div className="grid grid-cols-2 gap-2 mb-3">
                         <div className="bg-white/15 rounded-xl p-2.5">
-                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Ítems afectados</p>
+                            <p className="text-micro opacity-80 uppercase tracking-wider mb-0.5">Ítems afectados</p>
                             <p className="text-lg font-black leading-none">{discrepancia.total_items_afectados}</p>
                         </div>
                         <div className="bg-white/15 rounded-xl p-2.5">
-                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Diferencia neta</p>
+                            <p className="text-micro opacity-80 uppercase tracking-wider mb-0.5">Diferencia neta</p>
                             <p className="text-lg font-black leading-none">
                                 {discrepancia.total_unidades_perdidas > 0 ? '-' : discrepancia.total_unidades_perdidas < 0 ? '+' : ''}
                                 {Math.abs(discrepancia.total_unidades_perdidas)}
@@ -114,7 +114,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                         </div>
                     </div>
                     {/* Ruta */}
-                    <div className="flex items-center gap-1.5 text-[11px]">
+                    <div className="flex items-center gap-1.5 text-label">
                         {origenIsObra
                             ? <MapPin className="h-3 w-3 shrink-0 opacity-90" />
                             : <Warehouse className="h-3 w-3 shrink-0 opacity-90" />}
@@ -128,7 +128,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                 </div>
 
                 {/* Metadata card */}
-                <div className="rounded-xl border border-border bg-card p-3 text-[11px] space-y-1.5">
+                <div className="rounded-xl border border-border bg-card p-3 text-label space-y-1.5">
                     <div className="flex items-center gap-2 text-muted-foreground">
                         <Calendar className="h-3 w-3 shrink-0" />
                         <span>Recibido:</span>
@@ -152,7 +152,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
 
                 {/* Ítems con discrepancia */}
                 <div className="space-y-2">
-                    <h4 className="text-[10px] font-black uppercase tracking-wider text-muted-foreground px-1">
+                    <h4 className="text-caption font-black uppercase tracking-wider text-muted-foreground px-1">
                         Ítems con diferencia ({discrepancia.discrepancias.length})
                     </h4>
                     {discrepancia.discrepancias.map(item => {
@@ -172,9 +172,9 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                     </div>
                                     <div className="flex-1 min-w-0">
                                         <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-                                            <span className="text-[10px] font-bold text-muted-foreground">#{item.nro_item}</span>
+                                            <span className="text-caption font-bold text-muted-foreground">#{item.nro_item}</span>
                                             <span className={cn(
-                                                "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[9px] font-bold",
+                                                "inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-micro font-bold",
                                                 cfg.color
                                             )}>
                                                 <EstadoIcon className="h-2.5 w-2.5" />
@@ -184,7 +184,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                         <button
                                             type="button"
                                             onClick={() => itemDetail.openItem(item.item_id)}
-                                            className="text-[11px] font-semibold text-brand-dark leading-tight line-clamp-2 text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                            className="text-label font-semibold text-brand-dark leading-tight line-clamp-2 text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
                                         >
                                             {item.item_descripcion}
                                         </button>
@@ -194,15 +194,15 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {/* Métricas cant. enviada vs recibida */}
                                 <div className="grid grid-cols-3 gap-1.5 mb-2">
                                     <div className="rounded-lg bg-blue-50 border border-blue-100 dark:bg-blue-950/30 dark:border-blue-900 px-2 py-1.5">
-                                        <p className="text-[8px] text-blue-600 dark:text-blue-400 uppercase font-bold leading-none mb-0.5">Enviado</p>
+                                        <p className="text-micro text-blue-600 dark:text-blue-400 uppercase font-bold leading-none mb-0.5">Enviado</p>
                                         <p className="text-xs font-black text-blue-700 dark:text-blue-300 leading-none">
-                                            {Number(item.cantidad_enviada)} <span className="font-normal text-[9px]">{item.unidad}</span>
+                                            {Number(item.cantidad_enviada)} <span className="font-normal text-micro">{item.unidad}</span>
                                         </p>
                                     </div>
                                     <div className="rounded-lg bg-green-50 border border-green-100 dark:bg-green-950/30 dark:border-green-900 px-2 py-1.5">
-                                        <p className="text-[8px] text-green-600 dark:text-green-400 uppercase font-bold leading-none mb-0.5">Recibido</p>
+                                        <p className="text-micro text-green-700 dark:text-green-300 uppercase font-bold leading-none mb-0.5">Recibido</p>
                                         <p className="text-xs font-black text-green-700 dark:text-green-300 leading-none">
-                                            {Number(item.cantidad_recibida)} <span className="font-normal text-[9px]">{item.unidad}</span>
+                                            {Number(item.cantidad_recibida)} <span className="font-normal text-micro">{item.unidad}</span>
                                         </p>
                                     </div>
                                     <div className={cn(
@@ -212,8 +212,8 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                             : "bg-amber-50 border-amber-100 dark:bg-amber-950/30 dark:border-amber-900"
                                     )}>
                                         <p className={cn(
-                                            "text-[8px] uppercase font-bold leading-none mb-0.5",
-                                            item.diferencia > 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"
+                                            "text-micro uppercase font-bold leading-none mb-0.5",
+                                            item.diferencia > 0 ? "text-red-700 dark:text-red-300" : "text-amber-800 dark:text-amber-300"
                                         )}>
                                             {item.diferencia > 0 ? 'Merma' : 'Sobrante'}
                                         </p>
@@ -222,17 +222,17 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                             item.diferencia > 0 ? "text-red-700 dark:text-red-300" : "text-amber-700 dark:text-amber-300"
                                         )}>
                                             {item.diferencia > 0 ? '-' : '+'}{Math.abs(item.diferencia)}{' '}
-                                            <span className="font-normal text-[9px]">{item.unidad}</span>
+                                            <span className="font-normal text-micro">{item.unidad}</span>
                                         </p>
                                     </div>
                                 </div>
 
                                 {/* Observación al recibir (si existe) */}
                                 {item.observacion && (
-                                    <div className="flex items-start gap-1.5 bg-muted rounded-lg px-2 py-1.5 mb-2 text-[10px]">
+                                    <div className="flex items-start gap-1.5 bg-muted rounded-lg px-2 py-1.5 mb-2 text-caption">
                                         <FileText className="h-3 w-3 shrink-0 mt-0.5 text-muted-foreground" />
                                         <div>
-                                            <p className="text-[9px] font-bold text-muted-foreground uppercase mb-0.5">Nota al recibir</p>
+                                            <p className="text-micro font-bold text-muted-foreground uppercase mb-0.5">Nota al recibir</p>
                                             <p className="text-brand-dark leading-tight">{item.observacion}</p>
                                         </div>
                                     </div>
@@ -240,7 +240,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
 
                                 {/* Reportado por (quien recibió y detectó la discrepancia) */}
                                 {item.reportado_por_nombre && (
-                                    <p className="text-[9px] text-muted-foreground mb-2 flex items-center gap-1">
+                                    <p className="text-micro text-muted-foreground mb-2 flex items-center gap-1">
                                         <User className="h-2.5 w-2.5" />
                                         Reportado por <span className="font-semibold text-brand-dark">{item.reportado_por_nombre}</span>
                                     </p>
@@ -251,14 +251,14 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                     <div className="flex gap-1.5">
                                         <button
                                             onClick={() => openModal(item, 'resuelta')}
-                                            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold rounded-lg transition-colors shadow-sm"
+                                            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-caption font-bold rounded-lg transition-colors shadow-sm"
                                         >
                                             <Check className="h-3 w-3" />
                                             Resolver
                                         </button>
                                         <button
                                             onClick={() => openModal(item, 'descartada')}
-                                            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-gray-500 hover:bg-gray-600 text-white text-[10px] font-bold rounded-lg transition-colors shadow-sm"
+                                            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 text-caption font-bold rounded-lg transition-colors shadow-sm"
                                         >
                                             <XCircle className="h-3 w-3" />
                                             Descartar
@@ -269,14 +269,14 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {/* Si ya está cerrada, mostrar la resolución */}
                                 {!isPendiente && item.resolucion && (
                                     <div className={cn(
-                                        "rounded-lg px-2.5 py-2 text-[10px]",
-                                        item.estado === 'resuelta' ? "bg-green-50 border border-green-100 dark:bg-green-950/30 dark:border-green-900" : "bg-gray-50 border border-gray-100 dark:bg-muted dark:border-border"
+                                        "rounded-lg px-2.5 py-2 text-caption",
+                                        item.estado === 'resuelta' ? "bg-green-50 border border-green-100 dark:bg-green-950/30 dark:border-green-900" : "bg-muted border border-border"
                                     )}>
-                                        <p className="font-bold text-[9px] uppercase tracking-wider mb-0.5 text-muted-foreground">
+                                        <p className="font-bold text-micro uppercase tracking-wider mb-0.5 text-muted-foreground">
                                             Resolución
                                         </p>
                                         <p className="text-brand-dark leading-snug mb-1">{item.resolucion}</p>
-                                        <p className="text-[9px] text-muted-foreground">
+                                        <p className="text-micro text-muted-foreground">
                                             {item.resuelto_por_nombre || 'Usuario'} · {fmtFecha(item.fecha_resolucion)}
                                         </p>
                                     </div>
@@ -284,7 +284,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
 
                                 {/* Si es pendiente y no puede editar */}
                                 {isPendiente && !canEdit && (
-                                    <p className="text-[10px] text-muted-foreground italic text-center py-1">
+                                    <p className="text-caption text-muted-foreground italic text-center py-1">
                                         Sin permiso para resolver
                                     </p>
                                 )}
@@ -303,7 +303,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                     <div className="flex items-center gap-2">
                         {modalAction === 'resuelta'
                             ? <Check className="h-4 w-4 text-green-600 dark:text-green-400" />
-                            : <XCircle className="h-4 w-4 text-gray-500" />}
+                            : <XCircle className="h-4 w-4 text-muted-foreground" />}
                         <span>{modalAction === 'resuelta' ? 'Resolver discrepancia' : 'Descartar discrepancia'}</span>
                     </div>
                 }
@@ -318,7 +318,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                             className={cn(
                                 modalAction === 'resuelta'
                                     ? "bg-green-500 hover:bg-green-600 text-white"
-                                    : "bg-gray-500 hover:bg-gray-600 text-white"
+                                    : "bg-secondary text-secondary-foreground hover:bg-secondary/80"
                             )}
                         >
                             {submitting ? 'Guardando…' :
@@ -355,7 +355,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none resize-none"
                                 autoFocus
                             />
-                            <p className="text-[10px] text-muted-foreground mt-1">
+                            <p className="text-caption text-muted-foreground mt-1">
                                 Esta nota queda registrada junto con tu nombre y fecha.
                             </p>
                         </div>

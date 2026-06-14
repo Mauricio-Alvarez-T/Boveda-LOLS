@@ -88,7 +88,7 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
                         <FileSpreadsheet className="h-4 w-4 text-green-600 mt-0.5 shrink-0" />
                         <div className="min-w-0">
                             <div className="text-xs font-bold text-brand-dark">Inventario actual</div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">Con cantidades y valores actuales</div>
+                            <div className="text-caption text-muted-foreground mt-0.5">Con cantidades y valores actuales</div>
                         </div>
                     </button>
                     <div className="border-t border-border" />
@@ -100,7 +100,7 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
                         <ClipboardCheck className="h-4 w-4 text-blue-600 mt-0.5 shrink-0" />
                         <div className="min-w-0">
                             <div className="text-xs font-bold text-brand-dark">Planilla para conteo físico</div>
-                            <div className="text-[10px] text-muted-foreground mt-0.5">Cantidades en blanco para inventariar en obra</div>
+                            <div className="text-caption text-muted-foreground mt-0.5">Cantidades en blanco para inventariar en obra</div>
                         </div>
                     </button>
                 </div>
@@ -151,7 +151,7 @@ const InventarioPage: React.FC = () => {
                     {activeTabDef && (
                         <>
                             <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-                            <span className="text-lg font-bold text-brand-primary">{activeTabDef.shortLabel}</span>
+                            <span className="text-lg font-bold text-green-700 dark:text-green-300">{activeTabDef.shortLabel}</span>
                         </>
                     )}
                 </div>
@@ -252,7 +252,7 @@ const InventarioPage: React.FC = () => {
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-2">
             {/* Tab Navigation — estilo Configuración: ícono pequeño al lado del texto */}
-            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1 bg-background shrink-0">
+            <div className="sticky top-0 z-30 -mx-3 md:-mx-5 px-3 md:px-5 py-1 bg-muted shrink-0">
                 {/* ── Mobile: compacto vertical (ícono pequeño + label corto) ── */}
                 <div className="flex md:hidden items-center gap-0.5 p-1 bg-card/95 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
                     {visibleTabs.map(tab => {
@@ -279,7 +279,7 @@ const InventarioPage: React.FC = () => {
                                     isActive ? "text-white" : "text-muted-foreground"
                                 )} />
                                 <span className={cn(
-                                    "text-[7px] font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center",
+                                    "text-micro font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center",
                                     isActive ? "text-white" : "text-muted-foreground"
                                 )}>
                                     {tab.shortLabel}
@@ -299,7 +299,7 @@ const InventarioPage: React.FC = () => {
                                 onClick={() => setActiveTab(tab.key)}
                                 title={tab.label}
                                 className={cn(
-                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-[0.12em] transition-all whitespace-nowrap shrink-0",
+                                    "flex items-center gap-2 px-4 py-2 rounded-xl text-caption font-black uppercase tracking-[0.12em] transition-all whitespace-nowrap shrink-0",
                                     isActive
                                         ? "bg-brand-primary text-white shadow-lg shadow-brand-primary/25"
                                         : "text-muted-foreground hover:bg-background hover:text-brand-dark"
@@ -319,7 +319,7 @@ const InventarioPage: React.FC = () => {
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.2 }}
-                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col"
+                className="bg-card border border-border rounded-2xl md:rounded-3xl shadow-[var(--shadow-md)] p-2.5 md:p-4 flex-1 min-h-0 flex flex-col"
             >
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (
@@ -400,9 +400,9 @@ const InventarioPage: React.FC = () => {
                                     onClick={() => setHideEmptyUbic(v => !v)}
                                     title={hideEmptyUbic ? 'Mostrar items sin stock' : 'Ocultar items sin stock'}
                                     className={cn(
-                                        "flex items-center justify-center gap-1.5 px-3 py-2 md:py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
+                                        "flex items-center justify-center gap-1.5 px-3 py-2 md:py-1.5 text-label font-semibold rounded-xl border transition-all",
                                         hideEmptyUbic
-                                            ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                                            ? "bg-brand-primary/10 border-brand-primary/30 text-green-700 dark:text-green-300"
                                             : "bg-card border-border text-muted-foreground hover:border-brand-primary/30"
                                     )}
                                 >
@@ -462,7 +462,7 @@ const InventarioPage: React.FC = () => {
                                     className={cn(
                                         "px-4 py-1.5 rounded-lg text-xs font-bold transition-all",
                                         maestroSubTab === st.key
-                                            ? "bg-card text-brand-primary shadow-sm"
+                                            ? "bg-card text-green-700 dark:text-green-300 shadow-sm"
                                             : "text-muted-foreground hover:text-brand-dark"
                                     )}
                                 >

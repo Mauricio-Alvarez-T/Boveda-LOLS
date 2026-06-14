@@ -20,7 +20,7 @@ interface Props {
 const SUB_CHIPS: { value: 'pendiente' | 'resuelta' | 'descartada'; label: string; color: string }[] = [
     { value: 'pendiente', label: 'Pendientes', color: 'bg-amber-500' },
     { value: 'resuelta', label: 'Resueltas', color: 'bg-green-500' },
-    { value: 'descartada', label: 'Descartadas', color: 'bg-gray-400' },
+    { value: 'descartada', label: 'Descartadas', color: 'bg-muted-foreground' },
 ];
 
 const DiscrepanciasList: React.FC<Props> = ({
@@ -60,7 +60,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                         key={chip.value}
                         onClick={() => onSubFilterChange(chip.value)}
                         className={cn(
-                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[10px] font-bold whitespace-nowrap border transition-all shrink-0",
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-caption font-bold whitespace-nowrap border transition-all shrink-0",
                             subFilter === chip.value
                                 ? "bg-red-500 text-white border-red-500 shadow-sm"
                                 : "bg-card text-muted-foreground border-border hover:border-red-300 dark:hover:border-red-700"
@@ -85,7 +85,7 @@ const DiscrepanciasList: React.FC<Props> = ({
                              'No hay discrepancias descartadas'}
                         </p>
                         {subFilter === 'pendiente' && (
-                            <p className="text-[10px] text-muted-foreground/70 mt-1">
+                            <p className="text-caption text-muted-foreground/70 mt-1">
                                 Todo el stock recibido coincide con lo enviado.
                             </p>
                         )}
@@ -123,17 +123,17 @@ const DiscrepanciasList: React.FC<Props> = ({
                                         <div className="w-6 h-6 rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 flex items-center justify-center shrink-0">
                                             <AlertTriangle className="h-3 w-3" />
                                         </div>
-                                        <span className="text-[11px] font-bold text-brand-dark">{d.codigo}</span>
+                                        <span className="text-label font-bold text-brand-dark">{d.codigo}</span>
                                     </div>
                                     {d.fecha_recepcion && (
-                                        <span className="text-[9px] text-muted-foreground">
+                                        <span className="text-micro text-muted-foreground">
                                             {new Date(d.fecha_recepcion).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: '2-digit' })}
                                         </span>
                                     )}
                                 </div>
 
                                 {/* Ruta origen → destino */}
-                                <div className="flex items-center gap-1 text-[10px] text-muted-foreground mb-2 pl-0.5">
+                                <div className="flex items-center gap-1 text-caption text-muted-foreground mb-2 pl-0.5">
                                     {origenIsObra
                                         ? <MapPin className="h-2.5 w-2.5 text-blue-500 shrink-0" />
                                         : <Warehouse className="h-2.5 w-2.5 text-amber-500 shrink-0" />}
@@ -148,14 +148,14 @@ const DiscrepanciasList: React.FC<Props> = ({
                                 {/* Métricas */}
                                 <div className="flex items-center gap-2">
                                     <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
-                                        <p className="text-[8px] text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Ítems</p>
-                                        <p className="text-[11px] font-black text-red-700 dark:text-red-300 leading-none">
+                                        <p className="text-micro text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Ítems</p>
+                                        <p className="text-label font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_items_afectados}
                                         </p>
                                     </div>
                                     <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
-                                        <p className="text-[8px] text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Diferencia</p>
-                                        <p className="text-[11px] font-black text-red-700 dark:text-red-300 leading-none">
+                                        <p className="text-micro text-red-600 dark:text-red-400 uppercase font-bold leading-none mb-0.5">Diferencia</p>
+                                        <p className="text-label font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_unidades_perdidas > 0 ? '-' : d.total_unidades_perdidas < 0 ? '+' : ''}
                                             {Math.abs(d.total_unidades_perdidas)} u.
                                         </p>
@@ -164,7 +164,7 @@ const DiscrepanciasList: React.FC<Props> = ({
 
                                 {/* Receptor */}
                                 {d.receptor_nombre && (
-                                    <p className="text-[9px] text-muted-foreground mt-1.5 pl-0.5 truncate">
+                                    <p className="text-micro text-muted-foreground mt-1.5 pl-0.5 truncate">
                                         Recibió: <span className="font-semibold text-brand-dark">{d.receptor_nombre}</span>
                                     </p>
                                 )}

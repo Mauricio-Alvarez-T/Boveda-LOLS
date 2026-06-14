@@ -62,7 +62,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                 <select
                     value={selectedCategoryId ?? ''}
                     onChange={e => setSelectedCategoryId(e.target.value ? Number(e.target.value) : null)}
-                    className="pl-3 pr-8 py-1.5 text-[11px] font-medium text-brand-dark bg-transparent focus:outline-none appearance-none cursor-pointer w-full min-w-[150px]"
+                    className="pl-3 pr-8 py-1.5 text-label font-medium text-brand-dark bg-transparent focus:outline-none appearance-none cursor-pointer w-full min-w-[150px]"
                 >
                     <option value="">Todas las categorías</option>
                     {data.categorias.map(c => (
@@ -76,9 +76,9 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             <button
                 onClick={() => setHideEmpty(v => !v)}
                 className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border transition-all",
+                    "flex items-center gap-1.5 px-3 py-1.5 text-label font-semibold rounded-xl border transition-all",
                     hideEmpty
-                        ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary"
+                        ? "bg-brand-primary/10 border-brand-primary/30 text-green-700 dark:text-green-300"
                         : "bg-card border-border text-muted-foreground hover:border-brand-primary/30"
                 )}
             >
@@ -90,7 +90,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             {hiddenCount > 0 && (
                 <button
                     onClick={restoreCols}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40 transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-label font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40 transition-all"
                 >
                     <RotateCcw className="h-3 w-3" />
                     Mostrar {hiddenCount} oculta{hiddenCount > 1 ? 's' : ''}
@@ -102,7 +102,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                 <button
                     onClick={restoreColOrder}
                     title="Restablecer el orden de columnas (obras primero, bodegas al final)"
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-semibold rounded-xl border border-border bg-card text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary transition-all"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-label font-semibold rounded-xl border border-border bg-card text-muted-foreground hover:border-brand-primary/30 hover:text-brand-primary transition-all"
                 >
                     <RotateCcw className="h-3 w-3" />
                     Orden por defecto
@@ -113,7 +113,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             {canCreate && (
                 <button
                     onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-brand-primary border border-brand-primary/30 bg-brand-primary/5 rounded-xl hover:bg-brand-primary/10 transition-all ml-auto"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-label font-bold text-green-700 dark:text-green-300 border border-brand-primary/30 bg-brand-primary/5 rounded-xl hover:bg-brand-primary/10 transition-all ml-auto"
                 >
                     <Plus className="h-3.5 w-3.5" />
                     Agregar Ítem
@@ -124,7 +124,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             <button
                 onClick={() => exportResumen(data)}
                 className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm",
+                    "flex items-center gap-1.5 px-3 py-1.5 text-label font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm",
                     !canCreate && "ml-auto"
                 )}
             >

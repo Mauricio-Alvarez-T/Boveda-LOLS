@@ -18,7 +18,7 @@ const CATEGORY_COLORS: Record<string, { bg: string; text: string; border: string
     VIGAS:          { bg: 'bg-emerald-50 dark:bg-emerald-500/15',text: 'text-emerald-700 dark:text-emerald-300',border: 'border-emerald-200 dark:border-emerald-800/60' },
     INSTALACIONES:  { bg: 'bg-rose-50 dark:bg-rose-500/15',     text: 'text-rose-700 dark:text-rose-300',     border: 'border-rose-200 dark:border-rose-800/60' },
 };
-const DEFAULT_CAT_COLOR = { bg: 'bg-gray-50 dark:bg-muted', text: 'text-gray-700 dark:text-muted-foreground', border: 'border-gray-200 dark:border-border' };
+const DEFAULT_CAT_COLOR = { bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' };
 
 const getCatColor = (catName?: string) => {
     if (!catName) return DEFAULT_CAT_COLOR;
@@ -27,7 +27,7 @@ const getCatColor = (catName?: string) => {
 };
 
 const PROPIETARIO_BADGE: Record<string, { bg: string; text: string }> = {
-    lols:     { bg: 'bg-brand-primary/10', text: 'text-brand-primary' },
+    lols:     { bg: 'bg-green-50 dark:bg-green-500/15', text: 'text-green-700 dark:text-green-300' },
     dedalius: { bg: 'bg-blue-100 dark:bg-blue-500/15',          text: 'text-blue-700 dark:text-blue-300' },
 };
 
@@ -72,13 +72,13 @@ const LocationRow: React.FC<{ loc: StockLocation }> = ({ loc }) => (
                 : <MapPin className="h-2.5 w-2.5" />
             }
         </div>
-        <span className="flex-1 text-[10px] font-medium text-brand-dark truncate">
+        <span className="flex-1 text-caption font-medium text-brand-dark truncate">
             {loc.type === 'bodega'
                 ? formatBodegaNombreResponsable(loc.nombre, loc.responsable_nombre)
                 : loc.nombre}
         </span>
         <span className={cn(
-            "px-1.5 py-0.5 rounded-full text-[10px] font-black border",
+            "px-1.5 py-0.5 rounded-full text-caption font-black border",
             qtyColor(Number(loc.cantidad))
         )}>
             {Number(loc.cantidad)}
@@ -120,9 +120,9 @@ const InventarioItemCard: React.FC<Props> = ({
             transition={{ duration: 0.3, delay: Math.min(index * 0.03, 0.5) }}
             className={cn(
                 "group relative flex flex-col rounded-2xl border bg-card overflow-hidden transition-all duration-300",
-                "hover:shadow-[0_8px_30px_rgba(0,0,0,0.08)] hover:border-[var(--border-hover)]",
+                "hover:shadow-[var(--shadow-md)] hover:border-[var(--border-hover)]",
                 isDirty
-                    ? "border-amber-300 shadow-[0_0_0_1px_rgba(245,158,11,0.3)] ring-1 ring-amber-200 dark:border-amber-500/50 dark:ring-amber-500/20"
+                    ? "border-amber-300 ring-1 ring-amber-200 dark:border-amber-500/50 dark:ring-amber-500/20"
                     : "border-border shadow-sm",
                 !activo && "opacity-60"
             )}
@@ -144,12 +144,12 @@ const InventarioItemCard: React.FC<Props> = ({
                 ) : (
                     <div className="flex flex-col items-center gap-1.5">
                         <ImageOff className="h-8 w-8 text-muted-foreground/15" />
-                        <span className="text-[9px] font-bold text-muted-foreground/25 uppercase tracking-wider">Sin imagen</span>
+                        <span className="text-micro font-bold text-muted-foreground/25 uppercase tracking-wider">Sin imagen</span>
                     </div>
                 )}
 
                 {/* Nro item badge */}
-                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/50 backdrop-blur-sm text-white text-[10px] font-bold">
+                <span className="absolute top-2 left-2 px-2 py-0.5 rounded-lg bg-black/50 backdrop-blur-sm text-white text-caption font-bold">
                     #{item.nro_item}
                 </span>
 
@@ -157,10 +157,10 @@ const InventarioItemCard: React.FC<Props> = ({
                 <button
                     onClick={() => setField('activo', !activo)}
                     className={cn(
-                        "absolute top-2 right-2 px-2 py-0.5 rounded-lg text-[10px] font-bold backdrop-blur-sm transition-all",
+                        "absolute top-2 right-2 px-2 py-0.5 rounded-lg text-caption font-bold backdrop-blur-sm transition-all",
                         activo
                             ? "bg-green-500/80 text-white"
-                            : "bg-red-500/80 text-white"
+                            : "bg-black/50 text-white"
                     )}
                 >
                     {activo ? 'Activo' : 'Inactivo'}
@@ -170,7 +170,7 @@ const InventarioItemCard: React.FC<Props> = ({
                 <div className="absolute bottom-2 right-2 px-2.5 py-1 rounded-lg bg-black/60 backdrop-blur-sm flex items-center gap-1.5">
                     <Package className="h-3 w-3 text-white/70" />
                     <span className="text-white text-xs font-black">{totalStock}</span>
-                    <span className="text-white/60 text-[9px]">{item.unidad}</span>
+                    <span className="text-white/60 text-micro">{item.unidad}</span>
                 </div>
             </div>
 
@@ -179,13 +179,13 @@ const InventarioItemCard: React.FC<Props> = ({
                 {/* Categoría + propietario badges */}
                 <div className="flex items-center gap-1.5 flex-wrap">
                     <span className={cn(
-                        "px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider border",
+                        "px-2 py-0.5 rounded-full text-micro font-black uppercase tracking-wider border",
                         catColor.bg, catColor.text, catColor.border
                     )}>
                         {item.categoria_nombre || 'Sin cat.'}
                     </span>
                     <span className={cn(
-                        "px-1.5 py-0.5 rounded-full text-[9px] font-bold",
+                        "px-1.5 py-0.5 rounded-full text-micro font-bold",
                         propBadge.bg, propBadge.text,
                     )}>
                         {String(getVal('propietario'))}
@@ -193,7 +193,7 @@ const InventarioItemCard: React.FC<Props> = ({
                 </div>
 
                 {/* Descripción */}
-                <h3 className="text-[13px] font-bold text-brand-dark leading-tight line-clamp-2 min-h-[2.5em]">
+                <h3 className="text-section font-bold text-brand-dark leading-tight line-clamp-2 min-h-[2.5em]">
                     {String(getVal('descripcion'))}
                 </h3>
 
@@ -202,7 +202,7 @@ const InventarioItemCard: React.FC<Props> = ({
                     {ubicacionesConStock === 0 ? (
                         <div className="flex items-center gap-2 py-2 px-2.5 rounded-xl bg-muted border border-border">
                             <Package className="h-3.5 w-3.5 text-muted-foreground/30" />
-                            <span className="text-[10px] text-muted-foreground">Sin stock registrado</span>
+                            <span className="text-caption text-muted-foreground">Sin stock registrado</span>
                         </div>
                     ) : (
                         <div className="space-y-1">
@@ -227,7 +227,7 @@ const InventarioItemCard: React.FC<Props> = ({
                                     )}
                                     <button
                                         onClick={() => setShowAllLocations(!showAllLocations)}
-                                        className="w-full flex items-center justify-center gap-1 py-1 rounded-lg text-[10px] font-bold text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
+                                        className="w-full flex items-center justify-center gap-1 py-1 rounded-lg text-caption font-bold text-green-700 dark:text-green-300 bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
                                     >
                                         <MapPin className="h-2.5 w-2.5" />
                                         {showAllLocations
@@ -246,9 +246,9 @@ const InventarioItemCard: React.FC<Props> = ({
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className={cn(
-                        "flex items-center justify-center gap-1 py-1.5 rounded-xl text-[11px] font-bold transition-all",
+                        "flex items-center justify-center gap-1 py-1.5 rounded-xl text-label font-bold transition-all",
                         isExpanded
-                            ? "bg-brand-primary/10 text-brand-primary"
+                            ? "bg-brand-primary/10 text-green-700 dark:text-green-300"
                             : "bg-muted text-muted-foreground hover:bg-muted hover:text-brand-dark"
                     )}
                 >
@@ -267,7 +267,7 @@ const InventarioItemCard: React.FC<Props> = ({
                     >
                         {/* Descripción editable */}
                         <div>
-                            <label className="text-[9px] font-bold text-muted-foreground uppercase">Descripción</label>
+                            <label className="text-micro font-bold text-muted-foreground uppercase">Descripción</label>
                             <input
                                 type="text"
                                 value={String(getVal('descripcion'))}
@@ -282,7 +282,7 @@ const InventarioItemCard: React.FC<Props> = ({
                         {/* Categoría + Unidad */}
                         <div className="grid grid-cols-2 gap-2">
                             <div>
-                                <label className="text-[9px] font-bold text-muted-foreground uppercase">Categoría</label>
+                                <label className="text-micro font-bold text-muted-foreground uppercase">Categoría</label>
                                 <select
                                     value={getVal('categoria_id')}
                                     onChange={e => setField('categoria_id', Number(e.target.value))}
@@ -297,7 +297,7 @@ const InventarioItemCard: React.FC<Props> = ({
                                 </select>
                             </div>
                             <div>
-                                <label className="text-[9px] font-bold text-muted-foreground uppercase">Unidad</label>
+                                <label className="text-micro font-bold text-muted-foreground uppercase">Unidad</label>
                                 <input
                                     type="text"
                                     value={String(getVal('unidad') ?? '')}
@@ -315,7 +315,7 @@ const InventarioItemCard: React.FC<Props> = ({
                         {verCostos && (
                             <div className="grid grid-cols-2 gap-2">
                                 <div>
-                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">V. Compra</label>
+                                    <label className="text-micro font-bold text-muted-foreground uppercase">V. Compra</label>
                                     <input
                                         type="number"
                                         value={Number(getVal('valor_compra') ?? 0)}
@@ -324,12 +324,12 @@ const InventarioItemCard: React.FC<Props> = ({
                                         className={cn(
                                             "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
                                             isFieldDirty('valor_compra') ? "border-amber-300" : "border-border",
-                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
+                                            !editarCostos && "bg-muted text-muted-foreground cursor-not-allowed"
                                         )}
                                     />
                                 </div>
                                 <div>
-                                    <label className="text-[9px] font-bold text-muted-foreground uppercase">V. Arriendo</label>
+                                    <label className="text-micro font-bold text-muted-foreground uppercase">V. Arriendo</label>
                                     <input
                                         type="number"
                                         value={Number(getVal('valor_arriendo') ?? 0)}
@@ -338,7 +338,7 @@ const InventarioItemCard: React.FC<Props> = ({
                                         className={cn(
                                             "w-full px-2.5 py-1.5 text-xs border rounded-lg bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none text-right",
                                             isFieldDirty('valor_arriendo') ? "border-amber-300" : "border-border",
-                                            !editarCostos && "bg-gray-100 text-gray-500 cursor-not-allowed dark:bg-muted dark:text-muted-foreground"
+                                            !editarCostos && "bg-muted text-muted-foreground cursor-not-allowed"
                                         )}
                                     />
                                 </div>
@@ -348,7 +348,7 @@ const InventarioItemCard: React.FC<Props> = ({
                         {/* Propietario + Toggles */}
                         <div className="flex items-center gap-3 flex-wrap">
                             <div>
-                                <label className="text-[9px] font-bold text-muted-foreground uppercase">Propietario</label>
+                                <label className="text-micro font-bold text-muted-foreground uppercase">Propietario</label>
                                 <select
                                     value={String(getVal('propietario'))}
                                     onChange={e => setField('propietario', e.target.value as ItemInventario['propietario'])}
@@ -368,7 +368,7 @@ const InventarioItemCard: React.FC<Props> = ({
                                     onChange={e => setField('es_consumible', e.target.checked)}
                                     className="rounded"
                                 />
-                                <span className="text-[10px] font-medium text-muted-foreground">Consumible</span>
+                                <span className="text-caption font-medium text-muted-foreground">Consumible</span>
                             </label>
                         </div>
 

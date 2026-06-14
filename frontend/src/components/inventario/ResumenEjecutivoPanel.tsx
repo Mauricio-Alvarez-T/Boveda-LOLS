@@ -42,6 +42,7 @@ const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')
 // ────────────────────────────────────────────────────────
 // Paleta de colores para categorías (barras horizontales)
 // ────────────────────────────────────────────────────────
+// paleta de data-viz (recharts requiere valores literales); colorMap ya usa la rampa accesible -700/-800
 const CAT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4'];
 
 // ────────────────────────────────────────────────────────
@@ -57,6 +58,7 @@ const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' |
     const range = max - min || 1;
     const step = w / (data.length - 1);
     const points = data.map((v, i) => `${i * step},${h - ((v - min) / range) * h}`).join(' ');
+    // paleta de data-viz (recharts requiere valores literales); colorMap ya usa la rampa accesible -700/-800
     const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857' };
     return (
         <svg width={w} height={h} className="shrink-0" aria-hidden="true">
@@ -92,7 +94,7 @@ const ComparativaChipImpl: React.FC<{ delta_pct: number | null; invertColor?: bo
     const arrow = isFlat ? '→' : isUp ? '↑' : '↓';
     return (
         <span
-            className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[10px] font-black', toneClass)}
+            className={cn('inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-caption font-black', toneClass)}
             title={`Variación vs hace 30 días: ${delta_pct > 0 ? '+' : ''}${delta_pct}%`}
         >
             {arrow} {Math.abs(delta_pct)}%
@@ -152,7 +154,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
                 <div className={cn('p-2.5 rounded-xl', iconClasses[tone])}>
                     {icon}
                 </div>
-                <span className="text-[11px] md:text-xs font-black uppercase tracking-wider">
+                <span className="text-label md:text-xs font-black uppercase tracking-wider">
                     {label}
                 </span>
             </div>
@@ -212,7 +214,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
             aria-label={`${obra.nombre}: ${fmtCLPFull(obra.valor_mensual)} mensual. Click para ver detalle.`}
             className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted transition-all text-left"
         >
-            <span className="shrink-0 w-7 h-7 rounded-lg bg-brand-primary/10 text-brand-primary text-xs font-black flex items-center justify-center">
+            <span className="shrink-0 w-7 h-7 rounded-lg bg-brand-primary/10 text-green-700 dark:text-green-300 text-xs font-black flex items-center justify-center">
                 {pos}
             </span>
             <div className="flex-1 min-w-0">
@@ -229,7 +231,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                     />
                 </div>
                 {obra.descuento_porcentaje > 0 && (
-                    <div className="mt-1 text-[10px] text-muted-foreground font-semibold">
+                    <div className="mt-1 text-caption text-muted-foreground font-semibold">
                         {obra.descuento_porcentaje}% desc. aplicado · bruto {fmtCLP(obra.valor_bruto)}
                     </div>
                 )}
@@ -296,10 +298,11 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
     const t = toneMap[alerta.tipo];
 
     const diasLabel = alerta.dias === 0 ? 'hoy' : alerta.dias === 1 ? 'hace 1 día' : `hace ${alerta.dias} días`;
-    // Las estancadas usan tono rojo para destacar que requieren decisión.
-    const bg = isEstancada ? 'bg-red-50/70 dark:bg-red-950/40' : t.bg;
-    const border = isEstancada ? 'border-red-300 dark:border-red-800' : t.border;
-    const iconBg = isEstancada ? 'bg-red-200/80 text-red-800 dark:bg-red-500/25 dark:text-red-300' : t.iconBg;
+    // Las estancadas mantienen el rol ÁMBAR (precaución/pendiente) pero intensificado
+    // para destacar que requieren decisión; el rojo se reserva para destructivo/error.
+    const bg = isEstancada ? 'bg-amber-100/70 dark:bg-amber-950/40' : t.bg;
+    const border = isEstancada ? 'border-amber-400 dark:border-amber-700' : t.border;
+    const iconBg = isEstancada ? 'bg-amber-200/80 text-amber-800 dark:bg-amber-500/25 dark:text-amber-300' : t.iconBg;
     const showActions = isEstancada && (onProrrogar || onCancelar);
 
     return (
@@ -316,18 +319,18 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                 className="flex items-center gap-3 w-full p-3.5 text-left hover:opacity-90 active:scale-[0.995] transition-all"
             >
                 <div className={cn('shrink-0 p-2 rounded-lg', iconBg)}>
-                    {isEstancada ? <AlertTriangle className="h-4 w-4" /> : t.icon}
+                    {isEstancada ? <Timer className="h-4 w-4" /> : t.icon}
                 </div>
                 <div className="flex-1 min-w-0">
                     <div className="text-sm font-bold text-brand-dark truncate">
                         {alerta.titulo}
-                        <span className="ml-2 text-[11px] font-semibold text-muted-foreground">— {diasLabel}</span>
+                        <span className="ml-2 text-label font-semibold text-muted-foreground">— {diasLabel}</span>
                     </div>
                     <div className="text-xs text-muted-foreground truncate mt-0.5">
                         {alerta.detalle}
                     </div>
                     {alerta.solicitante && (
-                        <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5 truncate">
+                        <div className="flex items-center gap-1 text-label text-muted-foreground/80 mt-0.5 truncate">
                             <User className="h-3 w-3 shrink-0" />
                             <span className="font-semibold truncate">{alerta.solicitante}</span>
                         </div>
@@ -347,7 +350,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                             type="button"
                             onClick={onProrrogar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-emerald-700 bg-card border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-950/40"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-label font-bold text-emerald-700 bg-card border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-950/40"
                         >
                             <Timer className="h-3 w-3" />
                             Extender 10 días
@@ -358,7 +361,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                             type="button"
                             onClick={onCancelar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-[11px] font-bold text-red-700 bg-card border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950/40"
+                            className="flex items-center gap-1 px-2.5 py-1.5 text-label font-bold text-red-700 bg-card border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950/40"
                         >
                             <XCircle className="h-3 w-3" />
                             Cancelar
@@ -394,7 +397,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
             <div className="flex-1 min-w-0">
                 <div className="text-sm font-bold text-brand-dark truncate">
                     {rechazo.codigo}
-                    <span className="ml-2 text-[11px] font-semibold text-muted-foreground">— {diasLabel}</span>
+                    <span className="ml-2 text-label font-semibold text-muted-foreground">— {diasLabel}</span>
                 </div>
                 <div className="text-xs text-muted-foreground truncate mt-0.5">
                     {rechazo.origen} → {rechazo.destino}
@@ -405,7 +408,7 @@ const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
                     </div>
                 )}
                 {rechazo.rechazado_por && (
-                    <div className="flex items-center gap-1 text-[11px] text-muted-foreground/80 mt-0.5">
+                    <div className="flex items-center gap-1 text-label text-muted-foreground/80 mt-0.5">
                         <User className="h-3 w-3 shrink-0" />
                         <span className="font-semibold truncate">{rechazo.rechazado_por}</span>
                     </div>
@@ -543,7 +546,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         <span
                             title={lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : undefined}
                             className={cn(
-                                'hidden md:inline text-[11px] font-semibold cursor-help',
+                                'hidden md:inline text-label font-semibold cursor-help',
                                 relTime.stale ? 'text-amber-600' : 'text-muted-foreground'
                             )}
                         >
@@ -568,7 +571,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             {obraFilter && obraSeleccionada && (
                 <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-brand-primary/5 border border-brand-primary/20 text-xs">
                     <Filter className="h-3.5 w-3.5 text-brand-primary shrink-0" />
-                    <span className="font-bold text-brand-primary truncate">
+                    <span className="font-bold text-green-700 dark:text-green-300 truncate">
                         Filtrando por obra: {obraSeleccionada.nombre}
                     </span>
                     <span className="text-muted-foreground hidden sm:inline">
@@ -577,7 +580,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     <button
                         type="button"
                         onClick={() => setObraFilter(null)}
-                        className="ml-auto px-2 py-1 text-[11px] font-bold text-brand-primary hover:bg-brand-primary/10 rounded-md"
+                        className="ml-auto px-2 py-1 text-label font-bold text-green-700 dark:text-green-300 hover:bg-brand-primary/10 rounded-md"
                     >
                         Quitar filtro
                     </button>
@@ -707,7 +710,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             Valor por categoría
                         </h3>
                         {data && (
-                            <span className="text-[11px] font-semibold text-muted-foreground">
+                            <span className="text-label font-semibold text-muted-foreground">
                                 Total: {fmtCLP(data.valor_por_categoria.reduce((s, c) => s + c.valor, 0))}
                             </span>
                         )}
@@ -748,7 +751,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                                         </span>
                                                     </div>
                                                     <div className="flex items-baseline gap-3 shrink-0">
-                                                        <span className="text-[11px] font-semibold text-muted-foreground tabular-nums w-9 text-right">
+                                                        <span className="text-label font-semibold text-muted-foreground tabular-nums w-9 text-right">
                                                             {pct}%
                                                         </span>
                                                         <span className="text-sm font-black text-brand-dark tabular-nums w-16 text-right">
@@ -780,7 +783,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                             Bombas de hormigón
                         </h3>
-                        <span className="ml-auto text-[11px] text-muted-foreground font-semibold capitalize">
+                        <span className="ml-auto text-label text-muted-foreground font-semibold capitalize">
                             {new Date().toLocaleDateString('es-CL', { month: 'long', year: 'numeric' })}
                         </span>
                     </div>
@@ -791,13 +794,13 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         // columnas (Bombeos + Obras), oculta "Costo ext.".
                         <div className={`grid gap-3 ${verCostosBombas ? 'grid-cols-3' : 'grid-cols-2'}`}>
                             <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Bombeos</span>
+                                <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Bombeos</span>
                                 <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
                                     {data!.bombas_hormigon_mes.eventos}
                                 </span>
                             </div>
                             <div className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900">
-                                <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Obras</span>
+                                <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Obras</span>
                                 <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
                                     {data!.bombas_hormigon_mes.obras_distintas}
                                 </span>
@@ -807,7 +810,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                     className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900"
                                     title={`Costo externo total del mes: ${fmtCLPFull(data!.bombas_hormigon_mes.costo_externo ?? 0)}`}
                                 >
-                                    <span className="text-[10px] font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Costo ext.</span>
+                                    <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Costo ext.</span>
                                     <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
                                         {fmtCLP(data!.bombas_hormigon_mes.costo_externo ?? 0)}
                                     </span>

@@ -288,7 +288,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     <FileText className="h-10 w-10 mx-auto opacity-20 mb-3" />
                     <p className="text-sm font-medium">No hay facturas registradas</p>
                     {canCreate && (
-                        <p className="text-xs mt-1">Haz click en <span className="font-bold text-brand-primary">+ Nueva Factura</span> para registrar la primera</p>
+                        <p className="text-xs mt-1">Haz click en <span className="font-bold text-brand-dark">+ Nueva Factura</span> para registrar la primera</p>
                     )}
                 </div>
             ) : (
@@ -303,15 +303,15 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <span className="text-xs font-bold text-brand-dark">#{f.numero_factura}</span>
-                                    <span className="text-[10px] text-muted-foreground">{f.proveedor}</span>
+                                    <span className="text-caption text-muted-foreground">{f.proveedor}</span>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground">
+                                <p className="text-label text-muted-foreground">
                                     {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(f.monto_neto)} neto
                                 </p>
                             </div>
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!f.activo && (
-                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">ANULADA</span>
+                                    <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60">ANULADA</span>
                                 )}
                                 <button onClick={() => openDetalle(f.id)} title="Ver detalle"
                                     className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors">
@@ -347,7 +347,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-black text-brand-dark">#{detalle.numero_factura}</span>
                                 {!detalle.activo && (
-                                    <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-600 border border-red-200">ANULADA</span>
+                                    <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60">ANULADA</span>
                                 )}
                             </div>
                             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
@@ -367,7 +367,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
                                         <div className="min-w-0">
                                             <p className="text-xs font-semibold text-brand-dark truncate">{it.item_descripcion}</p>
-                                            <p className="text-[10px] text-muted-foreground">
+                                            <p className="text-caption text-muted-foreground">
                                                 {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
                                                 {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
                                             </p>
@@ -468,7 +468,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                             type="button"
                                             onClick={() => openNewItem(idx)}
                                             title="Crear un ítem nuevo en el catálogo"
-                                            className="flex items-center gap-1 px-2.5 py-2 text-[11px] font-bold text-brand-primary bg-brand-primary/10 hover:bg-brand-primary/20 rounded-lg transition-colors shrink-0 whitespace-nowrap"
+                                            className="flex items-center gap-1 px-2.5 py-2 text-label font-bold text-green-700 dark:text-green-300 bg-brand-primary/10 hover:bg-brand-primary/20 rounded-lg transition-colors shrink-0 whitespace-nowrap"
                                         >
                                             <PackagePlus className="h-3.5 w-3.5" />
                                             <span className="hidden sm:inline">Nuevo</span>
@@ -495,7 +495,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                         <div className="flex items-center gap-3">
                                             {/* Cantidad */}
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] text-muted-foreground font-medium">Cant:</span>
+                                                <span className="text-caption text-muted-foreground font-medium">Cant:</span>
                                                 <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, (Number(item.cantidad) || 1) - 1) })}
                                                     className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Minus className="h-3 w-3 text-muted-foreground" />
@@ -510,12 +510,12 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                                     className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
                                                     <Plus className="h-3 w-3 text-muted-foreground" />
                                                 </button>
-                                                {item.unidad && <span className="text-[10px] text-muted-foreground">{item.unidad}</span>}
+                                                {item.unidad && <span className="text-caption text-muted-foreground">{item.unidad}</span>}
                                             </div>
 
                                             {/* Precio unitario */}
                                             <div className="flex items-center gap-1.5">
-                                                <span className="text-[10px] text-muted-foreground font-medium">P.Unit:</span>
+                                                <span className="text-caption text-muted-foreground font-medium">P.Unit:</span>
                                                 <div className="relative">
                                                     <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
                                                     <input
@@ -536,7 +536,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
                                     {/* Subtotal */}
                                     {Number(item.cantidad) > 0 && Number(item.precio_unitario) > 0 && (
-                                        <p className="text-[10px] text-right text-muted-foreground">
+                                        <p className="text-caption text-right text-muted-foreground">
                                             Subtotal: <span className="font-bold text-brand-dark">{fmtMoney(Number(item.cantidad) * Number(item.precio_unitario))}</span>
                                         </p>
                                     )}
@@ -595,7 +595,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             {/* ═══ MODAL CREAR ÍTEM NUEVO (anidado) ═══ */}
             <Modal isOpen={showNewItemModal} onClose={() => setShowNewItemModal(false)} title="Crear ítem nuevo" size="md">
                 <form onSubmit={handleCreateItem} className="space-y-4" noValidate>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-label text-muted-foreground">
                         El ítem se agrega al catálogo y se vincula automáticamente a esta línea de la factura.
                     </p>
 

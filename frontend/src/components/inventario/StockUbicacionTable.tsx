@@ -84,7 +84,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         value={editValue}
                         onChange={e => setEditValue(e.target.value)}
                         onKeyDown={e => { if (e.key === 'Enter') saveEdit(itemId, field); if (e.key === 'Escape') cancelEdit(); }}
-                        className="w-16 px-1 py-0.5 text-[11px] border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
+                        className="w-16 px-1 py-0.5 text-label border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
                         autoFocus
                     />
                     <button type="button" aria-label="Guardar cambio" title="Guardar" onClick={() => saveEdit(itemId, field)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
@@ -171,13 +171,13 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                ═══════════════════════════════════════════ */}
             <div className="md:hidden flex flex-col gap-3 flex-1 min-h-0">
                 {/* Summary Card */}
-                <div className="shrink-0 bg-gradient-to-br from-brand-primary to-brand-primary/80 rounded-2xl p-4 text-white shadow-lg shadow-brand-primary/20">
+                <div className="shrink-0 bg-card border border-border rounded-2xl p-4 text-brand-dark shadow-[var(--shadow-md)]">
                     <div className="flex items-center gap-2 mb-3">
-                        <div className="w-8 h-8 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
+                        <div className="w-8 h-8 rounded-xl bg-muted text-muted-foreground flex items-center justify-center shrink-0">
                             <MapPin className="h-4 w-4" />
                         </div>
                         <div className="flex-1 min-w-0">
-                            <p className="text-[10px] opacity-70 uppercase tracking-wider">{isBodega ? 'Bodega' : 'Obra'}</p>
+                            <p className="text-caption text-muted-foreground uppercase tracking-wider">{isBodega ? 'Bodega' : 'Obra'}</p>
                             <p className="text-sm font-bold truncate">{data.obra.nombre}</p>
                         </div>
                     </div>
@@ -185,17 +185,17 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                     {!isBodega && verCostos && (
                     <div className="grid grid-cols-3 gap-2">
                         {/* Facturación */}
-                        <div className="bg-white/10 rounded-xl p-2.5">
-                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Facturación</p>
+                        <div className="bg-muted rounded-xl p-2.5">
+                            <p className="text-micro text-muted-foreground uppercase tracking-wider mb-0.5">Facturación</p>
                             <p className="text-sm font-black leading-tight">{fmtMoney(data.total_facturacion)}</p>
                         </div>
 
                         {/* Descuento (tappable) — edición requiere `inventario.descuentos.gestionar`. */}
                         <div className={cn(
-                            "bg-white/10 rounded-xl p-2.5",
-                            editarDescuento && "active:bg-white/20 transition-colors"
+                            "bg-muted rounded-xl p-2.5",
+                            editarDescuento && "active:bg-muted transition-colors"
                         )}>
-                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Descuento</p>
+                            <p className="text-micro text-muted-foreground uppercase tracking-wider mb-0.5">Descuento</p>
                             {mobileEditCell === 'm_descuento' ? (
                                 <div className="flex items-center gap-1">
                                     <input
@@ -206,7 +206,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                             if (e.key === 'Enter') mobileSaveDescuento();
                                             if (e.key === 'Escape') mobileCancelEdit();
                                         }}
-                                        className="w-10 px-1 py-0.5 text-xs text-brand-dark border-2 border-white rounded text-center font-bold outline-none"
+                                        className="w-10 px-1 py-0.5 text-xs text-brand-dark border-2 border-border rounded text-center font-bold outline-none"
                                         autoFocus
                                     />
                                     <span className="text-xs font-bold">%</span>
@@ -221,15 +221,15 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                 >
                                     <p className="text-sm font-black leading-tight">{data.descuento_porcentaje}%</p>
                                     {data.descuento_monto > 0 && (
-                                        <p className="text-[9px] opacity-80 leading-tight">-{fmtMoney(data.descuento_monto)}</p>
+                                        <p className="text-micro text-muted-foreground leading-tight">-{fmtMoney(data.descuento_monto)}</p>
                                     )}
                                 </button>
                             )}
                         </div>
 
                         {/* Total final */}
-                        <div className="bg-white/20 rounded-xl p-2.5 ring-1 ring-white/30">
-                            <p className="text-[9px] opacity-80 uppercase tracking-wider mb-0.5">Total Final</p>
+                        <div className="bg-muted rounded-xl p-2.5 ring-1 ring-border">
+                            <p className="text-micro text-muted-foreground uppercase tracking-wider mb-0.5">Total Final</p>
                             <p className="text-sm font-black leading-tight">
                                 {fmtMoney(data.descuento_porcentaje > 0 ? data.total_con_descuento : data.total_facturacion)}
                             </p>
@@ -241,7 +241,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                 {/* Categorías list */}
                 {totalItems === 0 ? (
                     <div className="flex flex-col items-center justify-center py-16 text-center">
-                        <Package className="h-12 w-12 text-brand-primary/20 mb-4" />
+                        <Package className="h-12 w-12 text-muted-foreground/30 mb-4" />
                         <p className="text-sm text-muted-foreground">
                             {hideEmpty ? 'No hay items con stock.' : `Sin items en esta ${isBodega ? 'bodega' : 'obra'}.`}
                         </p>
@@ -255,16 +255,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     {/* Category header */}
                                     <button
                                         onClick={() => toggleCat(cat.id)}
-                                        className="w-full flex items-center justify-between px-4 py-3 bg-brand-primary/5 active:bg-brand-primary/10 transition-colors"
+                                        className="w-full flex items-center justify-between px-4 py-3 bg-muted active:bg-muted transition-colors"
                                     >
                                         <div className="flex items-center gap-2 min-w-0">
-                                            <ChevronDown className={cn("h-4 w-4 text-brand-primary transition-transform duration-200 shrink-0", !catExpanded && "-rotate-90")} />
-                                            <span className="font-black text-xs uppercase tracking-wider text-brand-primary truncate">{cat.nombre}</span>
+                                            <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform duration-200 shrink-0", !catExpanded && "-rotate-90")} />
+                                            <span className="font-black text-xs uppercase tracking-wider text-foreground truncate">{cat.nombre}</span>
                                         </div>
-                                        <div className="flex items-center gap-3 text-[10px] shrink-0">
+                                        <div className="flex items-center gap-3 text-caption shrink-0">
                                             <span className="font-bold text-brand-dark">{cat.subtotal_cantidad} u.</span>
                                             {verCostos && (
-                                                <span className="font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</span>
+                                                <span className="font-bold text-foreground">{fmtMoney(cat.subtotal_arriendo)}</span>
                                             )}
                                         </div>
                                     </button>
@@ -284,7 +284,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                             className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 dark:active:bg-blue-950/30 transition-colors text-left"
                                                         >
                                                             <div className="w-10 h-10 rounded-xl bg-muted border border-border flex items-center justify-center shrink-0">
-                                                                <span className="text-[10px] font-bold text-muted-foreground">#{item.nro_item}</span>
+                                                                <span className="text-caption font-bold text-muted-foreground">#{item.nro_item}</span>
                                                             </div>
                                                             <div className="flex-1 min-w-0">
                                                                 <p
@@ -292,16 +292,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                     onClick={(e) => { e.stopPropagation(); itemDetail.openItem(item.id, item); }}
                                                                 >{item.descripcion}</p>
                                                                 <div className="flex items-center gap-2 mt-1">
-                                                                    <span className="text-[10px] font-semibold text-brand-dark">{item.cantidad} {item.unidad}</span>
+                                                                    <span className="text-caption font-semibold text-brand-dark">{item.cantidad} {item.unidad}</span>
                                                                     {verCostos && item.valor_arriendo > 0 && (
-                                                                        <span className="text-[10px] text-muted-foreground">· {fmtMoney(item.valor_arriendo)}/mes</span>
+                                                                        <span className="text-caption text-muted-foreground">· {fmtMoney(item.valor_arriendo)}/mes</span>
                                                                     )}
                                                                 </div>
                                                             </div>
                                                             <div className="flex items-center gap-2 shrink-0">
                                                                 <div className="text-right">
                                                                     {verCostos && item.total > 0 && (
-                                                                        <p className="text-xs font-black text-brand-primary">{fmtMoney(item.total)}</p>
+                                                                        <p className="text-xs font-black text-foreground">{fmtMoney(item.total)}</p>
                                                                     )}
                                                                 </div>
                                                                 <ChevronDown className={cn("h-4 w-4 text-muted-foreground/40 transition-transform duration-200", itemExpanded && "rotate-180")} />
@@ -389,7 +389,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 "flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-bold",
                                                                                 item.cantidad > 0
                                                                                     ? "bg-blue-50 text-blue-700 border border-blue-200 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-900"
-                                                                                    : "bg-gray-50 text-gray-400 border border-gray-200 dark:bg-muted dark:text-muted-foreground dark:border-border",
+                                                                                    : "bg-muted text-muted-foreground border border-border",
                                                                                 canEdit && "active:scale-95 transition-transform"
                                                                             )}
                                                                         >
@@ -403,7 +403,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                 {verCostos && (
                                                                 <div className="flex items-center justify-between py-2">
                                                                     <span className="text-xs font-bold text-brand-dark">Total</span>
-                                                                    <span className="text-sm font-black text-brand-primary">
+                                                                    <span className="text-sm font-black text-foreground">
                                                                         {item.total > 0 ? fmtMoney(item.total) : '$0'}
                                                                     </span>
                                                                 </div>
@@ -426,7 +426,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                 ── DESKTOP VIEW (unchanged — md and up) ──
                ═══════════════════════════════════════════ */}
             <div className="hidden md:block overflow-auto flex-1 min-h-0 rounded-xl border border-border">
-                <table className="w-full text-[11px] border-collapse">
+                <table className="w-full text-label border-collapse">
                     <thead className="sticky top-0 z-20">
                         <tr>
                             <th className="bg-muted px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-border w-8">#</th>
@@ -448,10 +448,10 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                             return (
                             <React.Fragment key={cat.id}>
                                 <tr
-                                    className="bg-brand-primary/10 cursor-pointer select-none hover:bg-brand-primary/15 transition-colors"
+                                    className="bg-muted cursor-pointer select-none hover:bg-muted transition-colors"
                                     onClick={() => toggleCatDesktop(cat.id)}
                                 >
-                                    <td colSpan={verCostos ? 7 : 5} className="px-3 py-1.5 font-black text-[10px] uppercase tracking-widest text-brand-primary">
+                                    <td colSpan={verCostos ? 7 : 5} className="px-3 py-1.5 font-black text-caption uppercase tracking-widest text-foreground">
                                         <div className="flex items-center gap-2">
                                             <ChevronRight className={cn("h-3.5 w-3.5 transition-transform duration-200", !collapsed && "rotate-90")} />
                                             <span>{cat.nombre}</span>
@@ -491,12 +491,12 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     colSpan adjustment: con verCostos hay 7 cols (label hasta UN = 5 + cant + arriendo),
                                     sin verCostos hay 5 cols (label hasta UN = 4 + cant). */}
                                 <tr className="bg-muted border-t border-border">
-                                    <td colSpan={verCostos ? 5 : 4} className="px-3 py-1.5 text-right font-bold text-[10px] uppercase text-muted-foreground">
+                                    <td colSpan={verCostos ? 5 : 4} className="px-3 py-1.5 text-right font-bold text-caption uppercase text-muted-foreground">
                                         Total {cat.nombre}
                                     </td>
                                     <td className="px-2 py-1.5 text-right font-bold text-brand-dark border-r border-border">{cat.subtotal_cantidad}</td>
                                     {verCostos && (
-                                        <td className="px-2 py-1.5 text-right font-bold text-brand-accent">{fmtMoney(cat.subtotal_arriendo)}</td>
+                                        <td className="px-2 py-1.5 text-right font-bold text-foreground">{fmtMoney(cat.subtotal_arriendo)}</td>
                                     )}
                                 </tr>
                             </React.Fragment>
@@ -511,7 +511,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         {/* Grand total */}
                         <tr className="border-t-2 border-brand-primary/30">
                             <td colSpan={6} className="bg-muted px-3 py-2.5 text-right font-black text-xs text-brand-dark">TOTAL FACTURACIÓN</td>
-                            <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-primary">{fmtMoney(data.total_facturacion)}</td>
+                            <td className="bg-muted px-2 py-2.5 text-right font-black text-xs text-foreground">{fmtMoney(data.total_facturacion)}</td>
                         </tr>
                         {/* Discount row — always visible, editable */}
                         <tr>
@@ -524,7 +524,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                             value={editValue}
                                             onChange={e => setEditValue(e.target.value)}
                                             onKeyDown={e => { if (e.key === 'Enter') handleDescuentoSave(); if (e.key === 'Escape') cancelEdit(); }}
-                                            className="w-16 px-1 py-0.5 text-[11px] border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
+                                            className="w-16 px-1 py-0.5 text-label border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
                                             autoFocus
                                             min={0}
                                             max={100}
@@ -545,14 +545,14 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     </span>
                                 )}
                             </td>
-                            <td className="bg-amber-50 dark:bg-amber-950 px-2 py-2 text-right font-bold text-xs text-destructive">
+                            <td className="bg-amber-50 dark:bg-amber-950 px-2 py-2 text-right font-bold text-xs text-red-700 dark:text-red-300">
                                 {data.descuento_monto > 0 ? `-${fmtMoney(data.descuento_monto)}` : '$0'}
                             </td>
                         </tr>
                         {data.descuento_porcentaje > 0 && (
                             <tr className="border-t-2 border-brand-accent/30">
                                 <td colSpan={6} className="bg-muted px-3 py-2.5 text-right font-black text-xs text-brand-dark">TOTAL CON DESCUENTO</td>
-                                <td className="bg-emerald-50 dark:bg-emerald-950 px-2 py-2.5 text-right font-black text-xs text-brand-accent">{fmtMoney(data.total_con_descuento)}</td>
+                                <td className="bg-muted px-2 py-2.5 text-right font-black text-xs text-foreground">{fmtMoney(data.total_con_descuento)}</td>
                             </tr>
                         )}
                         </>)}

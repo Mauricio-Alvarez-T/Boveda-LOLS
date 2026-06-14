@@ -114,7 +114,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
                             <div className="h-px bg-border my-1" />
                             <button onClick={handleClick(onWhatsApp)} disabled={actionLoading}
                                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-brand-dark hover:bg-muted disabled:opacity-50 transition-colors">
-                                <Send className="h-3.5 w-3.5 shrink-0 text-[#25D366]" />
+                                <Send className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
                                 <span>{isPendiente ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}</span>
                             </button>
                         </>

@@ -121,7 +121,7 @@ const MaterialesAprobacionPanel: React.FC<{
     return (
         <div className={embedded
             ? "space-y-4"
-            : "shrink-0 border border-green-200 bg-green-50/40 dark:border-green-900 dark:bg-green-950/20 rounded-2xl p-4 md:p-5 mb-4 space-y-4"}>
+            : "shrink-0 border border-border bg-card rounded-2xl p-4 md:p-5 mb-4 space-y-4"}>
             {embedded ? (
                 <p className="text-xs text-muted-foreground">
                     Para cada ítem revisa la cantidad y elige si se <strong>compra</strong> o se <strong>trae de otra obra</strong>. Después confirma.
@@ -129,8 +129,8 @@ const MaterialesAprobacionPanel: React.FC<{
             ) : (
                 <div>
                     <div className="flex items-center gap-2">
-                        <CheckCircle2 className="h-5 w-5 text-green-700 dark:text-green-400" />
-                        <h4 className="text-base font-bold text-green-800 dark:text-green-300">Revisar y aprobar materiales</h4>
+                        <CheckCircle2 className="h-5 w-5 text-brand-primary" />
+                        <h4 className="text-base font-bold text-foreground">Revisar y aprobar materiales</h4>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1">
                         Para cada ítem revisa la cantidad y elige si se <strong>compra</strong> o se <strong>trae de otra obra</strong>. Después confirma.
@@ -149,7 +149,7 @@ const MaterialesAprobacionPanel: React.FC<{
                                 <span className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-amber-100 text-amber-800 text-xs font-black flex items-center justify-center dark:bg-amber-950/40 dark:text-amber-300">{idx + 1}</span>
                                 <p className={cn("flex-1 min-w-0 text-base font-bold text-brand-dark leading-snug break-words", !e.aprobado && "line-through text-muted-foreground")}>{e.descripcion || 'Ítem'}</p>
                                 <button type="button" onClick={() => setEdit(e.id, { aprobado: !e.aprobado })}
-                                    className={cn("shrink-0 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors", e.aprobado ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "text-brand-primary hover:bg-brand-primary/10")}>
+                                    className={cn("shrink-0 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors", e.aprobado ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "text-green-700 dark:text-green-300 hover:bg-brand-primary/10")}>
                                     {e.aprobado ? 'Quitar' : 'Incluir'}
                                 </button>
                             </div>
@@ -173,7 +173,7 @@ const MaterialesAprobacionPanel: React.FC<{
 
                                     <div>
                                         <button type="button" onClick={() => toggleExp(key)}
-                                            className="inline-flex items-center gap-1 text-xs font-semibold text-brand-primary hover:underline">
+                                            className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 dark:text-green-300 hover:underline">
                                             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExp && "rotate-180")} />
                                             Corregir nombre{e.fuente === 'comprar' ? ' o nota' : ''}
                                         </button>
@@ -197,7 +197,7 @@ const MaterialesAprobacionPanel: React.FC<{
                 {nuevos.map(n => (
                     <li key={`n${n._k}`} className="rounded-2xl border border-dashed border-brand-primary/40 bg-brand-primary/[0.03] p-4">
                         <div className="flex items-start gap-3">
-                            <span className="shrink-0 mt-1 px-2 h-6 rounded-lg bg-brand-primary/10 text-brand-primary text-[10px] font-black flex items-center justify-center">NUEVO</span>
+                            <span className="shrink-0 mt-1 px-2 h-6 rounded-lg bg-brand-primary/10 text-green-700 dark:text-green-300 text-caption font-black flex items-center justify-center">NUEVO</span>
                             <input value={n.descripcion} autoFocus onChange={ev => setNuevo(n._k, { descripcion: ev.target.value })}
                                 placeholder="Nombre del ítem nuevo"
                                 className="flex-1 min-w-0 h-11 px-3 text-base font-bold rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
@@ -222,7 +222,7 @@ const MaterialesAprobacionPanel: React.FC<{
             </ul>
 
             <button type="button" onClick={addNuevo}
-                className="w-full h-11 inline-flex items-center justify-center gap-2 text-sm font-bold text-brand-primary bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/20 rounded-xl transition-colors">
+                className="w-full h-11 inline-flex items-center justify-center gap-2 text-sm font-bold text-green-700 dark:text-green-300 bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/20 rounded-xl transition-colors">
                 <Plus className="h-4 w-4" /> Agregar otro ítem
             </button>
 
@@ -276,7 +276,7 @@ const MaterialesRecepcionPanel: React.FC<{
                     <h4 className="text-sm font-bold text-blue-800 dark:text-blue-300">Registrar entrega</h4>
                 </div>
             )}
-            <p className="text-[11px] text-muted-foreground">
+            <p className="text-label text-muted-foreground">
                 Registra lo que llegó en este viaje. Si la entrega viene en <strong>varios viajes</strong>, usa
                 {' '}<strong>"Registrar viaje"</strong> (la solicitud queda abierta y queda el registro con tu nombre);
                 cuando llegue <strong>todo</strong>, usa <strong>"Cerrar entrega"</strong>. Anota diferencias o sobrantes si aplica.
@@ -327,34 +327,34 @@ const MatRequestRow: React.FC<{
                 <div className="flex flex-wrap items-center gap-1.5">
                     <span className={cn("text-xs font-bold text-brand-dark", rechazado && "line-through")}>{it.descripcion}</span>
                     {it.agregado_por_aprobador && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold uppercase">+ aprobador</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold uppercase">+ aprobador</span>
                     )}
                     {rechazado && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold uppercase">No se compra</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-micro font-bold uppercase">No se compra</span>
                     )}
                     {/* La fuente la decide el aprobador → chip solo cuando ya está decidida. */}
                     {estado !== 'pendiente' && !rechazado && it.fuente === 'obra' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold">
                             <MapPin className="h-2.5 w-2.5" /> Traer de {it.origen_obra_nombre || 'otra obra'}
                         </span>
                     )}
                     {estado !== 'pendiente' && !rechazado && it.fuente !== 'obra' && (
-                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-[9px] font-bold">
+                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-micro font-bold">
                             <ShoppingBag className="h-2.5 w-2.5" /> Comprar
                         </span>
                     )}
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-label text-muted-foreground">
                     {ajustada ? (
-                        <><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-brand-primary font-bold">{cant}</span></>
+                        <><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-foreground font-bold">{cant}</span></>
                     ) : (
                         <span className="font-semibold">{cant}</span>
                     )}
                     {it.unidad ? ` ${it.unidad}` : ''}
                 </p>
-                {it.observacion && <p className="text-[10px] text-muted-foreground/70 italic">{it.observacion}</p>}
+                {it.observacion && <p className="text-caption text-muted-foreground/70 italic">{it.observacion}</p>}
                 {it.nota_aprobador && (
-                    <p className="text-[10px] text-muted-foreground inline-flex items-center gap-1">
+                    <p className="text-caption text-muted-foreground inline-flex items-center gap-1">
                         <MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}
                     </p>
                 )}
@@ -870,7 +870,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-lg font-black text-brand-dark tracking-tight">{t.codigo}</h2>
                         {t.tipo_flujo && t.tipo_flujo !== 'solicitud' && (
-                            <span className={cn("text-[10px] font-bold px-1.5 py-0.5 rounded-md border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
+                            <span className={cn("text-caption font-bold px-1.5 py-0.5 rounded-md border", (tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).color)}>
                                 {(tipoFlujoConfig[t.tipo_flujo] || tipoFlujoConfig.solicitud).label}
                             </span>
                         )}
@@ -881,7 +881,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <span className="font-medium">{destino}</span>
                     </div>
                     {t.motivo && (
-                        <div className="text-[11px] text-muted-foreground mt-1 italic">
+                        <div className="text-label text-muted-foreground mt-1 italic">
                             Motivo: {t.motivo}
                         </div>
                     )}
@@ -915,14 +915,14 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Timeline Stepper (3 steps) ── */}
             <div className="shrink-0 mb-5">
                 {isTerminated ? (
-                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-gray-50 border-gray-200 dark:bg-muted dark:border-border")}>
-                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-gray-400" />}
+                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-muted border-border")}>
+                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-muted-foreground" />}
                         <div>
-                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-gray-600 dark:text-muted-foreground")}>
+                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-muted-foreground")}>
                                 {t.estado === 'rechazada' ? 'Transferencia Rechazada' : 'Transferencia Cancelada'}
                             </p>
                             {t.observaciones_rechazo && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
+                                <p className="text-caption text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
                             )}
                         </div>
                     </div>
@@ -948,7 +948,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             <StepIcon className="h-4.5 w-4.5" />
                                         </div>
                                         <span className={cn(
-                                            "text-[10px] font-bold whitespace-nowrap",
+                                            "text-caption font-bold whitespace-nowrap",
                                             completed ? "text-brand-primary" : "text-muted-foreground/40"
                                         )}>
                                             {step.label}
@@ -969,7 +969,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         Items ({items.length})
                     </h4>
                     <div className="border border-border rounded-xl overflow-hidden">
-                        <table className="w-full text-[11px]">
+                        <table className="w-full text-label">
                             <thead>
                                 <tr className="bg-muted">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Item</th>
@@ -1023,26 +1023,26 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 >
                                     <div className="flex items-center justify-between mb-1.5">
                                         <div className="flex items-center gap-1.5">
-                                            <span className="text-[10px] font-bold text-muted-foreground">#{idx + 1}</span>
-                                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground">
+                                            <span className="text-caption font-bold text-muted-foreground">#{idx + 1}</span>
+                                            <span className="text-caption font-bold px-2 py-0.5 rounded-full border border-border bg-muted text-muted-foreground">
                                                 {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
                                             </span>
-                                            <span className="text-[10px] text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
+                                            <span className="text-caption text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
                                         </div>
-                                        <span className="text-[10px] text-muted-foreground">
+                                        <span className="text-caption text-muted-foreground">
                                             por <strong className="text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</strong>
                                         </span>
                                     </div>
                                     <ul className="space-y-0.5 ml-2">
                                         {rec.items.map(ri => (
-                                            <li key={ri.id} className="text-[11px] flex justify-between">
+                                            <li key={ri.id} className="text-label flex justify-between">
                                                 <span className="text-brand-dark">
                                                     <span className="font-semibold">{Number(ri.cantidad_recibida)}</span>
                                                     {ri.unidad ? <span className="text-muted-foreground"> {ri.unidad}</span> : null}
                                                     <span className="text-muted-foreground"> · {ri.item_descripcion || `Item #${ri.item_id}`}</span>
                                                 </span>
                                                 {ri.observacion && (
-                                                    <span className="text-[10px] text-muted-foreground italic ml-2">{ri.observacion}</span>
+                                                    <span className="text-caption text-muted-foreground italic ml-2">{ri.observacion}</span>
                                                 )}
                                             </li>
                                         ))}
@@ -1062,7 +1062,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         Items personalizados ({itemsCustom.length})
                     </h4>
                     <div className="border border-border rounded-xl overflow-hidden bg-muted/30">
-                        <table className="w-full text-[11px]">
+                        <table className="w-full text-label">
                             <thead>
                                 <tr className="bg-muted">
                                     <th className="text-left px-3 py-2 font-bold text-brand-dark">Descripción</th>
@@ -1080,30 +1080,30 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <span className={cn(rechazado && "line-through")}>{it.descripcion}</span>
                                                     {it.agregado_por_aprobador && (
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold uppercase">+ aprobador</span>
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold uppercase">+ aprobador</span>
                                                     )}
                                                     {rechazado && (
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-[9px] font-bold uppercase">No se compra</span>
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-micro font-bold uppercase">No se compra</span>
                                                     )}
                                                     {/* La fuente la decide el aprobador → solo mostrar el chip cuando ya
                                                         está decidida (no en 'pendiente', donde 'comprar' es solo el default). */}
                                                     {t.estado !== 'pendiente' && !rechazado && it.fuente === 'obra' && (
-                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-brand-primary text-[9px] font-bold"><MapPin className="h-2.5 w-2.5" /> Traer de {it.origen_obra_nombre || 'otra obra'}</span>
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold"><MapPin className="h-2.5 w-2.5" /> Traer de {it.origen_obra_nombre || 'otra obra'}</span>
                                                     )}
                                                     {t.estado !== 'pendiente' && !rechazado && it.fuente !== 'obra' && (
-                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-[9px] font-bold"><ShoppingBag className="h-2.5 w-2.5" /> Comprar</span>
+                                                        <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground border border-border text-micro font-bold"><ShoppingBag className="h-2.5 w-2.5" /> Comprar</span>
                                                     )}
                                                 </div>
                                                 {it.observacion && (
-                                                    <div className="text-[10px] text-muted-foreground italic mt-0.5">{it.observacion}</div>
+                                                    <div className="text-caption text-muted-foreground italic mt-0.5">{it.observacion}</div>
                                                 )}
                                                 {it.nota_aprobador && (
-                                                    <div className="text-[10px] text-muted-foreground mt-0.5 inline-flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}</div>
+                                                    <div className="text-caption text-muted-foreground mt-0.5 inline-flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}</div>
                                                 )}
                                             </td>
                                             <td className="px-2 py-1.5 text-center font-semibold">
                                                 {ajustada ? (
-                                                    <span><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-brand-primary">{Number(it.cantidad_aprobada)}</span></span>
+                                                    <span><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-foreground">{Number(it.cantidad_aprobada)}</span></span>
                                                 ) : (
                                                     <span className={cn(rechazado && "line-through text-muted-foreground")}>{Number(it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad)}</span>
                                                 )}
@@ -1393,16 +1393,16 @@ const TransferenciaDetail: React.FC<Props> = ({
                 };
 
                 return (
-                <div className="shrink-0 border border-green-200 bg-green-50/30 dark:border-green-900 dark:bg-green-950/20 rounded-xl p-4 mb-4 space-y-4">
+                <div className="shrink-0 border border-border bg-card rounded-xl p-4 mb-4 space-y-4">
                     <div className="flex items-center justify-between flex-wrap gap-2">
-                        <h4 className="text-sm font-bold text-green-800 dark:text-green-300 flex items-center gap-1.5">
-                            <CheckCircle2 className="h-4 w-4" /> Aprobar Transferencia
+                        <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
+                            <CheckCircle2 className="h-4 w-4 text-brand-primary" /> Aprobar Transferencia
                         </h4>
                         <button
                             type="button"
                             onClick={autoCompletar}
                             disabled={stockLoading}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] font-bold text-green-700 bg-card border border-green-300 rounded-lg hover:bg-green-50 dark:text-green-300 dark:border-green-800 dark:hover:bg-green-950/40 disabled:opacity-50 transition-all"
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-caption font-bold text-foreground bg-card border border-border rounded-lg hover:bg-muted disabled:opacity-50 transition-all"
                             title="Completa las cantidades solicitadas distribuyendo entre las ubicaciones con más stock"
                         >
                             <Zap className="h-3 w-3" />
@@ -1410,7 +1410,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         </button>
                     </div>
 
-                    <p className="text-[10px] text-muted-foreground ml-1">
+                    <p className="text-caption text-muted-foreground ml-1">
                         Elige de dónde sale cada ítem. Si no hay stock suficiente en una sola ubicación, puedes dividir entre varias.
                     </p>
 
@@ -1461,7 +1461,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             <button type="button" onClick={() => itemDetail.openItem(item.item_id)} className="text-xs font-bold text-brand-dark text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
                                                 {item.item_descripcion}
                                             </button>
-                                            <span className="text-[10px] font-semibold text-muted-foreground">
+                                            <span className="text-caption font-semibold text-muted-foreground">
                                                 Solicitada: <span className="text-brand-dark">{solicitada}</span>
                                                 {totalSplits > 0 && (
                                                     <> · Enviando: <span className={cn("font-bold", status.completo ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300")}>{totalSplits}</span></>
@@ -1485,7 +1485,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                 else if (!isActive) setPrimaryOrigin(idx, loc);
                                                             }}
                                                             className={cn(
-                                                                "text-[9px] px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
+                                                                "text-micro px-2 py-1 rounded-lg border flex items-center gap-1 transition-all",
                                                                 isActive
                                                                     ? isBodega
                                                                         ? "bg-amber-100 border-amber-400 text-amber-800 font-bold ring-2 ring-amber-300/50 dark:bg-amber-500/20 dark:border-amber-700 dark:text-amber-200 dark:ring-amber-700/40"
@@ -1507,7 +1507,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 })}
                                             </div>
                                         ) : (
-                                            <p className="text-[10px] text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
+                                            <p className="text-caption text-red-600 dark:text-red-400 mb-2 flex items-center gap-1">
                                                 <AlertTriangle className="h-3 w-3" /> Sin stock disponible
                                             </p>
                                         )}
@@ -1525,7 +1525,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     const splitErr = !loc || sp.cantidad > maxAqui;
 
                                                     return (
-                                                        <div key={sIdx} className="flex items-center gap-2 text-[10px]">
+                                                        <div key={sIdx} className="flex items-center gap-2 text-caption">
                                                             {loc?.type === 'bodega'
                                                                 ? <Warehouse className="h-3 w-3 text-amber-600 dark:text-amber-400 shrink-0" />
                                                                 : <MapPin className="h-3 w-3 text-green-700 dark:text-green-400 shrink-0" />
@@ -1587,7 +1587,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                                 },
                                                             ]);
                                                         }}
-                                                        className="flex items-center gap-1 text-[10px] text-green-700 hover:text-green-800 dark:text-green-300 dark:hover:text-green-200 font-medium"
+                                                        className="flex items-center gap-1 text-caption text-green-700 hover:text-green-800 dark:text-green-300 dark:hover:text-green-200 font-medium"
                                                     >
                                                         <Plus className="h-3 w-3" /> Agregar otra ubicación
                                                     </button>
@@ -1598,7 +1598,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         {/* Quick-fix chips (sólo si no hay splits aún) */}
                                         {(mostrarSoloLoQueHay || mostrarDividir) && (
                                             <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-amber-200 dark:border-amber-900">
-                                                <span className="text-[10px] text-muted-foreground w-full mb-0.5">💡 ¿Qué hacer?</span>
+                                                <span className="text-caption text-muted-foreground w-full mb-0.5">💡 ¿Qué hacer?</span>
                                                 {mostrarSoloLoQueHay && (
                                                     <button
                                                         type="button"
@@ -1621,7 +1621,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                             }
                                                             updateSplits(idx, splits);
                                                         }}
-                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 font-medium hover:bg-amber-200 dark:bg-amber-500/15 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-500/25 transition"
+                                                        className="flex items-center gap-1 text-caption px-2.5 py-1 rounded-lg bg-amber-100 border border-amber-300 text-amber-800 font-medium hover:bg-amber-200 dark:bg-amber-500/15 dark:border-amber-800 dark:text-amber-200 dark:hover:bg-amber-500/25 transition"
                                                     >
                                                         <Zap className="h-3 w-3" />
                                                         Enviar solo {sumAvailable} (lo que hay)
@@ -1631,7 +1631,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     <button
                                                         type="button"
                                                         onClick={autoCompletar}
-                                                        className="flex items-center gap-1 text-[10px] px-2.5 py-1 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 font-medium hover:bg-blue-200 dark:bg-blue-500/15 dark:border-blue-800 dark:text-blue-200 dark:hover:bg-blue-500/25 transition"
+                                                        className="flex items-center gap-1 text-caption px-2.5 py-1 rounded-lg bg-blue-100 border border-blue-300 text-blue-800 font-medium hover:bg-blue-200 dark:bg-blue-500/15 dark:border-blue-800 dark:text-blue-200 dark:hover:bg-blue-500/25 transition"
                                                     >
                                                         <Split className="h-3 w-3" />
                                                         Dividir entre {Math.min(locations.filter(l => l.cantidad > 0).length, 3)} lugares
@@ -1642,7 +1642,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                                         {/* Mensaje de error de split */}
                                         {status.error && (
-                                            <p className="mt-1 text-[9px] text-red-600 dark:text-red-400 font-medium flex items-center gap-0.5">
+                                            <p className="mt-1 text-micro text-red-600 dark:text-red-400 font-medium flex items-center gap-0.5">
                                                 <AlertTriangle className="h-2.5 w-2.5" /> Revisa las cantidades: exceden el stock o lo solicitado.
                                             </p>
                                         )}
@@ -1655,7 +1655,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     {/* Resumen + mega-botón --------------------------------------- */}
                     {!stockLoading && (totalParcial > 0 || totalVacio > 0) && (
                         <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900 flex-wrap">
-                            <div className="text-[11px] font-medium text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
+                            <div className="text-label font-medium text-amber-900 dark:text-amber-300 flex items-center gap-1.5">
                                 🎯 {totalCompleto} {totalCompleto === 1 ? 'ítem listo' : 'ítems listos'}
                                 {totalParcial > 0 && <> · {totalParcial} con stock parcial</>}
                                 {totalVacio > 0 && <> · {totalVacio} sin asignar</>}
@@ -1664,7 +1664,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 type="button"
                                 onClick={aprobarConLoDisponible}
                                 disabled={stockLoading}
-                                className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition"
+                                className="flex items-center gap-1.5 px-3 py-1.5 text-label font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition"
                                 title="Ajusta todos los ítems al máximo disponible — puedes revisar antes de confirmar"
                             >
                                 <Zap className="h-3 w-3" /> Aprobar con lo disponible
@@ -1760,7 +1760,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <h4 className="text-sm font-bold text-red-800 dark:text-red-300 flex items-center gap-1.5">
                         <XCircle className="h-4 w-4" /> Rechazar Recepción
                     </h4>
-                    <p className="text-[11px] text-muted-foreground">
+                    <p className="text-label text-muted-foreground">
                         Rechaza físicamente el material recibido. La transferencia pasa a "rechazada" y el stock no se actualiza.
                     </p>
                     <textarea
@@ -1884,11 +1884,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                 return (
                 <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl mb-4 overflow-hidden">
                     {/* Header */}
-                    <div className="px-4 py-3 border-b border-brand-primary/20 bg-white/40">
+                    <div className="px-4 py-3 border-b border-brand-primary/20 bg-card/60">
                         <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
                             <PackageCheck className="h-4 w-4 text-brand-primary" /> Recepción de cargamento
                         </h4>
-                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                        <p className="text-label text-muted-foreground mt-0.5">
                             Marca qué llegó este viaje. Si falta algo, podrás registrar otros viajes después.
                         </p>
                     </div>
@@ -1908,7 +1908,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setAll('pendiente')}
-                                                    className="text-[9px] font-bold text-brand-primary hover:underline"
+                                                    className="text-micro font-bold text-brand-primary hover:underline"
                                                     title="Rellenar todo al pendiente"
                                                 >
                                                     todo
@@ -1917,7 +1917,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setAll('cero')}
-                                                    className="text-[9px] font-bold text-muted-foreground hover:underline"
+                                                    className="text-micro font-bold text-muted-foreground hover:underline"
                                                     title="Vaciar todos los inputs"
                                                 >
                                                     nada
@@ -1945,7 +1945,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 >
                                                     {item.item_descripcion || `Item #${item.item_id}`}
                                                 </button>
-                                                {item.unidad && <span className="text-[10px] text-muted-foreground ml-1">({item.unidad})</span>}
+                                                {item.unidad && <span className="text-caption text-muted-foreground ml-1">({item.unidad})</span>}
                                             </td>
                                             <td className="text-center text-muted-foreground">{enviada}</td>
                                             <td className={cn(
@@ -1998,7 +1998,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     </button>
                                                     {sobrante > 0 && (
                                                         <span
-                                                            className="ml-1 text-[9px] font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
+                                                            className="ml-1 text-micro font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
                                                             title="Vino más de lo enviado — se registrará como sobrante al cerrar"
                                                         >
                                                             +{sobrante} sobrante
@@ -2006,7 +2006,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     )}
                                                     {incompleto && falta > 0 && ri.cantidad_recibida > 0 && (
                                                         <span
-                                                            className="ml-1 text-[9px] font-medium text-muted-foreground"
+                                                            className="ml-1 text-micro font-medium text-muted-foreground"
                                                             title={`Faltan ${falta - ri.cantidad_recibida} para completar este ítem`}
                                                         >
                                                             faltan {falta - ri.cantidad_recibida}
@@ -2035,7 +2035,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                 <span className="text-xs text-brand-dark">
                                     <span className="font-bold">Esta es la entrega final</span> — los ítems faltantes quedarán como merma.
                                     <Info className="inline h-3 w-3 ml-0.5 text-muted-foreground" />
-                                    <span className="block text-[10px] text-muted-foreground mt-0.5">
+                                    <span className="block text-caption text-muted-foreground mt-0.5">
                                         Marca esta opción si NO van a venir más viajes. Los ítems no recibidos se registrarán como discrepancia.
                                     </span>
                                 </span>
@@ -2044,7 +2044,7 @@ const TransferenciaDetail: React.FC<Props> = ({
 
                         {/* Banner amber resumen — solo si checkbox marcado */}
                         {cierreFinal && faltantesAlCerrar.length > 0 && (
-                            <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2 text-[11px] text-amber-900 dark:text-amber-200">
+                            <div className="bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2 text-label text-amber-900 dark:text-amber-200">
                                 <div className="font-bold mb-1 flex items-center gap-1.5">
                                     <AlertTriangle className="h-3.5 w-3.5" /> Se registrarán como merma:
                                 </div>
@@ -2060,7 +2060,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         )}
 
                         {/* Totales */}
-                        <div className="flex items-center justify-between text-[11px] text-muted-foreground">
+                        <div className="flex items-center justify-between text-label text-muted-foreground">
                             <span>
                                 Total este viaje: <span className="font-bold text-brand-dark">{totalRecibidoEsteViaje}</span>
                                 {totalFaltaGlobal > 0 && (
@@ -2166,11 +2166,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <ChevronLeft className="h-5 w-5" />
                 </button>
                 <div className="flex-1 min-w-0">
-                    <p className="text-[10px] uppercase font-black text-muted-foreground tracking-widest">Detalle solicitud</p>
+                    <p className="text-caption uppercase font-black text-muted-foreground tracking-widest">Detalle solicitud</p>
                     <h4 className="text-base font-black text-brand-dark truncate">{t.codigo}</h4>
-                    <p className="text-[11px] text-muted-foreground truncate">{origen} → {destino}</p>
+                    <p className="text-label text-muted-foreground truncate">{origen} → {destino}</p>
                 </div>
-                <span className={cn("hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-bold shrink-0", cfg.color)}>
+                <span className={cn("hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-label font-bold shrink-0", cfg.color)}>
                     <Icon className="h-3 w-3" /> {cfg.label}
                 </span>
                 <TransferenciaActionsMenu
@@ -2197,14 +2197,14 @@ const TransferenciaDetail: React.FC<Props> = ({
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
                 {/* Estado: stepper o banner terminado */}
                 {isTerminated ? (
-                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-gray-50 border-gray-200 dark:bg-muted dark:border-border")}>
-                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-gray-400" />}
+                    <div className={cn("flex items-center gap-2 px-4 py-3 rounded-xl border", t.estado === 'rechazada' ? "bg-red-50 border-red-200 dark:bg-red-950/40 dark:border-red-900" : "bg-muted border-border")}>
+                        {t.estado === 'rechazada' ? <XCircle className="h-4 w-4 text-red-500" /> : <Ban className="h-4 w-4 text-muted-foreground" />}
                         <div>
-                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-gray-600 dark:text-muted-foreground")}>
+                            <p className={cn("text-xs font-bold", t.estado === 'rechazada' ? "text-red-700 dark:text-red-300" : "text-muted-foreground")}>
                                 {t.estado === 'rechazada' ? 'Solicitud Rechazada' : 'Solicitud Cancelada'}
                             </p>
                             {t.observaciones_rechazo && (
-                                <p className="text-[10px] text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
+                                <p className="text-caption text-muted-foreground mt-0.5">{t.observaciones_rechazo}</p>
                             )}
                         </div>
                     </div>
@@ -2227,7 +2227,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         )}>
                                             <StepIcon className="h-4 w-4" />
                                         </div>
-                                        <span className={cn("text-[10px] font-bold whitespace-nowrap", completed ? "text-brand-primary" : "text-muted-foreground/40")}>
+                                        <span className={cn("text-caption font-bold whitespace-nowrap", completed ? "text-brand-primary" : "text-muted-foreground/40")}>
                                             {step.label}
                                         </span>
                                     </div>
@@ -2269,20 +2269,20 @@ const TransferenciaDetail: React.FC<Props> = ({
                             <div key={rec.id} className="p-3 rounded-xl bg-muted/40 border border-border">
                                 <div className="flex items-center justify-between gap-2 flex-wrap">
                                     <div className="flex items-center gap-1.5">
-                                        <span className="text-[10px] font-bold text-muted-foreground">Viaje #{idx + 1}</span>
-                                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full border border-border bg-muted text-muted-foreground leading-none">
+                                        <span className="text-caption font-bold text-muted-foreground">Viaje #{idx + 1}</span>
+                                        <span className="text-micro font-bold px-1.5 py-0.5 rounded-full border border-border bg-muted text-muted-foreground leading-none">
                                             {rec.tipo === 'total' ? 'Total · cierre' : 'Parcial'}
                                         </span>
                                     </div>
-                                    <span className="text-[10px] text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
+                                    <span className="text-caption text-muted-foreground">{fmtDateTime(rec.fecha_recepcion)}</span>
                                 </div>
-                                <p className="text-[11px] text-muted-foreground mt-1">
+                                <p className="text-label text-muted-foreground mt-1">
                                     Recibido por <span className="font-semibold text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</span>
                                 </p>
                                 {rec.items && rec.items.length > 0 && (
                                     <ul className="mt-1 space-y-0.5 ml-1">
                                         {rec.items.map(ri => (
-                                            <li key={ri.id} className="text-[10px] text-muted-foreground">
+                                            <li key={ri.id} className="text-caption text-muted-foreground">
                                                 <span className="font-semibold text-brand-dark">{Number(ri.cantidad_recibida)}</span>
                                                 {ri.unidad ? ` ${ri.unidad}` : ''} · {ri.item_descripcion || `Item #${ri.item_id}`}
                                             </li>

@@ -257,26 +257,26 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         icon={MixerTruck}
                         label="Total Bombeos"
                         value={String(stats.total)}
-                        color="bg-blue-50 text-blue-600 dark:bg-blue-500/15 dark:text-blue-300"
+                        color="bg-muted text-muted-foreground"
                     />
                     <StatCard
                         icon={Building2}
                         label="Empresa"
                         value={String(stats.propias)}
-                        color="bg-emerald-50 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-300"
+                        color="bg-muted text-muted-foreground"
                     />
                     <StatCard
                         icon={Truck}
                         label="Arriendo Ext."
                         value={String(stats.externas)}
-                        color="bg-amber-50 text-amber-600 dark:bg-amber-500/15 dark:text-amber-300"
+                        color="bg-muted text-muted-foreground"
                     />
                     {verCostos && (
                         <StatCard
                             icon={DollarSign}
                             label="Costo Total"
                             value={stats.costoTotal > 0 ? fmtMoney(stats.costoTotal) : '—'}
-                            color="bg-violet-50 text-violet-600 dark:bg-violet-500/15 dark:text-violet-300"
+                            color="bg-muted text-muted-foreground"
                         />
                     )}
                 </div>
@@ -301,10 +301,10 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 {/* Month header */}
                                 <div className="flex items-center gap-2 mb-2 px-1">
                                     <Calendar className="h-3 w-3 text-muted-foreground/50" />
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground/70">
+                                    <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70">
                                         {group.label}
                                     </span>
-                                    <span className="text-[10px] text-muted-foreground/40">
+                                    <span className="text-caption text-muted-foreground/40">
                                         ({group.items.length})
                                     </span>
                                     <div className="flex-1 border-t border-border/60" />
@@ -483,7 +483,7 @@ const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string
             <Icon className="h-3.5 w-3.5" />
         </div>
         <div className="min-w-0">
-            <p className="text-[10px] text-muted-foreground leading-tight">{label}</p>
+            <p className="text-caption text-muted-foreground leading-tight">{label}</p>
             <p className="text-sm font-bold text-brand-dark leading-tight truncate">{value}</p>
         </div>
     </div>
@@ -509,11 +509,11 @@ const BombaCard: React.FC<{
             <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
                     <MapPin className="h-3 w-3 text-muted-foreground/50 shrink-0" />
-                    <span className="text-[11px] font-bold text-brand-dark truncate">{r.obra_nombre}</span>
+                    <span className="text-label font-bold text-brand-dark truncate">{r.obra_nombre}</span>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                     <span className={cn(
-                        "text-[9px] font-bold px-2 py-0.5 rounded-full border whitespace-nowrap",
+                        "text-micro font-bold px-2 py-0.5 rounded-full border whitespace-nowrap",
                         isExterna
                             ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60"
                             : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60"
@@ -543,20 +543,20 @@ const BombaCard: React.FC<{
 
             {/* Type + date row */}
             <div className="flex items-center gap-1.5 mb-1">
-                <MixerTruck className="h-3 w-3 text-blue-400 shrink-0" />
+                <MixerTruck className="h-3 w-3 text-muted-foreground shrink-0" />
                 <span className="text-xs text-brand-dark/80 font-medium">{r.tipo_bomba}</span>
-                <span className="text-[10px] text-muted-foreground/50 mx-0.5">&middot;</span>
-                <span className="text-[10px] text-muted-foreground">{fmtDateShort(r.fecha)}</span>
+                <span className="text-caption text-muted-foreground/50 mx-0.5">&middot;</span>
+                <span className="text-caption text-muted-foreground">{fmtDateShort(r.fecha)}</span>
             </div>
 
             {/* Bottom row: proveedor + costo */}
             {(r.proveedor || r.costo) && (
                 <div className="flex items-center justify-between gap-2 mt-0.5 pt-1.5 border-t border-border/50">
                     {r.proveedor && (
-                        <span className="text-[10px] text-muted-foreground truncate">{r.proveedor}</span>
+                        <span className="text-caption text-muted-foreground truncate">{r.proveedor}</span>
                     )}
                     {r.costo && (
-                        <span className="text-[11px] font-bold text-brand-dark shrink-0">{fmtMoney(Number(r.costo))}</span>
+                        <span className="text-label font-bold text-brand-dark shrink-0">{fmtMoney(Number(r.costo))}</span>
                     )}
                 </div>
             )}
