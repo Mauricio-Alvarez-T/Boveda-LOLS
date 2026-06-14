@@ -240,7 +240,7 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                                         </td>
                                         <td className={cn(
                                             "px-2 py-1 text-right font-mono font-bold",
-                                            delta > 0 ? "text-green-600 dark:text-green-400" : delta < 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground/50"
+                                            delta > 0 ? "text-green-700 dark:text-green-300" : delta < 0 ? "text-red-700 dark:text-red-300" : "text-muted-foreground/50"
                                         )}>
                                             {rowDirty ? (delta > 0 ? `+${delta}` : delta) : '—'}
                                         </td>

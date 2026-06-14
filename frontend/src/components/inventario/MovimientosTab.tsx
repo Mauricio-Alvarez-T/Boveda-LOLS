@@ -5,12 +5,12 @@ import { useMovimientos, type TipoMovimiento } from '../../hooks/inventario/useM
 
 // Etiquetas + estilos por tipo de movimiento (kardex).
 const TIPO_META: Record<TipoMovimiento, { label: string; badge: string }> = {
-    ajuste_manual:          { label: 'Ajuste manual',     badge: 'bg-amber-100 text-amber-800 border-amber-200' },
-    transferencia_salida:   { label: 'Transf. salida',    badge: 'bg-red-50 text-red-700 border-red-200' },
-    transferencia_entrada:  { label: 'Transf. entrada',   badge: 'bg-green-50 text-green-700 border-green-200' },
-    discrepancia:           { label: 'Discrepancia',      badge: 'bg-purple-50 text-purple-700 border-purple-200' },
-    factura:                { label: 'Factura',           badge: 'bg-blue-50 text-blue-700 border-blue-200' },
-    recepcion:              { label: 'Recepción',         badge: 'bg-teal-50 text-teal-700 border-teal-200' },
+    ajuste_manual:          { label: 'Ajuste manual',     badge: 'bg-amber-100 text-amber-800 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60' },
+    transferencia_salida:   { label: 'Transf. salida',    badge: 'bg-red-50 text-red-700 border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60' },
+    transferencia_entrada:  { label: 'Transf. entrada',   badge: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-500/15 dark:text-green-300 dark:border-green-800/60' },
+    discrepancia:           { label: 'Discrepancia',      badge: 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-300 dark:border-purple-800/60' },
+    factura:                { label: 'Factura',           badge: 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60' },
+    recepcion:              { label: 'Recepción',         badge: 'bg-teal-50 text-teal-700 border-teal-200 dark:bg-teal-500/15 dark:text-teal-300 dark:border-teal-800/60' },
 };
 
 const TIPOS: TipoMovimiento[] = [
@@ -105,7 +105,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                 </div>
                 <button
                     onClick={() => cargar(page)}
-                    className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-brand-primary border border-brand-primary/30 rounded-xl hover:bg-brand-primary/5 transition-all"
+                    className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-300 border border-brand-primary/30 rounded-xl hover:bg-brand-primary/5 transition-all"
                 >
                     <RefreshCw className="h-3.5 w-3.5" /> Actualizar
                 </button>
@@ -146,7 +146,7 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                         </thead>
                         <tbody>
                             {movimientos.map((m) => {
-                                const meta = TIPO_META[m.tipo] || { label: m.tipo, badge: 'bg-slate-100 text-slate-700 border-slate-200' };
+                                const meta = TIPO_META[m.tipo] || { label: m.tipo, badge: 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-slate-500/15 dark:text-slate-300 dark:border-slate-800/60' };
                                 const delta = Number(m.delta);
                                 const ubic = m.obra_nombre || m.bodega_nombre || '—';
                                 return (

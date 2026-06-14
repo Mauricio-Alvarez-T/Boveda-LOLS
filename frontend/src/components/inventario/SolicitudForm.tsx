@@ -313,7 +313,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                     'rounded-xl border bg-card p-3 flex gap-3 transition-all',
                     enCarrito
                         ? excede
-                            ? 'border-red-300 ring-1 ring-red-200'
+                            ? 'border-red-300 ring-1 ring-red-200 dark:border-red-800/60 dark:ring-red-900/40'
                             : 'border-brand-primary ring-1 ring-brand-primary/30 shadow-sm'
                         : 'border-border hover:border-[var(--border-hover)]',
                     sinStock && 'opacity-60'
@@ -389,7 +389,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                     onChange={e => updateCartQty(item.id, parseInt(e.target.value) || 0)}
                                     className={cn(
                                         'w-10 h-6 px-1 text-label font-bold text-center border rounded-md',
-                                        excede ? 'border-red-400 text-red-700' : 'border-border'
+                                        excede ? 'border-red-400 text-red-700 dark:border-red-500/40 dark:text-red-300' : 'border-border'
                                     )}
                                 />
                                 <button
@@ -534,7 +534,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                 key={d.item_id}
                                 className={cn(
                                     'bg-card border rounded-xl p-2 flex gap-2 items-start',
-                                    d.excede ? 'border-red-300 bg-red-50/30' : 'border-border'
+                                    d.excede ? 'border-red-300 bg-red-50/30 dark:border-red-800/60 dark:bg-red-950/20' : 'border-border'
                                 )}
                             >
                                 {/* Thumbnail */}
@@ -572,7 +572,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                             onChange={e => updateCartQty(d.item_id, parseInt(e.target.value) || 0)}
                                             className={cn(
                                                 'w-10 h-5 px-1 text-label font-bold text-center border rounded-md',
-                                                d.excede ? 'border-red-400 text-red-700' : 'border-border'
+                                                d.excede ? 'border-red-400 text-red-700 dark:border-red-500/40 dark:text-red-300' : 'border-border'
                                             )}
                                         />
                                         <button
@@ -635,7 +635,7 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                 </div>
                 {customItems.length === 0 ? (
                     <div className={cn(
-                        "flex flex-col items-center justify-center text-center px-4 border-2 border-dashed border-amber-200 rounded-xl bg-amber-50/30",
+                        "flex flex-col items-center justify-center text-center px-4 border-2 border-dashed border-amber-200 rounded-xl bg-amber-50/30 dark:border-amber-800/60 dark:bg-amber-950/20",
                         hideCatalog ? "flex-1 py-10" : "py-6"
                     )}>
                         <ShoppingBag className="h-8 w-8 text-amber-400/70 mb-2" />
@@ -662,10 +662,10 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
                                     className={cn(
                                         'rounded-xl border p-3 transition-all',
                                         error
-                                            ? 'border-red-300 ring-1 ring-red-200/50 bg-red-50/20'
+                                            ? 'border-red-300 ring-1 ring-red-200/50 bg-red-50/20 dark:border-red-800/60 dark:ring-red-900/40 dark:bg-red-950/20'
                                             : esVacio
-                                                ? 'border-dashed border-amber-200 bg-amber-50/20'
-                                                : 'border-amber-200 bg-amber-50/30'
+                                                ? 'border-dashed border-amber-200 bg-amber-50/20 dark:border-amber-800/60 dark:bg-amber-950/20'
+                                                : 'border-amber-200 bg-amber-50/30 dark:border-amber-800/60 dark:bg-amber-950/20'
                                     )}
                                 >
                                     {/* Descripción + eliminar */}

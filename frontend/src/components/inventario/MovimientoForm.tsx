@@ -306,7 +306,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                                                     onChange={e => updateQty(item.id, parseInt(e.target.value) || 0)}
                                                     className={cn(
                                                         'w-10 h-5 px-1 text-label font-bold text-center border rounded-md',
-                                                        enCarrito > disponible ? 'border-red-400 text-red-700' : 'border-border'
+                                                        enCarrito > disponible ? 'border-red-400 text-red-700 dark:border-red-500/40 dark:text-red-300' : 'border-border'
                                                     )}
                                                 />
                                                 <button

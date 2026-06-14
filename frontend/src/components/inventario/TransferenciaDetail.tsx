@@ -227,10 +227,10 @@ const MaterialesAprobacionPanel: React.FC<{
             </button>
 
             {aprobadosCount === 0 && (
-                <p className="text-xs text-destructive">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
+                <p className="text-xs text-red-700 dark:text-red-300">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
             )}
             {faltaOrigen && aprobadosCount > 0 && (
-                <p className="text-xs text-destructive">Elige de qué obra/bodega se trae en los ítems marcados "Traer de obra/bodega".</p>
+                <p className="text-xs text-red-700 dark:text-red-300">Elige de qué obra/bodega se trae en los ítems marcados "Traer de obra/bodega".</p>
             )}
 
             <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
@@ -330,7 +330,7 @@ const MatRequestRow: React.FC<{
                         <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold uppercase">+ aprobador</span>
                     )}
                     {rechazado && (
-                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-micro font-bold uppercase">No se compra</span>
+                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-red-700 dark:text-red-300 text-micro font-bold uppercase">No se compra</span>
                     )}
                     {/* La fuente la decide el aprobador → chip solo cuando ya está decidida. */}
                     {estado !== 'pendiente' && !rechazado && it.fuente === 'obra' && (
@@ -949,7 +949,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         </div>
                                         <span className={cn(
                                             "text-caption font-bold whitespace-nowrap",
-                                            completed ? "text-brand-primary" : "text-muted-foreground/40"
+                                            completed ? "text-green-700 dark:text-green-300" : "text-muted-foreground/40"
                                         )}>
                                             {step.label}
                                         </span>
@@ -1083,7 +1083,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                         <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold uppercase">+ aprobador</span>
                                                     )}
                                                     {rechazado && (
-                                                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-destructive text-micro font-bold uppercase">No se compra</span>
+                                                        <span className="px-1.5 py-0.5 rounded-full bg-destructive/10 text-red-700 dark:text-red-300 text-micro font-bold uppercase">No se compra</span>
                                                     )}
                                                     {/* La fuente la decide el aprobador → solo mostrar el chip cuando ya
                                                         está decidida (no en 'pendiente', donde 'comprar' es solo el default). */}
@@ -1140,7 +1140,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         {t.fecha_recepcion && (
                             <p>Recepción: {fmtDate(t.fecha_recepcion)}
                                 {t.receptor_nombre ? <> · por <span className="font-medium text-brand-dark">{t.receptor_nombre}</span></> : null}
-                                {recepciones.length > 0 && <span className="text-brand-primary font-semibold"> · {recepciones.length} viaje{recepciones.length !== 1 ? 's' : ''}</span>}
+                                {recepciones.length > 0 && <span className="text-green-700 dark:text-green-300 font-semibold"> · {recepciones.length} viaje{recepciones.length !== 1 ? 's' : ''}</span>}
                             </p>
                         )}
                     </div>
@@ -1908,7 +1908,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                 <button
                                                     type="button"
                                                     onClick={() => setAll('pendiente')}
-                                                    className="text-micro font-bold text-brand-primary hover:underline"
+                                                    className="text-micro font-bold text-green-700 dark:text-green-300 hover:underline"
                                                     title="Rellenar todo al pendiente"
                                                 >
                                                     todo
@@ -1950,7 +1950,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             <td className="text-center text-muted-foreground">{enviada}</td>
                                             <td className={cn(
                                                 "text-center font-bold",
-                                                falta === 0 ? "text-green-600 dark:text-green-400" : "text-amber-700 dark:text-amber-300"
+                                                falta === 0 ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300"
                                             )}>
                                                 {falta}
                                             </td>
@@ -2227,7 +2227,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                         )}>
                                             <StepIcon className="h-4 w-4" />
                                         </div>
-                                        <span className={cn("text-caption font-bold whitespace-nowrap", completed ? "text-brand-primary" : "text-muted-foreground/40")}>
+                                        <span className={cn("text-caption font-bold whitespace-nowrap", completed ? "text-green-700 dark:text-green-300" : "text-muted-foreground/40")}>
                                             {step.label}
                                         </span>
                                     </div>
@@ -2313,7 +2313,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                             {t.fecha_recepcion && (
                                 <p>Recepción: {fmtDate(t.fecha_recepcion)}
                                     {t.receptor_nombre ? <> · por <span className="font-medium text-brand-dark">{t.receptor_nombre}</span></> : null}
-                                    {recepciones.length > 0 && <span className="text-brand-primary font-semibold"> · {recepciones.length} viaje{recepciones.length !== 1 ? 's' : ''}</span>}
+                                    {recepciones.length > 0 && <span className="text-green-700 dark:text-green-300 font-semibold"> · {recepciones.length} viaje{recepciones.length !== 1 ? 's' : ''}</span>}
                                 </p>
                             )}
                         </div>

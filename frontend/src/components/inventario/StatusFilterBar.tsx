@@ -72,7 +72,7 @@ const StatusFilterBar: React.FC<Props> = ({
                     open
                         ? "bg-card border-brand-primary/40 shadow-sm"
                         : "bg-card border-border hover:border-brand-primary/30",
-                    isActiveDiscrep ? "text-red-600 dark:text-red-400" : "text-brand-dark"
+                    isActiveDiscrep ? "text-red-700 dark:text-red-300" : "text-brand-dark"
                 )}
             >
                 <ActiveIcon className="h-3.5 w-3.5 shrink-0" />
@@ -95,10 +95,10 @@ const StatusFilterBar: React.FC<Props> = ({
                                     "w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors text-left",
                                     isActive
                                         ? isDiscrep
-                                            ? "bg-red-50 text-red-600 dark:bg-red-950/30 dark:text-red-400"
+                                            ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300"
                                             : "bg-brand-primary/10 text-green-700 dark:text-green-300"
                                         : isDiscrep
-                                            ? "text-red-600 dark:text-red-400 hover:bg-muted"
+                                            ? "text-red-700 dark:text-red-300 hover:bg-muted"
                                             : "text-brand-dark hover:bg-muted"
                                 )}
                             >

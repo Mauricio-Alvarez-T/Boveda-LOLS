@@ -530,7 +530,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 'pl-8 pr-3 py-2 text-xs font-bold rounded-xl transition-colors cursor-pointer appearance-none',
                                 'border focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
                                 obraFilter
-                                    ? 'bg-brand-primary/10 border-brand-primary/30 text-brand-primary'
+                                    ? 'bg-brand-primary/10 border-brand-primary/30 text-green-700 dark:text-green-300'
                                     : 'bg-muted border-transparent hover:bg-muted text-brand-dark'
                             )}
                             aria-label="Filtrar por obra"
@@ -547,7 +547,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             title={lastUpdated ? new Date(lastUpdated).toLocaleString('es-CL') : undefined}
                             className={cn(
                                 'hidden md:inline text-label font-semibold cursor-help',
-                                relTime.stale ? 'text-amber-600' : 'text-muted-foreground'
+                                relTime.stale ? 'text-amber-700 dark:text-amber-300' : 'text-muted-foreground'
                             )}
                         >
                             {relTime.label}
