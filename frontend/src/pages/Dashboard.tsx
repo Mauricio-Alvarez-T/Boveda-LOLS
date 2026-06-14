@@ -5,7 +5,6 @@ import {
     CheckSquare,
     AlertTriangle,
     Calendar,
-    ShieldCheck,
     Loader2,
     LayoutGrid,
 } from 'lucide-react';
@@ -124,17 +123,11 @@ const Dashboard: React.FC = () => {
     );
 
     // ─── Page Header ───
+    // El saludo personalizado vive en el TodayHero (evita duplicarlo); el header
+    // de página solo rotula la sección.
     const headerTitle = useMemo(() => (
-        <div className="flex flex-col leading-tight">
-            <h1 className="text-lg font-bold text-brand-dark">
-                Bienvenido, <span className="text-brand-primary">{user?.nombre?.split(' ')[0] || ''}</span>
-            </h1>
-            <p className="text-muted-foreground text-xs flex items-center gap-1.5">
-                <ShieldCheck className="h-3.5 w-3.5 text-brand-accent" />
-                Sistema Activo
-            </p>
-        </div>
-    ), [user?.nombre]);
+        <h1 className="text-base font-semibold text-foreground">Inicio</h1>
+    ), []);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-2 md:gap-3">
@@ -258,8 +251,8 @@ const Dashboard: React.FC = () => {
             label: 'Documentos',
             value: data.counters.documentos ?? 0,
             icon: FileText,
-            color: 'text-[#5856D6]',
-            bg: 'bg-[#5856D6]/8',
+            color: 'text-info',
+            bg: 'bg-info/10',
             route: '/consultas?completitud=faltantes',
             description: 'Bóveda documental',
             delta: data.deltas?.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
@@ -322,7 +315,7 @@ const Dashboard: React.FC = () => {
     };
 
     return (
-        <div className="space-y-8">
+        <div className="space-y-10">
             {/* ── Today Hero (always on top, not draggable) ── */}
             {!loading && data && (
                 <TodayHero
@@ -336,7 +329,7 @@ const Dashboard: React.FC = () => {
 
             {/* ── KPI Cards (static top row, not draggable) ── */}
             {kpiWidgets.length > 0 && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                     {kpiWidgets.map((w, i) => {
                         const config = kpiConfig[w.id];
                         if (!config) return null;
@@ -371,7 +364,7 @@ const Dashboard: React.FC = () => {
                         items={gridWidgets.map(w => w.id)}
                         strategy={rectSortingStrategy}
                     >
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                             {gridWidgets.map(widget => {
                                 const content = renderWidget(widget.id);
                                 if (!content) return null;
