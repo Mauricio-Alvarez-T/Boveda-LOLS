@@ -10,11 +10,14 @@
 #  y se auto-despliega. GitHub Actions solo compila y publica la rama
 #  `deploy-staging` (con frontend/dist prebuildeado + backend/).
 #
-#  Setup (una vez, en cPanel):
-#    1) Git Version Control → clonar el repo, rama `deploy-staging`, en
-#       ~/deploy-staging  (repo privado → URL https con PAT scope repo:read).
-#    2) Cron Jobs → cada 5 min:
-#       */5 * * * * bash ~/deploy-staging/scripts/cpanel-deploy-staging.sh >> ~/deploy-staging.log 2>&1
+#  Setup (una vez, en cPanel). Guía completa: docs/PLAYBOOK_PULL_SIDE_CPANEL.md.
+#  El repo es PÚBLICO → el clone NO necesita token.
+#    - Con Terminal / Git Version Control: clonar la rama `deploy-staging` en ~/deploy-staging.
+#    - SIN Terminal ni Git VC (caso de este hosting) → bootstrap por Cron Jobs:
+#        # one-shot idempotente (borrar tras clonar):
+#        GIT_TERMINAL_PROMPT=0 sh -c 'test -d ~/deploy-staging/.git || git clone --branch deploy-staging https://github.com/Mauricio-Alvarez-T/Boveda-LOLS.git ~/deploy-staging' >> ~/deploy-bootstrap.log 2>&1
+#    Luego Cron Jobs → cada 5 min:
+#       */5 * * * * HOME=/home/lolscl /bin/bash ~/deploy-staging/scripts/cpanel-deploy-staging.sh >> ~/deploy-staging.log 2>&1
 #
 #  Idempotente: si no hay cambios nuevos en origin/deploy-staging, no hace nada.
 # ============================================================
@@ -51,8 +54,9 @@ if command -v rsync >/dev/null 2>&1; then
         --exclude '.htaccess' \
         "$REPO_DIR/frontend/dist/" "$FRONT_DEST/"
 else
-    # Fallback sin rsync: limpiar y copiar (preserva dotfiles del docroot si los hubiera)
-    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' -exec rm -rf {} +
+    # Fallback sin rsync: limpiar y copiar, preservando .well-known (AutoSSL) y
+    # .htaccess (routing del SPA — borrarlo rompe el front).
+    find "$FRONT_DEST" -mindepth 1 -maxdepth 1 ! -name '.well-known' ! -name '.htaccess' -exec rm -rf {} +
     cp -a "$REPO_DIR/frontend/dist/." "$FRONT_DEST/"
 fi
 

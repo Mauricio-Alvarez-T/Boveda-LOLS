@@ -39,12 +39,13 @@
 En el dashboard de cPanel, caja **"Search Tools"** (arriba), busca y anota cuáles existen:
 
 - **Terminal** (sección *Advanced*) → si existe, usa el **Camino A** (más rápido y verificable).
-- **Git™ Version Control** (sección *Files*) → necesario para el **Camino B** (clone por UI).
-- **Cron Jobs** (sección *Advanced*) → **obligatorio** en ambos caminos.
-- **File Manager** → para leer logs si no hay Terminal.
+- **Git™ Version Control** (sección *Files*) → si existe (y no hay Terminal), usa el **Camino B**.
+- **Cron Jobs** (sección *Advanced*) → **obligatorio** en TODOS los caminos.
+- **File Manager** → para leer/editar logs y archivos sin Terminal.
 
-Si NO hay ni Terminal ni Git Version Control, el pull-side no se puede armar por panel → escalar al
-hosting para habilitar uno de los dos (o pedir acceso SSH).
+> **El hosting actual de Bóveda LOLS NO tiene Terminal ni Git Version Control** (verificado 2026-06-13).
+> Solo Cron Jobs, Setup Node.js App y File Manager. → **Usar el Camino C.** Como `git` SÍ está
+> disponible en el entorno de cron, todo el setup se hace con Cron Jobs (bootstrap del clone incluido).
 
 ---
 
@@ -127,15 +128,48 @@ Anota las rutas absolutas (se usan en §4 si el cron no los encuentra).
 
 ---
 
-## 4. El CRON (ambos caminos)
+## 3bis. CAMINO C — Solo Cron Jobs (sin Terminal ni Git VC) ← hosting actual
+
+Cuando NO hay Terminal ni Git™ Version Control, se usa Cron Jobs como "shell". `git` está disponible en
+el entorno de cron (los crons previos ya lo ejecutaban). Orden:
+
+### C.0 (recomendado) Limpiar mecanismos rotos previos
+Si en **Cron Jobs → Current Cron Jobs** hay filas que hacen `git pull origin develop` dentro de
+`~/test-boveda` (modelo viejo, que falla porque `~/test-boveda` no es un repo git), **bórralas**
+(conserva snapshot/reporte/alertas). Si `~/deploy_log.txt` quedó enorme por esos errores, vacíalo en
+File Manager (Edit → borrar → Save) o renómbralo.
+
+### C.1 Bootstrap del clone (cron one-shot idempotente)
+**Cron Jobs → Add New Cron Job →** "Every Minute" (`* * * * *`) → **Command:**
+```
+GIT_TERMINAL_PROMPT=0 sh -c 'test -d /home/lolscl/deploy-staging/.git || git clone --branch deploy-staging https://github.com/Mauricio-Alvarez-T/Boveda-LOLS.git /home/lolscl/deploy-staging' >> /home/lolscl/deploy-bootstrap.log 2>&1
+```
+- Es **idempotente** (el `test -d … ||` solo clona si falta). `GIT_TERMINAL_PROMPT=0` evita que se
+  cuelgue pidiendo credenciales.
+- Espera 1–2 min y verifica en **File Manager** que existen `/home/lolscl/deploy-staging/.git` y
+  `/home/lolscl/deploy-staging/frontend/dist/index.html`. Lee `/home/lolscl/deploy-bootstrap.log`.
+- **Cuando el clone exista, BORRA este cron one-shot** (ya cumplió su función).
+
+### C.2 Confirmar el docroot ANTES del primer deploy
+El deploy hace `rsync --delete` sobre el docroot del frontend → confirma cuál es:
+**cPanel → Domains** (o Subdomains) → `test.boveda.lols.cl` → **Document Root**. Si NO es
+`~/public_html/test.boveda.lols.cl`, avísalo: hay que ajustar `FRONT_DEST` en el script (en el repo) y
+volver a publicar `deploy-staging`.
+
+### C.3 Activar el deploy → ir a **§4** (cron cada 5 min).
+
+---
+
+## 4. El CRON de deploy (todos los caminos)
 
 ### 4.1 Comando exacto
 cPanel → **Cron Jobs** → **Add New Cron Job**:
 - **Common Settings:** "Every 5 Minutes" (o campos: `*/5 * * * *`).
 - **Command** (en cPanel se escribe SOLO la parte del comando; los 5 campos de tiempo van en los selectores):
 ```
-/bin/bash ~/deploy-staging/scripts/cpanel-deploy-staging.sh >> ~/deploy-staging.log 2>&1
+HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-staging/scripts/cpanel-deploy-staging.sh >> /home/lolscl/deploy-staging.log 2>&1
 ```
+(`HOME=…` asegura que `$HOME` del script resuelva bien en el entorno mínimo del cron.)
 
 ### 4.2 Variante a-prueba-de-PATH (usar SOLO si el log muestra `command not found`)
 El cron corre con un PATH mínimo. Si aparece `git: command not found` o `rsync: command not found`,
