@@ -1538,7 +1538,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     onRechazar={() => setActiveForm('rechazar')}
                     onRecibir={() => setActiveForm('recibir')}
                     onRechazarRecepcion={() => setActiveForm('rechazar_recepcion')}
-                    onCancelar={async () => { await onCancelar(); }}
+                    onCancelar={handleCancelarConfirm}
                     onWhatsApp={handleShareWhatsApp}
                     isPendiente={t.estado === 'pendiente'}
                 />
