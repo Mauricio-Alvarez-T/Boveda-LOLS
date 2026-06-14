@@ -5,6 +5,8 @@ import api from '../../services/api';
 import type { ApiResponse } from '../../types';
 import type { ItemInventario, Bodega, Obra } from '../../types/entities';
 import { SearchableSelect } from '../ui/SearchableSelect';
+import { FieldError } from '../ui/FieldError';
+import { Skeleton } from '../ui/Skeleton';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import type { StockUbicacion } from './StockBadge';
 import { cn } from '../../utils/cn';
@@ -218,6 +220,20 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
     const puedeEnviar = !!origenId && !!destinoId && cart.length > 0 && !hayExceso
         && (!shape.motivoRequerido || !!motivo.trim()) && !submitting;
 
+    // Mensaje "qué falta para continuar" (mismo patrón que SolicitudForm): el
+    // CTA se deshabilita y este aviso explica POR QUÉ, en vez de dejar al usuario
+    // adivinando. Orden = prioridad de lo que debe resolver primero.
+    const mismoTipoUbic = shape.origenTipo === shape.destinoTipo;
+    const motivoFaltante = shape.motivoRequerido && !motivo.trim();
+    const disabledReason =
+        !origenId ? `Selecciona el ${labels.origenLabel.toLowerCase()}.`
+            : !destinoId ? `Selecciona el ${labels.destinoLabel.toLowerCase()}.`
+                : (mismoTipoUbic && origenId === destinoId) ? `Origen y destino deben ser ${shape.origenTipo === 'obra' ? 'obras' : 'bodegas'} distintas.`
+                    : cart.length === 0 ? 'Agrega al menos un ítem.'
+                        : hayExceso ? 'Hay ítems con cantidad mayor al stock disponible.'
+                            : motivoFaltante ? 'El motivo es obligatorio para este flujo.'
+                                : 'Completa los campos requeridos.';
+
     return (
         <div className="flex flex-col gap-3 min-h-0" style={{ maxHeight: 'calc(85vh - 120px)' }}>
             <div className="shrink-0">
@@ -261,9 +277,17 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                             Selecciona el {labels.origenLabel.toLowerCase()} para ver su stock disponible.
                         </div>
                     ) : loading ? (
-                        <div className="h-full flex items-center justify-center text-xs text-muted-foreground">
-                            Cargando...
-                        </div>
+                        <ul className="divide-y divide-border">
+                            {Array.from({ length: 6 }).map((_, i) => (
+                                <li key={i} className="flex items-center gap-2 px-3 py-2">
+                                    <div className="flex-1 min-w-0 space-y-1.5">
+                                        <Skeleton className="h-2.5 w-24" />
+                                        <Skeleton className="h-3 w-3/4" />
+                                    </div>
+                                    <Skeleton className="h-6 w-16" />
+                                </li>
+                            ))}
+                        </ul>
                     ) : filteredCatalog.length === 0 ? (
                         <div className="h-full flex flex-col items-center justify-center text-center p-4">
                             <Package className="h-8 w-8 text-muted-foreground/30 mb-1" />
@@ -373,9 +397,10 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                         placeholder={shape.motivoRequerido ? 'Justificación de la orden (obligatorio)' : 'Ej: cierre de obra, reubicación...'}
                         className={cn(
                             'w-full px-2.5 py-1.5 text-xs border rounded-lg',
-                            shape.motivoRequerido && !motivo.trim() ? 'border-red-300' : 'border-border'
+                            motivoFaltante ? 'border-red-300' : 'border-border'
                         )}
                     />
+                    <FieldError className="mt-1" message={motivoFaltante && 'El motivo es obligatorio para este flujo.'} />
                 </div>
                 <div>
                     <label className="text-caption font-bold text-brand-dark block mb-1">Observaciones</label>
@@ -388,6 +413,14 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                     />
                 </div>
             </div>
+
+            {/* Aviso de qué falta para continuar (guía de flujo, mismo patrón que SolicitudForm) */}
+            {!puedeEnviar && !submitting && (
+                <div className="shrink-0 flex items-start gap-1.5 text-label font-medium text-amber-800 bg-amber-50 border border-amber-200 dark:text-amber-300 dark:bg-amber-950/30 dark:border-amber-800/60 rounded-lg px-3 py-2">
+                    <AlertCircle className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                    <span>{disabledReason}</span>
+                </div>
+            )}
 
             {/* CTAs */}
             <div className="shrink-0 pt-2 border-t border-border flex gap-2">

@@ -6,6 +6,7 @@ import type { ApiResponse } from '../../types';
 import type { ItemInventario, CategoriaInventario, Obra } from '../../types/entities';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { FieldError } from '../ui/FieldError';
+import { Skeleton } from '../ui/Skeleton';
 import { StockBadge, type StockUbicacion } from './StockBadge';
 import ItemDetailModal from './ItemDetailModal';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
@@ -442,7 +443,11 @@ const SolicitudForm: React.FC<Props> = ({ onCrear, onClose, hideCatalog = false 
             {/* Grid */}
             <div className="flex-1 overflow-y-auto -mr-1 pr-1">
                 {loadingCatalog ? (
-                    <div className="text-center py-12 text-sm text-muted-foreground">Cargando catálogo...</div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                        {Array.from({ length: 6 }).map((_, i) => (
+                            <Skeleton key={i} className="h-20 w-full rounded-xl" />
+                        ))}
+                    </div>
                 ) : filteredCatalog.length === 0 ? (
                     <div className="text-center py-12">
                         <Package className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />

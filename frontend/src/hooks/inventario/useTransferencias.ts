@@ -164,7 +164,9 @@ export function useTransferencias() {
     const crear = useCallback(async (data: CrearTransferenciaData) => {
         try {
             const res = await api.post<ApiResponse<{ id: number; codigo: string }>>('/transferencias', data);
-            toast.success(`Solicitud ${res.data.data.codigo} creada`);
+            toast.success(`Solicitud ${res.data.data.codigo} creada`, {
+                description: 'Queda pendiente de aprobación.',
+            });
             return res.data.data;
         } catch (err) {
             showApiError(err, 'Error al crear solicitud');
@@ -251,7 +253,9 @@ export function useTransferencias() {
     const aprobar = useCallback(async (id: number, data: AprobarData) => {
         try {
             await api.put(`/transferencias/${id}/aprobar`, data);
-            toast.success('Transferencia aprobada');
+            toast.success('Transferencia aprobada', {
+                description: 'Siguiente paso: despacharla o avisar al transportista.',
+            });
             return true;
         } catch (err) {
             showApiError(err, 'Error al aprobar');
@@ -261,11 +265,13 @@ export function useTransferencias() {
 
     const crearFaltante = useCallback(async (transferenciaId: number) => {
         try {
-            const res = await api.post<ApiResponse<{ id: number; codigo: string; items: number } | null>>(
+            const res = await api.post<ApiResponse<{ id: number; codigo: string; items?: number; ya_existia?: boolean } | null>>(
                 `/transferencias/${transferenciaId}/crear-faltante`
             );
             const data = res.data.data;
-            if (data) {
+            if (data?.ya_existia) {
+                toast.info(`Ya existía la solicitud ${data.codigo} por el faltante`);
+            } else if (data) {
                 toast.success(`Solicitud ${data.codigo} creada por el faltante`);
             }
             return data;
@@ -278,7 +284,9 @@ export function useTransferencias() {
     const despachar = useCallback(async (id: number) => {
         try {
             await api.put(`/transferencias/${id}/despachar`);
-            toast.success('Transferencia despachada');
+            toast.success('Transferencia despachada', {
+                description: 'El receptor confirmará la entrega cuando llegue a destino.',
+            });
             return true;
         } catch (err) {
             showApiError(err, 'Error al despachar');
