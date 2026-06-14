@@ -53,6 +53,23 @@ export const RecibirForm: React.FC<{
         })
         .filter((x): x is { descripcion: string; cantidad: number; unidad: string } => x !== null);
 
+    // Ítems con SOBRANTE (llegó MÁS de lo pendiente) — antes el cierre los
+    // registraba como discrepancia en silencio; ahora se avisa en el modal.
+    const sobrantesAlCerrar = items
+        .map((it, idx) => {
+            const ri = receiveItems[idx];
+            if (!ri) return null;
+            const sobra = ri.cantidad_recibida - pendientePorItem(it);
+            if (sobra <= 0) return null;
+            return {
+                descripcion: it.item_descripcion || `Item #${it.item_id}`,
+                cantidad: sobra,
+                unidad: it.unidad || '',
+            };
+        })
+        .filter((x): x is { descripcion: string; cantidad: number; unidad: string } => x !== null);
+    const haySobrante = sobrantesAlCerrar.length > 0;
+
     const handleCerrarTotal = async () => {
         const ok = await onRecibir(
             receiveItems.map(ri => ({
@@ -65,7 +82,9 @@ export const RecibirForm: React.FC<{
     };
 
     const handleClickCerrar = () => {
-        if (hayFaltantes && !cierreFinal) {
+        // Confirmar si hay faltante sin marcar "entrega final" O si hay sobrante
+        // (llegó más de lo enviado) — ambos generan discrepancia.
+        if ((hayFaltantes && !cierreFinal) || haySobrante) {
             setConfirmMermaOpen(true);
         } else {
             handleCerrarTotal();
@@ -336,23 +355,40 @@ export const RecibirForm: React.FC<{
                             disabled={loading}
                             className="px-4 py-2 text-xs font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all"
                         >
-                            Sí, cerrar con merma
+                            Sí, cerrar igual
                         </button>
                     </div>
                 }
             >
                 <div className="space-y-3 text-sm">
-                    <p className="text-brand-dark">Quedan estos ítems sin recibir:</p>
-                    <ul className="ml-5 space-y-1 list-disc text-xs">
-                        {faltantesAlCerrar.map((f, i) => (
-                            <li key={i}>
-                                <span className="font-bold">{f.cantidad}</span>
-                                {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
-                            </li>
-                        ))}
-                    </ul>
+                    {faltantesAlCerrar.length > 0 && (
+                        <div>
+                            <p className="text-brand-dark">Quedan estos ítems sin recibir (merma):</p>
+                            <ul className="ml-5 mt-1 space-y-1 list-disc text-xs">
+                                {faltantesAlCerrar.map((f, i) => (
+                                    <li key={i}>
+                                        <span className="font-bold">{f.cantidad}</span>
+                                        {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
+                    {sobrantesAlCerrar.length > 0 && (
+                        <div>
+                            <p className="text-brand-dark">Llegó <strong>más</strong> de lo enviado (sobrante):</p>
+                            <ul className="ml-5 mt-1 space-y-1 list-disc text-xs">
+                                {sobrantesAlCerrar.map((f, i) => (
+                                    <li key={i}>
+                                        <span className="font-bold">+{f.cantidad}</span>
+                                        {f.unidad ? ` ${f.unidad}` : ''} · {f.descripcion}
+                                    </li>
+                                ))}
+                            </ul>
+                        </div>
+                    )}
                     <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2">
-                        Se registrarán como discrepancia/merma. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
+                        Las diferencias se registrarán como <strong>discrepancia</strong>. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
                     </p>
                 </div>
             </Modal>
