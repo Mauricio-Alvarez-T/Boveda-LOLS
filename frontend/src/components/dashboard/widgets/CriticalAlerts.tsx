@@ -28,7 +28,7 @@ const alertStyles = {
     },
     warning: {
         bg: 'bg-muted',
-        text: 'text-amber-700 dark:text-amber-300',
+        text: 'text-amber-800 dark:text-amber-300',
         icon: AlertTriangle,
     },
     info: {
