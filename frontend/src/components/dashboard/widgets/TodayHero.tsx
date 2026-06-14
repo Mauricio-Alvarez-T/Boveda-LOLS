@@ -79,7 +79,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
     return (
         <motion.div
             {...reveal}
-            className="relative overflow-hidden rounded-card bg-brand-primary/[0.05] dark:bg-brand-primary/10 p-8 md:p-10"
+            className="relative overflow-hidden rounded-card bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16] p-8 md:p-10"
         >
             <div className="relative z-10 flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
                 <div className="min-w-0 flex-1">

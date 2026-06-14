@@ -107,14 +107,16 @@ interface DashboardData {
 
 // Tinte suave de fondo por panel (paleta verde+neutros): positivo/activo en
 // verde/teal; alertas en rojo muy tenue; resto neutro. Da identidad sin recargar.
+// Fondo verde unificado (feedback: "todos los elementos con fondo verde").
+const PANEL_TINT = 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]';
 const WIDGET_TINTS: Record<string, string> = {
-    pending_tasks: 'bg-brand-primary/[0.05] dark:bg-brand-primary/10',
-    obra_ranking: 'bg-teal-50 dark:bg-teal-500/10',
-    chart_attendance_trend: 'bg-teal-50 dark:bg-teal-500/10',
-    absence_alerts: 'bg-destructive/[0.04] dark:bg-destructive/[0.08]',
-    alerts_critical: 'bg-destructive/[0.04] dark:bg-destructive/[0.08]',
-    list_absences_today: 'bg-muted/50',
-    quick_actions: 'bg-brand-primary/[0.05] dark:bg-brand-primary/10',
+    pending_tasks: PANEL_TINT,
+    obra_ranking: PANEL_TINT,
+    chart_attendance_trend: PANEL_TINT,
+    absence_alerts: PANEL_TINT,
+    alerts_critical: PANEL_TINT,
+    list_absences_today: PANEL_TINT,
+    quick_actions: PANEL_TINT,
 };
 
 // ─── Dashboard ───
@@ -251,7 +253,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.trabajadores ?? 0,
             icon: Users,
             color: 'text-brand-primary',
-            bg: 'bg-brand-primary/[0.10] dark:bg-brand-primary/20',
+            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
             route: '/consultas?activo=true',
             description: 'Gestión de personal',
             delta: data.deltas?.trabajadores_nuevos_semana ?? 0,
@@ -262,7 +264,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.documentos ?? 0,
             icon: FileText,
             color: 'text-muted-foreground',
-            bg: 'bg-muted',
+            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
             route: '/consultas?completitud=faltantes',
             description: 'Bóveda documental',
             delta: data.deltas?.docs_vencidos_hoy ? -(data.deltas.docs_vencidos_hoy) : 0,
@@ -274,7 +276,7 @@ const Dashboard: React.FC = () => {
             value: `${data.counters.asistencia_hoy ?? 0}%`,
             icon: CheckSquare,
             color: 'text-teal-700 dark:text-teal-300',
-            bg: 'bg-teal-100/80 dark:bg-teal-500/20',
+            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
             route: '/asistencia',
             description: 'Tasa de presencia hoy',
             delta: data.deltas?.asistencia_delta ?? 0,
@@ -285,7 +287,7 @@ const Dashboard: React.FC = () => {
             value: data.counters.ausentes_hoy ?? 0,
             icon: AlertTriangle,
             color: 'text-muted-foreground',
-            bg: 'bg-muted',
+            bg: 'bg-brand-primary/[0.08] dark:bg-brand-primary/[0.16]',
             route: '/consultas?ausentes=true',
             description: (data.counters.ausentes_hoy ?? 0) > 0 ? 'Excepciones de asistencia' : 'Asistencia perfecta',
             delta: data.deltas?.ausentes_delta ?? 0,

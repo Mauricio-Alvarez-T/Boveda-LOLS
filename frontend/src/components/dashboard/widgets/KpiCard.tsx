@@ -30,7 +30,7 @@ const KpiCard: React.FC<KpiCardProps> = ({ label, value, icon: Icon, color, bg, 
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.06, duration: 0.3, ease: [0.25, 0.1, 0.25, 1] }}
             onClick={onClick}
-            className={cn("group flex cursor-pointer flex-col gap-5 rounded-card border border-border p-6 transition-all duration-200 ease-apple hover:border-[var(--border-hover)]", bg)}
+            className={cn("group flex cursor-pointer flex-col gap-5 rounded-card p-6 transition-all duration-200 ease-apple", bg)}
         >
             {/* Cabecera: etiqueta + icono prominente de color (color = categoría, suave) */}
             <div className="flex items-start justify-between">
