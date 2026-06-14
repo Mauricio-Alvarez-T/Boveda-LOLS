@@ -1,18 +1,14 @@
-import React, { useState, useMemo, useEffect } from 'react';
-import { toast } from 'sonner';
+import React from 'react';
 import { cn } from '../../utils/cn';
 import {
-    ChevronLeft, FileText, CheckCircle2, PackageCheck, PackageOpen,
-    XCircle, Ban, AlertTriangle, MessageSquare, Users,
-    MapPin, Package, Check, X as XIcon, Zap, Split, Plus, Minus, Trash2, Warehouse, Send,
-    ShoppingBag, Info, History, ChevronDown, ChevronUp,
+    ChevronLeft, XCircle, AlertTriangle, MessageSquare, Users,
+    MapPin, X as XIcon, ShoppingBag, History, ChevronDown, ChevronUp,
 } from 'lucide-react';
 import { estadoConfig, tipoFlujoConfig } from './TransferenciasList';
 import TransferenciaActionsMenu from './TransferenciaActionsMenu';
-import type { Transferencia, TransferenciaItem, ApprovalItemState, ApprovalSplit, TransferenciaRecepcion } from '../../types/entities';
+import type { Transferencia, TransferenciaItem, TransferenciaRecepcion } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
-import FaltanteDecisionModal from './FaltanteDecisionModal';
 import { Modal } from '../ui/Modal';
 import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
