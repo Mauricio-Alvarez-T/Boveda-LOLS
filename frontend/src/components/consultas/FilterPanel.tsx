@@ -103,7 +103,7 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
                 className={cn(
                     "h-10 px-4 rounded-xl border flex items-center justify-between cursor-pointer transition-all",
                     filterAusentes 
-                        ? "bg-brand-primary/10 border-brand-primary/30 text-brand-primary font-bold shadow-sm" 
+                        ? "bg-brand-primary/10 border-brand-primary/30 text-green-700 dark:text-green-300 font-bold shadow-sm"
                         : "bg-card border-border text-brand-dark hover:bg-background"
                 )}
             >

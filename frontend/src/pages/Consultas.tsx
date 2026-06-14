@@ -142,7 +142,7 @@ const ConsultasPage: React.FC = () => {
                     placeholder="Buscar por Nombre, RUT..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 h-10 bg-background/50 border-border focus:bg-card transition-all rounded-xl text-sm"
+                    className="pl-9 h-10 bg-muted/50 border-border focus:bg-card transition-all rounded-xl text-sm"
                 />
             </div>
         </div>
@@ -343,7 +343,7 @@ const ConsultasPage: React.FC = () => {
                             <CalendarClock className="h-4 w-4 text-brand-primary" />
                         </div>
                         <p className="text-xs sm:text-sm font-semibold text-brand-dark truncate">
-                            Trabajadores que cumplen <span className="text-brand-primary">10 meses de contrato</span>
+                            Trabajadores que cumplen <span className="text-green-700 dark:text-green-300">10 meses de contrato</span>
                             {aniversario10mLabel && <> en {aniversario10mLabel}</>}
                         </p>
                     </div>
@@ -352,7 +352,7 @@ const ConsultasPage: React.FC = () => {
                         size="sm"
                         onClick={clearAniversario10m}
                         leftIcon={<X className="h-3.5 w-3.5" />}
-                        className="shrink-0 text-brand-primary hover:text-brand-primary"
+                        className="shrink-0 text-green-700 dark:text-green-300"
                     >
                         Quitar
                     </Button>
@@ -360,14 +360,14 @@ const ConsultasPage: React.FC = () => {
             )}
 
             {/* Main Content Area */}
-            <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[0_10px_40px_rgb(0,0,0,0.08)] overflow-hidden relative">
+            <div className="flex-1 min-h-0 flex flex-col bg-card border border-border rounded-3xl shadow-[var(--shadow-md)] overflow-hidden relative">
                 
                 {/* Header Acciones Múltiples */}
-                <div className="h-[60px] border-b border-border bg-white/50 px-3 flex items-center justify-between shrink-0 gap-3">
+                <div className="h-[60px] border-b border-border bg-card/50 px-3 flex items-center justify-between shrink-0 gap-3">
                     {/* Botón RESULTADOS — estilo igual que pestaña activa de Inventario */}
-                    <div className="hidden sm:flex items-center gap-2 bg-brand-primary text-white px-4 py-2 rounded-xl shadow-lg shadow-brand-primary/25">
+                    <div className="hidden sm:flex items-center gap-2 bg-muted text-muted-foreground px-3 py-1.5 rounded-xl">
                         <SearchCheck className="h-4 w-4" />
-                        <span className="text-xs font-black uppercase tracking-widest">Resultados</span>
+                        <span className="text-xs font-semibold uppercase tracking-widest">Resultados</span>
                     </div>
 
                     <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-end">
@@ -462,8 +462,8 @@ const ConsultasPage: React.FC = () => {
                                         "bg-card rounded-2xl border transition-all duration-200 p-3 relative cursor-pointer group",
                                         selectedWorkers.has(worker.id) 
                                             ? "bg-brand-primary/[0.03] border-brand-primary ring-1 ring-brand-primary/20 shadow-md" 
-                                            : "border-border hover:border-brand-primary/30 shadow-[0_4px_12px_rgb(0,0,0,0.05)] hover:shadow-lg",
-                                        !worker.activo && "bg-background/50 border-dashed opacity-80"
+                                            : "border-border hover:border-brand-primary/30 shadow-[var(--shadow-sm)] hover:shadow-lg",
+                                        !worker.activo && "bg-muted/50 border-dashed opacity-80"
                                     )}
                                     onClick={() => handleSelectWorker(worker.id)}
                                 >
@@ -475,7 +475,7 @@ const ConsultasPage: React.FC = () => {
                                                     "w-8 h-8 sm:w-10 sm:h-10 rounded-lg sm:rounded-xl flex items-center justify-center font-black text-caption sm:text-xs transition-all border shrink-0",
                                                     selectedWorkers.has(worker.id)
                                                         ? "bg-brand-dark text-white border-brand-dark shadow-md"
-                                                        : "bg-background text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
+                                                        : "bg-muted text-muted-foreground opacity-70 border-border group-hover:border-brand-primary/30"
                                                 )}
                                             >
                                                 {(idx + 1).toString().padStart(2, '0')}
@@ -485,7 +485,7 @@ const ConsultasPage: React.FC = () => {
                                                     type="checkbox"
                                                     checked={selectedWorkers.has(worker.id)}
                                                     onChange={(e) => { e.stopPropagation(); handleSelectWorker(worker.id); }}
-                                                    className="h-4 w-4 rounded border-gray-300 text-brand-primary focus:ring-brand-primary cursor-pointer"
+                                                    className="h-4 w-4 rounded border-input text-brand-primary focus:ring-brand-primary cursor-pointer"
                                                 />
                                             </div>
                                         </div>
@@ -526,7 +526,7 @@ const ConsultasPage: React.FC = () => {
                                                 <div className="flex flex-col gap-1 min-w-[80px]">
                                                     <div className="flex items-center justify-between text-micro sm:text-caption font-bold">
                                                         <span className="text-muted-foreground uppercase tracking-widest hidden sm:inline">Docs</span>
-                                                        <span className={worker.docs_porcentaje === 100 ? "text-brand-primary" : "text-destructive"}>
+                                                        <span className={worker.docs_porcentaje === 100 ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}>
                                                             {worker.docs_porcentaje}%
                                                         </span>
                                                     </div>
@@ -534,9 +534,9 @@ const ConsultasPage: React.FC = () => {
                                                         <div 
                                                             className={cn(
                                                                 "h-full rounded-full transition-all duration-500",
-                                                                worker.docs_porcentaje === 100 
-                                                                    ? "bg-gradient-to-r from-brand-primary to-[#34D399]" 
-                                                                    : "bg-gradient-to-r from-destructive to-[#F87171]"
+                                                                worker.docs_porcentaje === 100
+                                                                    ? "bg-gradient-to-r from-brand-primary to-brand-accent"
+                                                                    : "bg-gradient-to-r from-destructive to-red-400"
                                                             )}
                                                             style={{ width: `${Math.max(0, Math.min(100, worker.docs_porcentaje))}%` }}
                                                         />
@@ -673,7 +673,7 @@ const ConsultasPage: React.FC = () => {
                 <Modal isOpen={true} onClose={() => setModalType(null)} title="Desvincular Trabajador">
                     <div className="p-5">
                         <div className="bg-destructive/10 border border-destructive/20 rounded-xl p-4 mb-5">
-                            <p className="text-sm font-semibold text-destructive">
+                            <p className="text-sm font-semibold text-red-700 dark:text-red-300">
                                 Al desvincular a <strong>{selectedWorkerForAction.apellido_paterno} {selectedWorkerForAction.nombres}</strong>, no podrás ingresarle más asistencia a partir de la fecha seleccionada.
                             </p>
                         </div>
@@ -683,7 +683,7 @@ const ConsultasPage: React.FC = () => {
                                 type="date"
                                 id="fecha_finiquito_input_consultas"
                                 defaultValue={new Date().toISOString().split('T')[0]}
-                                className="w-full bg-background border-transparent hover:bg-muted focus:bg-card focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
+                                className="w-full bg-muted border-transparent hover:bg-muted focus:bg-card focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all font-semibold"
                             />
                         </div>
                         <div className="flex justify-end gap-3 mt-8">
@@ -722,13 +722,13 @@ const ConsultasPage: React.FC = () => {
 
                         <div className="space-y-4">
                             <p className="text-sm text-brand-dark font-medium">
-                                Para confirmar esta acción, escribe el RUT del trabajador: <strong className="select-none text-brand-primary">{selectedWorkerForAction.rut}</strong>
+                                Para confirmar esta acción, escribe el RUT del trabajador: <strong className="select-none font-semibold text-foreground">{selectedWorkerForAction.rut}</strong>
                             </p>
                             <Input
                                 placeholder="Escribe el RUT para confirmar"
                                 value={depurarConfirmationRut}
                                 onChange={(e) => setDepurarConfirmationRut(e.target.value)}
-                                className="h-12 text-lg font-mono text-center tracking-widest text-brand-dark font-black bg-background border-2 border-border focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:font-sans placeholder:font-normal placeholder:tracking-normal"
+                                className="h-12 text-lg font-mono text-center tracking-widest text-brand-dark font-black bg-muted border-2 border-border focus:border-brand-primary focus:ring-4 focus:ring-brand-primary/10 transition-all placeholder:font-sans placeholder:font-normal placeholder:tracking-normal"
                             />
                         </div>
 
@@ -836,7 +836,7 @@ const ConsultasPage: React.FC = () => {
                                     variant="ghost"
                                     aria-label="Cerrar filtros"
                                     onClick={() => setShowMobileFilters(false)}
-                                    className="bg-background"
+                                    className="bg-muted"
                                     icon={<X className="h-5 w-5" />}
                                 />
                             </div>
