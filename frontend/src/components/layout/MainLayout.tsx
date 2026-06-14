@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
+import { IconButton } from '../ui/IconButton';
 import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
@@ -16,9 +17,9 @@ export const MainLayout: React.FC = () => {
 
     return (
         <div className="flex min-h-[100dvh] bg-background">
-            {/* Mobile Orientation Lock Overlay */}
-            <div className="fixed inset-0 z-[9999] bg-[#1D1D1F] flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
-                <motion.div 
+            {/* Mobile Orientation Lock Overlay — superficie oscura constante (independiente del tema) */}
+            <div className="fixed inset-0 z-[9999] bg-neutral-900 flex-col items-center justify-center p-8 text-center overflow-hidden hidden max-md:landscape:flex">
+                <motion.div
                     initial={{ rotate: 0 }}
                     animate={{ rotate: 90 }}
                     transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
@@ -29,12 +30,12 @@ export const MainLayout: React.FC = () => {
                 <h2 className="text-2xl font-black text-white uppercase tracking-tighter mb-3">
                     Gira tu dispositivo
                 </h2>
-                <p className="text-brand-light/60 text-sm font-medium leading-relaxed max-w-[260px]">
+                <p className="text-white/70 text-sm font-medium leading-relaxed max-w-[260px]">
                     Bóveda LOLS está diseñada para una experiencia vertical óptima. Por favor, vuelve a la orientación vertical.
                 </p>
                 <div className="mt-12 flex items-center gap-2 px-4 py-2 bg-white/5 rounded-full border border-white/10">
                     <div className="h-1.5 w-1.5 rounded-full bg-brand-primary animate-pulse" />
-                    <span className="text-[10px] font-bold text-brand-light/40 uppercase tracking-widest">Esperando rotación...</span>
+                    <span className="text-caption font-bold text-white/50 uppercase tracking-widest">Esperando rotación...</span>
                 </div>
             </div>
 
@@ -51,12 +52,13 @@ export const MainLayout: React.FC = () => {
                 {/* Top Navbar — fixed above scroll area */}
                 <header className="shrink-0 h-14 md:h-16 border-b border-border bg-card/80 backdrop-blur-xl flex items-center justify-between px-3 md:px-8 z-50 shadow-sm relative gap-2">
                     {/* Mobile Hamburger */}
-                    <button
+                    <IconButton
+                        variant="ghost"
+                        aria-label="Abrir menú"
                         onClick={() => setMobileOpen(true)}
-                        className="md:hidden h-9 w-9 flex items-center justify-center rounded-xl hover:bg-background text-muted-foreground shrink-0"
-                    >
-                        <Menu className="h-5 w-5" />
-                    </button>
+                        icon={<Menu className="h-5 w-5" />}
+                        className="md:hidden shrink-0"
+                    />
 
                     {/* Page Title — hidden on mobile */}
                     <div className="hidden md:flex flex-1 min-w-0 items-center">

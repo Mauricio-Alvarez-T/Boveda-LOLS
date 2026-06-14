@@ -17,25 +17,23 @@ interface Props {
     onNavigate: (route: string) => void;
 }
 
-// Paleta estricta: fondo neutro siempre. Solo el texto/ícono de "critical" usa
-// rojo (discreto); warning/info en gris.
+// Color = significado (paleta accesible WCAG AA): superficie interna neutra
+// (bg-muted, que en oscuro queda MÁS clara que la card), y el texto/ícono usa el
+// tono del rol con contraste suficiente: crítico=rojo, precaución=ámbar, info=azul.
 const alertStyles = {
     critical: {
-        border: 'border-border',
-        bg: 'bg-background',
-        text: 'text-destructive',
+        bg: 'bg-muted',
+        text: 'text-red-700 dark:text-red-300',
         icon: AlertTriangle,
     },
     warning: {
-        border: 'border-border',
-        bg: 'bg-background',
-        text: 'text-warning',
+        bg: 'bg-muted',
+        text: 'text-amber-700 dark:text-amber-300',
         icon: AlertTriangle,
     },
     info: {
-        border: 'border-border',
-        bg: 'bg-background',
-        text: 'text-info',
+        bg: 'bg-muted',
+        text: 'text-blue-700 dark:text-blue-300',
         icon: Info,
     },
 };
@@ -45,9 +43,9 @@ const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
         <div>
             <div className="flex items-center gap-2.5 mb-4">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/[0.08]">
-                    <AlertTriangle className={cn("h-5 w-5", alerts.length > 0 ? "text-destructive" : "text-muted-foreground")} />
+                    <AlertTriangle className={cn("h-5 w-5", alerts.length > 0 ? "text-red-700 dark:text-red-300" : "text-muted-foreground")} />
                 </span>
-                <h4 className="text-sm font-semibold text-foreground">Alertas</h4>
+                <h3 className="text-sm font-semibold text-foreground">Alertas</h3>
             </div>
             <div className="space-y-3">
                 {alerts.length > 0 ? (
@@ -55,14 +53,14 @@ const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
                         const style = alertStyles[alert.tipo];
                         const Icon = style.icon;
                         return (
-                            <div key={i} className={cn("p-3 rounded-xl border", style.bg, style.border)}>
+                            <div key={i} className={cn("p-3 rounded-xl border border-border", style.bg)}>
                                 <div className="flex items-start gap-2">
                                     <Icon className={cn("h-4 w-4 mt-0.5 shrink-0", style.text)} />
                                     <div className="flex-1 min-w-0">
                                         <p className={cn("text-caption font-semibold uppercase tracking-widest", style.text)}>
                                             {alert.titulo}
                                         </p>
-                                        <p className="text-xs text-brand-dark mt-1 leading-relaxed">
+                                        <p className="text-xs text-foreground mt-1 leading-relaxed">
                                             {alert.mensaje}
                                         </p>
                                         <Button

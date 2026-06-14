@@ -23,9 +23,9 @@ const AbsencesToday: React.FC<Props> = ({ data }) => {
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                         <UserX className="h-5 w-5 text-muted-foreground" />
                     </span>
-                    <h3 className="text-base font-semibold text-foreground">Ausentes del Día</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Ausentes del Día</h3>
                 </div>
-                <span className="text-xs text-muted uppercase font-semibold tracking-wider">
+                <span className="text-xs text-muted-foreground uppercase font-semibold tracking-wider">
                     {data.length} total
                 </span>
             </div>
@@ -49,7 +49,7 @@ const AbsencesToday: React.FC<Props> = ({ data }) => {
                     <EmptyState className="py-8" icon={UserX} title="Asistencia perfecta hoy. 🎉" />
                 )}
                 {data.length > 8 && (
-                    <p className="text-xs text-muted text-center pt-1">
+                    <p className="text-xs text-muted-foreground text-center pt-1">
                         + {data.length - 8} más
                     </p>
                 )}

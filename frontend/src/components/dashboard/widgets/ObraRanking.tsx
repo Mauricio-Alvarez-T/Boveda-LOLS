@@ -38,12 +38,12 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
 
     return (
         <div>
-            <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                         <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
                     </span>
-                    <h4 className="text-sm font-semibold text-foreground">Asistencia por Obra</h4>
+                    <h3 className="text-sm font-semibold text-foreground">Asistencia por Obra</h3>
                 </div>
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>
             </div>
@@ -63,17 +63,18 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                                 <span className="text-muted-foreground"> · {obra.trabajadores} trabajador{obra.trabajadores !== 1 ? 'es' : ''}</span>
                             </p>
 
-                            {/* Badge de estado (color = significado): al día = verde · pendiente/bajo = ámbar */}
+                            {/* Badge de estado (color = significado, paleta accesible WCAG AA):
+                                al día = verde · pendiente/bajo = ámbar */}
                             {ok ? (
-                                <span className="shrink-0 rounded-full bg-brand-primary/10 px-2.5 py-0.5 text-xs font-medium text-brand-primary">
+                                <span className="shrink-0 rounded-full bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300 px-2.5 py-0.5 text-xs font-medium">
                                     Al día · {obra.asistencia_tasa}%
                                 </span>
                             ) : obra.asistencia_guardada ? (
-                                <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
+                                <span className="shrink-0 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2.5 py-0.5 text-xs font-medium">
                                     {obra.asistencia_tasa}%
                                 </span>
                             ) : (
-                                <span className="shrink-0 rounded-full bg-warning/10 px-2.5 py-0.5 text-xs font-medium text-warning">
+                                <span className="shrink-0 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300 px-2.5 py-0.5 text-xs font-medium">
                                     Sin registro
                                 </span>
                             )}

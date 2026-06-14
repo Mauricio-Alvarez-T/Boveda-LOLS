@@ -44,7 +44,7 @@ const WidgetWrapper: React.FC<Props> = ({ widget, children, tint }) => {
                 className="absolute top-3 right-3 p-1 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing hover:bg-background"
                 title="Arrastrar para reordenar"
             >
-                <GripVertical className="h-4 w-4 text-muted" />
+                <GripVertical className="h-4 w-4 text-muted-foreground" />
             </div>
             {children}
         </div>

@@ -22,12 +22,14 @@ interface Props {
     onNavigate: (route: string) => void;
 }
 
-// Paleta estricta: el único color es el punto de severidad. Rojo SOLO para
-// crítico; warning/info en gris (sin ámbar/azul). Sin rellenos de color.
+// Color = significado (paleta accesible WCAG AA): el rol de cada tarea se comunica
+// en el texto de la descripción — crítico=rojo, precaución=ámbar, info=azul — con
+// tonos -700/-300 que cumplen contraste. El estado nunca depende solo del color:
+// va acompañado de texto y, en crítico, de un punto rojo.
 const severityConfig = {
-    critical: { dot: 'bg-destructive', text: 'text-destructive' },
-    warning: { dot: 'bg-muted-foreground', text: 'text-muted-foreground' },
-    info: { dot: 'bg-muted-foreground', text: 'text-muted-foreground' },
+    critical: { dot: 'bg-destructive', text: 'text-red-700 dark:text-red-300' },
+    warning: { dot: 'bg-amber-500', text: 'text-amber-700 dark:text-amber-300' },
+    info: { dot: 'bg-blue-500', text: 'text-blue-700 dark:text-blue-300' },
 };
 
 const categoryIcons = {
@@ -36,7 +38,7 @@ const categoryIcons = {
     contratos: Users
 };
 
-// Tile de categoría (paleta verde+neutros): activo=verde/teal, resto=gris.
+// Tile de categoría neutro (la señal de rol va en el texto, no en el tile).
 const categoryStyle: Record<string, { tile: string; icon: string }> = {
     asistencia: { tile: 'bg-muted', icon: 'text-muted-foreground' },
     contratos: { tile: 'bg-muted', icon: 'text-muted-foreground' },
@@ -70,12 +72,12 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                         <Zap className="h-5 w-5 text-muted-foreground" />
                     </span>
-                    <h4 className="text-sm font-semibold text-foreground">Tareas Pendientes</h4>
+                    <h3 className="text-sm font-semibold text-foreground">Tareas Pendientes</h3>
                 </div>
                 <div className="flex items-center gap-2 text-sm tabular-nums text-muted-foreground">
                     <span>{tasks.length}</span>
                     {criticalCount > 0 && (
-                        <span className="font-medium text-destructive">· {criticalCount} crítica{criticalCount !== 1 ? 's' : ''}</span>
+                        <span className="font-medium text-red-700 dark:text-red-300">· {criticalCount} crítica{criticalCount !== 1 ? 's' : ''}</span>
                     )}
                 </div>
             </div>

@@ -22,9 +22,12 @@ interface Props {
     onNavigate: (rut: string) => void;
 }
 
+// Color = significado (paleta accesible WCAG AA): faltas consecutivas = rojo
+// (más grave), acumuladas = ámbar (precaución), lunes = neutro. El tipo también
+// se nombra en el mensaje, así que el color no es el único portador del estado.
 const tipoColor = (tipo: Alerta['tipo']) => {
-    if (tipo === 'consecutivas') return 'text-destructive';
-    if (tipo === 'acumuladas')   return 'text-destructive/80';
+    if (tipo === 'consecutivas') return 'text-red-700 dark:text-red-300';
+    if (tipo === 'acumuladas')   return 'text-amber-700 dark:text-amber-300';
     return 'text-muted-foreground';
 };
 
@@ -45,9 +48,9 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
             <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2.5">
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/[0.08]">
-                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                        <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-300" />
                     </span>
-                    <h4 className="text-sm font-semibold text-foreground">Alertas de Inasistencia</h4>
+                    <h3 className="text-sm font-semibold text-foreground">Alertas de Inasistencia</h3>
                 </div>
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>
             </div>
@@ -61,12 +64,12 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
                     >
                         {/* Tile crítico (faltas) — rojo solo aquí, que es crítico */}
                         <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-destructive/[0.08]">
-                            <AlertTriangle className="h-5 w-5 text-destructive" />
+                            <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-300" />
                         </span>
 
                         {/* Info */}
                         <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-brand-dark truncate">
+                            <p className="text-xs font-bold text-foreground truncate">
                                 {t.apellido_paterno} {t.nombres}
                             </p>
                             <p className="text-caption text-muted-foreground mb-1">{t.rut}</p>
