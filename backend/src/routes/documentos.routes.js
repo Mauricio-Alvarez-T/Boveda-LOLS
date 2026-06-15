@@ -59,16 +59,15 @@ router.get('/trabajador/:trabajadorId', auth, checkPermission('documentos.ver'),
 // Download individual document
 router.get('/download/:id', auth, checkPermission('documentos.descargar'), async (req, res, next) => {
     try {
-        const { filePath, fileName } = await documentoService.getDownloadPath(req.params.id);
-        res.download(filePath, fileName);
+        const { fullPath, fileName } = await documentoService.getFilePath(req.params.id);
+        res.download(fullPath, fileName);
     } catch (err) { next(err); }
 });
 
-// Download all documents for a worker as ZIP
+// Download all documents for a worker as ZIP (downloadAll escribe directo en res)
 router.get('/download-all/:trabajadorId', auth, checkPermission('documentos.descargar'), async (req, res, next) => {
     try {
-        const { zipPath, fileName } = await documentoService.getZipPath(req.params.trabajadorId);
-        res.download(zipPath, fileName);
+        await documentoService.downloadAll(req.params.trabajadorId, res);
     } catch (err) { next(err); }
 });
 
