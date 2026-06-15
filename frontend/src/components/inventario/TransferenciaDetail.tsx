@@ -69,7 +69,8 @@ interface Props {
     onRecibir: (
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
         tipo?: 'parcial' | 'total',
-        observacion?: string
+        observacion?: string,
+        itemsCustom?: { transferencia_item_custom_id: number; cantidad_recibida: number }[]
     ) => Promise<number | null>;
     /** Fetcher del historial de eventos de recepción. Inyectado por el panel padre. */
     onFetchRecepciones?: (id: number) => Promise<TransferenciaRecepcion[]>;
@@ -106,6 +107,7 @@ const TransferenciaDetail: React.FC<Props> = ({
         // Aprobación (migración 070): el aprobador ajusta cantidad, quita ítems,
         // corrige descripción/unidad, agrega ítems y deja nota.
         cantidad_aprobada?: number | null;
+        cantidad_recibida?: number;
         aprobado?: boolean;
         nota_aprobador?: string | null;
         agregado_por_aprobador?: boolean;
@@ -470,6 +472,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                     onCrearFaltante={onCrearFaltante}
                     transferenciaId={t.id}
                     loading={actionLoading}
+                    itemsCustom={itemsCustom}
+                    obras={obras}
                     onClose={() => setActiveForm(null)}
                     onOpenItem={itemDetail.openItem}
                 />
@@ -559,6 +563,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     onUploadFoto={onUploadFotoRecepcion ? (recepcionId, file) => onUploadFotoRecepcion(t.id, recepcionId, file) : undefined}
                     loading={actionLoading}
                     viajesPrevios={recepciones.length}
+                    itemsCustom={itemsCustom}
                     onClose={() => setActiveForm(null)}
                     onOpenItem={itemDetail.openItem}
                 />

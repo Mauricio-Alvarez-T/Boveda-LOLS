@@ -1,10 +1,12 @@
-import React from 'react';
-import { CheckCircle2, Zap, AlertTriangle, Warehouse, MapPin, Check, Trash2, Plus, Split } from 'lucide-react';
+import React, { useState } from 'react';
+import { CheckCircle2, Zap, AlertTriangle, Warehouse, MapPin, Check, Trash2, Plus, Split, ShoppingBag } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { formatBodegaNombreResponsable } from '../../../utils/formatBodega';
 import type { TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../../types/entities';
 import type { StockLocation } from '../../../hooks/inventario/useTransferenciaDetail';
 import FaltanteDecisionModal from '../FaltanteDecisionModal';
+import { QtyStepper } from '../../ui/QtyStepper';
+import { CustomAprobacionEditor, initCustomEdits, buildNuevosPayload, customFaltaOrigen, type CustomItemSrc, type CustomEdit, type CustomNuevo } from './CustomAprobacionEditor';
 
 interface FaltanteModalState {
     isOpen: boolean;
@@ -16,6 +18,8 @@ interface AprobarData {
     origen_obra_id?: number | null;
     origen_bodega_id?: number | null;
     items: { item_id: number; splits: ApprovalSplit[] }[];
+    items_custom?: CustomEdit[];
+    items_custom_nuevos?: { descripcion: string; cantidad: number; unidad?: string; observacion?: string; fuente?: 'comprar' | 'obra'; origen_obra_id?: number | null }[];
 }
 
 /**
@@ -37,9 +41,16 @@ export const AprobarForm: React.FC<{
     onCrearFaltante?: (transferenciaId: number) => Promise<{ id: number; codigo: string; items?: number; ya_existia?: boolean } | null>;
     transferenciaId: number;
     loading: boolean;
+    /** Ítems personalizados de solicitudes mixtas (aprobación: fuente, cantidad, nota). */
+    itemsCustom?: CustomItemSrc[];
+    obras: { id: number; nombre: string }[];
     onClose: () => void;
     onOpenItem: (itemId: number) => void;
-}> = ({ items, stockData, stockLoading, approvalItems, setApprovalItems, faltanteModal, setFaltanteModal, onAprobar, onCrearFaltante, transferenciaId, loading, onClose, onOpenItem }) => {
+}> = ({ items, stockData, stockLoading, approvalItems, setApprovalItems, faltanteModal, setFaltanteModal, onAprobar, onCrearFaltante, transferenciaId, loading, itemsCustom = [], obras, onClose, onOpenItem }) => {
+    const [customEdits, setCustomEdits] = useState<CustomEdit[]>(() => initCustomEdits(itemsCustom));
+    const [customNuevos, setCustomNuevos] = useState<CustomNuevo[]>([]);
+    const customFalta = customFaltaOrigen(customEdits, customNuevos);
+
     // Helpers locales ---------------------------------------------------
     const totalOfItem = (ai: ApprovalItemState) =>
         ai.splits.reduce((s, sp) => s + (sp.cantidad || 0), 0);
@@ -206,7 +217,7 @@ export const AprobarForm: React.FC<{
     const hayAlgoParaEnviar = itemStatus.some(s => s.total > 0);
 
     // Exigimos al menos 1 unidad sumada. Pero sí permitimos confirmar parcial (faltante).
-    const puedeConfirmar = !hayError && hayAlgoParaEnviar;
+    const puedeConfirmar = !hayError && hayAlgoParaEnviar && !customFalta;
 
     // Construir lista de faltantes para pasar al modal
     const faltantesParaModal = items
@@ -229,6 +240,8 @@ export const AprobarForm: React.FC<{
             origen_obra_id: primero?.origen_obra_id || null,
             origen_bodega_id: primero?.origen_bodega_id || null,
             items: payload,
+            items_custom: customEdits,
+            items_custom_nuevos: buildNuevosPayload(customNuevos),
         });
         return ok;
     };
@@ -385,22 +398,18 @@ export const AprobarForm: React.FC<{
                                                             {loc?.nombre || 'Ubicación inválida'}
                                                             <span className="text-muted-foreground"> (máx {maxAqui})</span>
                                                         </span>
-                                                        <input
-                                                            type="number"
-                                                            inputMode="decimal"
-                                                            min={0}
-                                                            max={maxAqui}
+                                                        <QtyStepper
                                                             value={sp.cantidad}
-                                                            onChange={e => {
-                                                                const val = parseInt(e.target.value) || 0;
+                                                            onChange={val => {
                                                                 const newSplits = [...ai.splits];
                                                                 newSplits[sIdx] = { ...sp, cantidad: val };
                                                                 updateSplits(idx, newSplits);
                                                             }}
-                                                            className={cn(
-                                                                "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
-                                                                splitErr && "border-red-400 text-red-700 dark:border-red-700 dark:text-red-300"
-                                                            )}
+                                                            min={0}
+                                                            max={maxAqui}
+                                                            size="sm"
+                                                            warning={splitErr ? 'exceso' : null}
+                                                            ariaLabel={loc?.nombre || 'split'}
                                                         />
                                                         <button
                                                             type="button"
@@ -504,6 +513,17 @@ export const AprobarForm: React.FC<{
                     )}
                 </div>
 
+                {/* Otros materiales (personalizados) — aprobación en solicitudes mixtas */}
+                {itemsCustom.length > 0 && (
+                    <div className="border-t border-border pt-4">
+                        <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5 mb-1">
+                            <ShoppingBag className="h-4 w-4 text-amber-600" /> Otros materiales (fuera de catálogo)
+                        </h4>
+                        <p className="text-caption text-muted-foreground mb-3">Para cada uno, ajusta la cantidad y elige si se compra o se trae de otra ubicación.</p>
+                        <CustomAprobacionEditor obras={obras} edits={customEdits} setEdits={setCustomEdits} nuevos={customNuevos} setNuevos={setCustomNuevos} />
+                    </div>
+                )}
+
                 {/* Resumen + mega-botón --------------------------------------- */}
                 {!stockLoading && (totalParcial > 0 || totalVacio > 0) && (
                     <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-amber-50/50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-900 flex-wrap">
@@ -557,6 +577,8 @@ export const AprobarForm: React.FC<{
                         origen_obra_id: primero?.origen_obra_id || null,
                         origen_bodega_id: primero?.origen_bodega_id || null,
                         items: payload,
+                        items_custom: customEdits,
+                        items_custom_nuevos: buildNuevosPayload(customNuevos),
                     });
                     if (ok && decision === 'crear_nueva' && onCrearFaltante) {
                         await onCrearFaltante(transferenciaId);

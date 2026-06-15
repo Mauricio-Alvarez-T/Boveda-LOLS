@@ -8,6 +8,7 @@ import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { FieldError } from '../ui/FieldError';
+import { QtyStepper } from '../ui/QtyStepper';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
@@ -496,21 +497,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                             {/* Cantidad */}
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-caption text-muted-foreground font-medium">Cant:</span>
-                                                <button type="button" onClick={() => updateItem(idx, { cantidad: Math.max(1, (Number(item.cantidad) || 1) - 1) })}
-                                                    className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
-                                                    <Minus className="h-3 w-3 text-muted-foreground" />
-                                                </button>
-                                                <input
-                                                    type="number" min={0}
-                                                    value={item.cantidad}
-                                                    onChange={e => updateItem(idx, { cantidad: e.target.value === '' ? '' : Math.max(0, parseInt(e.target.value) || 0) })}
-                                                    className="w-14 px-2 py-1 text-xs border border-border rounded-lg text-center font-bold"
+                                                <QtyStepper
+                                                    value={Number(item.cantidad) || 0}
+                                                    onChange={v => updateItem(idx, { cantidad: v })}
+                                                    min={0}
+                                                    size="sm"
+                                                    unidad={item.unidad}
                                                 />
-                                                <button type="button" onClick={() => updateItem(idx, { cantidad: (Number(item.cantidad) || 0) + 1 })}
-                                                    className="w-7 h-7 rounded-lg bg-card border border-border flex items-center justify-center hover:bg-muted transition-colors">
-                                                    <Plus className="h-3 w-3 text-muted-foreground" />
-                                                </button>
-                                                {item.unidad && <span className="text-caption text-muted-foreground">{item.unidad}</span>}
                                             </div>
 
                                             {/* Precio unitario */}

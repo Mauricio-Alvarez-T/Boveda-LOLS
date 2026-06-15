@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { PackageCheck, PackageOpen, Minus, Plus, Info, AlertTriangle } from 'lucide-react';
+import { PackageCheck, PackageOpen, Info, AlertTriangle, ShoppingBag } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { Modal } from '../../ui/Modal';
 import type { TransferenciaItem } from '../../../types/entities';
 import { ProgressBar } from '../../ui/ProgressBar';
 import { ImagePicker } from '../../ui/ImagePicker';
+import { QtyStepper } from '../../ui/QtyStepper';
 
 interface ReceiveItem { item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string; }
 
@@ -23,16 +24,31 @@ export const RecibirForm: React.FC<{
     confirmMermaOpen: boolean;
     setConfirmMermaOpen: React.Dispatch<React.SetStateAction<boolean>>;
     pendientePorItem: (item: TransferenciaItem) => number;
-    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[], tipo?: 'parcial' | 'total', observacion?: string) => Promise<number | null>;
+    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[], tipo?: 'parcial' | 'total', observacion?: string, itemsCustom?: { transferencia_item_custom_id: number; cantidad_recibida: number }[]) => Promise<number | null>;
     /** Sube una foto OPCIONAL tras registrar la recepción (best-effort, no bloquea). */
     onUploadFoto?: (recepcionId: number, file: File) => Promise<boolean>;
     loading: boolean;
     /** Nº de entregas ya registradas (para el badge "Viaje N" y el avance global). */
     viajesPrevios?: number;
+    /** Ítems personalizados aprobados (para recibir su cantidad en solicitudes mixtas). */
+    itemsCustom?: { id: number; descripcion: string; unidad: string | null; cantidad: number; cantidad_aprobada?: number | null; cantidad_recibida?: number; aprobado?: boolean }[];
     onClose: () => void;
     onOpenItem: (itemId: number) => void;
-}> = ({ items, receiveItems, setReceiveItems, cierreFinal, setCierreFinal, confirmMermaOpen, setConfirmMermaOpen, pendientePorItem, onRecibir, onUploadFoto, loading, viajesPrevios = 0, onClose, onOpenItem }) => {
+}> = ({ items, receiveItems, setReceiveItems, cierreFinal, setCierreFinal, confirmMermaOpen, setConfirmMermaOpen, pendientePorItem, onRecibir, onUploadFoto, loading, viajesPrevios = 0, itemsCustom = [], onClose, onOpenItem }) => {
     const [fotoFile, setFotoFile] = useState<File | null>(null);
+    const [customRecibido, setCustomRecibido] = useState<Record<number, number>>({});
+
+    // Personalizados aprobados con saldo pendiente (aprobada − ya recibido).
+    const customPend = itemsCustom
+        .filter(c => c.aprobado !== false)
+        .map(c => {
+            const aprob = c.cantidad_aprobada != null ? c.cantidad_aprobada : c.cantidad;
+            return { id: c.id, descripcion: c.descripcion, unidad: c.unidad, aprob, pendiente: Math.max(0, aprob - (c.cantidad_recibida || 0)) };
+        });
+    const totalCustomEsteViaje = customPend.reduce((s, c) => s + (customRecibido[c.id] || 0), 0);
+    const customRecibidoPayload = () => customPend
+        .map(c => ({ transferencia_item_custom_id: c.id, cantidad_recibida: customRecibido[c.id] || 0 }))
+        .filter(x => x.cantidad_recibida > 0);
 
     // Cálculos derivados para la UI:
     // - totalRecibidoEsteViaje = suma de inputs (info en footer)
@@ -85,7 +101,7 @@ export const RecibirForm: React.FC<{
                 item_id: ri.item_id,
                 cantidad_recibida: ri.cantidad_recibida,
             })),
-            'total'
+            'total', undefined, customRecibidoPayload()
         );
         if (recepcionId) {
             if (fotoFile && onUploadFoto) await onUploadFoto(recepcionId, fotoFile);
@@ -109,7 +125,7 @@ export const RecibirForm: React.FC<{
                 item_id: ri.item_id,
                 cantidad_recibida: ri.cantidad_recibida,
             })),
-            'parcial'
+            'parcial', undefined, customRecibidoPayload()
         );
         if (recepcionId) {
             if (fotoFile && onUploadFoto) await onUploadFoto(recepcionId, fotoFile);
@@ -218,47 +234,18 @@ export const RecibirForm: React.FC<{
                                     </td>
                                     <td className="px-3 py-1.5">
                                         <div className="flex items-center gap-1.5">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: Math.max(0, updated[idx].cantidad_recibida - 1) };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                disabled={ri.cantidad_recibida <= 0}
-                                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-                                                aria-label={`Restar 1 a ${item.item_descripcion}`}
-                                            >
-                                                <Minus className="h-4 w-4" />
-                                            </button>
-                                            <input
-                                                type="number"
-                                                inputMode="decimal"
-                                                min={0}
+                                            <QtyStepper
                                                 value={ri.cantidad_recibida}
-                                                onChange={e => {
+                                                onChange={c => {
                                                     const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: parseInt(e.target.value) || 0 };
+                                                    updated[idx] = { ...updated[idx], cantidad_recibida: c };
                                                     setReceiveItems(updated);
                                                 }}
-                                                className={cn(
-                                                    "w-16 h-10 px-2 border rounded-lg text-center text-xs font-bold",
-                                                    sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "border-border"
-                                                )}
-                                                aria-label={`Cantidad recibida de ${item.item_descripcion}`}
+                                                size="lg"
+                                                variant="card"
+                                                warning={sobrante > 0 ? 'sobrante' : null}
+                                                ariaLabel={item.item_descripcion || `Item #${item.item_id}`}
                                             />
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    const updated = [...receiveItems];
-                                                    updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
-                                                    setReceiveItems(updated);
-                                                }}
-                                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
-                                                aria-label={`Sumar 1 a ${item.item_descripcion}`}
-                                            >
-                                                <Plus className="h-4 w-4" />
-                                            </button>
                                             {sobrante > 0 && (
                                                 <span
                                                     className="ml-1 text-micro font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
@@ -283,6 +270,33 @@ export const RecibirForm: React.FC<{
                     </tbody>
                 </table>
             </div>
+
+            {/* Otros materiales (personalizados) — recepción en solicitudes mixtas */}
+            {customPend.length > 0 && (
+                <div className="border-t border-brand-primary/20 px-4 py-3">
+                    <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2 flex items-center gap-1.5">
+                        <ShoppingBag className="h-3.5 w-3.5" /> Otros materiales
+                    </p>
+                    <ul className="space-y-2">
+                        {customPend.map(c => (
+                            <li key={c.id} className="flex items-center justify-between gap-2">
+                                <div className="min-w-0">
+                                    <div className="text-xs font-medium text-brand-dark truncate">{c.descripcion}</div>
+                                    <div className="text-caption text-muted-foreground tabular-nums">aprobado {c.aprob} · pendiente {c.pendiente}{c.unidad ? ` ${c.unidad}` : ''}</div>
+                                </div>
+                                <QtyStepper
+                                    value={customRecibido[c.id] || 0}
+                                    onChange={v => setCustomRecibido(prev => ({ ...prev, [c.id]: v }))}
+                                    size="md"
+                                    variant="card"
+                                    unidad={c.unidad}
+                                    ariaLabel={c.descripcion}
+                                />
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             {/* Sticky footer: checkbox + totales + botones */}
             <div className="border-t border-brand-primary/20 bg-muted/40 px-4 py-3 space-y-3">
@@ -344,9 +358,9 @@ export const RecibirForm: React.FC<{
                     {!cierreFinal && (
                         <button
                             onClick={handleParcial}
-                            disabled={loading || totalRecibidoEsteViaje === 0}
+                            disabled={loading || (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0}
                             title={
-                                totalRecibidoEsteViaje === 0
+                                (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0
                                     ? 'Marca al menos 1 unidad de algún ítem antes de registrar'
                                     : 'Registra lo de este viaje. La transferencia queda abierta esperando próximos viajes.'
                             }

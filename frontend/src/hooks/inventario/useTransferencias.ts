@@ -311,10 +311,11 @@ export function useTransferencias() {
         id: number,
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
         tipo: 'parcial' | 'total' = 'total',
-        observacion?: string
+        observacion?: string,
+        itemsCustom?: { transferencia_item_custom_id: number; cantidad_recibida: number }[]
     ) => {
         try {
-            const res = await api.put(`/transferencias/${id}/recibir`, { items, tipo, observacion });
+            const res = await api.put(`/transferencias/${id}/recibir`, { items, tipo, observacion, items_custom: itemsCustom });
             if (tipo === 'parcial') {
                 toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { duration: 5000 });
             } else {
