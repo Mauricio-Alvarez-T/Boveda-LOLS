@@ -79,7 +79,7 @@ export const TransferenciaTimeline: React.FC<{
     const enCurso = estado === 'recepcion_parcial';
 
     return (
-        <div className={cn("flex items-center justify-between", compact ? "px-2" : "px-4")}>
+        <div className={cn("flex items-center justify-between", compact ? "px-2" : "px-1 md:px-4")}>
             {nodes.map((node, idx) => {
                 const completed = node.rank <= activeRank;
                 const isCurrent = node.rank === currentRank;
@@ -88,21 +88,21 @@ export const TransferenciaTimeline: React.FC<{
                 return (
                     <React.Fragment key={node.key}>
                         {idx > 0 && (
-                            <div className={cn("flex-1 h-0.5 mx-2", node.rank <= activeRank ? "bg-brand-primary" : "bg-muted")} />
+                            <div className={cn("flex-1 h-0.5 mx-1 md:mx-2", node.rank <= activeRank ? "bg-brand-primary" : "bg-muted")} />
                         )}
                         <div className="flex flex-col items-center gap-1.5">
                             <div className={cn(
                                 "rounded-full flex items-center justify-center border-2 transition-all",
-                                compact ? "w-9 h-9" : "w-10 h-10",
+                                compact ? "w-9 h-9" : "w-8 h-8 md:w-10 md:h-10",
                                 completed
                                     ? "bg-brand-primary border-brand-primary text-white"
                                     : "bg-card border-border text-muted-foreground/40",
                                 isCurrent && "ring-4 ring-brand-primary/20 scale-110"
                             )}>
-                                <StepIcon className={compact ? "h-4 w-4" : "h-4.5 w-4.5"} />
+                                <StepIcon className={compact ? "h-4 w-4" : "h-4 w-4 md:h-4.5 md:w-4.5"} />
                             </div>
                             <span className={cn(
-                                "text-caption font-bold whitespace-nowrap",
+                                "text-micro md:text-caption font-bold whitespace-nowrap",
                                 completed ? "text-green-700 dark:text-green-300" : "text-muted-foreground/40"
                             )}>
                                 {node.label}

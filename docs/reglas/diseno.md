@@ -95,6 +95,13 @@ migrar a `IconButton`. Las páginas ya migradas heredan la regla del primitivo.
 gris→ámbar (`hover:text-warning hover:bg-warning/10` o equivalente). Sigue
 aplicando gris en reposo.
 
+**Excepción de marca — WhatsApp (verde persistente):** los botones-icono de *compartir por
+WhatsApp* conservan un tinte **verde persistente** (no gris-idle) por reconocibilidad de marca y
+porque en mobile no hay hover — análogo a las excepciones de encabezados verdes/tabs/toasts. Tokens
+de la escala `green` (ej. `bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300`),
+nunca hex. Aplicado en el detalle de transferencia (`TransferenciaActionsMenu`); patrón replicable a
+los WhatsApp de asistencia/sábados.
+
 ### CTAs destructivas y decoración (F2.9)
 - **CTA destructiva** (confirmar finiquito / depurar / borrar): `<Button
   variant="destructive">` — tinte `bg-destructive/10 text-destructive`, relleno

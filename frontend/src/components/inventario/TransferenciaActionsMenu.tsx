@@ -102,6 +102,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
                     disabled={actionLoading}
                     title={whatsappLabel}
                     aria-label={whatsappLabel}
+                    className="bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-700 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25"
                     icon={<WhatsAppIcon className="h-4 w-4 shrink-0" />}
                 />
             )}
