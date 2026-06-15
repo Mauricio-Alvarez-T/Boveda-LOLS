@@ -26,7 +26,7 @@ import { RechazarForm } from './transferencia-detail/RechazarForm';
 import { RecibirForm } from './transferencia-detail/RecibirForm';
 import { AprobarForm } from './transferencia-detail/AprobarForm';
 import { ActivityLog } from './transferencia-detail/ActivityLog';
-import { resolveImageUrl } from '../../utils/resolveImageUrl';
+import { FotoThumbnail } from './transferencia-detail/FotoThumbnail';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -313,11 +313,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             por <strong className="text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</strong>
                                         </span>
                                     </div>
-                                    {rec.foto_url && (
-                                        <a href={resolveImageUrl(rec.foto_url) || '#'} target="_blank" rel="noreferrer" className="inline-block mb-1.5">
-                                            <img src={resolveImageUrl(rec.foto_url) || ''} alt="Foto de la recepción" className="h-14 w-14 rounded-lg object-cover border border-border" />
-                                        </a>
-                                    )}
+                                    {rec.foto_url && <FotoThumbnail url={rec.foto_url} alt="Foto de la recepción" />}
                                     <ul className="space-y-0.5 ml-2">
                                         {rec.items.map(ri => (
                                             <li key={ri.id} className="text-label flex justify-between">
