@@ -1,26 +1,45 @@
 import React from 'react';
-import { FileText, CheckCircle2, PackageCheck, XCircle, Ban } from 'lucide-react';
+import { FileText, CheckCircle2, Truck, PackageOpen, PackageCheck, XCircle, Ban } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 
-// ── Timeline: 3 pasos (sin "Despachada") ──
-const STEPS = [
-    { key: 'pendiente', label: 'Solicitada', icon: FileText },
-    { key: 'aprobada', label: 'Aprobada', icon: CheckCircle2 },
-    { key: 'recibida', label: 'Recibida', icon: PackageCheck },
-];
+// ── Nodos posibles del timeline (rank = orden global del ciclo de vida) ──
+type TimelineNode = { key: string; label: string; icon: React.ComponentType<{ className?: string }>; rank: number };
 
-// recepcion_parcial entra como step 1 (junto con aprobada/en_transito) porque
-// aún no termina el flujo — la TRF sigue abierta hasta el cierre total.
-const STEP_INDEX: Record<string, number> = {
-    pendiente: 0, aprobada: 1, en_transito: 1, recepcion_parcial: 1, recibida: 2,
+const NODE: Record<string, TimelineNode> = {
+    solicitada: { key: 'solicitada', label: 'Solicitada', icon: FileText, rank: 0 },
+    aprobada: { key: 'aprobada', label: 'Aprobada', icon: CheckCircle2, rank: 1 },
+    en_transito: { key: 'en_transito', label: 'En tránsito', icon: Truck, rank: 2 },
+    recibida: { key: 'recibida', label: 'Recibida', icon: PackageCheck, rank: 3 },
+};
+
+// Qué nodos se muestran según el tipo de flujo (algunos saltan etapas):
+// - push_directo / orden_gerencia: nacen en tránsito (sin solicitud ni aprobación)
+// - solicitud_materiales: no tiene despacho físico (sin "En tránsito")
+// - resto (solicitud, intra_bodega, intra_obra, devolucion): ciclo completo
+function getTimelineNodes(tipo_flujo?: string): TimelineNode[] {
+    switch (tipo_flujo) {
+        case 'push_directo':
+        case 'orden_gerencia':
+            return [NODE.en_transito, NODE.recibida];
+        case 'solicitud_materiales':
+            return [NODE.solicitada, NODE.aprobada, NODE.recibida];
+        default:
+            return [NODE.solicitada, NODE.aprobada, NODE.en_transito, NODE.recibida];
+    }
+}
+
+// estado → rank del ciclo. recepcion_parcial vive DENTRO de "En tránsito".
+const ESTADO_RANK: Record<string, number> = {
+    pendiente: 0, aprobada: 1, en_transito: 2, recepcion_parcial: 2, recibida: 3,
     rechazada: -1, cancelada: -1,
 };
 
 /**
- * Stepper de estado del detalle de transferencia (o banner si está rechazada/
- * cancelada). Extraído de TransferenciaDetail.tsx (Fase 1) para de-duplicar los
- * 2 layouts. `noun` cambia el texto del banner ("Transferencia" vs "Solicitud")
- * y `compact` aplica el tamaño reducido del layout de materiales.
+ * Stepper de estado del detalle de transferencia (o banner si rechazada/cancelada).
+ * Los nodos se arman dinámicamente según `tipo_flujo` (Fase 3): push_directo/
+ * orden_gerencia saltan Solicitada/Aprobada; solicitud_materiales no tiene
+ * "En tránsito". En `recepcion_parcial` el nodo "En tránsito" muestra el sub-estado
+ * "Entrega en curso · viaje N". `noun` cambia el texto del banner; `compact` el tamaño.
  */
 export const TransferenciaTimeline: React.FC<{
     estado: string;
@@ -29,8 +48,11 @@ export const TransferenciaTimeline: React.FC<{
     noun?: string;
     /** Variante compacta (layout de materiales): círculos w-9, padding px-2. */
     compact?: boolean;
-}> = ({ estado, observacionesRechazo, noun = 'Transferencia', compact = false }) => {
-    const activeStep = STEP_INDEX[estado] ?? -1;
+    /** Tipo de flujo para variar los nodos (fallback: ciclo completo de "solicitud"). */
+    tipo_flujo?: string;
+    /** Nº de entregas ya recibidas (para el sub-estado "Entrega en curso · viaje N"). */
+    viajesRecibidos?: number;
+}> = ({ estado, observacionesRechazo, noun = 'Transferencia', compact = false, tipo_flujo, viajesRecibidos }) => {
     const isTerminated = estado === 'rechazada' || estado === 'cancelada';
 
     if (isTerminated) {
@@ -49,16 +71,24 @@ export const TransferenciaTimeline: React.FC<{
         );
     }
 
+    const nodes = getTimelineNodes(tipo_flujo);
+    const activeRank = ESTADO_RANK[estado] ?? -1;
+    // currentRank = el rank más alto entre los nodos ya alcanzados (el "actual").
+    const reachedRanks = nodes.map(n => n.rank).filter(r => r <= activeRank);
+    const currentRank = reachedRanks.length ? Math.max(...reachedRanks) : -1;
+    const enCurso = estado === 'recepcion_parcial';
+
     return (
         <div className={cn("flex items-center justify-between", compact ? "px-2" : "px-4")}>
-            {STEPS.map((step, idx) => {
-                const completed = idx <= activeStep;
-                const isCurrent = idx === activeStep;
-                const StepIcon = step.icon;
+            {nodes.map((node, idx) => {
+                const completed = node.rank <= activeRank;
+                const isCurrent = node.rank === currentRank;
+                const StepIcon = node.icon;
+                const showSub = enCurso && node.key === 'en_transito' && isCurrent;
                 return (
-                    <React.Fragment key={step.key}>
+                    <React.Fragment key={node.key}>
                         {idx > 0 && (
-                            <div className={cn("flex-1 h-0.5 mx-2", idx <= activeStep ? "bg-brand-primary" : "bg-muted")} />
+                            <div className={cn("flex-1 h-0.5 mx-2", node.rank <= activeRank ? "bg-brand-primary" : "bg-muted")} />
                         )}
                         <div className="flex flex-col items-center gap-1.5">
                             <div className={cn(
@@ -75,8 +105,14 @@ export const TransferenciaTimeline: React.FC<{
                                 "text-caption font-bold whitespace-nowrap",
                                 completed ? "text-green-700 dark:text-green-300" : "text-muted-foreground/40"
                             )}>
-                                {step.label}
+                                {node.label}
                             </span>
+                            {showSub && (
+                                <span className="inline-flex items-center gap-1 text-micro font-bold text-brand-primary whitespace-nowrap">
+                                    <PackageOpen className="h-3 w-3" />
+                                    Entrega en curso{viajesRecibidos ? ` · viaje ${viajesRecibidos + 1}` : ''}
+                                </span>
+                            )}
                         </div>
                     </React.Fragment>
                 );

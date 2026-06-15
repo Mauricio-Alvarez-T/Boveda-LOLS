@@ -266,6 +266,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                 <TransferenciaTimeline
                     estado={t.estado}
                     observacionesRechazo={t.observaciones_rechazo}
+                    tipo_flujo={t.tipo_flujo}
+                    viajesRecibidos={recepciones.length}
                 />
             </div>
 
@@ -592,6 +594,8 @@ const TransferenciaDetail: React.FC<Props> = ({
                     observacionesRechazo={t.observaciones_rechazo}
                     noun="Solicitud"
                     compact
+                    tipo_flujo={t.tipo_flujo}
+                    viajesRecibidos={recepciones.length}
                 />
 
                 {/* SoD banner */}
