@@ -153,7 +153,7 @@ const VehiculosPage: React.FC = () => {
                         {vehiculos.length}
                     </span>
                 </h1>
-                <p className="text-muted-foreground text-xs">Seguros y Permisos de Circulación</p>
+                <p className="text-muted-foreground text-xs">Seguros y Antecedentes de Circulación</p>
             </div>
         </div>
     ), [vehiculos.length]);
@@ -345,20 +345,20 @@ const VehiculosPage: React.FC = () => {
                         }
                     </Section>
 
-                    {/* PERMISO DE CIRCULACIÓN */}
+                    {/* ANTECEDENTES DE CIRCULACIÓN */}
                     <Section
                         icon={<ScrollText className="h-3.5 w-3.5" />}
-                        title="Permiso de Circulación"
+                        title="Antecedentes de Circulación"
                         onAdd={hasPermission('vehiculos.crear') ? () => setModalPermiso(true) : undefined}
                     >
                         {permisos.length === 0
-                            ? <Empty>Sin permisos registrados</Empty>
+                            ? <Empty>Sin antecedentes registrados</Empty>
                             : permisos.map(p => (
                                 <ItemRow key={p.id}
                                     onEdit={hasPermission('vehiculos.editar') ? () => { setEditPermiso(p); setModalPermiso(true); } : undefined}
                                     onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('permisos', p.id) : undefined}>
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-xs font-bold text-brand-dark">Permiso de Circulación</span>
+                                        <span className="text-xs font-bold text-brand-dark">Antecedente de Circulación</span>
                                         <EstadoVencimiento fecha={p.fecha_vencimiento} label="permiso" />
                                     </div>
                                     <p className="text-caption text-muted-foreground mt-0.5">
@@ -533,7 +533,7 @@ const VehiculosPage: React.FC = () => {
                     </Modal>
                     <Modal isOpen={modalPermiso}
                         onClose={() => { setModalPermiso(false); setEditPermiso(null); }}
-                        title={editPermiso ? 'Editar Permiso de Circulación' : 'Agregar Permiso de Circulación'} size="lg"
+                        title={editPermiso ? 'Editar Antecedente de Circulación' : 'Agregar Antecedente de Circulación'} size="lg"
                         headerAction={formActions('permiso-form', () => { setModalPermiso(false); setEditPermiso(null); })}>
                         <PermisoCirculacionForm vehiculoId={selected.id} initialData={editPermiso}
                             onCancel={() => { setModalPermiso(false); setEditPermiso(null); }}
