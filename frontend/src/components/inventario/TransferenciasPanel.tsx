@@ -3,13 +3,11 @@ import { Plus, ArrowLeftRight, AlertTriangle, Search, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { useTransferencias } from '../../hooks/inventario/useTransferencias';
 import { useAuth } from '../../context/AuthContext';
-import { Modal } from '../ui/Modal';
 import StatusFilterBar from './StatusFilterBar';
 import TransferenciasList from './TransferenciasList';
 import TransferenciaDetail from './TransferenciaDetail';
-import SolicitudForm from './SolicitudForm';
-import MovimientoForm from './MovimientoForm';
-import NewMovimientoModal, { type TipoMovimiento } from './NewMovimientoModal';
+import { NuevoMovimientoWizard } from './nuevo-movimiento/NuevoMovimientoWizard';
+import type { MovimientoResuelto } from '../../utils/inferMovimiento';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
 
@@ -35,8 +33,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
     const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'todas');
     const [searchQuery, setSearchQuery] = useState('');
-    const [showSelectorModal, setShowSelectorModal] = useState(false);
-    const [activeFlow, setActiveFlow] = useState<TipoMovimiento | null>(null);
+    const [showWizard, setShowWizard] = useState(false);
     const [actionLoading, setActionLoading] = useState(false);
 
     // Discrepancias mode
@@ -145,58 +142,28 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return ok;
     }, [selectedId, trfHook.cancelar, refreshAll]);
 
-    const handleCrear = useCallback(async (data: any) => {
-        const result = await trfHook.crear(data);
+    // Handler ÚNICO de creación: el wizard infiere el tipo (inferMovimiento) y nos
+    // pasa el `resuelto` tipado; acá despachamos a la función correcta del hook.
+    // Reemplaza los 7 handlers específicos del alta vieja (Fase 4).
+    const handleCrearMovimiento = useCallback(async (resuelto: MovimientoResuelto) => {
+        let result: { id: number; codigo: string } | null = null;
+        switch (resuelto.kind) {
+            case 'crear': result = await trfHook.crear(resuelto.data); break;
+            case 'solicitudMateriales': result = await trfHook.solicitudMateriales(resuelto.data); break;
+            case 'pushDirecto': result = await trfHook.pushDirecto(resuelto.data); break;
+            case 'intraBodega': result = await trfHook.intraBodega(resuelto.data); break;
+            case 'devolucion': result = await trfHook.devolucion(resuelto.data); break;
+            case 'intraObra': result = await trfHook.intraObra(resuelto.data); break;
+            case 'ordenGerencia': result = await trfHook.ordenGerencia(resuelto.data); break;
+        }
         if (result) {
             await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-            // Aterriza en el detail de la solicitud recién creada — UX fluida:
-            // el solicitante puede pulsar "Notificar por WhatsApp" sin tener
-            // que buscar el código en la lista. Requerimiento jefatura mayo-26.
+            // Aterriza en el detalle del recién creado (UX: notificar sin buscar el código).
             setSelectedId(result.id);
             await trfHook.fetchById(result.id);
         }
         return result;
-    }, [trfHook.crear, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
-
-    const handleSolicitudMateriales = useCallback(async (data: any) => {
-        const result = await trfHook.solicitudMateriales(data);
-        if (result) {
-            await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-            setSelectedId(result.id);
-            await trfHook.fetchById(result.id);
-        }
-        return result;
-    }, [trfHook.solicitudMateriales, trfHook.fetchAll, trfHook.fetchById, statusFilter]);
-
-    const handlePushDirecto = useCallback(async (data: any) => {
-        const result = await trfHook.pushDirecto(data);
-        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-        return result;
-    }, [trfHook.pushDirecto, trfHook.fetchAll, statusFilter]);
-
-    const handleIntraBodega = useCallback(async (data: any) => {
-        const result = await trfHook.intraBodega(data);
-        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-        return result;
-    }, [trfHook.intraBodega, trfHook.fetchAll, statusFilter]);
-
-    const handleDevolucion = useCallback(async (data: any) => {
-        const result = await trfHook.devolucion(data);
-        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-        return result;
-    }, [trfHook.devolucion, trfHook.fetchAll, statusFilter]);
-
-    const handleIntraObra = useCallback(async (data: any) => {
-        const result = await trfHook.intraObra(data);
-        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-        return result;
-    }, [trfHook.intraObra, trfHook.fetchAll, statusFilter]);
-
-    const handleOrdenGerencia = useCallback(async (data: any) => {
-        const result = await trfHook.ordenGerencia(data);
-        if (result) await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
-        return result;
-    }, [trfHook.ordenGerencia, trfHook.fetchAll, statusFilter]);
+    }, [trfHook, statusFilter]);
 
     const handleRechazarRecepcion = useCallback(async (motivo: string) => {
         setActionLoading(true);
@@ -205,13 +172,6 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         setActionLoading(false);
         return ok;
     }, [selectedId, trfHook.rechazarRecepcion, refreshAll]);
-
-    const handleSelectFlow = useCallback((tipo: TipoMovimiento) => {
-        setShowSelectorModal(false);
-        setActiveFlow(tipo);
-    }, []);
-
-    const closeActiveFlow = useCallback(() => setActiveFlow(null), []);
 
     // ── Discrepancias handlers ──
     const handleSelectDiscrepancia = useCallback((trf: any) => {
@@ -263,11 +223,12 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
                 canNuevoMovimiento={!isDiscrepanciasMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
+                    hasPermission('inventario.transferencias.solicitud_materiales') ||
                     hasPermission('inventario.transferencias.push_directo') ||
                     hasPermission('inventario.transferencias.intra_bodega') ||
                     hasPermission('inventario.transferencias.orden_gerencia')
                 )}
-                onNuevoMovimiento={() => setShowSelectorModal(true)}
+                onNuevoMovimiento={() => setShowWizard(true)}
             />
 
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
@@ -359,117 +320,13 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 </div>
             </div>
 
-            {/* Selector de tipo de movimiento */}
-            <NewMovimientoModal
-                isOpen={showSelectorModal}
-                onClose={() => setShowSelectorModal(false)}
-                onSelect={handleSelectFlow}
+            {/* Wizard adaptativo "Nuevo movimiento" (Fase 4) — reemplaza los 8 modales. */}
+            <NuevoMovimientoWizard
+                isOpen={showWizard}
+                onClose={() => setShowWizard(false)}
                 hasPermission={hasPermission}
+                onSubmit={handleCrearMovimiento}
             />
-
-            {/* Solicitud estándar (existente) */}
-            <Modal
-                isOpen={activeFlow === 'solicitud'}
-                onClose={closeActiveFlow}
-                title="Nueva Solicitud de Transferencia"
-                size="full"
-            >
-                <SolicitudForm
-                    obras={obras}
-                    onCrear={handleCrear}
-                    onClose={closeActiveFlow}
-                />
-            </Modal>
-
-            {/* Solicitud de materiales (reusa SolicitudForm sin catálogo) */}
-            <Modal
-                isOpen={activeFlow === 'solicitud_materiales'}
-                onClose={closeActiveFlow}
-                title="Solicitud de Materiales de Construcción"
-                size="lg"
-            >
-                <SolicitudForm
-                    obras={obras}
-                    onCrear={handleSolicitudMateriales}
-                    onClose={closeActiveFlow}
-                    hideCatalog
-                />
-            </Modal>
-
-            {/* Push directo */}
-            <Modal
-                isOpen={activeFlow === 'push_directo'}
-                onClose={closeActiveFlow}
-                title="Push directo"
-                size="lg"
-            >
-                <MovimientoForm
-                    flujo="push_directo"
-                    obras={obras}
-                    onSubmit={handlePushDirecto}
-                    onClose={closeActiveFlow}
-                />
-            </Modal>
-
-            {/* Intra-bodega */}
-            <Modal
-                isOpen={activeFlow === 'intra_bodega'}
-                onClose={closeActiveFlow}
-                title="Movimiento intra-bodega"
-                size="lg"
-            >
-                <MovimientoForm
-                    flujo="intra_bodega"
-                    obras={obras}
-                    onSubmit={handleIntraBodega}
-                    onClose={closeActiveFlow}
-                />
-            </Modal>
-
-            {/* Devolución */}
-            <Modal
-                isOpen={activeFlow === 'devolucion'}
-                onClose={closeActiveFlow}
-                title="Devolución de obra a bodega"
-                size="lg"
-            >
-                <MovimientoForm
-                    flujo="devolucion"
-                    obras={obras}
-                    onSubmit={handleDevolucion}
-                    onClose={closeActiveFlow}
-                />
-            </Modal>
-
-            {/* Intra-obra */}
-            <Modal
-                isOpen={activeFlow === 'intra_obra'}
-                onClose={closeActiveFlow}
-                title="Traslado intra-obra"
-                size="lg"
-            >
-                <MovimientoForm
-                    flujo="intra_obra"
-                    obras={obras}
-                    onSubmit={handleIntraObra}
-                    onClose={closeActiveFlow}
-                />
-            </Modal>
-
-            {/* Orden de gerencia */}
-            <Modal
-                isOpen={activeFlow === 'orden_gerencia'}
-                onClose={closeActiveFlow}
-                title="Orden de gerencia"
-                size="lg"
-            >
-                <MovimientoForm
-                    flujo="orden_gerencia"
-                    obras={obras}
-                    onSubmit={handleOrdenGerencia}
-                    onClose={closeActiveFlow}
-                />
-            </Modal>
         </div>
     );
 };
