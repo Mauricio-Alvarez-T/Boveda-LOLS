@@ -1058,7 +1058,7 @@ const transferenciaService = {
      */
     async getRecepciones(transferenciaId) {
         const [recepciones] = await db.query(
-            `SELECT r.id, r.transferencia_id, r.receptor_id, r.fecha_recepcion, r.tipo, r.observacion,
+            `SELECT r.id, r.transferencia_id, r.receptor_id, r.fecha_recepcion, r.tipo, r.observacion, r.foto_url,
                     u.nombre AS receptor_nombre
              FROM transferencia_recepciones r
              LEFT JOIN usuarios u ON u.id = r.receptor_id
@@ -1101,8 +1101,40 @@ const transferenciaService = {
             fecha_recepcion: r.fecha_recepcion,
             tipo: r.tipo,
             observacion: r.observacion,
+            foto_url: r.foto_url,
             items: itemsByRecepcion[r.id] || [],
         }));
+    },
+
+    /**
+     * Adjunta una foto OPCIONAL a una recepción ya creada (POST-then-attach).
+     * Valida que la recepción pertenezca a la transferencia. La foto nunca
+     * bloquea el flujo de recepción: esto es un paso aparte y opcional.
+     */
+    async setFotoRecepcion(transferenciaId, recepcionId, fotoUrl) {
+        const [rows] = await db.query(
+            'SELECT id FROM transferencia_recepciones WHERE id = ? AND transferencia_id = ?',
+            [recepcionId, transferenciaId]
+        );
+        if (rows.length === 0) {
+            const err = new Error('Recepción no encontrada para esta transferencia');
+            err.statusCode = 404;
+            throw err;
+        }
+        await db.query('UPDATE transferencia_recepciones SET foto_url = ? WHERE id = ?', [fotoUrl, recepcionId]);
+        return { recepcion_id: Number(recepcionId), foto_url: fotoUrl };
+    },
+
+    /** Adjunta una foto OPCIONAL a una discrepancia. */
+    async setFotoDiscrepancia(discrepanciaId, fotoUrl) {
+        const [rows] = await db.query('SELECT id FROM transferencia_discrepancias WHERE id = ?', [discrepanciaId]);
+        if (rows.length === 0) {
+            const err = new Error('Discrepancia no encontrada');
+            err.statusCode = 404;
+            throw err;
+        }
+        await db.query('UPDATE transferencia_discrepancias SET foto_url = ? WHERE id = ?', [fotoUrl, discrepanciaId]);
+        return { discrepancia_id: Number(discrepanciaId), foto_url: fotoUrl };
     },
 
     /**

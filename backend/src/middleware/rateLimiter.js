@@ -74,7 +74,7 @@ function userOrIpKey(req) {
  */
 function skipNoCount(req) {
     const url = req.originalUrl || req.url || '';
-    return url.startsWith('/api/health') || url.startsWith('/api/uploads/inventario');
+    return url.startsWith('/api/health') || url.startsWith('/api/uploads/inventario') || url.startsWith('/api/uploads/transferencias');
 }
 
 /**

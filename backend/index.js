@@ -43,6 +43,9 @@ app.use(express.urlencoded({ limit: '10mb', extended: true }));
 // Serve inventory item images (under /api so cPanel proxy forwards them to Express).
 // Va ANTES del rate limiter: las imágenes servidas no llegan al limiter (no consumen cupo).
 app.use('/api/uploads/inventario', express.static(path.join(__dirname, 'uploads/inventario')));
+// Fotos opcionales de recepción/discrepancia de transferencias (Fase 3). Mismo
+// criterio: ANTES del rate limiter para no consumir cupo.
+app.use('/api/uploads/transferencias', express.static(path.join(__dirname, 'uploads/transferencias')));
 
 // Rate limiting general (por usuario autenticado; cae a IP). Montado DESPUÉS del
 // static para que las miniaturas de inventario no cuenten contra el cupo.

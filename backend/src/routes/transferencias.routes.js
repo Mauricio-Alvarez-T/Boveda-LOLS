@@ -3,6 +3,7 @@ const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const validateBody = require('../middleware/validateBody');
 const transferenciaService = require('../services/transferencia.service');
+const uploadTransferencias = require('../middleware/upload-transferencias');
 const {
     crearTransferencia, aprobar, recibir, resolverDiscrepancia,
     pushDirecto, intraBodega, devolucion, intraObra,
@@ -58,6 +59,18 @@ router.put('/discrepancias/:id/resolver', auth, checkPermission('inventario.tran
         const result = await transferenciaService.resolverDiscrepancia(
             req.params.id, req.user.id, estado, resolucion
         );
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias/discrepancias/:id/foto — adjuntar foto OPCIONAL a una
+// discrepancia. Va junto a las otras rutas /discrepancias (antes de /:id) para que
+// Express no interprete 'discrepancias' como un ID.
+router.post('/discrepancias/:id/foto', auth, checkPermission('inventario.transferencias.aprobar'), uploadTransferencias.single('foto'), async (req, res, next) => {
+    try {
+        if (!req.file) { const e = new Error('No se recibió ninguna imagen'); e.statusCode = 400; throw e; }
+        const fotoUrl = `/api/uploads/transferencias/${req.file.filename}`;
+        const result = await transferenciaService.setFotoDiscrepancia(req.params.id, fotoUrl);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -178,6 +191,18 @@ router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.reci
 router.get('/:id/recepciones', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getRecepciones(req.params.id);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// POST /api/transferencias/:id/recepciones/:recepcionId/foto — adjuntar foto
+// OPCIONAL a una recepción ya registrada (POST-then-attach). La foto nunca bloquea
+// el flujo de recepción; este endpoint es un paso aparte y opcional.
+router.post('/:id/recepciones/:recepcionId/foto', auth, checkPermission('inventario.transferencias.recibir'), uploadTransferencias.single('foto'), async (req, res, next) => {
+    try {
+        if (!req.file) { const e = new Error('No se recibió ninguna imagen'); e.statusCode = 400; throw e; }
+        const fotoUrl = `/api/uploads/transferencias/${req.file.filename}`;
+        const result = await transferenciaService.setFotoRecepcion(req.params.id, req.params.recepcionId, fotoUrl);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
