@@ -28,8 +28,8 @@ const schema = z.object({
         .min(1990, 'El año debe ser 1990 o posterior')
         .max(new Date().getFullYear() + 1, 'El año no puede ser futuro'),
     tipo:    z.enum(['camioneta','camion','auto','furgon','bus','otro']),
-    empresa: z.string().optional(),       // 'LOLS' | 'TRANSPORTE' | '' (sin asignar)
-    conductor_id: z.string().optional(),  // id del conductor como string del <select>; se convierte al enviar
+    empresa: z.string().optional(),         // 'LOLS' | 'TRANSPORTE' | '' (sin asignar)
+    conductor_nombre: z.string().optional(),// nombre escrito/elegido; el backend lo resuelve o crea en el catálogo
     kilometraje_actual: z.coerce.number()
         .min(0, 'Los kilómetros no pueden ser negativos')
         .optional(),
@@ -54,11 +54,11 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
             anio:    initialData.anio,
             tipo:    initialData.tipo,
             empresa: initialData.empresa || '',
-            conductor_id: initialData.conductor_id ? String(initialData.conductor_id) : '',
+            conductor_nombre: initialData.conductor_nombre || '',
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
             observaciones: initialData.observaciones || '',
-        } : { tipo: 'camioneta', empresa: '', conductor_id: '', kilometraje_actual: 0 },
+        } : { tipo: 'camioneta', empresa: '', conductor_nombre: '', kilometraje_actual: 0 },
     });
 
     useFormDirtyProtection(isDirty);
@@ -79,7 +79,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
         const payload = {
             ...data,
             empresa: data.empresa || null,
-            conductor_id: data.conductor_id ? Number(data.conductor_id) : null,
+            conductor_nombre: data.conductor_nombre?.trim() || null, // backend resuelve/crea en el catálogo
         };
         try {
             if (initialData) {
@@ -140,13 +140,16 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                 </div>
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Conductor asignado</label>
-                    <select {...register('conductor_id')}
-                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
-                        <option value="">Sin asignar</option>
+                    <input {...register('conductor_nombre')} list="conductores-list"
+                        placeholder="Escribe o elige un nombre"
+                        autoComplete="off"
+                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                    <datalist id="conductores-list">
                         {conductores.map(c => (
-                            <option key={c.id} value={c.id}>{c.nombre}</option>
+                            <option key={c.id} value={c.nombre} />
                         ))}
-                    </select>
+                    </datalist>
+                    <p className="text-micro text-muted-foreground/70 mt-1">Si el nombre es nuevo, se guarda solo en el catálogo de conductores.</p>
                 </div>
             </div>
 

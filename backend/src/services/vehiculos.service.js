@@ -93,20 +93,46 @@ const vehiculosService = {
         return rows[0];
     },
 
+    /**
+     * Resuelve el nombre de un conductor a su id en el catálogo: si ya existe
+     * (case-insensitive) devuelve su id; si es un nombre nuevo, lo crea y devuelve
+     * el id. Nombre vacío/nulo → null (sin conductor). Permite que el formulario de
+     * vehículo "agregue" conductores al catálogo escribiendo el nombre.
+     */
+    async resolveConductorId(nombre) {
+        const n = (nombre || '').trim();
+        if (!n) return null;
+        const [found] = await db.query(
+            'SELECT id FROM conductores WHERE LOWER(nombre) = LOWER(?) AND activo = 1 LIMIT 1', [n]
+        );
+        if (found.length) return found[0].id;
+        const [r] = await db.query('INSERT INTO conductores (nombre) VALUES (?)', [n]);
+        return r.insertId;
+    },
+
     async create(data) {
         const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa, conductor_id } = data;
         if (!patente || !marca || !modelo || !anio) {
             throw Object.assign(new Error('patente, marca, modelo y anio son obligatorios'), { statusCode: 400 });
         }
+        // El form manda conductor_nombre (texto): se resuelve/crea en el catálogo.
+        const resolvedConductorId = data.conductor_nombre !== undefined
+            ? await this.resolveConductorId(data.conductor_nombre)
+            : (conductor_id || null);
         const [result] = await db.query(
             `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa, conductor_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa || null, conductor_id || null]
+            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa || null, resolvedConductorId]
         );
         return this.getById(result.insertId);
     },
 
     async update(id, data) {
+        // El form manda conductor_nombre (texto): se resuelve/crea en el catálogo
+        // y se vuelca a conductor_id para que el whitelist de abajo lo persista.
+        if (data.conductor_nombre !== undefined) {
+            data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
+        }
         const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa', 'conductor_id'];
         const fields = [];
         const params = [];
