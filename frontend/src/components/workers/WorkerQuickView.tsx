@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import { IconButton } from '../ui/IconButton';
 import { cn } from '../../utils/cn';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
 import { PeriodAssignModal } from '../attendance/PeriodAssignModal';
@@ -61,6 +62,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     const [isUploading, setIsUploading] = useState(false);
     const [periodSelection, setPeriodSelection] = useState<{ start: string; end: string } | null>(null);
     const [refreshKey, setRefreshKey] = useState(0);
+    const [viewingDocId, setViewingDocId] = useState<number | null>(null);
     const [isMobile, setIsMobile] = useState(() => 
         typeof window !== 'undefined' ? window.innerWidth < 1024 : false
     );
@@ -72,6 +74,30 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
         window.addEventListener('resize', check);
         return () => window.removeEventListener('resize', check);
     }, []);
+
+    // Abre un documento del trabajador en una pestaña nueva (vista previa).
+    const handleViewDoc = async (doc: any) => {
+        if (!doc?.id) return;
+        setViewingDocId(doc.id);
+        try {
+            const res = await api.get(`/documentos/download/${doc.id}`, { responseType: 'blob' });
+            // Tipo MIME por extensión (los docs del trabajador se auto-convierten a PDF);
+            // sin type correcto el navegador abriría los bytes como texto.
+            const ext = (doc.nombre_archivo?.split('.').pop() || 'pdf').toLowerCase();
+            const mimeByExt: Record<string, string> = {
+                pdf: 'application/pdf', jpg: 'image/jpeg', jpeg: 'image/jpeg',
+                png: 'image/png', webp: 'image/webp', gif: 'image/gif', txt: 'text/plain',
+            };
+            const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
+            window.open(url, '_blank');
+            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+        } catch {
+            toast.error('No se pudo abrir el documento');
+        } finally {
+            setViewingDocId(null);
+        }
+    };
 
     useEffect(() => {
         if (!workerId) return;
@@ -282,7 +308,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             </h4>
                                             <div className="space-y-2">
                                                 {docs.slice(0, 5).map((doc: any, i: number) => (
-                                                    <div key={i} className="flex items-center justify-between p-3 rounded-xl bg-background hover:bg-muted/70 transition-colors">
+                                                    <div key={i}
+                                                        onClick={() => handleViewDoc(doc)}
+                                                        className="flex items-center justify-between gap-2 p-3 rounded-xl bg-background hover:bg-muted/70 transition-colors cursor-pointer"
+                                                        title="Ver documento">
                                                         <div className="min-w-0 flex-1">
                                                             <p className="text-xs font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
                                                             {doc.fecha_vencimiento && (
@@ -292,6 +321,11 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                                 </p>
                                                             )}
                                                         </div>
+                                                        <IconButton size="sm" aria-label="Ver documento"
+                                                            disabled={viewingDocId === doc.id}
+                                                            onClick={(e) => { e.stopPropagation(); handleViewDoc(doc); }}
+                                                            className="hover:bg-brand-primary/10 hover:text-brand-primary shrink-0"
+                                                            icon={viewingDocId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
                                                     </div>
                                                 ))}
                                             </div>
