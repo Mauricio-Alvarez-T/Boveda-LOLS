@@ -260,8 +260,8 @@ const VehiculosPage: React.FC = () => {
                                         <span className="font-semibold text-brand-dark text-sm">{v.marca}</span>
                                         <span className="font-black text-brand-dark text-sm">{v.patente}</span>
                                         {v.conductor_nombre && (
-                                            <span className="inline-flex items-center gap-1 text-caption text-muted-foreground">
-                                                <User className="h-3 w-3" /> {v.conductor_nombre}
+                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand-dark">
+                                                <User className="h-3.5 w-3.5 text-brand-primary" /> {v.conductor_nombre}
                                             </span>
                                         )}
                                     </div>
@@ -304,7 +304,10 @@ const VehiculosPage: React.FC = () => {
                     className="md:hidden" icon={<ChevronLeft className="h-5 w-5" />} />
                 <div className="flex-1 min-w-0">
                     <p className="text-caption uppercase font-black text-muted-foreground tracking-widest">Detalle vehículo</p>
-                    <h4 className="text-base font-black text-brand-dark truncate">{selected.patente} · {selected.marca} {selected.modelo} {selected.anio}</h4>
+                    <h4 className="text-base font-black text-brand-dark truncate">
+                        {selected.patente} · {selected.marca} {selected.modelo} {selected.anio}
+                        {selected.conductor_nombre && <span className="text-brand-primary"> · {selected.conductor_nombre}</span>}
+                    </h4>
                 </div>
                 <IconButton size="sm" aria-label="Cerrar detalle" onClick={() => setSelected(null)}
                     className="hidden md:flex" icon={<X className="h-4 w-4" />} />
