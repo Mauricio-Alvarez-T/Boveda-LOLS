@@ -34,7 +34,10 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
     }
 
     const cumple = data.filter(cumpleAsistencia);
-    const noCumple = data.filter(o => !cumpleAsistencia(o));
+    // Peores arriba: sin registro primero, luego menor tasa de asistencia ascendente.
+    const noCumple = data
+        .filter(o => !cumpleAsistencia(o))
+        .sort((a, b) => (a.asistencia_guardada ? a.asistencia_tasa : -1) - (b.asistencia_guardada ? b.asistencia_tasa : -1));
 
     return (
         <div>
@@ -49,7 +52,7 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
             </div>
 
             <div>
-                {[...cumple, ...noCumple].map((obra) => {
+                {[...noCumple, ...cumple].map((obra) => {
                     const ok = cumpleAsistencia(obra);
                     return (
                         <div

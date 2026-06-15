@@ -41,19 +41,24 @@ const QuickActions: React.FC<Props> = ({ permisos, onNavigate }) => {
 
     return (
         <div>
-            <h3 className="text-sm font-semibold text-foreground mb-4">Acciones Rápidas</h3>
-            <div className="space-y-2">
-                {availableActions.map(action => (
-                    <Button
-                        key={action.route}
-                        variant="glass"
-                        className="w-full justify-start text-xs"
-                        onClick={() => onNavigate(action.route)}
-                        leftIcon={<action.icon className="h-4 w-4" />}
-                    >
-                        {action.label}
-                    </Button>
-                ))}
+            <h3 className="text-sm font-semibold text-foreground mb-4">Acciones rápidas</h3>
+            {/* Botones del sistema (sin variant glass legacy): la acción de crear
+                asistencia es la primaria (verde, único acento); el resto, neutras. */}
+            <div className="flex flex-wrap gap-2">
+                {availableActions.map(action => {
+                    const isPrimary = action.requiredAction === 'puede_crear';
+                    return (
+                        <Button
+                            key={action.route}
+                            variant={isPrimary ? 'primary' : 'secondary'}
+                            size="sm"
+                            onClick={() => onNavigate(action.route)}
+                            leftIcon={<action.icon className="h-4 w-4" />}
+                        >
+                            {action.label}
+                        </Button>
+                    );
+                })}
             </div>
         </div>
     );
