@@ -1,6 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { Plus, Minus, Trash2, Search, Package, AlertCircle, ShoppingBag } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
+import { IconButton } from '../../ui/IconButton';
 import { Skeleton } from '../../ui/Skeleton';
 import { QtyStepper } from '../../ui/QtyStepper';
 import type { ItemInventario, CategoriaInventario } from '../../../types/entities';
@@ -73,8 +75,10 @@ export const CatalogoCarrito: React.FC<{
             </div>
             {cats.length > 0 && (
                 <div className="flex gap-1.5 overflow-x-auto pb-2 shrink-0">
+                    {/* eslint-disable-next-line no-restricted-syntax -- selector pill (filtro de categoría) */}
                     <button type="button" onClick={() => setCatFiltro(null)} className={cn('shrink-0 px-2.5 h-7 rounded-full text-caption font-bold border transition-colors', catFiltro === null ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40')}>Todas</button>
                     {cats.map(c => (
+                        // eslint-disable-next-line no-restricted-syntax -- selector pill (filtro de categoría)
                         <button key={c.id} type="button" onClick={() => setCatFiltro(c.id)} className={cn('shrink-0 px-2.5 h-7 rounded-full text-caption font-bold border transition-colors whitespace-nowrap', catFiltro === c.id ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40')}>{c.nombre}</button>
                     ))}
                 </div>
@@ -103,7 +107,7 @@ export const CatalogoCarrito: React.FC<{
                                         </div>
                                     </div>
                                     {enCarrito === undefined ? (
-                                        <button type="button" onClick={() => addToCart(item.id)} className="shrink-0 flex items-center gap-1 px-2.5 h-9 text-caption font-bold text-white bg-brand-primary rounded-lg"><Plus className="h-3.5 w-3.5" strokeWidth={3} /> Agregar</button>
+                                        <Button type="button" variant="primary" size="sm" onClick={() => addToCart(item.id)} leftIcon={<Plus className="h-3.5 w-3.5" strokeWidth={3} />} className="shrink-0">Agregar</Button>
                                     ) : (
                                         <QtyStepper value={enCarrito} onChange={c => updateQty(item.id, c)} size="md" warning={excede ? 'exceso' : null} ariaLabel={item.descripcion} />
                                     )}
@@ -119,9 +123,9 @@ export const CatalogoCarrito: React.FC<{
 
     const otrosPanel = (
         <div className="flex flex-col min-h-0">
-            <button type="button" onClick={addCustom} className="shrink-0 mb-2 flex items-center justify-center gap-1.5 h-11 rounded-xl border-2 border-dashed border-brand-primary/40 text-brand-primary font-bold text-sm hover:bg-brand-primary/5 transition-colors">
-                <Plus className="h-4 w-4" strokeWidth={3} /> Agregar material
-            </button>
+            <Button type="button" variant="ghost" onClick={addCustom} leftIcon={<Plus className="h-4 w-4" strokeWidth={3} />} className="shrink-0 mb-2 w-full h-11 rounded-xl border-2 border-dashed border-brand-primary/40 text-brand-primary text-sm hover:bg-brand-primary/5">
+                Agregar material
+            </Button>
             <p className="text-caption text-muted-foreground mb-2 shrink-0">Materiales que no están en el catálogo. Quien aprueba define cómo conseguirlos.</p>
             <div className="flex-1 min-h-0 overflow-y-auto max-h-[55vh]">
                 {customItems.length === 0 ? (
@@ -133,7 +137,7 @@ export const CatalogoCarrito: React.FC<{
                                 <input value={c.descripcion} onChange={e => updCustom(i, { descripcion: e.target.value })} placeholder="Descripción del material" className="flex-1 min-w-0 h-10 px-2.5 text-xs border border-border rounded-lg" />
                                 <input type="number" inputMode="decimal" min={1} value={c.cantidad} onChange={e => updCustom(i, { cantidad: parseInt(e.target.value) || 0 })} className="w-16 h-10 px-1 text-xs text-center border border-border rounded-lg" />
                                 <input value={c.unidad || ''} onChange={e => updCustom(i, { unidad: e.target.value })} placeholder="unidad" className="w-20 h-10 px-2 text-xs border border-border rounded-lg" />
-                                <button type="button" onClick={() => delCustom(i)} className="text-muted-foreground/50 hover:text-destructive shrink-0"><Trash2 className="h-4 w-4" /></button>
+                                <IconButton type="button" variant="danger" size="sm" onClick={() => delCustom(i)} aria-label="Eliminar material" icon={<Trash2 className="h-4 w-4" />} className="shrink-0" />
                             </li>
                         ))}
                     </ul>
@@ -147,7 +151,9 @@ export const CatalogoCarrito: React.FC<{
     return (
         <div className="flex flex-col min-h-0">
             <div className="grid grid-cols-2 gap-1 p-1 bg-muted rounded-xl mb-3 shrink-0">
+                {/* eslint-disable-next-line no-restricted-syntax -- tab (selector de pestaña) */}
                 <button type="button" onClick={() => setTab('catalogo')} className={cn('h-9 rounded-lg text-sm font-bold transition-colors', tab === 'catalogo' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground')}>Catálogo{cart.length ? ` · ${cart.length}` : ''}</button>
+                {/* eslint-disable-next-line no-restricted-syntax -- tab (selector de pestaña) */}
                 <button type="button" onClick={() => setTab('otros')} className={cn('h-9 rounded-lg text-sm font-bold transition-colors', tab === 'otros' ? 'bg-card text-brand-dark shadow-sm' : 'text-muted-foreground')}>Otros materiales{otrosCount ? ` · ${otrosCount}` : ''}</button>
             </div>
             {tab === 'catalogo' ? catalogoPanel : otrosPanel}

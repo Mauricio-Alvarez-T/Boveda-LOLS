@@ -6,6 +6,7 @@ import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useInventarioMaestro';
 import { useAuth } from '../../context/AuthContext';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import { Button } from '../ui/Button';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
@@ -154,6 +155,7 @@ const InventarioItemCard: React.FC<Props> = ({
                 </span>
 
                 {/* Activo toggle */}
+                {/* eslint-disable-next-line no-restricted-syntax -- toggle estado BD */}
                 <button
                     onClick={() => setField('activo', !activo)}
                     className={cn(
@@ -225,6 +227,7 @@ const InventarioItemCard: React.FC<Props> = ({
                                             ))}
                                         </motion.div>
                                     )}
+                                    {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
                                     <button
                                         onClick={() => setShowAllLocations(!showAllLocations)}
                                         className="w-full flex items-center justify-center gap-1 py-1 rounded-lg text-caption font-bold text-green-700 dark:text-green-300 bg-brand-primary/5 hover:bg-brand-primary/10 transition-all"
@@ -243,6 +246,7 @@ const InventarioItemCard: React.FC<Props> = ({
                 </div>
 
                 {/* ── Expandable Quick Edit ── */}
+                {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
                 <button
                     onClick={() => setIsExpanded(!isExpanded)}
                     className={cn(
@@ -373,13 +377,15 @@ const InventarioItemCard: React.FC<Props> = ({
                         </div>
 
                         {/* Full edit button */}
-                        <button
+                        <Button
+                            variant="primary"
+                            size="sm"
                             onClick={onEditFull}
-                            className="flex items-center justify-center gap-1.5 py-2 rounded-xl text-xs font-bold text-white bg-brand-primary hover:bg-brand-primary/90 transition-all shadow-sm"
+                            leftIcon={<Pencil className="h-3.5 w-3.5" />}
+                            className="w-full text-xs"
                         >
-                            <Pencil className="h-3.5 w-3.5" />
                             Edición completa
-                        </button>
+                        </Button>
                     </motion.div>
                 )}
             </div>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Mail, Send, ChevronRight, ChevronLeft, Pencil, Star, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
 import { cn } from '../../utils/cn';
@@ -137,6 +138,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
             {isMobile && plantillas.length > 0 && (
                 <div className="flex gap-2 overflow-x-auto pb-2">
                     {plantillas.map(p => (
+                        // eslint-disable-next-line no-restricted-syntax -- selector segmentado de plantillas
                         <button
                             key={p.id}
                             onClick={() => handleSelectPlantilla(p)}
@@ -174,6 +176,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
             <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
                     <label className="text-sm font-medium text-muted-foreground">Mensaje</label>
+                    {/* eslint-disable-next-line no-restricted-syntax -- toggle de estado editar/vista previa */}
                     <button
                         className="text-xs text-brand-primary flex items-center gap-1 hover:underline"
                         onClick={() => setEditMode(e => !e)}
@@ -225,10 +228,15 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 >
                     {/* Nav bar */}
                     <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card/80 backdrop-blur-xl shrink-0">
-                        <button onClick={onClose} className="flex items-center gap-1 text-brand-primary text-sm font-medium">
-                            <ChevronLeft className="h-5 w-5" />
-                            <span>Volver</span>
-                        </button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={onClose}
+                            leftIcon={<ChevronLeft className="h-5 w-5" />}
+                            className="-ml-2"
+                        >
+                            Volver
+                        </Button>
                         <div className="flex-1 text-center pr-12">
                             <h3 className="text-base font-semibold text-brand-dark flex items-center justify-center gap-2">
                                 <Mail className="h-4 w-4 text-brand-primary" />
@@ -288,9 +296,12 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                 </p>
                             </div>
                         </div>
-                        <button onClick={onClose} className="text-muted-foreground hover:text-brand-dark transition-colors p-1 rounded-lg hover:bg-background">
-                            <X className="h-5 w-5" />
-                        </button>
+                        <IconButton
+                            onClick={onClose}
+                            icon={<X className="h-5 w-5" />}
+                            variant="ghost"
+                            aria-label="Cerrar"
+                        />
                     </div>
 
                     {loading ? (
@@ -302,10 +313,11 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                             {/* Left: Template List */}
                             {plantillas.length > 0 && (
                                 <div className="w-52 flex-shrink-0 border-r border-border overflow-y-auto bg-background">
-                                    <p className="text-[10px] font-bold uppercase tracking-wider text-muted px-4 pt-4 pb-2">
+                                    <p className="text-caption font-bold uppercase tracking-wider text-muted px-4 pt-4 pb-2">
                                         Plantillas
                                     </p>
                                     {plantillas.map(p => (
+                                        // eslint-disable-next-line no-restricted-syntax -- fila de selector de lista de plantillas
                                         <button
                                             key={p.id}
                                             onClick={() => handleSelectPlantilla(p)}
@@ -319,7 +331,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                                     <span className="text-xs font-semibold truncate">{p.nombre}</span>
                                                     {p.es_predeterminada && <Star className="h-2.5 w-2.5 fill-warning text-warning flex-shrink-0" />}
                                                 </div>
-                                                <p className="text-[10px] text-muted truncate mt-0.5">{p.asunto}</p>
+                                                <p className="text-caption text-muted truncate mt-0.5">{p.asunto}</p>
                                             </div>
                                             {selectedId === p.id && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />}
                                         </button>

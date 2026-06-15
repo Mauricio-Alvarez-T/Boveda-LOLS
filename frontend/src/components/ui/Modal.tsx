@@ -174,6 +174,7 @@ export const Modal: React.FC<ModalProps> = ({
                                 <h3 className="text-lg font-bold text-brand-dark truncate pr-10">{title}</h3>
                                 <div className="flex items-center gap-2 shrink-0">
                                     {headerAction}
+                                    {/* eslint-disable-next-line no-restricted-syntax -- interno de primitiva: cierre sheet móvil */}
                                     <button
                                         onClick={handleClose}
                                         className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"

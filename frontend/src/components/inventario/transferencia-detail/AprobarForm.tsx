@@ -6,6 +6,8 @@ import type { TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../
 import type { StockLocation } from '../../../hooks/inventario/useTransferenciaDetail';
 import FaltanteDecisionModal from '../FaltanteDecisionModal';
 import { QtyStepper } from '../../ui/QtyStepper';
+import { Button } from '../../ui/Button';
+import { IconButton } from '../../ui/IconButton';
 import { CustomAprobacionEditor, initCustomEdits, buildNuevosPayload, customFaltaOrigen, type CustomItemSrc, type CustomEdit, type CustomNuevo } from './CustomAprobacionEditor';
 
 interface FaltanteModalState {
@@ -262,6 +264,7 @@ export const AprobarForm: React.FC<{
                     <h4 className="text-sm font-bold text-foreground flex items-center gap-1.5">
                         <CheckCircle2 className="h-4 w-4 text-brand-primary" /> Aprobar Transferencia
                     </h4>
+                    {/* eslint-disable-next-line no-restricted-syntax -- control compacto de toolbar (estilo secundario denso) */}
                     <button
                         type="button"
                         onClick={autoCompletar}
@@ -322,6 +325,7 @@ export const AprobarForm: React.FC<{
                                 <div key={item.id || idx} className={cn("rounded-lg border p-3 transition-colors", borderColor)}>
                                     {/* Header */}
                                     <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
+                                        {/* eslint-disable-next-line no-restricted-syntax -- enlace de nombre de ítem (estilo inline subrayado) */}
                                         <button type="button" onClick={() => onOpenItem(item.item_id)} className="text-xs font-bold text-brand-dark text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
                                             {item.item_descripcion}
                                         </button>
@@ -341,6 +345,7 @@ export const AprobarForm: React.FC<{
                                                 const disponible = loc.cantidad;
                                                 const isBodega = loc.type === 'bodega';
                                                 return (
+                                                    // eslint-disable-next-line no-restricted-syntax -- selector segmentado de ubicación (color por bodega/obra y estado activo)
                                                     <button
                                                         key={lIdx}
                                                         type="button"
@@ -411,25 +416,29 @@ export const AprobarForm: React.FC<{
                                                             warning={splitErr ? 'exceso' : null}
                                                             ariaLabel={loc?.nombre || 'split'}
                                                         />
-                                                        <button
+                                                        <IconButton
                                                             type="button"
                                                             onClick={() => {
                                                                 const newSplits = ai.splits.filter((_, i) => i !== sIdx);
                                                                 updateSplits(idx, newSplits);
                                                             }}
-                                                            className="text-muted-foreground hover:text-red-600 dark:hover:text-red-400 p-1 transition"
+                                                            variant="danger"
+                                                            size="sm"
+                                                            aria-label="Quitar esta ubicación"
                                                             title="Quitar esta ubicación"
-                                                        >
-                                                            <Trash2 className="h-3 w-3" />
-                                                        </button>
+                                                            icon={<Trash2 className="h-3 w-3" />}
+                                                        />
                                                     </div>
                                                 );
                                             })}
 
                                             {/* Agregar otra ubicación */}
                                             {ai.splits.length < locations.length && (
-                                                <button
+                                                <Button
                                                     type="button"
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    leftIcon={<Plus className="h-3 w-3" />}
                                                     onClick={() => {
                                                         const usadas = new Set(ai.splits.map(s => `${s.origen_obra_id || 'n'}:${s.origen_bodega_id || 'n'}`));
                                                         const nueva = locations.find(l => {
@@ -448,10 +457,10 @@ export const AprobarForm: React.FC<{
                                                             },
                                                         ]);
                                                     }}
-                                                    className="flex items-center gap-1 text-caption text-green-700 hover:text-green-800 dark:text-green-300 dark:hover:text-green-200 font-medium"
+                                                    className="text-caption text-green-700"
                                                 >
-                                                    <Plus className="h-3 w-3" /> Agregar otra ubicación
-                                                </button>
+                                                    Agregar otra ubicación
+                                                </Button>
                                             )}
                                         </div>
                                     )}
@@ -461,6 +470,7 @@ export const AprobarForm: React.FC<{
                                         <div className="flex flex-wrap gap-1.5 mt-2 pt-2 border-t border-dashed border-amber-200 dark:border-amber-900">
                                             <span className="text-caption text-muted-foreground w-full mb-0.5">💡 ¿Qué hacer?</span>
                                             {mostrarSoloLoQueHay && (
+                                                // eslint-disable-next-line no-restricted-syntax -- chip quick-fix (estilo ámbar denso)
                                                 <button
                                                     type="button"
                                                     onClick={() => {
@@ -489,6 +499,7 @@ export const AprobarForm: React.FC<{
                                                 </button>
                                             )}
                                             {mostrarDividir && (
+                                                // eslint-disable-next-line no-restricted-syntax -- chip quick-fix (estilo azul denso)
                                                 <button
                                                     type="button"
                                                     onClick={autoCompletar}
@@ -532,33 +543,38 @@ export const AprobarForm: React.FC<{
                             {totalParcial > 0 && <> · {totalParcial} con stock parcial</>}
                             {totalVacio > 0 && <> · {totalVacio} sin asignar</>}
                         </div>
-                        <button
+                        <Button
                             type="button"
+                            variant="primary"
+                            size="sm"
                             onClick={aprobarConLoDisponible}
                             disabled={stockLoading}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-label font-bold text-white bg-amber-600 rounded-lg hover:bg-amber-700 disabled:opacity-50 transition"
+                            leftIcon={<Zap className="h-3 w-3" />}
                             title="Ajusta todos los ítems al máximo disponible — puedes revisar antes de confirmar"
                         >
-                            <Zap className="h-3 w-3" /> Aprobar con lo disponible
-                        </button>
+                            Aprobar con lo disponible
+                        </Button>
                     </div>
                 )}
 
                 {/* Confirm / Cancel */}
                 <div className="flex gap-2 pt-1">
-                    <button
+                    <Button
+                        type="button"
+                        variant="primary"
                         onClick={handleConfirm}
-                        disabled={loading || !puedeConfirmar}
+                        disabled={!puedeConfirmar}
+                        isLoading={loading}
                         title={!puedeConfirmar
                             ? (hayError ? 'Hay errores de stock o cantidades' : 'No hay cantidades para enviar')
                             : undefined}
-                        className="flex-1 py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                        className="flex-1"
                     >
                         {loading ? 'Aprobando...' : 'Confirmar Aprobación'}
-                    </button>
-                    <button onClick={onClose} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                    </Button>
+                    <Button type="button" variant="ghost" onClick={onClose}>
                         Cancelar
-                    </button>
+                    </Button>
                 </div>
             </div>
 

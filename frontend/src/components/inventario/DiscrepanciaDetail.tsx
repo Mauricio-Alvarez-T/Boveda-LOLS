@@ -6,6 +6,7 @@ import {
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import type { TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem } from '../../types/entities';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
@@ -79,12 +80,14 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
         <div className="flex flex-col flex-1 min-h-0">
             {/* Header with back button (mobile) */}
             <div className="flex items-center gap-2 shrink-0 mb-3">
-                <button
+                <IconButton
                     onClick={onBack}
-                    className="md:hidden p-1.5 hover:bg-muted rounded-lg transition-colors"
-                >
-                    <ArrowLeft className="h-4 w-4 text-brand-dark" />
-                </button>
+                    icon={<ArrowLeft className="h-4 w-4" />}
+                    variant="ghost"
+                    size="sm"
+                    aria-label="Volver"
+                    className="md:hidden"
+                />
                 <div className="flex-1">
                     <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-lg bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 flex items-center justify-center shrink-0">
@@ -181,6 +184,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                                 {cfg.label}
                                             </span>
                                         </div>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- enlace de texto multilínea custom (line-clamp, sin chevron) */}
                                         <button
                                             type="button"
                                             onClick={() => itemDetail.openItem(item.item_id)}
@@ -249,20 +253,24 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                 {/* Resolución / Acciones */}
                                 {isPendiente && canEdit && (
                                     <div className="flex gap-1.5">
-                                        <button
+                                        <Button
+                                            variant="primary"
+                                            size="sm"
                                             onClick={() => openModal(item, 'resuelta')}
-                                            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-green-500 hover:bg-green-600 text-white text-caption font-bold rounded-lg transition-colors shadow-sm"
+                                            leftIcon={<Check className="h-3 w-3" />}
+                                            className="flex-1"
                                         >
-                                            <Check className="h-3 w-3" />
                                             Resolver
-                                        </button>
-                                        <button
+                                        </Button>
+                                        <Button
+                                            variant="secondary"
+                                            size="sm"
                                             onClick={() => openModal(item, 'descartada')}
-                                            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-secondary text-secondary-foreground hover:bg-secondary/80 text-caption font-bold rounded-lg transition-colors shadow-sm"
+                                            leftIcon={<XCircle className="h-3 w-3" />}
+                                            className="flex-1"
                                         >
-                                            <XCircle className="h-3 w-3" />
                                             Descartar
-                                        </button>
+                                        </Button>
                                     </div>
                                 )}
 

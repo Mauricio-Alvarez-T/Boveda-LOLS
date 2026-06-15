@@ -1,6 +1,7 @@
 import React from 'react';
 import { AlertTriangle, ArrowRight, PackageX, Search, X, MapPin, Warehouse } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { IconButton } from '../ui/IconButton';
 import type { TransferenciaConDiscrepancias } from '../../types/entities';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 
@@ -46,9 +47,14 @@ const DiscrepanciasList: React.FC<Props> = ({
                         className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-red-500/20 outline-none transition-all"
                     />
                     {searchQuery && (
-                        <button onClick={() => onSearchChange('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                            <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
+                        <IconButton
+                            onClick={() => onSearchChange('')}
+                            icon={<X className="h-3 w-3" />}
+                            variant="ghost"
+                            size="sm"
+                            aria-label="Limpiar búsqueda"
+                            className="absolute right-1.5 top-1/2 -translate-y-1/2 h-7 w-7"
+                        />
                     )}
                 </div>
             )}
@@ -56,6 +62,7 @@ const DiscrepanciasList: React.FC<Props> = ({
             {/* Sub-filter chips */}
             <div className="flex gap-1.5 overflow-x-auto scrollbar-none shrink-0 mb-3 pb-1">
                 {SUB_CHIPS.map(chip => (
+                    // eslint-disable-next-line no-restricted-syntax -- selector pill (segmented filter)
                     <button
                         key={chip.value}
                         onClick={() => onSubFilterChange(chip.value)}

@@ -4,6 +4,8 @@ import { Pencil, Check, X, ChevronDown, ChevronRight, MapPin, Package } from 'lu
 import type { StockObraData } from '../../hooks/inventario/useInventarioData';
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import { useAuth } from '../../context/AuthContext';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import ItemDetailModal from './ItemDetailModal';
 
 interface Props {
@@ -87,8 +89,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         className="w-16 px-1 py-0.5 text-label border rounded text-right focus:ring-1 focus:ring-brand-primary outline-none"
                         autoFocus
                     />
-                    <button type="button" aria-label="Guardar cambio" title="Guardar" onClick={() => saveEdit(itemId, field)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                    <IconButton type="button" aria-label="Guardar cambio" title="Guardar" onClick={() => saveEdit(itemId, field)} variant="ghost" size="sm" icon={<Check className="h-3 w-3" />} />
+                    <IconButton type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} variant="ghost" size="sm" icon={<X className="h-3 w-3" />} />
                 </div>
             );
         }
@@ -97,9 +99,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
             <div className="flex items-center justify-end gap-1 group">
                 <span>{field === 'valor_arriendo' ? fmtMoney(value) : value}</span>
                 {canEdit && (
-                    <button type="button" aria-label="Editar valor" title="Editar" onClick={() => startEdit(key, value)} className="opacity-0 group-hover:opacity-100 p-0.5 hover:bg-brand-primary/10 rounded transition-opacity">
-                        <Pencil className="h-2.5 w-2.5 text-brand-primary" />
-                    </button>
+                    <IconButton
+                        type="button"
+                        aria-label="Editar valor"
+                        title="Editar"
+                        onClick={() => startEdit(key, value)}
+                        variant="ghost"
+                        size="sm"
+                        className="opacity-0 group-hover:opacity-100 transition-opacity"
+                        icon={<Pencil className="h-2.5 w-2.5" />}
+                    />
                 )}
             </div>
         );
@@ -210,10 +219,11 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                         autoFocus
                                     />
                                     <span className="text-xs font-bold">%</span>
-                                    <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={mobileSaveDescuento} className="p-1 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-md"><Check className="h-3 w-3" /></button>
-                                    <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-md"><X className="h-3 w-3" /></button>
+                                    <IconButton type="button" aria-label="Guardar descuento" title="Guardar" onClick={mobileSaveDescuento} variant="ghost" size="sm" icon={<Check className="h-3 w-3" />} />
+                                    <IconButton type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} variant="ghost" size="sm" icon={<X className="h-3 w-3" />} />
                                 </div>
                             ) : (
+                                // eslint-disable-next-line no-restricted-syntax -- celda editable (tap para editar descuento)
                                 <button
                                     onClick={() => editarDescuento && mobileStartEdit('m_descuento', data.descuento_porcentaje)}
                                     disabled={!editarDescuento}
@@ -253,6 +263,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                             return (
                                 <div key={cat.id} className="rounded-2xl border border-border overflow-hidden bg-card">
                                     {/* Category header */}
+                                    {/* eslint-disable-next-line no-restricted-syntax -- disclosure (header colapsable de categoría) */}
                                     <button
                                         onClick={() => toggleCat(cat.id)}
                                         className="w-full flex items-center justify-between px-4 py-3 bg-muted active:bg-muted transition-colors"
@@ -279,6 +290,7 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                 return (
                                                     <div key={item.id}>
                                                         {/* Item row — tap to expand */}
+                                                        {/* eslint-disable-next-line no-restricted-syntax -- disclosure (fila de item colapsable) */}
                                                         <button
                                                             onClick={() => toggleItem(item.id)}
                                                             className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 dark:active:bg-blue-950/30 transition-colors text-left"
@@ -342,10 +354,11 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-24 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-right font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button type="button" aria-label="Guardar valor de arriendo" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <IconButton type="button" aria-label="Guardar valor de arriendo" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'valor_arriendo')} variant="ghost" size="sm" icon={<Check className="h-3.5 w-3.5" />} />
+                                                                            <IconButton type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} variant="ghost" size="sm" icon={<X className="h-3.5 w-3.5" />} />
                                                                         </div>
                                                                     ) : (
+                                                                        // eslint-disable-next-line no-restricted-syntax -- celda editable (tap para editar valor de arriendo)
                                                                         <button
                                                                             onClick={() => canEdit && mobileStartEdit(arrKey, item.valor_arriendo)}
                                                                             disabled={!canEdit}
@@ -378,10 +391,11 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                                                                 className="w-20 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                 autoFocus
                                                                             />
-                                                                            <button type="button" aria-label="Guardar cantidad" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'cantidad')} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                            <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                            <IconButton type="button" aria-label="Guardar cantidad" title="Guardar" onClick={() => mobileSaveEdit(item.id, 'cantidad')} variant="ghost" size="sm" icon={<Check className="h-3.5 w-3.5" />} />
+                                                                            <IconButton type="button" aria-label="Cancelar edición" title="Cancelar" onClick={mobileCancelEdit} variant="ghost" size="sm" icon={<X className="h-3.5 w-3.5" />} />
                                                                         </div>
                                                                     ) : (
+                                                                        // eslint-disable-next-line no-restricted-syntax -- celda editable (tap para editar cantidad)
                                                                         <button
                                                                             onClick={() => canEdit && mobileStartEdit(cantKey, item.cantidad)}
                                                                             disabled={!canEdit}
@@ -462,13 +476,15 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                     <tr key={item.id} className={cn("hover:bg-blue-50/30 dark:hover:bg-blue-950/20 transition-colors", idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-border">{item.nro_item}</td>
                                         <td className="px-2 py-1 font-medium text-brand-dark truncate max-w-[250px] border-r border-b border-border">
-                                            <button
+                                            <Button
                                                 type="button"
+                                                variant="link"
                                                 onClick={() => itemDetail.openItem(item.id, item)}
-                                                className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                rightIcon={<></>}
+                                                className="text-left hover:underline hover:opacity-100 max-w-full truncate"
                                             >
                                                 {item.descripcion}
-                                            </button>
+                                            </Button>
                                         </td>
                                         <td className="px-2 py-1 text-right text-muted-foreground border-r border-b border-border">{item.m2 ? item.m2.toFixed(2) : ''}</td>
                                         {verCostos && (
@@ -530,8 +546,8 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                                             max={100}
                                         />
                                         <span className="text-muted-foreground">%</span>
-                                        <button type="button" aria-label="Guardar descuento" title="Guardar" onClick={handleDescuentoSave} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                                        <button type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                                        <IconButton type="button" aria-label="Guardar descuento" title="Guardar" onClick={handleDescuentoSave} variant="ghost" size="sm" icon={<Check className="h-3 w-3" />} />
+                                        <IconButton type="button" aria-label="Cancelar edición" title="Cancelar" onClick={cancelEdit} variant="ghost" size="sm" icon={<X className="h-3 w-3" />} />
                                     </div>
                                 ) : (
                                     <span

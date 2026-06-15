@@ -67,6 +67,7 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
     ({ collapsed, icon: Icon, label, count, onClick }) => {
         const Chevron = collapsed ? ChevronRight : ChevronDown;
         return (
+            // eslint-disable-next-line no-restricted-syntax -- disclosure (header colapsable full-width)
             <button
                 type="button"
                 onClick={onClick}

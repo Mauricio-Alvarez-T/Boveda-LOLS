@@ -41,6 +41,7 @@ const StatusFilterBar: React.FC<Props> = ({
                 const isDiscrep = !!chip.discrepancia;
                 const Icon = chip.icon;
                 return (
+                    // eslint-disable-next-line no-restricted-syntax -- selector pill estado (color dinámico activo/discrepancia)
                     <button
                         key={chip.value}
                         onClick={() => onChange(chip.value)}

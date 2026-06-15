@@ -89,6 +89,7 @@ export const FilterSelect = React.forwardRef<HTMLDivElement, FilterSelectProps>(
 
                 {/* ── DESKTOP: CUSTOM DROPDOWN WITH SEARCH ── */}
                 <div className="hidden md:block relative">
+                    {/* eslint-disable-next-line no-restricted-syntax -- interno de primitiva: dropdown custom */}
                     <button
                         type="button"
                         onClick={() => setIsOpen(!isOpen)}

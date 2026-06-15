@@ -2,6 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { CheckCircle2, PackageCheck, XCircle, Ban, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 
 interface Props {
     canAprobar: boolean;
@@ -52,8 +54,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
 
     const handleClick = (fn: () => void) => () => { fn(); setOpen(false); };
 
-    // Estilos compartidos (botones crudos con tokens — Inventario aún no migrado al DS).
-    const primaryBtn = "flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all bg-brand-primary text-white hover:bg-brand-primary/90 disabled:opacity-50 disabled:cursor-not-allowed";
+    // Estilos compartidos (widgets que se mantienen crudos: toggle dropdown + filas de menú).
     const secondaryBtn = "flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all bg-card border border-border text-brand-dark hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed";
     const menuItem = "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-brand-dark hover:bg-muted disabled:opacity-50 transition-colors";
     const whatsappLabel = isPendiente ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp';
@@ -72,33 +73,54 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
         <div className="flex items-center gap-2 shrink-0">
             {/* ── Acciones PRIMARIAS siempre visibles ── */}
             {canAprobar && (
-                <button onClick={onAprobar} disabled={actionLoading} className={primaryBtn}>
-                    <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
-                    <span>Revisar y aprobar</span>
-                </button>
+                <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={onAprobar}
+                    disabled={actionLoading}
+                    leftIcon={<CheckCircle2 className="h-3.5 w-3.5 shrink-0" />}
+                >
+                    Revisar y aprobar
+                </Button>
             )}
             {canRecibir && (
-                <button onClick={onRecibir} disabled={actionLoading} className={primaryBtn}>
-                    <PackageCheck className="h-3.5 w-3.5 shrink-0" />
-                    <span>Registrar lo que llegó</span>
-                </button>
+                <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={onRecibir}
+                    disabled={actionLoading}
+                    leftIcon={<PackageCheck className="h-3.5 w-3.5 shrink-0" />}
+                >
+                    Registrar lo que llegó
+                </Button>
             )}
             {canCompartirWhatsApp && (
-                <button onClick={onWhatsApp} disabled={actionLoading} className={secondaryBtn}
-                    title={whatsappLabel} aria-label={whatsappLabel}>
-                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
-                </button>
+                <IconButton
+                    variant="ghost"
+                    size="md"
+                    onClick={onWhatsApp}
+                    disabled={actionLoading}
+                    title={whatsappLabel}
+                    aria-label={whatsappLabel}
+                    icon={<WhatsAppIcon className="h-4 w-4 shrink-0" />}
+                />
             )}
 
             {/* ── Acciones SECUNDARIAS — 1 directa, 2+ en menú ── */}
             {secondaryActions.length === 1 && (
-                <button onClick={secondaryActions[0].onClick} disabled={actionLoading} className={secondaryBtn}>
-                    {secondaryActions[0].icon}
-                    <span>{secondaryActions[0].label}</span>
-                </button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={secondaryActions[0].onClick}
+                    disabled={actionLoading}
+                    leftIcon={secondaryActions[0].icon}
+                >
+                    {secondaryActions[0].label}
+                </Button>
             )}
             {secondaryActions.length >= 2 && (
                 <div ref={wrapperRef} className="relative shrink-0">
+                    {/* eslint-disable-next-line no-restricted-syntax -- toggle dropdown (control compuesto, no encaja en primitiva) */}
                     <button
                         onClick={() => setOpen(v => !v)}
                         disabled={actionLoading}
@@ -112,6 +134,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
                     {open && (
                         <div className="absolute top-full right-0 mt-1.5 w-56 bg-card border border-border rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150">
                             {secondaryActions.map(a => (
+                                // eslint-disable-next-line no-restricted-syntax -- fila de menú (dropdown option row)
                                 <button key={a.key} onClick={handleClick(a.onClick)} disabled={actionLoading} className={menuItem}>
                                     {a.icon}
                                     <span>{a.label}</span>

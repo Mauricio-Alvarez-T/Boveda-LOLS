@@ -4,6 +4,7 @@ import { cn } from '../../utils/cn';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useInventarioMaestro } from '../../hooks/inventario/useInventarioMaestro';
 import InventarioItemCard from './InventarioItemCard';
+import { Button } from '../ui/Button';
 import type { ItemInventario } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
 
@@ -247,6 +248,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
 
                 {/* View Toggle */}
                 <div className="flex items-center p-0.5 bg-muted rounded-lg">
+                    {/* eslint-disable-next-line no-restricted-syntax -- selector segmentado */}
                     <button
                         onClick={() => setViewMode('cards')}
                         className={cn(
@@ -260,6 +262,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                         <LayoutGrid className="h-3.5 w-3.5" />
                         <span className="hidden sm:inline">Cards</span>
                     </button>
+                    {/* eslint-disable-next-line no-restricted-syntax -- selector segmentado */}
                     <button
                         onClick={() => setViewMode('table')}
                         className={cn(
@@ -278,22 +281,26 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                 {/* Save/Revert buttons */}
                 {dirtyCount > 0 && (
                     <>
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={handleRevert}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-muted-foreground bg-muted rounded-lg hover:bg-muted disabled:opacity-50 transition-all"
+                            leftIcon={<Undo2 className="h-3 w-3" />}
                         >
-                            <Undo2 className="h-3 w-3" /> Revertir
-                        </button>
-                        <button
+                            Revertir
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
                             onClick={handleSave}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm"
+                            isLoading={saving}
+                            leftIcon={<Save className="h-3 w-3" />}
                             title="Ctrl+S / ⌘S"
                         >
-                            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                             Guardar cambios ({dirtyCount})
-                        </button>
+                        </Button>
                     </>
                 )}
             </div>
@@ -322,6 +329,7 @@ const InventarioMaestroGrid: React.FC<Props> = ({ hasEditPermission }) => {
                             return (
                                 <div key={group.catId}>
                                     {/* Category Header */}
+                                    {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
                                     <button
                                         onClick={() => toggleCat(group.catId)}
                                         className="w-full flex items-center gap-2 mb-3 group/cat"

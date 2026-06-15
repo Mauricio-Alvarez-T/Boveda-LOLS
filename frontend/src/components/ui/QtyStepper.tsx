@@ -46,6 +46,7 @@ export const QtyStepper: React.FC<{
 
     return (
         <div className="flex items-center gap-1 shrink-0">
+            {/* eslint-disable-next-line no-restricted-syntax -- control compuesto stepper */}
             <button
                 type="button"
                 onClick={() => onChange(clamp(value - 1))}
@@ -66,6 +67,7 @@ export const QtyStepper: React.FC<{
                 aria-label={ariaLabel}
                 className={cn('px-1 text-center text-label font-bold border rounded-lg outline-none', s.input, inputBorder)}
             />
+            {/* eslint-disable-next-line no-restricted-syntax -- control compuesto stepper */}
             <button
                 type="button"
                 onClick={() => onChange(clamp(value + 1))}

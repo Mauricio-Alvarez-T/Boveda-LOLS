@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Download, Printer } from 'lucide-react';
 
 import { Modal } from '../ui/Modal';
+import { IconButton } from '../ui/IconButton';
 import { downloadWord, printDoc } from '../../utils/downloadWord';
 
 interface ConstanciaWorker {
@@ -167,14 +168,21 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
 
     const headerAction = (
         <div className="flex items-center gap-1">
-            <button onClick={imprimir} title="Imprimir"
-                className="h-8 w-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-primary hover:bg-background transition-colors">
-                <Printer className="h-4 w-4" />
-            </button>
-            <button onClick={descargar} title="Descargar Word"
-                className="h-8 w-8 rounded-full flex items-center justify-center bg-brand-primary text-white hover:bg-[#027A3B] transition-colors shadow-sm">
-                <Download className="h-4 w-4" />
-            </button>
+            <IconButton
+                onClick={imprimir}
+                aria-label="Imprimir"
+                variant="ghost"
+                size="sm"
+                icon={<Printer className="h-4 w-4" />}
+            />
+            <IconButton
+                onClick={descargar}
+                aria-label="Descargar Word"
+                variant="primary"
+                size="sm"
+                className="shadow-sm"
+                icon={<Download className="h-4 w-4" />}
+            />
         </div>
     );
 
@@ -190,7 +198,7 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                         {worker.obra_nombre && <span>Obra: {worker.obra_nombre}</span>}
                         {worker.empresa_nombre && <span>Empresa: {worker.empresa_nombre}</span>}
                     </div>
-                    <p className="text-[11px] text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
+                    <p className="text-label text-brand-primary font-semibold mt-2">Estos datos se autocompletan en el documento.</p>
                 </div>
 
                 {/* Formulario con opciones (sin escribir) */}
@@ -213,7 +221,7 @@ export const ConstanciaModal: React.FC<Props> = ({ isOpen, onClose, worker }) =>
                     </select>
                 </div>
 
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-label text-muted-foreground">
                     Completa con las opciones. Usa <strong>Imprimir</strong> o <strong>Descargar Word</strong> (arriba) para emitir la carta lista.
                     Lo que dejes sin elegir queda como línea en blanco para llenar a mano.
                 </p>

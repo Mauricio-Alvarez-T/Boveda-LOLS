@@ -30,6 +30,7 @@ export const ThemeToggle: React.FC<{ className?: string }> = ({ className }) => 
             {OPTIONS.map(({ mode, label, hint, Icon }) => {
                 const active = theme === mode;
                 return (
+                    // eslint-disable-next-line no-restricted-syntax -- radio pill radiogroup
                     <button
                         key={mode}
                         type="button"

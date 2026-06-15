@@ -199,9 +199,12 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                 isMobile && "rounded-t-[32px] border-none pt-2"
                             )}>
                                 <h2 className="text-lg font-bold text-brand-dark">Ficha Rápida</h2>
-                                <button onClick={onClose} className="p-2 rounded-full hover:bg-background transition-colors">
-                                    <X className="h-5 w-5 text-muted-foreground" />
-                                </button>
+                                <IconButton
+                                    variant="ghost"
+                                    aria-label="Cerrar ficha"
+                                    onClick={onClose}
+                                    icon={<X className="h-5 w-5" />}
+                                />
                             </div>
 
                             <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -225,7 +228,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 </h3>
                                                 <p className="text-sm text-muted-foreground">{worker.rut}</p>
                                                 {!worker.activo && (
-                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-destructive/10 text-destructive text-[10px] font-bold uppercase">Finiquitado</span>
+                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-destructive/10 text-destructive text-caption font-bold uppercase">Finiquitado</span>
                                                 )}
                                             </div>
                                         </div>
@@ -295,7 +298,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 )}
                                             />
                                         </div>
-                                        <p className="text-[11px] text-muted-foreground mt-2">
+                                        <p className="text-label text-muted-foreground mt-2">
                                             {docPct >= 100 ? 'Documentación completa ✓' : `Faltan ${Math.max(totalRequired - completedDocs, 0)} documento(s) obligatorio(s)`}
                                         </p>
                                     </div>
@@ -315,7 +318,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                         <div className="min-w-0 flex-1">
                                                             <p className="text-xs font-semibold text-brand-dark truncate">{doc.tipo_nombre || doc.nombre_archivo}</p>
                                                             {doc.fecha_vencimiento && (
-                                                                <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                                                <p className="text-caption text-muted-foreground flex items-center gap-1 mt-0.5">
                                                                     <Clock className="h-3 w-3" />
                                                                     Vence: {new Date(doc.fecha_vencimiento).toLocaleDateString('es-CL')}
                                                                 </p>
@@ -334,6 +337,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                                     {/* ── Quick Actions ── */}
                                     <div className="grid grid-cols-3 gap-2 pt-2 pb-4">
+                                        {/* eslint-disable-next-line no-restricted-syntax -- card de acción */}
                                         <button
                                             onClick={() => {
                                                 if (onEditWorker) {
@@ -345,8 +349,9 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/10 transition-colors group"
                                         >
                                             <Pencil className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-brand-primary">Editar</span>
+                                            <span className="text-label font-semibold text-brand-primary">Editar</span>
                                         </button>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- card de acción */}
                                         <button
                                             onClick={() => {
                                                 if (onViewDocuments) {
@@ -360,6 +365,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             <FileText className="h-5 w-5 text-brand-primary group-hover:scale-110 transition-transform" />
                                             <span className="text-label font-semibold text-brand-primary">Docs</span>
                                         </button>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- card de acción */}
                                         <button
                                             onClick={() => {
                                                 setShowCalendar(true);
@@ -367,7 +373,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-brand-accent/5 hover:bg-brand-accent/10 border border-brand-accent/10 transition-colors group"
                                         >
                                             <Calendar className="h-5 w-5 text-brand-accent group-hover:scale-110 transition-transform" />
-                                            <span className="text-[11px] font-semibold text-brand-accent">Asistencia</span>
+                                            <span className="text-label font-semibold text-brand-accent">Asistencia</span>
                                         </button>
                                     </div>
                                     </div>
@@ -450,7 +456,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 flex-wrap">
                                     <span className="text-sm font-bold text-brand-dark">{worker.rut}</span>
-                                    <span className="px-2 py-0.5 rounded-lg bg-brand-primary/10 text-brand-primary text-[10px] font-black uppercase tracking-wider">
+                                    <span className="px-2 py-0.5 rounded-lg bg-brand-primary/10 text-brand-primary text-caption font-black uppercase tracking-wider">
                                         {worker.obra_nombre || 'Sin Obra'}
                                     </span>
                                 </div>

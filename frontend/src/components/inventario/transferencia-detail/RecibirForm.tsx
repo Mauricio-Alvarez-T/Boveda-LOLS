@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { PackageCheck, PackageOpen, Info, AlertTriangle, ShoppingBag } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
 import { Modal } from '../../ui/Modal';
 import type { TransferenciaItem } from '../../../types/entities';
 import { ProgressBar } from '../../ui/ProgressBar';
@@ -183,6 +184,7 @@ export const RecibirForm: React.FC<{
                                 <div className="flex items-center justify-between gap-2">
                                     <span>Llegó este viaje</span>
                                     <span className="flex gap-1.5">
+                                        {/* eslint-disable-next-line no-restricted-syntax -- quick-fill denso en header de tabla */}
                                         <button
                                             type="button"
                                             onClick={() => setAll('pendiente')}
@@ -192,6 +194,7 @@ export const RecibirForm: React.FC<{
                                             todo
                                         </button>
                                         <span className="text-white/60">·</span>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- quick-fill denso en header de tabla */}
                                         <button
                                             type="button"
                                             onClick={() => setAll('cero')}
@@ -216,6 +219,7 @@ export const RecibirForm: React.FC<{
                             return (
                                 <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted")}>
                                     <td className="px-3 py-1.5 text-brand-dark">
+                                        {/* eslint-disable-next-line no-restricted-syntax -- enlace de nombre de ítem en celda de tabla */}
                                         <button
                                             type="button"
                                             onClick={() => onOpenItem(item.item_id)}
@@ -356,32 +360,36 @@ export const RecibirForm: React.FC<{
                 <div className="flex flex-wrap gap-2">
                     {/* "Faltan más viajes" — oculto si checkbox marcado (contradictorio) */}
                     {!cierreFinal && (
-                        <button
+                        <Button
+                            variant="secondary"
                             onClick={handleParcial}
                             disabled={loading || (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0}
+                            isLoading={loading}
+                            leftIcon={<PackageOpen className="h-3.5 w-3.5" />}
                             title={
                                 (totalRecibidoEsteViaje + totalCustomEsteViaje) === 0
                                     ? 'Marca al menos 1 unidad de algún ítem antes de registrar'
                                     : 'Registra lo de este viaje. La transferencia queda abierta esperando próximos viajes.'
                             }
-                            className="flex-1 min-w-[160px] py-3.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                            className="flex-1 min-w-[160px]"
                         >
-                            <PackageOpen className="h-3.5 w-3.5" />
                             {loading ? 'Registrando...' : 'Faltan más viajes'}
-                        </button>
+                        </Button>
                     )}
-                    <button
+                    <Button
+                        variant="primary"
                         onClick={handleClickCerrar}
                         disabled={loading}
+                        isLoading={loading}
+                        leftIcon={<PackageCheck className="h-3.5 w-3.5" />}
                         title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como discrepancia."
-                        className="flex-1 min-w-[160px] py-3.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                        className="flex-1 min-w-[160px]"
                     >
-                        <PackageCheck className="h-3.5 w-3.5" />
                         {loading ? 'Cerrando...' : 'Esta es toda la entrega'}
-                    </button>
-                    <button onClick={onClose} className="px-4 py-3.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                    </Button>
+                    <Button variant="ghost" onClick={onClose}>
                         Cancelar
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -394,22 +402,20 @@ export const RecibirForm: React.FC<{
                 size="sm"
                 footer={
                     <div className="flex justify-end gap-2 w-full">
-                        <button
-                            onClick={() => setConfirmMermaOpen(false)}
-                            className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors"
-                        >
+                        <Button variant="ghost" onClick={() => setConfirmMermaOpen(false)}>
                             Cancelar
-                        </button>
-                        <button
+                        </Button>
+                        <Button
+                            variant="destructive"
                             onClick={async () => {
                                 setConfirmMermaOpen(false);
                                 await handleCerrarTotal();
                             }}
                             disabled={loading}
-                            className="px-4 py-2 text-xs font-bold text-white bg-amber-600 rounded-xl hover:bg-amber-700 disabled:opacity-50 transition-all"
+                            isLoading={loading}
                         >
                             Sí, cerrar igual
-                        </button>
+                        </Button>
                     </div>
                 }
             >

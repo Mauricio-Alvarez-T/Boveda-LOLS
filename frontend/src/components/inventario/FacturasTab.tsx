@@ -9,6 +9,9 @@ import { Modal } from '../ui/Modal';
 import { SearchableSelect } from '../ui/SearchableSelect';
 import { FieldError } from '../ui/FieldError';
 import { QtyStepper } from '../ui/QtyStepper';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
+import { StatusBadge } from '../ui/StatusBadge';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 
@@ -273,13 +276,14 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             <div className="flex items-center justify-between">
                 <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
                 {canCreate && (
-                    <button
+                    <Button
+                        variant="primary"
+                        size="sm"
                         onClick={() => setShowModal(true)}
-                        className="flex items-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-lg shadow-brand-primary/20"
+                        leftIcon={<Plus className="h-3.5 w-3.5" />}
                     >
-                        <Plus className="h-3.5 w-3.5" />
                         Nueva Factura
-                    </button>
+                    </Button>
                 )}
             </div>
 
@@ -312,16 +316,23 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             </div>
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                                 {!f.activo && (
-                                    <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60">ANULADA</span>
+                                    <StatusBadge tone="danger" label="ANULADA" />
                                 )}
-                                <button onClick={() => openDetalle(f.id)} title="Ver detalle"
-                                    className="p-1.5 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/10 rounded-lg transition-colors">
-                                    <Eye className="h-3.5 w-3.5" />
-                                </button>
+                                <IconButton
+                                    onClick={() => openDetalle(f.id)}
+                                    aria-label="Ver detalle"
+                                    variant="ghost"
+                                    size="sm"
+                                    icon={<Eye className="h-3.5 w-3.5" />}
+                                />
                                 {canDelete && f.activo && (
-                                    <button onClick={() => handleAnular(f.id)} title="Anular factura (revierte stock)" className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
-                                        <Trash2 className="h-3.5 w-3.5" />
-                                    </button>
+                                    <IconButton
+                                        onClick={() => handleAnular(f.id)}
+                                        aria-label="Anular factura (revierte stock)"
+                                        variant="danger"
+                                        size="sm"
+                                        icon={<Trash2 className="h-3.5 w-3.5" />}
+                                    />
                                 )}
                             </div>
                         </div>
@@ -348,7 +359,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             <div className="flex items-center gap-2 flex-wrap">
                                 <span className="text-sm font-black text-brand-dark">#{detalle.numero_factura}</span>
                                 {!detalle.activo && (
-                                    <span className="text-micro font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 border border-red-200 dark:bg-red-500/15 dark:text-red-300 dark:border-red-800/60">ANULADA</span>
+                                    <StatusBadge tone="danger" label="ANULADA" />
                                 )}
                             </div>
                             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
@@ -465,15 +476,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                                 placeholder="Buscar item..."
                                             />
                                         </div>
-                                        <button
+                                        <Button
                                             type="button"
+                                            variant="outline"
+                                            size="sm"
                                             onClick={() => openNewItem(idx)}
                                             title="Crear un ítem nuevo en el catálogo"
-                                            className="flex items-center gap-1 px-2.5 py-2 text-label font-bold text-green-700 dark:text-green-300 bg-brand-primary/10 hover:bg-brand-primary/20 rounded-lg transition-colors shrink-0 whitespace-nowrap"
+                                            leftIcon={<PackagePlus className="h-3.5 w-3.5" />}
+                                            className="shrink-0 whitespace-nowrap"
                                         >
-                                            <PackagePlus className="h-3.5 w-3.5" />
                                             <span className="hidden sm:inline">Nuevo</span>
-                                        </button>
+                                        </Button>
                                     </div>
 
                                     {/* Destino (obra o bodega) */}
@@ -521,10 +534,14 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                             </div>
                                         </div>
 
-                                        <button type="button" onClick={() => removeItem(idx)}
-                                            className="p-1.5 text-destructive/60 hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors">
-                                            <Trash2 className="h-3.5 w-3.5" />
-                                        </button>
+                                        <IconButton
+                                            type="button"
+                                            onClick={() => removeItem(idx)}
+                                            aria-label="Quitar ítem de la factura"
+                                            variant="danger"
+                                            size="sm"
+                                            icon={<Trash2 className="h-3.5 w-3.5" />}
+                                        />
                                     </div>
 
                                     {/* Subtotal */}
@@ -536,6 +553,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 </div>
                             ))}
 
+                            {/* eslint-disable-next-line no-restricted-syntax -- añadir fila (dashed full-width, borde reactivo a error) */}
                             <button type="button" onClick={() => { addItem(); if (formErrors.items) setFormErrors(p => ({ ...p, items: undefined })); }}
                                 className={cn(
                                     "w-full border-2 border-dashed rounded-xl py-4 text-center text-xs font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-primary transition-colors",
@@ -572,15 +590,19 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
                     {/* Actions */}
                     <div className="flex justify-end gap-3 pt-2">
-                        <button type="button" onClick={handleClose}
-                            className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                        <Button type="button" variant="ghost" size="sm" onClick={handleClose}>
                             Cancelar
-                        </button>
-                        <button type="submit" disabled={submitting}
-                            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-lg shadow-brand-primary/20">
-                            <Receipt className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            size="sm"
+                            disabled={submitting}
+                            isLoading={submitting}
+                            leftIcon={<Receipt className="h-3.5 w-3.5" />}
+                        >
                             {submitting ? 'Registrando...' : 'Registrar Factura'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </Modal>
@@ -651,15 +673,19 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
                     {/* Actions */}
                     <div className="flex justify-end gap-3 pt-1">
-                        <button type="button" onClick={() => setShowNewItemModal(false)}
-                            className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                        <Button type="button" variant="ghost" size="sm" onClick={() => setShowNewItemModal(false)}>
                             Cancelar
-                        </button>
-                        <button type="submit" disabled={creatingItem}
-                            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                            <PackagePlus className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            size="sm"
+                            disabled={creatingItem}
+                            isLoading={creatingItem}
+                            leftIcon={<PackagePlus className="h-3.5 w-3.5" />}
+                        >
                             {creatingItem ? 'Creando...' : 'Crear y vincular'}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </Modal>

@@ -20,6 +20,7 @@ import api from '../../services/api';
 import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type DashboardRechazo, type KpiHistorico } from '../../hooks/inventario/useDashboardEjecutivo';
 import { useAuth } from '../../context/AuthContext';
 import { FormError } from '../ui/FormError';
+import { Button } from '../ui/Button';
 
 interface ObraOpcion { id: number; nombre: string; }
 
@@ -135,6 +136,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
         green:  'bg-emerald-200/60 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
     };
 
+    // card clickable: la KPI completa actúa como botón (elemento dinámico, no <button> JSX)
     const Wrapper: any = onClick && !disabled ? 'button' : 'div';
     return (
         <Wrapper
@@ -207,6 +209,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
     }
     tooltipLines.push('', 'Click para ver detalle de la obra.');
     return (
+        // eslint-disable-next-line no-restricted-syntax -- card clickable (fila de ranking con barra de progreso)
         <button
             type="button"
             onClick={onClick}
@@ -312,6 +315,7 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
                 bg, border
             )}
         >
+            {/* eslint-disable-next-line no-restricted-syntax -- card clickable (item de alerta con layout interno rico) */}
             <button
                 type="button"
                 onClick={onClick}
@@ -346,26 +350,28 @@ const AlertaItemImpl: React.FC<AlertaItemProps> = ({ alerta, onClick, onProrroga
             {showActions && (
                 <div className="flex items-center gap-2 px-3.5 pb-3 -mt-1">
                     {onProrrogar && (
-                        <button
+                        <Button
                             type="button"
+                            variant="secondary"
+                            size="sm"
                             onClick={onProrrogar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-label font-bold text-emerald-700 bg-card border border-emerald-300 rounded-lg hover:bg-emerald-50 disabled:opacity-50 transition-colors dark:text-emerald-300 dark:border-emerald-800 dark:hover:bg-emerald-950/40"
+                            leftIcon={<Timer className="h-3 w-3" />}
                         >
-                            <Timer className="h-3 w-3" />
                             Extender 10 días
-                        </button>
+                        </Button>
                     )}
                     {onCancelar && (
-                        <button
+                        <Button
                             type="button"
+                            variant="destructive"
+                            size="sm"
                             onClick={onCancelar}
                             disabled={actionLoading}
-                            className="flex items-center gap-1 px-2.5 py-1.5 text-label font-bold text-red-700 bg-card border border-red-300 rounded-lg hover:bg-red-50 disabled:opacity-50 transition-colors dark:text-red-300 dark:border-red-800 dark:hover:bg-red-950/40"
+                            leftIcon={<XCircle className="h-3 w-3" />}
                         >
-                            <XCircle className="h-3 w-3" />
                             Cancelar
-                        </button>
+                        </Button>
                     )}
                 </div>
             )}
@@ -385,6 +391,7 @@ interface RechazoItemProps {
 const RechazoItem: React.FC<RechazoItemProps> = ({ rechazo, onClick }) => {
     const diasLabel = rechazo.dias === 0 ? 'hoy' : rechazo.dias === 1 ? 'hace 1 día' : `hace ${rechazo.dias} días`;
     return (
+        // eslint-disable-next-line no-restricted-syntax -- card clickable (item de rechazo con layout interno rico)
         <button
             type="button"
             onClick={onClick}
@@ -553,16 +560,17 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             {relTime.label}
                         </span>
                     )}
-                    <button
+                    <Button
                         type="button"
+                        variant="secondary"
+                        size="sm"
                         onClick={refetch}
                         disabled={loading}
-                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-brand-dark bg-muted hover:bg-muted rounded-xl transition-colors disabled:opacity-50"
                         aria-label="Actualizar datos"
+                        leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />}
                     >
-                        <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
                         Actualizar
-                    </button>
+                    </Button>
                 </div>
             </div>
 
@@ -577,13 +585,15 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     <span className="text-muted-foreground hidden sm:inline">
                         · sparklines y comparativa mes desactivadas
                     </span>
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
+                        size="sm"
                         onClick={() => setObraFilter(null)}
-                        className="ml-auto px-2 py-1 text-label font-bold text-green-700 dark:text-green-300 hover:bg-brand-primary/10 rounded-md"
+                        className="ml-auto"
                     >
                         Quitar filtro
-                    </button>
+                    </Button>
                 </div>
             )}
 

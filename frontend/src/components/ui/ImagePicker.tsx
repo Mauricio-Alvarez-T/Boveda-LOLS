@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { Camera, X } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { Button } from './Button';
+import { IconButton } from './IconButton';
 
 /**
  * Selector de imagen OPCIONAL con preview (Fase 3). Solo captura el File y lo
@@ -43,25 +45,25 @@ export const ImagePicker: React.FC<{
                         <p className="text-label font-bold text-brand-dark truncate">{file.name}</p>
                         <p className="text-micro text-muted-foreground">{(file.size / 1024).toFixed(0)} KB</p>
                     </div>
-                    <button
-                        type="button"
+                    <IconButton
+                        icon={<X className="h-4 w-4" />}
+                        variant="danger"
                         onClick={() => handlePick(null)}
                         disabled={disabled}
-                        className="h-9 w-9 flex items-center justify-center rounded-lg border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors shrink-0"
+                        className="shrink-0"
                         aria-label="Quitar foto"
-                    >
-                        <X className="h-4 w-4" />
-                    </button>
+                    />
                 </div>
             ) : (
-                <button
-                    type="button"
+                <Button
+                    variant="outline"
                     onClick={() => inputRef.current?.click()}
                     disabled={disabled}
-                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-dashed border-border text-label font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-dark transition-colors disabled:opacity-50"
+                    leftIcon={<Camera className="h-4 w-4" />}
+                    className="w-full h-auto py-3 rounded-xl border-dashed border-border text-label font-bold text-muted-foreground hover:border-brand-primary/40 hover:text-brand-dark hover:bg-transparent"
                 >
-                    <Camera className="h-4 w-4" /> {label}
-                </button>
+                    {label}
+                </Button>
             )}
         </div>
     );

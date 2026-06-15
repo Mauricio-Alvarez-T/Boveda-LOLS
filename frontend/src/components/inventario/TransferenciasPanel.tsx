@@ -10,6 +10,8 @@ import { NuevoMovimientoWizard } from './nuevo-movimiento/NuevoMovimientoWizard'
 import type { MovimientoResuelto } from '../../utils/inferMovimiento';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 
 interface Props {
     obras: { id: number; nombre: string }[];
@@ -400,42 +402,48 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
                             placeholder="Buscar código..."
                             className="w-44 pl-8 pr-7 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                         />
-                        <button
+                        <IconButton
                             onClick={closeSearch}
-                            className="absolute right-2 p-0.5 hover:bg-muted rounded"
-                            title="Cerrar búsqueda"
-                        >
-                            <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
+                            className="absolute right-1 h-6 w-6"
+                            size="sm"
+                            aria-label="Cerrar búsqueda"
+                            icon={<X className="h-3 w-3" />}
+                        />
                     </div>
                 ) : (
-                    <button
+                    <IconButton
                         onClick={openSearch}
-                        title="Buscar por código"
-                        className="flex items-center justify-center h-8 w-8 text-muted-foreground hover:text-brand-primary hover:bg-brand-primary/5 rounded-xl border border-border bg-card transition-all"
-                    >
-                        <Search className="h-3.5 w-3.5" />
-                    </button>
+                        aria-label="Buscar por código"
+                        size="sm"
+                        className="rounded-xl border border-border bg-card"
+                        icon={<Search className="h-3.5 w-3.5" />}
+                    />
                 )}
 
                 {/* Alta separada por rol: "Mover" (movimientos de stock) y "Pedir" (solicitud). */}
                 {canMover && (
-                    <button
+                    <Button
                         onClick={onMover}
+                        variant="outline"
+                        size="sm"
                         title="Mover stock entre ubicaciones (despacho, devolución, etc.)"
-                        className="flex items-center justify-center gap-1 h-8 px-2.5 shrink-0 text-brand-primary border border-brand-primary/40 bg-card rounded-xl hover:bg-brand-primary/5 transition-all text-xs font-bold"
+                        className="h-8 shrink-0 text-xs font-bold"
+                        leftIcon={<ArrowLeftRight className="h-3.5 w-3.5" />}
                     >
-                        <ArrowLeftRight className="h-3.5 w-3.5" /> Mover
-                    </button>
+                        Mover
+                    </Button>
                 )}
                 {canPedir && (
-                    <button
+                    <Button
                         onClick={onPedir}
+                        variant="primary"
+                        size="sm"
                         title="Pedir materiales para una obra"
-                        className="flex items-center justify-center gap-1 h-8 px-3 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm text-xs font-bold"
+                        className="h-8 shrink-0 text-xs font-bold"
+                        leftIcon={<Plus className="h-4 w-4" />}
                     >
-                        <Plus className="h-4 w-4" /> Pedir
-                    </button>
+                        Pedir
+                    </Button>
                 )}
             </div>
         </div>

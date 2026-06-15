@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Loader2, ArrowUp, ArrowDown, RefreshCw, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import { Button } from '../ui/Button';
 import { useMovimientos, type TipoMovimiento } from '../../hooks/inventario/useMovimientos';
 
 // Etiquetas + estilos por tipo de movimiento (kardex).
@@ -103,12 +104,15 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                         className="h-9 bg-card border border-border rounded-xl px-3 text-sm text-brand-dark focus:outline-none focus:border-brand-primary"
                     />
                 </div>
-                <button
+                <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => cargar(page)}
-                    className="h-9 px-3 flex items-center gap-1.5 text-xs font-bold text-green-700 dark:text-green-300 border border-brand-primary/30 rounded-xl hover:bg-brand-primary/5 transition-all"
+                    leftIcon={<RefreshCw className="h-3.5 w-3.5" />}
+                    className="text-xs font-bold"
                 >
-                    <RefreshCw className="h-3.5 w-3.5" /> Actualizar
-                </button>
+                    Actualizar
+                </Button>
             </div>
 
             {/* Contenido */}
@@ -191,11 +195,13 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                 <div className="flex items-center justify-between shrink-0 text-xs text-muted-foreground px-1">
                     <span>{pagination.total} movimientos · página {pagination.page} de {pagination.pages}</span>
                     <div className="flex gap-1">
+                        {/* eslint-disable-next-line no-restricted-syntax -- paginación */}
                         <button
                             disabled={page <= 1}
                             onClick={() => irPagina(page - 1)}
                             className="px-3 py-1.5 rounded-lg border border-border font-bold disabled:opacity-40 hover:bg-muted transition-all"
                         >Anterior</button>
+                        {/* eslint-disable-next-line no-restricted-syntax -- paginación */}
                         <button
                             disabled={page >= pagination.pages}
                             onClick={() => irPagina(page + 1)}

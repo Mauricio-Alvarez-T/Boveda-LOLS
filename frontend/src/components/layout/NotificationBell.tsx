@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Bell, Users, CalendarClock, ChevronRight, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import api from '../../services/api';
+import { IconButton } from '../ui/IconButton';
 
 interface Worker10m {
     id: number;
@@ -76,24 +77,27 @@ export const NotificationBell: React.FC = () => {
     return (
         <div className="relative" ref={ref}>
             {/* Bell button */}
-            <button
+            <IconButton
                 onClick={() => { setOpen(!open); setExpanded10m(false); }}
-                className="h-9 w-9 flex items-center justify-center rounded-full hover:bg-background text-muted-foreground relative transition-colors focus:outline-none"
-                title="Notificaciones"
-            >
-                <Bell className="h-5 w-5" />
-                {totalCount > 0 && (
-                    <motion.div
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        className="absolute -top-0.5 -right-0.5 h-5 w-5 bg-destructive rounded-full flex items-center justify-center border-2 border-white"
-                    >
-                        <span className="text-[9px] font-bold text-white leading-none">
-                            {totalCount > 99 ? '99+' : totalCount}
-                        </span>
-                    </motion.div>
-                )}
-            </button>
+                className="relative"
+                aria-label="Notificaciones"
+                icon={
+                    <>
+                        <Bell className="h-5 w-5" />
+                        {totalCount > 0 && (
+                            <motion.div
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                className="absolute -top-0.5 -right-0.5 h-5 w-5 bg-destructive rounded-full flex items-center justify-center border-2 border-white"
+                            >
+                                <span className="text-micro font-bold text-white leading-none">
+                                    {totalCount > 99 ? '99+' : totalCount}
+                                </span>
+                            </motion.div>
+                        )}
+                    </>
+                }
+            />
 
             {/* Popover */}
             <AnimatePresence>
@@ -113,13 +117,16 @@ export const NotificationBell: React.FC = () => {
                             </h3>
                             <div className="flex items-center gap-2">
                                 {totalCount > 0 && (
-                                    <span className="text-[10px] bg-destructive text-white px-2 py-0.5 rounded-full font-bold">
+                                    <span className="text-caption bg-destructive text-white px-2 py-0.5 rounded-full font-bold">
                                         {totalCount}
                                     </span>
                                 )}
-                                <button onClick={() => { setOpen(false); setExpanded10m(false); }} className="text-muted-foreground hover:text-brand-dark">
-                                    <X className="h-4 w-4" />
-                                </button>
+                                <IconButton
+                                    onClick={() => { setOpen(false); setExpanded10m(false); }}
+                                    size="sm"
+                                    aria-label="Cerrar notificaciones"
+                                    icon={<X className="h-4 w-4" />}
+                                />
                             </div>
                         </div>
 
@@ -149,19 +156,20 @@ export const NotificationBell: React.FC = () => {
                                                     <div className="flex items-center justify-between">
                                                         <span className="text-xs font-bold text-brand-dark">{alert.titulo}</span>
                                                         <span
-                                                            className="text-[10px] font-bold px-1.5 py-0.5 rounded-full"
+                                                            className="text-caption font-bold px-1.5 py-0.5 rounded-full"
                                                             style={{ backgroundColor: `${alertColorMap[alert.tipo]}15`, color: alertColorMap[alert.tipo] }}
                                                         >
                                                             {alert.count}
                                                         </span>
                                                     </div>
-                                                    <p className="text-[11px] text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
+                                                    <p className="text-label text-muted-foreground mt-0.5 leading-relaxed">{alert.mensaje}</p>
 
                                                     {/* Expandable detail for 10-month alert */}
                                                     {alert.detalle10meses && alert.detalle10meses.length > 0 && (
+                                                        // eslint-disable-next-line no-restricted-syntax -- disclosure (toggle ver/ocultar detalle con chevron rotatorio)
                                                         <button
                                                             onClick={() => setExpanded10m(!expanded10m)}
-                                                            className="mt-1.5 text-[10px] font-semibold text-brand-primary hover:text-[#027A3B] flex items-center gap-0.5 transition-colors"
+                                                            className="mt-1.5 text-caption font-semibold text-brand-primary hover:text-[#027A3B] flex items-center gap-0.5 transition-colors"
                                                         >
                                                             {expanded10m ? 'Ocultar detalle' : 'Ver listado completo'}
                                                             <ChevronRight className={`h-3 w-3 transition-transform ${expanded10m ? 'rotate-90' : ''}`} />
@@ -181,7 +189,7 @@ export const NotificationBell: React.FC = () => {
                                                         className="overflow-hidden"
                                                     >
                                                         <div className="mt-2 ml-11 rounded-xl border border-border overflow-hidden">
-                                                            <table className="w-full text-[10px]">
+                                                            <table className="w-full text-caption">
                                                                 <thead>
                                                                     <tr className="bg-brand-primary text-white">
                                                                         <th className="text-left px-2 py-1.5 font-semibold">Nombre</th>

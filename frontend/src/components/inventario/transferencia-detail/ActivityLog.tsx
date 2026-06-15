@@ -59,6 +59,7 @@ export const ActivityLog: React.FC<{ t: Transferencia }> = ({ t }) => {
 
     return (
         <div className="shrink-0 mb-5">
+            {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
             <button
                 type="button"
                 onClick={() => setOpen(o => !o)}

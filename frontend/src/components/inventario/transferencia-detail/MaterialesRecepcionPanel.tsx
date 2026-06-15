@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { PackageCheck } from 'lucide-react';
+import { Button } from '../../ui/Button';
 
 /**
  * Panel de recepción del flujo "Solicitud de Materiales" (sin tabla de ítems:
@@ -34,16 +35,14 @@ const MaterialesRecepcionPanel: React.FC<{
                 placeholder='Observaciones de este viaje (ej. "llegaron 10, se usaron 6, sobran 4")...'
                 className="w-full px-3 py-2 text-xs rounded-lg border border-border bg-card resize-none outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500" />
             <div className="flex flex-col sm:flex-row gap-2 pt-1">
-                <button onClick={() => onConfirm(obs.trim(), 'parcial')} disabled={loading}
-                    className="flex-1 py-2.5 text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 rounded-xl hover:bg-blue-200 dark:hover:bg-blue-900/50 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                <Button variant="secondary" onClick={() => onConfirm(obs.trim(), 'parcial')} disabled={loading} className="flex-1">
                     {loading ? '...' : (yaIniciada ? 'Registrar otro viaje' : 'Registrar viaje (parcial)')}
-                </button>
-                <button onClick={() => onConfirm(obs.trim(), 'total')} disabled={loading}
-                    className="flex-1 py-2.5 text-xs font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                </Button>
+                <Button variant="primary" onClick={() => onConfirm(obs.trim(), 'total')} disabled={loading} className="flex-1">
                     {loading ? 'Confirmando...' : 'Cerrar entrega (total)'}
-                </button>
+                </Button>
             </div>
-            <button onClick={onCancel} className="w-full py-1.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
+            <Button variant="ghost" onClick={onCancel} className="w-full">Cancelar</Button>
         </div>
     );
 };

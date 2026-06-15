@@ -3,6 +3,7 @@ import { Save, Undo2, Search, Loader2, MapPin, AlertTriangle } from 'lucide-reac
 import { cn } from '../../utils/cn';
 import { useStockMaestro, type StockRow, type UbicacionRef } from '../../hooks/inventario/useStockMaestro';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
+import { Button } from '../ui/Button';
 
 interface Bodega { id: number; nombre: string; responsable_nombre?: string | null }
 interface Obra { id: number; nombre: string }
@@ -166,22 +167,26 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                 </span>
                 {dirtyCount > 0 && (
                     <>
-                        <button
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={handleRevert}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-muted-foreground bg-muted rounded-lg hover:bg-muted disabled:opacity-50 transition-all"
+                            leftIcon={<Undo2 className="h-3 w-3" />}
                         >
-                            <Undo2 className="h-3 w-3" /> Revertir
-                        </button>
-                        <button
+                            Revertir
+                        </Button>
+                        <Button
+                            variant="primary"
+                            size="sm"
                             onClick={handleSave}
                             disabled={saving}
-                            className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold text-white bg-brand-primary rounded-lg hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm"
+                            isLoading={saving}
+                            leftIcon={<Save className="h-3 w-3" />}
                             title="Ctrl+S / ⌘S"
                         >
-                            {saving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
                             Guardar ajustes ({dirtyCount})
-                        </button>
+                        </Button>
                     </>
                 )}
             </div>

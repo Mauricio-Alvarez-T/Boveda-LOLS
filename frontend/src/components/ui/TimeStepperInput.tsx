@@ -42,7 +42,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
     return (
         <div className={cn("flex flex-col gap-1.5", className)}>
             {label && (
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                <label className="text-caption font-bold text-muted-foreground uppercase tracking-wider">
                     {label}
                 </label>
             )}
@@ -62,6 +62,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
 
                 {/* Stepper Buttons Overlay */}
                 <div className="absolute right-[2px] top-[2px] bottom-[2px] flex flex-col items-center justify-center w-8 bg-card/80 backdrop-blur-sm rounded-r-lg border-l border-border overflow-hidden z-20">
+                    {/* eslint-disable-next-line no-restricted-syntax -- control compuesto stepper overlay */}
                     <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); adjustHour(1); }}
@@ -72,6 +73,7 @@ export const TimeStepperInput: React.FC<TimeStepperInputProps> = ({
                         <ChevronUp className="h-3 w-3" strokeWidth={3} />
                     </button>
                     <div className="h-[1px] w-full bg-muted" />
+                    {/* eslint-disable-next-line no-restricted-syntax -- control compuesto stepper overlay */}
                     <button
                         type="button"
                         onClick={(e) => { e.preventDefault(); adjustHour(-1); }}

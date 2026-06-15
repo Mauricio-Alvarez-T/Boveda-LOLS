@@ -1,6 +1,7 @@
 import React from 'react';
 import { Eye, Download } from 'lucide-react';
 import { resolveImageUrl } from '../../../utils/resolveImageUrl';
+import { Button } from '../../ui/Button';
 
 /**
  * Miniatura de una foto adjunta (recepción/discrepancia) con botones de Ver y
@@ -42,6 +43,7 @@ export const FotoThumbnail: React.FC<{ url: string; alt?: string; filename?: str
 
     return (
         <div className="flex items-start gap-2 mb-1.5">
+            {/* eslint-disable-next-line no-restricted-syntax -- celda de imagen clicable (miniatura 56px), no es un botón estándar */}
             <button type="button" onClick={handleVer} className="block shrink-0" title="Ver foto" aria-label="Ver foto">
                 <img
                     src={src}
@@ -50,22 +52,26 @@ export const FotoThumbnail: React.FC<{ url: string; alt?: string; filename?: str
                 />
             </button>
             <div className="flex flex-col gap-1">
-                <button
-                    type="button"
+                <Button
+                    variant="glass"
+                    size="sm"
                     onClick={handleVer}
                     title="Ver foto en grande"
-                    className="inline-flex items-center gap-1 px-2 h-7 rounded-md border border-border text-micro font-bold text-muted-foreground hover:text-brand-dark hover:border-brand-primary/40 transition-colors"
+                    leftIcon={<Eye className="h-3.5 w-3.5" />}
+                    className="h-7 px-2 gap-1 text-micro font-bold"
                 >
-                    <Eye className="h-3.5 w-3.5" /> Ver
-                </button>
-                <button
-                    type="button"
+                    Ver
+                </Button>
+                <Button
+                    variant="glass"
+                    size="sm"
                     onClick={handleDescargar}
                     title="Descargar foto"
-                    className="inline-flex items-center gap-1 px-2 h-7 rounded-md border border-border text-micro font-bold text-muted-foreground hover:text-brand-dark hover:border-brand-primary/40 transition-colors"
+                    leftIcon={<Download className="h-3.5 w-3.5" />}
+                    className="h-7 px-2 gap-1 text-micro font-bold"
                 >
-                    <Download className="h-3.5 w-3.5" /> Descargar
-                </button>
+                    Descargar
+                </Button>
             </div>
         </div>
     );

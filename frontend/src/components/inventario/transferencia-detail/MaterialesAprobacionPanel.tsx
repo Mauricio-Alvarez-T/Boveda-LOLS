@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { CheckCircle2, ChevronDown, Plus, ShoppingBag, MapPin } from 'lucide-react';
+import { CheckCircle2, ChevronDown, Plus, ShoppingBag, MapPin, Trash2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { QtyStepper } from '../../ui/QtyStepper';
+import { Button } from '../../ui/Button';
+import { IconButton } from '../../ui/IconButton';
 
 /**
  * Panel de aprobación del flujo "Solicitud de Materiales" (ítems custom a
@@ -81,11 +83,13 @@ const MaterialesAprobacionPanel: React.FC<{
         <div>
             <div className="text-sm font-semibold text-brand-dark mb-1.5">¿Cómo se consigue?</div>
             <div className="grid grid-cols-2 gap-2">
+                {/* eslint-disable-next-line no-restricted-syntax -- selector segmentado */}
                 <button type="button" onClick={() => onFuente('comprar')}
                     className={cn("h-11 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-bold border-2 transition-colors",
                         fuente === 'comprar' ? "bg-amber-500 text-white border-amber-500" : "bg-card text-brand-dark border-border hover:border-amber-300")}>
                     <ShoppingBag className="h-4 w-4" /> Comprar
                 </button>
+                {/* eslint-disable-next-line no-restricted-syntax -- selector segmentado */}
                 <button type="button" onClick={() => onFuente('obra')}
                     className={cn("h-11 inline-flex items-center justify-center gap-2 rounded-lg text-sm font-bold border-2 transition-colors",
                         fuente === 'obra' ? "bg-brand-primary text-white border-brand-primary" : "bg-card text-brand-dark border-border hover:border-brand-primary/40")}>
@@ -136,6 +140,7 @@ const MaterialesAprobacionPanel: React.FC<{
                             <div className="flex items-start gap-3">
                                 <span className="shrink-0 mt-0.5 w-7 h-7 rounded-lg bg-amber-100 text-amber-800 text-xs font-black flex items-center justify-center dark:bg-amber-950/40 dark:text-amber-300">{idx + 1}</span>
                                 <p className={cn("flex-1 min-w-0 text-base font-bold text-brand-dark leading-snug break-words", !e.aprobado && "line-through text-muted-foreground")}>{e.descripcion || 'Ítem'}</p>
+                                {/* eslint-disable-next-line no-restricted-syntax -- toggle estado (quitar/incluir) */}
                                 <button type="button" onClick={() => setEdit(e.id, { aprobado: !e.aprobado })}
                                     className={cn("shrink-0 text-xs font-bold px-2.5 py-1.5 rounded-lg transition-colors", e.aprobado ? "text-muted-foreground hover:text-destructive hover:bg-destructive/10" : "text-green-700 dark:text-green-300 hover:bg-brand-primary/10")}>
                                     {e.aprobado ? 'Quitar' : 'Incluir'}
@@ -158,6 +163,7 @@ const MaterialesAprobacionPanel: React.FC<{
                                         v => setEdit(e.id, { nota_aprobador: v }))}
 
                                     <div>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
                                         <button type="button" onClick={() => toggleExp(key)}
                                             className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 dark:text-green-300 hover:underline">
                                             <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", isExp && "rotate-180")} />
@@ -187,8 +193,9 @@ const MaterialesAprobacionPanel: React.FC<{
                             <input value={n.descripcion} autoFocus onChange={ev => setNuevo(n._k, { descripcion: ev.target.value })}
                                 placeholder="Nombre del ítem nuevo"
                                 className="flex-1 min-w-0 h-11 px-3 text-base font-bold rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
-                            <button type="button" onClick={() => delNuevo(n._k)}
-                                className="shrink-0 mt-1 text-xs font-bold px-2.5 py-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10">Quitar</button>
+                            <IconButton type="button" onClick={() => delNuevo(n._k)}
+                                icon={<Trash2 className="h-4 w-4" />} variant="danger" size="sm"
+                                aria-label="Quitar ítem nuevo" className="shrink-0 mt-1" />
                         </div>
                         <div className="mt-3 space-y-3">
                             <div className="flex items-center gap-2">
@@ -206,10 +213,11 @@ const MaterialesAprobacionPanel: React.FC<{
                 ))}
             </ul>
 
-            <button type="button" onClick={addNuevo}
-                className="w-full h-11 inline-flex items-center justify-center gap-2 text-sm font-bold text-green-700 dark:text-green-300 bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/20 rounded-xl transition-colors">
-                <Plus className="h-4 w-4" /> Agregar otro ítem
-            </button>
+            <Button type="button" variant="ghost" onClick={addNuevo}
+                leftIcon={<Plus className="h-4 w-4" />}
+                className="w-full text-sm font-bold text-green-700 dark:text-green-300 bg-brand-primary/5 hover:bg-brand-primary/10 border border-brand-primary/20">
+                Agregar otro ítem
+            </Button>
 
             {aprobadosCount === 0 && (
                 <p className="text-xs text-red-700 dark:text-red-300">Quitaste todos los ítems. Si no se comprará nada, usa "Rechazar".</p>
@@ -219,8 +227,11 @@ const MaterialesAprobacionPanel: React.FC<{
             )}
 
             <div className="flex flex-col-reverse sm:flex-row gap-2 pt-1">
-                <button onClick={onCancel} className="h-12 px-5 text-sm font-bold text-muted-foreground hover:text-brand-dark transition-colors">Cancelar</button>
-                <button
+                <Button type="button" variant="ghost" onClick={onCancel} className="text-sm font-bold">Cancelar</Button>
+                <Button
+                    type="button"
+                    variant="primary"
+                    isLoading={loading}
                     onClick={() => onConfirm(
                         edits,
                         nuevos.filter(n => n.descripcion.trim()).map(n => ({
@@ -233,9 +244,9 @@ const MaterialesAprobacionPanel: React.FC<{
                         }))
                     )}
                     disabled={loading || aprobadosCount === 0 || faltaOrigen}
-                    className="flex-1 h-12 text-sm font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-all">
+                    className="flex-1 text-sm font-bold">
                     {loading ? 'Aprobando...' : 'Confirmar Aprobación'}
-                </button>
+                </Button>
             </div>
         </div>
     );

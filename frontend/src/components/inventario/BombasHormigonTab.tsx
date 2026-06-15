@@ -9,6 +9,8 @@ import { cn } from '../../utils/cn';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 
 interface Props {
     /** Ya no se usa: el tab fetchea sus obras filtradas por participa_bombas. */
@@ -212,13 +214,15 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                     <h3 className="text-sm font-bold text-brand-dark">Bombas de Hormigón</h3>
                     <div className="flex items-center gap-2 flex-1">
                         {canCreate && (
-                            <button
+                            <Button
+                                variant="primary"
+                                size="sm"
                                 onClick={openCreate}
-                                className="flex items-center gap-1.5 px-3 py-2 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm shrink-0 order-last sm:order-none"
+                                leftIcon={<Plus className="h-3.5 w-3.5" />}
+                                className="shrink-0 order-last sm:order-none"
                             >
-                                <Plus className="h-3.5 w-3.5" />
                                 <span className="hidden sm:inline">Registrar uso</span>
-                            </button>
+                            </Button>
                         )}
                         {/* Search */}
                         <div className="relative flex-1 max-w-xs">
@@ -231,9 +235,14 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                             />
                             {searchQuery && (
-                                <button onClick={() => setSearchQuery('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                                    <X className="h-3 w-3 text-muted-foreground" />
-                                </button>
+                                <IconButton
+                                    onClick={() => setSearchQuery('')}
+                                    icon={<X className="h-3 w-3" />}
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Limpiar búsqueda"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                                />
                             )}
                         </div>
                         {/* Obra filter */}
@@ -383,6 +392,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                     <div>
                         <label className="text-xs font-bold text-brand-dark mb-1.5 block">Origen de la bomba <span className="text-red-500">*</span></label>
                         <div className="grid grid-cols-2 gap-2">
+                            {/* eslint-disable-next-line no-restricted-syntax -- toggle estado BD (color emerald) */}
                             <button
                                 type="button"
                                 onClick={() => setForm(f => ({ ...f, es_externa: false }))}
@@ -396,6 +406,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 <Building2 className="h-3.5 w-3.5" />
                                 Empresa (propia)
                             </button>
+                            {/* eslint-disable-next-line no-restricted-syntax -- toggle estado BD (color amber) */}
                             <button
                                 type="button"
                                 onClick={() => setForm(f => ({ ...f, es_externa: true }))}
@@ -460,15 +471,19 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
 
                     {/* Actions */}
                     <div className="flex justify-end gap-3 pt-1">
-                        <button type="button" onClick={closeModal}
-                            className="px-4 py-2 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                        <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
                             Cancelar
-                        </button>
-                        <button type="submit" disabled={submitting}
-                            className="flex items-center gap-2 px-5 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-50 transition-all shadow-sm">
-                            <MixerTruck className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                            type="submit"
+                            variant="primary"
+                            size="sm"
+                            disabled={submitting}
+                            isLoading={submitting}
+                            leftIcon={<MixerTruck className="h-3.5 w-3.5" />}
+                        >
                             {submitting ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Registrar')}
-                        </button>
+                        </Button>
                     </div>
                 </form>
             </Modal>
@@ -522,20 +537,22 @@ const BombaCard: React.FC<{
                     </span>
                     {canEdit && (
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
+                            <IconButton
                                 onClick={onEdit}
-                                className="p-1 text-muted-foreground/60 hover:text-brand-primary hover:bg-brand-primary/10 rounded-md transition-colors"
-                                title="Editar"
-                            >
-                                <Pencil className="h-3 w-3" />
-                            </button>
-                            <button
+                                icon={<Pencil className="h-3 w-3" />}
+                                variant="ghost"
+                                size="sm"
+                                aria-label="Editar"
+                                className="h-7 w-7"
+                            />
+                            <IconButton
                                 onClick={onDelete}
-                                className="p-1 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10 rounded-md transition-colors"
-                                title="Eliminar"
-                            >
-                                <Trash2 className="h-3 w-3" />
-                            </button>
+                                icon={<Trash2 className="h-3 w-3" />}
+                                variant="danger"
+                                size="sm"
+                                aria-label="Eliminar"
+                                className="h-7 w-7"
+                            />
                         </div>
                     )}
                 </div>

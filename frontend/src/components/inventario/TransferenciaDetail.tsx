@@ -10,6 +10,8 @@ import type { Transferencia, TransferenciaItem, TransferenciaRecepcion } from '.
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
 import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
@@ -231,9 +233,16 @@ const TransferenciaDetail: React.FC<Props> = ({
     const renderCatalogo = () => (
         <div className="flex flex-col flex-1 min-h-0 overflow-y-auto p-3 md:p-6">
             {/* Mobile back */}
-            <button onClick={onBack} className="md:hidden flex items-center gap-1 mb-3 text-xs text-muted-foreground hover:text-brand-dark transition-colors shrink-0">
-                <ChevronLeft className="h-4 w-4" /> Volver
-            </button>
+            <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onBack}
+                leftIcon={<ChevronLeft className="h-4 w-4" />}
+                className="md:hidden self-start mb-3 shrink-0 text-xs text-muted-foreground"
+            >
+                Volver
+            </Button>
 
             {/* ── Header — chip estado + menú "Acciones ▾" ── */}
             <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
@@ -285,6 +294,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                 el siguiente. Datos vienen del endpoint GET /:id/recepciones. */}
             {recepciones.length > 0 && (
                 <div className="shrink-0 mb-5">
+                    {/* eslint-disable-next-line no-restricted-syntax -- disclosure (header colapsable full-width) */}
                     <button
                         type="button"
                         onClick={() => setHistorialOpen(o => !o)}
@@ -581,9 +591,13 @@ const TransferenciaDetail: React.FC<Props> = ({
         <div className="flex flex-col flex-1 min-h-0 p-3 md:p-6 overflow-hidden">
             {/* Header con chip estado + menú "Acciones ▾" */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
-                <button onClick={onBack} className="md:hidden p-2 rounded-xl hover:bg-muted text-muted-foreground">
-                    <ChevronLeft className="h-5 w-5" />
-                </button>
+                <IconButton
+                    onClick={onBack}
+                    variant="ghost"
+                    aria-label="Volver"
+                    icon={<ChevronLeft className="h-5 w-5" />}
+                    className="md:hidden"
+                />
                 <div className="flex-1 min-w-0">
                     <p className="text-caption uppercase font-black text-muted-foreground tracking-widest">Detalle solicitud</p>
                     <h4 className="text-base font-black text-brand-dark truncate">{t.codigo}</h4>
@@ -593,9 +607,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <Icon className="h-3 w-3" /> {cfg.label}
                 </span>
                 {actionsMenu}
-                <button onClick={onBack} className="hidden md:flex p-1.5 rounded-full hover:bg-muted text-muted-foreground shrink-0">
-                    <XIcon className="h-4 w-4" />
-                </button>
+                <IconButton
+                    onClick={onBack}
+                    variant="ghost"
+                    aria-label="Cerrar"
+                    icon={<XIcon className="h-4 w-4" />}
+                    className="hidden md:flex shrink-0"
+                />
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">

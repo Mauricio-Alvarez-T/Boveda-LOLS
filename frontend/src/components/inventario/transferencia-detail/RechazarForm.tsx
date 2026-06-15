@@ -1,5 +1,6 @@
 import React from 'react';
 import { cn } from '../../../utils/cn';
+import { Button } from '../../ui/Button';
 
 /**
  * Cuerpo del formulario de rechazo (textarea de motivo + confirmar/cancelar).
@@ -35,25 +36,23 @@ export const RechazarForm: React.FC<{
             required
         />
         <div className="flex gap-2">
-            <button
+            <Button
+                variant="destructive"
+                size={compact ? 'sm' : 'md'}
                 onClick={onConfirm}
-                disabled={loading || !value.trim()}
-                className={cn(
-                    'flex-1 py-2.5 font-bold text-white bg-red-600 rounded-xl hover:bg-red-700 disabled:opacity-50 transition-all',
-                    compact ? 'text-xs' : 'text-sm'
-                )}
+                disabled={!value.trim()}
+                isLoading={loading}
+                className="flex-1"
             >
-                {loading ? 'Rechazando...' : confirmLabel}
-            </button>
-            <button
+                {confirmLabel}
+            </Button>
+            <Button
+                variant="ghost"
+                size={compact ? 'sm' : 'md'}
                 onClick={onCancel}
-                className={cn(
-                    'px-4 py-2.5 font-bold text-muted-foreground hover:text-brand-dark transition-colors',
-                    compact ? 'text-xs' : 'text-sm'
-                )}
             >
                 Cancelar
-            </button>
+            </Button>
         </div>
     </>
 );

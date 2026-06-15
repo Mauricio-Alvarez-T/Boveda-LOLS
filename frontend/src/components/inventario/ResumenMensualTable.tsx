@@ -13,6 +13,8 @@ import ItemDetailModal from './ItemDetailModal';
 import { ResumenToolbar } from './ResumenToolbar';
 import { exportResumen } from '../../utils/exportExcel';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 
 interface Props {
     data: ResumenData;
@@ -59,25 +61,26 @@ const SortableColHeader: React.FC<{
             )}
         >
             <div className="flex items-center justify-center gap-1">
-                <button
-                    type="button"
+                <IconButton
                     {...attributes}
                     {...listeners}
-                    className="cursor-grab active:cursor-grabbing p-0.5 rounded text-muted-foreground/40 hover:text-brand-primary hover:bg-black/5 shrink-0 touch-none"
+                    icon={<GripVertical className="h-3 w-3" />}
+                    variant="ghost"
+                    size="sm"
+                    className="cursor-grab active:cursor-grabbing shrink-0 touch-none"
                     title="Arrastrar para reordenar"
                     aria-label={`Reordenar ${label}`}
-                >
-                    <GripVertical className="h-3 w-3" />
-                </button>
+                />
                 <span className="truncate" title={title}>{label}</span>
-                <button
-                    type="button"
+                <IconButton
                     onClick={onHide}
-                    className="opacity-0 group-hover/col:opacity-100 p-0.5 rounded hover:bg-red-100 dark:hover:bg-red-950/40 transition-all shrink-0"
+                    icon={<X className="h-3 w-3" />}
+                    variant="danger"
+                    size="sm"
+                    className="opacity-0 group-hover/col:opacity-100 transition-all shrink-0"
                     title={`Ocultar ${label}`}
-                >
-                    <X className="h-3 w-3 text-muted-foreground hover:text-destructive" />
-                </button>
+                    aria-label={`Ocultar ${label}`}
+                />
             </div>
         </th>
     );
@@ -201,8 +204,8 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         className="w-14 px-1 py-0.5 text-label border rounded text-center focus:ring-1 focus:ring-brand-primary outline-none"
                         autoFocus min={0}
                     />
-                    <button onClick={() => desktopEdit.saveEdit(itemId, obraId, bodegaId)} className="p-0.5 text-brand-accent hover:bg-brand-accent/10 rounded"><Check className="h-3 w-3" /></button>
-                    <button onClick={desktopEdit.cancelEdit} className="p-0.5 text-destructive hover:bg-destructive/10 rounded"><X className="h-3 w-3" /></button>
+                    <IconButton onClick={() => desktopEdit.saveEdit(itemId, obraId, bodegaId)} icon={<Check className="h-3 w-3" />} variant="ghost" size="sm" aria-label="Guardar cantidad" />
+                    <IconButton onClick={desktopEdit.cancelEdit} icon={<X className="h-3 w-3" />} variant="danger" size="sm" aria-label="Cancelar edición" />
                 </div>
             );
         }
@@ -258,9 +261,14 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         className="w-full pl-10 pr-10 py-3 text-sm border border-border rounded-2xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                     />
                     {search && (
-                        <button onClick={() => setSearch('')} className="absolute right-3 top-1/2 -translate-y-1/2 p-1 bg-muted rounded-full">
-                            <X className="h-3.5 w-3.5 text-muted-foreground" />
-                        </button>
+                        <IconButton
+                            onClick={() => setSearch('')}
+                            icon={<X className="h-3.5 w-3.5" />}
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-3 top-1/2 -translate-y-1/2"
+                            aria-label="Limpiar búsqueda"
+                        />
                     )}
                 </div>
 
@@ -317,13 +325,15 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 </div>
                             )}
                         </div>
-                        <button
+                        <Button
                             onClick={() => exportResumen(data)}
-                            className="mt-2.5 w-full flex items-center justify-center gap-1.5 py-1.5 bg-secondary hover:bg-secondary/80 rounded-xl text-xs font-bold text-secondary-foreground transition-all shadow-sm"
+                            variant="secondary"
+                            size="sm"
+                            leftIcon={<Download className="h-3.5 w-3.5" />}
+                            className="mt-2.5 w-full text-xs font-bold"
                         >
-                            <Download className="h-3.5 w-3.5" />
                             Exportar a Excel
-                        </button>
+                        </Button>
                     </div>
 
                     {/* Mobile Categories & Items */}
@@ -333,6 +343,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                         return (
                             <div key={cat.id} className="rounded-2xl border border-border overflow-hidden bg-card">
                                 {/* Category Header */}
+                                {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
                                 <button
                                     onClick={() => toggleCat(cat.id)}
                                     className="w-full flex items-center justify-between px-4 py-3 bg-muted active:bg-muted/80 transition-colors"
@@ -366,6 +377,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                             return (
                                                 <div key={item.id}>
                                                     {/* Item Row — tap to expand */}
+                                                    {/* eslint-disable-next-line no-restricted-syntax -- disclosure */}
                                                     <button
                                                         onClick={() => setMobileExpandedItem(isExpanded ? null : item.id)}
                                                         className="w-full flex items-center gap-3 px-4 py-3 active:bg-blue-50/50 dark:active:bg-blue-950/30 transition-colors text-left"
@@ -444,10 +456,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                                         className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                         autoFocus
                                                                                     />
-                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, o.id, null)} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                    <IconButton onClick={() => mobileEdit.saveEdit(item.id, o.id, null)} icon={<Check className="h-3.5 w-3.5" />} variant="ghost" size="sm" aria-label="Guardar cantidad" />
+                                                                                    <IconButton onClick={mobileEdit.cancelEdit} icon={<X className="h-3.5 w-3.5" />} variant="danger" size="sm" aria-label="Cancelar edición" />
                                                                                 </div>
                                                                             ) : (
+                                                                                // eslint-disable-next-line no-restricted-syntax -- control de cantidad
                                                                                 <button
                                                                                     onClick={() => canEdit && mobileEdit.startEdit(cellKey, qty)}
                                                                                     className={cn(
@@ -495,10 +508,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                                                         className="w-16 px-2 py-1.5 text-xs border-2 border-brand-primary rounded-xl text-center font-bold focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                                                                         autoFocus
                                                                                     />
-                                                                                    <button onClick={() => mobileEdit.saveEdit(item.id, null, b.id)} className="p-1.5 bg-green-100 text-green-700 dark:bg-green-500/20 dark:text-green-300 rounded-lg"><Check className="h-3.5 w-3.5" /></button>
-                                                                                    <button onClick={mobileEdit.cancelEdit} className="p-1.5 bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-300 rounded-lg"><X className="h-3.5 w-3.5" /></button>
+                                                                                    <IconButton onClick={() => mobileEdit.saveEdit(item.id, null, b.id)} icon={<Check className="h-3.5 w-3.5" />} variant="ghost" size="sm" aria-label="Guardar cantidad" />
+                                                                                    <IconButton onClick={mobileEdit.cancelEdit} icon={<X className="h-3.5 w-3.5" />} variant="danger" size="sm" aria-label="Cancelar edición" />
                                                                                 </div>
                                                                             ) : (
+                                                                                // eslint-disable-next-line no-restricted-syntax -- control de cantidad
                                                                                 <button
                                                                                     onClick={() => canEdit && mobileEdit.startEdit(cellKey, qty)}
                                                                                     className={cn(
@@ -667,11 +681,12 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                 )}
                                             </td>
                                             <td className={cn("sticky z-10 px-2 py-1.5 font-medium text-brand-dark border-r border-b border-border align-top min-w-[220px] max-w-[320px] whitespace-normal break-words", rowBg, showImages ? "left-[68px]" : "left-8")}>
+                                                {/* eslint-disable-next-line no-restricted-syntax -- enlace de descripción en celda de tabla (texto neutro clicable, no CTA) */}
                                                 <button
                                                     type="button"
                                                     title={item.descripcion}
                                                     onClick={() => itemDetail.openItem(item.id, item)}
-                                                    className="text-left whitespace-normal break-words hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                    className="text-left whitespace-normal break-words text-brand-dark hover:underline hover:text-brand-primary transition-colors"
                                                 >
                                                     {item.descripcion}
                                                 </button>

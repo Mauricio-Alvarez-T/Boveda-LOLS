@@ -5,6 +5,8 @@ import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { copyToClipboard } from '../../utils/whatsappShare';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
@@ -171,6 +173,7 @@ const ItemDetailModal: React.FC<Props> = ({
                     <div className="space-y-4 p-1">
                         {/* ═══ IMAGEN ═══ */}
                         {imageUrl ? (
+                            // eslint-disable-next-line no-restricted-syntax -- interno de modal: superficie de imagen clickeable para zoom
                             <button
                                 type="button"
                                 aria-label="Ampliar imagen del ítem"
@@ -200,6 +203,7 @@ const ItemDetailModal: React.FC<Props> = ({
                                         {(item as any).categoria_nombre}
                                     </span>
                                 )}
+                                {/* eslint-disable-next-line no-restricted-syntax -- chip copiar nro_item: muestra el número como etiqueta visible + affordance de copia */}
                                 <button
                                     type="button"
                                     aria-label={`Copiar número de ítem ${item.nro_item}`}
@@ -218,31 +222,36 @@ const ItemDetailModal: React.FC<Props> = ({
                                 {canEdit && (
                                     <div className="ml-auto flex items-center gap-2">
                                         {!editing ? (
-                                            <button
+                                            <Button
                                                 type="button"
+                                                variant="ghost"
+                                                size="sm"
                                                 onClick={startEdit}
-                                                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary/10 text-green-700 dark:text-green-300 text-label font-bold hover:bg-brand-primary/15 transition-colors"
+                                                leftIcon={<Pencil className="h-3 w-3" />}
                                             >
-                                                <Pencil className="h-3 w-3" /> Editar
-                                            </button>
+                                                Editar
+                                            </Button>
                                         ) : (
                                             <>
-                                                <button
+                                                <Button
                                                     type="button"
+                                                    variant="ghost"
+                                                    size="sm"
                                                     onClick={cancelEdit}
                                                     disabled={saving}
-                                                    className="px-2.5 py-1 rounded-lg text-label font-bold text-muted-foreground hover:text-brand-dark transition-colors disabled:opacity-50"
                                                 >
                                                     Cancelar
-                                                </button>
-                                                <button
+                                                </Button>
+                                                <Button
                                                     type="button"
+                                                    variant="primary"
+                                                    size="sm"
                                                     onClick={saveEdit}
                                                     disabled={saving}
-                                                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-brand-primary text-white text-label font-bold hover:bg-brand-primary/90 transition-colors disabled:opacity-50"
+                                                    leftIcon={<Save className="h-3 w-3" />}
                                                 >
-                                                    <Save className="h-3 w-3" /> {saving ? 'Guardando...' : 'Guardar'}
-                                                </button>
+                                                    {saving ? 'Guardando...' : 'Guardar'}
+                                                </Button>
                                             </>
                                         )}
                                     </div>
@@ -397,15 +406,13 @@ const ItemDetailModal: React.FC<Props> = ({
                     className="fixed inset-0 z-[1100] bg-black/90 flex items-center justify-center p-4 cursor-zoom-out"
                     onClick={() => setImageZoom(false)}
                 >
-                    <button
-                        type="button"
+                    <IconButton
                         aria-label="Cerrar imagen ampliada"
                         title="Cerrar"
                         onClick={() => setImageZoom(false)}
-                        className="absolute top-4 right-4 p-2 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
-                    >
-                        <X className="h-5 w-5" />
-                    </button>
+                        icon={<X className="h-5 w-5" />}
+                        className="absolute top-4 right-4 bg-white/10 text-white hover:bg-white/20 hover:text-white"
+                    />
                     <img
                         src={imageUrl}
                         alt={item?.descripcion}

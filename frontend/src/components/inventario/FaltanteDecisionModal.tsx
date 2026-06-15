@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { AlertTriangle, PackagePlus, XCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
 
 export type FaltanteDecision = 'crear_nueva' | 'ninguna';
@@ -125,22 +126,23 @@ const FaltanteDecisionModal: React.FC<Props> = ({
                 </div>
 
                 <div className="flex gap-2 justify-end pt-2">
-                    <button
+                    <Button
                         type="button"
+                        variant="ghost"
                         onClick={onClose}
                         disabled={loading}
-                        className="px-4 py-2 rounded-lg border border-border/50 hover:bg-muted/50 text-sm transition disabled:opacity-50"
                     >
                         Cancelar
-                    </button>
-                    <button
+                    </Button>
+                    <Button
                         type="button"
+                        variant="primary"
                         onClick={() => onConfirm(decision)}
                         disabled={loading}
-                        className="px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 text-sm font-medium transition disabled:opacity-50"
+                        isLoading={loading}
                     >
                         {loading ? 'Procesando…' : 'Confirmar'}
-                    </button>
+                    </Button>
                 </div>
             </div>
         </Modal>

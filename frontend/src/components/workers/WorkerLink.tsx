@@ -23,6 +23,7 @@ interface WorkerLinkProps {
  */
 const WorkerLink: React.FC<WorkerLinkProps> = ({ workerId, children, onClick, className }) => {
     return (
+        // eslint-disable-next-line no-restricted-syntax -- enlace inline de nombre (texto clicable en celdas densas, no es CTA del DS)
         <button
             type="button"
             onClick={(e) => {
@@ -30,7 +31,7 @@ const WorkerLink: React.FC<WorkerLinkProps> = ({ workerId, children, onClick, cl
                 onClick(workerId);
             }}
             className={cn(
-                "w-full text-left font-semibold text-brand-dark hover:text-brand-primary transition-colors cursor-pointer underline decoration-transparent hover:decoration-brand-primary/40 underline-offset-2",
+                "text-left font-semibold text-brand-dark hover:text-brand-primary transition-colors cursor-pointer underline decoration-transparent hover:decoration-brand-primary/40 underline-offset-2",
                 className
             )}
         >

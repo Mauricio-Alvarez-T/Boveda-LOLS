@@ -58,13 +58,14 @@ export const ObraSelector: React.FC = () => {
                         <option key={o.id} value={o.id}>{o.nombre}</option>
                     ))}
                 </select>
-                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-full text-[13px] font-medium text-brand-dark shadow-sm shrink min-w-[70px] max-w-[130px]">
+                <div className="flex items-center justify-center gap-1.5 px-3 py-1.5 bg-card border border-border rounded-full text-sm font-medium text-brand-dark shadow-sm shrink min-w-[70px] max-w-[130px]">
                     <Map className="h-4 w-4 shrink-0 text-brand-primary" />
                     <span className="truncate flex-1 text-left">{selectedObra?.nombre || 'Obra'}</span>
                 </div>
             </div>
 
             {/* Desktop: full styled button */}
+            {/* eslint-disable-next-line no-restricted-syntax -- disclosure toggle con estilo open/closed custom y layout truncate */}
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={cn(
@@ -95,6 +96,7 @@ export const ObraSelector: React.FC = () => {
                     >
                         <div className="p-1.5 max-h-[260px] overflow-y-auto custom-scrollbar">
                             {/* "All Obras" option */}
+                            {/* eslint-disable-next-line no-restricted-syntax -- fila de menú */}
                             <button
                                 onClick={() => { setSelectedObra(null); setIsOpen(false); }}
                                 className={cn(
@@ -111,6 +113,7 @@ export const ObraSelector: React.FC = () => {
 
                             {/* Obra options */}
                             {visibleObras.map(obra => (
+                                // eslint-disable-next-line no-restricted-syntax -- fila de menú
                                 <button
                                     key={obra.id}
                                     onClick={() => { setSelectedObra(obra); setIsOpen(false); }}

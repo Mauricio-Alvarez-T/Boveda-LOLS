@@ -93,9 +93,14 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     />
                 </div>
                 {isMobile && (
-                    <button onClick={() => setMobileOpen(false)} className="p-2 rounded-xl hover:bg-background text-muted-foreground shrink-0">
-                        <X className="h-5 w-5" />
-                    </button>
+                    <IconButton
+                        variant="ghost"
+                        size="md"
+                        aria-label="Cerrar menú"
+                        onClick={() => setMobileOpen(false)}
+                        className="shrink-0"
+                        icon={<X className="h-5 w-5" />}
+                    />
                 )}
             </div>
 
@@ -144,7 +149,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                     {(isMobile || !isCollapsed) && (
                         <div className="flex-1 min-w-0 pr-1">
                             <p className="text-sm font-bold text-brand-dark truncate leading-tight">{user?.nombre}</p>
-                            <p className="text-[11px] font-medium text-muted-foreground truncate leading-tight tracking-wide">{user?.rol}</p>
+                            <p className="text-label font-medium text-muted-foreground truncate leading-tight tracking-wide">{user?.rol}</p>
                         </div>
                     )}
                     {(isMobile || !isCollapsed) && (
@@ -173,12 +178,13 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                 {sidebarContent(false)}
 
                 {/* Collapse Toggle */}
-                <button
+                <IconButton
+                    variant="ghost"
+                    aria-label={isCollapsed ? 'Expandir menú' : 'Colapsar menú'}
                     onClick={() => setIsCollapsed(!isCollapsed)}
-                    className="absolute right-[-14px] top-20 h-7 w-7 bg-card border border-border rounded-full flex items-center justify-center text-muted-foreground hover:text-brand-dark hover:border-[var(--border-hover)] transition-colors z-50 shadow-sm"
-                >
-                    {isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
-                </button>
+                    className="absolute right-[-14px] top-20 h-7 w-7 bg-card border border-border z-50 shadow-sm"
+                    icon={isCollapsed ? <ChevronRight className="h-3.5 w-3.5" /> : <ChevronLeft className="h-3.5 w-3.5" />}
+                />
             </motion.aside>
 
             {/* Mobile Drawer */}

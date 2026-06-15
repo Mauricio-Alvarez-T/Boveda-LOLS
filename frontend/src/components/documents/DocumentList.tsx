@@ -151,7 +151,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     <h4 className="text-sm font-bold text-brand-dark truncate" title={doc.tipo_nombre}>
                                                         {doc.tipo_nombre || 'Documento'}
                                                     </h4>
-                                                    <span className="text-[11px] text-muted truncate mt-0.5" title={doc.nombre_archivo}>
+                                                    <span className="text-label text-muted truncate mt-0.5" title={doc.nombre_archivo}>
                                                         {doc.nombre_archivo}
                                                     </span>
                                                 </div>
@@ -159,14 +159,14 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                         </td>
                                         <td className="px-4 py-3 whitespace-nowrap text-right">
                                             <div className="flex items-center justify-end gap-3">
-                                                <span className="text-[10px] font-bold text-muted-foreground flex items-center gap-1.5 bg-background px-2 py-1 rounded-md border border-border">
+                                                <span className="text-caption font-bold text-muted-foreground flex items-center gap-1.5 bg-background px-2 py-1 rounded-md border border-border">
                                                     <Calendar className="h-3 w-3" />
                                                     {new Date(doc.fecha_subida).toLocaleDateString()}
                                                 </span>
 
                                                 {doc.fecha_vencimiento ? (
                                                     <div className={cn(
-                                                        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider border",
+                                                        "inline-flex items-center gap-1.5 px-2 py-1 rounded-md text-caption font-bold uppercase tracking-wider border",
                                                         isExpired(doc.fecha_vencimiento)
                                                             ? "bg-rose-50 text-rose-600 border-rose-100"
                                                             : "bg-emerald-50 text-emerald-600 border-emerald-100"
@@ -175,7 +175,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                         {isExpired(doc.fecha_vencimiento) ? 'Vencido' : 'Vigente'}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-[10px] font-bold text-muted-foreground bg-background px-2 py-1 rounded-md border border-border uppercase tracking-wider">
+                                                    <span className="text-caption font-bold text-muted-foreground bg-background px-2 py-1 rounded-md border border-border uppercase tracking-wider">
                                                         Indefinido
                                                     </span>
                                                 )}

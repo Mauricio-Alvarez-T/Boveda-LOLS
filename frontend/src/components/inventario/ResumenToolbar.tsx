@@ -4,6 +4,8 @@ import { Search, X, ChevronDown, EyeOff, Eye, RotateCcw, Download, Plus } from '
 import type { ResumenData } from '../../hooks/inventario/useInventarioData';
 import { exportResumen } from '../../utils/exportExcel';
 import { Modal } from '../ui/Modal';
+import { Button } from '../ui/Button';
+import { IconButton } from '../ui/IconButton';
 import { ItemInventarioForm } from '../settings/ItemInventarioForm';
 
 interface ToolbarProps {
@@ -51,9 +53,14 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
                     className="w-full pl-8 pr-3 py-1.5 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                 />
                 {search && (
-                    <button onClick={() => setSearch('')} className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 hover:bg-muted rounded">
-                        <X className="h-3 w-3 text-muted-foreground" />
-                    </button>
+                    <IconButton
+                        onClick={() => setSearch('')}
+                        icon={<X className="h-3 w-3" />}
+                        variant="ghost"
+                        size="sm"
+                        aria-label="Limpiar búsqueda"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
+                    />
                 )}
             </div>
 
@@ -73,6 +80,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
             </div>
 
             {/* Hide empty toggle */}
+            {/* eslint-disable-next-line no-restricted-syntax -- toggle estado (ocultar vacías) */}
             <button
                 onClick={() => setHideEmpty(v => !v)}
                 className={cn(
@@ -88,6 +96,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
 
             {/* Restore hidden columns */}
             {hiddenCount > 0 && (
+                // eslint-disable-next-line no-restricted-syntax -- toggle estado (restaurar columnas ocultas)
                 <button
                     onClick={restoreCols}
                     className="flex items-center gap-1.5 px-3 py-1.5 text-label font-semibold rounded-xl border border-amber-200 bg-amber-50 text-amber-700 hover:bg-amber-100 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-300 dark:hover:bg-amber-900/40 transition-all"
@@ -99,6 +108,7 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
 
             {/* Restore column order */}
             {isCustomOrder && restoreColOrder && (
+                // eslint-disable-next-line no-restricted-syntax -- toggle estado (restaurar orden de columnas)
                 <button
                     onClick={restoreColOrder}
                     title="Restablecer el orden de columnas (obras primero, bodegas al final)"
@@ -111,26 +121,27 @@ export const ResumenToolbar: React.FC<ToolbarProps> = ({
 
             {/* Agregar Ítem */}
             {canCreate && (
-                <button
+                <Button
+                    variant="outline"
+                    size="sm"
                     onClick={() => setShowCreateModal(true)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-label font-bold text-green-700 dark:text-green-300 border border-brand-primary/30 bg-brand-primary/5 rounded-xl hover:bg-brand-primary/10 transition-all ml-auto"
+                    leftIcon={<Plus className="h-3.5 w-3.5" />}
+                    className="ml-auto"
                 >
-                    <Plus className="h-3.5 w-3.5" />
                     Agregar Ítem
-                </button>
+                </Button>
             )}
 
             {/* Exportar Excel */}
-            <button
+            <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => exportResumen(data)}
-                className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 text-label font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm",
-                    !canCreate && "ml-auto"
-                )}
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                className={cn(!canCreate && "ml-auto")}
             >
-                <Download className="h-3.5 w-3.5" />
                 Exportar Excel
-            </button>
+            </Button>
 
             {/* Create Item Modal */}
             <Modal

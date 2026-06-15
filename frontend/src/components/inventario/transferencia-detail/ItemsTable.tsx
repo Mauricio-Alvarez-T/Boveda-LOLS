@@ -42,6 +42,7 @@ export const ItemsTable: React.FC<{
                             return (
                                 <tr key={item.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted/40")}>
                                     <td className="px-3 py-1.5 font-medium text-brand-dark">
+                                        {/* eslint-disable-next-line no-restricted-syntax -- celda de tabla */}
                                         <button type="button" onClick={() => onOpenItem(item.item_id)} className="text-left hover:underline hover:text-brand-primary transition-colors cursor-pointer">
                                             {item.item_descripcion || `Item #${item.item_id}`}
                                         </button>

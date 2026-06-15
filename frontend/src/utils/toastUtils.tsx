@@ -57,14 +57,16 @@ export const showConfirmToast = ({
 }: ConfirmToastOptions) => {
     toast.custom((t) => (
         <div className="bg-card px-4 py-3 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-border/40 flex items-center gap-3 w-auto max-w-[92vw] sm:max-w-md animate-in fade-in slide-in-from-top-2 duration-300">
-            <span className="flex-1 min-w-0 font-semibold text-brand-dark text-[13px] leading-snug">{message}</span>
+            <span className="flex-1 min-w-0 font-semibold text-brand-dark text-sm leading-snug">{message}</span>
             <div className="flex gap-1.5 shrink-0">
+                {/* eslint-disable-next-line no-restricted-syntax -- interno de toast */}
                 <button
                     onClick={() => toast.dismiss(t)}
-                    className="py-1.5 px-3 rounded-lg text-[12px] font-bold text-muted-foreground bg-background hover:bg-muted transition-all active:scale-95 whitespace-nowrap"
+                    className="py-1.5 px-3 rounded-lg text-xs font-bold text-muted-foreground bg-background hover:bg-muted transition-all active:scale-95 whitespace-nowrap"
                 >
                     {cancelLabel}
                 </button>
+                {/* eslint-disable-next-line no-restricted-syntax -- interno de toast */}
                 <button
                     onClick={async () => {
                         toast.dismiss(t);
@@ -81,7 +83,7 @@ export const showConfirmToast = ({
                             }
                         }
                     }}
-                    className="py-1.5 px-3 rounded-lg text-[12px] font-bold text-white bg-brand-primary hover:bg-[#027A3B] shadow-sm transition-all active:scale-95 whitespace-nowrap"
+                    className="py-1.5 px-3 rounded-lg text-xs font-bold text-white bg-brand-primary hover:bg-[#027A3B] shadow-sm transition-all active:scale-95 whitespace-nowrap"
                 >
                     {confirmLabel}
                 </button>

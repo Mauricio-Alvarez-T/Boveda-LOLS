@@ -23,6 +23,7 @@ import StockMaestroGrid from '../components/inventario/StockMaestroGrid';
 import { exportStockObra } from '../utils/exportExcel';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
 import { formatBodegaConResponsable } from '../utils/formatBodega';
+import { Button } from '../components/ui/Button';
 
 type TabKey = 'resumen_ejecutivo' | 'resumen' | 'por_ubicacion' | 'transferencias' | 'maestro' | 'bombas' | 'movimientos' | 'facturas';
 
@@ -70,16 +71,18 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
 
     return (
         <div className="relative" ref={containerRef}>
-            <button
+            <Button
+                variant="primary"
+                size="sm"
                 onClick={() => setOpen(v => !v)}
-                className="flex items-center gap-1.5 px-4 py-2.5 md:py-2 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 transition-all shadow-sm"
+                leftIcon={<Download className="h-3.5 w-3.5" />}
+                rightIcon={<ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />}
             >
-                <Download className="h-3.5 w-3.5" />
-                <span>Exportar Excel</span>
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform", open && "rotate-180")} />
-            </button>
+                Exportar Excel
+            </Button>
             {open && (
                 <div className="absolute right-0 mt-1 w-72 bg-card border border-border rounded-xl shadow-lg z-30 overflow-hidden">
+                    {/* eslint-disable-next-line no-restricted-syntax -- fila de menú */}
                     <button
                         type="button"
                         onClick={() => handleExport('normal')}
@@ -92,6 +95,7 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
                         </div>
                     </button>
                     <div className="border-t border-border" />
+                    {/* eslint-disable-next-line no-restricted-syntax -- fila de menú */}
                     <button
                         type="button"
                         onClick={() => handleExport('checklist')}
@@ -259,6 +263,7 @@ const InventarioPage: React.FC = () => {
                         const TabIcon = tab.icon;
                         const isActive = activeTab === tab.key;
                         return (
+                            // eslint-disable-next-line no-restricted-syntax -- tab
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
@@ -294,6 +299,7 @@ const InventarioPage: React.FC = () => {
                         const TabIcon = tab.icon;
                         const isActive = activeTab === tab.key;
                         return (
+                            // eslint-disable-next-line no-restricted-syntax -- tab
                             <button
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
@@ -395,6 +401,7 @@ const InventarioPage: React.FC = () => {
                                 <ExportExcelDropdown stockData={currentStockData} />
                             )}
                             {currentStockData && (
+                                // eslint-disable-next-line no-restricted-syntax -- toggle
                                 <button
                                     type="button"
                                     onClick={() => setHideEmptyUbic(v => !v)}
@@ -456,6 +463,7 @@ const InventarioPage: React.FC = () => {
                                 { key: 'items', label: 'Ítems' },
                                 { key: 'stock', label: 'Stock por ubicación' },
                             ] as const).map(st => (
+                                // eslint-disable-next-line no-restricted-syntax -- tab
                                 <button
                                     key={st.key}
                                     onClick={() => setMaestroSubTab(st.key)}

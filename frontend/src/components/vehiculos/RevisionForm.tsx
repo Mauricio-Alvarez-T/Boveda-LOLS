@@ -155,6 +155,7 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
                     </label>
                     <div className="grid grid-cols-3 gap-2">
                         {[1, 2, 3].map((n) => (
+                            // eslint-disable-next-line no-restricted-syntax -- selector segmentado con estado
                             <button
                                 key={n}
                                 type="button"
