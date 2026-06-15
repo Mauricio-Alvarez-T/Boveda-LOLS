@@ -28,12 +28,13 @@ const toBlob = (canvas: HTMLCanvasElement, type: string, quality: number): Promi
 
 export async function compressImage(
     file: File,
-    opts: { maxDim?: number; maxBytes?: number } = {},
+    opts: { maxDim?: number; maxBytes?: number; minDim?: number } = {},
 ): Promise<File> {
     if (!file.type.startsWith('image/')) return file; // PDF u otros: sin cambios
 
-    const maxDim = opts.maxDim ?? 2000;
-    const maxBytes = opts.maxBytes ?? 5 * 1024 * 1024;
+    const maxDim = opts.maxDim ?? 1600;
+    const maxBytes = opts.maxBytes ?? 500 * 1024; // objetivo 500 KB
+    const minDim = opts.minDim ?? 800;            // no bajar de aquí (legibilidad)
 
     try {
         const dataUrl = await readAsDataURL(file);
@@ -48,21 +49,41 @@ export async function compressImage(
         }
 
         const canvas = document.createElement('canvas');
-        canvas.width = width;
-        canvas.height = height;
         const ctx = canvas.getContext('2d');
         if (!ctx) return file;
-        // Fondo blanco para PNG con transparencia (los documentos van sobre blanco)
-        ctx.fillStyle = '#ffffff';
-        ctx.fillRect(0, 0, width, height);
-        ctx.drawImage(img, 0, 0, width, height);
 
-        let quality = 0.8;
-        let blob = await toBlob(canvas, 'image/jpeg', quality);
-        while (blob && blob.size > maxBytes && quality > 0.4) {
-            quality -= 0.15;
-            blob = await toBlob(canvas, 'image/jpeg', quality);
+        const render = (w: number, h: number) => {
+            canvas.width = w;
+            canvas.height = h;
+            // Fondo blanco para PNG con transparencia (los documentos van sobre blanco)
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, w, h);
+            ctx.drawImage(img, 0, 0, w, h);
+        };
+
+        const encodeUnderTarget = async () => {
+            // Baja la calidad hasta el piso buscando quedar bajo el objetivo
+            let quality = 0.8;
+            let b = await toBlob(canvas, 'image/jpeg', quality);
+            while (b && b.size > maxBytes && quality > 0.4) {
+                quality -= 0.1;
+                b = await toBlob(canvas, 'image/jpeg', quality);
+            }
+            return b;
+        };
+
+        render(width, height);
+        let blob = await encodeUnderTarget();
+
+        // Si la calidad sola no alcanzó, reduce dimensiones progresivamente
+        let curW = width, curH = height;
+        while (blob && blob.size > maxBytes && Math.max(curW, curH) > minDim) {
+            curW = Math.max(minDim, Math.round(curW * 0.8));
+            curH = Math.max(minDim, Math.round(curH * 0.8));
+            render(curW, curH);
+            blob = await encodeUnderTarget();
         }
+
         // Si por algún motivo la compresión no ayudó, conserva el original
         if (!blob || blob.size >= file.size) return file;
 

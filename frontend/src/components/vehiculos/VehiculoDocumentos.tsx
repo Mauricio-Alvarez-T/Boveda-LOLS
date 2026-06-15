@@ -55,8 +55,8 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         if (!file) { toast.error('Selecciona un archivo (PDF o imagen)'); return; }
         setUploading(true);
         try {
-            // Las imágenes se comprimen en el navegador (objetivo ≤ 5 MB); los PDF van tal cual.
-            const archivo = await compressImage(file, { maxBytes: 5 * 1024 * 1024 });
+            // Las imágenes se comprimen en el navegador (objetivo ≤ 500 KB); los PDF van tal cual.
+            const archivo = await compressImage(file, { maxBytes: 500 * 1024 });
             if (archivo.size > 10 * 1024 * 1024) {
                 toast.error('El archivo supera los 10 MB incluso comprimido. Sube un PDF más liviano.');
                 setUploading(false);
@@ -147,7 +147,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                     <input ref={fileInputRef} type="file" accept=".pdf,image/*"
                         onChange={e => setFile(e.target.files?.[0] || null)}
                         className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20" />
-                    <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 5 MB).</p>
+                    <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB).</p>
                 </div>
             )}
 
