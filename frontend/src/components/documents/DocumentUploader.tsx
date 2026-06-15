@@ -13,6 +13,7 @@ import api from '../../services/api';
 import type { TipoDocumento } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
+import { compressImage } from '../../utils/compressImage';
 
 const uploadSchema = z.object({
     tipo_documento_id: z.coerce.number().min(1, 'Selecciona un tipo de documento'),
@@ -82,8 +83,11 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
         }
 
         setLoading(true);
+        // Las imágenes se comprimen en el navegador (objetivo ≤ 500 KB) para ahorrar
+        // espacio; PDF/TXT van tal cual. Mismo criterio que el módulo Vehículos.
+        const archivo = await compressImage(file, { maxBytes: 500 * 1024 });
         const formData = new FormData();
-        formData.append('archivo', file);
+        formData.append('archivo', archivo);
         formData.append('tipo_documento_id', data.tipo_documento_id.toString());
         if (data.fecha_vencimiento) formData.append('fecha_vencimiento', data.fecha_vencimiento);
 
@@ -161,7 +165,7 @@ export const DocumentUploader: React.FC<DocumentUploaderProps> = ({ trabajadorId
                                 </div>
                                 <div>
                                     <p className="text-base font-medium text-brand-dark">Haz clic o arrastra un archivo</p>
-                                    <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB)</p>
+                                    <p className="text-sm text-muted-foreground text-center">PDF, PNG, JPG, TXT (Máx. 10MB) · las imágenes se comprimen a ≤ 500 KB</p>
                                 </div>
                                 <p className="text-xs text-muted-foreground font-bold bg-muted px-3 py-1 rounded-full inline-block">
                                     Auto-conversión a PDF activa
