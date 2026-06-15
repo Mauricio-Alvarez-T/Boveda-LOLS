@@ -82,9 +82,15 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         setViewingId(doc.id);
         try {
             const res = await api.get(`/vehiculos/${vehiculoId}/documentos/${doc.id}/download`, { responseType: 'blob' });
-            // Preservar el MIME real (image/jpeg, application/pdf...) para que el navegador
-            // renderice el archivo en vez de mostrar los bytes crudos como texto.
-            const mime = res.headers['content-type'] || 'application/octet-stream';
+            // Derivar el MIME de la extensión del archivo (más confiable que el header
+            // del backend, que tras el proxy de cPanel puede llegar como octet-stream).
+            // Sin un type correcto, el navegador abre el JPEG/PDF como texto crudo.
+            const ext = (doc.nombre_archivo.split('.').pop() || '').toLowerCase();
+            const mimeByExt: Record<string, string> = {
+                jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+                webp: 'image/webp', gif: 'image/gif', pdf: 'application/pdf',
+            };
+            const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
             const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
             window.open(url, '_blank');
             setTimeout(() => window.URL.revokeObjectURL(url), 60000);
