@@ -171,12 +171,14 @@ Principios y reglas concretas:
      superficies grandes diluye la jerarquía — Fluent 2.)
    - **Verde `#029E4D` = SOLO acción** (botón primario, anillo de foco, nav activo, selección, delta ↑).
      Nunca como **fondo** de superficies grandes (cards/heros/paneles).
-   - **EXCEPCIÓN (decisión usuario 2026-06-15): encabezados de subsección en verde.** El **TEXTO** de
-     los encabezados de columna de tabla (`<thead>`/`<th>`) y de los títulos de subsección
-     (h2/h3/h4/span que titula una card/sección/grupo) va en **`text-brand-primary`** en toda la app.
-     Aplica solo al **texto** — los **fondos** siguen neutros (`bg-muted` no se tiñe). NO aplica al
-     título PRINCIPAL de página (PageHeader/h1) ni a nombres de **entidad** (nombre de obra/ítem/
-     trabajador = dato, va neutro). Es la única excepción al "verde solo para acción".
+   - **EXCEPCIÓN (decisión usuario 2026-06-15): encabezados con FONDO verde.** Los encabezados de
+     columna de tabla (`<thead>`/`<th>`) y las **barras de sección que ya tienen contenedor** (cabeceras
+     de card, botones colapsables, barras de grupo) llevan **`bg-brand-primary` + texto `text-white`**
+     (mismo patrón que el tab activo). NO aplica a: título PRINCIPAL de página (PageHeader/h1), nombres
+     de **entidad** (obra/ítem/trabajador = dato neutro), ni **títulos de subsección sueltos** (sin
+     contenedor: h2/h3/h4/span dentro de la card sin barra propia) → esos quedan en su color neutro
+     (`text-brand-dark`/`text-muted-foreground`). Es la única excepción al "verde solo para acción".
+     (Nota contraste: white/#029E4D ≈ 3.5:1, aceptado por consistencia con tabs/toasts del sistema.)
    - **Color = significado:** verde = éxito/constructivo · rojo (`destructive`) = **destructivo/error** ·
      ámbar (`warning`) = precaución / **pendiente / por hacer / por vencer / "sin registro"** · azul
      (`info`) = en progreso. **El contenido va neutro** (nombres/títulos/datos).

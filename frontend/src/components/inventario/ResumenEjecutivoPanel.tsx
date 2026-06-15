@@ -515,7 +515,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             {/* Header */}
             <div className="flex items-center justify-between shrink-0 gap-3">
                 <div className="min-w-0">
-                    <h2 className="text-lg md:text-xl font-black text-brand-primary">Resumen Ejecutivo</h2>
+                    <h2 className="text-lg md:text-xl font-black text-brand-dark">Resumen Ejecutivo</h2>
                     <p className="text-xs text-muted-foreground mt-0.5">
                         Todo lo importante del inventario en un vistazo.
                     </p>
@@ -671,7 +671,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             {!obraFilter && verValoresResumen && (
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                 <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-black text-brand-primary uppercase tracking-wider">
+                    <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                         Obras por valor (arriendo mensual)
                     </h3>
                 </div>
@@ -706,7 +706,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             {verValoresResumen && (loading || ((data?.valor_por_categoria?.reduce((s, c) => s + c.valor, 0) ?? 0) > 0)) && (
                 <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-baseline justify-between mb-4">
-                        <h3 className="text-sm font-black text-brand-primary uppercase tracking-wider">
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                             Valor por categoría
                         </h3>
                         {data && (
@@ -780,7 +780,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                     <div className="flex items-center gap-2 mb-3">
                         <Droplets className="h-4 w-4 text-cyan-600" />
-                        <h3 className="text-sm font-black text-brand-primary uppercase tracking-wider">
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                             Bombas de hormigón
                         </h3>
                         <span className="ml-auto text-label text-muted-foreground font-semibold capitalize">
@@ -823,7 +823,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
 
             {/* Requiere tu atención */}
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
-                <h3 className="text-sm font-black text-brand-primary uppercase tracking-wider mb-3">
+                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Requiere tu atención
                 </h3>
                 {loading && !data ? (

@@ -53,11 +53,11 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                 const selectedInGroup = ws.filter(w => selected.has(w.id)).length;
                 return (
                     <div key={cargo} className="border border-border rounded-xl overflow-hidden">
-                        <div className="bg-muted px-3 py-2 flex items-center justify-between">
-                            <span className="text-label font-black uppercase tracking-wider text-brand-primary">
+                        <div className="bg-brand-primary px-3 py-2 flex items-center justify-between">
+                            <span className="text-label font-black uppercase tracking-wider text-white">
                                 {cargo}
                             </span>
-                            <span className="text-caption font-semibold text-muted-foreground">
+                            <span className="text-caption font-semibold text-white">
                                 {selectedInGroup} / {ws.length}
                             </span>
                         </div>

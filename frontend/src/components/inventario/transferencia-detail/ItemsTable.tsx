@@ -17,19 +17,19 @@ export const ItemsTable: React.FC<{
     if (items.length === 0) return null;
     return (
         <div className="shrink-0 mb-5">
-            <h4 className="text-xs font-bold text-brand-primary mb-2 flex items-center gap-1.5">
+            <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
                 <Package className="h-3.5 w-3.5" />
                 Items ({items.length})
             </h4>
             <div className="border border-border rounded-xl overflow-hidden">
                 <table className="w-full text-label">
                     <thead>
-                        <tr className="bg-muted">
-                            <th className="text-left px-3 py-2 font-bold text-brand-primary">Item</th>
-                            <th className="text-center px-2 py-2 font-bold text-brand-primary w-16">Solicit.</th>
-                            <th className="text-center px-2 py-2 font-bold text-brand-primary w-16">Enviada</th>
-                            <th className="text-center px-2 py-2 font-bold text-brand-primary w-16">Recibida</th>
-                            <th className="text-center px-2 py-2 font-bold text-brand-primary w-24">Progreso</th>
+                        <tr className="bg-brand-primary">
+                            <th className="text-left px-3 py-2 font-bold text-white">Item</th>
+                            <th className="text-center px-2 py-2 font-bold text-white w-16">Solicit.</th>
+                            <th className="text-center px-2 py-2 font-bold text-white w-16">Enviada</th>
+                            <th className="text-center px-2 py-2 font-bold text-white w-16">Recibida</th>
+                            <th className="text-center px-2 py-2 font-bold text-white w-24">Progreso</th>
                         </tr>
                     </thead>
                     <tbody>

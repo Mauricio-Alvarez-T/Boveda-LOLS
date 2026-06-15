@@ -104,7 +104,7 @@ export const HorariosConfigPanel: React.FC = () => {
         <div className="bg-card rounded-2xl border border-border overflow-hidden">
             <div className="p-4 md:p-6 border-b border-border flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div>
-                    <h2 className="text-lg font-bold text-brand-primary flex items-center gap-2">
+                    <h2 className="text-lg font-bold text-brand-dark flex items-center gap-2">
                         <Clock className="h-5 w-5 text-brand-primary" />
                         Horarios por Defecto
                     </h2>
@@ -125,7 +125,7 @@ export const HorariosConfigPanel: React.FC = () => {
             <div className="p-3 md:p-6 bg-background/30">
                 {/* ─── DESKTOP VIEW ─── */}
                 <div className="hidden md:block">
-                    <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-background rounded-xl text-xs font-bold text-brand-primary uppercase tracking-wider">
+                    <div className="grid grid-cols-[120px_1fr_1fr_1fr_1fr] gap-4 mb-4 px-4 py-2 bg-brand-primary rounded-xl text-xs font-bold text-white uppercase tracking-wider">
                         <div>Día</div>
                         <div>Entrada</div>
                         <div>Salida</div>

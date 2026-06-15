@@ -235,7 +235,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             {/* Lista trabajadores */}
             <div>
                 <div className="flex items-baseline justify-between mb-2">
-                    <h3 className="text-sm font-black text-brand-primary uppercase tracking-wider">
+                    <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                         Trabajadores ({selected.size} seleccionados)
                     </h3>
                 </div>
@@ -247,7 +247,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                 />
                 {externalWorkers.length > 0 && (
                     <div className="mt-3 p-3 bg-muted/50 border border-border rounded-xl">
-                        <p className="text-caption font-bold uppercase text-brand-primary mb-2">Externos agregados</p>
+                        <p className="text-caption font-bold uppercase text-muted-foreground mb-2">Externos agregados</p>
                         <div className="flex flex-wrap gap-1.5">
                             {externalWorkers.map(w => (
                                 <span key={w.id} className="inline-flex items-center gap-1 px-2 py-1 bg-card border border-border rounded-lg text-label font-semibold">
@@ -275,7 +275,7 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
             {/* Observaciones por cargo (si hay seleccionados) */}
             {cargosConSeleccion.length > 0 && (
                 <div>
-                    <h3 className="text-sm font-black text-brand-primary uppercase tracking-wider mb-2">
+                    <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-2">
                         Trabajos a realizar (por cargo)
                     </h3>
                     <p className="text-label text-muted-foreground mb-3">

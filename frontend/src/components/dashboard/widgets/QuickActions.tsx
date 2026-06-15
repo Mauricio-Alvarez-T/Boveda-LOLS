@@ -41,7 +41,7 @@ const QuickActions: React.FC<Props> = ({ permisos, onNavigate }) => {
 
     return (
         <div>
-            <h3 className="text-sm font-semibold text-brand-primary mb-4">Acciones Rápidas</h3>
+            <h3 className="text-sm font-semibold text-foreground mb-4">Acciones Rápidas</h3>
             <div className="space-y-2">
                 {availableActions.map(action => (
                     <Button

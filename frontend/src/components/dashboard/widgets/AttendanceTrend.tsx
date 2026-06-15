@@ -17,7 +17,7 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
             <div className="h-full flex flex-col">
                 <div className="flex items-center justify-between mb-4">
                     <div>
-                        <h3 className="text-sm font-semibold text-brand-primary">Tendencia de Asistencia</h3>
+                        <h3 className="text-sm font-semibold text-foreground">Tendencia de Asistencia</h3>
                         <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
                     </div>
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
@@ -42,7 +42,7 @@ const AttendanceTrend: React.FC<Props> = ({ data, onNavigate }) => {
         <div>
             <div className="flex items-center justify-between mb-4">
                 <div>
-                    <h3 className="text-sm font-semibold text-brand-primary">Tendencia de Asistencia</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Tendencia de Asistencia</h3>
                     <p className="text-xs text-muted-foreground">Últimos 7 días activos.</p>
                 </div>
                 <Activity className="h-5 w-5 text-muted-foreground" />

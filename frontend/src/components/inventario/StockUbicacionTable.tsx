@@ -429,16 +429,16 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                 <table className="w-full text-label border-collapse">
                     <thead className="sticky top-0 z-20">
                         <tr>
-                            <th className="bg-muted px-2 py-2 text-left font-bold text-brand-primary border-b border-r border-border w-8">#</th>
-                            <th className="bg-muted px-2 py-2 text-left font-bold text-brand-primary border-b border-r border-border min-w-[200px]">Descripción</th>
-                            <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-r border-border w-14">M2</th>
+                            <th className="bg-brand-primary px-2 py-2 text-left font-bold text-white border-b border-r border-border w-8">#</th>
+                            <th className="bg-brand-primary px-2 py-2 text-left font-bold text-white border-b border-r border-border min-w-[200px]">Descripción</th>
+                            <th className="bg-brand-primary px-2 py-2 text-right font-bold text-white border-b border-r border-border w-14">M2</th>
                             {verCostos && (
-                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-r border-border w-24">V. Arriendo</th>
+                                <th className="bg-brand-primary px-2 py-2 text-right font-bold text-white border-b border-r border-border w-24">V. Arriendo</th>
                             )}
-                            <th className="bg-muted px-2 py-2 text-center font-bold text-brand-primary border-b border-r border-border w-10">UN</th>
-                            <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-r border-border w-16">Cantidad</th>
+                            <th className="bg-brand-primary px-2 py-2 text-center font-bold text-white border-b border-r border-border w-10">UN</th>
+                            <th className="bg-brand-primary px-2 py-2 text-right font-bold text-white border-b border-r border-border w-16">Cantidad</th>
                             {verCostos && (
-                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-border w-24">Total</th>
+                                <th className="bg-brand-primary px-2 py-2 text-right font-bold text-white border-b border-border w-24">Total</th>
                             )}
                         </tr>
                     </thead>

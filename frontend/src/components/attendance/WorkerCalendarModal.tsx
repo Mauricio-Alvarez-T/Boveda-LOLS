@@ -222,7 +222,7 @@ export const WorkerCalendarModal: React.FC<Props> = ({
                     <div className="border-t border-border mt-4 pt-5 md:border-t-0 md:border-l md:border-border md:mt-0 md:pt-0 md:pl-6 md:w-[360px] md:shrink-0">
                         <div className="flex items-center gap-2 mb-4">
                             <CalendarRange className="h-4 w-4 text-brand-primary" />
-                            <span className="text-xs font-black text-brand-primary uppercase tracking-widest">
+                            <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">
                                 Asignar Período
                             </span>
                         </div>

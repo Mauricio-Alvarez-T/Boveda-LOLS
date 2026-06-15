@@ -145,7 +145,7 @@ export const RecibirForm: React.FC<{
         <div className="shrink-0 border border-brand-primary/30 bg-brand-primary/5 rounded-xl mb-4 overflow-hidden">
             {/* Header */}
             <div className="px-4 py-3 border-b border-brand-primary/20 bg-card/60">
-                <h4 className="text-sm font-bold text-brand-primary flex items-center gap-1.5">
+                <h4 className="text-sm font-bold text-brand-dark flex items-center gap-1.5">
                     <PackageCheck className="h-4 w-4 text-brand-primary" /> Recepción de cargamento
                 </h4>
                 <p className="text-label text-muted-foreground mt-0.5">
@@ -175,27 +175,27 @@ export const RecibirForm: React.FC<{
             <div className="overflow-x-auto">
                 <table className="w-full text-xs">
                     <thead>
-                        <tr className="bg-muted/40 border-b border-border">
-                            <th className="text-left px-3 py-2 font-bold text-brand-primary">Ítem</th>
-                            <th className="text-center px-2 py-2 font-bold text-brand-primary w-20">Enviada</th>
-                            <th className="text-center px-2 py-2 font-bold text-brand-primary w-20">Falta</th>
-                            <th className="text-left px-3 py-2 font-bold text-brand-primary w-44">
+                        <tr className="bg-brand-primary border-b border-border">
+                            <th className="text-left px-3 py-2 font-bold text-white">Ítem</th>
+                            <th className="text-center px-2 py-2 font-bold text-white w-20">Enviada</th>
+                            <th className="text-center px-2 py-2 font-bold text-white w-20">Falta</th>
+                            <th className="text-left px-3 py-2 font-bold text-white w-44">
                                 <div className="flex items-center justify-between gap-2">
                                     <span>Llegó este viaje</span>
                                     <span className="flex gap-1.5">
                                         <button
                                             type="button"
                                             onClick={() => setAll('pendiente')}
-                                            className="text-micro font-bold text-green-700 dark:text-green-300 hover:underline"
+                                            className="text-micro font-bold text-white hover:underline"
                                             title="Rellenar todo al pendiente"
                                         >
                                             todo
                                         </button>
-                                        <span className="text-muted-foreground">·</span>
+                                        <span className="text-white/60">·</span>
                                         <button
                                             type="button"
                                             onClick={() => setAll('cero')}
-                                            className="text-micro font-bold text-muted-foreground hover:underline"
+                                            className="text-micro font-bold text-white hover:underline"
                                             title="Vaciar todos los inputs"
                                         >
                                             nada

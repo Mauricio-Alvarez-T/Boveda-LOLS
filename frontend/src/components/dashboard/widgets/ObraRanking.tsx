@@ -43,7 +43,7 @@ const ObraRanking: React.FC<Props> = ({ data, onNavigate }) => {
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                         <ClipboardCheck className="h-5 w-5 text-muted-foreground" />
                     </span>
-                    <h3 className="text-sm font-semibold text-brand-primary">Asistencia por Obra</h3>
+                    <h3 className="text-sm font-semibold text-foreground">Asistencia por Obra</h3>
                 </div>
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Hoy</span>
             </div>

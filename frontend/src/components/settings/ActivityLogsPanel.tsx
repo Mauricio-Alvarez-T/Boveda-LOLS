@@ -92,7 +92,7 @@ const CompactDiffViewer: React.FC<{ cambios: Record<string, { de: any, a: any }>
                         <History className="h-5 w-5 text-brand-primary" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-brand-primary uppercase tracking-tight">Detalle de Cambios</h4>
+                        <h4 className="text-sm font-bold text-brand-dark uppercase tracking-tight">Detalle de Cambios</h4>
                         <p className="text-xs text-muted-foreground font-medium">Comparativa de valores modificados</p>
                     </div>
                 </div>
@@ -184,7 +184,7 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                         <History className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-brand-primary uppercase tracking-tight">Datos del Registro</h4>
+                        <h4 className="text-sm font-bold text-brand-dark uppercase tracking-tight">Datos del Registro</h4>
                         <p className="text-xs text-muted-foreground font-medium">Información completa almacenada</p>
                     </div>
                 </div>
@@ -281,8 +281,8 @@ const BulkAsistenciaViewer: React.FC<{ data: BulkAsistenciaPayload; responsable?
             </div>
 
             <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                <div className="px-4 py-2.5 bg-background border-b border-border">
-                    <span className="text-label font-black text-brand-primary uppercase tracking-widest opacity-80">Trabajadores</span>
+                <div className="px-4 py-2.5 bg-brand-primary border-b border-border">
+                    <span className="text-label font-black text-white uppercase tracking-widest opacity-80">Trabajadores</span>
                 </div>
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
                     {data.trabajadores.map((t, i) => {

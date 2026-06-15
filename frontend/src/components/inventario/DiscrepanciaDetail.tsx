@@ -152,7 +152,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
 
                 {/* Ítems con discrepancia */}
                 <div className="space-y-2">
-                    <h4 className="text-caption font-black uppercase tracking-wider text-brand-primary px-1">
+                    <h4 className="text-caption font-black uppercase tracking-wider text-muted-foreground px-1">
                         Ítems con diferencia ({discrepancia.discrepancias.length})
                     </h4>
                     {discrepancia.discrepancias.map(item => {

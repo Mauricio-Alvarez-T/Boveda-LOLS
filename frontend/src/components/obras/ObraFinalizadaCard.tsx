@@ -93,7 +93,7 @@ export const ObraFinalizadaCard: React.FC<Props> = ({ obra, index, canReactivar,
 
                 {/* Por cargo — barras */}
                 <div className="flex-1">
-                    <p className="flex items-center gap-1 text-micro font-black uppercase tracking-widest text-brand-primary mb-1.5">
+                    <p className="flex items-center gap-1 text-micro font-black uppercase tracking-widest text-brand-dark/50 mb-1.5">
                         <HardHat className="h-3 w-3" /> Por cargo
                     </p>
                     {cargosVisibles.length === 0 ? (

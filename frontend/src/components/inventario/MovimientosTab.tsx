@@ -131,8 +131,8 @@ const MovimientosTab: React.FC<Props> = ({ obraIdInicial = null, bodegaIdInicial
                     </div>
                 ) : (
                     <table className="w-full text-sm">
-                        <thead className="sticky top-0 bg-muted border-b border-border z-10">
-                            <tr className="text-caption font-bold text-brand-primary uppercase tracking-wide">
+                        <thead className="sticky top-0 bg-brand-primary border-b border-border z-10">
+                            <tr className="text-caption font-bold text-white uppercase tracking-wide">
                                 <th className="text-left px-3 py-2.5">Fecha</th>
                                 <th className="text-left px-3 py-2.5">Tipo</th>
                                 <th className="text-left px-3 py-2.5">Ítem</th>

@@ -98,8 +98,8 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
 
             {/* ═══ Filtros ═══ */}
             <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                <header className="px-4 py-3 border-b border-border bg-muted">
-                    <p className="text-caption font-black uppercase tracking-wider text-brand-primary">Filtros</p>
+                <header className="px-4 py-3 border-b border-border bg-brand-primary">
+                    <p className="text-caption font-black uppercase tracking-wider text-white">Filtros</p>
                 </header>
                 <div className="p-4 space-y-3">
                     <label className="block">
@@ -122,8 +122,8 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
 
             {/* ═══ Acciones del día ═══ */}
             <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                <header className="px-4 py-3 border-b border-border bg-muted">
-                    <p className="text-caption font-black uppercase tracking-wider text-brand-primary">Acciones del día</p>
+                <header className="px-4 py-3 border-b border-border bg-brand-primary">
+                    <p className="text-caption font-black uppercase tracking-wider text-white">Acciones del día</p>
                 </header>
 
                 <div className="divide-y divide-border">
@@ -170,8 +170,8 @@ const AttendanceExtrasMobileTab: React.FC<Props> = ({ onBack }) => {
 
             {/* ═══ Reporte mensual ═══ */}
             <section className="bg-card rounded-2xl border border-border shadow-sm overflow-hidden">
-                <header className="px-4 py-3 border-b border-border bg-muted">
-                    <p className="text-caption font-black uppercase tracking-wider text-brand-primary">Reporte mensual</p>
+                <header className="px-4 py-3 border-b border-border bg-brand-primary">
+                    <p className="text-caption font-black uppercase tracking-wider text-white">Reporte mensual</p>
                 </header>
                 <div className="p-4 space-y-3">
                     <div className="grid grid-cols-2 gap-3">

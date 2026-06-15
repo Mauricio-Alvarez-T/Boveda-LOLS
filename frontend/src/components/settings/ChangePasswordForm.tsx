@@ -41,7 +41,7 @@ const ChangePasswordForm: React.FC = () => {
     return (
         <div className="max-w-xl space-y-6">
             <div>
-                <h3 className="text-base font-semibold text-brand-primary">Cambiar Mi Contraseña</h3>
+                <h3 className="text-base font-semibold text-brand-dark">Cambiar Mi Contraseña</h3>
                 <p className="text-sm text-muted-foreground mt-1">
                     Actualiza tu contraseña de acceso al sistema. Por seguridad de la empresa, te recomendamos no compartirla con nadie.
                 </p>

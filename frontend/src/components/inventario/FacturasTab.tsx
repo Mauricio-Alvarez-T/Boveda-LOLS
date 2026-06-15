@@ -271,7 +271,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
         <div className="space-y-4">
             {/* Header + Create button */}
             <div className="flex items-center justify-between">
-                <h3 className="text-sm font-bold text-brand-primary">Facturas de Inventario</h3>
+                <h3 className="text-sm font-bold text-brand-dark">Facturas de Inventario</h3>
                 {canCreate && (
                     <button
                         onClick={() => setShowModal(true)}

@@ -62,13 +62,13 @@ export const ActivityLog: React.FC<{ t: Transferencia }> = ({ t }) => {
             <button
                 type="button"
                 onClick={() => setOpen(o => !o)}
-                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/60 hover:bg-muted border border-border rounded-xl transition-all"
+                className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-brand-primary hover:bg-brand-primary/90 border border-border rounded-xl transition-all"
             >
-                <h4 className="text-xs font-bold text-brand-primary flex items-center gap-1.5">
+                <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                     <Activity className="h-3.5 w-3.5" />
                     Actividad ({events.length})
                 </h4>
-                {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                {open ? <ChevronUp className="h-4 w-4 text-white" /> : <ChevronDown className="h-4 w-4 text-white" />}
             </button>
             {open && (
                 <ol className="mt-2">

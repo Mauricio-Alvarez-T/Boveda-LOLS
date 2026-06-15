@@ -288,13 +288,13 @@ const TransferenciaDetail: React.FC<Props> = ({
                     <button
                         type="button"
                         onClick={() => setHistorialOpen(o => !o)}
-                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/60 hover:bg-muted border border-border rounded-xl transition-all"
+                        className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-brand-primary hover:bg-brand-primary/90 border border-border rounded-xl transition-all"
                     >
-                        <h4 className="text-xs font-bold text-brand-primary flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-white flex items-center gap-1.5">
                             <History className="h-3.5 w-3.5" />
                             Historial de recepciones ({recepciones.length})
                         </h4>
-                        {historialOpen ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+                        {historialOpen ? <ChevronUp className="h-4 w-4 text-white" /> : <ChevronDown className="h-4 w-4 text-white" />}
                     </button>
                     {historialOpen && (
                         <div className="mt-2 space-y-2">
@@ -343,17 +343,17 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
                 <div className="shrink-0 mb-5">
-                    <h4 className="text-xs font-bold text-brand-primary mb-2 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
                         <ShoppingBag className="h-3.5 w-3.5" />
                         Items personalizados ({itemsCustom.length})
                     </h4>
                     <div className="border border-border rounded-xl overflow-hidden bg-muted/30">
                         <table className="w-full text-label">
                             <thead>
-                                <tr className="bg-muted">
-                                    <th className="text-left px-3 py-2 font-bold text-brand-primary">Descripción</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-primary w-20">Cantidad</th>
-                                    <th className="text-left px-2 py-2 font-bold text-brand-primary w-24">Unidad</th>
+                                <tr className="bg-brand-primary">
+                                    <th className="text-left px-3 py-2 font-bold text-white">Descripción</th>
+                                    <th className="text-center px-2 py-2 font-bold text-white w-20">Cantidad</th>
+                                    <th className="text-left px-2 py-2 font-bold text-white w-24">Unidad</th>
                                 </tr>
                             </thead>
                             <tbody>

@@ -175,7 +175,7 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
     return (
         <section aria-labelledby={`sec-${sec.seccion}`}>
             <header className="sticky top-0 z-10 bg-card/95 backdrop-blur border-b border-border px-4 py-3 flex items-center justify-between">
-                <h2 id={`sec-${sec.seccion}`} className="text-base font-bold text-brand-primary flex items-center gap-2">
+                <h2 id={`sec-${sec.seccion}`} className="text-base font-bold text-gray-900 dark:text-foreground flex items-center gap-2">
                     <span aria-hidden>{sec.icon}</span>
                     {sec.label}
                 </h2>
@@ -187,7 +187,7 @@ const SectionBlock: React.FC<SectionBlockProps> = ({
                 {sec.subsecciones.map(sub => (
                     <div key={sub.nombre} className="border-b border-gray-200 dark:border-border last:border-b-0">
                         <div className="px-4 py-2 bg-gray-50/70 dark:bg-white/5 flex items-center justify-between gap-3 border-y border-gray-200 dark:border-border">
-                            <h3 className="text-xs font-bold text-brand-primary uppercase tracking-wider">
+                            <h3 className="text-xs font-bold text-gray-600 dark:text-muted-foreground uppercase tracking-wider">
                                 {sub.nombre}
                                 <span className="ml-2 text-caption font-mono text-gray-400 dark:text-muted-foreground/60">
                                     {sub.activeCount}/{sub.perms.length}
