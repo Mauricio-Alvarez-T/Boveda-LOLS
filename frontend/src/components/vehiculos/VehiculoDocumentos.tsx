@@ -82,7 +82,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         setViewingId(doc.id);
         try {
             const res = await api.get(`/vehiculos/${vehiculoId}/documentos/${doc.id}/download`, { responseType: 'blob' });
-            const url = window.URL.createObjectURL(new Blob([res.data]));
+            // Preservar el MIME real (image/jpeg, application/pdf...) para que el navegador
+            // renderice el archivo en vez de mostrar los bytes crudos como texto.
+            const mime = res.headers['content-type'] || 'application/octet-stream';
+            const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
             window.open(url, '_blank');
             setTimeout(() => window.URL.revokeObjectURL(url), 60000);
         } catch {
