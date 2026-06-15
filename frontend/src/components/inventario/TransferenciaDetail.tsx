@@ -26,6 +26,7 @@ import { RechazarForm } from './transferencia-detail/RechazarForm';
 import { RecibirForm } from './transferencia-detail/RecibirForm';
 import { AprobarForm } from './transferencia-detail/AprobarForm';
 import { ActivityLog } from './transferencia-detail/ActivityLog';
+import { resolveImageUrl } from '../../utils/resolveImageUrl';
 
 // ════════════════════════════════════════════════════════════════════
 // Los paneles interactivos del flujo "Solicitud de Materiales" (aprobación y
@@ -69,12 +70,14 @@ interface Props {
         items: { item_id: number; cantidad_recibida: number; observacion?: string }[],
         tipo?: 'parcial' | 'total',
         observacion?: string
-    ) => Promise<boolean>;
+    ) => Promise<number | null>;
     /** Fetcher del historial de eventos de recepción. Inyectado por el panel padre. */
     onFetchRecepciones?: (id: number) => Promise<TransferenciaRecepcion[]>;
     onRechazar: (motivo: string) => Promise<boolean>;
     onRechazarRecepcion?: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
+    /** Sube una foto OPCIONAL a una recepción ya creada (best-effort, no bloquea el flujo). */
+    onUploadFotoRecepcion?: (transferenciaId: number, recepcionId: number, file: File) => Promise<boolean>;
 }
 
 // ── Timeline: 3 steps (no "Despachada") ──
@@ -88,7 +91,7 @@ const fmtDateTime = fmtFechaHora;
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar,
+    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar, onUploadFotoRecepcion,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     // Items personalizados (fuera de catálogo). Schema mínimo, no comparte interfaz
@@ -310,6 +313,11 @@ const TransferenciaDetail: React.FC<Props> = ({
                                             por <strong className="text-brand-dark">{rec.receptor_nombre || `Usuario #${rec.receptor_id}`}</strong>
                                         </span>
                                     </div>
+                                    {rec.foto_url && (
+                                        <a href={resolveImageUrl(rec.foto_url) || '#'} target="_blank" rel="noreferrer" className="inline-block mb-1.5">
+                                            <img src={resolveImageUrl(rec.foto_url) || ''} alt="Foto de la recepción" className="h-14 w-14 rounded-lg object-cover border border-border" />
+                                        </a>
+                                    )}
                                     <ul className="space-y-0.5 ml-2">
                                         {rec.items.map(ri => (
                                             <li key={ri.id} className="text-label flex justify-between">
@@ -552,6 +560,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     setConfirmMermaOpen={setConfirmMermaOpen}
                     pendientePorItem={pendientePorItem}
                     onRecibir={onRecibir}
+                    onUploadFoto={onUploadFotoRecepcion ? (recepcionId, file) => onUploadFotoRecepcion(t.id, recepcionId, file) : undefined}
                     loading={actionLoading}
                     viajesPrevios={recepciones.length}
                     onClose={() => setActiveForm(null)}

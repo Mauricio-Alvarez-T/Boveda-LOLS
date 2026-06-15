@@ -442,6 +442,8 @@ export interface TransferenciaRecepcion {
     fecha_recepcion: string;
     tipo: 'parcial' | 'total';
     observacion: string | null;
+    /** Foto opcional adjunta a la recepción (URL servida por /api/uploads/transferencias). */
+    foto_url?: string | null;
     items: TransferenciaRecepcionItem[];
 }
 

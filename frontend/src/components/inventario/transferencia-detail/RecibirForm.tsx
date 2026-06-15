@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { PackageCheck, PackageOpen, Minus, Plus, Info, AlertTriangle } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { Modal } from '../../ui/Modal';
 import type { TransferenciaItem } from '../../../types/entities';
 import { ProgressBar } from '../../ui/ProgressBar';
+import { ImagePicker } from '../../ui/ImagePicker';
 
 interface ReceiveItem { item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string; }
 
@@ -22,13 +23,17 @@ export const RecibirForm: React.FC<{
     confirmMermaOpen: boolean;
     setConfirmMermaOpen: React.Dispatch<React.SetStateAction<boolean>>;
     pendientePorItem: (item: TransferenciaItem) => number;
-    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[], tipo?: 'parcial' | 'total', observacion?: string) => Promise<boolean>;
+    onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[], tipo?: 'parcial' | 'total', observacion?: string) => Promise<number | null>;
+    /** Sube una foto OPCIONAL tras registrar la recepción (best-effort, no bloquea). */
+    onUploadFoto?: (recepcionId: number, file: File) => Promise<boolean>;
     loading: boolean;
     /** Nº de entregas ya registradas (para el badge "Viaje N" y el avance global). */
     viajesPrevios?: number;
     onClose: () => void;
     onOpenItem: (itemId: number) => void;
-}> = ({ items, receiveItems, setReceiveItems, cierreFinal, setCierreFinal, confirmMermaOpen, setConfirmMermaOpen, pendientePorItem, onRecibir, loading, viajesPrevios = 0, onClose, onOpenItem }) => {
+}> = ({ items, receiveItems, setReceiveItems, cierreFinal, setCierreFinal, confirmMermaOpen, setConfirmMermaOpen, pendientePorItem, onRecibir, onUploadFoto, loading, viajesPrevios = 0, onClose, onOpenItem }) => {
+    const [fotoFile, setFotoFile] = useState<File | null>(null);
+
     // Cálculos derivados para la UI:
     // - totalRecibidoEsteViaje = suma de inputs (info en footer)
     // - totalFaltaGlobal = suma de pendientes (lo que el camión debería traer)
@@ -75,14 +80,17 @@ export const RecibirForm: React.FC<{
     const haySobrante = sobrantesAlCerrar.length > 0;
 
     const handleCerrarTotal = async () => {
-        const ok = await onRecibir(
+        const recepcionId = await onRecibir(
             receiveItems.map(ri => ({
                 item_id: ri.item_id,
                 cantidad_recibida: ri.cantidad_recibida,
             })),
             'total'
         );
-        if (ok) onClose();
+        if (recepcionId) {
+            if (fotoFile && onUploadFoto) await onUploadFoto(recepcionId, fotoFile);
+            onClose();
+        }
     };
 
     const handleClickCerrar = () => {
@@ -96,14 +104,17 @@ export const RecibirForm: React.FC<{
     };
 
     const handleParcial = async () => {
-        const ok = await onRecibir(
+        const recepcionId = await onRecibir(
             receiveItems.map(ri => ({
                 item_id: ri.item_id,
                 cantidad_recibida: ri.cantidad_recibida,
             })),
             'parcial'
         );
-        if (ok) onClose();
+        if (recepcionId) {
+            if (fotoFile && onUploadFoto) await onUploadFoto(recepcionId, fotoFile);
+            onClose();
+        }
     };
 
     // Quick-fill: rellena todos al pendiente / vacía todos.
@@ -321,6 +332,11 @@ export const RecibirForm: React.FC<{
                     </span>
                     <span>{items.length} ítem{items.length === 1 ? '' : 's'}</span>
                 </div>
+
+                {/* Foto opcional de la recepción (nunca obligatoria) */}
+                {onUploadFoto && (
+                    <ImagePicker file={fotoFile} onChange={setFotoFile} label="Adjuntar foto (opcional)" disabled={loading} />
+                )}
 
                 {/* Botones de acción */}
                 <div className="flex flex-wrap gap-2">

@@ -343,6 +343,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onAprobar={handleAprobar}
                             onCrearFaltante={trfHook.crearFaltante}
                             onRecibir={handleRecibir}
+                            onUploadFotoRecepcion={trfHook.uploadFotoRecepcion}
                             onFetchRecepciones={trfHook.fetchRecepciones}
                             onRechazar={handleRechazar}
                             onRechazarRecepcion={handleRechazarRecepcion}

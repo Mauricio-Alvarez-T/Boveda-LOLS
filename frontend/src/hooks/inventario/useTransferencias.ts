@@ -309,15 +309,33 @@ export function useTransferencias() {
         observacion?: string
     ) => {
         try {
-            await api.put(`/transferencias/${id}/recibir`, { items, tipo, observacion });
+            const res = await api.put(`/transferencias/${id}/recibir`, { items, tipo, observacion });
             if (tipo === 'parcial') {
                 toast.success('Cargamento registrado. La entrega sigue en curso esperando próximos viajes.', { duration: 5000 });
             } else {
                 toast.success('Transferencia cerrada ✓');
             }
-            return true;
+            // Devuelve el id de la recepción creada (para adjuntar una foto opcional). null = error.
+            return (res.data?.data?.recepcion_id as number) ?? null;
         } catch (err) {
             showApiError(err, 'Error al recibir');
+            return null;
+        }
+    }, []);
+
+    /**
+     * Adjunta una foto OPCIONAL a una recepción ya registrada (POST-then-attach).
+     * Best-effort: si falla, NO rompe el flujo (la recepción ya quedó guardada).
+     */
+    const uploadFotoRecepcion = useCallback(async (transferenciaId: number, recepcionId: number, file: File) => {
+        try {
+            const fd = new FormData();
+            fd.append('foto', file);
+            await api.post(`/transferencias/${transferenciaId}/recepciones/${recepcionId}/foto`, fd);
+            toast.success('Foto adjuntada ✓');
+            return true;
+        } catch (err) {
+            showApiError(err, 'No se pudo adjuntar la foto (la recepción sí se registró)');
             return false;
         }
     }, []);
@@ -415,7 +433,7 @@ export function useTransferencias() {
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
         fetchAll, fetchById, crear, solicitudMateriales, pushDirecto, intraBodega, devolucion,
         intraObra, ordenGerencia,
-        aprobar, crearFaltante, despachar, recibir, fetchRecepciones, rechazar, rechazarRecepcion, cancelar,
+        aprobar, crearFaltante, despachar, recibir, uploadFotoRecepcion, fetchRecepciones, rechazar, rechazarRecepcion, cancelar,
         fetchDiscrepancias, resolverDiscrepancia,
         fetchStockPorItems, setSelected
     };
