@@ -2,7 +2,6 @@ const router = require('express').Router();
 const auth = require('../middleware/auth');
 const { checkPermission } = require('../middleware/rbac');
 const svc = require('../services/vehiculos.service');
-const uploadVehiculos = require('../middleware/upload-vehiculos');
 
 // ── Alertas (antes de /:id para que no sea capturado) ──────────────────
 router.get('/alertas', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
@@ -123,36 +122,6 @@ router.put('/:id/permisos/:permId', auth, checkPermission('vehiculos.editar'), a
 
 router.delete('/:id/permisos/:permId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
     try { res.json({ data: await svc.removePermiso(req.params.id, req.params.permId) }); }
-    catch (err) { next(err); }
-});
-
-// ── Documentos (seguro, póliza, primera inscripción, permiso) ──────────
-router.get('/:id/documentos', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
-    try { res.json({ data: await svc.getDocumentos(req.params.id) }); }
-    catch (err) { next(err); }
-});
-
-router.post('/:id/documentos', auth, checkPermission('vehiculos.crear'), uploadVehiculos.single('archivo'), async (req, res, next) => {
-    try {
-        if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
-        const doc = await svc.createDocumento(req.params.id, {
-            categoria: req.body.categoria,
-            file: req.file,
-            userId: req.user?.id,
-        });
-        res.status(201).json({ data: doc });
-    } catch (err) { next(err); }
-});
-
-router.get('/:id/documentos/:docId/download', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
-    try {
-        const { fullPath, fileName } = await svc.getDocumentoFilePath(req.params.id, req.params.docId);
-        res.download(fullPath, fileName);
-    } catch (err) { next(err); }
-});
-
-router.delete('/:id/documentos/:docId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
-    try { res.json({ data: await svc.removeDocumento(req.params.id, req.params.docId) }); }
     catch (err) { next(err); }
 });
 

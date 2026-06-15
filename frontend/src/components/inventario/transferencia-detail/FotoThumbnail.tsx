@@ -6,8 +6,8 @@ import { resolveImageUrl } from '../../../utils/resolveImageUrl';
  * Miniatura de una foto adjunta (recepción/discrepancia) con botones de Ver y
  * Descargar (Fase 3). Los botones están SIEMPRE visibles (no hover) para que
  * funcionen en móvil. "Ver" abre la imagen en grande en pestaña nueva; "Descargar"
- * baja el archivo (fetch → blob → <a download>, mismo patrón que DocumentList/
- * VehiculoDocumentos). Las fotos son estáticos públicos (/api/uploads/transferencias),
+ * baja el archivo (fetch → blob → <a download>, mismo patrón que DocumentList).
+ * Las fotos son estáticos públicos (/api/uploads/transferencias),
  * así que el fetch no necesita auth.
  */
 export const FotoThumbnail: React.FC<{ url: string; alt?: string; filename?: string }> = ({

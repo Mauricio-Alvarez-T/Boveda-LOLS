@@ -1,7 +1,4 @@
 const db = require('../config/db');
-const path = require('path');
-
-const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 
 // Cache de columnas por tabla — evita consultar INFORMATION_SCHEMA en cada request.
 const _colCache = {};
@@ -311,48 +308,6 @@ const vehiculosService = {
     async removePermiso(vehiculoId, permisoId) {
         await db.query('UPDATE vehiculo_permisos SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [permisoId, vehiculoId]);
         return { id: permisoId, activo: false };
-    },
-
-    // ── Documentos (respaldo de papeles del vehículo) ─────────────────────
-
-    async getDocumentos(vehiculoId) {
-        const [rows] = await db.query(
-            `SELECT id, vehiculo_id, categoria, nombre_archivo, fecha_subida, created_at
-             FROM vehiculo_documentos WHERE vehiculo_id = ? AND activo = 1
-             ORDER BY created_at DESC`, [vehiculoId]
-        );
-        return rows;
-    },
-
-    async createDocumento(vehiculoId, { categoria, file, userId }) {
-        if (!file) throw Object.assign(new Error('No se recibió archivo'), { statusCode: 400 });
-        if (!categoria) throw Object.assign(new Error('La categoría es obligatoria'), { statusCode: 400 });
-        // Ruta relativa a uploads/ (mismo criterio que documentos de trabajadores)
-        const rutaRelativa = path.relative(UPLOADS_DIR, file.path);
-        const [r] = await db.query(
-            `INSERT INTO vehiculo_documentos (vehiculo_id, categoria, nombre_archivo, ruta_archivo, subido_por)
-             VALUES (?, ?, ?, ?, ?)`,
-            [vehiculoId, categoria, file.originalname, rutaRelativa, userId || null]
-        );
-        const [rows] = await db.query(
-            'SELECT id, vehiculo_id, categoria, nombre_archivo, fecha_subida, created_at FROM vehiculo_documentos WHERE id = ?',
-            [r.insertId]
-        );
-        return rows[0];
-    },
-
-    async getDocumentoFilePath(vehiculoId, docId) {
-        const [rows] = await db.query(
-            'SELECT nombre_archivo, ruta_archivo FROM vehiculo_documentos WHERE id = ? AND vehiculo_id = ? AND activo = 1',
-            [docId, vehiculoId]
-        );
-        if (!rows.length) throw Object.assign(new Error('Documento no encontrado'), { statusCode: 404 });
-        return { fullPath: path.join(UPLOADS_DIR, rows[0].ruta_archivo), fileName: rows[0].nombre_archivo };
-    },
-
-    async removeDocumento(vehiculoId, docId) {
-        await db.query('UPDATE vehiculo_documentos SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [docId, vehiculoId]);
-        return { id: docId, activo: false };
     },
 
     // ── Alertas de vencimiento ────────────────────────────────────────

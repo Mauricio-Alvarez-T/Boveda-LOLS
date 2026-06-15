@@ -15,7 +15,6 @@ import { fmtMoney, fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { SeguroForm } from '../components/vehiculos/SeguroForm';
 import { PermisoCirculacionForm } from '../components/vehiculos/PermisoCirculacionForm';
-import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
 import api from '../services/api';
 import type { Vehiculo, VehiculoSeguro, VehiculoPermiso } from '../types/entities';
 
@@ -373,9 +372,6 @@ const VehiculosPage: React.FC = () => {
                             ))
                         }
                     </Section>
-
-                    {/* DOCUMENTOS (respaldo de papeles del vehículo) */}
-                    <VehiculoDocumentos vehiculoId={selected.id} />
                 </div>
             )}
         </div>
