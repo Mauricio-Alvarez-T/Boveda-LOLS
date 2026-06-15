@@ -2,6 +2,7 @@ import React, { useMemo, useState } from 'react';
 import { Plus, Minus, Trash2, Search, Package, AlertCircle, ShoppingBag } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { Skeleton } from '../../ui/Skeleton';
+import { QtyStepper } from '../../ui/QtyStepper';
 import type { ItemInventario, CategoriaInventario } from '../../../types/entities';
 import type { ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
 
@@ -104,11 +105,7 @@ export const CatalogoCarrito: React.FC<{
                                     {enCarrito === undefined ? (
                                         <button type="button" onClick={() => addToCart(item.id)} className="shrink-0 flex items-center gap-1 px-2.5 h-9 text-caption font-bold text-white bg-brand-primary rounded-lg"><Plus className="h-3.5 w-3.5" strokeWidth={3} /> Agregar</button>
                                     ) : (
-                                        <div className="shrink-0 flex items-center gap-1">
-                                            <button type="button" onClick={() => updateQty(item.id, enCarrito - 1)} className="h-9 w-9 rounded-md bg-muted flex items-center justify-center"><Minus className="h-3.5 w-3.5" /></button>
-                                            <input type="number" inputMode="decimal" min={0} value={enCarrito} onChange={e => updateQty(item.id, parseInt(e.target.value) || 0)} className={cn('w-14 h-9 px-1 text-label font-bold text-center border rounded-md', excede ? 'border-red-400 text-red-700 dark:border-red-500/40 dark:text-red-300' : 'border-border')} />
-                                            <button type="button" onClick={() => updateQty(item.id, enCarrito + 1)} className="h-9 w-9 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center"><Plus className="h-3.5 w-3.5" strokeWidth={3} /></button>
-                                        </div>
+                                        <QtyStepper value={enCarrito} onChange={c => updateQty(item.id, c)} size="md" warning={excede ? 'exceso' : null} ariaLabel={item.descripcion} />
                                     )}
                                 </li>
                             );

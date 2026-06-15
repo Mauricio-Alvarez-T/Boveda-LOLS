@@ -55,6 +55,12 @@ const recibir = {
             observacion: { type: 'string', maxLength: 1000 },
         },
     },
+    items_custom: {
+        type: 'array', itemRules: {
+            transferencia_item_custom_id: { required: true, type: 'integer', min: 1 },
+            cantidad_recibida: { type: 'number', min: 0 },
+        },
+    },
     tipo: { type: 'string', in: ['parcial', 'total'] },
     observacion: { type: 'string', maxLength: 1000 },
 };

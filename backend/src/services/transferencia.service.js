@@ -60,6 +60,70 @@ function _sodError(msg) {
  * FALSE→TRUE tras re-incrementar el origen, llevando legacy al régimen nuevo.
  */
 
+// Procesa ediciones del aprobador sobre ítems personalizados (cantidad aprobada,
+// fuente comprar/obra, nota, rechazar) + ítems nuevos. Sirve para solicitudes
+// solo-materiales Y mixtas (catálogo + custom). NO transiciona estado.
+async function _aprobarCustomItems(conn, id, data) {
+    const edits = Array.isArray(data.items_custom) ? data.items_custom : [];
+    const nuevos = Array.isArray(data.items_custom_nuevos) ? data.items_custom_nuevos : [];
+    // Sin cambios de custom en el payload → no toca la DB (no agrega queries a la
+    // rama de catálogo: mantiene intactos los mocks de los tests catálogo-solo).
+    if (!edits.length && !nuevos.length) return;
+    const [customRows] = await conn.query('SELECT id FROM transferencia_items_custom WHERE transferencia_id = ?', [id]);
+    const validIds = new Set(customRows.map(r => Number(r.id)));
+    for (const e of edits) {
+        if (!e || !validIds.has(Number(e.id))) continue;
+        const aprobadoFlag = e.aprobado === false ? 0 : 1;
+        const desc = (e.descripcion != null && String(e.descripcion).trim()) ? String(e.descripcion).trim().slice(0, 500) : null;
+        const unidad = e.unidad != null ? (String(e.unidad).slice(0, 50) || null) : null;
+        const cantAprob = Number(e.cantidad_aprobada) > 0 ? Number(e.cantidad_aprobada) : null;
+        const nota = e.nota_aprobador != null ? (String(e.nota_aprobador).slice(0, 1000) || null) : null;
+        const fuente = (e.fuente === 'obra' && Number(e.origen_obra_id) > 0) ? 'obra' : 'comprar';
+        const origenObra = fuente === 'obra' ? Number(e.origen_obra_id) : null;
+        await conn.query(
+            `UPDATE transferencia_items_custom
+                SET descripcion = COALESCE(?, descripcion), unidad = ?, cantidad_aprobada = ?,
+                    aprobado = ?, nota_aprobador = ?, fuente = ?, origen_obra_id = ?
+              WHERE id = ? AND transferencia_id = ?`,
+            [desc, unidad, cantAprob, aprobadoFlag, nota, fuente, origenObra, Number(e.id), id]
+        );
+    }
+    for (const n of nuevos) {
+        const ndesc = String((n && n.descripcion) || '').trim();
+        if (!ndesc) continue;
+        const ncant = Number(n.cantidad) > 0 ? Number(n.cantidad) : 1;
+        const nfuente = (n.fuente === 'obra' && Number(n.origen_obra_id) > 0) ? 'obra' : 'comprar';
+        const norigen = nfuente === 'obra' ? Number(n.origen_obra_id) : null;
+        await conn.query(
+            `INSERT INTO transferencia_items_custom
+               (transferencia_id, descripcion, cantidad, unidad, observacion, cantidad_aprobada, aprobado, agregado_por_aprobador, fuente, origen_obra_id)
+             VALUES (?, ?, ?, ?, ?, ?, 1, 1, ?, ?)`,
+            [id, ndesc.slice(0, 500), ncant, n.unidad ? String(n.unidad).slice(0, 50) : null, n.observacion ? String(n.observacion) : null, ncant, nfuente, norigen]
+        );
+    }
+    await conn.query(
+        `UPDATE transferencia_items_custom SET cantidad_aprobada = cantidad WHERE transferencia_id = ? AND aprobado = 1 AND cantidad_aprobada IS NULL`,
+        [id]
+    );
+}
+
+// Acumula la cantidad recibida de ítems personalizados (multi-viaje). NO mueve stock.
+async function _recibirCustomItems(conn, id, itemsCustom) {
+    const arr = Array.isArray(itemsCustom) ? itemsCustom : [];
+    if (!arr.length) return;
+    const [rows] = await conn.query('SELECT id FROM transferencia_items_custom WHERE transferencia_id = ?', [id]);
+    const validIds = new Set(rows.map(r => Number(r.id)));
+    for (const c of arr) {
+        const cid = Number(c && c.transferencia_item_custom_id);
+        const cant = Number(c && c.cantidad_recibida);
+        if (!validIds.has(cid) || !(cant > 0)) continue;
+        await conn.query(
+            'UPDATE transferencia_items_custom SET cantidad_recibida = COALESCE(cantidad_recibida, 0) + ? WHERE id = ? AND transferencia_id = ?',
+            [cant, cid, id]
+        );
+    }
+}
+
 const transferenciaService = {
     /**
      * Helper: SELECT de transferencia con FOR UPDATE para transición de estado.
@@ -582,6 +646,10 @@ const transferenciaService = {
                 );
             }
 
+            // Solicitud MIXTA: procesar también los ítems personalizados (fuente,
+            // cantidad aprobada, nota, nuevos). No-op si la transferencia no tiene custom.
+            await _aprobarCustomItems(conn, id, data);
+
             await conn.commit();
             return { id, estado: 'aprobada' };
         } catch (err) {
@@ -738,7 +806,7 @@ const transferenciaService = {
      * directa (sin despacho intermedio): tampoco el aprobador. Se valida en
      * CADA evento.
      */
-    async recibir(id, receptorId, items, userPermisos, tipo = 'total', observacion = null) {
+    async recibir(id, receptorId, items, userPermisos, tipo = 'total', observacion = null, itemsCustom = []) {
         // items vacío es válido en transferencias de sólo items_custom (ej. solicitud_materiales).
         // Se valida después: si hay items de catálogo en BD, exigimos items en el payload.
         items = Array.isArray(items) ? items : [];
@@ -800,6 +868,7 @@ const transferenciaService = {
                      VALUES (?, ?, ?, ?)`,
                     [id, receptorId, tipo, obs]
                 );
+                await _recibirCustomItems(conn, id, itemsCustom);
                 if (tipo === 'parcial') {
                     // No fija receptor/fecha final — eso lo hace el cierre 'total'.
                     await conn.query(
@@ -1040,6 +1109,9 @@ const transferenciaService = {
                     [receptorId, receptorId, id]
                 );
             }
+
+            // Recepción de ítems personalizados de solicitudes mixtas (acumula; sin stock).
+            await _recibirCustomItems(conn, id, itemsCustom);
 
             await conn.commit();
             return { id, estado: tipo === 'parcial' ? 'recepcion_parcial' : 'recibida', recepcion_id: recepcionId };
@@ -1617,7 +1689,7 @@ const transferenciaService = {
         // Items personalizados (fuera de catálogo). Pueden estar vacíos.
         const [itemsCustom] = await db.query(
             `SELECT tic.id, tic.descripcion, tic.cantidad, tic.unidad, tic.observacion,
-                    tic.cantidad_aprobada, tic.aprobado, tic.nota_aprobador, tic.agregado_por_aprobador,
+                    tic.cantidad_aprobada, tic.cantidad_recibida, tic.aprobado, tic.nota_aprobador, tic.agregado_por_aprobador,
                     tic.fuente, tic.origen_obra_id, o.nombre AS origen_obra_nombre,
                     tic.compra_realizada, tic.notas_compra, tic.fecha_compra
              FROM transferencia_items_custom tic
@@ -1631,6 +1703,7 @@ const transferenciaService = {
         itemsCustom.forEach(i => {
             i.cantidad = Number(i.cantidad) || 0;
             i.cantidad_aprobada = i.cantidad_aprobada != null ? Number(i.cantidad_aprobada) : null;
+            i.cantidad_recibida = Number(i.cantidad_recibida) || 0;
             i.aprobado = !!i.aprobado;
             i.agregado_por_aprobador = !!i.agregado_por_aprobador;
         });

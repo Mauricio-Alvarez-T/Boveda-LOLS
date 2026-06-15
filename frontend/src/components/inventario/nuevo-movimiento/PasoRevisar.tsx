@@ -1,6 +1,7 @@
 import React from 'react';
 import { FileText, CheckCircle2, Truck, PackageCheck, Ban, ShoppingBag, Package, Minus, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { QtyStepper } from '../../ui/QtyStepper';
 import type { ItemInventario } from '../../../types/entities';
 import type { Origen, Destino, InferResult, WizardState, ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
 
@@ -75,11 +76,8 @@ export const PasoRevisar: React.FC<{
                             <li key={r.item_id} className="flex items-center gap-2">
                                 <span className="flex-1 min-w-0 text-xs text-brand-dark truncate">{r.item?.descripcion || `Item #${r.item_id}`}</span>
                                 <div className="shrink-0 flex items-center gap-1">
-                                    <button type="button" onClick={() => updateQty(r.item_id, r.cantidad - 1)} className="h-7 w-7 rounded-md bg-muted flex items-center justify-center"><Minus className="h-3 w-3" /></button>
-                                    <input type="number" inputMode="decimal" min={0} value={r.cantidad} onChange={e => updateQty(r.item_id, parseInt(e.target.value) || 0)} className="w-12 h-7 px-1 text-label font-bold text-center border border-border rounded-md" />
-                                    <button type="button" onClick={() => updateQty(r.item_id, r.cantidad + 1)} className="h-7 w-7 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center"><Plus className="h-3 w-3" /></button>
-                                    <span className="text-caption text-muted-foreground w-8 truncate">{r.item?.unidad || ''}</span>
-                                    <button type="button" onClick={() => updateQty(r.item_id, 0)} className="text-muted-foreground/50 hover:text-destructive ml-0.5"><Trash2 className="h-3.5 w-3.5" /></button>
+                                    <QtyStepper value={r.cantidad} onChange={c => updateQty(r.item_id, c)} size="sm" unidad={r.item?.unidad} ariaLabel={r.item?.descripcion} />
+                                    <button type="button" onClick={() => updateQty(r.item_id, 0)} className="text-muted-foreground/50 hover:text-destructive ml-0.5" aria-label="Quitar ítem"><Trash2 className="h-3.5 w-3.5" /></button>
                                 </div>
                             </li>
                         ))}
