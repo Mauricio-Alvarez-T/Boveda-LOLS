@@ -378,20 +378,22 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
     };
 
     return (
-        <div className="flex items-center gap-2 shrink-0 mb-2">
-            {/* Filtros auto-width — ocupan su ancho natural */}
-            <StatusFilterBar
-                active={statusFilter}
-                onChange={onStatusChange}
-                discrepanciasCount={pendientesCount}
-                canVerDiscrepancias={canVerDiscrepancias}
-            />
+        <div className="flex flex-col gap-2 md:flex-row md:items-center shrink-0 mb-2">
+            {/* Filtros: scroll horizontal en mobile (evita que los tabs empujen las acciones
+                fuera de pantalla); ancho natural + wrap en desktop. */}
+            <div className="min-w-0 overflow-x-auto md:overflow-visible">
+                <StatusFilterBar
+                    active={statusFilter}
+                    onChange={onStatusChange}
+                    discrepanciasCount={pendientesCount}
+                    canVerDiscrepancias={canVerDiscrepancias}
+                    className="flex-nowrap md:flex-wrap"
+                />
+            </div>
 
-            {/* Espacio flexible — empuja lupa y + hacia la derecha */}
-            <div className="flex-1" />
-
-            {/* Derecha: lupa expandible + botón + juntos */}
-            <div className="flex items-center gap-1.5 shrink-0">
+            {/* Acciones: lupa expandible + Mover + Pedir. En mobile fila propia (visibles);
+                en desktop empujadas a la derecha. flex-wrap evita overflow con la búsqueda abierta. */}
+            <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 md:ml-auto md:flex-nowrap">
                 {/* Lupa: ícono solo → expandible con input al hacer clic */}
                 {searchOpen ? (
                     <div className="relative flex items-center animate-in fade-in slide-in-from-right-2 duration-150">
