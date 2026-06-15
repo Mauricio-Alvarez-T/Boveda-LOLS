@@ -100,7 +100,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         <section>
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
-                    <ScrollText className="h-3.5 w-3.5" /> Antecedentes de Circulación
+                    <ScrollText className="h-3.5 w-3.5" /> Documentos
                 </span>
                 {canCreate && !showAdd && (
                     <Button variant="ghost" size="sm" onClick={() => setShowAdd(true)}

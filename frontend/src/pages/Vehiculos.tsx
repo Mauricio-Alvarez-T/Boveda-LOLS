@@ -96,7 +96,7 @@ const VehiculosPage: React.FC = () => {
                         {vehiculos.length}
                     </span>
                 </h1>
-                <p className="text-muted-foreground text-xs">Antecedentes de Circulación</p>
+                <p className="text-muted-foreground text-xs">Documentos del vehículo</p>
             </div>
         </div>
     ), [vehiculos.length]);
