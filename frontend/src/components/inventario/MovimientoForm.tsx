@@ -319,26 +319,27 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                                                 <button
                                                     type="button"
                                                     onClick={() => updateQty(item.id, enCarrito - 1)}
-                                                    className="w-5 h-5 rounded-md bg-muted flex items-center justify-center"
+                                                    className="w-8 h-8 rounded-md bg-muted flex items-center justify-center"
                                                 >
-                                                    <Minus className="h-2.5 w-2.5" />
+                                                    <Minus className="h-3.5 w-3.5" />
                                                 </button>
                                                 <input
                                                     type="number"
+                                                    inputMode="decimal"
                                                     min={0}
                                                     value={enCarrito}
                                                     onChange={e => updateQty(item.id, parseInt(e.target.value) || 0)}
                                                     className={cn(
-                                                        'w-10 h-5 px-1 text-label font-bold text-center border rounded-md',
+                                                        'w-14 h-8 px-1 text-label font-bold text-center border rounded-md',
                                                         enCarrito > disponible ? 'border-red-400 text-red-700 dark:border-red-500/40 dark:text-red-300' : 'border-border'
                                                     )}
                                                 />
                                                 <button
                                                     type="button"
                                                     onClick={() => updateQty(item.id, enCarrito + 1)}
-                                                    className="w-5 h-5 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center"
+                                                    className="w-8 h-8 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center"
                                                 >
-                                                    <Plus className="h-2.5 w-2.5" strokeWidth={3} />
+                                                    <Plus className="h-3.5 w-3.5" strokeWidth={3} />
                                                 </button>
                                             </div>
                                         )}
@@ -435,7 +436,7 @@ const MovimientoForm: React.FC<Props> = ({ flujo, onSubmit, onClose }) => {
                     type="button"
                     onClick={handleSubmit}
                     disabled={!puedeEnviar}
-                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-2.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
+                    className="flex-1 flex items-center justify-center gap-1.5 px-4 py-3.5 text-xs font-bold text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 disabled:opacity-40 disabled:cursor-not-allowed"
                 >
                     <Send className="h-3.5 w-3.5" />
                     {submitting ? 'Enviando...' : labels.cta}

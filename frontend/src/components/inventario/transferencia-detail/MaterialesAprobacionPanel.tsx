@@ -145,7 +145,7 @@ const MaterialesAprobacionPanel: React.FC<{
                                 <div className="mt-3 space-y-3">
                                     <div className="flex items-center gap-2">
                                         <span className="text-sm font-semibold text-muted-foreground shrink-0">Cantidad</span>
-                                        <input type="number" min={1} value={e.cantidad_aprobada}
+                                        <input type="number" inputMode="decimal" min={1} value={e.cantidad_aprobada}
                                             onChange={ev => setEdit(e.id, { cantidad_aprobada: parseInt(ev.target.value) || 0 })}
                                             className="w-20 h-11 px-2 text-base font-bold text-center rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                         <input value={e.unidad} onChange={ev => setEdit(e.id, { unidad: ev.target.value })}
@@ -194,7 +194,7 @@ const MaterialesAprobacionPanel: React.FC<{
                         <div className="mt-3 space-y-3">
                             <div className="flex items-center gap-2">
                                 <span className="text-sm font-semibold text-muted-foreground shrink-0">Cantidad</span>
-                                <input type="number" min={1} value={n.cantidad} onChange={ev => setNuevo(n._k, { cantidad: parseInt(ev.target.value) || 0 })}
+                                <input type="number" inputMode="decimal" min={1} value={n.cantidad} onChange={ev => setNuevo(n._k, { cantidad: parseInt(ev.target.value) || 0 })}
                                     className="w-20 h-11 px-2 text-base font-bold text-center rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                 <input value={n.unidad} onChange={ev => setNuevo(n._k, { unidad: ev.target.value })} placeholder="unidad (sacos, kg...)"
                                     className="flex-1 min-w-0 h-11 px-3 text-sm rounded-lg border border-border bg-card outline-none focus:ring-2 focus:ring-brand-primary/30" />

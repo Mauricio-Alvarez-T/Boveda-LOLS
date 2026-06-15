@@ -387,6 +387,7 @@ export const AprobarForm: React.FC<{
                                                         </span>
                                                         <input
                                                             type="number"
+                                                            inputMode="decimal"
                                                             min={0}
                                                             max={maxAqui}
                                                             value={sp.cantidad}

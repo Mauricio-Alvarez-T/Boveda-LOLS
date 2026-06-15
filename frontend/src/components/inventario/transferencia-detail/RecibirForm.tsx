@@ -215,13 +215,14 @@ export const RecibirForm: React.FC<{
                                                     setReceiveItems(updated);
                                                 }}
                                                 disabled={ri.cantidad_recibida <= 0}
-                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
                                                 aria-label={`Restar 1 a ${item.item_descripcion}`}
                                             >
-                                                <Minus className="h-3 w-3" />
+                                                <Minus className="h-4 w-4" />
                                             </button>
                                             <input
                                                 type="number"
+                                                inputMode="decimal"
                                                 min={0}
                                                 value={ri.cantidad_recibida}
                                                 onChange={e => {
@@ -230,7 +231,7 @@ export const RecibirForm: React.FC<{
                                                     setReceiveItems(updated);
                                                 }}
                                                 className={cn(
-                                                    "w-14 px-2 py-1 border rounded-lg text-center text-xs font-bold",
+                                                    "w-16 h-10 px-2 border rounded-lg text-center text-xs font-bold",
                                                     sobrante > 0 ? "border-amber-400 bg-amber-50 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200" : "border-border"
                                                 )}
                                                 aria-label={`Cantidad recibida de ${item.item_descripcion}`}
@@ -242,10 +243,10 @@ export const RecibirForm: React.FC<{
                                                     updated[idx] = { ...updated[idx], cantidad_recibida: updated[idx].cantidad_recibida + 1 };
                                                     setReceiveItems(updated);
                                                 }}
-                                                className="h-7 w-7 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
+                                                className="h-10 w-10 flex items-center justify-center rounded-lg border border-border bg-card text-brand-dark hover:border-brand-primary/30 hover:bg-brand-primary/5 transition-all"
                                                 aria-label={`Sumar 1 a ${item.item_descripcion}`}
                                             >
-                                                <Plus className="h-3 w-3" />
+                                                <Plus className="h-4 w-4" />
                                             </button>
                                             {sobrante > 0 && (
                                                 <span
@@ -333,7 +334,7 @@ export const RecibirForm: React.FC<{
                                     ? 'Marca al menos 1 unidad de algún ítem antes de registrar'
                                     : 'Registra lo de este viaje. La transferencia queda abierta esperando próximos viajes.'
                             }
-                            className="flex-1 min-w-[160px] py-2.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
+                            className="flex-1 min-w-[160px] py-3.5 text-xs font-bold text-white bg-purple-600 rounded-xl hover:bg-purple-700 disabled:opacity-40 disabled:cursor-not-allowed transition-all flex items-center justify-center gap-1.5"
                         >
                             <PackageOpen className="h-3.5 w-3.5" />
                             {loading ? 'Registrando...' : 'Faltan más viajes'}
@@ -343,12 +344,12 @@ export const RecibirForm: React.FC<{
                         onClick={handleClickCerrar}
                         disabled={loading}
                         title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como discrepancia."
-                        className="flex-1 min-w-[160px] py-2.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
+                        className="flex-1 min-w-[160px] py-3.5 text-xs font-bold text-white bg-green-600 rounded-xl hover:bg-green-700 disabled:opacity-50 transition-all flex items-center justify-center gap-1.5"
                     >
                         <PackageCheck className="h-3.5 w-3.5" />
                         {loading ? 'Cerrando...' : 'Esta es toda la entrega'}
                     </button>
-                    <button onClick={onClose} className="px-4 py-2.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
+                    <button onClick={onClose} className="px-4 py-3.5 text-xs font-bold text-muted-foreground hover:text-brand-dark transition-colors">
                         Cancelar
                     </button>
                 </div>
