@@ -21,6 +21,7 @@ export type Seccion =
     | 'asistencia'
     | 'consultas'
     | 'inventario'
+    | 'vehiculos'
     | 'configuracion';
 
 export interface HierarchyEntry {
@@ -77,10 +78,16 @@ export const SECCIONES_META: Record<Seccion, SeccionMeta> = {
             'Datos Sensibles',
         ],
     },
+    vehiculos: {
+        label: 'Vehículos',
+        icon: '🚚',
+        orden: 5,
+        subseccionesOrden: ['Vehículos', 'Conductores'],
+    },
     configuracion: {
         label: 'Configuración',
         icon: '⚙️',
-        orden: 5,
+        orden: 6,
         subseccionesOrden: [
             'Usuarios y Roles',
             'Trabajadores',
@@ -158,6 +165,16 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'inventario.descuentos.gestionar':         { seccion: 'inventario', subseccion: 'Datos Sensibles', verbo: 'editar', sensible: 'financiero' },
     'inventario.resumen.ver_valores':          { seccion: 'inventario', subseccion: 'Datos Sensibles', verbo: 'ver',    sensible: 'financiero' },
 
+    // ─── VEHÍCULOS ─────────────────────────────────────────────────────────
+    'vehiculos.ver':                           { seccion: 'vehiculos', subseccion: 'Vehículos',   verbo: 'ver' },
+    'vehiculos.crear':                         { seccion: 'vehiculos', subseccion: 'Vehículos',   verbo: 'crear' },
+    'vehiculos.editar':                        { seccion: 'vehiculos', subseccion: 'Vehículos',   verbo: 'editar' },
+    'vehiculos.eliminar':                      { seccion: 'vehiculos', subseccion: 'Vehículos',   verbo: 'eliminar' },
+    'conductores.ver':                         { seccion: 'vehiculos', subseccion: 'Conductores', verbo: 'ver' },
+    'conductores.crear':                       { seccion: 'vehiculos', subseccion: 'Conductores', verbo: 'crear' },
+    'conductores.editar':                      { seccion: 'vehiculos', subseccion: 'Conductores', verbo: 'editar' },
+    'conductores.eliminar':                    { seccion: 'vehiculos', subseccion: 'Conductores', verbo: 'eliminar' },
+
     // ─── CONFIGURACIÓN ─────────────────────────────────────────────────────
     // Usuarios y Roles (incluye perms críticos ⚠️)
     'usuarios.ver':                            { seccion: 'configuracion', subseccion: 'Usuarios y Roles', verbo: 'ver' },
@@ -191,6 +208,7 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'obras.crear':                             { seccion: 'configuracion', subseccion: 'Obras', verbo: 'crear' },
     'obras.editar':                            { seccion: 'configuracion', subseccion: 'Obras', verbo: 'editar' },
     'obras.eliminar':                          { seccion: 'configuracion', subseccion: 'Obras', verbo: 'eliminar' },
+    'obras.finalizar':                         { seccion: 'configuracion', subseccion: 'Obras', verbo: 'editar' },
 
     // Cargos
     'cargos.ver':                              { seccion: 'configuracion', subseccion: 'Cargos', verbo: 'ver' },
