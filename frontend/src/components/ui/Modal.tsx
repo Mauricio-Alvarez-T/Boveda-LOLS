@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft } from 'lucide-react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { X } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Button } from './Button';
+import { getPointerOrigin } from '../../utils/pointerOrigin';
 
 interface ModalProps {
     isOpen: boolean;
@@ -89,6 +90,31 @@ export const Modal: React.FC<ModalProps> = ({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [isOpen]);
 
+    // ── Animación origin-aware (desktop): la card "emana" desde el punto donde
+    // se hizo clic para abrir y aterriza centrada. El origen se captura UNA vez
+    // al abrir (primer render con isOpen=true) y se reusa en enter + exit, para
+    // que al cerrar encoja de vuelta hacia ese punto. Solo transform + opacity.
+    const reduceMotion = useReducedMotion();
+    const originRef = useRef<{ x: number; y: number } | null>(null);
+    const prevOpenRef = useRef(false);
+    if (isOpen && !prevOpenRef.current) originRef.current = getPointerOrigin();
+    prevOpenRef.current = isOpen;
+
+    const origin = originRef.current;
+    const vw = typeof window !== 'undefined' ? window.innerWidth : 0;
+    const vh = typeof window !== 'undefined' ? window.innerHeight : 0;
+    // reduced-motion → solo fade. Sin origen (apertura programática) → fallback
+    // centrado clásico. Con origen → translate+scale desde el punto del clic.
+    const cardInitial = reduceMotion
+        ? { opacity: 0 }
+        : origin
+            ? { opacity: 0, scale: 0.35, x: origin.x - vw / 2, y: origin.y - vh / 2 }
+            : { opacity: 0, scale: 0.95, y: 20 };
+    const cardAnimate = reduceMotion ? { opacity: 1 } : { opacity: 1, scale: 1, x: 0, y: 0 };
+    const cardTransition = reduceMotion
+        ? { duration: 0.15 }
+        : { duration: 0.32, ease: [0.25, 0.1, 0.25, 1] as [number, number, number, number] };
+
     return createPortal(
         <AnimatePresence>
             {isOpen && (isDesktop ? (
@@ -104,9 +130,11 @@ export const Modal: React.FC<ModalProps> = ({
                     />
                     {/* Card */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                        initial={cardInitial}
+                        animate={cardAnimate}
+                        exit={cardInitial}
+                        transition={cardTransition}
+                        style={{ transformOrigin: 'center' }}
                         className={cn(
                             "relative bg-card rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90dvh] w-full",
                             desktopSizes[size]
