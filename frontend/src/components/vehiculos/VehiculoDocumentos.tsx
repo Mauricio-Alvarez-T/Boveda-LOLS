@@ -1,10 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ScrollText, Plus, Eye, Trash2, Loader2, X } from 'lucide-react';
+import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
+import { compressImage } from '../../utils/compressImage';
 import type { VehiculoDocumento, VehiculoDocumentoCategoria } from '../../types/entities';
 
 // Las 4 categorías de respaldo del vehículo (Antecedentes de Circulación).
@@ -52,11 +53,17 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
 
     const handleUpload = async () => {
         if (!file) { toast.error('Selecciona un archivo (PDF o imagen)'); return; }
-        if (file.size > 10 * 1024 * 1024) { toast.error('El archivo supera los 10 MB'); return; }
         setUploading(true);
         try {
+            // Las imágenes se comprimen en el navegador (objetivo ≤ 5 MB); los PDF van tal cual.
+            const archivo = await compressImage(file, { maxBytes: 5 * 1024 * 1024 });
+            if (archivo.size > 10 * 1024 * 1024) {
+                toast.error('El archivo supera los 10 MB incluso comprimido. Sube un PDF más liviano.');
+                setUploading(false);
+                return;
+            }
             const fd = new FormData();
-            fd.append('archivo', file);
+            fd.append('archivo', archivo);
             fd.append('categoria', categoria);
             await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, {
                 headers: { 'Content-Type': 'multipart/form-data' },
@@ -116,7 +123,13 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                 <div className="mb-2 p-3 rounded-xl border border-border bg-muted/40 space-y-2">
                     <div className="flex items-center justify-between">
                         <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo documento</span>
-                        <IconButton size="sm" aria-label="Cancelar" onClick={resetForm} icon={<X className="h-3.5 w-3.5" />} />
+                        <div className="flex items-center gap-1">
+                            <IconButton size="sm" aria-label="Subir documento" title="Subir documento"
+                                onClick={handleUpload} disabled={uploading || !file}
+                                className="hover:bg-brand-primary/10 hover:text-brand-primary"
+                                icon={uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} />
+                            <IconButton size="sm" aria-label="Cancelar" onClick={resetForm} icon={<X className="h-3.5 w-3.5" />} />
+                        </div>
                     </div>
                     <select value={categoria} onChange={e => setCategoria(e.target.value as VehiculoDocumentoCategoria)}
                         className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
@@ -125,13 +138,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                     <input ref={fileInputRef} type="file" accept=".pdf,image/*"
                         onChange={e => setFile(e.target.files?.[0] || null)}
                         className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20" />
-                    <div className="flex justify-end">
-                        <Button size="sm" onClick={handleUpload} isLoading={uploading}
-                            leftIcon={uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Plus className="h-3.5 w-3.5" />}>
-                            Subir
-                        </Button>
-                    </div>
-                    <p className="text-micro text-muted-foreground/70">PDF o imagen, hasta 10 MB.</p>
+                    <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 5 MB).</p>
                 </div>
             )}
 
