@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Truck, Plus, Shield, ScrollText,
+    Truck, Plus, Shield,
     Trash2, Edit2, X, ChevronLeft, Bell, Pencil, Search, Filter, Save, User
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -14,9 +14,9 @@ import { EmptyState } from '../components/ui/EmptyState';
 import { fmtMoney, fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { SeguroForm } from '../components/vehiculos/SeguroForm';
-import { PermisoCirculacionForm } from '../components/vehiculos/PermisoCirculacionForm';
+import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
 import api from '../services/api';
-import type { Vehiculo, VehiculoSeguro, VehiculoPermiso } from '../types/entities';
+import type { Vehiculo, VehiculoSeguro } from '../types/entities';
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -70,15 +70,12 @@ const VehiculosPage: React.FC = () => {
     const [showFiltros, setShowFiltros] = useState(false);
 
     const [seguros, setSeguros] = useState<VehiculoSeguro[]>([]);
-    const [permisos, setPermisos] = useState<VehiculoPermiso[]>([]);
     const [detailLoading, setDetailLoading] = useState(false);
 
     const [modalVehiculo, setModalVehiculo] = useState(false);
     const [editVehiculo, setEditVehiculo] = useState<Vehiculo | null>(null);
     const [modalSeguro, setModalSeguro] = useState(false);
     const [editSeguro, setEditSeguro] = useState<VehiculoSeguro | null>(null);
-    const [modalPermiso, setModalPermiso] = useState(false);
-    const [editPermiso, setEditPermiso] = useState<VehiculoPermiso | null>(null);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -94,12 +91,8 @@ const VehiculosPage: React.FC = () => {
     const fetchDetail = useCallback(async (vId: number) => {
         setDetailLoading(true);
         try {
-            const [s, p] = await Promise.all([
-                api.get<{ data: VehiculoSeguro[] }>(`/vehiculos/${vId}/seguros`),
-                api.get<{ data: VehiculoPermiso[] }>(`/vehiculos/${vId}/permisos`),
-            ]);
+            const s = await api.get<{ data: VehiculoSeguro[] }>(`/vehiculos/${vId}/seguros`);
             setSeguros(s.data.data || []);
-            setPermisos(p.data.data || []);
         } catch { /* silencioso */ }
         finally { setDetailLoading(false); }
     }, []);
@@ -345,33 +338,8 @@ const VehiculosPage: React.FC = () => {
                         }
                     </Section>
 
-                    {/* ANTECEDENTES DE CIRCULACIÓN */}
-                    <Section
-                        icon={<ScrollText className="h-3.5 w-3.5" />}
-                        title="Antecedentes de Circulación"
-                        onAdd={hasPermission('vehiculos.crear') ? () => setModalPermiso(true) : undefined}
-                    >
-                        {permisos.length === 0
-                            ? <Empty>Sin antecedentes registrados</Empty>
-                            : permisos.map(p => (
-                                <ItemRow key={p.id}
-                                    onEdit={hasPermission('vehiculos.editar') ? () => { setEditPermiso(p); setModalPermiso(true); } : undefined}
-                                    onDelete={hasPermission('vehiculos.eliminar') ? () => removeItem('permisos', p.id) : undefined}>
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="text-xs font-bold text-brand-dark">Antecedente de Circulación</span>
-                                        <EstadoVencimiento fecha={p.fecha_vencimiento} label="permiso" />
-                                    </div>
-                                    <p className="text-caption text-muted-foreground mt-0.5">
-                                        {(p as any).fecha_emision ? `${fmtDate((p as any).fecha_emision)} → ` : ''}{fmtDate(p.fecha_vencimiento)}
-                                        {(p as any).municipalidad ? ` · ${(p as any).municipalidad}` : ''}
-                                        {(p as any).numero_permiso ? ` · N° ${(p as any).numero_permiso}` : ''}
-                                        {(p as any).monto ? ` · ${fmtMoney((p as any).monto)}` : ''}
-                                    </p>
-                                    <AlertaBadge diasAlerta={(p as any).dias_alerta} emailAlerta={(p as any).email_alerta} />
-                                </ItemRow>
-                            ))
-                        }
-                    </Section>
+                    {/* ANTECEDENTES DE CIRCULACIÓN — repositorio de documentos/imágenes */}
+                    <VehiculoDocumentos vehiculoId={selected.id} />
                 </div>
             )}
         </div>
@@ -530,14 +498,6 @@ const VehiculosPage: React.FC = () => {
                         <SeguroForm vehiculoId={selected.id} initialData={editSeguro}
                             onCancel={() => { setModalSeguro(false); setEditSeguro(null); }}
                             onSuccess={() => { setModalSeguro(false); setEditSeguro(null); fetchDetail(selected.id); fetchVehiculos(); }} />
-                    </Modal>
-                    <Modal isOpen={modalPermiso}
-                        onClose={() => { setModalPermiso(false); setEditPermiso(null); }}
-                        title={editPermiso ? 'Editar Antecedente de Circulación' : 'Agregar Antecedente de Circulación'} size="lg"
-                        headerAction={formActions('permiso-form', () => { setModalPermiso(false); setEditPermiso(null); })}>
-                        <PermisoCirculacionForm vehiculoId={selected.id} initialData={editPermiso}
-                            onCancel={() => { setModalPermiso(false); setEditPermiso(null); }}
-                            onSuccess={() => { setModalPermiso(false); setEditPermiso(null); fetchDetail(selected.id); fetchVehiculos(); }} />
                     </Modal>
                 </>
             )}
