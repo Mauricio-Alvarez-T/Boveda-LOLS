@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import {
-    Inbox, ClipboardCheck, FileText, Users, FileX,
+    Inbox, ClipboardCheck, FileText, Users, FileX, Boxes, ArrowLeftRight,
     ArrowRight, ChevronDown, ChevronRight
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
@@ -15,10 +15,21 @@ export interface PendingTask {
     meta?: Record<string, any>;
 }
 
+// Fila de inventario (transferencias/discrepancias) — viene de un fetch diferido
+// a /inventario/dashboard-ejecutivo, gated por permiso. No es un PendingTask.
+export interface BandejaInvItem {
+    severity: 'critical' | 'warning' | 'info';
+    title: string;
+    description: string;
+    ruta: string;
+}
+
 interface Props {
     tasks: PendingTask[];
     /** Trabajadores activos sin ningún documento (de counters) — fila sintética en Documentos. */
     trabajadoresSinDocs?: number;
+    /** Filas de inventario (diferidas, gated por inventario.ver). */
+    inventoryItems?: BandejaInvItem[];
     onNavigate: (route: string) => void;
 }
 
@@ -31,7 +42,7 @@ const severityColor: Record<PendingTask['severity'], string> = {
     info: 'text-blue-700 dark:text-blue-300',
 };
 
-const GROUPS: { key: PendingTask['category'] | 'documentos'; label: string; icon: React.ElementType }[] = [
+const GROUPS: { key: PendingTask['category']; label: string; icon: React.ElementType }[] = [
     { key: 'asistencia', label: 'Asistencia', icon: ClipboardCheck },
     { key: 'documentos', label: 'Documentos', icon: FileText },
     { key: 'contratos', label: 'Contratos', icon: Users },
@@ -52,11 +63,30 @@ const Row: React.FC<{ icon: React.ElementType; color: string; title: string; des
         </div>
     );
 
-const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, onNavigate }) => {
+const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label: string; count: number; onClick: () => void }> =
+    ({ collapsed, icon: Icon, label, count, onClick }) => {
+        const Chevron = collapsed ? ChevronRight : ChevronDown;
+        return (
+            <button
+                type="button"
+                onClick={onClick}
+                className="flex items-center gap-2 w-full py-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
+            >
+                <Chevron className="h-3.5 w-3.5" />
+                <Icon className="h-3.5 w-3.5" />
+                <span>{label}</span>
+                <span className="tabular-nums">· {count}</span>
+            </button>
+        );
+    };
+
+const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], onNavigate }) => {
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0);
-    const criticalCount = tasks.filter(t => t.severity === 'critical').length;
+    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length;
+    const criticalCount =
+        tasks.filter(t => t.severity === 'critical').length +
+        inventoryItems.filter(i => i.severity === 'critical').length;
 
     if (total === 0) {
         return (
@@ -89,6 +119,7 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, onNavi
                 </div>
             </div>
 
+            {/* Grupos de tareas (asistencia / documentos / contratos) */}
             {GROUPS.map(group => {
                 const groupTasks = tasks.filter(t => t.category === group.key);
                 const syntheticDocs = group.key === 'documentos' && trabajadoresSinDocs > 0;
@@ -96,22 +127,10 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, onNavi
                 if (count === 0) return null;
 
                 const isCollapsed = !!collapsed[group.key];
-                const GroupIcon = group.icon;
-                const Chevron = isCollapsed ? ChevronRight : ChevronDown;
 
                 return (
                     <div key={group.key} className="mt-1">
-                        <button
-                            type="button"
-                            onClick={() => toggle(group.key)}
-                            className="flex items-center gap-2 w-full py-1.5 text-caption font-semibold uppercase tracking-wide text-muted-foreground hover:text-foreground transition-colors"
-                        >
-                            <Chevron className="h-3.5 w-3.5" />
-                            <GroupIcon className="h-3.5 w-3.5" />
-                            <span>{group.label}</span>
-                            <span className="tabular-nums">· {count}</span>
-                        </button>
-
+                        <GroupHeader collapsed={isCollapsed} icon={group.icon} label={group.label} count={count} onClick={() => toggle(group.key)} />
                         {!isCollapsed && (
                             <div>
                                 {groupTasks.map((task, idx) => (
@@ -138,6 +157,33 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, onNavi
                     </div>
                 );
             })}
+
+            {/* Grupo Inventario (diferido, gated por permiso) */}
+            {inventoryItems.length > 0 && (
+                <div className="mt-1">
+                    <GroupHeader
+                        collapsed={!!collapsed.inventario}
+                        icon={Boxes}
+                        label="Inventario"
+                        count={inventoryItems.length}
+                        onClick={() => toggle('inventario')}
+                    />
+                    {!collapsed.inventario && (
+                        <div>
+                            {inventoryItems.map((it, idx) => (
+                                <Row
+                                    key={`inv-${idx}`}
+                                    icon={ArrowLeftRight}
+                                    color={severityColor[it.severity]}
+                                    title={it.title}
+                                    description={it.description}
+                                    onClick={() => onNavigate(it.ruta)}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

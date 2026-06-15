@@ -15,7 +15,8 @@ import { Button } from '../components/ui/Button';
 // Widgets
 import TodayHero from '../components/dashboard/widgets/TodayHero';
 import KpiCard from '../components/dashboard/widgets/KpiCard';
-import BandejaDelDia, { type PendingTask } from '../components/dashboard/widgets/BandejaDelDia';
+import BandejaDelDia, { type PendingTask, type BandejaInvItem } from '../components/dashboard/widgets/BandejaDelDia';
+import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
@@ -90,8 +91,10 @@ const Dashboard: React.FC = () => {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+    const [invItems, setInvItems] = useState<BandejaInvItem[]>([]);
 
     const permisos = user?.permisos ?? [];
+    const canInventario = permisos.includes('inventario.ver');
     const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
     // Widgets que el usuario puede ver (gating por permiso granular). El layout es
@@ -135,6 +138,31 @@ const Dashboard: React.FC = () => {
     }, [selectedObra]);
 
     useEffect(() => { fetchSummary(); }, [fetchSummary]);
+
+    // Inventario: fetch DIFERIDO y gated por permiso (no bloquea la bandeja de
+    // asistencia/docs; si falla o no hay permiso, simplemente no agrega filas).
+    const fetchInventory = useCallback(async () => {
+        if (!canInventario) { setInvItems([]); return; }
+        try {
+            const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
+            const res = await api.get<ApiResponse<{ alertas: DashboardAlerta[] }>>(`/inventario/dashboard-ejecutivo${query}`);
+            const alertas = res.data.data?.alertas ?? [];
+            setInvItems(alertas.map((a): BandejaInvItem => ({
+                severity: a.tipo === 'discrepancia'
+                    ? 'critical'
+                    : (a.estancada || a.tipo === 'faltante' || a.tipo === 'rechazo') ? 'warning' : 'info',
+                title: a.titulo,
+                description: a.detalle,
+                ruta: '/inventario',
+            })));
+        } catch {
+            setInvItems([]);
+        }
+    }, [canInventario, selectedObra]);
+
+    useEffect(() => { fetchInventory(); }, [fetchInventory]);
+
+    const refreshAll = useCallback(() => { fetchSummary(); fetchInventory(); }, [fetchSummary, fetchInventory]);
 
     // Skeletons por-widget. `ready` narrowea `data` a no-null en cada zona.
     const ready = !loading && !!data;
@@ -190,7 +218,7 @@ const Dashboard: React.FC = () => {
                     <Button
                         variant="ghost"
                         size="sm"
-                        onClick={fetchSummary}
+                        onClick={refreshAll}
                         leftIcon={<RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />}
                         className="text-muted-foreground"
                     >
@@ -226,6 +254,7 @@ const Dashboard: React.FC = () => {
                         ? <BandejaDelDia
                             tasks={data.pendingTasks ?? []}
                             trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
+                            inventoryItems={invItems}
                             onNavigate={(route) => navigate(route)}
                         />
                         : <SkeletonText lines={6} />}
