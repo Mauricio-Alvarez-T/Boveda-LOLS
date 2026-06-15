@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckCircle2, PackageCheck, XCircle, Ban, Send, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { CheckCircle2, PackageCheck, XCircle, Ban, MoreHorizontal, ChevronDown } from 'lucide-react';
 import { cn } from '../../utils/cn';
+import WhatsAppIcon from '../ui/WhatsAppIcon';
 
 interface Props {
     canAprobar: boolean;
@@ -85,7 +86,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
             {canCompartirWhatsApp && (
                 <button onClick={onWhatsApp} disabled={actionLoading} className={secondaryBtn}
                     title={whatsappLabel} aria-label={whatsappLabel}>
-                    <Send className="h-3.5 w-3.5 shrink-0" />
+                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
                 </button>
             )}
 

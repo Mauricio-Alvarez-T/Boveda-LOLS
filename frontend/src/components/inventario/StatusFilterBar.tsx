@@ -1,12 +1,11 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Clock, CheckCircle2, PackageCheck, AlertTriangle, LayoutGrid, ChevronDown, Check } from 'lucide-react';
+import React from 'react';
+import { Clock, CheckCircle2, PackageCheck, AlertTriangle, LayoutGrid } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 /**
- * Filtro de estado de Transferencias — DROPDOWN compacto.
- * Reemplaza los 5 chips horizontales por un solo botón "Filtro ▾" que abre
- * una lista con todos los estados. Más espacio horizontal disponible para
- * la lista y el detalle.
+ * Filtro de estado de Transferencias — chips compactos SIEMPRE visibles.
+ * Una fila de chips muy pequeños (Todas / Pendientes / Aprobadas / Recibidas /
+ * Discrepancias), sin desplegable; el activo queda resaltado.
  */
 
 const STATUS_CHIPS: { value: string; label: string; icon: React.ElementType; discrepancia?: boolean }[] = [
@@ -33,88 +32,40 @@ const StatusFilterBar: React.FC<Props> = ({
     canVerDiscrepancias = true,
     className,
 }) => {
-    const [open, setOpen] = useState(false);
-    const wrapperRef = useRef<HTMLDivElement>(null);
-
     const chips = STATUS_CHIPS.filter(c => c.value !== 'discrepancias' || canVerDiscrepancias);
-    const activeChip = chips.find(c => c.value === active) || chips[0];
-    const ActiveIcon = activeChip.icon;
-    const isActiveDiscrep = !!activeChip.discrepancia;
-
-    // Click fuera cierra el dropdown.
-    useEffect(() => {
-        if (!open) return;
-        const handler = (e: MouseEvent | TouchEvent) => {
-            if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-                setOpen(false);
-            }
-        };
-        document.addEventListener('mousedown', handler);
-        document.addEventListener('touchstart', handler);
-        return () => {
-            document.removeEventListener('mousedown', handler);
-            document.removeEventListener('touchstart', handler);
-        };
-    }, [open]);
-
-    const handleSelect = (value: string) => {
-        onChange(value);
-        setOpen(false);
-    };
 
     return (
-        <div ref={wrapperRef} className={cn("relative shrink-0", className)}>
-            {/* Botón principal: muestra el filtro activo + chevron */}
-            <button
-                onClick={() => setOpen(v => !v)}
-                className={cn(
-                    "flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-label font-bold transition-all",
-                    open
-                        ? "bg-card border-brand-primary/40 shadow-sm"
-                        : "bg-card border-border hover:border-brand-primary/30",
-                    isActiveDiscrep ? "text-red-700 dark:text-red-300" : "text-brand-dark"
-                )}
-            >
-                <ActiveIcon className="h-3.5 w-3.5 shrink-0" />
-                <span>{activeChip.label}</span>
-                <ChevronDown className={cn("h-3.5 w-3.5 transition-transform shrink-0", open && "rotate-180")} />
-            </button>
-
-            {/* Menú desplegable */}
-            {open && (
-                <div className="absolute top-full left-0 mt-1.5 w-56 bg-card border border-border rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                    {chips.map(chip => {
-                        const isActive = active === chip.value;
-                        const isDiscrep = !!chip.discrepancia;
-                        const Icon = chip.icon;
-                        return (
-                            <button
-                                key={chip.value}
-                                onClick={() => handleSelect(chip.value)}
-                                className={cn(
-                                    "w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold transition-colors text-left",
-                                    isActive
-                                        ? isDiscrep
-                                            ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300"
-                                            : "bg-brand-primary/10 text-green-700 dark:text-green-300"
-                                        : isDiscrep
-                                            ? "text-red-700 dark:text-red-300 hover:bg-muted"
-                                            : "text-brand-dark hover:bg-muted"
-                                )}
-                            >
-                                <Icon className="h-3.5 w-3.5 shrink-0" />
-                                <span className="flex-1 truncate">{chip.label}</span>
-                                {isDiscrep && discrepanciasCount > 0 && (
-                                    <span className="px-1.5 py-[1px] rounded-full text-micro font-black leading-none bg-red-500 text-white shrink-0">
-                                        {discrepanciasCount}
-                                    </span>
-                                )}
-                                {isActive && <Check className="h-3.5 w-3.5 shrink-0" />}
-                            </button>
-                        );
-                    })}
-                </div>
-            )}
+        <div className={cn("flex flex-wrap items-center gap-1 shrink-0", className)}>
+            {chips.map(chip => {
+                const isActive = active === chip.value;
+                const isDiscrep = !!chip.discrepancia;
+                const Icon = chip.icon;
+                return (
+                    <button
+                        key={chip.value}
+                        onClick={() => onChange(chip.value)}
+                        title={chip.label}
+                        className={cn(
+                            "flex items-center gap-1 px-2 py-1 rounded-lg text-label font-bold transition-colors",
+                            isActive
+                                ? isDiscrep
+                                    ? "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-300"
+                                    : "bg-brand-primary/10 text-green-700 dark:text-green-300"
+                                : isDiscrep
+                                    ? "text-red-700/80 hover:bg-muted hover:text-red-700 dark:text-red-300/80"
+                                    : "text-muted-foreground hover:bg-muted hover:text-brand-dark"
+                        )}
+                    >
+                        <Icon className="h-3 w-3 shrink-0" />
+                        <span>{chip.label}</span>
+                        {isDiscrep && discrepanciasCount > 0 && (
+                            <span className="px-1.5 py-[1px] rounded-full text-micro font-black leading-none bg-red-500 text-white shrink-0">
+                                {discrepanciasCount}
+                            </span>
+                        )}
+                    </button>
+                );
+            })}
         </div>
     );
 };
