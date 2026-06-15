@@ -553,6 +553,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                     pendientePorItem={pendientePorItem}
                     onRecibir={onRecibir}
                     loading={actionLoading}
+                    viajesPrevios={recepciones.length}
                     onClose={() => setActiveForm(null)}
                     onOpenItem={itemDetail.openItem}
                 />

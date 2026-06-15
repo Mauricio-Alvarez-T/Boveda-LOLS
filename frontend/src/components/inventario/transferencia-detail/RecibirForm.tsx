@@ -3,6 +3,7 @@ import { PackageCheck, PackageOpen, Minus, Plus, Info, AlertTriangle } from 'luc
 import { cn } from '../../../utils/cn';
 import { Modal } from '../../ui/Modal';
 import type { TransferenciaItem } from '../../../types/entities';
+import { ProgressBar } from '../../ui/ProgressBar';
 
 interface ReceiveItem { item_id: number; cantidad_recibida: number; correcto: boolean; observacion: string; }
 
@@ -23,15 +24,18 @@ export const RecibirForm: React.FC<{
     pendientePorItem: (item: TransferenciaItem) => number;
     onRecibir: (items: { item_id: number; cantidad_recibida: number; observacion?: string }[], tipo?: 'parcial' | 'total', observacion?: string) => Promise<boolean>;
     loading: boolean;
+    /** Nº de entregas ya registradas (para el badge "Viaje N" y el avance global). */
+    viajesPrevios?: number;
     onClose: () => void;
     onOpenItem: (itemId: number) => void;
-}> = ({ items, receiveItems, setReceiveItems, cierreFinal, setCierreFinal, confirmMermaOpen, setConfirmMermaOpen, pendientePorItem, onRecibir, loading, onClose, onOpenItem }) => {
+}> = ({ items, receiveItems, setReceiveItems, cierreFinal, setCierreFinal, confirmMermaOpen, setConfirmMermaOpen, pendientePorItem, onRecibir, loading, viajesPrevios = 0, onClose, onOpenItem }) => {
     // Cálculos derivados para la UI:
     // - totalRecibidoEsteViaje = suma de inputs (info en footer)
     // - totalFaltaGlobal = suma de pendientes (lo que el camión debería traer)
     // - hayFaltantes = true si suma_inputs < suma_falta (al menos 1 ítem no completa)
     const totalRecibidoEsteViaje = receiveItems.reduce((s, ri) => s + (ri.cantidad_recibida || 0), 0);
     const totalFaltaGlobal = items.reduce((s, it) => s + pendientePorItem(it), 0);
+    const totalRecibidoPrevio = items.reduce((s, it) => s + (Number(it.cantidad_recibida) || 0), 0);
     const hayFaltantes = items.some((it, idx) => {
         const ri = receiveItems[idx];
         if (!ri) return false;
@@ -121,6 +125,24 @@ export const RecibirForm: React.FC<{
                     Marca qué llegó este viaje. Si falta algo, podrás registrar otros viajes después.
                 </p>
             </div>
+
+            {/* Avance global de la recepción (acumulado de viajes previos) */}
+            {(viajesPrevios > 0 || totalRecibidoPrevio > 0) && (
+                <div className="px-4 py-3 border-b border-brand-primary/20 bg-card/30 space-y-1.5">
+                    <div className="flex items-center justify-between">
+                        <span className="text-label font-bold text-brand-dark">Avance de la recepción</span>
+                        {viajesPrevios > 0 && (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold whitespace-nowrap">
+                                Viaje {viajesPrevios + 1}
+                            </span>
+                        )}
+                    </div>
+                    <ProgressBar recibido={totalRecibidoPrevio} pendiente={totalFaltaGlobal} showLabel />
+                    <p className="text-caption text-muted-foreground tabular-nums">
+                        {totalRecibidoPrevio} recibido · {totalFaltaGlobal} pendiente
+                    </p>
+                </div>
+            )}
 
             {/* Tabla densa: una fila por ítem */}
             <div className="overflow-x-auto">
