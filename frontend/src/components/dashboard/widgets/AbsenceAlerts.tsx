@@ -3,12 +3,12 @@ import { AlertTriangle, ArrowRight, ShieldAlert } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
 
-interface Alerta {
+export interface Alerta {
     tipo: 'consecutivas' | 'lunes' | 'acumuladas';
     mensaje: string;
 }
 
-interface TrabajadorConAlerta {
+export interface TrabajadorConAlerta {
     trabajador_id: number;
     nombres: string;
     apellido_paterno: string;

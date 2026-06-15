@@ -1,35 +1,22 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
-import {
-    DndContext,
-    closestCenter,
-    KeyboardSensor,
-    PointerSensor,
-    useSensor,
-    useSensors,
-    type DragEndEvent,
-} from '@dnd-kit/core';
-import {
-    SortableContext,
-    rectSortingStrategy,
-} from '@dnd-kit/sortable';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import api from '../services/api';
 import type { ApiResponse } from '../types';
+import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useDashboardLayout } from '../hooks/useDashboardLayout';
+import { Skeleton, SkeletonText } from '../components/ui/Skeleton';
 
 // Widgets
-import WidgetWrapper from '../components/dashboard/WidgetWrapper';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
 import CriticalAlerts from '../components/dashboard/widgets/CriticalAlerts';
 import QuickActions from '../components/dashboard/widgets/QuickActions';
 import PendingTasks from '../components/dashboard/widgets/PendingTasks';
-import AbsenceAlerts from '../components/dashboard/widgets/AbsenceAlerts';
+import AbsenceAlerts, { type TrabajadorConAlerta } from '../components/dashboard/widgets/AbsenceAlerts';
 import ObraRanking from '../components/dashboard/widgets/ObraRanking';
 
 // ─── Types ───
@@ -90,12 +77,20 @@ interface DashboardData {
     docExpiryTimeline: DocExpiryItem[];
     obraRanking: ObraRankingItem[];
     attendanceStatus: Record<string, AttendanceStatusEntry>;
+    // Faltas reiteradas del mes (Art. 160 N°3). Antes entraba como (data as any);
+    // ahora tipado y alimentado con default defensivo. El strip de fechas-evidencia
+    // se suma en F5.2 (requiere exponer fechas[] de getAlertasFaltas).
+    trabajadoresConAlertas: TrabajadorConAlerta[];
     saludo: { nombre: string; resumen: string; totalAlertas: number };
 }
 
-// Superficies NEUTRAS (sistema validado): paneles blancos; se separan por borde,
-// no por tinte de color. El verde queda solo para acciones.
-const PANEL_TINT = 'bg-card';
+// ─── Panel: superficie NEUTRA del design system (card blanca + borde, sin tinte).
+// Reemplaza a WidgetWrapper sin el drag handle: el layout pasa a ser fijo y
+// jerárquico (orden por criticidad), no reordenable. El verde queda solo para
+// acciones. Cada widget trae su propio encabezado, así que el panel es bare.
+const Panel: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className }) => (
+    <div className={cn('rounded-card border border-border bg-card p-5', className)}>{children}</div>
+);
 
 // ─── Dashboard ───
 const Dashboard: React.FC = () => {
@@ -106,13 +101,12 @@ const Dashboard: React.FC = () => {
     const [loading, setLoading] = useState(true);
 
     const permisos = user?.permisos ?? [];
-    const { gridWidgets, reorder } = useDashboardLayout(user?.id ?? 0, permisos);
+    const { visibleWidgets } = useDashboardLayout(user?.id ?? 0, permisos);
 
-    // DnD sensors
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-        useSensor(KeyboardSensor)
-    );
+    // Conjunto de widgets que el usuario puede ver (gating por permiso granular,
+    // resuelto por el registry). El layout es fijo; el permiso decide qué zonas
+    // se montan, no el orden.
+    const shown = useMemo(() => new Set(visibleWidgets.map(w => w.id)), [visibleWidgets]);
 
     // ─── Page Header (solo el rótulo de sección) ───
     const headerTitle = useMemo(() => (
@@ -124,6 +118,7 @@ const Dashboard: React.FC = () => {
     // ─── Fetch Data ───
     useEffect(() => {
         const fetchSummary = async () => {
+            setLoading(true);
             try {
                 const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
                 const res = await api.get<ApiResponse<DashboardData>>(`/dashboard/summary${query}`);
@@ -140,6 +135,7 @@ const Dashboard: React.FC = () => {
                     attendanceStatus: raw.attendanceStatus ?? {},
                     attendanceTrend: raw.attendanceTrend ?? [],
                     ausentesDetalle: raw.ausentesDetalle ?? [],
+                    trabajadoresConAlertas: raw.trabajadoresConAlertas ?? [],
                     saludo: raw.saludo ?? { nombre: '', resumen: '', totalAlertas: 0 },
                 });
             } catch {
@@ -151,72 +147,79 @@ const Dashboard: React.FC = () => {
         fetchSummary();
     }, [selectedObra]);
 
-    // ─── Loading State ───
-    if (loading || !data) {
-        return (
-            <div className="h-[80dvh] flex flex-col items-center justify-center">
-                <Loader2 className="h-10 w-10 animate-spin text-brand-primary" />
-                <p className="mt-4 text-muted-foreground text-sm animate-pulse">Analizando bóveda...</p>
-            </div>
-        );
-    }
-
-    // ─── Render Widget by ID ───
-    const renderWidget = (widgetId: string) => {
-        switch (widgetId) {
-            case 'pending_tasks':
-                return <PendingTasks tasks={data.pendingTasks ?? []} onNavigate={(route) => navigate(route)} />;
-            case 'absence_alerts':
-                return <AbsenceAlerts data={(data as any).trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />;
-            case 'obra_ranking':
-                return <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />;
-            case 'chart_attendance_trend':
-                return <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />;
-            case 'list_absences_today':
-                return <AbsencesToday data={data.ausentesDetalle ?? []} />;
-            case 'alerts_critical':
-                return <CriticalAlerts alerts={data.alerts ?? []} onNavigate={(route) => navigate(route)} />;
-            case 'quick_actions':
-                return <QuickActions permisos={permisos} onNavigate={(route) => navigate(route)} />;
-            default:
-                return null;
-        }
-    };
-
-    // ─── Drag End Handler ───
-    const handleDragEnd = (event: DragEndEvent) => {
-        const { active, over } = event;
-        if (over && active.id !== over.id) {
-            reorder(active.id as string, over.id as string);
-        }
-    };
+    // Skeletons por-widget: cada panel muestra su forma de carga (no un spinner
+    // único de página). `ready` narrowea `data` a no-null en cada zona.
+    const ready = !loading && !!data;
+    const showFaltas = shown.has('absence_alerts');
+    const showTrend = shown.has('chart_attendance_trend');
+    const showAusentes = shown.has('list_absences_today');
 
     return (
-        <div>
-            {gridWidgets.length > 0 && (
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCenter}
-                    onDragEnd={handleDragEnd}
-                >
-                    <SortableContext
-                        items={gridWidgets.map(w => w.id)}
-                        strategy={rectSortingStrategy}
-                    >
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                            {gridWidgets.map(widget => {
-                                const content = renderWidget(widget.id);
-                                if (!content) return null;
+        <div className="space-y-6">
+            {/* F5.1 — aquí van: HeroContextual + ScopeBadge + TiraKPIs (kpiWidgets) */}
 
-                                return (
-                                    <WidgetWrapper key={widget.id} widget={widget} tint={PANEL_TINT}>
-                                        {content}
-                                    </WidgetWrapper>
-                                );
-                            })}
-                        </div>
-                    </SortableContext>
-                </DndContext>
+            {/* Zona principal: Bandeja del Día (izq) + Faltas Art.160 (der, sticky) */}
+            <div className={cn('grid grid-cols-1 gap-6 items-start', showFaltas && 'lg:grid-cols-[1.5fr_1fr]')}>
+                <div className="space-y-6">
+                    {/* Bandeja del Día — base actual: tareas pendientes priorizadas.
+                        En F5.3 absorbe asistencia-sin-guardar + docs por vencer. */}
+                    <Panel>
+                        {ready && data
+                            ? <PendingTasks tasks={data.pendingTasks ?? []} onNavigate={(route) => navigate(route)} />
+                            : <SkeletonText lines={6} />}
+                    </Panel>
+                    <Panel>
+                        {ready && data
+                            ? <CriticalAlerts alerts={data.alerts ?? []} onNavigate={(route) => navigate(route)} />
+                            : <SkeletonText lines={3} />}
+                    </Panel>
+                </div>
+
+                {showFaltas && (
+                    <Panel className="lg:sticky lg:top-6">
+                        {ready && data
+                            ? <AbsenceAlerts data={data.trabajadoresConAlertas ?? []} onNavigate={(rut) => navigate(`/asistencia?q=${rut}`)} />
+                            : <SkeletonText lines={6} />}
+                    </Panel>
+                )}
+            </div>
+
+            {/* Contexto de asistencia: tendencia 7d + ausentes del día (secundario) */}
+            {(showTrend || showAusentes) && (
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
+                    {showTrend && (
+                        <Panel>
+                            {ready && data
+                                ? <AttendanceTrend data={data.attendanceTrend} onNavigate={() => navigate('/asistencia')} />
+                                : <Skeleton className="h-48 w-full" />}
+                        </Panel>
+                    )}
+                    {showAusentes && (
+                        <Panel>
+                            {ready && data
+                                ? <AbsencesToday data={data.ausentesDetalle ?? []} />
+                                : <SkeletonText lines={5} />}
+                        </Panel>
+                    )}
+                </div>
+            )}
+
+            {/* Ranking de obras (comparativa multi-obra) */}
+            {shown.has('obra_ranking') && (
+                <Panel>
+                    {ready && data
+                        ? <ObraRanking data={data.obraRanking ?? []} onNavigate={(id) => navigate(`/consultas?obra_id=${id}`)} />
+                        : <SkeletonText lines={5} />}
+                </Panel>
+            )}
+
+            {/* Acciones rápidas (footer) */}
+            {shown.has('quick_actions') && (
+                <Panel>
+                    {ready
+                        ? <QuickActions permisos={permisos} onNavigate={(route) => navigate(route)} />
+                        : <Skeleton className="h-10 w-full" />}
+                </Panel>
             )}
         </div>
     );
