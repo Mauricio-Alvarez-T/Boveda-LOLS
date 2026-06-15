@@ -331,7 +331,12 @@ export function useTransferencias() {
         try {
             const fd = new FormData();
             fd.append('foto', file);
-            await api.post(`/transferencias/${transferenciaId}/recepciones/${recepcionId}/foto`, fd);
+            // El axios `api` fuerza Content-Type: application/json por defecto; hay que
+            // sobreescribirlo a multipart o el FormData viaja sin boundary y multer no ve
+            // el archivo (mismo patrón que ItemInventarioForm/DocumentUploader).
+            await api.post(`/transferencias/${transferenciaId}/recepciones/${recepcionId}/foto`, fd, {
+                headers: { 'Content-Type': 'multipart/form-data' },
+            });
             toast.success('Foto adjuntada ✓');
             return true;
         } catch (err) {
