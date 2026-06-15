@@ -202,13 +202,13 @@ const StockMaestroGrid: React.FC<Props> = ({ obras, bodegas, hasEditPermission }
                     <table className="w-full text-label border-collapse">
                         <thead className="bg-muted sticky top-0 z-10">
                             <tr>
-                                <th className="text-left px-2 py-2 font-bold text-brand-dark w-12">Nº</th>
-                                <th className="text-left px-2 py-2 font-bold text-brand-dark min-w-[240px]">Descripción</th>
-                                <th className="text-left px-2 py-2 font-bold text-brand-dark w-28">Categoría</th>
-                                <th className="text-left px-2 py-2 font-bold text-brand-dark w-16">Unidad</th>
-                                <th className="text-right px-2 py-2 font-bold text-brand-dark w-24">Actual</th>
-                                <th className="text-right px-2 py-2 font-bold text-brand-dark w-28">Nueva cant.</th>
-                                <th className="text-right px-2 py-2 font-bold text-brand-dark w-24">Δ</th>
+                                <th className="text-left px-2 py-2 font-bold text-brand-primary w-12">Nº</th>
+                                <th className="text-left px-2 py-2 font-bold text-brand-primary min-w-[240px]">Descripción</th>
+                                <th className="text-left px-2 py-2 font-bold text-brand-primary w-28">Categoría</th>
+                                <th className="text-left px-2 py-2 font-bold text-brand-primary w-16">Unidad</th>
+                                <th className="text-right px-2 py-2 font-bold text-brand-primary w-24">Actual</th>
+                                <th className="text-right px-2 py-2 font-bold text-brand-primary w-28">Nueva cant.</th>
+                                <th className="text-right px-2 py-2 font-bold text-brand-primary w-24">Δ</th>
                             </tr>
                         </thead>
                         <tbody>

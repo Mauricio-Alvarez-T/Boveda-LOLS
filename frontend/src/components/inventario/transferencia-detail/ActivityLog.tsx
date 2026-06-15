@@ -64,7 +64,7 @@ export const ActivityLog: React.FC<{ t: Transferencia }> = ({ t }) => {
                 onClick={() => setOpen(o => !o)}
                 className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/60 hover:bg-muted border border-border rounded-xl transition-all"
             >
-                <h4 className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                <h4 className="text-xs font-bold text-brand-primary flex items-center gap-1.5">
                     <Activity className="h-3.5 w-3.5" />
                     Actividad ({events.length})
                 </h4>

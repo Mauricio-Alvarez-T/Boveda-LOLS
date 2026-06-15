@@ -170,7 +170,13 @@ Principios y reglas concretas:
      **NUNCA por tinte de color**. (El "fondo verde uniforme" previo se revierte: usar color de marca en
      superficies grandes diluye la jerarquía — Fluent 2.)
    - **Verde `#029E4D` = SOLO acción** (botón primario, anillo de foco, nav activo, selección, delta ↑).
-     Nunca en superficies grandes/encabezados.
+     Nunca como **fondo** de superficies grandes (cards/heros/paneles).
+   - **EXCEPCIÓN (decisión usuario 2026-06-15): encabezados de subsección en verde.** El **TEXTO** de
+     los encabezados de columna de tabla (`<thead>`/`<th>`) y de los títulos de subsección
+     (h2/h3/h4/span que titula una card/sección/grupo) va en **`text-brand-primary`** en toda la app.
+     Aplica solo al **texto** — los **fondos** siguen neutros (`bg-muted` no se tiñe). NO aplica al
+     título PRINCIPAL de página (PageHeader/h1) ni a nombres de **entidad** (nombre de obra/ítem/
+     trabajador = dato, va neutro). Es la única excepción al "verde solo para acción".
    - **Color = significado:** verde = éxito/constructivo · rojo (`destructive`) = **destructivo/error** ·
      ámbar (`warning`) = precaución / **pendiente / por hacer / por vencer / "sin registro"** · azul
      (`info`) = en progreso. **El contenido va neutro** (nombres/títulos/datos).

@@ -245,7 +245,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {/* ── Document Compliance ── */}
                                     <div className="bg-background rounded-2xl p-4">
                                         <div className="flex items-center justify-between mb-3">
-                                            <span className="text-sm font-semibold text-brand-dark flex items-center gap-2">
+                                            <span className="text-sm font-semibold text-brand-primary flex items-center gap-2">
                                                 <FileText className="h-4 w-4 text-brand-primary" /> Documentación
                                             </span>
                                             <span className={cn(
@@ -277,7 +277,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                     {/* ── Recent Documents List ── */}
                                     {docs.length > 0 && (
                                         <div>
-                                            <h4 className="text-sm font-semibold text-brand-dark flex items-center gap-2 mb-3">
+                                            <h4 className="text-sm font-semibold text-brand-primary flex items-center gap-2 mb-3">
                                                 <FileText className="h-4 w-4 text-brand-primary" /> Documentos Subidos
                                             </h4>
                                             <div className="space-y-2">
@@ -428,7 +428,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
 
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 bg-background p-3 md:p-4 rounded-xl">
                             <div className="hidden sm:block">
-                                <h4 className="text-base font-semibold text-brand-dark">Bóveda de Documentos</h4>
+                                <h4 className="text-base font-semibold text-brand-primary">Bóveda de Documentos</h4>
                                 <p className="text-sm text-muted-foreground">Sube y gestiona archivos para este trabajador.</p>
                             </div>
                             <div className="flex gap-2 w-full sm:w-auto">

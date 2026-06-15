@@ -108,7 +108,7 @@ export const AttendanceSummaryRow: React.FC<AttendanceSummaryRowProps> = ({
                         <div className="h-7 w-7 lg:h-8 lg:w-8 rounded-xl bg-muted flex items-center justify-center">
                             <CheckSquare className="h-3.5 w-3.5 lg:h-4 lg:w-4 text-muted-foreground" />
                         </div>
-                        <h2 className="text-xs lg:text-sm font-bold text-brand-dark whitespace-nowrap">Registro Diario</h2>
+                        <h2 className="text-xs lg:text-sm font-bold text-brand-primary whitespace-nowrap">Registro Diario</h2>
                     </div>
 
                     {hasActiveContext && (

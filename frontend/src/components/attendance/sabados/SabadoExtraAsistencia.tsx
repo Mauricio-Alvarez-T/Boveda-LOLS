@@ -380,7 +380,7 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                         {grupos.map(({ cargo, items }) => (
                             <div key={cargo} className="border border-border rounded-2xl overflow-hidden bg-card">
                                 <div className="bg-muted px-4 py-2.5 flex items-center justify-between">
-                                    <span className="text-label font-black uppercase tracking-wider text-brand-dark">
+                                    <span className="text-label font-black uppercase tracking-wider text-brand-primary">
                                         {cargo} ({items.length})
                                     </span>
                                 </div>

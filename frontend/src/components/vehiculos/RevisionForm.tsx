@@ -144,7 +144,7 @@ export const RevisionForm: React.FC<Props> = ({ vehiculoId, initialData, onSucce
             <div className="border-t border-border pt-4">
                 <div className="flex items-center gap-2 mb-3">
                     <Bell className="h-3.5 w-3.5 text-brand-primary" />
-                    <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
+                    <span className="text-xs font-black text-brand-primary uppercase tracking-widest">Configurar Alerta de Vencimiento</span>
                 </div>
 
                 {/* Periodicidad: calcula automáticamente la fecha de vencimiento (depende si es nuevo o usado) */}

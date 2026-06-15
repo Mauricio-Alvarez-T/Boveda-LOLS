@@ -18,7 +18,7 @@ interface SectionProps {
 export const Section: React.FC<SectionProps> = ({ title, action, children, className, bodyClassName }) => (
     <section className={cn('rounded-2xl border border-border bg-card', className)}>
         <div className="flex items-center justify-between gap-3 px-5 py-4 border-b border-border">
-            <h3 className="text-section font-semibold text-brand-dark">{title}</h3>
+            <h3 className="text-section font-semibold text-brand-primary">{title}</h3>
             {action}
         </div>
         <div className={cn('p-5', bodyClassName)}>{children}</div>

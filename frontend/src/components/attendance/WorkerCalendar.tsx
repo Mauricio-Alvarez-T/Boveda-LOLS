@@ -311,7 +311,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
             {showLegend && (
                 <div className="mt-6 pt-6 border-t border-border">
-                    <span className="text-caption uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-4 block text-center md:text-left">Nomenclaturas y Estados</span>
+                    <span className="text-caption uppercase font-black text-brand-primary tracking-widest leading-none mb-4 block text-center md:text-left">Nomenclaturas y Estados</span>
                     <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
                         {estados.map(est => {
                             // Limpiar el nombre si viene con el código entre paréntesis
@@ -348,7 +348,7 @@ const WorkerCalendar: React.FC<WorkerCalendarProps> = ({
 
             {showActivePeriods && periodos.length > 0 && (
                 <div className="mt-6">
-                    <span className="text-caption uppercase font-black text-brand-dark/40 tracking-widest leading-none mb-3 block">Resumen de Períodos Activos</span>
+                    <span className="text-caption uppercase font-black text-brand-primary tracking-widest leading-none mb-3 block">Resumen de Períodos Activos</span>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         {periodos.map(p => (
                             <div 

@@ -20,16 +20,21 @@ description: >-
 1. **Superficies NEUTRAS, no de color.** Página = gris muy claro (`bg-background` #F5F5F7); cards/paneles =
    **blancos** (`bg-card`) con **borde fino** (`border-border`). **PROHIBIDO** teñir cards/paneles/hero
    con verde u otro color de fondo. (El error que cometimos: "todo con fondo verde" diluye la jerarquía.)
-2. **El verde (`#029E4D`) es SOLO para ACCIÓN.** Botón primario, anillo de foco, ítem de nav activo,
-   fila/elemento seleccionado, y micro-indicadores positivos (delta ↑). **Nunca** en fondos grandes,
-   encabezados, ni como "tinte" decorativo.
+2. **El verde (`#029E4D`) es SOLO para ACCIÓN** + **encabezados de subsección** (excepción). Botón
+   primario, anillo de foco, ítem de nav activo, fila/elemento seleccionado, micro-indicadores
+   positivos (delta ↑). **Nunca** como FONDO de superficies grandes ni como "tinte" decorativo.
+   **EXCEPCIÓN (decisión usuario 2026-06-15):** el **texto** de los encabezados de columna de tabla
+   (`<thead>`/`<th>`) y de los títulos de subsección (h2/h3/h4/span que titula card/sección/grupo) va
+   en `text-brand-primary` en toda la app — solo el texto, los fondos siguen neutros. NO aplica al
+   título principal de página (h1/PageHeader) ni a nombres de entidad (obra/ítem/trabajador = dato neutro).
 3. **"Las cards se pierden" se arregla con ELEVACIÓN, no con tinte.** Claro: card blanca + `border-border`
    (+ `shadow-sm` solo si hace falta). Oscuro: card = gris **más claro** que el fondo + borde translúcido.
 4. **El color SIEMPRE significa algo.** Si algo lleva color, comunica estado/acción. Lo demás es neutro:
    - **Verde** = éxito / acción primaria / constructivo (crear, guardar, aprobar, "al día", delta ↑).
    - **Rojo** (`destructive`) = **destructivo / error** (eliminar, rechazar, vencido, error). **NO** "pendiente".
    - **Ámbar** (`warning`) = precaución / **pendiente / por vencer**.  · **Azul** (`info`) = en progreso / informativo.
-   - El **contenido** (nombres, títulos, datos, números) va **neutro** (`text-foreground`/`text-muted-foreground`).
+   - El **contenido** (nombres, datos, números) va **neutro** (`text-foreground`/`text-muted-foreground`).
+     Salvedad: los **encabezados de subsección y de columna** van en `text-brand-primary` (ver regla 2).
 5. **Sobriedad y aire.** Whitespace generoso (Apple). Un solo acento por vista. Prefiere borde/espacio antes
    que sombras apiladas. Jerarquía por tipografía (escala grande + tracking negativo), no por color.
 
@@ -63,7 +68,8 @@ concretos y corrígelos.
 
 ## Qué NO hacer (anti-patrones que ya cometimos)
 - ❌ Teñir cards/paneles/hero de verde (o cualquier color) de fondo.
-- ❌ Usar verde decorativo en KPIs/encabezados/superficies grandes.
+- ❌ Usar verde decorativo en KPIs/superficies grandes o como FONDO. (El **texto** de encabezados de
+  subsección/columna SÍ va verde — excepción de la regla 2; los fondos siguen neutros.)
 - ❌ Rojo para "pendiente/por hacer" (eso es ámbar/azul; el rojo es destructivo/error).
 - ❌ Hex crudo o `text-[Npx]` (usa tokens y la escala tipográfica).
 - ❌ Emojis de color (🔴🟡) como indicadores.

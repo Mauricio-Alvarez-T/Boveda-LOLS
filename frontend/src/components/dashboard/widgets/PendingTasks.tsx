@@ -72,7 +72,7 @@ const PendingTasks: React.FC<Props> = ({ tasks, onNavigate }) => {
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-muted">
                         <Zap className="h-5 w-5 text-muted-foreground" />
                     </span>
-                    <h3 className="text-sm font-semibold text-foreground">Tareas Pendientes</h3>
+                    <h3 className="text-sm font-semibold text-brand-primary">Tareas Pendientes</h3>
                 </div>
                 <div className="flex items-center gap-2 text-sm tabular-nums text-muted-foreground">
                     <span>{tasks.length}</span>

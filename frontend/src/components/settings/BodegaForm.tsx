@@ -75,7 +75,7 @@ export const BodegaForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }
             {/* Participación por apartado (mig 075). También editable rápido con los
                 botones toggle de la fila en Configuración → Bodegas. */}
             <div className="rounded-xl border border-border p-3">
-                <span className="text-xs font-bold text-brand-dark/60 uppercase tracking-wider">Participa en apartados</span>
+                <span className="text-xs font-bold text-brand-primary uppercase tracking-wider">Participa en apartados</span>
                 <div className="mt-2 space-y-2">
                     {[
                         { field: 'participa_inventario' as const, label: 'Inventario' },

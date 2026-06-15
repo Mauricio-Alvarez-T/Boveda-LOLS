@@ -45,7 +45,7 @@ const CriticalAlerts: React.FC<Props> = ({ alerts, onNavigate }) => {
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/[0.08]">
                     <AlertTriangle className={cn("h-5 w-5", alerts.length > 0 ? "text-red-700 dark:text-red-300" : "text-muted-foreground")} />
                 </span>
-                <h3 className="text-sm font-semibold text-foreground">Alertas</h3>
+                <h3 className="text-sm font-semibold text-brand-primary">Alertas</h3>
             </div>
             <div className="space-y-3">
                 {alerts.length > 0 ? (

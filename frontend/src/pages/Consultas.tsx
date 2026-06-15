@@ -831,7 +831,7 @@ const ConsultasPage: React.FC = () => {
 
                             {/* Header */}
                             <div className="flex items-center justify-between px-5 pb-4 pt-1 shrink-0">
-                                <h3 className="text-lg font-bold text-brand-dark">Filtros de Búsqueda</h3>
+                                <h3 className="text-lg font-bold text-brand-primary">Filtros de Búsqueda</h3>
                                 <IconButton
                                     variant="ghost"
                                     aria-label="Cerrar filtros"

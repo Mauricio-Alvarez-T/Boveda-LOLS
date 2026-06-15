@@ -290,7 +290,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         onClick={() => setHistorialOpen(o => !o)}
                         className="w-full flex items-center justify-between gap-2 px-3 py-2 bg-muted/60 hover:bg-muted border border-border rounded-xl transition-all"
                     >
-                        <h4 className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                        <h4 className="text-xs font-bold text-brand-primary flex items-center gap-1.5">
                             <History className="h-3.5 w-3.5" />
                             Historial de recepciones ({recepciones.length})
                         </h4>
@@ -343,7 +343,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             {/* ── Items Personalizados (a comprar) ── */}
             {itemsCustom.length > 0 && (
                 <div className="shrink-0 mb-5">
-                    <h4 className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
+                    <h4 className="text-xs font-bold text-brand-primary mb-2 flex items-center gap-1.5">
                         <ShoppingBag className="h-3.5 w-3.5" />
                         Items personalizados ({itemsCustom.length})
                     </h4>
@@ -351,9 +351,9 @@ const TransferenciaDetail: React.FC<Props> = ({
                         <table className="w-full text-label">
                             <thead>
                                 <tr className="bg-muted">
-                                    <th className="text-left px-3 py-2 font-bold text-brand-dark">Descripción</th>
-                                    <th className="text-center px-2 py-2 font-bold text-brand-dark w-20">Cantidad</th>
-                                    <th className="text-left px-2 py-2 font-bold text-brand-dark w-24">Unidad</th>
+                                    <th className="text-left px-3 py-2 font-bold text-brand-primary">Descripción</th>
+                                    <th className="text-center px-2 py-2 font-bold text-brand-primary w-20">Cantidad</th>
+                                    <th className="text-left px-2 py-2 font-bold text-brand-primary w-24">Unidad</th>
                                 </tr>
                             </thead>
                             <tbody>

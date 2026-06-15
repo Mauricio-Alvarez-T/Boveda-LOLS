@@ -54,7 +54,7 @@ const WorkerCheckListImpl: React.FC<Props> = ({ workers, selected, onToggle, obr
                 return (
                     <div key={cargo} className="border border-border rounded-xl overflow-hidden">
                         <div className="bg-muted px-3 py-2 flex items-center justify-between">
-                            <span className="text-label font-black uppercase tracking-wider text-brand-dark">
+                            <span className="text-label font-black uppercase tracking-wider text-brand-primary">
                                 {cargo}
                             </span>
                             <span className="text-caption font-semibold text-muted-foreground">

@@ -209,7 +209,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             {/* Header + filters */}
             <div className="shrink-0 space-y-3 mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
-                    <h3 className="text-sm font-bold text-brand-dark">Bombas de Hormigón</h3>
+                    <h3 className="text-sm font-bold text-brand-primary">Bombas de Hormigón</h3>
                     <div className="flex items-center gap-2 flex-1">
                         {canCreate && (
                             <button
@@ -301,7 +301,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 {/* Month header */}
                                 <div className="flex items-center gap-2 mb-2 px-1">
                                     <Calendar className="h-3 w-3 text-muted-foreground/50" />
-                                    <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70">
+                                    <span className="text-caption font-bold uppercase tracking-wider text-brand-primary">
                                         {group.label}
                                     </span>
                                     <span className="text-caption text-muted-foreground/40">

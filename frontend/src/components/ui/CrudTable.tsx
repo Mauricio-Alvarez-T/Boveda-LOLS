@@ -293,7 +293,7 @@ export function CrudTable<T extends { id: number; activo?: boolean }>({
                 <div className="overflow-x-auto">
                     <table className="w-full text-left border-collapse">
                         <thead>
-                            <tr className="bg-muted border-b border-border uppercase text-caption tracking-[0.1em] font-bold text-muted-foreground/70">
+                            <tr className="bg-muted border-b border-border uppercase text-caption tracking-[0.1em] font-bold text-brand-primary">
                                 {columns.map(col => (
                                     <th key={String(col.key)} className={cn("px-6 py-4", col.className)}>
                                         {col.label}

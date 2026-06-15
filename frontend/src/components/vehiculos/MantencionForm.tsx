@@ -111,7 +111,7 @@ export const MantencionForm: React.FC<Props> = ({ vehiculoId, kmActual = 0, init
             <div className="border-t border-border pt-4">
                 <div className="flex items-center gap-2 mb-3">
                     <Bell className="h-3.5 w-3.5 text-brand-primary" />
-                    <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Programar Próxima Mantención</span>
+                    <span className="text-xs font-black text-brand-primary uppercase tracking-widest">Programar Próxima Mantención</span>
                 </div>
                 <Input label="Fecha próxima mantención" type="date" {...register('fecha_proxima')} />
                 {canConfigurarAlertas && (

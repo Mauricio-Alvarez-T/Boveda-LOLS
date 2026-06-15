@@ -54,7 +54,7 @@ export const PasoRevisar: React.FC<{
             </div>
 
             <div>
-                <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2">Recorrido</p>
+                <p className="text-label font-black text-brand-primary uppercase tracking-widest mb-2">Recorrido</p>
                 <div className="flex items-start justify-between gap-0.5">
                     <Nodo icon={<FileText className="h-4 w-4" />} label="Tú solicitas" />
                     <div className="flex-1 h-0.5 bg-border mt-4" />
@@ -70,7 +70,7 @@ export const PasoRevisar: React.FC<{
 
             {itemRows.length > 0 && (
                 <div>
-                    <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Package className="h-3.5 w-3.5" /> Ítems ({itemRows.length})</p>
+                    <p className="text-label font-black text-brand-primary uppercase tracking-widest mb-2 flex items-center gap-1.5"><Package className="h-3.5 w-3.5" /> Ítems ({itemRows.length})</p>
                     <ul className="space-y-1.5">
                         {itemRows.map(r => (
                             <li key={r.item_id} className="flex items-center gap-2">
@@ -87,7 +87,7 @@ export const PasoRevisar: React.FC<{
 
             {customItems.length > 0 && (
                 <div>
-                    <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2 flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" /> Otros materiales ({customItems.filter(c => c.descripcion.trim()).length})</p>
+                    <p className="text-label font-black text-brand-primary uppercase tracking-widest mb-2 flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" /> Otros materiales ({customItems.filter(c => c.descripcion.trim()).length})</p>
                     <ul className="space-y-2">
                         {customItems.map((c, i) => (
                             <li key={i} className="flex items-center gap-2">

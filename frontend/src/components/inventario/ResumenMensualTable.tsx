@@ -568,21 +568,21 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                     <thead className="sticky top-0 z-20">
                         {/* Header row 1 — solid backgrounds for sticky */}
                         <tr>
-                            <th className="sticky left-0 z-30 bg-muted px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-border w-8">#</th>
+                            <th className="sticky left-0 z-30 bg-muted px-2 py-2 text-left font-bold text-brand-primary border-b border-r border-border w-8">#</th>
                             <th
                                 onClick={() => setShowImages(v => !v)}
-                                className="bg-muted px-1.5 py-2 text-center font-bold text-brand-dark border-b border-r border-border w-8 cursor-pointer hover:bg-muted transition-colors"
+                                className="bg-muted px-1.5 py-2 text-center font-bold text-brand-primary border-b border-r border-border w-8 cursor-pointer hover:bg-muted transition-colors"
                                 title={showImages ? 'Ocultar imágenes' : 'Mostrar imágenes'}
                             >
                                 <ImageIcon className={cn("h-3.5 w-3.5 mx-auto transition-colors", showImages ? "text-brand-primary" : "text-muted-foreground/40")} />
                             </th>
-                            <th className={cn("sticky z-30 bg-muted px-2 py-2 text-left font-bold text-brand-dark border-b border-r border-border min-w-[220px] max-w-[320px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
-                            <th className="bg-muted px-2 py-2 text-center font-bold text-brand-dark border-b border-r border-border w-12">M²</th>
+                            <th className={cn("sticky z-30 bg-muted px-2 py-2 text-left font-bold text-brand-primary border-b border-r border-border min-w-[220px] max-w-[320px]", showImages ? "left-[68px]" : "left-8")}>Descripción</th>
+                            <th className="bg-muted px-2 py-2 text-center font-bold text-brand-primary border-b border-r border-border w-12">M²</th>
                             {verValores && (
-                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Arriendo</th>
+                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-r border-border w-16">V. Arriendo</th>
                             )}
                             {verValores && (
-                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border w-16">V. Compra</th>
+                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-r border-border w-16">V. Compra</th>
                             )}
                             {orderedLocations.map(loc => {
                                 const label = loc.type === 'bodega' ? formatBodegaConResponsable(loc.raw) : loc.nombre;
@@ -599,9 +599,9 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 );
                             })}
                             {verValores && (
-                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-r border-border">Total Arriendo</th>
+                                <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-r border-border">Total Arriendo</th>
                             )}
-                            <th className="bg-muted px-2 py-2 text-right font-bold text-brand-dark border-b border-border">Total Unid.</th>
+                            <th className="bg-muted px-2 py-2 text-right font-bold text-brand-primary border-b border-border">Total Unid.</th>
                         </tr>
                         {/* Header row 2 — sub-headers with solid bg */}
                         <tr>

@@ -50,7 +50,7 @@ const AbsenceAlerts: React.FC<Props> = ({ data, onNavigate }) => {
                     <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-destructive/[0.08]">
                         <AlertTriangle className="h-5 w-5 text-red-700 dark:text-red-300" />
                     </span>
-                    <h3 className="text-sm font-semibold text-foreground">Alertas de Inasistencia</h3>
+                    <h3 className="text-sm font-semibold text-brand-primary">Alertas de Inasistencia</h3>
                 </div>
                 <span className="text-caption text-muted-foreground font-semibold uppercase tracking-wider">Este mes</span>
             </div>

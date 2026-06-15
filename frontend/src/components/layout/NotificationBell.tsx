@@ -183,7 +183,7 @@ export const NotificationBell: React.FC = () => {
                                                         <div className="mt-2 ml-11 rounded-xl border border-border overflow-hidden">
                                                             <table className="w-full text-[10px]">
                                                                 <thead>
-                                                                    <tr className="bg-background text-muted-foreground">
+                                                                    <tr className="bg-background text-brand-primary">
                                                                         <th className="text-left px-2 py-1.5 font-semibold">Nombre</th>
                                                                         <th className="text-left px-2 py-1.5 font-semibold">RUT</th>
                                                                         <th className="text-left px-2 py-1.5 font-semibold">Empresa</th>

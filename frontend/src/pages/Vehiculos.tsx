@@ -275,7 +275,7 @@ const VehiculosPage: React.FC = () => {
                 <div className="bg-card border border-border rounded-2xl shadow-sm p-4 md:p-5 shrink-0 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center gap-2 mb-3">
                         <Filter className="h-3.5 w-3.5 text-brand-primary" />
-                        <span className="text-xs font-black text-brand-dark/60 uppercase tracking-widest">Filtros de búsqueda</span>
+                        <span className="text-xs font-black text-brand-primary uppercase tracking-widest">Filtros de búsqueda</span>
                         {filtrosActivos > 0 && (
                             <Button
                                 type="button"

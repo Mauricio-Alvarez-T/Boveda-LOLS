@@ -99,7 +99,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     return (
         <section>
             <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
+                <span className="text-xs font-black text-brand-primary uppercase tracking-widest flex items-center gap-1.5">
                     <ScrollText className="h-3.5 w-3.5" /> Documentos
                 </span>
                 {canCreate && !showAdd && (
@@ -115,7 +115,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             {showAdd && (
                 <div className="mb-2 p-3 rounded-xl border border-border bg-muted/40 space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo documento</span>
+                        <span className="text-caption font-bold text-brand-primary uppercase tracking-wide">Nuevo documento</span>
                         <IconButton size="sm" aria-label="Cancelar" onClick={resetForm} icon={<X className="h-3.5 w-3.5" />} />
                     </div>
                     <select value={categoria} onChange={e => setCategoria(e.target.value as VehiculoDocumentoCategoria)}

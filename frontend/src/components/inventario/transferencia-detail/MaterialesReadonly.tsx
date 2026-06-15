@@ -73,7 +73,7 @@ export const MatRequestRow: React.FC<{
 export const DetailSection: React.FC<{ icon: React.ReactNode; title: string; children: React.ReactNode }> = ({ icon, title, children }) => (
     <section>
         <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
+            <span className="text-xs font-black text-brand-primary uppercase tracking-widest flex items-center gap-1.5">
                 {icon} {title}
             </span>
         </div>
