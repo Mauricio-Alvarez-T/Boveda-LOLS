@@ -22,6 +22,11 @@ interface CustomItemPayload {
 interface CrearTransferenciaData {
     destino_obra_id?: number | null;
     destino_bodega_id?: number | null;
+    // Origen opcional como PREFERENCIA (el backend lo acepta; el aprobador puede
+    // reasignar). Lo usa el wizard adaptativo cuando se elige una bodega de origen
+    // pero el flujo sigue siendo una solicitud (no un push).
+    origen_obra_id?: number | null;
+    origen_bodega_id?: number | null;
     items: { item_id: number; cantidad: number }[];
     // Items personalizados (fuera de catálogo). El aprobador los lee
     // para tramitar compra. Se incluyen en mensaje WhatsApp al transportista.
