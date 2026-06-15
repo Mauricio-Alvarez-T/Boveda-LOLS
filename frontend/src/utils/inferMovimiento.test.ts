@@ -111,6 +111,20 @@ describe('inferMovimiento — toggles, permisos y validaciones', () => {
         expect(r.errores).toContain('Agregá al menos un ítem.');
     });
 
+    test('rutaOk: true con ruta válida aunque falten ítems; resuelto null', () => {
+        const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 } }), TODOS);
+        expect(r.rutaOk).toBe(true);
+        expect(r.resuelto).toBeNull();
+        expect(r.errores).toContain('Agregá al menos un ítem.');
+    });
+
+    test('rutaOk: false si origen=destino o sin permiso', () => {
+        const igual = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'obra', id: 7 }, items: [ITEM] }), TODOS);
+        expect(igual.rutaOk).toBe(false);
+        const sinPermiso = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM] }), SOLO_SOLICITAR);
+        expect(sinPermiso.rutaOk).toBe(false);
+    });
+
     test('pionetas se propagan en devolución', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM], requierePionetas: true, cantidadPionetas: 2 }), TODOS);
         expect((r.resuelto as any).data.requiere_pionetas).toBe(true);

@@ -66,6 +66,8 @@ export interface InferResult {
     resuelto: MovimientoResuelto | null;
     /** Qué toggles ofrecer en la UI según la ruta + permisos. */
     togglesDisponibles: { enviarAhora: boolean; ordenGerencia: boolean };
+    /** true si origen+destino forman una ruta válida y con permiso (ignora ítems/motivo). Habilita "Siguiente" en el paso Ruta. */
+    rutaOk: boolean;
     errores: string[];
 }
 
@@ -101,16 +103,16 @@ export function inferMovimiento(state: WizardState, permisos: PermisosMovimiento
     const usarOrdenGerencia = state.ordenGerencia && togglesDisponibles.ordenGerencia;
     const usarEnviarAhora = state.enviarAhora && togglesDisponibles.enviarAhora;
 
-    const vacio: InferResult = { tipoFlujo: null, tipoFlujoLabel: '', resuelto: null, togglesDisponibles, errores: [] };
+    const vacio: InferResult = { tipoFlujo: null, tipoFlujoLabel: '', resuelto: null, togglesDisponibles, rutaOk: false, errores: [] };
     if (!origen || !destino) return vacio;
 
-    const errores: string[] = [];
-
+    // Errores de RUTA (origen/destino/permiso) — gobiernan rutaOk (paso 1).
+    const rutaErrores: string[] = [];
     if (origen.tipo !== 'central' && origen.tipo === destino.tipo && origen.id === destino.id) {
-        errores.push('El origen y el destino no pueden ser el mismo.');
+        rutaErrores.push('El origen y el destino no pueden ser el mismo.');
     }
     if (origen.tipo === 'central' && destino.tipo !== 'obra') {
-        errores.push('“Bodega central” solo puede enviar a una obra (es una solicitud).');
+        rutaErrores.push('“Bodega central” solo puede enviar a una obra (es una solicitud).');
     }
 
     // ── Inferir el tipo de flujo ──
@@ -132,21 +134,24 @@ export function inferMovimiento(state: WizardState, permisos: PermisosMovimiento
     }
 
     if (!PERMISO_POR_FLUJO(permisos)[tipoFlujo]) {
-        errores.push('No tenés permiso para este tipo de movimiento.');
+        rutaErrores.push('No tenés permiso para este tipo de movimiento.');
     }
+    const rutaOk = rutaErrores.length === 0;
 
-    // ── Validar ítems / motivo ──
+    // Errores de ÍTEMS / motivo — no bloquean el paso 1, sí el "Crear" final.
+    const itemErrores: string[] = [];
     if (tipoFlujo === 'solicitud_materiales') {
-        if (state.itemsCustom.length === 0) errores.push('Agregá al menos un material a comprar.');
+        if (state.itemsCustom.length === 0) itemErrores.push('Agregá al menos un material a comprar.');
     } else if (state.items.length === 0) {
-        errores.push('Agregá al menos un ítem.');
+        itemErrores.push('Agregá al menos un ítem.');
     }
     if (tipoFlujo === 'orden_gerencia' && !state.motivo.trim()) {
-        errores.push('La orden de gerencia requiere un motivo.');
+        itemErrores.push('La orden de gerencia requiere un motivo.');
     }
 
+    const errores = [...rutaErrores, ...itemErrores];
     const resuelto = errores.length === 0 ? buildPayload(tipoFlujo, state) : null;
-    return { tipoFlujo, tipoFlujoLabel: TIPO_FLUJO_LABEL[tipoFlujo], resuelto, togglesDisponibles, errores };
+    return { tipoFlujo, tipoFlujoLabel: TIPO_FLUJO_LABEL[tipoFlujo], resuelto, togglesDisponibles, rutaOk, errores };
 }
 
 function buildPayload(tipoFlujo: TipoFlujo, state: WizardState): MovimientoResuelto {
