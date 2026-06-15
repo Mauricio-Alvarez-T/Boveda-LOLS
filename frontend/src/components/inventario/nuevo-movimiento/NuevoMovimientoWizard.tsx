@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft, ArrowRight, Check } from 'lucide-react';
 import api from '../../../services/api';
 import type { ApiResponse } from '../../../types';
-import type { ItemInventario, Bodega, Obra } from '../../../types/entities';
+import type { ItemInventario, Bodega, Obra, CategoriaInventario } from '../../../types/entities';
 import type { StockUbicacion } from '../StockBadge';
 import { useTransferencias } from '../../../hooks/inventario/useTransferencias';
 import { Modal } from '../../ui/Modal';
@@ -40,6 +40,7 @@ export const NuevoMovimientoWizard: React.FC<{
     const [bodegas, setBodegas] = useState<Bodega[]>([]);
     const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
     const [stockMap, setStockMap] = useState<Record<number, StockUbicacion[]>>({});
+    const [categorias, setCategorias] = useState<CategoriaInventario[]>([]);
     const [loadingData, setLoadingData] = useState(true);
 
     const [paso, setPaso] = useState(0);
@@ -66,11 +67,13 @@ export const NuevoMovimientoWizard: React.FC<{
             api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500'),
             api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&participa_transferencias=1&limit=50'),
             api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=1&limit=500'),
-        ]).then(async ([itemsRes, bodRes, obrasRes]) => {
+            api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=100'),
+        ]).then(async ([itemsRes, bodRes, obrasRes, catRes]) => {
             const items = itemsRes.data.data;
             setCatalogo(items);
             setBodegas(bodRes.data.data || []);
             setObras((obrasRes.data.data || []).map(o => ({ id: o.id, nombre: o.nombre })));
+            setCategorias(catRes.data.data || []);
             if (items.length) setStockMap(await fetchStockPorItems(items.map(i => i.id)));
             setLoadingData(false);
         }).catch(() => setLoadingData(false));
@@ -106,11 +109,11 @@ export const NuevoMovimientoWizard: React.FC<{
         return m;
     }, [stockMap, origen]);
 
-    // Disponibilidad global (modo Pedir): ¿hay stock del ítem en alguna ubicación?
-    const disponibilidad = useMemo(() => {
-        const m: Record<number, boolean> = {};
+    // Stock total por ítem (modo Pedir): suma de todas las ubicaciones (sin exponer cuál).
+    const disponibleTotal = useMemo(() => {
+        const m: Record<number, number> = {};
         Object.entries(stockMap).forEach(([itemId, ubis]) => {
-            m[Number(itemId)] = ubis.some(u => (Number(u.cantidad) || 0) > 0);
+            m[Number(itemId)] = ubis.reduce((s, u) => s + (Number(u.cantidad) || 0), 0);
         });
         return m;
     }, [stockMap]);
@@ -158,13 +161,14 @@ export const NuevoMovimientoWizard: React.FC<{
                 {paso === 1 && (
                     <CatalogoCarrito
                         catalogo={catalogo} stockEnOrigen={stockEnOrigen} conStockFiltro={conStockFiltro}
-                        disponibilidad={disponibilidad} loading={loadingData} cart={cart} setCart={setCart}
+                        disponibleTotal={disponibleTotal} categorias={categorias} loading={loadingData} cart={cart} setCart={setCart}
                         allowCustom={allowCustom} customItems={customItems} setCustomItems={setCustomItems}
                     />
                 )}
                 {paso === 2 && (
                     <PasoRevisar
-                        infer={infer} state={wizardState} catalogo={catalogo} nombreUbi={nombreUbi}
+                        infer={infer} state={wizardState} catalogo={catalogo} customItems={customItems} nombreUbi={nombreUbi}
+                        setCart={setCart} setCustomItems={setCustomItems}
                         onMotivo={setMotivo} onObservaciones={setObservaciones}
                         onRequierePionetas={setRequierePionetas} onCantidadPionetas={setCantidadPionetas}
                     />

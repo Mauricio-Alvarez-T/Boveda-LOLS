@@ -49,11 +49,11 @@ export const PasoRuta: React.FC<{
                     options={obraOpts}
                     value={encode(state.destino)}
                     onChange={v => { const d = decode(v); onDestino(d && d.tipo === 'obra' ? d : null); }}
-                    placeholder="Elegí la obra..."
+                    placeholder="Elige la obra..."
                 />
                 <div className="flex items-start gap-2 rounded-xl border border-brand-primary/20 bg-brand-primary/5 px-3 py-2.5 text-sm text-muted-foreground">
                     <Info className="h-4 w-4 mt-0.5 shrink-0 text-brand-primary" />
-                    <span>Será una <strong className="text-brand-dark">solicitud</strong>. Vos pedís y marcás qué necesitás; <strong>quien aprueba decide de qué bodega sale</strong>.</span>
+                    <span>Será una <strong className="text-brand-dark">solicitud</strong>. Tú pides y marcas lo que necesitas; <strong>quien aprueba decide de qué bodega sale</strong>.</span>
                 </div>
             </div>
         );

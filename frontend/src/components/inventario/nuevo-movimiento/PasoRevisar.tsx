@@ -1,24 +1,39 @@
 import React from 'react';
-import { FileText, CheckCircle2, Truck, PackageCheck, Ban, ShoppingBag, Package } from 'lucide-react';
+import { FileText, CheckCircle2, Truck, PackageCheck, Ban, ShoppingBag, Package, Minus, Plus, Trash2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import type { ItemInventario } from '../../../types/entities';
-import type { Origen, Destino, InferResult, WizardState } from '../../../utils/inferMovimiento';
+import type { Origen, Destino, InferResult, WizardState, ItemInput, CustomItemInput } from '../../../utils/inferMovimiento';
 
-/** Paso 3: revisar el flujo inferido + recorrido (SoD) + motivo/observaciones/pionetas. */
+/**
+ * Paso 3: revisar el flujo inferido + recorrido (SoD) + ítems EDITABLES (cambiar
+ * cantidad / quitar, tanto de catálogo como de "otros materiales") + motivo /
+ * observaciones / pionetas.
+ */
 export const PasoRevisar: React.FC<{
     infer: InferResult;
     state: WizardState;
     catalogo: ItemInventario[];
+    /** Ítems fuera de catálogo en crudo (para editar por índice). */
+    customItems: CustomItemInput[];
     nombreUbi: (u: Origen | Destino | null) => string;
+    setCart: React.Dispatch<React.SetStateAction<ItemInput[]>>;
+    setCustomItems: React.Dispatch<React.SetStateAction<CustomItemInput[]>>;
     onMotivo: (v: string) => void;
     onObservaciones: (v: string) => void;
     onRequierePionetas: (v: boolean) => void;
     onCantidadPionetas: (v: number) => void;
-}> = ({ infer, state, catalogo, nombreUbi, onMotivo, onObservaciones, onRequierePionetas, onCantidadPionetas }) => {
+}> = ({ infer, state, catalogo, customItems, nombreUbi, setCart, setCustomItems, onMotivo, onObservaciones, onRequierePionetas, onCantidadPionetas }) => {
     const tipoFlujo = infer.tipoFlujo;
     const conAprobacion = tipoFlujo != null && !['push_directo', 'orden_gerencia'].includes(tipoFlujo);
     const motivoRequerido = tipoFlujo === 'orden_gerencia';
     const aplicaPionetas = tipoFlujo != null && ['solicitud', 'devolucion', 'intra_obra'].includes(tipoFlujo);
+
+    const updateQty = (id: number, c: number) => {
+        if (c < 1) { setCart(prev => prev.filter(l => l.item_id !== id)); return; }
+        setCart(prev => prev.map(l => l.item_id === id ? { ...l, cantidad: c } : l));
+    };
+    const updCustom = (i: number, patch: Partial<CustomItemInput>) => setCustomItems(prev => prev.map((c, idx) => idx === i ? { ...c, ...patch } : c));
+    const delCustom = (i: number) => setCustomItems(prev => prev.filter((_, idx) => idx !== i));
 
     const itemRows = state.items.map(l => ({ ...l, item: catalogo.find(c => c.id === l.item_id) }));
 
@@ -40,7 +55,7 @@ export const PasoRevisar: React.FC<{
             <div>
                 <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2">Recorrido</p>
                 <div className="flex items-start justify-between gap-0.5">
-                    <Nodo icon={<FileText className="h-4 w-4" />} label="Solicitás vos" />
+                    <Nodo icon={<FileText className="h-4 w-4" />} label="Tú solicitas" />
                     <div className="flex-1 h-0.5 bg-border mt-4" />
                     {conAprobacion
                         ? <Nodo icon={<CheckCircle2 className="h-4 w-4" />} label="Aprobación" nota="pendiente" />
@@ -52,32 +67,41 @@ export const PasoRevisar: React.FC<{
                 </div>
             </div>
 
-            <div>
-                <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Package className="h-3.5 w-3.5" /> Ítems ({itemRows.length})</p>
-                {itemRows.length === 0 ? <p className="text-caption text-muted-foreground italic">Sin ítems de catálogo.</p> : (
-                    <ul className="space-y-1">
+            {itemRows.length > 0 && (
+                <div>
+                    <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2 flex items-center gap-1.5"><Package className="h-3.5 w-3.5" /> Ítems ({itemRows.length})</p>
+                    <ul className="space-y-1.5">
                         {itemRows.map(r => (
-                            <li key={r.item_id} className="flex justify-between text-xs">
-                                <span className="text-brand-dark truncate">{r.item?.descripcion || `Item #${r.item_id}`}</span>
-                                <span className="font-bold shrink-0 ml-2">{r.cantidad} {r.item?.unidad || ''}</span>
+                            <li key={r.item_id} className="flex items-center gap-2">
+                                <span className="flex-1 min-w-0 text-xs text-brand-dark truncate">{r.item?.descripcion || `Item #${r.item_id}`}</span>
+                                <div className="shrink-0 flex items-center gap-1">
+                                    <button type="button" onClick={() => updateQty(r.item_id, r.cantidad - 1)} className="h-7 w-7 rounded-md bg-muted flex items-center justify-center"><Minus className="h-3 w-3" /></button>
+                                    <input type="number" inputMode="decimal" min={0} value={r.cantidad} onChange={e => updateQty(r.item_id, parseInt(e.target.value) || 0)} className="w-12 h-7 px-1 text-label font-bold text-center border border-border rounded-md" />
+                                    <button type="button" onClick={() => updateQty(r.item_id, r.cantidad + 1)} className="h-7 w-7 rounded-md bg-brand-primary/10 text-brand-primary flex items-center justify-center"><Plus className="h-3 w-3" /></button>
+                                    <span className="text-caption text-muted-foreground w-8 truncate">{r.item?.unidad || ''}</span>
+                                    <button type="button" onClick={() => updateQty(r.item_id, 0)} className="text-muted-foreground/50 hover:text-destructive ml-0.5"><Trash2 className="h-3.5 w-3.5" /></button>
+                                </div>
                             </li>
                         ))}
                     </ul>
-                )}
-                {state.itemsCustom.length > 0 && (
-                    <>
-                        <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mt-3 mb-2 flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" /> A comprar ({state.itemsCustom.length})</p>
-                        <ul className="space-y-1">
-                            {state.itemsCustom.map((c, i) => (
-                                <li key={i} className="flex justify-between text-xs">
-                                    <span className="text-brand-dark truncate">{c.descripcion}</span>
-                                    <span className="font-bold shrink-0 ml-2">{c.cantidad} {c.unidad || ''}</span>
-                                </li>
-                            ))}
-                        </ul>
-                    </>
-                )}
-            </div>
+                </div>
+            )}
+
+            {customItems.length > 0 && (
+                <div>
+                    <p className="text-label font-black text-brand-dark/60 uppercase tracking-widest mb-2 flex items-center gap-1.5"><ShoppingBag className="h-3.5 w-3.5" /> Otros materiales ({customItems.filter(c => c.descripcion.trim()).length})</p>
+                    <ul className="space-y-2">
+                        {customItems.map((c, i) => (
+                            <li key={i} className="flex items-center gap-2">
+                                <input value={c.descripcion} onChange={e => updCustom(i, { descripcion: e.target.value })} placeholder="Descripción del material" className="flex-1 min-w-0 h-9 px-2.5 text-xs border border-border rounded-lg" />
+                                <input type="number" inputMode="decimal" min={1} value={c.cantidad} onChange={e => updCustom(i, { cantidad: parseInt(e.target.value) || 0 })} className="w-14 h-9 px-1 text-xs text-center border border-border rounded-lg" />
+                                <input value={c.unidad || ''} onChange={e => updCustom(i, { unidad: e.target.value })} placeholder="unidad" className="w-16 h-9 px-2 text-xs border border-border rounded-lg" />
+                                <button type="button" onClick={() => delCustom(i)} className="text-muted-foreground/50 hover:text-destructive shrink-0"><Trash2 className="h-4 w-4" /></button>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
 
             <div className="space-y-3 pt-1">
                 <div>

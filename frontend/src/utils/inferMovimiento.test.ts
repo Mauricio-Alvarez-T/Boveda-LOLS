@@ -54,7 +54,7 @@ describe('inferMovimiento — inferencia por ruta', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'obra', id: 5 }, items: [ITEM] }), SOLO_SOLICITAR);
         expect(r.tipoFlujo).toBe('push_directo');
         expect(r.rutaOk).toBe(false);
-        expect(r.errores).toContain('No tenés permiso para este tipo de movimiento.');
+        expect(r.errores).toContain('No tienes permiso para este tipo de movimiento.');
     });
 
     test('obra → bodega = devolución', () => {
@@ -98,19 +98,19 @@ describe('inferMovimiento — toggles, permisos y validaciones', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM], ordenGerencia: true }), SOLO_SOLICITAR);
         expect(r.togglesDisponibles.ordenGerencia).toBe(false);
         expect(r.tipoFlujo).toBe('intra_bodega'); // se ignora el toggle
-        expect(r.errores).toContain('No tenés permiso para este tipo de movimiento.'); // intra_bodega sin permiso
+        expect(r.errores).toContain('No tienes permiso para este tipo de movimiento.'); // intra_bodega sin permiso
     });
 
     test('sin ítems = error', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 } }), TODOS);
-        expect(r.errores).toContain('Agregá al menos un ítem.');
+        expect(r.errores).toContain('Agrega al menos un ítem.');
     });
 
     test('rutaOk: true con ruta válida aunque falten ítems; resuelto null', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 } }), TODOS);
         expect(r.rutaOk).toBe(true);
         expect(r.resuelto).toBeNull();
-        expect(r.errores).toContain('Agregá al menos un ítem.');
+        expect(r.errores).toContain('Agrega al menos un ítem.');
     });
 
     test('rutaOk: false si origen=destino o sin permiso', () => {

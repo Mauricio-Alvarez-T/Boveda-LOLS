@@ -131,16 +131,16 @@ export function inferMovimiento(state: WizardState, permisos: PermisosMovimiento
     }
 
     if (!PERMISO_POR_FLUJO(permisos)[tipoFlujo]) {
-        rutaErrores.push('No tenés permiso para este tipo de movimiento.');
+        rutaErrores.push('No tienes permiso para este tipo de movimiento.');
     }
     const rutaOk = rutaErrores.length === 0;
 
     // Errores de ÍTEMS / motivo — no bloquean el paso 1, sí el "Crear" final.
     const itemErrores: string[] = [];
     if (tipoFlujo === 'solicitud_materiales') {
-        if (state.itemsCustom.length === 0) itemErrores.push('Agregá al menos un material a comprar.');
+        if (state.itemsCustom.length === 0) itemErrores.push('Agrega al menos un material.');
     } else if (state.items.length === 0) {
-        itemErrores.push('Agregá al menos un ítem.');
+        itemErrores.push('Agrega al menos un ítem.');
     }
     if (tipoFlujo === 'orden_gerencia' && !state.motivo.trim()) {
         itemErrores.push('La orden de gerencia requiere un motivo.');
