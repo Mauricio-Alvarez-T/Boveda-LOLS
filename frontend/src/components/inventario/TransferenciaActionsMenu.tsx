@@ -49,10 +49,6 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
         };
     }, [open]);
 
-    const hasSecondary = canRechazar || canRechazarRecepcion || canCancelar;
-    const hasActions = canAprobar || canRecibir || canCompartirWhatsApp || hasSecondary;
-    if (!hasActions) return null;
-
     const handleClick = (fn: () => void) => () => { fn(); setOpen(false); };
 
     // Estilos compartidos (botones crudos con tokens — Inventario aún no migrado al DS).
@@ -60,6 +56,16 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
     const secondaryBtn = "flex items-center gap-1.5 px-3.5 py-2 text-xs font-bold rounded-xl shadow-sm transition-all bg-card border border-border text-brand-dark hover:bg-muted disabled:opacity-50 disabled:cursor-not-allowed";
     const menuItem = "w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-brand-dark hover:bg-muted disabled:opacity-50 transition-colors";
     const whatsappLabel = isPendiente ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp';
+
+    // Acciones secundarias: 1 → botón directo; 2+ → menú "Acciones ▾".
+    const secondaryActions = [
+        canRechazar && { key: 'rechazar', label: 'Rechazar', icon: <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />, onClick: onRechazar },
+        canRechazarRecepcion && { key: 'rechazar-recepcion', label: 'Rechazar Recepción', icon: <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />, onClick: onRechazarRecepcion },
+        canCancelar && { key: 'cancelar', label: 'Cancelar', icon: <Ban className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />, onClick: onCancelar },
+    ].filter(Boolean) as { key: string; label: string; icon: React.ReactNode; onClick: () => void }[];
+
+    const hasActions = canAprobar || canRecibir || canCompartirWhatsApp || secondaryActions.length > 0;
+    if (!hasActions) return null;
 
     return (
         <div className="flex items-center gap-2 shrink-0">
@@ -80,12 +86,17 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
                 <button onClick={onWhatsApp} disabled={actionLoading} className={secondaryBtn}
                     title={whatsappLabel} aria-label={whatsappLabel}>
                     <Send className="h-3.5 w-3.5 shrink-0" />
-                    <span className="hidden sm:inline">{whatsappLabel}</span>
                 </button>
             )}
 
-            {/* ── Acciones SECUNDARIAS en menú ── */}
-            {hasSecondary && (
+            {/* ── Acciones SECUNDARIAS — 1 directa, 2+ en menú ── */}
+            {secondaryActions.length === 1 && (
+                <button onClick={secondaryActions[0].onClick} disabled={actionLoading} className={secondaryBtn}>
+                    {secondaryActions[0].icon}
+                    <span>{secondaryActions[0].label}</span>
+                </button>
+            )}
+            {secondaryActions.length >= 2 && (
                 <div ref={wrapperRef} className="relative shrink-0">
                     <button
                         onClick={() => setOpen(v => !v)}
@@ -99,24 +110,12 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
 
                     {open && (
                         <div className="absolute top-full right-0 mt-1.5 w-56 bg-card border border-border rounded-xl shadow-xl z-50 py-1 animate-in fade-in slide-in-from-top-1 duration-150">
-                            {canRechazar && (
-                                <button onClick={handleClick(onRechazar)} disabled={actionLoading} className={menuItem}>
-                                    <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
-                                    <span>Rechazar</span>
+                            {secondaryActions.map(a => (
+                                <button key={a.key} onClick={handleClick(a.onClick)} disabled={actionLoading} className={menuItem}>
+                                    {a.icon}
+                                    <span>{a.label}</span>
                                 </button>
-                            )}
-                            {canRechazarRecepcion && (
-                                <button onClick={handleClick(onRechazarRecepcion)} disabled={actionLoading} className={menuItem}>
-                                    <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />
-                                    <span>Rechazar Recepción</span>
-                                </button>
-                            )}
-                            {canCancelar && (
-                                <button onClick={handleClick(onCancelar)} disabled={actionLoading} className={menuItem}>
-                                    <Ban className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    <span>Cancelar</span>
-                                </button>
-                            )}
+                            ))}
                         </div>
                     )}
                 </div>
