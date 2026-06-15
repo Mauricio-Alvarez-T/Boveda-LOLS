@@ -137,8 +137,12 @@ y re-exporta las fechas de `fechas.ts` (`fmtFecha`, `fmtFechaCorta`, `formatDura
 - `no-restricted-syntax` → prohíbe `<button>` crudo.
 - `ds/no-arbitrary-text-size` → prohíbe `text-[Npx]` en className.
 
-Severidad **`warn`** durante F2 (hay cientos de casos existentes); **flip a `error`
-al cerrar F2**. Lint NO está en el gate de deploy (gate = `tsc` + `npm test` + `build`).
+Severidad **`error`** desde el **cierre de F2 (2026-06-15)**: los ~326 `<button>` crudos y
+~568 `text-[Npx]` originales fueron migrados a primitivas/tokens o conservados con
+`eslint-disable-next-line no-restricted-syntax -- <razón>` justificado → **0 violaciones** de
+ambas reglas. Lint NO está en el gate de deploy (gate = `tsc` + `npm test` + `build`); las reglas
+en `error` son guía local anti-regresión. Al introducir un `<button>` denso legítimo, añade el
+disable con razón en la línea inmediatamente superior.
 
 ### Checklist de migración por-página (F2.2+)
 1. `text-[Npx]` → token (§1).

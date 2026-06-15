@@ -68,10 +68,14 @@ hooks, helpers de formato locales.
     transferencias, usuarios, obras). Aplicado a create/update + payloads anidados de oleada 1; strip
     activo donde es seguro (usuarios PUT — única protección, sin allowedFields; recibir; resolver;
     obras vía factory). 17 tests nuevos. Decisión: NO zod porque el deploy excluye node_modules.
-- [ ] **F2 — Design system**: escala tipográfica semántica en `@theme` (~5 tokens) y migración de
-  los 555 usos POR PÁGINA; componentes IconButton/Chip/StatusBadge/EmptyState/Section; adopción
-  total de Button/Input; `utils/format.ts` + `utils/statusConfig.ts` únicos; reglas ESLint
-  anti-regresión; `docs/reglas/diseno.md`.
+- [x] **F2 — Design system** ✅ **CERRADA 2026-06-15**: escala tipográfica semántica en `@theme`
+  y migración de los usos POR PÁGINA; componentes IconButton/Chip/StatusBadge/EmptyState/Section;
+  adopción total de Button/Input; `utils/format.ts` + `utils/statusConfig.ts` únicos; reglas ESLint
+  anti-regresión; `docs/reglas/diseno.md`. **Cierre**: barrido final de las 222 violaciones
+  restantes (Inventario completo + stragglers en workers/layout/dashboard/vehiculos/primitivos `ui/`)
+  → **0 `<button>` crudo + 0 `text-[Npx]`** (62→Button, 46→IconButton, ~85 `<button>` conservados
+  con `eslint-disable` justificado, 26 `text-[Npx]`→token); reglas `no-restricted-syntax` y
+  `ds/no-arbitrary-text-size` **flipeadas a `error`**. Gate: `tsc` 0 + `vite build` ok + eslint 0-DS.
 - [ ] **F3 — Datos FE + patrones**: TanStack Query por módulo (Vehículos primero); patrones
   MasterDetailPage / TabbedPage / CrudSettingsPage; `<RequirePermission>`; Vitest+RTL (ui/ +
   asistencia diaria + aprobación transferencia + gating permisos).

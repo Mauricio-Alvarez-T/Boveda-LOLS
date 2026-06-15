@@ -25,15 +25,16 @@ export default defineConfig([
       globals: globals.browser,
     },
     rules: {
-      // Anti-regresión Design System (Fase 2). Severidad 'warn' por ahora:
-      // hay ~326 <button> crudos y ~568 text-[Npx] existentes; se migran por
-      // página (F2.2+) y se flipea a 'error' al cerrar F2. Lint NO está en el
-      // gate de deploy → estas reglas son guía local, no bloquean build.
-      'no-restricted-syntax': ['warn', {
+      // Anti-regresión Design System. F2 CERRADA (2026-06-15): los ~326 <button>
+      // crudos y ~568 text-[Npx] originales fueron migrados a primitivas
+      // (Button/IconButton) o tokens, o conservados con eslint-disable justificado.
+      // Severidad 'error' para impedir regresiones. Excepción legítima por línea:
+      // // eslint-disable-next-line no-restricted-syntax -- <razón>
+      'no-restricted-syntax': ['error', {
         selector: 'JSXOpeningElement[name.name="button"]',
         message: 'Usa <Button>/<IconButton> de components/ui en vez de <button> crudo (design system, Fase 2). Excepción legítima: // eslint-disable-next-line no-restricted-syntax',
       }],
-      'ds/no-arbitrary-text-size': 'warn',
+      'ds/no-arbitrary-text-size': 'error',
     },
   },
 ])
