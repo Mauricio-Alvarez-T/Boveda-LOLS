@@ -22,12 +22,19 @@ Implementación: `backend/src/services/transferencia.service.js`.
 | Flujo | Ruta | Aprobación | SoD | Permiso |
 |---|---|---|---|---|
 | solicitud | obra↔bodega | ✓ | ✓ | transferencias.solicitar |
-| solicitud_materiales | solo items custom | ✓ | ✓ | transferencias.solicitar |
+| solicitud_materiales | solo items custom | ✓ | ✓ | transferencias.solicitud_materiales |
 | push_directo | bodega→obra | ✗ (consolida roles) | exento | transferencias.push_directo |
 | intra_bodega | bodega→bodega | instantáneo | exento | transferencias.intra_bodega |
-| intra_obra | obra→obra | ✓ | ✓ | (solicitar) |
+| intra_obra | obra→obra | ✓ | ✓ | transferencias.intra_obra |
 | orden_gerencia | bodega→obra | bypass | exento | transferencias.orden_gerencia |
-| devolucion | obra→bodega | ✓ | ✓ | (solicitar) |
+| devolucion | obra→bodega | ✓ | ✓ | transferencias.devolucion |
+
+> **Auditoría de permisos (2026-06):** `devolucion` e `intra_obra` pasaron a tener **permiso propio**
+> (antes heredaban `solicitar`; migración 080 hace backfill a los roles que ya tenían `solicitar`,
+> sin regresión). Se eliminó la genérica obsoleta `inventario.aprobar` (reemplazada por
+> `transferencias.aprobar`). La pestaña **"Movimientos"** (kardex) se gatea con
+> `inventario.movimientos.ver`, ahora registrada en catálogo + jerarquía (antes sólo existía en la
+> DB vía migración 054, por lo que caía en "Configuración → Otros" del panel de roles).
 
 - `solicitud_materiales` = SOLO items personalizados (`transferencia_items_custom`), sin catálogo.
   El aprobador puede ajustar cantidad, quitar/incluir, corregir descripción, agregar ítems y dejar

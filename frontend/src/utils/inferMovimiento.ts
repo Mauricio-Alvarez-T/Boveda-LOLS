@@ -41,6 +41,8 @@ export interface PermisosMovimiento {
     solicitudMateriales: boolean;
     pushDirecto: boolean;
     intraBodega: boolean;
+    devolucion: boolean;
+    intraObra: boolean;
     ordenGerencia: boolean;
 }
 
@@ -84,8 +86,8 @@ const PERMISO_POR_FLUJO = (p: PermisosMovimiento): Record<TipoFlujo, boolean> =>
     solicitud_materiales: p.solicitudMateriales,
     push_directo: p.pushDirecto,
     intra_bodega: p.intraBodega,
-    intra_obra: p.solicitar,
-    devolucion: p.solicitar,
+    intra_obra: p.intraObra,
+    devolucion: p.devolucion,
     orden_gerencia: p.ordenGerencia,
 });
 

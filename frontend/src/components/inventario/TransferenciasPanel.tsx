@@ -232,6 +232,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.push_directo') ||
                     hasPermission('inventario.transferencias.intra_bodega') ||
+                    hasPermission('inventario.transferencias.devolucion') ||
+                    hasPermission('inventario.transferencias.intra_obra') ||
                     hasPermission('inventario.transferencias.orden_gerencia')
                 )}
                 onPedir={() => setWizardModo('pedir')}

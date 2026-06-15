@@ -84,10 +84,9 @@ const MAESTRO_PERMISOS = [
 
     // INVENTARIO
     ['inventario.ver',              'Inventario', 'Ver Inventario',              'Acceso base al módulo de inventario (debe ir acompañado de al menos un permiso de tab abajo)', 1],
-    ['inventario.crear',            'Inventario', 'Crear en Inventario',         'Crear solicitudes, transferencias y registros de inventario', 2],
-    ['inventario.editar',           'Inventario', 'Editar Inventario',           'Modificar stock, descuentos y registros de inventario', 3],
-    ['inventario.aprobar',          'Inventario', 'Aprobar Transferencias',      'Aprobar o rechazar solicitudes de transferencia de equipos', 4],
-    ['inventario.eliminar',         'Inventario', 'Eliminar en Inventario',      'Anular o eliminar registros de inventario', 5],
+    ['inventario.crear',            'Inventario', 'Crear en Inventario',         'Crear ítems de catálogo, categorías, bodegas, registros de bombas y reportar discrepancias. (Las transferencias usan sus propios permisos en "Transferencias".)', 2],
+    ['inventario.editar',           'Inventario', 'Editar Inventario',           'Editar stock, ítems, categorías, bodegas, bombas y resolver discrepancias. (El flujo de transferencias usa permisos propios.)', 3],
+    ['inventario.eliminar',         'Inventario', 'Eliminar en Inventario',      'Eliminar/anular ítems, categorías, bodegas y registros de bombas. (Cancelar transferencias usa permisos propios.)', 5],
     // Tabs del módulo Inventario — visibilidad granular por tab. Cada permiso
     // gatea sólo la APARICIÓN de la pestaña en el menú superior; los datos $
     // dentro siguen gateados por permisos del módulo "Financiero".
@@ -109,7 +108,7 @@ const MAESTRO_PERMISOS = [
     // transportista ≠ receptor. SoD se enforcea en backend
     // (transferencia.service.js) — un user con `aprobar` no puede aprobar
     // transferencias que él mismo solicitó, salvo que tenga `sod_bypass`.
-    ['inventario.transferencias.solicitar',    'Inventario', 'Solicitar Transferencia',     'Crear solicitudes de transferencia normal, devolución e intra-obra. NO incluye flujos especiales (push directo, intra-bodega, orden gerencia).', 13],
+    ['inventario.transferencias.solicitar',    'Inventario', 'Solicitar Transferencia',     'Crear solicitudes de transferencia normal (bodega central → obra). La devolución, el traslado intra-obra y los flujos especiales (push directo, intra-bodega, orden gerencia) tienen cada uno su propio permiso.', 13],
     ['inventario.transferencias.solicitud_materiales', 'Inventario', 'Solicitud de Materiales', 'Crear solicitudes de materiales de construcción (cemento, fierro, áridos, etc.). Flujo con aprobación: pendiente → aprobada → en tránsito → recibida.', 14],
     ['inventario.transferencias.aprobar',      'Inventario', 'Aprobar Transferencia',       'Aprobar o rechazar solicitudes pendientes. SoD: no puede aprobar transferencias que él mismo solicitó (excepto con sod_bypass).', 15],
     ['inventario.transferencias.despachar',    'Inventario', 'Despachar Transferencia',     'Marcar una transferencia aprobada como en tránsito. SoD: no puede despachar transferencias que él mismo aprobó.', 16],
@@ -120,6 +119,13 @@ const MAESTRO_PERMISOS = [
     ['inventario.transferencias.intra_bodega', 'Inventario', '⚠️ Movimiento Intra-Bodega',   'Flujo especial: mover stock entre bodegas instantáneamente. Consolida los 4 roles. Para gestión de stock interno.', 20],
     ['inventario.transferencias.orden_gerencia','Inventario','⚠️ Orden de Gerencia',          'Flujo especial: PM/dueño ejecuta movimiento bypaseando aprobación normal. Consolida solicitante + aprobador + transportista. Sólo PM o gerencia.', 21],
     ['inventario.transferencias.sod_bypass',   'Inventario', '⚠️ Bypass SoD',                'Permite ejecutar acciones consecutivas sobre la misma transferencia (solicitar + aprobar + despachar + recibir). Para obras con personal único o emergencias. Audit log obligatorio.', 22],
+    // ── Flujos con permiso propio (auditoría 2026-06): devolución e intra-obra
+    //    dejaron de heredar `solicitar` para control granular por rol. ──
+    ['inventario.transferencias.devolucion',   'Inventario', 'Devolución (obra→bodega)',    'Crear devoluciones de stock de obra a bodega. Flujo con aprobación (pendiente → aprobada → en tránsito → recibida).', 24],
+    ['inventario.transferencias.intra_obra',   'Inventario', 'Traslado entre obras',        'Crear traslados de stock de una obra a otra. Flujo con aprobación.', 25],
+    // Pestaña "Movimientos" (kardex de stock). La fila DB la creó la migración 054;
+    // se registra aquí para que aparezca agrupada bajo Inventario en el panel (no en "Otros").
+    ['inventario.movimientos.ver',             'Inventario', 'Ver Tab Movimientos',         'Inventario → Pestaña "Movimientos": kardex histórico de movimientos de stock. Si está denegado, la pestaña no aparece en el menú superior del módulo.', 26],
 
     // SISTEMA
     ['sistema.logs.ver',            'Sistema', 'Ver Historial',                  'Ver el historial de actividad del sistema', 1],

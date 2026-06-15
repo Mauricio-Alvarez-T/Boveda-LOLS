@@ -131,7 +131,7 @@ router.post('/intra-bodega', auth, checkPermission('inventario.transferencias.in
 });
 
 // POST /api/transferencias/devolucion — obra → bodega, con aprobación
-router.post('/devolucion', auth, checkPermission('inventario.transferencias.solicitar'), validateBody(devolucion), async (req, res, next) => {
+router.post('/devolucion', auth, checkPermission('inventario.transferencias.devolucion'), validateBody(devolucion), async (req, res, next) => {
     try {
         const result = await transferenciaService.devolucion(req.body, req.user.id);
         res.status(201).json({ data: result });
@@ -139,7 +139,7 @@ router.post('/devolucion', auth, checkPermission('inventario.transferencias.soli
 });
 
 // POST /api/transferencias/intra-obra — obra → obra, con aprobación
-router.post('/intra-obra', auth, checkPermission('inventario.transferencias.solicitar'), validateBody(intraObra), async (req, res, next) => {
+router.post('/intra-obra', auth, checkPermission('inventario.transferencias.intra_obra'), validateBody(intraObra), async (req, res, next) => {
     try {
         const result = await transferenciaService.intraObra(req.body, req.user.id);
         res.status(201).json({ data: result });

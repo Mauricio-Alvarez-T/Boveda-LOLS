@@ -1464,7 +1464,7 @@ const transferenciaService = {
      * (como push_directo) pero permite cualquier combinación origen/destino
      * y exige 'motivo' obligatorio para trazabilidad.
      *
-     * Permiso: inventario.aprobar (no lo usa un bodeguero normal).
+     * Permiso: inventario.transferencias.orden_gerencia (no lo usa un bodeguero normal).
      *
      * payload: {
      *   origen_obra_id?, origen_bodega_id?,   // uno de los dos requerido

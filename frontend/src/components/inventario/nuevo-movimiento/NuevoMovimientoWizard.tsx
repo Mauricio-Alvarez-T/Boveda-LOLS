@@ -84,6 +84,8 @@ export const NuevoMovimientoWizard: React.FC<{
         solicitudMateriales: hasPermission('inventario.transferencias.solicitud_materiales'),
         pushDirecto: hasPermission('inventario.transferencias.push_directo'),
         intraBodega: hasPermission('inventario.transferencias.intra_bodega'),
+        devolucion: hasPermission('inventario.transferencias.devolucion'),
+        intraObra: hasPermission('inventario.transferencias.intra_obra'),
         ordenGerencia: hasPermission('inventario.transferencias.orden_gerencia'),
     }), [hasPermission]);
 

@@ -1,10 +1,10 @@
 import { inferMovimiento, type WizardState, type PermisosMovimiento } from './inferMovimiento';
 
 const TODOS: PermisosMovimiento = {
-    solicitar: true, solicitudMateriales: true, pushDirecto: true, intraBodega: true, ordenGerencia: true,
+    solicitar: true, solicitudMateriales: true, pushDirecto: true, intraBodega: true, devolucion: true, intraObra: true, ordenGerencia: true,
 };
 const SOLO_SOLICITAR: PermisosMovimiento = {
-    solicitar: true, solicitudMateriales: false, pushDirecto: false, intraBodega: false, ordenGerencia: false,
+    solicitar: true, solicitudMateriales: false, pushDirecto: false, intraBodega: false, devolucion: false, intraObra: false, ordenGerencia: false,
 };
 
 function base(overrides: Partial<WizardState> = {}): WizardState {
@@ -124,5 +124,29 @@ describe('inferMovimiento — toggles, permisos y validaciones', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM], requierePionetas: true, cantidadPionetas: 2 }), TODOS);
         expect((r.resuelto as any).data.requiere_pionetas).toBe(true);
         expect((r.resuelto as any).data.cantidad_pionetas).toBe(2);
+    });
+
+    // ── Split de permisos (auditoría 2026-06): devolución e intra-obra YA NO heredan
+    //    `solicitar`; cada uno exige su propio permiso. ──
+    test('devolución SIN permiso propio (solo solicitar) = error de permiso', () => {
+        const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM] }), SOLO_SOLICITAR);
+        expect(r.tipoFlujo).toBe('devolucion');
+        expect(r.rutaOk).toBe(false);
+        expect(r.errores).toContain('No tienes permiso para este tipo de movimiento.');
+    });
+
+    test('intra-obra SIN permiso propio (solo solicitar) = error de permiso', () => {
+        const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'obra', id: 8 }, items: [ITEM] }), SOLO_SOLICITAR);
+        expect(r.tipoFlujo).toBe('intra_obra');
+        expect(r.rutaOk).toBe(false);
+        expect(r.errores).toContain('No tienes permiso para este tipo de movimiento.');
+    });
+
+    test('devolución habilitada con permiso propio aunque NO tenga solicitar', () => {
+        const SOLO_DEVOLUCION: PermisosMovimiento = { solicitar: false, solicitudMateriales: false, pushDirecto: false, intraBodega: false, devolucion: true, intraObra: false, ordenGerencia: false };
+        const r = inferMovimiento(base({ origen: { tipo: 'obra', id: 7 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM] }), SOLO_DEVOLUCION);
+        expect(r.tipoFlujo).toBe('devolucion');
+        expect(r.rutaOk).toBe(true);
+        expect(r.errores).toEqual([]);
     });
 });
