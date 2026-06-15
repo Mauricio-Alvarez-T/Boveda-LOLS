@@ -17,13 +17,15 @@ export const CatalogoCarrito: React.FC<{
     /** Stock disponible por ítem en el origen elegido (vacío si origen central). */
     stockEnOrigen: Record<number, number>;
     conStockFiltro: boolean;
+    /** Modo Pedir: ¿hay stock del ítem en ALGUNA ubicación? (sin exponer cuál). */
+    disponibilidad?: Record<number, boolean>;
     loading: boolean;
     cart: ItemInput[];
     setCart: React.Dispatch<React.SetStateAction<ItemInput[]>>;
     allowCustom: boolean;
     customItems: CustomItemInput[];
     setCustomItems: React.Dispatch<React.SetStateAction<CustomItemInput[]>>;
-}> = ({ catalogo, stockEnOrigen, conStockFiltro, loading, cart, setCart, allowCustom, customItems, setCustomItems }) => {
+}> = ({ catalogo, stockEnOrigen, conStockFiltro, disponibilidad, loading, cart, setCart, allowCustom, customItems, setCustomItems }) => {
     const [search, setSearch] = useState('');
 
     const cartMap = useMemo(() => {
@@ -91,7 +93,14 @@ export const CatalogoCarrito: React.FC<{
                                 return (
                                     <li key={item.id} className="flex items-center gap-2 px-3 py-2">
                                         <div className="flex-1 min-w-0">
-                                            <div className="text-caption font-bold text-muted-foreground">#{item.nro_item}{conStockFiltro ? ` · ${disponible} ${item.unidad}` : ''}</div>
+                                            <div className="flex items-center gap-1.5">
+                                                <span className="text-caption font-bold text-muted-foreground">#{item.nro_item}{conStockFiltro ? ` · ${disponible} ${item.unidad}` : ''}</span>
+                                                {!conStockFiltro && disponibilidad && (
+                                                    <span className={cn('text-micro font-bold px-1.5 py-0.5 rounded-full', disponibilidad[item.id] ? 'bg-brand-primary/10 text-green-700 dark:text-green-300' : 'bg-amber-100 text-amber-700 dark:bg-amber-500/15 dark:text-amber-300')}>
+                                                        {disponibilidad[item.id] ? 'Disponible' : 'Sin stock'}
+                                                    </span>
+                                                )}
+                                            </div>
                                             <div className="text-xs font-bold text-brand-dark truncate">{item.descripcion}</div>
                                         </div>
                                         {enCarrito === undefined ? (

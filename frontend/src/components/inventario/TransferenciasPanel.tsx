@@ -33,7 +33,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const [selectedId, setSelectedId] = useState<number | null>(initialSelectedId ?? null);
     const [statusFilter, setStatusFilter] = useState(initialStatusFilter || 'todas');
     const [searchQuery, setSearchQuery] = useState('');
-    const [showWizard, setShowWizard] = useState(false);
+    const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
 
     // Discrepancias mode
@@ -221,14 +221,18 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
                 searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
                 onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
-                canNuevoMovimiento={!isDiscrepanciasMode && (
+                canPedir={!isDiscrepanciasMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
-                    hasPermission('inventario.transferencias.solicitud_materiales') ||
+                    hasPermission('inventario.transferencias.solicitud_materiales')
+                )}
+                canMover={!isDiscrepanciasMode && (
+                    hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.push_directo') ||
                     hasPermission('inventario.transferencias.intra_bodega') ||
                     hasPermission('inventario.transferencias.orden_gerencia')
                 )}
-                onNuevoMovimiento={() => setShowWizard(true)}
+                onPedir={() => setWizardModo('pedir')}
+                onMover={() => setWizardModo('mover')}
             />
 
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
@@ -320,10 +324,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 </div>
             </div>
 
-            {/* Wizard adaptativo "Nuevo movimiento" (Fase 4) — reemplaza los 8 modales. */}
+            {/* Wizard adaptativo (Fase 4.1) — dos modos: Pedir (solicitud) / Mover stock. */}
             <NuevoMovimientoWizard
-                isOpen={showWizard}
-                onClose={() => setShowWizard(false)}
+                isOpen={wizardModo !== null}
+                modo={wizardModo ?? 'pedir'}
+                onClose={() => setWizardModo(null)}
                 hasPermission={hasPermission}
                 onSubmit={handleCrearMovimiento}
             />
@@ -344,13 +349,15 @@ interface BarraFiltrosProps {
     canVerDiscrepancias: boolean;
     searchQuery: string;
     onSearchChange: (q: string) => void;
-    canNuevoMovimiento: boolean;
-    onNuevoMovimiento: () => void;
+    canPedir: boolean;
+    canMover: boolean;
+    onPedir: () => void;
+    onMover: () => void;
 }
 
 const BarraFiltros: React.FC<BarraFiltrosProps> = ({
     statusFilter, onStatusChange, pendientesCount, canVerDiscrepancias,
-    searchQuery, onSearchChange, canNuevoMovimiento, onNuevoMovimiento,
+    searchQuery, onSearchChange, canPedir, canMover, onPedir, onMover,
 }) => {
     const [searchOpen, setSearchOpen] = React.useState(false);
     const inputRef = React.useRef<HTMLInputElement>(null);
@@ -410,14 +417,23 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
                     </button>
                 )}
 
-                {/* Botón + al lado de la lupa */}
-                {canNuevoMovimiento && (
+                {/* Alta separada por rol: "Mover" (movimientos de stock) y "Pedir" (solicitud). */}
+                {canMover && (
                     <button
-                        onClick={onNuevoMovimiento}
-                        title="Nuevo movimiento"
-                        className="flex items-center justify-center h-8 w-8 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm"
+                        onClick={onMover}
+                        title="Mover stock entre ubicaciones (despacho, devolución, etc.)"
+                        className="flex items-center justify-center gap-1 h-8 px-2.5 shrink-0 text-brand-primary border border-brand-primary/40 bg-card rounded-xl hover:bg-brand-primary/5 transition-all text-xs font-bold"
                     >
-                        <Plus className="h-4 w-4" />
+                        <ArrowLeftRight className="h-3.5 w-3.5" /> Mover
+                    </button>
+                )}
+                {canPedir && (
+                    <button
+                        onClick={onPedir}
+                        title="Pedir materiales para una obra"
+                        className="flex items-center justify-center gap-1 h-8 px-3 shrink-0 text-white bg-brand-primary rounded-xl hover:bg-brand-primary/90 transition-all shadow-sm text-xs font-bold"
+                    >
+                        <Plus className="h-4 w-4" /> Pedir
                     </button>
                 )}
             </div>

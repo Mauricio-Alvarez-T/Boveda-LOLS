@@ -17,20 +17,23 @@ import {
     type PermisosMovimiento, type MovimientoResuelto,
 } from '../../../utils/inferMovimiento';
 
-const PASOS = ['Ruta', 'Ítems', 'Revisar'];
-
 /**
- * Wizard adaptativo "Nuevo movimiento" (Fase 4). UNA sola entrada en vez de 8
- * modales: el usuario elige origen/destino y `inferMovimiento` deduce el tipo de
- * flujo + el endpoint. El backend no cambia. `onSubmit` recibe el resultado tipado
- * y lo despacha a la función correcta del hook (lo resuelve el padre).
+ * Wizard adaptativo del alta (Fase 4 / 4.1). DOS modos, gated por permiso desde el
+ * panel padre:
+ * - "pedir": el jefe de obra SOLO elige obra destino + ítems (con indicador de
+ *   disponibilidad). Origen fijo = central (lo decide quien aprueba). → solicitud /
+ *   solicitud_materiales.
+ * - "mover": origen físico (que el usuario conoce) + destino → inferMovimiento deduce
+ *   devolución / intra-obra / intra-bodega / push directo / orden de gerencia.
+ * El backend no cambia: `onSubmit` recibe el resultado tipado y el padre lo despacha.
  */
 export const NuevoMovimientoWizard: React.FC<{
     isOpen: boolean;
+    modo: 'pedir' | 'mover';
     onClose: () => void;
     hasPermission: (p: string) => boolean;
     onSubmit: (resuelto: MovimientoResuelto) => Promise<{ id: number; codigo: string } | null>;
-}> = ({ isOpen, onClose, hasPermission, onSubmit }) => {
+}> = ({ isOpen, modo, onClose, hasPermission, onSubmit }) => {
     const { fetchStockPorItems } = useTransferencias();
 
     const [catalogo, setCatalogo] = useState<ItemInventario[]>([]);
@@ -42,7 +45,6 @@ export const NuevoMovimientoWizard: React.FC<{
     const [paso, setPaso] = useState(0);
     const [origen, setOrigen] = useState<Origen | null>(null);
     const [destino, setDestino] = useState<Destino | null>(null);
-    const [enviarAhora, setEnviarAhora] = useState(false);
     const [ordenGerencia, setOrdenGerencia] = useState(false);
     const [cart, setCart] = useState<ItemInput[]>([]);
     const [customItems, setCustomItems] = useState<CustomItemInput[]>([]);
@@ -52,10 +54,12 @@ export const NuevoMovimientoWizard: React.FC<{
     const [cantidadPionetas, setCantidadPionetas] = useState(0);
     const [submitting, setSubmitting] = useState(false);
 
-    // Reset + carga de datos al abrir.
+    // Reset + carga de datos al abrir (origen central fijo en modo Pedir).
     useEffect(() => {
         if (!isOpen) return;
-        setPaso(0); setOrigen(null); setDestino(null); setEnviarAhora(false); setOrdenGerencia(false);
+        setPaso(0);
+        setOrigen(modo === 'pedir' ? { tipo: 'central' } : null);
+        setDestino(null); setOrdenGerencia(false);
         setCart([]); setCustomItems([]); setMotivo(''); setObservaciones(''); setRequierePionetas(false); setCantidadPionetas(0); setSubmitting(false);
         setLoadingData(true);
         Promise.all([
@@ -70,7 +74,7 @@ export const NuevoMovimientoWizard: React.FC<{
             if (items.length) setStockMap(await fetchStockPorItems(items.map(i => i.id)));
             setLoadingData(false);
         }).catch(() => setLoadingData(false));
-    }, [isOpen, fetchStockPorItems]);
+    }, [isOpen, modo, fetchStockPorItems]);
 
     const permisos: PermisosMovimiento = useMemo(() => ({
         solicitar: hasPermission('inventario.transferencias.solicitar'),
@@ -83,10 +87,10 @@ export const NuevoMovimientoWizard: React.FC<{
     const customLimpios = useMemo(() => customItems.filter(c => c.descripcion.trim()), [customItems]);
 
     const wizardState = useMemo(() => ({
-        origen, destino, enviarAhora, ordenGerencia,
+        origen, destino, ordenGerencia,
         items: cart, itemsCustom: customLimpios,
         motivo, observaciones, requierePionetas, cantidadPionetas,
-    }), [origen, destino, enviarAhora, ordenGerencia, cart, customLimpios, motivo, observaciones, requierePionetas, cantidadPionetas]);
+    }), [origen, destino, ordenGerencia, cart, customLimpios, motivo, observaciones, requierePionetas, cantidadPionetas]);
 
     const infer = useMemo(() => inferMovimiento(wizardState, permisos), [wizardState, permisos]);
 
@@ -102,8 +106,17 @@ export const NuevoMovimientoWizard: React.FC<{
         return m;
     }, [stockMap, origen]);
 
+    // Disponibilidad global (modo Pedir): ¿hay stock del ítem en alguna ubicación?
+    const disponibilidad = useMemo(() => {
+        const m: Record<number, boolean> = {};
+        Object.entries(stockMap).forEach(([itemId, ubis]) => {
+            m[Number(itemId)] = ubis.some(u => (Number(u.cantidad) || 0) > 0);
+        });
+        return m;
+    }, [stockMap]);
+
     const hayExceso = conStockFiltro && cart.some(l => (stockEnOrigen[l.item_id] || 0) < l.cantidad);
-    const allowCustom = destino?.tipo === 'obra';
+    const allowCustom = modo === 'pedir';
 
     const nombreUbi = (u: Origen | Destino | null): string => {
         if (!u) return '—';
@@ -113,7 +126,7 @@ export const NuevoMovimientoWizard: React.FC<{
     };
 
     const handleOrigen = (o: Origen | null) => { setOrigen(o); setCart([]); };
-    const handleDestino = (d: Destino | null) => { setDestino(d); if (d?.tipo !== 'obra') setCustomItems([]); };
+    const handleDestino = (d: Destino | null) => setDestino(d);
 
     const hayItems = cart.length > 0 || customLimpios.length > 0;
     const puedeSiguiente = paso === 0 ? infer.rutaOk : paso === 1 ? (hayItems && !hayExceso) : false;
@@ -127,24 +140,26 @@ export const NuevoMovimientoWizard: React.FC<{
         if (r) onClose();
     };
 
+    const titulo = modo === 'pedir' ? 'Nueva solicitud' : 'Mover stock';
+    const pasos = modo === 'pedir' ? ['Obra', 'Ítems', 'Revisar'] : ['Ruta', 'Ítems', 'Revisar'];
+
     return (
-        <Modal isOpen={isOpen} onClose={onClose} title="Nuevo movimiento" size="lg">
+        <Modal isOpen={isOpen} onClose={onClose} title={titulo} size="lg">
             <div className="space-y-5">
-                <WizardStepper pasos={PASOS} actual={paso} />
+                <WizardStepper pasos={pasos} actual={paso} />
 
                 {paso === 0 && (
                     <PasoRuta
-                        state={wizardState} infer={infer} obras={obras} bodegas={bodegas}
+                        modo={modo} state={wizardState} infer={infer} obras={obras} bodegas={bodegas}
                         onOrigen={handleOrigen} onDestino={handleDestino}
-                        onToggleEnviarAhora={setEnviarAhora} onToggleOrden={setOrdenGerencia}
-                        nombreUbi={nombreUbi}
+                        onToggleOrden={setOrdenGerencia} nombreUbi={nombreUbi}
                     />
                 )}
                 {paso === 1 && (
                     <CatalogoCarrito
                         catalogo={catalogo} stockEnOrigen={stockEnOrigen} conStockFiltro={conStockFiltro}
-                        loading={loadingData} cart={cart} setCart={setCart}
-                        allowCustom={!!allowCustom} customItems={customItems} setCustomItems={setCustomItems}
+                        disponibilidad={disponibilidad} loading={loadingData} cart={cart} setCart={setCart}
+                        allowCustom={allowCustom} customItems={customItems} setCustomItems={setCustomItems}
                     />
                 )}
                 {paso === 2 && (
@@ -162,7 +177,9 @@ export const NuevoMovimientoWizard: React.FC<{
                     {paso < 2 ? (
                         <Button onClick={() => setPaso(p => p + 1)} disabled={!puedeSiguiente} rightIcon={<ArrowRight className="h-4 w-4" />}>Siguiente</Button>
                     ) : (
-                        <Button onClick={handleCrear} disabled={!puedeCrear} isLoading={submitting} leftIcon={<Check className="h-4 w-4" />}>Crear movimiento</Button>
+                        <Button onClick={handleCrear} disabled={!puedeCrear} isLoading={submitting} leftIcon={<Check className="h-4 w-4" />}>
+                            {modo === 'pedir' ? 'Crear solicitud' : 'Crear movimiento'}
+                        </Button>
                     )}
                 </div>
             </div>

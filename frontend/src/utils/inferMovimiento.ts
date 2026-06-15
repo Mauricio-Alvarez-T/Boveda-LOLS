@@ -26,8 +26,6 @@ export type Destino = { tipo: 'obra'; id: number } | { tipo: 'bodega'; id: numbe
 export interface WizardState {
     origen: Origen | null;
     destino: Destino | null;
-    /** Toggle "Enviar ahora" (push directo) — solo aplica en bodega→obra con permiso. */
-    enviarAhora: boolean;
     /** Toggle avanzado "Orden de gerencia" (bypass) — cualquier combinación, con permiso. */
     ordenGerencia: boolean;
     items: ItemInput[];
@@ -65,7 +63,7 @@ export interface InferResult {
     /** Payload listo para enviar; null si falta info o hay errores. */
     resuelto: MovimientoResuelto | null;
     /** Qué toggles ofrecer en la UI según la ruta + permisos. */
-    togglesDisponibles: { enviarAhora: boolean; ordenGerencia: boolean };
+    togglesDisponibles: { ordenGerencia: boolean };
     /** true si origen+destino forman una ruta válida y con permiso (ignora ítems/motivo). Habilita "Siguiente" en el paso Ruta. */
     rutaOk: boolean;
     errores: string[];
@@ -94,14 +92,11 @@ const PERMISO_POR_FLUJO = (p: PermisosMovimiento): Record<TipoFlujo, boolean> =>
 export function inferMovimiento(state: WizardState, permisos: PermisosMovimiento): InferResult {
     const { origen, destino } = state;
 
-    const esBodegaAObra = origen?.tipo === 'bodega' && destino?.tipo === 'obra';
     const togglesDisponibles = {
-        enviarAhora: !!esBodegaAObra && permisos.pushDirecto,
         ordenGerencia: !!origen && !!destino && permisos.ordenGerencia,
     };
 
     const usarOrdenGerencia = state.ordenGerencia && togglesDisponibles.ordenGerencia;
-    const usarEnviarAhora = state.enviarAhora && togglesDisponibles.enviarAhora;
 
     const vacio: InferResult = { tipoFlujo: null, tipoFlujoLabel: '', resuelto: null, togglesDisponibles, rutaOk: false, errores: [] };
     if (!origen || !destino) return vacio;
@@ -122,7 +117,9 @@ export function inferMovimiento(state: WizardState, permisos: PermisosMovimiento
     } else if (origen.tipo === 'central') {
         tipoFlujo = state.items.length === 0 && state.itemsCustom.length > 0 ? 'solicitud_materiales' : 'solicitud';
     } else if (origen.tipo === 'bodega' && destino.tipo === 'obra') {
-        tipoFlujo = usarEnviarAhora ? 'push_directo' : 'solicitud';
+        // Elegir una bodega de origen ES enviar/mover (modo "Mover stock"); requiere permiso.
+        // La solicitud (sin origen) vive en el modo "Pedir" → rama origen 'central'.
+        tipoFlujo = 'push_directo';
     } else if (origen.tipo === 'obra' && destino.tipo === 'bodega') {
         tipoFlujo = 'devolucion';
     } else if (origen.tipo === 'obra' && destino.tipo === 'obra') {
@@ -175,7 +172,6 @@ function buildPayload(tipoFlujo: TipoFlujo, state: WizardState): MovimientoResue
                 tipo_flujo: 'solicitud',
                 ...pionetas,
             };
-            if (oBodega != null) data.origen_bodega_id = oBodega; // preferencia de origen (no obligatorio)
             if (itemsCustom.length) data.items_custom = itemsCustom;
             return { kind: 'crear', data };
         }

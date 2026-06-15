@@ -9,7 +9,7 @@ const SOLO_SOLICITAR: PermisosMovimiento = {
 
 function base(overrides: Partial<WizardState> = {}): WizardState {
     return {
-        origen: null, destino: null, enviarAhora: false, ordenGerencia: false,
+        origen: null, destino: null, ordenGerencia: false,
         items: [], itemsCustom: [], motivo: '', observaciones: '', requierePionetas: false, cantidadPionetas: 0,
         ...overrides,
     };
@@ -44,22 +44,17 @@ describe('inferMovimiento — inferencia por ruta', () => {
         expect(r.resuelto).toBeNull();
     });
 
-    test('bodega → obra sin "enviar ahora" = solicitud con origen_bodega_id de preferencia', () => {
+    test('bodega → obra (modo Mover) = push_directo con permiso', () => {
         const r = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'obra', id: 5 }, items: [ITEM] }), TODOS);
-        expect(r.tipoFlujo).toBe('solicitud');
-        expect((r.resuelto as any).data.origen_bodega_id).toBe(2);
-    });
-
-    test('bodega → obra con "enviar ahora" + permiso = push_directo', () => {
-        const r = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'obra', id: 5 }, items: [ITEM], enviarAhora: true }), TODOS);
         expect(r.tipoFlujo).toBe('push_directo');
         expect(r.resuelto).toEqual({ kind: 'pushDirecto', data: expect.objectContaining({ origen_bodega_id: 2, destino_obra_id: 5 }) });
     });
 
-    test('toggle "enviar ahora" NO disponible sin permiso push_directo', () => {
-        const r = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'obra', id: 5 }, items: [ITEM], enviarAhora: true }), SOLO_SOLICITAR);
-        expect(r.togglesDisponibles.enviarAhora).toBe(false);
-        expect(r.tipoFlujo).toBe('solicitud'); // el toggle se ignora sin permiso
+    test('bodega → obra sin permiso push = error de permiso (rutaOk false)', () => {
+        const r = inferMovimiento(base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'obra', id: 5 }, items: [ITEM] }), SOLO_SOLICITAR);
+        expect(r.tipoFlujo).toBe('push_directo');
+        expect(r.rutaOk).toBe(false);
+        expect(r.errores).toContain('No tenés permiso para este tipo de movimiento.');
     });
 
     test('obra → bodega = devolución', () => {
