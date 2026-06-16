@@ -93,8 +93,11 @@ const ItemDetailModal: React.FC<Props> = ({
         if (!draft.unidad.trim()) { toast.error('La unidad es requerida'); return; }
         setSaving(true);
         try {
+            // OJO: el modal NO edita la categoría. No enviar categoria_id — el
+            // preloadedData (vista Resumen) a veces no lo trae y queda en 0, lo que
+            // rompía la FK fk_items_categoria (ER_NO_REFERENCED_ROW_2). El CRUD
+            // update solo toca los campos presentes, así que omitirlo es seguro.
             const patch: Record<string, unknown> = {
-                categoria_id: item.categoria_id,
                 descripcion: draft.descripcion.trim(),
                 unidad: draft.unidad.trim(),
                 m2: draft.m2.trim() === '' ? null : Number(draft.m2),
