@@ -7,6 +7,7 @@ import { ObraProvider } from './context/ObraContext.tsx'
 import { Toaster } from 'sonner'
 import { PageHeaderProvider } from './context/PageHeaderContext.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
+import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx'
 
 /** Toaster que sigue el tema activo (claro/oscuro). */
 const ThemedToaster: React.FC = () => {
@@ -27,7 +28,9 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
       <AuthProvider>
         <ObraProvider>
           <PageHeaderProvider>
-            <App />
+            <ErrorBoundary fullScreen>
+              <App />
+            </ErrorBoundary>
             <ThemedToaster />
           </PageHeaderProvider>
         </ObraProvider>

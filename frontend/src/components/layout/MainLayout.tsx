@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Sidebar } from './Sidebar';
 import { ObraSelector } from './ObraSelector';
 import { IconButton } from '../ui/IconButton';
+import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { Menu, Smartphone } from 'lucide-react';
 import { usePageHeader } from '../../context/PageHeaderContext';
 import { useAuth } from '../../context/AuthContext';
@@ -101,7 +102,9 @@ export const MainLayout: React.FC = () => {
                             transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
                             className="bg-transparent flex-1 flex flex-col min-h-0"
                         >
-                            <Outlet />
+                            <ErrorBoundary resetKey={location.pathname}>
+                                <Outlet />
+                            </ErrorBoundary>
                         </motion.div>
                     </AnimatePresence>
                 </div>
