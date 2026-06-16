@@ -24,7 +24,8 @@ interface Props {
 }
 
 const fmt = (n: number) => n.toLocaleString('es-CL');
-const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
+// Dinero CLP sin decimales: redondea (.5 hacia arriba) para no mostrar "$1.903,5".
+const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 /**
