@@ -807,10 +807,30 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                     </td>
                                     <td className="bg-amber-100 dark:bg-amber-950" />
                                 </tr>
+                                {/* ── Total con descuento: neto (bruto − descuento) bajo CADA columna de obra ── */}
                                 <tr className="border-t-2 border-brand-primary/20">
-                                    <td colSpan={totalColSpan - 2} className="bg-muted px-2 py-2.5 text-right font-black text-xs text-brand-dark border-r-2 border-border">
-                                        TOTAL CON DESCUENTOS
+                                    <td colSpan={verValores ? 6 : 4} className="bg-muted px-2 py-2.5 text-right font-black text-xs text-brand-dark">
+                                        TOTAL CON DESCUENTO
                                     </td>
+                                    {orderedLocations.map(loc => {
+                                        if (loc.type === 'bodega') {
+                                            return <td key={`neto_${loc.key}`} className="bg-muted border-r-2 border-border" />;
+                                        }
+                                        const obraTotal = categorias.reduce((sum, cat) =>
+                                            sum + cat.items.reduce((s, item) => s + (item.ubicaciones[loc.key]?.total || 0), 0), 0
+                                        );
+                                        const descPorcentaje = data.descuentos?.[loc.id] || 0;
+                                        const obraDescuento = descPorcentaje > 0 ? Math.round(obraTotal * descPorcentaje) / 100 : 0;
+                                        const obraNeto = obraTotal - obraDescuento;
+                                        return (
+                                            <React.Fragment key={`neto_${loc.key}`}>
+                                                <td className="bg-muted px-2 py-2.5" />
+                                                <td className="bg-muted px-2 py-2.5 text-right font-black text-label text-brand-dark border-r-2 border-border">
+                                                    {obraNeto > 0 ? fmtMoney(obraNeto) : ''}
+                                                </td>
+                                            </React.Fragment>
+                                        );
+                                    })}
                                     <td className="bg-muted px-2 py-2.5 text-right font-black text-section text-foreground border-r-2 border-border">
                                         {fmtMoney(grandTotals.totalConDescuento)}
                                     </td>
