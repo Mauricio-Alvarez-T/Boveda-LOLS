@@ -108,8 +108,8 @@ export const TransferenciaTimeline: React.FC<{
                                 {node.label}
                             </span>
                             {showSub && (
-                                <span className="inline-flex items-center gap-1 text-micro font-bold text-brand-primary whitespace-nowrap">
-                                    <PackageOpen className="h-3 w-3" />
+                                <span className="inline-flex items-center gap-1 text-micro font-bold text-brand-primary text-center leading-tight max-w-[84px] md:max-w-none md:whitespace-nowrap">
+                                    <PackageOpen className="h-3 w-3 shrink-0" />
                                     Entrega en curso{viajesRecibidos ? ` · viaje ${viajesRecibidos + 1}` : ''}
                                 </span>
                             )}

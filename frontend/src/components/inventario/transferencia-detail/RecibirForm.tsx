@@ -172,8 +172,80 @@ export const RecibirForm: React.FC<{
                 </div>
             )}
 
-            {/* Tabla densa: una fila por ítem */}
-            <div className="overflow-x-auto">
+            {/* ── Móvil: tarjeta por ítem (la tabla densa se corta en pantallas chicas) ── */}
+            <div className="md:hidden">
+                {/* Quick-fill + título de la acción */}
+                <div className="flex items-center gap-2 px-4 py-2 border-b border-brand-primary/20 bg-brand-primary/5">
+                    <span className="text-micro font-black text-brand-dark/60 uppercase tracking-widest mr-auto">Llegó este viaje</span>
+                    {/* eslint-disable-next-line no-restricted-syntax -- quick-fill denso */}
+                    <button type="button" onClick={() => setAll('pendiente')} className="text-micro font-bold text-brand-primary hover:underline" title="Rellenar todo al pendiente">todo</button>
+                    <span className="text-muted-foreground/40">·</span>
+                    {/* eslint-disable-next-line no-restricted-syntax -- quick-fill denso */}
+                    <button type="button" onClick={() => setAll('cero')} className="text-micro font-bold text-muted-foreground hover:underline" title="Vaciar todos los inputs">nada</button>
+                </div>
+                <ul className="divide-y divide-border">
+                    {items.map((item, idx) => {
+                        const ri = receiveItems[idx];
+                        if (!ri) return null;
+                        const enviada = Number(item.cantidad_enviada) || Number(item.cantidad_solicitada);
+                        const falta = pendientePorItem(item);
+                        const sobrante = ri.cantidad_recibida > falta ? ri.cantidad_recibida - falta : 0;
+                        const incompleto = ri.cantidad_recibida < falta;
+                        return (
+                            <li key={item.id || idx} className="px-4 py-3 bg-card">
+                                <div className="min-w-0">
+                                    {/* eslint-disable-next-line no-restricted-syntax -- enlace de nombre de ítem (abre modal detalle) */}
+                                    <button
+                                        type="button"
+                                        onClick={() => onOpenItem(item.item_id)}
+                                        className="text-left text-xs font-bold text-brand-dark hover:underline hover:text-brand-primary transition-colors"
+                                    >
+                                        {item.item_descripcion || `Item #${item.item_id}`}
+                                    </button>
+                                    {item.unidad && <span className="text-caption text-muted-foreground ml-1">({item.unidad})</span>}
+                                    <div className="text-caption text-muted-foreground tabular-nums mt-0.5">
+                                        Enviada {enviada} · Falta{' '}
+                                        <span className={cn("font-bold", falta === 0 ? "text-green-700 dark:text-green-300" : "text-amber-700 dark:text-amber-300")}>{falta}</span>
+                                    </div>
+                                </div>
+                                <div className="flex items-center gap-1.5 mt-2 flex-wrap">
+                                    <QtyStepper
+                                        value={ri.cantidad_recibida}
+                                        onChange={c => {
+                                            const updated = [...receiveItems];
+                                            updated[idx] = { ...updated[idx], cantidad_recibida: c };
+                                            setReceiveItems(updated);
+                                        }}
+                                        size="lg"
+                                        variant="card"
+                                        warning={sobrante > 0 ? 'sobrante' : null}
+                                        ariaLabel={item.item_descripcion || `Item #${item.item_id}`}
+                                    />
+                                    {sobrante > 0 && (
+                                        <span
+                                            className="text-micro font-bold text-amber-700 bg-amber-100 border border-amber-300 dark:text-amber-200 dark:bg-amber-500/15 dark:border-amber-800 px-1.5 py-0.5 rounded-full"
+                                            title="Vino más de lo enviado — se registrará como sobrante al cerrar"
+                                        >
+                                            +{sobrante} sobrante
+                                        </span>
+                                    )}
+                                    {incompleto && falta > 0 && ri.cantidad_recibida > 0 && (
+                                        <span
+                                            className="text-micro font-medium text-muted-foreground"
+                                            title={`Faltan ${falta - ri.cantidad_recibida} para completar este ítem`}
+                                        >
+                                            faltan {falta - ri.cantidad_recibida}
+                                        </span>
+                                    )}
+                                </div>
+                            </li>
+                        );
+                    })}
+                </ul>
+            </div>
+
+            {/* ── Desktop: tabla densa ── */}
+            <div className="hidden md:block overflow-x-auto">
                 <table className="w-full text-xs">
                     <thead>
                         <tr className="bg-brand-primary border-b border-border">

@@ -245,7 +245,9 @@ const TransferenciaDetail: React.FC<Props> = ({
             </Button>
 
             {/* ── Header — chip estado + menú "Acciones ▾" ── */}
-            <div className="flex items-start justify-between gap-3 mb-4 shrink-0">
+            {/* En móvil apila (título arriba, acciones abajo con wrap) para que el
+                botón "Registrar lo que llegó" no se corte; en md+ vuelve a fila. */}
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between md:gap-3 mb-4 shrink-0">
                 <div className="min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                         <h2 className="text-lg font-black text-brand-dark tracking-tight">{t.codigo}</h2>
@@ -266,7 +268,7 @@ const TransferenciaDetail: React.FC<Props> = ({
                         </div>
                     )}
                 </div>
-                <div className="flex items-start gap-2 shrink-0">
+                <div className="flex flex-wrap items-center gap-2">
                     <div className={cn("flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold shrink-0", cfg.color)}>
                         <Icon className="h-3.5 w-3.5" />
                         {cfg.label}

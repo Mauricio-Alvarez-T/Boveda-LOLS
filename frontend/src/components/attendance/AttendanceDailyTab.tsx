@@ -127,7 +127,10 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
             }
         }
         updateAttendance(worker.id, updates);
-        if (!est.es_presente && expandedWorkerId !== worker.id) {
+        // Auto-expandir el detalle SOLO en JI (Jornada Incompleta): ahí interesa
+        // registrar la hora real de entrada/salida. En F (Falta) no se abre — basta
+        // marcar la ausencia sin pedir horarios. (A=presente, TO=abre modal y retorna.)
+        if (est.codigo === 'JI' && expandedWorkerId !== worker.id) {
             setExpandedWorkerId(worker.id);
         }
     };

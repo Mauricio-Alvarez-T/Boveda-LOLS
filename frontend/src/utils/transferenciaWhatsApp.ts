@@ -12,6 +12,7 @@ export interface WhatsappCustomItem {
     unidad?: string | null;
     observacion?: string | null;
     cantidad_aprobada?: number | null;
+    cantidad_recibida?: number | null;
     aprobado?: boolean;
     nota_aprobador?: string | null;
     fuente?: 'comprar' | 'obra';
@@ -114,12 +115,23 @@ export function buildTransferenciaWhatsappText({
         const unidad = it.unidad ? ` ${it.unidad}` : '';
         return `• ${cant}${unidad} — ${it.descripcion}`;
     };
+    // En recepcion_parcial, progreso por item custom (mismo formato que catálogo).
+    // El total es la cantidad aprobada (o la pedida si no hubo ajuste), igual que
+    // el saldo pendiente de RecibirForm.tsx.
+    const pushCustomProgress = (it: WhatsappCustomItem) => {
+        if (t.estado !== 'recepcion_parcial') return;
+        const total = it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad;
+        const recibida = Number(it.cantidad_recibida) || 0;
+        const pendiente = Number(total) - recibida;
+        lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
+    };
     const aComprar = customVisibles.filter(it => it.fuente !== 'obra');
     const deObra = customVisibles.filter(it => it.fuente === 'obra');
     if (aComprar.length > 0) {
         lines.push(`${CART} *Por comprar (${aComprar.length}):*`);
         aComprar.forEach((it) => {
             lines.push(fmtCustom(it));
+            pushCustomProgress(it);
             if (it.observacion) lines.push(`   _${it.observacion}_`);
             if (it.nota_aprobador) lines.push(`   _Aprobador: ${it.nota_aprobador}_`);
         });
@@ -130,6 +142,7 @@ export function buildTransferenciaWhatsappText({
         deObra.forEach((it) => {
             const origenObra = it.origen_obra_nombre ? ` → traer de ${it.origen_obra_nombre}` : '';
             lines.push(`${fmtCustom(it)}${origenObra}`);
+            pushCustomProgress(it);
             if (it.nota_aprobador) lines.push(`   _${it.nota_aprobador}_`);
             else if (it.observacion) lines.push(`   _${it.observacion}_`);
         });
