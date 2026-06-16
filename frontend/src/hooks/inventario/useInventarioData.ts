@@ -100,39 +100,42 @@ export function useInventarioData() {
     const [stockObraLoading, setStockObraLoading] = useState(false);
     const [stockBodegaLoading, setStockBodegaLoading] = useState(false);
 
-    const fetchResumen = useCallback(async () => {
-        setResumenLoading(true);
+    // `silent`: refetch en segundo plano SIN togglear el flag de loading. Se usa
+    // tras editar una celda inline para no desmontar la tabla (evita que el scroll
+    // salte al inicio). El loading visible solo aplica a la carga inicial / cambio de tab.
+    const fetchResumen = useCallback(async (opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setResumenLoading(true);
         try {
             const res = await api.get<ApiResponse<ResumenData>>('/inventario/resumen');
             setResumen(res.data.data);
         } catch {
-            setResumen(null);
+            if (!opts?.silent) setResumen(null);
         } finally {
-            setResumenLoading(false);
+            if (!opts?.silent) setResumenLoading(false);
         }
     }, []);
 
-    const fetchStockObra = useCallback(async (obraId: number) => {
-        setStockObraLoading(true);
+    const fetchStockObra = useCallback(async (obraId: number, opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setStockObraLoading(true);
         try {
             const res = await api.get<ApiResponse<StockObraData>>(`/inventario/stock/obra/${obraId}`);
             setStockObra(res.data.data);
         } catch {
-            setStockObra(null);
+            if (!opts?.silent) setStockObra(null);
         } finally {
-            setStockObraLoading(false);
+            if (!opts?.silent) setStockObraLoading(false);
         }
     }, []);
 
-    const fetchStockBodega = useCallback(async (bodegaId: number) => {
-        setStockBodegaLoading(true);
+    const fetchStockBodega = useCallback(async (bodegaId: number, opts?: { silent?: boolean }) => {
+        if (!opts?.silent) setStockBodegaLoading(true);
         try {
             const res = await api.get<ApiResponse<StockBodegaData>>(`/inventario/stock/bodega/${bodegaId}`);
             setStockBodega(res.data.data);
         } catch {
-            setStockBodega(null);
+            if (!opts?.silent) setStockBodega(null);
         } finally {
-            setStockBodegaLoading(false);
+            if (!opts?.silent) setStockBodegaLoading(false);
         }
     }, []);
 

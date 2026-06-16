@@ -32,9 +32,9 @@ import { useCallback } from 'react';
  */
 
 interface FetchFns {
-    fetchResumen: () => Promise<void> | void;
-    fetchStockObra: (obraId: number) => Promise<void> | void;
-    fetchStockBodega: (bodegaId: number) => Promise<void> | void;
+    fetchResumen: (opts?: { silent?: boolean }) => Promise<void> | void;
+    fetchStockObra: (obraId: number, opts?: { silent?: boolean }) => Promise<void> | void;
+    fetchStockBodega: (bodegaId: number, opts?: { silent?: boolean }) => Promise<void> | void;
 }
 
 interface UseInventarioCacheArgs extends FetchFns {
@@ -63,10 +63,12 @@ export function useInventarioCache(args: UseInventarioCacheArgs): InventarioCach
     } = args;
 
     const invalidateStockAll = useCallback(async () => {
+        // silent: refetch en segundo plano sin togglear loading → la tabla no se
+        // desmonta y se preserva la posición de scroll tras editar una celda inline.
         const promises: Array<Promise<unknown> | void> = [];
-        promises.push(fetchResumen());
-        if (activeObraId) promises.push(fetchStockObra(activeObraId));
-        if (activeBodegaId) promises.push(fetchStockBodega(activeBodegaId));
+        promises.push(fetchResumen({ silent: true }));
+        if (activeObraId) promises.push(fetchStockObra(activeObraId, { silent: true }));
+        if (activeBodegaId) promises.push(fetchStockBodega(activeBodegaId, { silent: true }));
         // Promise.all acepta valores sync (void), se resuelven inmediatamente.
         await Promise.all(promises as Promise<unknown>[]);
     }, [fetchResumen, fetchStockObra, fetchStockBodega, activeObraId, activeBodegaId]);
