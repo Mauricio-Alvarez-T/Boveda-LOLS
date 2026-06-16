@@ -361,7 +361,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 {/* Items List */}
                                 {!collapsed && (
                                     <div className="divide-y divide-border">
-                                        {cat.items.map(item => {
+                                        {cat.items.map((item, idx) => {
                                             const isExpanded = mobileExpandedItem === item.id;
                                             // Gather all locations with stock for this item
                                             const obraLocs = obras.filter(o => {
@@ -387,7 +387,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                             {item.imagen_url ? (
                                                                 <img src={`${API_BASE}${item.imagen_url}`} alt="" className="w-full h-full object-cover" />
                                                             ) : (
-                                                                <span className="text-caption font-bold text-muted-foreground">#{item.nro_item}</span>
+                                                                <span className="text-caption font-bold text-muted-foreground">#{idx + 1}</span>
                                                             )}
                                                         </div>
 
@@ -672,7 +672,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                         const rowBg = idx % 2 === 0 ? 'bg-card' : 'bg-muted';
                                         return (
                                         <tr key={item.id} className={cn("hover:bg-blue-50/40 dark:hover:bg-blue-950/20 transition-colors", rowBg)}>
-                                            <td className={cn("sticky left-0 z-10 px-2 py-1.5 text-right text-muted-foreground border-r border-b border-border", rowBg)}>{item.nro_item}</td>
+                                            <td className={cn("sticky left-0 z-10 px-2 py-1.5 text-right text-muted-foreground border-r border-b border-border", rowBg)}>{idx + 1}</td>
                                             <td className={cn("px-1 py-1.5 text-center border-r border-b border-border", rowBg)}>
                                                 {showImages && (
                                                     item.imagen_url
