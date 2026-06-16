@@ -61,8 +61,17 @@ export function useItemDetail(): UseItemDetailReturn {
         try {
             // Backend crud.controller.getById returns item directamente (no envuelto en { data })
             const res = await api.get<ItemInventario>(`/items-inventario/${itemId}`);
-            const item = res.data;
-            if (!item || typeof item !== 'object' || !('id' in item)) return null;
+            const raw = res.data;
+            if (!raw || typeof raw !== 'object' || !('id' in raw)) return null;
+            // mysql2 devuelve DECIMAL como string; el resto del front (Resumen) usa
+            // números. Normalizamos para que el merge no cambie m2 a string y rompa
+            // m2.toFixed() en el modal (white screen).
+            const item: ItemInventario = {
+                ...raw,
+                m2: raw.m2 != null ? Number(raw.m2) : null,
+                valor_compra: raw.valor_compra != null ? Number(raw.valor_compra) : 0,
+                valor_arriendo: raw.valor_arriendo != null ? Number(raw.valor_arriendo) : 0,
+            };
             cache.current.set(itemId, item);
             return item;
         } catch (err) {

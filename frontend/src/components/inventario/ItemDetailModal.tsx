@@ -329,10 +329,10 @@ const ItemDetailModal: React.FC<Props> = ({
                                         <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">Unidad</p>
                                         <p className="text-sm font-black text-brand-dark">{item.unidad}</p>
                                     </div>
-                                    {item.m2 && item.m2 > 0 && (
+                                    {item.m2 != null && Number(item.m2) > 0 && (
                                         <div className="rounded-xl border border-border bg-muted px-3 py-2">
                                             <p className="text-micro text-muted-foreground uppercase font-bold mb-0.5">M²</p>
-                                            <p className="text-sm font-black text-brand-dark">{item.m2.toFixed(2)}</p>
+                                            <p className="text-sm font-black text-brand-dark">{Number(item.m2).toFixed(2)}</p>
                                         </div>
                                     )}
                                 </div>
