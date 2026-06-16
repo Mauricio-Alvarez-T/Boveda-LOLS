@@ -56,10 +56,12 @@ El deploy es automático vía GitHub Actions al hacer push a `main` o `develop`.
    backend — el deploy la excluye del `rsync --delete`; NUNCA borrarla** (si se borra → login 404 →
    restaurar con playbook §7bis). El cron usa la variante **self-healing** (pre-carga el `.sh` antes de
    correr) para evitar la carrera de auto-modificación del script.
-3. **Prod (`main`) = lftp FTP** con reintentos SUAVES. Si da `Connection refused` sostenido: cPanel
-   → cPHulk Brute Force Protection → flush/desbloquear IPs del runner (o ticket al hosting). NO
-   meter reintentos agresivos (el hammering re-dispara el ban). El restart de Passenger se escribe
-   en `tmp/restart.txt` vía FTP — automatizado en el workflow.
+3. **Prod (`main`) = PULL-SIDE cron-only (2026-06-16)**, igual que staging (el ban cPHulk también
+   tumba el FTP de prod). El workflow publica `frontend/dist` + `backend/` en la rama **`deploy-prod`**;
+   un **cron en cPanel** (cada 5 min) hace `git pull` y despliega a docroot `~/public_html/boveda.lols.cl`
+   + backend `~/boveda`. Script: `scripts/cpanel-deploy-prod.sh`. **Setup cPanel: guía en
+   `docs/PLAYBOOK_PULL_SIDE_CPANEL.md` §7.** Mismas reglas que staging: NUNCA borrar la carpeta `api/`
+   del docroot (mount de Passenger; excluida del `rsync --delete`); cron self-healing.
 4. Verificar runs desde la CLI: `gh run list --workflow deploy-cpanel-staging.yml` (gh ya autenticado).
 
 ### Tests

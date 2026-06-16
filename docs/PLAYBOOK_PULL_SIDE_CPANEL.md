@@ -257,11 +257,41 @@ Tras un push a `develop`:
 
 ---
 
-## 7. Producción (contexto — hoy sigue por FTP)
+## 7. Producción — PULL-SIDE (2026-06-16)
 
-Prod (`main` → `boveda.lols.cl`) usa todavía FTP `lftp`. El plan es replicar este playbook con la rama
-`deploy-main`, clone en `~/deploy-main`, docroot `~/public_html/boveda.lols.cl`, backend `~/boveda` y un
-script gemelo `scripts/cpanel-deploy-prod.sh` (se crea en la Fase 2, una vez staging quede validado).
-Mientras tanto, si el FTP de prod da `Connection refused`: cPanel → **Security → cPHulk Brute Force
-Protection** → revisar/desbloquear las IPs baneadas del runner (o esperar a que el ban expire), o
-subir por **File Manager** (HTTPS, no afectado por el ban FTP) como stopgap.
+Prod (`main` → `boveda.lols.cl`) ya NO usa FTP (el ban cPHulk también lo tumba). Usa el mismo
+mecanismo que staging, con estos valores canónicos:
+
+| Cosa | Valor (PROD) |
+|---|---|
+| Rama de build | `deploy-prod` |
+| Clone en servidor | `~/deploy-prod` (= `/home/lolscl/deploy-prod`) |
+| Docroot frontend | `~/public_html/boveda.lols.cl` |
+| Backend (Passenger) | `~/boveda` |
+| Script de deploy | `~/deploy-prod/scripts/cpanel-deploy-prod.sh` |
+| Log del cron | `~/deploy-prod.log` |
+| URL a verificar | https://boveda.lols.cl |
+
+GitHub ya publica la rama `deploy-prod` en cada push a `main` (workflow `deploy-cpanel.yml`). Falta
+**solo el lado servidor** (idéntico a §3bis/§4, cambiando `staging`→`prod`):
+
+### 7.1 Bootstrap del clone (cron one-shot idempotente, "Every Minute" `* * * * *`)
+```
+GIT_TERMINAL_PROMPT=0 sh -c 'test -d /home/lolscl/deploy-prod/.git || git clone --branch deploy-prod https://github.com/Mauricio-Alvarez-T/Boveda-LOLS.git /home/lolscl/deploy-prod' >> /home/lolscl/deploy-prod-bootstrap.log 2>&1
+```
+Esperar 1–2 min, verificar en File Manager que existen `/home/lolscl/deploy-prod/.git` y
+`/home/lolscl/deploy-prod/frontend/dist/index.html`, y **borrar este cron one-shot**.
+
+### 7.2 Confirmar docroot
+cPanel → **Domains** → `boveda.lols.cl` → Document Root debe ser `~/public_html/boveda.lols.cl`. Si no,
+ajustar `FRONT_DEST` en `scripts/cpanel-deploy-prod.sh` y republicar.
+
+### 7.3 Cron de deploy cada 5 min (`*/5 * * * *`, self-healing)
+```
+cd /home/lolscl/deploy-prod && git fetch -q origin deploy-prod && git checkout -q -f origin/deploy-prod -- scripts/cpanel-deploy-prod.sh 2>/dev/null; HOME=/home/lolscl GIT_TERMINAL_PROMPT=0 /bin/bash /home/lolscl/deploy-prod/scripts/cpanel-deploy-prod.sh >> /home/lolscl/deploy-prod.log 2>&1
+```
+Éxito = `~/deploy-prod.log` muestra `… · deploy OK → <sha>` y el hash del bundle en
+https://boveda.lols.cl coincide con `~/deploy-prod/frontend/dist/index.html`.
+
+> Gotchas, `api/` y restauración de Passenger: idénticos a §5/§7bis (cambiar rutas a las de prod:
+> docroot `boveda.lols.cl`, backend `~/boveda`).

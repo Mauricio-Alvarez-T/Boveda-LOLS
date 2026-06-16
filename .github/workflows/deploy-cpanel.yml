@@ -1,5 +1,12 @@
 name: Deploy Bóveda LOLS to cPanel 🚀
 
+# MÉTODO PULL-SIDE (2026-06-16): el FTP de cPanel banea de forma persistente la
+# IP del runner de GitHub (cPHulk) → "Connection refused" también en prod. En
+# vez de empujar por FTP, este workflow SOLO compila el frontend y publica
+# `frontend/dist` + `backend/` en la rama `deploy-prod`. El SERVIDOR hace
+# `git pull` de esa rama (saliente, no bloqueada) vía cron y se auto-despliega.
+# Ver scripts/cpanel-deploy-prod.sh y docs/PLAYBOOK_PULL_SIDE_CPANEL.md (§7).
+
 on:
   push:
     branches:
@@ -11,14 +18,19 @@ on:
       - 'LICENSE'
   workflow_dispatch:
 
+permissions:
+  contents: write   # para publicar la rama deploy-prod con GITHUB_TOKEN
+
 jobs:
-  web-deploy:
-    name: 🎉 Build & Deploy
+  build-and-publish:
+    name: 🎉 Build & publicar rama deploy-prod
     runs-on: ubuntu-latest
 
     steps:
-      - name: 🚚 Obtener el código más reciente
+      - name: 🚚 Obtener el código (historial completo para poder pushear rama)
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: ⚙️ Setup Node.js 20
         uses: actions/setup-node@v4
@@ -33,58 +45,14 @@ jobs:
         working-directory: ./frontend
         run: npm run build
 
-      - name: 🔧 Instalar lftp
-        run: sudo apt-get update && sudo apt-get install -y lftp
-
-      # NOTA: prod sigue por FTP con reintentos SUAVES (el hammering agresivo
-      # agrava el baneo cPHulk). Se migrará a pull-side (rama deploy-main + cron,
-      # como staging) una vez probado el método en staging. Ver docs/RUNBOOK.md.
-      - name: 🌐 Sincronizar Frontend vía lftp
-        env:
-          FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
+      - name: 🌿 Publicar dist + backend a la rama deploy-prod
         run: |
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 30;
-            set net:max-retries 2;
-            set net:reconnect-interval-base 5;
-            set mirror:parallel-transfer-count 4;
-            open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
-            mirror -R --only-newer --parallel=4 \
-              --exclude-glob .git* \
-              --exclude node_modules/ \
-              ./frontend/dist/ /public_html/boveda.lols.cl/;
-          "
-
-      - name: ⚙️ Sincronizar Backend vía lftp
-        env:
-          FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
-        run: |
-          lftp -c "
-            set ftp:ssl-allow no;
-            set net:timeout 30;
-            set net:max-retries 2;
-            set net:reconnect-interval-base 5;
-            set mirror:parallel-transfer-count 4;
-            open -u lolscl,\"$FTP_PASS\" ftp.lols.cl;
-            mirror -R --only-newer --parallel=4 \
-              --exclude-glob .git* \
-              --exclude node_modules/ \
-              --exclude tmp/ \
-              --exclude uploads/ \
-              --exclude-glob .env* \
-              ./backend/ /boveda/;
-          "
-
-      - name: 🚀 Reiniciar Passenger (restart.txt vía curl)
-        run: |
-          mkdir -p ./restart-trigger
-          date > ./restart-trigger/restart.txt
-          curl --fail --silent --show-error \
-            --connect-timeout 30 \
-            --max-time 120 \
-            --retry 2 --retry-delay 5 \
-            --ftp-create-dirs \
-            -T ./restart-trigger/restart.txt \
-            -u "lolscl:${{ secrets.CPANEL_FTP_PASSWORD }}" \
-            "ftp://ftp.lols.cl/boveda/tmp/restart.txt"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          # frontend/dist está en .gitignore → forzar su inclusión en este commit
+          git add -f frontend/dist
+          git commit -m "build(prod): dist de ${GITHUB_SHA::7} [skip ci]" \
+            || echo "ℹ️ sin cambios nuevos para commitear (dist idéntico)"
+          # La rama deploy-prod NO dispara workflows (solo develop/main lo hacen).
+          git push -f origin HEAD:deploy-prod
+          echo "✅ Rama deploy-prod actualizada. El servidor la baja vía cron (git pull saliente)."
