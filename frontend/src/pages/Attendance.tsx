@@ -1,16 +1,15 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckSquare, CalendarDays, MoreHorizontal } from 'lucide-react';
+import { CheckSquare, CalendarDays } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import AttendanceDailyTab from '../components/attendance/AttendanceDailyTab';
-import AttendanceExtrasMobileTab from '../components/attendance/AttendanceExtrasMobileTab';
 import SabadosExtraTab from '../components/attendance/sabados/SabadosExtraTab';
 import SabadosErrorBoundary from '../components/attendance/sabados/SabadosErrorBoundary';
 
-type TabKey = 'diaria' | 'sabados' | 'extras';
+type TabKey = 'diaria' | 'sabados';
 
 interface TabDef {
     key: TabKey;
@@ -18,17 +17,18 @@ interface TabDef {
     shortLabel: string;
     icon: React.ElementType;
     show: boolean;
-    mobileOnly?: boolean;
 }
 
 /**
  * Página Asistencia con sistema de tabs.
  *
  * Tabs:
- *   - "Asistencia Diaria"  → toda la funcionalidad original (AttendanceDailyTab)
- *   - "Sábados Extra"      → trabajo extraordinario en sábado (requiere
- *                            permiso asistencia.sabados_extra.ver y obra
- *                            seleccionada para crear/editar).
+ *   - "Asistencia"  → toda la funcionalidad original (AttendanceDailyTab).
+ *                     El Reporte Mensual vive en un botón compacto del header
+ *                     (AttendanceHeaderActions), junto al filtro de empresa.
+ *   - "Sábado"      → trabajo extraordinario en sábado (requiere permiso
+ *                     asistencia.sabados_extra.ver y obra seleccionada para
+ *                     crear/editar).
  *
  * La pestaña activa se persiste en query param `?tab=` para permitir
  * deep-link y recargar manteniendo el contexto.
@@ -38,7 +38,7 @@ const AttendancePage: React.FC = () => {
     const { selectedObra } = useObra();
     const [searchParams, setSearchParams] = useSearchParams();
     const rawTab = searchParams.get('tab') as TabKey | null;
-    const activeTab: TabKey = rawTab === 'sabados' || rawTab === 'extras' ? rawTab : 'diaria';
+    const activeTab: TabKey = rawTab === 'sabados' ? rawTab : 'diaria';
 
     const setActiveTab = (t: TabKey) => {
         // sabadoId solo aplica a tab sabados
@@ -48,24 +48,13 @@ const AttendancePage: React.FC = () => {
     };
 
     const tabs: TabDef[] = [
-        { key: 'diaria', label: 'Asistencia Diaria', shortLabel: 'Diaria', icon: CheckSquare, show: true },
+        { key: 'diaria', label: 'Asistencia', shortLabel: 'Asistencia', icon: CheckSquare, show: true },
         {
             key: 'sabados',
-            label: 'Sábados Extra',
-            shortLabel: 'Sábados',
+            label: 'Sábado',
+            shortLabel: 'Sábado',
             icon: CalendarDays,
             show: hasPermission('asistencia.sabados_extra.ver') && !!selectedObra,
-        },
-        {
-            // Tab "Más" agrupa acciones secundarias (Excel, Feriado, Repetir,
-            // filtro Empresa) que en mobile no caben en el header. En desktop
-            // estas acciones viven inline en el header → se oculta el tab.
-            key: 'extras',
-            label: 'Más',
-            shortLabel: 'Más',
-            icon: MoreHorizontal,
-            show: !!selectedObra,
-            mobileOnly: true,
         },
     ];
     const visibleTabs = tabs.filter(t => t.show);
@@ -129,7 +118,6 @@ const AttendancePage: React.FC = () => {
                             <SabadosExtraTab />
                         </SabadosErrorBoundary>
                     )}
-                    {effectiveTab === 'extras' && <AttendanceExtrasMobileTab onBack={() => setActiveTab('diaria')} />}
                 </motion.div>
             </AnimatePresence>
         </div>

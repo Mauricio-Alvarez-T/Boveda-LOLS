@@ -192,9 +192,13 @@ const AttendanceDailyTab: React.FC<DailyTabProps> = ({ onGoSabados }) => {
                 }}
                 repeating={repeating}
                 isGlobal={isGlobalActive}
+                reportMonth={reportMonth}
+                reportYear={reportYear}
+                setReportMonth={setReportMonth}
+                setReportYear={setReportYear}
             />
         );
-    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating]);
+    }, [selectedObra, canTakeGlobal, handleShareWhatsApp, handleExportExcel, toggleFeriado, handleSave, saving, loading, workers.length, hasPermission, feriadoActual, isSunday, isSaturday, selectedEmpresaId, setSelectedEmpresaId, availableEmpresas, repetirDiaAnterior, repeating, reportMonth, reportYear, setReportMonth, setReportYear]);
 
     useSetPageHeader(headerTitle, headerActionsRef);
 

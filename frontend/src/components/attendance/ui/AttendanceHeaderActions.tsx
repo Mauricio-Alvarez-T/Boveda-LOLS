@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check } from 'lucide-react';
+import { Save, MoreHorizontal, FileDown, CalendarRange, CopyPlus, Plus, Building2, Check } from 'lucide-react';
 import { Button } from '../../ui/Button';
 import RequirePermission from '../../auth/RequirePermission';
+import WhatsAppIcon from '../../ui/WhatsAppIcon';
 import { cn } from '../../../utils/cn';
 
 interface AttendanceHeaderActionsProps {
@@ -21,6 +22,11 @@ interface AttendanceHeaderActionsProps {
     repetirDiaAnterior?: () => void;
     repeating?: boolean;
     isGlobal?: boolean;
+    /** Reporte mensual — selección de período + exportar (botón compacto en mobile). */
+    reportMonth: string;
+    reportYear: string;
+    setReportMonth: (val: string) => void;
+    setReportYear: (val: string) => void;
 }
 
 /**
@@ -50,7 +56,11 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
     availableEmpresas,
     repetirDiaAnterior,
     repeating = false,
-    isGlobal = false
+    isGlobal = false,
+    reportMonth,
+    reportYear,
+    setReportMonth,
+    setReportYear,
 }) => {
     const isSaveDisabled = saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend;
     const isRepeatDisabled = repeating || saving || loading || !hasWorkers || !hasPermission('asistencia.guardar') || isFeriado || isWeekend || !repetirDiaAnterior;
@@ -71,6 +81,16 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     availableEmpresas={availableEmpresas}
                 />
 
+                {hasPermission('asistencia.exportar_excel') && (
+                    <MobileReportMenu
+                        reportMonth={reportMonth}
+                        reportYear={reportYear}
+                        setReportMonth={setReportMonth}
+                        setReportYear={setReportYear}
+                        handleExportExcel={handleExportExcel}
+                    />
+                )}
+
                 <Button
                     onClick={handleShareWhatsApp}
                     disabled={!canSendWhatsApp}
@@ -80,7 +100,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     )}
                     title={whatsAppTitle}
                 >
-                    <Send className="h-4 w-4" fill="currentColor" />
+                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
                 </Button>
 
                 <Button
@@ -135,7 +155,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     )}
                     title={isGlobal ? "Disponible al seleccionar una obra" : "Compartir por WhatsApp"}
                 >
-                    <Send className="h-4 w-4" fill="currentColor" />
+                    <WhatsAppIcon className="h-4 w-4 shrink-0" />
                 </Button>
                 <Button
                     onClick={handleExportExcel}
@@ -290,7 +310,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
                         title={isGlobal ? "Disponible al seleccionar una obra" : undefined}
                         className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-medium text-brand-dark hover:bg-background transition-colors disabled:opacity-40 disabled:pointer-events-none"
                     >
-                        <Send className="h-4 w-4 text-brand-primary" fill="currentColor" />
+                        <WhatsAppIcon className="h-4 w-4 shrink-0 text-brand-primary" />
                         Compartir WhatsApp
                     </button>
                     {/* eslint-disable-next-line no-restricted-syntax -- fila de menú dropdown (left-align icono+texto); Button centra y rompe el patrón de menú */}
@@ -457,6 +477,124 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                         </div>
                     </div>
                 </>
+            )}
+        </div>
+    );
+};
+
+/* ------------------------------------------------------------------ */
+/*  MobileReportMenu — botón compacto (FileDown) visible solo en       */
+/*  mobile (<md), junto al filtro de empresa. Despliega un popover con */
+/*  los selectores Mes/Año + Exportar Excel. Rescata la funcionalidad  */
+/*  de "Reporte Mensual" que antes vivía en la pestaña "Más".          */
+/* ------------------------------------------------------------------ */
+interface MobileReportMenuProps {
+    reportMonth: string;
+    reportYear: string;
+    setReportMonth: (val: string) => void;
+    setReportYear: (val: string) => void;
+    handleExportExcel: () => void;
+}
+
+const MobileReportMenu: React.FC<MobileReportMenuProps> = ({
+    reportMonth, reportYear, setReportMonth, setReportYear, handleExportExcel
+}) => {
+    const [open, setOpen] = useState(false);
+    const [popoverTop, setPopoverTop] = useState<number>(0);
+    const wrapperRef = useRef<HTMLDivElement>(null);
+    const buttonRef = useRef<HTMLButtonElement>(null);
+    const popoverRef = useRef<HTMLDivElement>(null);
+
+    // Click fuera cierra el popover (mismo patrón que MobileFilterMenu; el
+    // popover es fixed, fuera del wrapper → se excluyen ambos del listener).
+    useEffect(() => {
+        const handler = (e: MouseEvent | TouchEvent) => {
+            if (!open) return;
+            const target = e.target as Node;
+            const insideWrapper = wrapperRef.current?.contains(target);
+            const insidePopover = popoverRef.current?.contains(target);
+            if (!insideWrapper && !insidePopover) setOpen(false);
+        };
+        document.addEventListener('mousedown', handler);
+        document.addEventListener('touchstart', handler);
+        return () => {
+            document.removeEventListener('mousedown', handler);
+            document.removeEventListener('touchstart', handler);
+        };
+    }, [open]);
+
+    useEffect(() => {
+        if (open && buttonRef.current) {
+            const rect = buttonRef.current.getBoundingClientRect();
+            setPopoverTop(rect.bottom + 8);
+        }
+    }, [open]);
+
+    return (
+        <div ref={wrapperRef} className="relative md:hidden">
+            {/* eslint-disable-next-line no-restricted-syntax -- trigger de popover con ref de posición (igual que MobileFilterMenu); IconButton no expone ref/estado */}
+            <button
+                ref={buttonRef}
+                onClick={() => setOpen(v => !v)}
+                className={cn(
+                    "flex h-9 w-9 items-center justify-center rounded-xl border transition-all shrink-0",
+                    open
+                        ? "bg-brand-dark text-white border-transparent shadow-lg"
+                        : "bg-card text-muted-foreground border-border shadow-sm hover:border-brand-primary/30"
+                )}
+                title="Reporte mensual"
+            >
+                <FileDown className="h-4 w-4" />
+            </button>
+
+            {open && (
+                <div
+                    ref={popoverRef}
+                    style={{ top: popoverTop }}
+                    className="fixed left-3 right-3 bg-card rounded-2xl border border-border shadow-2xl z-[200] overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+                >
+                    <div className="flex items-center gap-1.5 px-4 pt-3 pb-2 border-b border-border">
+                        <FileDown className="h-3.5 w-3.5 text-muted-foreground/60" />
+                        <label className="text-caption font-black uppercase text-muted-foreground/70 tracking-wider">Reporte mensual</label>
+                    </div>
+
+                    <div className="p-4 space-y-3">
+                        <div className="grid grid-cols-2 gap-3">
+                            <label className="block">
+                                <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 block">Mes</span>
+                                <select
+                                    value={reportMonth}
+                                    onChange={(e) => setReportMonth(e.target.value)}
+                                    className="w-full h-11 bg-muted border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
+                                >
+                                    {[
+                                        ['01', 'Enero'], ['02', 'Febrero'], ['03', 'Marzo'], ['04', 'Abril'],
+                                        ['05', 'Mayo'], ['06', 'Junio'], ['07', 'Julio'], ['08', 'Agosto'],
+                                        ['09', 'Septiembre'], ['10', 'Octubre'], ['11', 'Noviembre'], ['12', 'Diciembre'],
+                                    ].map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                                </select>
+                            </label>
+                            <label className="block">
+                                <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70 mb-1.5 block">Año</span>
+                                <select
+                                    value={reportYear}
+                                    onChange={(e) => setReportYear(e.target.value)}
+                                    className="w-full h-11 bg-muted border border-border rounded-xl text-sm font-medium text-brand-dark px-3 outline-none focus:border-brand-primary cursor-pointer"
+                                >
+                                    {['2024', '2025', '2026', '2027'].map(y => <option key={y} value={y}>{y}</option>)}
+                                </select>
+                            </label>
+                        </div>
+                        <Button
+                            variant="primary"
+                            onClick={() => { handleExportExcel(); setOpen(false); }}
+                            leftIcon={<FileDown className="h-4 w-4" />}
+                            className="w-full h-12 font-black uppercase tracking-wider text-xs shadow-md"
+                        >
+                            Exportar Excel
+                        </Button>
+                    </div>
+                </div>
             )}
         </div>
     );

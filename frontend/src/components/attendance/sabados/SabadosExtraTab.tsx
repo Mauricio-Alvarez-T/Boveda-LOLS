@@ -40,7 +40,7 @@ const SabadosExtraTab: React.FC = () => {
             </div>
             <div className="min-w-0">
                 <h1 className="text-sm font-black text-brand-dark tracking-tighter leading-tight uppercase">
-                    Sábados Extra
+                    Sábado
                 </h1>
                 <p className="text-caption text-muted-foreground font-bold truncate opacity-80">
                     {selectedObra ? selectedObra.nombre : 'Selecciona una obra'}
