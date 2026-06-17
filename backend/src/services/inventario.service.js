@@ -225,7 +225,8 @@ const inventarioService = {
             const arriendo = item.valor_arriendo_override != null
                 ? parseFloat(item.valor_arriendo_override)
                 : parseFloat(item.valor_arriendo);
-            const total = cantidad * arriendo;
+            const m2Factor = item.m2 ? parseFloat(item.m2) : 1;
+            const total = cantidad * arriendo * m2Factor;
 
             categorias[catKey].items.push({
                 id: item.id,

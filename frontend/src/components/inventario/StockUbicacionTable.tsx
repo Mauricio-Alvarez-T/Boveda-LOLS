@@ -19,7 +19,7 @@ interface Props {
     hideEmpty?: boolean;
 }
 
-const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
+const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
 
 const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh, hideEmpty = false }) => {
     // Gate financiero: ocultar columnas/cards $ si no tiene `inventario.costos.ver`.
