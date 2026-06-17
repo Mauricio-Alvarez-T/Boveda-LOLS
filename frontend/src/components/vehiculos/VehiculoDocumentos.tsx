@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload } from 'lucide-react';
+import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -31,9 +31,20 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const [showAdd, setShowAdd] = useState(false);
     const [categoria, setCategoria] = useState<VehiculoDocumentoCategoria>('permiso_circulacion');
     const [file, setFile] = useState<File | null>(null);
+    const [preview, setPreview] = useState<string | null>(null); // objectURL de imagen seleccionada (vista previa)
     const [uploading, setUploading] = useState(false);
     const [viewingId, setViewingId] = useState<number | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Genera/actualiza la vista previa al elegir un archivo. Solo imágenes → miniatura;
+    // PDF u otros → sin imagen (se muestra ficha con nombre).
+    const handleFileChange = (f: File | null) => {
+        setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
+        setFile(f);
+        if (f && f.type.startsWith('image/')) {
+            setPreview(window.URL.createObjectURL(f));
+        }
+    };
 
     const fetchDocs = useCallback(async () => {
         try {
@@ -47,6 +58,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const resetForm = () => {
         setShowAdd(false);
         setFile(null);
+        setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
         setCategoria('permiso_circulacion');
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -145,8 +157,23 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                         {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
                     </select>
                     <input ref={fileInputRef} type="file" accept=".pdf,image/*"
-                        onChange={e => setFile(e.target.files?.[0] || null)}
+                        onChange={e => handleFileChange(e.target.files?.[0] || null)}
                         className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20" />
+
+                    {/* Vista previa del archivo seleccionado (antes de subir) */}
+                    {file && (
+                        preview ? (
+                            <div className="rounded-lg border border-border bg-card p-2 flex flex-col items-center gap-1">
+                                <img src={preview} alt="Vista previa" className="max-h-48 w-auto rounded-md object-contain" />
+                                <span className="text-micro text-muted-foreground truncate max-w-full" title={file.name}>{file.name}</span>
+                            </div>
+                        ) : (
+                            <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-2">
+                                <FileText className="h-5 w-5 text-brand-primary shrink-0" />
+                                <span className="text-xs text-brand-dark truncate" title={file.name}>{file.name}</span>
+                            </div>
+                        )
+                    )}
                     <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB).</p>
                 </div>
             )}
