@@ -26,7 +26,20 @@ const PORT = process.env.PORT || 3000;
 applyTrustProxy(app);
 
 // 🔒 SECURITY MIDDLEWARE
-app.use(helmet()); // Sets various secure HTTP headers
+// CSP por defecto de helmet pero permitiendo blob:/data: en imágenes y frames.
+// Necesario para la vista previa (URL.createObjectURL) y el visor de documentos
+// (imágenes blob: y PDF embebido en <iframe>). El resto de directivas se mantiene.
+const cspDirectives = helmet.contentSecurityPolicy.getDefaultDirectives();
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      ...cspDirectives,
+      'img-src': ["'self'", 'data:', 'blob:'],
+      'frame-src': ["'self'", 'blob:', 'data:'],
+      'object-src': ["'self'", 'blob:', 'data:'],
+    },
+  },
+}));
 
 // Restricted CORS — antes del rate limiter para que incluso un 429 lleve headers CORS
 const corsOptions = {
