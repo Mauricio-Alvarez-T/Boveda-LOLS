@@ -151,10 +151,14 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                     <div className="flex items-center justify-between">
                         <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo documento</span>
                         <div className="flex items-center gap-1">
-                            <IconButton size="sm" aria-label="Subir documento" title="Subir documento"
+                            {/* SUBIR compacto: gris (plomo) cuando hay archivo listo, verde mientras sube */}
+                            <Button size="sm" aria-label="Subir documento" title="Subir documento"
                                 onClick={handleUpload} disabled={uploading || !file}
-                                className="hover:bg-brand-primary/10 hover:text-brand-primary"
-                                icon={uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />} />
+                                variant={uploading ? 'primary' : 'secondary'}
+                                leftIcon={uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                                className="h-7 px-2.5 text-xs font-bold">
+                                SUBIR
+                            </Button>
                             <IconButton size="sm" aria-label="Cancelar" onClick={resetForm} icon={<X className="h-3.5 w-3.5" />} />
                         </div>
                     </div>
