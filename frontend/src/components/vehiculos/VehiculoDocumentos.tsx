@@ -34,6 +34,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const [preview, setPreview] = useState<string | null>(null); // objectURL de imagen seleccionada (vista previa)
     const [uploading, setUploading] = useState(false);
     const [viewingId, setViewingId] = useState<number | null>(null);
+    const [viewer, setViewer] = useState<{ url: string; mime: string; name: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
     // Genera/actualiza la vista previa al elegir un archivo. Solo imágenes → miniatura;
@@ -104,13 +105,17 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             };
             const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
             const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-            window.open(url, '_blank');
-            setTimeout(() => window.URL.revokeObjectURL(url), 60000);
+            // Abrir en un modal dentro de la misma página (no pestaña nueva)
+            setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return { url, mime, name: doc.nombre_archivo }; });
         } catch {
             toast.error('No se pudo abrir el documento');
         } finally {
             setViewingId(null);
         }
+    };
+
+    const closeViewer = () => {
+        setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return null; });
     };
 
     const handleDelete = async (doc: VehiculoDocumento) => {
@@ -125,6 +130,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     };
 
     return (
+        <>
         <section>
             <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
@@ -203,5 +209,27 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                 )}
             </div>
         </section>
+
+        {/* Visor de documento en modal (misma página, no pestaña nueva) */}
+        {viewer && (
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
+                onClick={closeViewer}>
+                <div className="relative bg-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
+                    onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border shrink-0">
+                        <span className="text-sm font-semibold text-brand-dark truncate" title={viewer.name}>{viewer.name}</span>
+                        <IconButton size="sm" aria-label="Cerrar" onClick={closeViewer} icon={<X className="h-4 w-4" />} />
+                    </div>
+                    <div className="flex-1 min-h-0 overflow-auto bg-muted/40 flex items-center justify-center">
+                        {viewer.mime.startsWith('image/') ? (
+                            <img src={viewer.url} alt={viewer.name} className="max-w-full max-h-[80vh] object-contain" />
+                        ) : (
+                            <iframe src={viewer.url} title={viewer.name} className="w-full h-[80vh] border-0" />
+                        )}
+                    </div>
+                </div>
+            </div>
+        )}
+        </>
     );
 };
