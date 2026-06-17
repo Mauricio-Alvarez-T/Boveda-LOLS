@@ -151,10 +151,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                     <div className="flex items-center justify-between">
                         <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo documento</span>
                         <div className="flex items-center gap-1">
-                            {/* SUBIR compacto: gris (plomo) cuando hay archivo listo, verde mientras sube */}
+                            {/* SUBIR compacto: gris (plomo) sin archivo; verde apenas hay vista previa (listo para subir) */}
                             <Button size="sm" aria-label="Subir documento" title="Subir documento"
                                 onClick={handleUpload} disabled={uploading || !file}
-                                variant={uploading ? 'primary' : 'secondary'}
+                                variant={file ? 'primary' : 'secondary'}
                                 leftIcon={uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
                                 className="h-7 px-2.5 text-xs font-bold">
                                 SUBIR
