@@ -87,6 +87,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         await trfHook.fetchById(id);
     }, [trfHook.fetchById]);
 
+    // Cambiar de filtro limpia la selección abierta: en móvil el detalle oculta la
+    // lista (detailPaneActive), así que sin esto los chips "no hacían nada". En
+    // desktop el effect de auto-selección vuelve a elegir el primero del nuevo filtro.
+    const handleStatusChange = useCallback((v: string) => {
+        setSelectedId(null);
+        trfHook.setSelected(null);
+        trfHook.setSelectedDiscrepancia(null);
+        setStatusFilter(v);
+    }, [trfHook]);
+
     // Auto-selección del primer movimiento en desktop (como Vehículos), para que el
     // panel de detalle no quede vacío al entrar. Respeta initialSelectedId y discrepancias.
     useEffect(() => {
@@ -219,7 +229,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             {/* Barra FULL-WIDTH: [+] [filtros auto-width] [espacio] [🔍 expandible] */}
             <BarraFiltros
                 statusFilter={statusFilter}
-                onStatusChange={setStatusFilter}
+                onStatusChange={handleStatusChange}
                 pendientesCount={pendientesCount}
                 canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
                 searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
@@ -243,7 +253,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
-                    "flex flex-col min-h-0 md:w-[300px] md:shrink-0 pt-4 md:pt-5 pb-4 md:pb-6",
+                    "flex flex-col min-h-0 w-full min-w-0 md:w-[300px] md:shrink-0 pt-4 md:pt-5 pb-4 md:pb-6",
                     isDiscrepanciasMode && "px-3 md:px-4",
                     detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
