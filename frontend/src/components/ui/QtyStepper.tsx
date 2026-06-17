@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Minus, Plus } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
@@ -29,6 +29,10 @@ export const QtyStepper: React.FC<{
     ariaLabel?: string;
 }> = ({ value, onChange, min = 0, max, unidad, size = 'md', variant = 'inline', warning = null, disabled = false, ariaLabel }) => {
     const s = SIZES[size];
+    // Borrador de texto mientras se edita: permite seleccionar-y-reescribir sin
+    // que el valor controlado "concatene", y dejar el campo intermedio vacío.
+    // Al perder foco se resincroniza con el valor (clampeado) del padre.
+    const [draft, setDraft] = useState<string | null>(null);
     const clamp = (v: number) => {
         let n = Number.isFinite(v) ? v : min;
         if (n < min) n = min;
@@ -58,12 +62,18 @@ export const QtyStepper: React.FC<{
             </button>
             <input
                 type="number"
-                inputMode="decimal"
+                inputMode="numeric"
                 min={min}
                 max={max}
-                value={value}
+                value={draft ?? String(value)}
                 disabled={disabled}
-                onChange={e => onChange(clamp(parseInt(e.target.value) || 0))}
+                onFocus={e => e.currentTarget.select()}
+                onChange={e => {
+                    setDraft(e.target.value);
+                    const n = parseInt(e.target.value, 10);
+                    if (Number.isFinite(n)) onChange(clamp(n));
+                }}
+                onBlur={() => setDraft(null)}
                 aria-label={ariaLabel}
                 className={cn('px-1 text-center text-label font-bold border rounded-lg outline-none', s.input, inputBorder)}
             />

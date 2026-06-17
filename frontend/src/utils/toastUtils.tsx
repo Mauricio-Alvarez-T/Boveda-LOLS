@@ -91,7 +91,11 @@ export const showConfirmToast = ({
         </div>
     ), {
         unstyled: true,
-        duration: 5000,
+        // Confirmación: NO auto-cerrar (espera la decisión del usuario) y mostrar
+        // arriba-centro para que los botones queden siempre visibles (antes salía
+        // abajo y se autocerraba en ventanas cortas).
+        duration: Infinity,
+        position: 'top-center',
     });
 };
 
