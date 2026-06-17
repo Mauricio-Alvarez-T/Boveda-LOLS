@@ -70,7 +70,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
     if (!hasActions) return null;
 
     return (
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-2 min-w-0">
             {/* ── Acciones PRIMARIAS siempre visibles ── */}
             {canAprobar && (
                 <Button
@@ -102,7 +102,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
                     disabled={actionLoading}
                     title={whatsappLabel}
                     aria-label={whatsappLabel}
-                    className="bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-700 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25"
+                    className="hidden md:flex bg-green-100 text-green-700 hover:bg-green-200 hover:text-green-700 dark:bg-green-500/15 dark:text-green-300 dark:hover:bg-green-500/25"
                     icon={<WhatsAppIcon className="h-4 w-4 shrink-0" />}
                 />
             )}

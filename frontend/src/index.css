@@ -7,6 +7,13 @@
    ────────────────────────────────────────────────────────────────── */
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* Oculta la barra de scroll (manteniendo el scroll). Usada en barras de tabs
+   y chips con overflow-x-auto (móvil). Antes no existía → era no-op. */
+@utility scrollbar-none {
+    scrollbar-width: none;
+    &::-webkit-scrollbar { display: none; }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,

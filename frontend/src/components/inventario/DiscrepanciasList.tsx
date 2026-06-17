@@ -153,14 +153,14 @@ const DiscrepanciasList: React.FC<Props> = ({
                                 </div>
 
                                 {/* Métricas */}
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="min-w-0 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
                                         <p className="text-micro text-red-700 dark:text-red-300 uppercase font-bold leading-none mb-0.5">Ítems</p>
                                         <p className="text-label font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_items_afectados}
                                         </p>
                                     </div>
-                                    <div className="flex-1 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
+                                    <div className="min-w-0 px-2 py-1 rounded-lg bg-red-50 border border-red-100 dark:bg-red-950/40 dark:border-red-900">
                                         <p className="text-micro text-red-700 dark:text-red-300 uppercase font-bold leading-none mb-0.5">Diferencia</p>
                                         <p className="text-label font-black text-red-700 dark:text-red-300 leading-none">
                                             {d.total_unidades_perdidas > 0 ? '-' : d.total_unidades_perdidas < 0 ? '+' : ''}

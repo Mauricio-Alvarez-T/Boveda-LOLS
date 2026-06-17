@@ -244,6 +244,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
                     "flex flex-col min-h-0 md:w-[300px] md:shrink-0 pt-4 md:pt-5 pb-4 md:pb-6",
+                    isDiscrepanciasMode && "px-3 md:px-4",
                     detailPaneActive ? "hidden md:flex" : "flex"
                 )}>
                     {isDiscrepanciasMode ? (
@@ -283,6 +284,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 <div className={cn(
                     "min-h-0 md:border-l md:border-border pt-4 md:pt-5",
                     "flex-1 min-w-0",
+                    isDiscrepanciasMode && "px-3 md:px-5",
                     detailPaneActive ? "flex flex-col" : "hidden md:flex md:flex-col"
                 )}>
                     {isDiscrepanciasMode ? (

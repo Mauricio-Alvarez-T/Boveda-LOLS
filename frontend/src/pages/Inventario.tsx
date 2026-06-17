@@ -268,7 +268,7 @@ const InventarioPage: React.FC = () => {
                                 key={tab.key}
                                 onClick={() => setActiveTab(tab.key)}
                                 className={cn(
-                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-1 flex-1 min-w-0 transition-all",
+                                    "relative flex flex-col items-center justify-center gap-0.5 rounded-xl py-1.5 px-2.5 shrink-0 transition-all",
                                     isActive ? "text-white" : "text-muted-foreground"
                                 )}
                             >
@@ -284,7 +284,7 @@ const InventarioPage: React.FC = () => {
                                     isActive ? "text-white" : "text-muted-foreground"
                                 )} />
                                 <span className={cn(
-                                    "text-micro font-black uppercase tracking-tight relative z-10 leading-none truncate w-full text-center",
+                                    "text-micro font-black uppercase tracking-tight relative z-10 leading-none whitespace-nowrap",
                                     isActive ? "text-white" : "text-muted-foreground"
                                 )}>
                                     {tab.shortLabel}

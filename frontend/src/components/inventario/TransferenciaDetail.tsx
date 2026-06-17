@@ -12,6 +12,7 @@ import ItemDetailModal from './ItemDetailModal';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
@@ -592,7 +593,7 @@ const TransferenciaDetail: React.FC<Props> = ({
     const renderMateriales = () => (
         <div className="flex flex-col flex-1 min-h-0 p-3 md:p-6 overflow-hidden">
             {/* Header con chip estado + menú "Acciones ▾" */}
-            <div className="flex items-center gap-3 mb-4 shrink-0">
+            <div className="flex flex-wrap items-center gap-3 mb-4 shrink-0">
                 <IconButton
                     onClick={onBack}
                     variant="ghost"
@@ -786,6 +787,23 @@ const TransferenciaDetail: React.FC<Props> = ({
                 loading={itemDetail.loading}
                 stockLoading={itemDetail.stockLoading}
             />
+
+            {/* FAB WhatsApp — solo móvil. En el detalle el icono inline queda oculto
+                en <md; este botón flotante (estilo FAB de Asistencia) lo reemplaza. */}
+            {canCompartirWhatsApp && (
+                <div className="md:hidden fixed bottom-6 right-5 z-[900]">
+                    <button
+                        type="button"
+                        onClick={handleShareWhatsApp}
+                        disabled={actionLoading}
+                        aria-label={t.estado === 'pendiente' ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}
+                        title={t.estado === 'pendiente' ? 'Notificar por WhatsApp' : 'Enviar por WhatsApp'}
+                        className="h-14 w-14 rounded-full flex items-center justify-center shadow-lg bg-[#25D366] text-white shadow-[#25D366]/40 active:scale-90 transition-transform disabled:opacity-50"
+                    >
+                        <WhatsAppIcon className="h-6 w-6" />
+                    </button>
+                </div>
+            )}
         </>
     );
 };
