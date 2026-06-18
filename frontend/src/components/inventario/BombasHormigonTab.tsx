@@ -1,11 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2 } from 'lucide-react';
+import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2, Check } from 'lucide-react';
 import { MixerTruck } from '../icons/MixerTruck';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { ApiResponse } from '../../types';
 import type { RegistroBombaHormigon, Obra } from '../../types/entities';
 import { cn } from '../../utils/cn';
+import WhatsAppIcon from '../ui/WhatsAppIcon';
+import { shareViaWhatsApp } from '../../utils/whatsappShare';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
@@ -173,6 +175,34 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         } finally {
             setSubmitting(false);
         }
+    };
+
+    // ── Compartir por WhatsApp (mismo patrón que asistencia) ──
+    const buildWhatsAppMessage = (): string => {
+        const obraNombre = obras.find(o => o.id === form.obra_id)?.nombre || '—';
+        const lines = [
+            '🚜 *Registro de uso de bomba*',
+            `🏗️ Obra: ${obraNombre}`,
+            `📅 Fecha: ${form.fecha ? form.fecha.split('-').reverse().join('/') : '—'}`,
+            `🔧 Tipo: ${form.tipo_bomba || '—'}`,
+        ];
+        if (form.hora_inicio) lines.push(`🕐 Hora de inicio: ${form.hora_inicio}`);
+        lines.push(`🧪 Toma de muestras: ${form.toma_muestras ? 'Sí' : 'No'}`);
+        lines.push(`🔄 Traslado de bombas: ${form.traslado_bombas ? 'Sí' : 'No'}`);
+        if (form.vibradores.trim() && Number(form.vibradores) > 0) lines.push(`📳 Vibradores: ${form.vibradores}`);
+        lines.push(`🏢 Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
+        if (form.proveedor.trim()) lines.push(`👷 Proveedor: ${form.proveedor.trim()}`);
+        if (verCostos && form.costo.trim()) lines.push(`💵 Costo: $${form.costo}`);
+        if (form.observaciones.trim()) lines.push(`📝 Observaciones: ${form.observaciones.trim()}`);
+        return lines.join('\n');
+    };
+
+    const handleShareWhatsApp = () => {
+        if (!form.obra_id || !form.tipo_bomba.trim()) {
+            toast.error('Completa al menos obra y tipo de bomba para compartir');
+            return;
+        }
+        shareViaWhatsApp(buildWhatsAppMessage(), 'Registro de uso de bomba');
     };
 
     // ── Eliminar ──
@@ -358,8 +388,43 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             </div>
 
             {/* ═══ MODAL REGISTRAR / EDITAR ═══ */}
-            <Modal isOpen={showModal} onClose={closeModal} title={editingId ? 'Editar uso de bomba' : 'Registrar uso de bomba'} size="md">
-                <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+            {/* Acciones arriba como iconos (sin texto): WhatsApp para compartir + Registrar (✓).
+                La X del Modal hace de "Cancelar". */}
+            <Modal
+                isOpen={showModal}
+                onClose={closeModal}
+                title={editingId ? 'Editar uso de bomba' : 'Registrar uso de bomba'}
+                size="md"
+                headerAction={
+                    <>
+                        <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            onClick={handleShareWhatsApp}
+                            title="Compartir por WhatsApp"
+                            className="rounded-full h-8 w-8 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                        >
+                            <WhatsAppIcon className="h-4 w-4" />
+                            <span className="sr-only">Compartir por WhatsApp</span>
+                        </Button>
+                        <Button
+                            type="submit"
+                            form="bomba-form"
+                            variant="primary"
+                            size="icon"
+                            disabled={submitting}
+                            isLoading={submitting}
+                            title={editingId ? 'Guardar cambios' : 'Registrar'}
+                            className="rounded-full h-8 w-8"
+                        >
+                            <Check className="h-4 w-4" />
+                            <span className="sr-only">{editingId ? 'Guardar cambios' : 'Registrar'}</span>
+                        </Button>
+                    </>
+                }
+            >
+                <form id="bomba-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
                     {/* Obra + Fecha */}
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <div>
@@ -542,23 +607,6 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             placeholder="Opcional..."
                             className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex justify-end gap-3 pt-1">
-                        <Button type="button" variant="ghost" size="sm" onClick={closeModal}>
-                            Cancelar
-                        </Button>
-                        <Button
-                            type="submit"
-                            variant="primary"
-                            size="sm"
-                            disabled={submitting}
-                            isLoading={submitting}
-                            leftIcon={<MixerTruck className="h-3.5 w-3.5" />}
-                        >
-                            {submitting ? 'Guardando...' : (editingId ? 'Guardar cambios' : 'Registrar')}
-                        </Button>
                     </div>
                 </form>
             </Modal>
