@@ -1,5 +1,5 @@
-import React from 'react';
-import { useForm } from 'react-hook-form';
+import React, { useState, useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
@@ -7,12 +7,16 @@ import { Save } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
+import { Select } from '../ui/Select';
+import type { SelectOption } from '../ui/Select';
 import api from '../../services/api';
-import type { Obra } from '../../types/entities';
+import type { Obra, Empresa } from '../../types/entities';
+import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 
 const schema = z.object({
     nombre: z.string().min(1, 'Nombre es requerido'),
+    empresa_id: z.coerce.number().min(1, 'Selecciona una empresa'),
     direccion: z.string().optional(),
     encargado_nombre: z.string().optional(),
     participa_inventario: z.boolean().optional(),
@@ -24,6 +28,7 @@ const schema = z.object({
 
 type FormData = {
     nombre: string;
+    empresa_id: number;
     direccion?: string;
     encargado_nombre?: string;
     participa_inventario?: boolean;
@@ -42,10 +47,11 @@ interface Props {
 }
 
 export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _onCancel, hideActions = false }) => {
-    const { register, handleSubmit, reset, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
+    const { register, handleSubmit, reset, control, formState: { errors, isSubmitting, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: {
             nombre: initialData?.nombre || '',
+            empresa_id: initialData?.empresa_id || 0,
             direccion: initialData?.direccion || '',
             encargado_nombre: initialData?.encargado_nombre || '',
             // Default TRUE para obras nuevas (se comportan como antes).
@@ -57,6 +63,13 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
             es_prueba: initialData?.es_prueba ?? false,
         },
     });
+
+    const [empresas, setEmpresas] = useState<SelectOption[]>([]);
+    useEffect(() => {
+        api.get<ApiResponse<Empresa[]>>('/empresas?activo=true')
+            .then((res) => setEmpresas(res.data.data.map((e) => ({ value: e.id, label: `${e.razon_social} (${e.rut})` }))))
+            .catch(() => toast.error('Error al cargar empresas'));
+    }, []);
 
     useFormDirtyProtection(isDirty);
 
@@ -91,6 +104,20 @@ export const ObraForm: React.FC<Props> = ({ initialData, onSuccess, onCancel: _o
     return (
         <form id="obra-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
             <Input label="Nombre" {...register('nombre')} error={errors.nombre?.message} placeholder="Edificio Los Olmos" />
+            <Controller
+                name="empresa_id"
+                control={control}
+                render={({ field }) => (
+                    <Select
+                        label="Empresa"
+                        options={empresas}
+                        value={field.value || ''}
+                        onChange={field.onChange}
+                        onBlur={field.onBlur}
+                        error={errors.empresa_id?.message}
+                    />
+                )}
+            />
             <Input label="Dirección" {...register('direccion')} error={errors.direccion?.message} placeholder="Av. Providencia 456" />
             <Input
                 label="Encargado de obra (solicita material)"
