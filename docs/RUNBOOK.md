@@ -294,22 +294,27 @@ revisión técnica o mantención le faltan **exactamente** los días configurado
 header verde de Bóveda y el número de días en grande.
 
 - **Script:** `backend/scripts/alertas_vehiculos.js` · alias `npm run alertas-vehiculos`
-- **Horario:** `0 8 * * *` (todos los días a las 08:00)
+- **Horario:** `0 * * * *` (**cada hora, en punto**) — desde mig 081 cada registro tiene
+  `hora_alerta` (default 08:00) y el script solo envía si `HOUR(NOW()) = HOUR(hora_alerta)`.
+  Así el encargado elige la hora del recordatorio por registro. **Si el cron quedara en
+  `0 8 * * *` (1 vez al día), solo dispararían los registros con `hora_alerta = 08:00`.**
 - **Command staging:**
   ```
   cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/alertas_vehiculos.js >> ~/alertas-vehiculos.log 2>&1
   ```
 - **Command producción:** igual con `~/boveda` y su ruta de node correspondiente.
 - **Modo normal (sin flags) = el que va en el cron.** Solo envía cuando
-  `DATEDIFF(fecha, CURDATE()) = dias_alerta` → **un solo aviso por evento**, no
-  molesta a diario. Por eso es seguro correrlo cada mañana.
+  `DATEDIFF(<fecha venc>, CURDATE()) = dias_alerta` **y** `HOUR(NOW()) = COALESCE(HOUR(hora_alerta), 8)`
+  → **un solo aviso por evento, a su hora**. Correr cada hora NO genera spam: cada registro
+  matchea una sola vez (su día, su hora).
 - **Flags útiles (para probar a mano):**
   - `--forzar` (alias `alertas-vehiculos-forzar`) → envía TODO lo que tenga
-    `email_alerta`, ignorando la fecha. Para demos/pruebas.
+    `email_alerta`, ignorando fecha y hora. Para demos/pruebas.
   - `--test` (alias `alertas-vehiculos-test`) → no envía, solo imprime qué enviaría.
   - `--dias N` → cambia la ventana (default 30).
-- **Qué fecha cuenta:** seguros usan `fecha_vencimiento`; revisiones y mantenciones
-  usan `fecha` (la "Fecha por realizar" / cita), NO `fecha_vencimiento`.
+- **Qué fecha cuenta (desde 2026-06):** seguros usan `fecha_vencimiento`; revisiones usan
+  `fecha_vencimiento`; mantenciones usan `fecha_proxima` (vencimiento de la próxima). Todas
+  filtran además por `hora_alerta` (default 08:00).
 - **Solo email:** el módulo NO usa WhatsApp (se quitó por no contar con un número para
   envío automático). La columna `tel_alerta` queda en la DB pero sin uso. Si en el
   futuro se integra WhatsApp Business API, se puede reactivar.
