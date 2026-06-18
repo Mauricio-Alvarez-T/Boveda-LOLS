@@ -24,6 +24,13 @@ const dias      = isNaN(diasArg) ? 30 : diasArg;
 
 const MESES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
 
+// Frase de urgencia según los días restantes (0 = vence hoy, 1 = queda 1 día, …).
+function fraseAtencion(d) {
+    if (d <= 0) return '¡Atención! Vence hoy';
+    if (d === 1) return '¡Atención! Queda 1 día';
+    return `¡Atención! Quedan ${d} días`;
+}
+
 /**
  * Genera el HTML del email — responsive mobile.
  * La cabecera solo muestra "¡ATENCIÓN! Quedan X días" en grande.
@@ -64,7 +71,7 @@ function emailHtml({ diasRestantes, filas, nota }) {
         <tr>
           <td class="header" style="background:#1a7a3f;padding:28px 36px;text-align:center">
             <p style="margin:0 0 10px;font-size:11px;color:#bbf7d0;letter-spacing:3px;text-transform:uppercase;font-weight:700">Bóveda LOLS — Gestión Vehicular</p>
-            <p class="dias" style="margin:0;font-size:28px;color:#fde047;font-weight:900;line-height:1.3">¡Atención! Quedan ${diasRestantes} días para tu revisión!</p>
+            <p class="dias" style="margin:0;font-size:28px;color:#fde047;font-weight:900;line-height:1.3">${fraseAtencion(diasRestantes)}</p>
           </td>
         </tr>
 
@@ -183,7 +190,7 @@ async function main() {
 
     // ── Seguros ───────────────────────────────────────────────────────────────
     for (const s of seguros) {
-        const asunto = `⚠️ ¡Atención! Quedan ${s.dias_restantes} días — Seguro ${s.tipo} · ${s.patente}`;
+        const asunto = `⚠️ ${fraseAtencion(s.dias_restantes)} — Seguro ${s.tipo} · ${s.patente}`;
         const html = emailHtml({
             diasRestantes: s.dias_restantes,
             filas: [
@@ -202,7 +209,7 @@ async function main() {
     // ── Revisiones ────────────────────────────────────────────────────────────
     for (const r of revisiones) {
         const tipoLabel = r.tipo === 'tecnica' ? 'Revisión Técnica' : r.tipo === 'gases' ? 'Control de Gases' : 'Revisión Mecánica';
-        const asunto = `⚠️ ¡Atención! Quedan ${r.dias_restantes} días — ${tipoLabel} · ${r.patente}`;
+        const asunto = `⚠️ ${fraseAtencion(r.dias_restantes)} — ${tipoLabel} · ${r.patente}`;
         const html = emailHtml({
             diasRestantes: r.dias_restantes,
             filas: [
@@ -221,7 +228,7 @@ async function main() {
 
     // ── Mantenciones ──────────────────────────────────────────────────────────
     for (const m of mantenciones) {
-        const asunto = `⚠️ ¡Atención! Quedan ${m.dias_restantes} días — Próxima mantención: ${m.tipo} · ${m.patente}`;
+        const asunto = `⚠️ ${fraseAtencion(m.dias_restantes)} — Próxima mantención: ${m.tipo} · ${m.patente}`;
         const html = emailHtml({
             diasRestantes: m.dias_restantes,
             filas: [

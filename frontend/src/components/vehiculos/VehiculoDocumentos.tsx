@@ -214,9 +214,9 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const vacio = docs.length === 0 && revisiones.length === 0 && mantenciones.length === 0;
 
     const AlertaBadge = ({ dias, email }: { dias?: number | null; email?: string | null }) =>
-        (email && dias) ? (
+        (email && dias != null) ? (
             <span className="inline-flex items-center gap-1 text-micro font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-1.5 py-0.5 rounded-md w-fit mt-0.5">
-                <Bell className="h-2.5 w-2.5" /> Avisa {dias}d antes
+                <Bell className="h-2.5 w-2.5" /> {dias === 0 ? 'Avisa el mismo día' : `Avisa ${dias}d antes`}
             </span>
         ) : null;
 
@@ -311,8 +311,8 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                 <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     <label className="flex flex-col gap-0.5">
-                                        <span className="text-micro text-muted-foreground">Días antes</span>
-                                        <input type="number" min={1} value={form.diasAlerta} onChange={e => setForm(f => ({ ...f, diasAlerta: e.target.value }))}
+                                        <span className="text-micro text-muted-foreground">Días antes <span className="text-muted-foreground/60">(0 = el mismo día)</span></span>
+                                        <input type="number" min={0} value={form.diasAlerta} onChange={e => setForm(f => ({ ...f, diasAlerta: e.target.value }))}
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                     <label className="flex flex-col gap-0.5">
@@ -327,7 +327,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                 </div>
-                                <p className="text-micro text-muted-foreground/70">Obligatorio: lugar (mín. 4), fecha, vencimiento y email (mín. 5). Avisa por correo los días indicados antes del vencimiento, a la hora elegida.</p>
+                                <p className="text-micro text-muted-foreground/70">Obligatorio: lugar (mín. 4), fecha, vencimiento y email (mín. 5). Avisa por correo los días indicados antes del vencimiento (0 = el mismo día), a la hora elegida.</p>
                             </div>
                         </div>
                     )}

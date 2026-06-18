@@ -18,14 +18,14 @@ export const EMAILS_CONFIG_ALERTAS_VEHICULOS: string[] = [
 
 /**
  * Valida el campo "Días antes" de las alertas (react-hook-form `validate`).
- * Permite vacío (campo opcional) y exige rango 1–365. Devuelve true o el mensaje
- * de error que mostrará el componente estándar <FieldError>.
+ * Permite vacío (campo opcional) y exige rango 0–365 (0 = avisar el mismo día del
+ * vencimiento). Devuelve true o el mensaje de error que mostrará <FieldError>.
  */
 export function validarDiasAlerta(v: unknown): true | string {
     if (v === '' || v === null || v === undefined) return true;
     const n = Number(v);
     if (Number.isNaN(n)) return 'Ingresa un número válido';
-    if (n < 1) return 'Mínimo 1 día';
+    if (n < 0) return 'No puede ser negativo (0 = el mismo día)';
     if (n > 365) return 'Máximo 365 días';
     return true;
 }
