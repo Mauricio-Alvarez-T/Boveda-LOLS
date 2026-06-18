@@ -29,7 +29,7 @@ const TIPOS: Tipo[] = [
 const labelFile = (c: string) => TIPOS.find(t => t.value === c)?.label || c;
 const fmtFecha = (s?: string | null) => s ? String(s).split('T')[0].split('-').reverse().join('/') : '—';
 
-const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '' };
+const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '', horaAlerta: '08:00' };
 
 interface Props {
     vehiculoId: number;
@@ -121,17 +121,18 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         try {
             const dias_alerta = form.diasAlerta ? Number(form.diasAlerta) : null;
             const email_alerta = form.emailAlerta.trim() || null;
+            const hora_alerta = form.horaAlerta || null;
             const observaciones = form.observaciones.trim() || null;
             if (tipo.endpoint === 'revisiones') {
                 await api.post(`/vehiculos/${vehiculoId}/revisiones`, {
                     tipo: tipo.revTipo, fecha: form.fecha, fecha_vencimiento: form.vencimiento,
-                    planta: form.lugar.trim(), observaciones, resultado: 'aprobado', dias_alerta, email_alerta,
+                    planta: form.lugar.trim(), observaciones, resultado: 'aprobado', dias_alerta, email_alerta, hora_alerta,
                 });
             } else {
                 await api.post(`/vehiculos/${vehiculoId}/mantenciones`, {
                     fecha: form.fecha, tipo: 'Mantención', km_al_realizar: 0,
                     taller: form.lugar.trim(), descripcion: observaciones, fecha_proxima: form.vencimiento,
-                    dias_alerta, email_alerta,
+                    dias_alerta, email_alerta, hora_alerta,
                 });
             }
             toast.success('Registro guardado');
@@ -282,13 +283,18 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                     <label className="flex flex-col gap-0.5">
+                                        <span className="text-micro text-muted-foreground">Hora del aviso</span>
+                                        <input type="time" value={form.horaAlerta} onChange={e => setForm(f => ({ ...f, horaAlerta: e.target.value }))}
+                                            className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                    </label>
+                                    <label className="flex flex-col gap-0.5 col-span-2">
                                         <span className="text-micro text-muted-foreground">Email alerta</span>
                                         <input type="email" value={form.emailAlerta} onChange={e => setForm(f => ({ ...f, emailAlerta: e.target.value }))}
                                             placeholder="correo@empresa.cl"
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                 </div>
-                                <p className="text-micro text-muted-foreground/70">Avisa por correo los días indicados antes del vencimiento. Deja el email vacío para no enviar.</p>
+                                <p className="text-micro text-muted-foreground/70">Avisa por correo los días indicados antes del vencimiento, a la hora elegida. Deja el email vacío para no enviar.</p>
                             </div>
                         </div>
                     )}

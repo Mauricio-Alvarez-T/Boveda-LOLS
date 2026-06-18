@@ -211,7 +211,8 @@ const vehiculosService = {
             fecha_vencimiento: data.fecha_vencimiento, resultado: data.resultado || 'aprobado',
             planta: data.planta || null, direccion: data.direccion || null, observaciones: data.observaciones || null,
             periodicidad_anios: data.periodicidad_anios ?? null,
-            dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null };
+            dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null,
+            hora_alerta: data.hora_alerta || null };
         const { keys, vals } = await buildInsert('vehiculo_revisiones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_revisiones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
         const [rows] = await db.query('SELECT * FROM vehiculo_revisiones WHERE id = ?', [r.insertId]);
@@ -219,7 +220,7 @@ const vehiculosService = {
     },
 
     async updateRevision(revisionId, data) {
-        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','direccion','observaciones','periodicidad_anios','dias_alerta','email_alerta','tel_alerta'];
+        const allowed = ['tipo','fecha','fecha_vencimiento','resultado','planta','direccion','observaciones','periodicidad_anios','dias_alerta','email_alerta','tel_alerta','hora_alerta'];
         const { fields, params } = await buildUpdate('vehiculo_revisiones', data, allowed);
         if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
         params.push(revisionId);
@@ -251,7 +252,8 @@ const vehiculosService = {
             km_al_realizar: data.km_al_realizar, descripcion: data.descripcion || null,
             costo: data.costo || null, taller: data.taller || null,
             fecha_proxima: data.fecha_proxima || null,
-            dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null };
+            dias_alerta: data.dias_alerta ?? null, email_alerta: data.email_alerta || null, tel_alerta: data.tel_alerta || null,
+            hora_alerta: data.hora_alerta || null };
         const { keys, vals } = await buildInsert('vehiculo_mantenciones', obj);
         const [r] = await db.query(`INSERT INTO vehiculo_mantenciones (${keys.join(',')}) VALUES (${keys.map(()=>'?').join(',')})`, vals);
         const [rows] = await db.query('SELECT * FROM vehiculo_mantenciones WHERE id = ?', [r.insertId]);
@@ -259,7 +261,7 @@ const vehiculosService = {
     },
 
     async updateMantencion(mantencionId, data) {
-        const allowed = ['fecha','tipo','km_al_realizar','descripcion','costo','taller','fecha_proxima','dias_alerta','email_alerta','tel_alerta'];
+        const allowed = ['fecha','tipo','km_al_realizar','descripcion','costo','taller','fecha_proxima','dias_alerta','email_alerta','tel_alerta','hora_alerta'];
         const { fields, params } = await buildUpdate('vehiculo_mantenciones', data, allowed);
         if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
         params.push(mantencionId);

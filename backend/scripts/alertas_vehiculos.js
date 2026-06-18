@@ -121,11 +121,15 @@ async function main() {
     // ── Consultar items con alerta configurada que vencen pronto ──────────────
     // Modo normal: solo envía cuando faltan EXACTAMENTE los días configurados → 1 aviso por evento.
     // Modo --forzar: envía todo lo que tenga email_alerta (para pruebas).
-    const condSeguro   = forzar ? 'AND s.email_alerta IS NOT NULL' : 'AND s.email_alerta IS NOT NULL AND s.dias_alerta IS NOT NULL AND DATEDIFF(s.fecha_vencimiento, CURDATE()) = s.dias_alerta';
+    // Filtro de HORA: solo envía si la hora actual coincide con hora_alerta (default 08:00).
+    // Requiere que el cron corra cada hora (0 * * * *) para que las horas personalizadas
+    // funcionen. Si corre 1 vez al día, solo dispararán los registros cuya hora = la del cron.
+    const horaCond = (al) => `AND HOUR(NOW()) = COALESCE(HOUR(${al}.hora_alerta), 8)`;
+    const condSeguro   = forzar ? 'AND s.email_alerta IS NOT NULL' : `AND s.email_alerta IS NOT NULL AND s.dias_alerta IS NOT NULL AND DATEDIFF(s.fecha_vencimiento, CURDATE()) = s.dias_alerta ${horaCond('s')}`;
     // Revisiones: alerta basada en la fecha de VENCIMIENTO del certificado.
-    const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : 'AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND r.fecha_vencimiento IS NOT NULL AND DATEDIFF(r.fecha_vencimiento, CURDATE()) = r.dias_alerta';
+    const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : `AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND r.fecha_vencimiento IS NOT NULL AND DATEDIFF(r.fecha_vencimiento, CURDATE()) = r.dias_alerta ${horaCond('r')}`;
     // Mantenciones: alerta basada en la fecha próxima (vencimiento de la mantención).
-    const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL' : 'AND m.email_alerta IS NOT NULL AND m.dias_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL AND DATEDIFF(m.fecha_proxima, CURDATE()) = m.dias_alerta';
+    const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL' : `AND m.email_alerta IS NOT NULL AND m.dias_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL AND DATEDIFF(m.fecha_proxima, CURDATE()) = m.dias_alerta ${horaCond('m')}`;
 
     if (forzar) console.log('⚠️  Modo --forzar: enviando TODAS las alertas con email configurado.\n');
 

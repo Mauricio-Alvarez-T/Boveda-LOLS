@@ -151,6 +151,7 @@ export interface VehiculoRevision {
     dias_alerta?: number | null;
     email_alerta?: string | null;
     tel_alerta?: string | null;
+    hora_alerta?: string | null;
     activo: boolean;
 }
 
@@ -167,6 +168,7 @@ export interface VehiculoMantencion {
     dias_alerta?: number | null;
     email_alerta?: string | null;
     tel_alerta?: string | null;
+    hora_alerta?: string | null;
     activo: boolean;
 }
 
