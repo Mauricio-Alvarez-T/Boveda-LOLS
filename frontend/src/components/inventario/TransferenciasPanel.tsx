@@ -12,6 +12,7 @@ import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import ResumenAccionModal, { type ResumenAccionTipo } from './transferencia-detail/ResumenAccionModal';
 
 interface Props {
     obras: { id: number; nombre: string }[];
@@ -37,6 +38,9 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const [searchQuery, setSearchQuery] = useState('');
     const [wizardModo, setWizardModo] = useState<'pedir' | 'mover' | null>(null);
     const [actionLoading, setActionLoading] = useState(false);
+    // Modal-resumen post-acción: se abre tras crear/aprobar/recibir y aloja el
+    // botón de WhatsApp, para que quede claro CUÁNDO se envía el respaldo.
+    const [resumenModal, setResumenModal] = useState<{ open: boolean; tipo: ResumenAccionTipo }>({ open: false, tipo: 'crear' });
 
     // Discrepancias mode
     const isDiscrepanciasMode = statusFilter === 'discrepancias';
@@ -115,7 +119,10 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     const handleAprobar = useCallback(async (data: any) => {
         setActionLoading(true);
         const ok = await trfHook.aprobar(selectedId!, data);
-        if (ok) await refreshAll();
+        if (ok) {
+            await refreshAll();
+            setResumenModal({ open: true, tipo: 'aprobar' });
+        }
         setActionLoading(false);
         return ok;
     }, [selectedId, trfHook.aprobar, refreshAll]);
@@ -134,6 +141,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             // En modo parcial no se crea discrepancia, pero el refetch es barato.
             const list = await trfHook.fetchDiscrepancias('pendiente');
             setPendientesCount(list.length);
+            setResumenModal({ open: true, tipo: tipo === 'parcial' ? 'recibir_parcial' : 'recibir_total' });
         }
         setActionLoading(false);
         return ok;
@@ -174,6 +182,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             // Aterriza en el detalle del recién creado (UX: notificar sin buscar el código).
             setSelectedId(result.id);
             await trfHook.fetchById(result.id);
+            // Solo el flujo "Pedir" (solicitud) abre el modal-resumen; los movimientos
+            // directos de stock (mover) no son solicitudes que se notifiquen así.
+            if (resuelto.kind === 'crear' || resuelto.kind === 'solicitudMateriales') {
+                setResumenModal({ open: true, tipo: 'crear' });
+            }
         }
         return result;
     }, [trfHook, statusFilter]);
@@ -348,6 +361,16 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 onClose={() => setWizardModo(null)}
                 hasPermission={hasPermission}
                 onSubmit={handleCrearMovimiento}
+            />
+
+            {/* Modal-resumen post-acción (crear / aprobar / recibir): muestra el
+                preview del respaldo + botón de WhatsApp. La TRF fresca viene de
+                trfHook.selected tras el refetch de cada handler. */}
+            <ResumenAccionModal
+                isOpen={resumenModal.open}
+                onClose={() => setResumenModal(r => ({ ...r, open: false }))}
+                t={trfHook.selected}
+                tipo={resumenModal.tipo}
             />
         </div>
     );

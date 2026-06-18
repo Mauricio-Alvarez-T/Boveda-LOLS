@@ -91,6 +91,19 @@ Implementación: `backend/src/services/transferencia.service.js`.
 hace `utils/whatsappShare.ts` → copia + toast "ENVIAR AHORA"; **no cambia estado**). Disponible en **todo**
 el ciclo, incl. estados terminales (`canCompartirWhatsApp` en `useTransferenciaDetail`).
 
+**Formato compacto (2026-06)**: encabezado `🚛 *{codigo}* · {estado}` + ruta `📍 {origen} → {destino}` + fecha,
+cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea de ítem `• {cant} {U} · {desc}`
+(separador `·`); pie en 1 línea `👤 Solic: … · ✅ Aprob: …` + `_Bóveda LOLS_`. Ruta/destino se derivan con
+`transferenciaRoute()` de `utils/formatBodega.ts` (única fuente, compartida con el chip de detalle y el modal).
+
+**Dos puntos de envío** (decisión 2026-06, "mantener ambos"):
+1. **Ícono siempre-visible** en `TransferenciaActionsMenu` → reenvío en cualquier estado.
+2. **Modal-resumen `ResumenAccionModal`** (`components/inventario/transferencia-detail/`): se abre AUTOMÁTICAMENTE
+   tras las 4 acciones clave — **crear solicitud · aprobar · recibir total · recepción parcial** (disparado en
+   `TransferenciasPanel` tras el refetch, con la TRF fresca de `trfHook.selected`). Muestra qué pasó + el
+   **preview EXACTO** del mensaje + el botón de WhatsApp, para que quede claro CUÁNDO se envía. Los movimientos
+   directos (`mover`: push/intra/devolución) y los terminales NO abren el modal (los cubre el ícono).
+
 **Cantidad por estado — regla null-aware: un `0` explícito SE MUESTRA (NO usar `||`, que esconde el 0):**
 
 | Estado | Ítem catálogo | Ítem custom |
@@ -105,7 +118,7 @@ el ciclo, incl. estados terminales (`canCompartirWhatsApp` en `useTransferenciaD
   cortó a 0 (`enviada=0`) DEBEN verse como `0` — antes el `||` mostraba la cantidad anterior y escondía
   el cambio (bug 2026-06).
 - **Ítems custom**: se omiten los `aprobado=false` (quitados por el aprobador); sección separada
-  "Por comprar" vs "Traer de otra obra" (`fuente`/`origen_obra_id`); nota del aprobador si existe.
+  "Comprar" vs "De otra obra" (`fuente`/`origen_obra_id`); nota del aprobador si existe.
 - **Estados terminales**: `rechazada` muestra **motivo** (`observaciones_rechazo`) + **quién**
   (`rechazado_por_nombre`); `cancelada` muestra **quién** (`cancelado_por_nombre`). Ambos `_nombre` los
   expone `getById` vía JOIN. (Hoy la cancelación NO tiene campo de motivo.)

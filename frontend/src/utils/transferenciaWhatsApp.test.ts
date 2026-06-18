@@ -23,34 +23,34 @@ const build = (estado: Transferencia['estado'], items: TransferenciaItem[], item
 describe('buildTransferenciaWhatsappText', () => {
     it('pendiente: muestra la cantidad solicitada', () => {
         const msg = build('pendiente', [cat({ cantidad_solicitada: 3 })]);
-        expect(msg).toContain('• 3 — Cemento');
+        expect(msg).toContain('• 3 · Cemento');
     });
 
     it('recibida con faltante TOTAL (recibida=0): muestra 0, NO la enviada', () => {
         const msg = build('recibida', [cat({ cantidad_solicitada: 5, cantidad_enviada: 5, cantidad_recibida: 0 })]);
-        expect(msg).toContain('• 0 — Cemento');          // el 0 real se muestra (bug falsy-|| corregido)
+        expect(msg).toContain('• 0 · Cemento');          // el 0 real se muestra (bug falsy-|| corregido)
         expect(msg).toContain('Enviadas: 5 (-5)');         // discrepancia anotada
-        expect(msg).not.toContain('• 5 — Cemento');        // NO miente con la enviada
+        expect(msg).not.toContain('• 5 · Cemento');        // NO miente con la enviada
     });
 
     it('aprobada con ítem cortado a 0 por el aprobador: muestra 0, NO la solicitada', () => {
         const msg = build('aprobada', [cat({ cantidad_solicitada: 5, cantidad_enviada: 0 })]);
-        expect(msg).toContain('Items enviados');
-        expect(msg).toContain('• 0 — Cemento');            // el recorte a 0 queda plasmado
-        expect(msg).not.toContain('• 5 — Cemento');
+        expect(msg).toContain('Enviados');
+        expect(msg).toContain('• 0 · Cemento');            // el recorte a 0 queda plasmado
+        expect(msg).not.toContain('• 5 · Cemento');
     });
 
     it('recepcion_parcial: muestra enviada + recibidas/faltan', () => {
         const msg = build('recepcion_parcial', [cat({ cantidad_solicitada: 10, cantidad_enviada: 10, cantidad_recibida: 4 })]);
-        expect(msg).toContain('• 10 — Cemento');
+        expect(msg).toContain('• 10 · Cemento');
         expect(msg).toContain('Recibidas: 4 · Faltan: 6');
     });
 
     it('custom "comprar" en recibida: muestra lo RECIBIDO + discrepancia vs aprobado', () => {
         const custom: WhatsappCustomItem = { descripcion: 'Guantes', cantidad: 12, cantidad_aprobada: 10, cantidad_recibida: 7, aprobado: true, fuente: 'comprar' };
         const msg = build('recibida', [], [custom]);
-        expect(msg).toContain('Por comprar (1)');
-        expect(msg).toContain('• 7 — Guantes');            // recibido, no aprobado
+        expect(msg).toContain('Comprar (1)');
+        expect(msg).toContain('• 7 · Guantes');            // recibido, no aprobado
         expect(msg).toContain('Aprobadas: 10 (-3)');       // discrepancia del custom (antes ausente)
     });
 
@@ -60,7 +60,7 @@ describe('buildTransferenciaWhatsappText', () => {
             { descripcion: 'Botas', cantidad: 3, aprobado: true, fuente: 'comprar' },
         ]);
         expect(msg).not.toContain('Casco');
-        expect(msg).toContain('• 3 — Botas');
+        expect(msg).toContain('• 3 · Botas');
     });
 
     it('rechazada: incluye motivo y quién rechazó', () => {
@@ -68,7 +68,7 @@ describe('buildTransferenciaWhatsappText', () => {
             observaciones_rechazo: 'No hay stock', rechazado_por_nombre: 'Juan Pérez',
         });
         expect(msg).toContain('RECHAZADA');
-        expect(msg).toContain('Motivo:* No hay stock');
+        expect(msg).toContain('Motivo: No hay stock');
         expect(msg).toContain('Rechazada por: Juan Pérez');
     });
 

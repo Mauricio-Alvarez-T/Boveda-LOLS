@@ -1,4 +1,4 @@
-import type { Bodega } from '../types/entities';
+import type { Bodega, Transferencia } from '../types/entities';
 
 /**
  * Formato unificado para mostrar una bodega en cualquier vista.
@@ -29,4 +29,24 @@ export function formatBodegaNombreResponsable(
     if (!nombre) return '';
     const r = responsableNombre?.trim();
     return r ? `${nombre} (${r})` : nombre;
+}
+
+/**
+ * Ruta origen → destino de una transferencia, lista para mostrar.
+ * Prioriza obra; si no, bodega con responsable; si no, "—".
+ * Única fuente para el chip de detalle, el respaldo de WhatsApp y el modal-resumen
+ * (evita duplicar esta cascada en cada consumidor).
+ */
+export function transferenciaRoute(t: Transferencia): { origen: string; destino: string } {
+    const origen = t.origen_obra_nombre
+        || (t.origen_bodega_nombre
+            ? formatBodegaNombreResponsable(t.origen_bodega_nombre, t.origen_bodega_responsable_nombre)
+            : null)
+        || '—';
+    const destino = t.destino_obra_nombre
+        || (t.destino_bodega_nombre
+            ? formatBodegaNombreResponsable(t.destino_bodega_nombre, t.destino_bodega_responsable_nombre)
+            : null)
+        || '—';
+    return { origen, destino };
 }

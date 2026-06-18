@@ -14,7 +14,7 @@ import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
-import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import { transferenciaRoute } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
 import { buildTransferenciaWhatsappText } from '../../utils/transferenciaWhatsApp';
 import { showConfirmToast } from '../../utils/toastUtils';
@@ -124,16 +124,7 @@ const TransferenciaDetail: React.FC<Props> = ({
     const itemDetail = useItemDetail();
     const Icon = cfg.icon;
 
-    const origen = t.origen_obra_nombre
-        || (t.origen_bodega_nombre
-            ? formatBodegaNombreResponsable(t.origen_bodega_nombre, t.origen_bodega_responsable_nombre)
-            : null)
-        || '—';
-    const destino = t.destino_obra_nombre
-        || (t.destino_bodega_nombre
-            ? formatBodegaNombreResponsable(t.destino_bodega_nombre, t.destino_bodega_responsable_nombre)
-            : null)
-        || '—';
+    const { origen, destino } = transferenciaRoute(t);
 
     // ── Estado, efectos y permisos/SoD: orquestados por el hook (refactor Fase 1) ──
     // El hook centraliza el estado de los formularios, los 3 efectos y toda la
