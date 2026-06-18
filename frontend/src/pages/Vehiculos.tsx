@@ -283,83 +283,79 @@ const VehiculosPage: React.FC = () => {
         }
     };
 
-    // ── Nivel 1: grid de empresas ─────────────────────────────────────────────
-    const EmpresasGrid = (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6">
+    // ── Nivel 1: lista de empresas (una por fila, apilada hacia abajo) ─────────
+    // Cada fila: badge (color + nombre) · conteo · editar · eliminar · ›. Escala
+    // mejor que un grid cuando crece la cantidad de empresas.
+    const renderEmpresaRow = (
+        key: React.Key,
+        nombre: string,
+        color: string,
+        count: number,
+        onEnter: () => void,
+        acciones?: React.ReactNode,
+    ) => (
+        <div key={key}
+            onClick={onEnter}
+            role="button" tabIndex={0}
+            onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEnter(); } }}
+            className={cn(
+                'relative cursor-pointer transition-all px-4 md:px-6 py-3.5 border-l-[3px] border-l-transparent',
+                'border-b border-b-border/50 last:border-b-0',
+                'hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/40',
+                'focus:outline-none focus:bg-brand-primary/[0.05]'
+            )}>
+            <div className="flex items-center gap-3">
+                <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold shrink"
+                    style={{ color, backgroundColor: softBg(color) }}>
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span className="truncate">{nombre}</span>
+                </span>
+                <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
+                    <span className="font-bold text-brand-dark">{count}</span> {count === 1 ? 'vehículo' : 'vehículos'}
+                </span>
+                <div className="flex items-center gap-1 shrink-0 ml-auto">
+                    {acciones}
+                    <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0" />
+                </div>
+            </div>
+        </div>
+    );
+
+    const EmpresasList = (
+        <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
             {loading ? (
-                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 md:px-6">Cargando...</div>
             ) : empresas.length === 0 && conteos.sin === 0 ? (
                 <EmptyState icon={Building2} title="Sin empresas registradas"
                     description={'Haz clic en "Nueva empresa" para comenzar'}
-                    className="flex-1 justify-center" />
+                    className="flex-1 justify-center px-4 md:px-6" />
             ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="flex-1 min-h-0 overflow-y-auto">
                     {empresas.map(e => {
                         // Conteo autoritativo del backend (vehiculos_count); el cálculo
                         // client-side queda como fallback reactivo.
                         const count = e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0);
-                        return (
-                            <div key={e.id}
-                                onClick={() => entrarEmpresa(e)}
-                                role="button" tabIndex={0}
-                                onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); entrarEmpresa(e); } }}
-                                className="group relative flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-brand-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
-                                <div className="flex items-start justify-between gap-2">
-                                    <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold max-w-full"
-                                        style={{ color: e.color, backgroundColor: softBg(e.color) }}>
-                                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
-                                        <span className="truncate">{e.nombre}</span>
-                                    </span>
-                                    {/* Acciones siempre visibles: en móvil/tablet no hay hover, así que
-                                        ocultarlas tras group-hover las dejaba inalcanzables. */}
-                                    <div className="flex items-center gap-1 shrink-0">
-                                        {hasPermission('vehiculos.editar') && (
-                                            <IconButton size="sm" aria-label="Editar empresa"
-                                                onClick={ev => { ev.stopPropagation(); setEditEmpresa(e); setModalEmpresa(true); }}
-                                                className="hover:bg-brand-primary/10 hover:text-brand-primary"
-                                                icon={<Edit2 className="h-3.5 w-3.5" />} />
-                                        )}
-                                        {hasPermission('vehiculos.eliminar') && (
-                                            <IconButton size="sm" variant="danger" aria-label="Eliminar empresa"
-                                                onClick={ev => { ev.stopPropagation(); handleDeleteEmpresa(e); }}
-                                                icon={<Trash2 className="h-3.5 w-3.5" />} />
-                                        )}
-                                    </div>
-                                </div>
-                                <div className="flex items-end justify-between gap-2">
-                                    <div className="flex items-baseline gap-1.5">
-                                        <span className="text-2xl font-black text-brand-dark">{count}</span>
-                                        <span className="text-sm text-muted-foreground">{count === 1 ? 'vehículo' : 'vehículos'}</span>
-                                    </div>
-                                    <ChevronRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-brand-primary transition-colors" />
-                                </div>
-                            </div>
+                        const acciones = (
+                            <>
+                                {hasPermission('vehiculos.editar') && (
+                                    <IconButton size="sm" aria-label="Editar empresa"
+                                        onClick={ev => { ev.stopPropagation(); setEditEmpresa(e); setModalEmpresa(true); }}
+                                        className="hover:bg-brand-primary/10 hover:text-brand-primary"
+                                        icon={<Edit2 className="h-3.5 w-3.5" />} />
+                                )}
+                                {hasPermission('vehiculos.eliminar') && (
+                                    <IconButton size="sm" variant="danger" aria-label="Eliminar empresa"
+                                        onClick={ev => { ev.stopPropagation(); handleDeleteEmpresa(e); }}
+                                        icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                )}
+                            </>
                         );
+                        return renderEmpresaRow(e.id, e.nombre, e.color, count, () => entrarEmpresa(e), acciones);
                     })}
 
                     {/* Grupo "Sin empresa": sólo aparece si hay vehículos sin asignar */}
-                    {conteos.sin > 0 && (
-                        <div
-                            onClick={() => entrarEmpresa('sin')}
-                            role="button" tabIndex={0}
-                            onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); entrarEmpresa('sin'); } }}
-                            className="group relative flex flex-col gap-4 rounded-2xl border border-dashed border-border bg-card p-5 text-left shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-brand-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
-                            <div className="flex items-start justify-between gap-2">
-                                <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold"
-                                    style={{ color: SIN_EMPRESA_COLOR, backgroundColor: softBg(SIN_EMPRESA_COLOR) }}>
-                                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: SIN_EMPRESA_COLOR }} />
-                                    Sin empresa
-                                </span>
-                            </div>
-                            <div className="flex items-end justify-between gap-2">
-                                <div className="flex items-baseline gap-1.5">
-                                    <span className="text-2xl font-black text-brand-dark">{conteos.sin}</span>
-                                    <span className="text-sm text-muted-foreground">{conteos.sin === 1 ? 'vehículo' : 'vehículos'}</span>
-                                </div>
-                                <ChevronRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-brand-primary transition-colors" />
-                            </div>
-                        </div>
-                    )}
+                    {conteos.sin > 0 &&
+                        renderEmpresaRow('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, () => entrarEmpresa('sin'))}
                 </div>
             )}
         </div>
@@ -577,7 +573,7 @@ const VehiculosPage: React.FC = () => {
             {/* NIVEL 1: grid de empresas */}
             {!enNivel2 ? (
                 <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                    {EmpresasGrid}
+                    {EmpresasList}
                 </div>
             ) : (
                 <>
