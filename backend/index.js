@@ -256,6 +256,44 @@ try {
     orderBy: 'nombre ASC',
     allowedFields: ['nombre', 'activo']
   }));
+
+  // ── Empresas de flota (catálogo paramétrico del módulo Vehículos) ──
+  // Reusa los permisos vehiculos.* (no crea permisos nuevos). El listado trae el
+  // conteo de vehículos activos por empresa para las tarjetas del Nivel 1.
+  const empresasVehiculosOptions = {
+    searchFields: ['nombre'],
+    useSoftDelete: true,
+    orderBy: 'empresas_vehiculos.nombre ASC',
+    allowedFields: ['nombre', 'color', 'activo'],
+    selectFields: `empresas_vehiculos.*, (
+        SELECT COUNT(*) FROM vehiculos v
+        WHERE v.empresa_id = empresas_vehiculos.id AND v.activo = 1
+    ) AS vehiculos_count`
+  };
+  // Guard de borrado: una empresa con vehículos NO se puede eliminar (evita
+  // huérfanos). Se monta ANTES del CRUD genérico para interceptar solo el DELETE;
+  // GET/POST/PUT caen al router genérico de abajo.
+  const empresasVehiculosGuard = express.Router();
+  empresasVehiculosGuard.delete('/:id', authMw, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
+    try {
+      const [[{ n }]] = await db.query(
+        'SELECT COUNT(*) AS n FROM vehiculos WHERE empresa_id = ? AND activo = 1', [req.params.id]
+      );
+      if (n > 0) {
+        return res.status(400).json({ error: `Esta empresa tiene ${n} vehículo(s) asignado(s). Reasígnalos o elimínalos antes de borrarla.` });
+      }
+      const [r] = await db.query('UPDATE empresas_vehiculos SET activo = 0 WHERE id = ?', [req.params.id]);
+      if (r.affectedRows === 0) return res.status(404).json({ error: 'Empresa no encontrada' });
+      // Desvincular cualquier vehículo (incl. inactivos) que aún apunte a la empresa
+      // borrada: así nunca queda un vehículo colgando de una empresa inactiva (pasa a
+      // "Sin empresa"). El guard de arriba ya impidió borrar si había vehículos ACTIVOS.
+      await db.query('UPDATE vehiculos SET empresa_id = NULL WHERE empresa_id = ?', [req.params.id]);
+      res.json({ id: Number(req.params.id), activo: false });
+    } catch (err) { next(err); }
+  });
+  app.use('/api/empresas-vehiculos', empresasVehiculosGuard);
+  app.use('/api/empresas-vehiculos', createCrudRoutes('vehiculos', 'empresas_vehiculos', empresasVehiculosOptions));
+
   app.use('/api/trabajadores', createCrudRoutes('trabajadores', 'trabajadores', {
     searchFields: ['rut', 'nombres', 'apellido_paterno'],
     joins: 'LEFT JOIN empresas e ON trabajadores.empresa_id = e.id LEFT JOIN obras o ON trabajadores.obra_id = o.id LEFT JOIN cargos c ON trabajadores.cargo_id = c.id',

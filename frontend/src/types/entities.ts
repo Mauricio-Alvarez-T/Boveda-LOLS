@@ -88,6 +88,17 @@ export interface Trabajador {
 
 // ── Módulo Vehículos ──────────────────────────────────────────────────
 
+/** Empresa de flota (catálogo paramétrico; tabla empresas_vehiculos). */
+export interface EmpresaVehiculo {
+    id: number;
+    nombre: string;
+    /** Color identificador en hex (ej. '#16a34a'). */
+    color: string;
+    activo: boolean;
+    /** Conteo de vehículos activos (enriquecido por el backend en el listado). */
+    vehiculos_count?: number;
+}
+
 export interface Vehiculo {
     id: number;
     patente: string;
@@ -95,7 +106,11 @@ export interface Vehiculo {
     modelo: string;
     anio: number;
     tipo: 'camioneta' | 'camion' | 'auto' | 'furgon' | 'bus' | 'otro';
-    empresa?: 'LOLS' | 'TRANSPORTE' | null;
+    /** Empresa de flota asignada (FK a empresas_vehiculos). Null = sin asignar. */
+    empresa_id?: number | null;
+    /** Nombre/color de la empresa, enriquecidos por el backend vía JOIN. */
+    empresa_nombre?: string | null;
+    empresa_color?: string | null;
     conductor_id?: number | null;
     kilometraje_actual: number;
     color?: string | null;

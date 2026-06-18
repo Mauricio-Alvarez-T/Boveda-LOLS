@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
-    Truck, Plus,
-    Trash2, Edit2, X, ChevronLeft, Search, Filter, Save, User
+    Truck, Plus, Building2,
+    Trash2, Edit2, X, ChevronLeft, ChevronRight, Search, Filter, Save, User
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -13,9 +13,16 @@ import { IconButton } from '../components/ui/IconButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
+import { EmpresaForm } from '../components/vehiculos/EmpresaForm';
 import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
 import api from '../services/api';
-import type { Vehiculo } from '../types/entities';
+import type { Vehiculo, EmpresaVehiculo } from '../types/entities';
+import type { ApiResponse } from '../types';
+
+// Color neutro para el grupo "Sin empresa" (slate-400). No es una empresa real.
+const SIN_EMPRESA_COLOR = '#94a3b8';
+// Fondo suave a partir de un hex de 6 dígitos (~10% alpha).
+const softBg = (hex: string) => `${hex}1a`;
 
 // ── Componente principal ──────────────────────────────────────────────────────
 
@@ -23,10 +30,18 @@ const VehiculosPage: React.FC = () => {
     const { hasPermission } = useAuth();
 
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
+    const [empresas, setEmpresas] = useState<EmpresaVehiculo[]>([]);
     const [loading, setLoading] = useState(false);
-    // En móvil: null = lista, Vehiculo = detalle
+
+    // Navegación de 2 niveles:
+    //   null            → Nivel 1: grid de empresas
+    //   EmpresaVehiculo → Nivel 2: vehículos de esa empresa
+    //   'sin'           → Nivel 2: vehículos sin empresa asignada
+    const [selectedEmpresa, setSelectedEmpresa] = useState<EmpresaVehiculo | 'sin' | null>(null);
+    // Dentro del Nivel 2, vehículo seleccionado para el panel de detalle.
     const [selected, setSelected] = useState<Vehiculo | null>(null);
-    // Filtro de búsqueda (patente, marca, modelo, año, tipo)
+
+    // Filtro de búsqueda (patente, marca, modelo, año, tipo) — sólo Nivel 2.
     const [filtro, setFiltro] = useState('');
     const [filtroPatente, setFiltroPatente] = useState('');
     const [filtroMarca, setFiltroMarca] = useState('');
@@ -36,6 +51,8 @@ const VehiculosPage: React.FC = () => {
 
     const [modalVehiculo, setModalVehiculo] = useState(false);
     const [editVehiculo, setEditVehiculo] = useState<Vehiculo | null>(null);
+    const [modalEmpresa, setModalEmpresa] = useState(false);
+    const [editEmpresa, setEditEmpresa] = useState<EmpresaVehiculo | null>(null);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -48,22 +65,60 @@ const VehiculosPage: React.FC = () => {
         finally { setLoading(false); }
     }, []);
 
-    useEffect(() => { fetchVehiculos(); }, [fetchVehiculos]);
+    const fetchEmpresas = useCallback(async () => {
+        try {
+            // limit alto: el catálogo es paramétrico ("sin límite"); evita el truncado
+            // por la paginación por defecto (50) del CRUD genérico.
+            const res = await api.get<ApiResponse<EmpresaVehiculo[]>>('/empresas-vehiculos?activo=true&limit=1000');
+            setEmpresas(res.data.data || []);
+        } catch { /* no bloquea: el grid puede armarse desde los vehículos */ }
+    }, []);
 
-    // Opciones únicas para los dropdowns de filtro (se generan a partir de
-    // los vehículos cargados — la persona no escribe, elige).
+    useEffect(() => { fetchVehiculos(); fetchEmpresas(); }, [fetchVehiculos, fetchEmpresas]);
+
+    // ── Estado derivado de navegación ───────────────────────────────────────
+    const enNivel2 = selectedEmpresa !== null;
+    const empresaActiva = selectedEmpresa === 'sin' || selectedEmpresa === null ? null : selectedEmpresa;
+
+    // Ids de empresas activas (las que aparecen como tarjeta en el Nivel 1).
+    const empresasActivasIds = useMemo(() => new Set(empresas.map(e => e.id)), [empresas]);
+
+    // Conteo de vehículos por empresa (cliente → reactivo a altas/bajas). Un vehículo
+    // cuya empresa no está activa (o es null) se cuenta como "Sin empresa", para que
+    // nunca quede inalcanzable si su empresa fue desactivada.
+    const conteos = useMemo(() => {
+        const porEmpresa = new Map<number, number>();
+        let sin = 0;
+        vehiculos.forEach(v => {
+            if (v.empresa_id != null && empresasActivasIds.has(v.empresa_id)) {
+                porEmpresa.set(v.empresa_id, (porEmpresa.get(v.empresa_id) || 0) + 1);
+            } else sin++;
+        });
+        return { porEmpresa, sin };
+    }, [vehiculos, empresasActivasIds]);
+
+    // Vehículos de la empresa activa (Nivel 2), antes de los filtros de búsqueda.
+    const vehiculosEmpresa = useMemo(() => {
+        if (!enNivel2) return [];
+        if (selectedEmpresa === 'sin') {
+            return vehiculos.filter(v => v.empresa_id == null || !empresasActivasIds.has(v.empresa_id));
+        }
+        return vehiculos.filter(v => v.empresa_id === (selectedEmpresa as EmpresaVehiculo).id);
+    }, [vehiculos, empresasActivasIds, selectedEmpresa, enNivel2]);
+
+    // Opciones únicas para los dropdowns de filtro (acotadas a la empresa activa).
     const opcionesFiltro = useMemo(() => {
-        const patentes = Array.from(new Set(vehiculos.map(v => v.patente))).sort();
-        const marcas   = Array.from(new Set(vehiculos.map(v => v.marca))).sort();
-        const modelos  = Array.from(new Set(vehiculos.map(v => v.modelo))).sort();
-        const tipos    = Array.from(new Set(vehiculos.map(v => v.tipo))).sort();
+        const patentes = Array.from(new Set(vehiculosEmpresa.map(v => v.patente))).sort();
+        const marcas   = Array.from(new Set(vehiculosEmpresa.map(v => v.marca))).sort();
+        const modelos  = Array.from(new Set(vehiculosEmpresa.map(v => v.modelo))).sort();
+        const tipos    = Array.from(new Set(vehiculosEmpresa.map(v => v.tipo))).sort();
         return { patentes, marcas, modelos, tipos };
-    }, [vehiculos]);
+    }, [vehiculosEmpresa]);
 
     // Lista filtrada — combina texto libre + 4 dropdowns (AND entre ellos).
     const vehiculosFiltrados = useMemo(() => {
         const q = filtro.trim().toLowerCase();
-        return vehiculos.filter(v => {
+        return vehiculosEmpresa.filter(v => {
             if (q && !(
                 v.patente.toLowerCase().includes(q) ||
                 v.marca.toLowerCase().includes(q) ||
@@ -77,29 +132,11 @@ const VehiculosPage: React.FC = () => {
             if (filtroTipo    && v.tipo    !== filtroTipo)    return false;
             return true;
         });
-    }, [vehiculos, filtro, filtroPatente, filtroMarca, filtroModelo, filtroTipo]);
+    }, [vehiculosEmpresa, filtro, filtroPatente, filtroMarca, filtroModelo, filtroTipo]);
 
     const limpiarFiltros = () => {
         setFiltro(''); setFiltroPatente(''); setFiltroMarca(''); setFiltroModelo(''); setFiltroTipo('');
     };
-
-    // ── Header global de página ───────────────────────────────────────────────
-    // Title: estilo Inventario (icono + título + subtítulo descriptivo).
-    // Actions: botón Filtros (toggle) + Nuevo vehículo. Mismo patrón que Consultas.
-    const headerTitle = useMemo(() => (
-        <div className="flex items-center gap-3">
-            <Truck className="h-6 w-6 text-brand-primary" />
-            <div className="flex flex-col leading-tight">
-                <h1 className="text-lg font-bold text-brand-dark">
-                    Vehículos
-                    <span className="ml-2 text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle">
-                        {vehiculos.length}
-                    </span>
-                </h1>
-                <p className="text-muted-foreground text-xs">Documentos del vehículo</p>
-            </div>
-        </div>
-    ), [vehiculos.length]);
 
     const filtrosActivos =
         (filtro.trim() ? 1 : 0) +
@@ -108,64 +145,234 @@ const VehiculosPage: React.FC = () => {
         (filtroModelo ? 1 : 0) +
         (filtroTipo ? 1 : 0);
 
-    const headerActions = useMemo(() => (
-        <div className="flex items-center gap-2">
-            <Button
-                size="sm"
-                variant={showFiltros ? 'primary' : 'outline'}
-                onClick={() => setShowFiltros(v => !v)}
-                leftIcon={showFiltros ? <X className="h-3.5 w-3.5" /> : <Filter className="h-3.5 w-3.5" />}
-                className="h-9"
-            >
-                <span className="hidden sm:inline">Filtros</span>
-                {filtrosActivos > 0 && (
-                    <span className={cn(
-                        "ml-1 flex h-4 w-4 items-center justify-center rounded-full text-micro font-bold",
-                        showFiltros ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
-                    )}>
-                        {filtrosActivos}
-                    </span>
-                )}
-            </Button>
-            {hasPermission('vehiculos.crear') && (
-                <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+    // ── Navegación ──────────────────────────────────────────────────────────
+    const volverANivel1 = useCallback(() => {
+        setSelectedEmpresa(null);
+        setSelected(null);
+        setShowFiltros(false);
+        limpiarFiltros();
+    }, []);
+
+    const entrarEmpresa = (e: EmpresaVehiculo | 'sin') => {
+        setSelectedEmpresa(e);
+        setSelected(null);
+    };
+
+    // ── Header global de página (cambia según el nivel) ─────────────────────
+    const empresaActivaNombre = selectedEmpresa === 'sin' ? 'Sin empresa' : empresaActiva?.nombre ?? '';
+    const empresaActivaColor  = selectedEmpresa === 'sin' ? SIN_EMPRESA_COLOR : empresaActiva?.color ?? SIN_EMPRESA_COLOR;
+
+    const headerTitle = useMemo(() => {
+        if (!enNivel2) {
+            return (
+                <div className="flex items-center gap-3">
+                    <Truck className="h-6 w-6 text-brand-primary" />
+                    <div className="flex flex-col leading-tight">
+                        <h1 className="text-lg font-bold text-brand-dark">
+                            Vehículos
+                            <span className="ml-2 text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle">
+                                {vehiculos.length}
+                            </span>
+                        </h1>
+                        <p className="text-muted-foreground text-xs">Empresas de flota</p>
+                    </div>
+                </div>
+            );
+        }
+        return (
+            <div className="flex items-center gap-2.5 min-w-0">
+                <IconButton aria-label="Volver a empresas" onClick={volverANivel1}
+                    icon={<ChevronLeft className="h-5 w-5" />} />
+                <div className="flex flex-col leading-tight min-w-0">
+                    <h1 className="text-lg font-bold text-brand-dark flex items-center gap-2 min-w-0">
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-sm font-bold truncate"
+                            style={{ color: empresaActivaColor, backgroundColor: softBg(empresaActivaColor) }}>
+                            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: empresaActivaColor }} />
+                            <span className="truncate">{empresaActivaNombre}</span>
+                        </span>
+                        <span className="text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle shrink-0">
+                            {vehiculosEmpresa.length}
+                        </span>
+                    </h1>
+                    <p className="text-muted-foreground text-xs">Vehículos de la empresa</p>
+                </div>
+            </div>
+        );
+    }, [enNivel2, vehiculos.length, vehiculosEmpresa.length, empresaActivaNombre, empresaActivaColor, volverANivel1]);
+
+    const headerActions = useMemo(() => {
+        if (!enNivel2) {
+            return hasPermission('vehiculos.crear') ? (
+                <Button size="sm" onClick={() => { setEditEmpresa(null); setModalEmpresa(true); }}
                     leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
-                    <span className="hidden sm:inline">Nuevo vehículo</span>
-                    <span className="sm:hidden">Nuevo</span>
+                    <span className="hidden sm:inline">Nueva empresa</span>
+                    <span className="sm:hidden">Empresa</span>
                 </Button>
-            )}
-        </div>
-    ), [showFiltros, filtrosActivos, hasPermission]);
+            ) : null;
+        }
+        return (
+            <div className="flex items-center gap-2">
+                <Button
+                    size="sm"
+                    variant={showFiltros ? 'primary' : 'outline'}
+                    onClick={() => setShowFiltros(v => !v)}
+                    leftIcon={showFiltros ? <X className="h-3.5 w-3.5" /> : <Filter className="h-3.5 w-3.5" />}
+                    className="h-9"
+                >
+                    <span className="hidden sm:inline">Filtros</span>
+                    {filtrosActivos > 0 && (
+                        <span className={cn(
+                            "ml-1 flex h-4 w-4 items-center justify-center rounded-full text-micro font-bold",
+                            showFiltros ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
+                        )}>
+                            {filtrosActivos}
+                        </span>
+                    )}
+                </Button>
+                {hasPermission('vehiculos.crear') && (
+                    <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+                        leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
+                        <span className="hidden sm:inline">Nuevo vehículo</span>
+                        <span className="sm:hidden">Nuevo</span>
+                    </Button>
+                )}
+            </div>
+        );
+    }, [enNivel2, showFiltros, filtrosActivos, hasPermission]);
 
     useSetPageHeader(headerTitle, headerActions);
 
-    // Auto-selección del primer vehículo en desktop, para que al entrar a la
-    // página el panel de detalle se vea desde el inicio (no vacío).
+    // Auto-selección del primer vehículo en desktop (sólo Nivel 2), para que el
+    // panel de detalle no quede vacío al entrar a una empresa.
     useEffect(() => {
-        if (selected || vehiculos.length === 0) return;
+        if (!enNivel2 || selected || vehiculosEmpresa.length === 0) return;
         const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
-        if (isDesktop) setSelected(vehiculos[0]);
-    }, [vehiculos, selected]);
+        if (isDesktop) setSelected(vehiculosEmpresa[0]);
+    }, [enNivel2, vehiculosEmpresa, selected]);
 
+    // Reconciliar el detalle: si el vehículo seleccionado salió del bucket activo
+    // (p.ej. se le cambió la empresa al editarlo) cerramos el detalle; si solo
+    // cambiaron sus datos, lo refrescamos para no mostrar info obsoleta.
+    useEffect(() => {
+        if (!selected) return;
+        const vigente = vehiculosEmpresa.find(v => v.id === selected.id);
+        if (!vigente) setSelected(null);
+        else if (vigente !== selected) setSelected(vigente);
+    }, [vehiculosEmpresa, selected]);
+
+    // ── Acciones ────────────────────────────────────────────────────────────
     const handleDelete = async (v: Vehiculo) => {
         if (!confirm(`¿Dar de baja el vehículo ${v.patente}?`)) return;
         try {
             await api.delete(`/vehiculos/${v.id}`);
             toast.success('Vehículo dado de baja');
             if (selected?.id === v.id) setSelected(null);
-            fetchVehiculos();
+            fetchVehiculos(); fetchEmpresas(); // refresca conteos del backend
         } catch (err: any) { toast.error(err.response?.data?.error || 'Error al eliminar'); }
     };
 
-    // ── Vista lista ───────────────────────────────────────────────────────────
+    const handleDeleteEmpresa = async (e: EmpresaVehiculo) => {
+        if (!confirm(`¿Eliminar la empresa "${e.nombre}"?`)) return;
+        try {
+            await api.delete(`/empresas-vehiculos/${e.id}`);
+            toast.success('Empresa eliminada');
+            fetchEmpresas();
+        } catch (err: any) {
+            // El backend rechaza (400) si la empresa todavía tiene vehículos.
+            toast.error(err.response?.data?.error || 'Error al eliminar empresa');
+        }
+    };
 
+    // ── Nivel 1: grid de empresas ─────────────────────────────────────────────
+    const EmpresasGrid = (
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6">
+            {loading ? (
+                <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">Cargando...</div>
+            ) : empresas.length === 0 && conteos.sin === 0 ? (
+                <EmptyState icon={Building2} title="Sin empresas registradas"
+                    description={'Haz clic en "Nueva empresa" para comenzar'}
+                    className="flex-1 justify-center" />
+            ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {empresas.map(e => {
+                        // Conteo autoritativo del backend (vehiculos_count); el cálculo
+                        // client-side queda como fallback reactivo.
+                        const count = e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0);
+                        return (
+                            <div key={e.id}
+                                onClick={() => entrarEmpresa(e)}
+                                role="button" tabIndex={0}
+                                onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); entrarEmpresa(e); } }}
+                                className="group relative flex flex-col gap-4 rounded-2xl border border-border bg-card p-5 text-left shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-brand-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold max-w-full"
+                                        style={{ color: e.color, backgroundColor: softBg(e.color) }}>
+                                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: e.color }} />
+                                        <span className="truncate">{e.nombre}</span>
+                                    </span>
+                                    {/* Acciones siempre visibles: en móvil/tablet no hay hover, así que
+                                        ocultarlas tras group-hover las dejaba inalcanzables. */}
+                                    <div className="flex items-center gap-1 shrink-0">
+                                        {hasPermission('vehiculos.editar') && (
+                                            <IconButton size="sm" aria-label="Editar empresa"
+                                                onClick={ev => { ev.stopPropagation(); setEditEmpresa(e); setModalEmpresa(true); }}
+                                                className="hover:bg-brand-primary/10 hover:text-brand-primary"
+                                                icon={<Edit2 className="h-3.5 w-3.5" />} />
+                                        )}
+                                        {hasPermission('vehiculos.eliminar') && (
+                                            <IconButton size="sm" variant="danger" aria-label="Eliminar empresa"
+                                                onClick={ev => { ev.stopPropagation(); handleDeleteEmpresa(e); }}
+                                                icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex items-end justify-between gap-2">
+                                    <div className="flex items-baseline gap-1.5">
+                                        <span className="text-2xl font-black text-brand-dark">{count}</span>
+                                        <span className="text-sm text-muted-foreground">{count === 1 ? 'vehículo' : 'vehículos'}</span>
+                                    </div>
+                                    <ChevronRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-brand-primary transition-colors" />
+                                </div>
+                            </div>
+                        );
+                    })}
+
+                    {/* Grupo "Sin empresa": sólo aparece si hay vehículos sin asignar */}
+                    {conteos.sin > 0 && (
+                        <div
+                            onClick={() => entrarEmpresa('sin')}
+                            role="button" tabIndex={0}
+                            onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); entrarEmpresa('sin'); } }}
+                            className="group relative flex flex-col gap-4 rounded-2xl border border-dashed border-border bg-card p-5 text-left shadow-sm cursor-pointer transition-all hover:shadow-md hover:border-brand-primary/40 focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                            <div className="flex items-start justify-between gap-2">
+                                <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold"
+                                    style={{ color: SIN_EMPRESA_COLOR, backgroundColor: softBg(SIN_EMPRESA_COLOR) }}>
+                                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: SIN_EMPRESA_COLOR }} />
+                                    Sin empresa
+                                </span>
+                            </div>
+                            <div className="flex items-end justify-between gap-2">
+                                <div className="flex items-baseline gap-1.5">
+                                    <span className="text-2xl font-black text-brand-dark">{conteos.sin}</span>
+                                    <span className="text-sm text-muted-foreground">{conteos.sin === 1 ? 'vehículo' : 'vehículos'}</span>
+                                </div>
+                                <ChevronRight className="h-5 w-5 text-muted-foreground/50 group-hover:text-brand-primary transition-colors" />
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+
+    // ── Nivel 2: vista lista ──────────────────────────────────────────────────
     const ListView = (
         <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
             {loading ? (
                 <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 md:px-6">Cargando...</div>
-            ) : vehiculos.length === 0 ? (
-                <EmptyState icon={Truck} title="Sin vehículos registrados"
-                    description={'Haz clic en "Nuevo vehículo" para comenzar'}
+            ) : vehiculosEmpresa.length === 0 ? (
+                <EmptyState icon={Truck} title="Sin vehículos en esta empresa"
+                    description={'Haz clic en "Nuevo vehículo" para agregar el primero'}
                     className="flex-1 justify-center px-4 md:px-6" />
             ) : vehiculosFiltrados.length === 0 ? (
                 <EmptyState icon={Search} title={`No se encontraron resultados para "${filtro}"`}
@@ -176,22 +383,16 @@ const VehiculosPage: React.FC = () => {
                         <div key={v.id}
                             onClick={() => setSelected(v)}
                             className={cn(
-                                // Item base: full-width, separación por línea inferior (no border completo)
                                 'relative cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px]',
                                 'border-b border-b-border/50 last:border-b-0',
                                 selected?.id === v.id
-                                    // Seleccionado: acento verde a la izquierda + fondo suave;
-                                    // en desktop quita el padding-right para "conectarse" con el panel detalle.
                                     ? 'border-l-brand-primary bg-brand-primary/[0.06]'
                                     : 'border-l-transparent hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/30'
                             )}>
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 min-w-0">
-                                    {/* Nombre del vehículo en orden: empresa · marca · patente · conductor asignado */}
+                                    {/* marca · patente · conductor (la empresa ya está en el encabezado del nivel) */}
                                     <div className="flex items-center gap-2 flex-wrap">
-                                        {v.empresa && (
-                                            <span className="text-caption font-bold px-1.5 py-0.5 rounded-md bg-brand-primary/10 text-brand-primary uppercase tracking-wide">{v.empresa}</span>
-                                        )}
                                         <span className="font-semibold text-brand-dark text-sm">{v.marca}</span>
                                         <span className="font-black text-brand-dark text-sm">{v.patente}</span>
                                         {v.conductor_nombre && (
@@ -227,13 +428,10 @@ const VehiculosPage: React.FC = () => {
         </div>
     );
 
-    // ── Vista detalle ─────────────────────────────────────────────────────────
-
+    // ── Nivel 2: vista detalle ────────────────────────────────────────────────
     const DetailView = selected ? (
         <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:w-[420px] md:shrink-0 md:border-l md:border-border">
-            {/* Header */}
             <div className="flex items-center gap-3 mb-4 shrink-0">
-                {/* Botón volver - solo en móvil */}
                 <IconButton aria-label="Volver" onClick={() => setSelected(null)}
                     className="md:hidden" icon={<ChevronLeft className="h-5 w-5" />} />
                 <div className="flex-1 min-w-0">
@@ -248,15 +446,12 @@ const VehiculosPage: React.FC = () => {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
-                {/* ANTECEDENTES DE CIRCULACIÓN — repositorio de documentos/imágenes */}
                 <VehiculoDocumentos vehiculoId={selected.id} />
             </div>
         </div>
     ) : null;
 
     // ── Helper: botones del headerAction para cada modal de form ─────────────
-    // El botón Guardar usa form="..." (HTML5) para disparar el submit del form
-    // aunque viva fuera del <form>. Cancelar llama al onClose del Modal.
     const formActions = (formId: string, onCancel: () => void) => (
         <div className="flex items-center gap-2">
             <Button type="button" variant="outline" size="sm" onClick={onCancel}>Cancelar</Button>
@@ -270,8 +465,8 @@ const VehiculosPage: React.FC = () => {
 
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-3">
-            {/* PANEL DE FILTROS (toggle desde el header) */}
-            {showFiltros && (
+            {/* PANEL DE FILTROS (toggle desde el header) — sólo Nivel 2 */}
+            {enNivel2 && showFiltros && (
                 <div className="bg-card border border-border rounded-2xl shadow-sm p-4 md:p-5 shrink-0 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center gap-2 mb-3">
                         <Filter className="h-3.5 w-3.5 text-brand-primary" />
@@ -379,23 +574,41 @@ const VehiculosPage: React.FC = () => {
                 </div>
             )}
 
-            {/* MOBILE: alterna entre lista y detalle */}
-            <div className="md:hidden flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                {selected ? DetailView : ListView}
-            </div>
+            {/* NIVEL 1: grid de empresas */}
+            {!enNivel2 ? (
+                <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                    {EmpresasGrid}
+                </div>
+            ) : (
+                <>
+                    {/* MOBILE: alterna entre lista y detalle */}
+                    <div className="md:hidden flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                        {selected ? DetailView : ListView}
+                    </div>
 
-            {/* DESKTOP: lista + detalle dentro de un mismo card (separados por border interno) */}
-            <div className="hidden md:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                {ListView}
-                {DetailView}
-            </div>
+                    {/* DESKTOP: lista + detalle dentro de un mismo card */}
+                    <div className="hidden md:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                        {ListView}
+                        {DetailView}
+                    </div>
+                </>
+            )}
 
             {/* ── Modales ── */}
             <Modal isOpen={modalVehiculo} onClose={() => setModalVehiculo(false)}
                 title={editVehiculo ? 'Editar Vehículo' : 'Nuevo Vehículo'} size="lg"
                 headerAction={formActions('vehiculo-form', () => setModalVehiculo(false))}>
-                <VehiculoForm initialData={editVehiculo} onCancel={() => setModalVehiculo(false)}
-                    onSuccess={() => { setModalVehiculo(false); fetchVehiculos(); }} />
+                <VehiculoForm initialData={editVehiculo}
+                    defaultEmpresaId={empresaActiva?.id ?? null}
+                    onCancel={() => setModalVehiculo(false)}
+                    onSuccess={() => { setModalVehiculo(false); fetchVehiculos(); fetchEmpresas(); }} />
+            </Modal>
+
+            <Modal isOpen={modalEmpresa} onClose={() => setModalEmpresa(false)}
+                title={editEmpresa ? 'Editar Empresa' : 'Nueva Empresa'} size="md"
+                headerAction={formActions('empresa-form', () => setModalEmpresa(false))}>
+                <EmpresaForm initialData={editEmpresa} onCancel={() => setModalEmpresa(false)}
+                    onSuccess={() => { setModalEmpresa(false); fetchEmpresas(); }} />
             </Modal>
 
         </div>

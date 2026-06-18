@@ -471,6 +471,77 @@ describe('CRUD Trabajadores', () => {
 });
 
 // ══════════════════════════════════════════════
+// EMPRESAS DE FLOTA (módulo Vehículos)
+// ══════════════════════════════════════════════
+describe('CRUD Empresas de Flota', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    // Reusa los permisos del módulo Vehículos (no tiene permisos propios).
+    const flotaToken = makeToken(['vehiculos.ver', 'vehiculos.crear', 'vehiculos.editar', 'vehiculos.eliminar']);
+
+    test('GET /api/empresas-vehiculos → lista con vehiculos_count', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ id: 1, nombre: 'LOLS', color: '#16a34a', activo: 1, vehiculos_count: 4 }]]) // SELECT
+            .mockResolvedValueOnce([[{ total: 1 }]]);                                                              // COUNT
+
+        const res = await request(app)
+            .get('/api/empresas-vehiculos')
+            .set('Authorization', `Bearer ${flotaToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body.data[0].nombre).toBe('LOLS');
+        expect(res.body.data[0].vehiculos_count).toBe(4);
+    });
+
+    test('POST /api/empresas-vehiculos → crea una empresa (nombre + color)', async () => {
+        db.query.mockResolvedValueOnce([{ insertId: 12, affectedRows: 1 }]);
+
+        const res = await request(app)
+            .post('/api/empresas-vehiculos')
+            .set('Authorization', `Bearer ${flotaToken}`)
+            .send({ nombre: 'NUEVA FLOTA', color: '#2563eb' });
+
+        expect(res.status).toBe(201);
+        expect(res.body.id).toBe(12);
+        expect(res.body.nombre).toBe('NUEVA FLOTA');
+    });
+
+    test('DELETE /api/empresas-vehiculos/1 → 400 si la empresa tiene vehículos', async () => {
+        db.query.mockResolvedValueOnce([[{ n: 3 }]]); // COUNT del guard → tiene vehículos
+
+        const res = await request(app)
+            .delete('/api/empresas-vehiculos/1')
+            .set('Authorization', `Bearer ${flotaToken}`);
+
+        expect(res.status).toBe(400);
+        expect(res.body.error).toContain('vehículo');
+    });
+
+    test('DELETE /api/empresas-vehiculos/1 → 200 (soft-delete + desvincula vehículos) si está vacía', async () => {
+        db.query
+            .mockResolvedValueOnce([[{ n: 0 }]])           // COUNT del guard → sin vehículos activos
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE empresas_vehiculos activo=0
+            .mockResolvedValueOnce([{ affectedRows: 0 }]); // UPDATE vehiculos empresa_id=NULL
+
+        const res = await request(app)
+            .delete('/api/empresas-vehiculos/1')
+            .set('Authorization', `Bearer ${flotaToken}`);
+
+        expect(res.status).toBe(200);
+        expect(res.body).toEqual({ id: 1, activo: false });
+    });
+
+    test('GET /api/empresas-vehiculos → 403 sin permiso vehiculos.ver', async () => {
+        const sinPermiso = makeToken(['empresas.ver']);
+        const res = await request(app)
+            .get('/api/empresas-vehiculos')
+            .set('Authorization', `Bearer ${sinPermiso}`);
+
+        expect(res.status).toBe(403);
+    });
+});
+
+// ══════════════════════════════════════════════
 // SEGURIDAD GENERAL
 // ══════════════════════════════════════════════
 describe('Seguridad General CRUD', () => {
@@ -479,6 +550,7 @@ describe('Seguridad General CRUD', () => {
     test('Todas las rutas requieren autenticación (401 sin token)', async () => {
         const endpoints = [
             '/api/empresas',
+            '/api/empresas-vehiculos',
             '/api/obras',
             '/api/cargos',
             '/api/trabajadores',

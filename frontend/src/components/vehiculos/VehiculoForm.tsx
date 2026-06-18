@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { CalendarCheck } from 'lucide-react';
 import { Input } from '../ui/Input';
 import api from '../../services/api';
-import type { Vehiculo, Conductor } from '../../types/entities';
+import type { Vehiculo, Conductor, EmpresaVehiculo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
 import { useFormDirtyProtection } from '../../hooks/useFormDirtyProtection';
 import { mesRevisionPorPatente } from '../../utils/revisionTecnica';
@@ -28,7 +28,7 @@ const schema = z.object({
         .min(1990, 'El año debe ser 1990 o posterior')
         .max(new Date().getFullYear() + 1, 'El año no puede ser futuro'),
     tipo:    z.enum(['camioneta','camion','auto','furgon','bus','otro']),
-    empresa: z.string().optional(),         // 'LOLS' | 'TRANSPORTE' | '' (sin asignar)
+    empresa_id: z.string().optional(),      // id de empresa de flota (select) o '' (sin asignar)
     conductor_nombre: z.string().optional(),// nombre escrito/elegido; el backend lo resuelve o crea en el catálogo
     kilometraje_actual: z.coerce.number()
         .min(0, 'Los kilómetros no pueden ser negativos')
@@ -40,11 +40,13 @@ type FormData = z.infer<typeof schema>;
 
 interface Props {
     initialData?: Vehiculo | null;
+    /** Empresa preseleccionada al crear desde dentro de una empresa (Nivel 2). */
+    defaultEmpresaId?: number | null;
     onSuccess: () => void;
     onCancel: () => void;
 }
 
-export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
+export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, onSuccess, onCancel }) => {
     const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: initialData ? {
@@ -53,12 +55,17 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
             modelo:  initialData.modelo,
             anio:    initialData.anio,
             tipo:    initialData.tipo,
-            empresa: initialData.empresa || '',
+            empresa_id: initialData.empresa_id != null ? String(initialData.empresa_id) : '',
             conductor_nombre: initialData.conductor_nombre || '',
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
             observaciones: initialData.observaciones || '',
-        } : { tipo: 'camioneta', empresa: '', conductor_nombre: '', kilometraje_actual: 0 },
+        } : {
+            tipo: 'camioneta',
+            empresa_id: defaultEmpresaId != null ? String(defaultEmpresaId) : '',
+            conductor_nombre: '',
+            kilometraje_actual: 0,
+        },
     });
 
     useFormDirtyProtection(isDirty);
@@ -71,6 +78,14 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
             .catch(() => { /* si falla la carga, el select queda vacío; no bloquea el alta */ });
     }, []);
 
+    // Catálogo de empresas de flota (paramétrico; se administra desde la página Vehículos)
+    const [empresas, setEmpresas] = useState<EmpresaVehiculo[]>([]);
+    useEffect(() => {
+        api.get<ApiResponse<EmpresaVehiculo[]>>('/empresas-vehiculos?activo=true')
+            .then(res => setEmpresas(res.data.data))
+            .catch(() => { /* si falla, el select queda solo con "Sin asignar"; no bloquea el alta */ });
+    }, []);
+
     // Mes de revisión técnica según el último dígito de la patente (calendario MTT)
     const patente = watch('patente');
     const mesRevision = mesRevisionPorPatente(patente);
@@ -78,7 +93,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
     const onSubmit = async (data: FormData) => {
         const payload = {
             ...data,
-            empresa: data.empresa || null,
+            empresa_id: data.empresa_id ? Number(data.empresa_id) : null,
             conductor_nombre: data.conductor_nombre?.trim() || null, // backend resuelve/crea en el catálogo
         };
         try {
@@ -97,7 +112,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
 
     return (
         <form id="vehiculo-form" onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Patente" placeholder="Ej: ABCD·12" {...register('patente')}
                     error={errors.patente?.message} />
                 <div>
@@ -128,14 +143,15 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                 </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Empresa</label>
-                    <select {...register('empresa')}
+                    <select {...register('empresa_id')}
                         className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
                         <option value="">Sin asignar</option>
-                        <option value="LOLS">LOLS</option>
-                        <option value="TRANSPORTE">TRANSPORTE</option>
+                        {empresas.map(e => (
+                            <option key={e.id} value={e.id}>{e.nombre}</option>
+                        ))}
                     </select>
                 </div>
                 <div>
@@ -153,11 +169,11 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, onSuccess, onCancel
                 </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Marca" placeholder="Toyota" {...register('marca')} error={errors.marca?.message} />
                 <Input label="Modelo" placeholder="Hilux" {...register('modelo')} error={errors.modelo?.message} />
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Año" type="number" placeholder="2022" {...register('anio')} error={errors.anio?.message} />
                 <Input label="Color" placeholder="Blanco" {...register('color')} error={errors.color?.message} />
             </div>

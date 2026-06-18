@@ -41,7 +41,7 @@ const vehiculosService = {
     // ── Vehículos ──────────────────────────────────────────────────────
 
     async getAll(query = {}) {
-        const { q, activo = 'true', tipo } = query;
+        const { q, activo = 'true', tipo, empresa_id } = query;
         const where = [];
         const params = [];
 
@@ -50,6 +50,14 @@ const vehiculosService = {
             params.push(activo === 'false' || activo === false ? 0 : 1);
         }
         if (tipo) { where.push('v.tipo = ?'); params.push(tipo); }
+        // Filtro por empresa de flota. 'null'/'' → vehículos sin empresa asignada.
+        if (empresa_id !== undefined) {
+            if (empresa_id === 'null' || empresa_id === '' || empresa_id === null) {
+                where.push('v.empresa_id IS NULL');
+            } else {
+                where.push('v.empresa_id = ?'); params.push(empresa_id);
+            }
+        }
         if (q) {
             where.push('(v.patente LIKE ? OR v.marca LIKE ? OR v.modelo LIKE ?)');
             params.push(`%${q}%`, `%${q}%`, `%${q}%`);
@@ -60,6 +68,8 @@ const vehiculosService = {
         const [rows] = await db.query(`
             SELECT v.*,
                 c.nombre AS conductor_nombre,
+                ev.nombre AS empresa_nombre,
+                ev.color  AS empresa_color,
                 -- Último seguro activo y su vencimiento
                 (SELECT tipo FROM vehiculo_seguros WHERE vehiculo_id = v.id AND activo = 1
                     ORDER BY fecha_vencimiento DESC LIMIT 1) AS seguro_tipo,
@@ -75,6 +85,7 @@ const vehiculosService = {
                     ORDER BY fecha_vencimiento DESC LIMIT 1) AS revision_gases_vencimiento
             FROM vehiculos v
             LEFT JOIN conductores c ON c.id = v.conductor_id
+            LEFT JOIN empresas_vehiculos ev ON ev.id = v.empresa_id
             ${whereClause}
             ORDER BY v.patente ASC
         `, params);
@@ -84,9 +95,11 @@ const vehiculosService = {
 
     async getById(id) {
         const [rows] = await db.query(
-            `SELECT v.*, c.nombre AS conductor_nombre
+            `SELECT v.*, c.nombre AS conductor_nombre,
+                    ev.nombre AS empresa_nombre, ev.color AS empresa_color
              FROM vehiculos v
              LEFT JOIN conductores c ON c.id = v.conductor_id
+             LEFT JOIN empresas_vehiculos ev ON ev.id = v.empresa_id
              WHERE v.id = ? AND v.activo = 1`, [id]
         );
         if (!rows.length) throw Object.assign(new Error('Vehículo no encontrado'), { statusCode: 404 });
@@ -111,7 +124,7 @@ const vehiculosService = {
     },
 
     async create(data) {
-        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa, conductor_id } = data;
+        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa_id, conductor_id } = data;
         if (!patente || !marca || !modelo || !anio) {
             throw Object.assign(new Error('patente, marca, modelo y anio son obligatorios'), { statusCode: 400 });
         }
@@ -120,9 +133,9 @@ const vehiculosService = {
             ? await this.resolveConductorId(data.conductor_nombre)
             : (conductor_id || null);
         const [result] = await db.query(
-            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa, conductor_id)
+            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa_id, conductor_id)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa || null, resolvedConductorId]
+            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId]
         );
         return this.getById(result.insertId);
     },
@@ -133,7 +146,7 @@ const vehiculosService = {
         if (data.conductor_nombre !== undefined) {
             data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
         }
-        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa', 'conductor_id'];
+        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id'];
         const fields = [];
         const params = [];
         allowed.forEach(f => {
