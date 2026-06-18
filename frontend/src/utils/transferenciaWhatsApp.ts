@@ -33,9 +33,18 @@ export interface BuildWhatsappParams {
  * Construye el texto del mensaje de WhatsApp de una transferencia.
  *
  * Función PURA (sin efectos): el envío lo maneja `utils/whatsappShare.ts`.
- * Extraída textualmente de TransferenciaDetail.tsx (refactor Fase 1) — el
- * formato del mensaje NO cambió. Emojis con String.fromCodePoint para blindar
- * el encoding (algunos canales corrompen los SMP en el redirect).
+ *
+ * REGLA DE CANTIDADES (respaldo fiel del ciclo — ver docs/reglas/inventario-transferencias.md):
+ * cada estado muestra la columna REAL de ese momento, y un 0 explícito SE MUESTRA
+ * (se usan chequeos `!= null`, NO `||`, para no esconder un faltante total ni un
+ * ítem que el aprobador cortó a 0):
+ *   - pendiente                 → cantidad_solicitada
+ *   - aprobada/en_transito/...  → cantidad_enviada (la aprobada) ?? solicitada
+ *   - recepcion_parcial         → enviada + desglose "Recibidas/Faltan"
+ *   - recibida                  → cantidad_recibida ?? enviada ?? solicitada, + discrepancia si difiere
+ *   - rechazada/cancelada       → última conocida (enviada ?? solicitada) + bloque de motivo/actor
+ * Emojis con String.fromCodePoint para blindar el encoding (algunos canales
+ * corrompen los SMP en el redirect).
  */
 export function buildTransferenciaWhatsappText({
     t, items, itemsCustom, estadoLabel, origen, destino,
@@ -48,9 +57,12 @@ export function buildTransferenciaWhatsappText({
     const MEMO = String.fromCodePoint(0x1F4DD);
     const SPEECH = String.fromCodePoint(0x1F4AC);
     const WARN = String.fromCodePoint(0x26A0, 0xFE0F);
+    const NO_ENTRY = String.fromCodePoint(0x1F6AB);
     const PERSON = String.fromCodePoint(0x1F464);
     const CHECK = String.fromCodePoint(0x2705);
     const CALENDAR = String.fromCodePoint(0x1F4C5);
+
+    const num = (v: unknown): number => Number(v) || 0;
 
     const lines: string[] = [];
     lines.push(`${TRUCK} *TRANSFERENCIA ${t.codigo}*`);
@@ -63,6 +75,19 @@ export function buildTransferenciaWhatsappText({
     lines.push(`${PIN} *Retirar en:* ${origen}`);
     lines.push(`${TARGET} *Entregar en:* ${destino}`);
     lines.push('');
+
+    // Estado terminal: el motivo/actor van arriba (es lo más relevante del respaldo).
+    if (t.estado === 'rechazada') {
+        lines.push(`${NO_ENTRY} *Transferencia RECHAZADA*`);
+        lines.push(`${MEMO} *Motivo:* ${t.observaciones_rechazo || '—'}`);
+        if (t.rechazado_por_nombre) lines.push(`   _Rechazada por: ${t.rechazado_por_nombre}_`);
+        lines.push('');
+    } else if (t.estado === 'cancelada') {
+        lines.push(`${NO_ENTRY} *Transferencia CANCELADA*`);
+        if (t.cancelado_por_nombre) lines.push(`   _Cancelada por: ${t.cancelado_por_nombre}_`);
+        lines.push('');
+    }
+
     if (items.length > 0) {
         // Etiqueta y cantidad dependen del estado para reflejar la columna real
         // (Solicit / Enviada / Recibida). recepcion_parcial: muestra acumulado + pendiente.
@@ -70,25 +95,27 @@ export function buildTransferenciaWhatsappText({
             t.estado === 'recibida' ? 'Items recibidos' :
             t.estado === 'recepcion_parcial' ? 'Items con entrega en curso' :
             t.estado === 'aprobada' || t.estado === 'en_transito' ? 'Items enviados' :
-            'Items solicitados';
+            'Items';
         lines.push(`${BOX} *${itemsLabel} (${items.length}):*`);
         items.forEach((it) => {
+            // Cantidad por estado (null-aware: un 0 explícito SE MUESTRA).
             let cant: number;
             if (t.estado === 'recibida') {
-                cant = Number(it.cantidad_recibida) || Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
-            } else if (t.estado === 'recepcion_parcial') {
-                cant = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
-            } else if (t.estado === 'aprobada' || t.estado === 'en_transito') {
-                cant = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada);
-            } else {
+                cant = it.cantidad_recibida != null ? Number(it.cantidad_recibida)
+                    : it.cantidad_enviada != null ? Number(it.cantidad_enviada)
+                        : Number(it.cantidad_solicitada);
+            } else if (t.estado === 'pendiente') {
                 cant = Number(it.cantidad_solicitada);
+            } else {
+                // aprobada · en_transito · recepcion_parcial · rechazada · cancelada
+                cant = it.cantidad_enviada != null ? Number(it.cantidad_enviada) : Number(it.cantidad_solicitada);
             }
             const unidad = it.unidad ? ` ${it.unidad}` : '';
             const desc = it.item_descripcion || `Item #${it.item_id}`;
             lines.push(`• ${cant}${unidad} — ${desc}`);
             // recepcion_parcial: lo ya recibido y lo pendiente (qué viaje queda).
             if (t.estado === 'recepcion_parcial' && it.cantidad_enviada != null) {
-                const recibida = Number(it.cantidad_recibida) || 0;
+                const recibida = num(it.cantidad_recibida);
                 const pendiente = Number(it.cantidad_enviada) - recibida;
                 lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
             }
@@ -107,23 +134,37 @@ export function buildTransferenciaWhatsappText({
         });
         lines.push('');
     }
-    // Items personalizados (a comprar): sección separada. Omitir los que el
-    // aprobador quitó (aprobado===false); usar cantidad aprobada cuando exista.
+    // Items personalizados (a comprar / traer de obra): sección separada. Omitir los
+    // que el aprobador quitó (aprobado===false); usar cantidad aprobada cuando exista.
     const customVisibles = itemsCustom.filter(it => it.aprobado !== false);
+    // Cantidad "objetivo" del custom: la aprobada si hubo ajuste, si no la pedida.
+    const customAprobada = (it: WhatsappCustomItem) =>
+        it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : Number(it.cantidad);
+    // Cantidad a mostrar en el "•": en recibida muestra lo RECIBIDO; resto, la objetivo.
+    const customShown = (it: WhatsappCustomItem) =>
+        t.estado === 'recibida' && it.cantidad_recibida != null
+            ? Number(it.cantidad_recibida)
+            : customAprobada(it);
     const fmtCustom = (it: WhatsappCustomItem) => {
-        const cant = it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad;
         const unidad = it.unidad ? ` ${it.unidad}` : '';
-        return `• ${cant}${unidad} — ${it.descripcion}`;
+        return `• ${customShown(it)}${unidad} — ${it.descripcion}`;
     };
-    // En recepcion_parcial, progreso por item custom (mismo formato que catálogo).
-    // El total es la cantidad aprobada (o la pedida si no hubo ajuste), igual que
-    // el saldo pendiente de RecibirForm.tsx.
+    // recepcion_parcial: progreso por item custom (recibidas / faltan), igual que catálogo.
     const pushCustomProgress = (it: WhatsappCustomItem) => {
         if (t.estado !== 'recepcion_parcial') return;
-        const total = it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad;
-        const recibida = Number(it.cantidad_recibida) || 0;
-        const pendiente = Number(total) - recibida;
-        lines.push(`   _Recibidas: ${recibida} · Faltan: ${pendiente}_`);
+        const total = customAprobada(it);
+        const recibida = num(it.cantidad_recibida);
+        lines.push(`   _Recibidas: ${recibida} · Faltan: ${total - recibida}_`);
+    };
+    // recibida: discrepancia del custom (recibido vs aprobado), igual que catálogo.
+    const pushCustomRecibida = (it: WhatsappCustomItem) => {
+        if (t.estado !== 'recibida' || it.cantidad_recibida == null) return;
+        const aprobada = customAprobada(it);
+        const recibida = Number(it.cantidad_recibida);
+        if (recibida !== aprobada) {
+            const diff = recibida - aprobada;
+            lines.push(`   _Aprobadas: ${aprobada} (${diff > 0 ? '+' : ''}${diff})_`);
+        }
     };
     const aComprar = customVisibles.filter(it => it.fuente !== 'obra');
     const deObra = customVisibles.filter(it => it.fuente === 'obra');
@@ -132,17 +173,19 @@ export function buildTransferenciaWhatsappText({
         aComprar.forEach((it) => {
             lines.push(fmtCustom(it));
             pushCustomProgress(it);
+            pushCustomRecibida(it);
             if (it.observacion) lines.push(`   _${it.observacion}_`);
             if (it.nota_aprobador) lines.push(`   _Aprobador: ${it.nota_aprobador}_`);
         });
         lines.push('');
     }
     if (deObra.length > 0) {
-        lines.push(`📍 *Traer de otra obra (${deObra.length}):*`);
+        lines.push(`${PIN} *Traer de otra obra (${deObra.length}):*`);
         deObra.forEach((it) => {
             const origenObra = it.origen_obra_nombre ? ` → traer de ${it.origen_obra_nombre}` : '';
             lines.push(`${fmtCustom(it)}${origenObra}`);
             pushCustomProgress(it);
+            pushCustomRecibida(it);
             if (it.nota_aprobador) lines.push(`   _${it.nota_aprobador}_`);
             else if (it.observacion) lines.push(`   _${it.observacion}_`);
         });

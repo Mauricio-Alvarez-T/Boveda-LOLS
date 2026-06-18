@@ -85,6 +85,37 @@ Implementación: `backend/src/services/transferencia.service.js`.
 - Al aprobar con stock insuficiente: modal de decisión → opción de crear una TRF nueva por el
   faltante (`onCrearFaltante`).
 
+## Respaldo por WhatsApp (`utils/transferenciaWhatsApp.ts`)
+
+`buildTransferenciaWhatsappText()` arma un mensaje de respaldo/notificación (función PURA; el envío lo
+hace `utils/whatsappShare.ts` → copia + toast "ENVIAR AHORA"; **no cambia estado**). Disponible en **todo**
+el ciclo, incl. estados terminales (`canCompartirWhatsApp` en `useTransferenciaDetail`).
+
+**Cantidad por estado — regla null-aware: un `0` explícito SE MUESTRA (NO usar `||`, que esconde el 0):**
+
+| Estado | Ítem catálogo | Ítem custom |
+|---|---|---|
+| pendiente | `cantidad_solicitada` | `cantidad` (pedida) |
+| aprobada / en_transito | `cantidad_enviada ?? solicitada` | `cantidad_aprobada ?? cantidad` |
+| recepcion_parcial | enviada + línea "Recibidas/Faltan" | aprobada + "Recibidas/Faltan" |
+| recibida | `cantidad_recibida ?? enviada ?? solicitada` + discrepancia si difiere de enviada | `cantidad_recibida ?? aprobada` + discrepancia si difiere de aprobada |
+| rechazada / cancelada | última conocida (`enviada ?? solicitada`) | `aprobada ?? cantidad` |
+
+- **Por qué el null-aware:** un faltante total al recibir (`recibida=0`) o un ítem que el aprobador
+  cortó a 0 (`enviada=0`) DEBEN verse como `0` — antes el `||` mostraba la cantidad anterior y escondía
+  el cambio (bug 2026-06).
+- **Ítems custom**: se omiten los `aprobado=false` (quitados por el aprobador); sección separada
+  "Por comprar" vs "Traer de otra obra" (`fuente`/`origen_obra_id`); nota del aprobador si existe.
+- **Estados terminales**: `rechazada` muestra **motivo** (`observaciones_rechazo`) + **quién**
+  (`rechazado_por_nombre`); `cancelada` muestra **quién** (`cancelado_por_nombre`). Ambos `_nombre` los
+  expone `getById` vía JOIN. (Hoy la cancelación NO tiene campo de motivo.)
+- **Datos frescos**: el detalle recibe `t/items/itemsCustom` como props, refrescadas tras cada acción.
+- **Efímero**: el respaldo NO se persiste (no hay log de envío). El audit trail real vive en
+  `transferencias` (`creado/aprobado/recibido/rechazado/cancelado_por`), `transferencia_recepciones` y
+  `transferencia_discrepancias`.
+- **Anti-regresión**: `frontend/src/utils/transferenciaWhatsApp.test.ts` fija el contenido por estado ×
+  tipo de ítem × cambio (recibido 0, ítem cortado a 0, custom recibido, discrepancias, rechazo/cancelación).
+
 ## Descuentos y facturación (gateados — ver seguridad-rbac.md)
 
 - **Descuento por obra**: porcentaje configurable (permiso `inventario.descuentos.gestionar`);

@@ -45,7 +45,7 @@ Acciones primarias = botones verdes; secundarias (Rechazar/Cancelar) en botón d
 | **B6** | Rechazar (pendiente) | TRF Pendiente → **"Rechazar"** → modal "Rechazar Transferencia" + motivo | **Rechazada** (motivo en timeline) |
 | **B7** | Cancelar | TRF Pendiente / Aprobada → **"Cancelar"** → toast **"¿Cancelar la transferencia {código}?"** → **"Sí, cancelar"** | **Cancelada** |
 | **B8** | Cancelar en Tránsito | TRF En Tránsito → **"Cancelar"** (requiere permiso "Cancelar en Tránsito") | **Cancelada**, sin 403 |
-| **B9** | WhatsApp | TRF no cancelada/rechazada → icono WhatsApp (tooltip "Notificar/Enviar por WhatsApp") | Toast "¡Mensaje listo!" + **"ENVIAR AHORA"**; NO cambia estado |
+| **B9** | WhatsApp | TRF en **cualquier** estado (incl. rechazada/cancelada) → icono WhatsApp (tooltip "Notificar/Enviar por WhatsApp") | Toast "¡Mensaje listo!" + **"ENVIAR AHORA"**; NO cambia estado. **Contenido (respaldo fiel):** la cantidad de cada ítem = la columna real del estado; un `0` recibido o un ítem cortado a 0 al aprobar **se muestran como 0** (con la discrepancia anotada), NO la cantidad anterior; los custom quitados se omiten; rechazo muestra **motivo + quién**, cancelación muestra **quién**. Spec en `docs/reglas/inventario-transferencias.md §Respaldo por WhatsApp`; anti-regresión en `frontend/src/utils/transferenciaWhatsApp.test.ts`. |
 
 ---
 

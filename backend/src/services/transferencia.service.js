@@ -1630,7 +1630,8 @@ const transferenciaService = {
                    do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
                    db2.responsable_nombre as destino_bodega_responsable_nombre,
                    us.nombre as solicitante_nombre, ua.nombre as aprobador_nombre,
-                   ut.nombre as transportista_nombre, ur.nombre as receptor_nombre
+                   ut.nombre as transportista_nombre, ur.nombre as receptor_nombre,
+                   urj.nombre as rechazado_por_nombre, uca.nombre as cancelado_por_nombre
             FROM transferencias t
             LEFT JOIN obras oo ON t.origen_obra_id = oo.id
             LEFT JOIN bodegas ob ON t.origen_bodega_id = ob.id
@@ -1640,6 +1641,8 @@ const transferenciaService = {
             LEFT JOIN usuarios ua ON t.aprobador_id = ua.id
             LEFT JOIN usuarios ut ON t.transportista_id = ut.id
             LEFT JOIN usuarios ur ON t.receptor_id = ur.id
+            LEFT JOIN usuarios urj ON t.rechazado_por = urj.id
+            LEFT JOIN usuarios uca ON t.cancelado_por = uca.id
             WHERE t.id = ?
         `, [id]);
         if (!rows.length) throw new Error('Transferencia no encontrada');

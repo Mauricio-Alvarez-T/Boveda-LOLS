@@ -408,6 +408,10 @@ export interface Transferencia {
     recibido_por?: number | null;
     rechazado_por?: number | null;
     cancelado_por?: number | null;
+    // Nombres de quien rechazó/canceló (getById los expone vía JOIN) — para el
+    // respaldo de WhatsApp en estados terminales.
+    rechazado_por_nombre?: string | null;
+    cancelado_por_nombre?: string | null;
     fecha_solicitud: string;
     fecha_aprobacion: string | null;
     fecha_despacho: string | null;

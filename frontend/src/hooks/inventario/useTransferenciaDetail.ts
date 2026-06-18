@@ -84,7 +84,9 @@ export function useTransferenciaDetail({
     const showSodBannerTransportista =
         isTransportista && (t.estado === 'en_transito' || t.estado === 'recepcion_parcial') &&
         hasPermission('inventario.transferencias.recibir') && !hasBypass;
-    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial', 'recibida'].includes(t.estado);
+    // Respaldo disponible en TODO el ciclo, incl. estados terminales (rechazada/
+    // cancelada) — el mensaje incluye el motivo + quién, dejando evidencia de la transición.
+    const canCompartirWhatsApp = ['pendiente', 'aprobada', 'en_transito', 'recepcion_parcial', 'recibida', 'rechazada', 'cancelada'].includes(t.estado);
     const hasActions = canAprobar || canRechazar || canDespachar || canRecibir || canRechazarRecepcion || canCancelar || canCompartirWhatsApp;
 
     // ── Inline form states ──
