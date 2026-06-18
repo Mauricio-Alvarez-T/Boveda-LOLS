@@ -31,6 +31,15 @@ const fmtFecha = (s?: string | null) => s ? String(s).split('T')[0].split('-').r
 
 const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '', horaAlerta: '08:00' };
 
+// Opciones de anticipación del aviso. El valor es "días antes del vencimiento";
+// 0 = el mismo día. Se eligen de una lista para que quede claro (en vez de tipear).
+const PRESETS_DIAS: { value: number; label: string }[] = [
+    { value: 30, label: '30 días antes' },
+    { value: 15, label: '15 días antes' },
+    { value: 3,  label: '3 días antes' },
+    { value: 0,  label: 'El mismo día' },
+];
+
 interface Props {
     vehiculoId: number;
 }
@@ -311,9 +320,15 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                 <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     <label className="flex flex-col gap-0.5">
-                                        <span className="text-micro text-muted-foreground">Días antes <span className="text-muted-foreground/60">(0 = el mismo día)</span></span>
-                                        <input type="number" min={0} value={form.diasAlerta} onChange={e => setForm(f => ({ ...f, diasAlerta: e.target.value }))}
-                                            className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                        <span className="text-micro text-muted-foreground">Anticipación del aviso</span>
+                                        <select value={form.diasAlerta} onChange={e => setForm(f => ({ ...f, diasAlerta: e.target.value }))}
+                                            className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                                            {/* Conserva un valor antiguo no estándar (ej. registros con 7 días) como opción extra */}
+                                            {form.diasAlerta !== '' && !PRESETS_DIAS.some(p => String(p.value) === String(form.diasAlerta)) && (
+                                                <option value={form.diasAlerta}>{form.diasAlerta} días antes</option>
+                                            )}
+                                            {PRESETS_DIAS.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
+                                        </select>
                                     </label>
                                     <label className="flex flex-col gap-0.5">
                                         <span className="text-micro text-muted-foreground">Hora del aviso</span>
@@ -327,7 +342,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                 </div>
-                                <p className="text-micro text-muted-foreground/70">Obligatorio: lugar (mín. 4), fecha, vencimiento y email (mín. 5). Avisa por correo los días indicados antes del vencimiento (0 = el mismo día), a la hora elegida.</p>
+                                <p className="text-micro text-muted-foreground/70">Obligatorio: lugar (mín. 4), fecha, vencimiento y email (mín. 5). Avisa por correo según la anticipación elegida, a la hora indicada.</p>
                             </div>
                         </div>
                     )}
