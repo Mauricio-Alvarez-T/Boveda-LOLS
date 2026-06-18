@@ -76,7 +76,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const handleFileChange = (f: File | null) => {
         setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
         setFile(f);
-        if (f && f.type.startsWith('image/')) setPreview(window.URL.createObjectURL(f));
+        // Vista previa para imágenes y PDF (el PDF se muestra embebido en un visor).
+        if (f && (f.type.startsWith('image/') || f.type === 'application/pdf')) {
+            setPreview(window.URL.createObjectURL(f));
+        }
     };
 
     const resetForm = () => {
@@ -231,7 +234,11 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                             {file && (
                                 preview ? (
                                     <div className="rounded-lg border border-border bg-card p-2 flex flex-col items-center gap-1">
-                                        <img src={preview} alt="Vista previa" className="max-h-48 w-auto rounded-md object-contain" />
+                                        {file.type === 'application/pdf' ? (
+                                            <iframe src={preview} title="Vista previa" className="w-full h-64 rounded-md border border-border bg-white" />
+                                        ) : (
+                                            <img src={preview} alt="Vista previa" className="max-h-48 w-auto rounded-md object-contain" />
+                                        )}
                                         <span className="text-micro text-muted-foreground truncate max-w-full" title={file.name}>{file.name}</span>
                                     </div>
                                 ) : (
@@ -241,7 +248,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                     </div>
                                 )
                             )}
-                            <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB).</p>
+                            <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB); los PDF se suben tal cual.</p>
                         </>
                     )}
 
