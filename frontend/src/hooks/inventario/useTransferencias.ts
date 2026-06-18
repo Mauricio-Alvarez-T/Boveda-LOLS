@@ -44,6 +44,7 @@ interface SolicitudMaterialesData {
     items: { item_id: number; cantidad: number }[];
     items_custom?: CustomItemPayload[];
     observaciones?: string;
+    motivo?: string;
     requiere_pionetas?: boolean;
     cantidad_pionetas?: number;
 }

@@ -52,11 +52,11 @@ export interface PermisosMovimiento {
  */
 export type MovimientoResuelto =
     | { kind: 'crear'; data: { destino_obra_id?: number | null; destino_bodega_id?: number | null; origen_obra_id?: number | null; origen_bodega_id?: number | null; items: ItemInput[]; items_custom?: CustomItemInput[]; observaciones?: string; requiere_pionetas?: boolean; cantidad_pionetas?: number; tipo_flujo?: 'solicitud' | 'solicitud_materiales' | 'devolucion'; motivo?: string } }
-    | { kind: 'solicitudMateriales'; data: { destino_obra_id?: number | null; items: ItemInput[]; items_custom?: CustomItemInput[]; observaciones?: string } }
+    | { kind: 'solicitudMateriales'; data: { destino_obra_id?: number | null; items: ItemInput[]; items_custom?: CustomItemInput[]; observaciones?: string; motivo?: string } }
     | { kind: 'pushDirecto'; data: { origen_bodega_id: number; destino_obra_id: number; items: ItemInput[]; observaciones?: string; motivo?: string } }
     | { kind: 'intraBodega'; data: { origen_bodega_id: number; destino_bodega_id: number; items: ItemInput[]; observaciones?: string; motivo?: string } }
-    | { kind: 'devolucion'; data: { origen_obra_id: number; destino_bodega_id: number; items: ItemInput[]; observaciones?: string; requiere_pionetas?: boolean; cantidad_pionetas?: number } }
-    | { kind: 'intraObra'; data: { origen_obra_id: number; destino_obra_id: number; items: ItemInput[]; observaciones?: string } }
+    | { kind: 'devolucion'; data: { origen_obra_id: number; destino_bodega_id: number; items: ItemInput[]; observaciones?: string; requiere_pionetas?: boolean; cantidad_pionetas?: number; motivo?: string } }
+    | { kind: 'intraObra'; data: { origen_obra_id: number; destino_obra_id: number; items: ItemInput[]; observaciones?: string; motivo?: string } }
     | { kind: 'ordenGerencia'; data: { origen_obra_id?: number | null; origen_bodega_id?: number | null; destino_obra_id?: number | null; destino_bodega_id?: number | null; items: ItemInput[]; motivo: string; observaciones?: string } };
 
 export interface InferResult {
@@ -171,6 +171,7 @@ function buildPayload(tipoFlujo: TipoFlujo, state: WizardState): MovimientoResue
                 destino_obra_id: dObra,
                 items,
                 observaciones: obs,
+                motivo: mot,
                 tipo_flujo: 'solicitud',
                 ...pionetas,
             };
@@ -178,15 +179,15 @@ function buildPayload(tipoFlujo: TipoFlujo, state: WizardState): MovimientoResue
             return { kind: 'crear', data };
         }
         case 'solicitud_materiales':
-            return { kind: 'solicitudMateriales', data: { destino_obra_id: dObra, items: [], items_custom: itemsCustom, observaciones: obs } };
+            return { kind: 'solicitudMateriales', data: { destino_obra_id: dObra, items: [], items_custom: itemsCustom, observaciones: obs, motivo: mot } };
         case 'push_directo':
             return { kind: 'pushDirecto', data: { origen_bodega_id: oBodega as number, destino_obra_id: dObra as number, items, observaciones: obs, motivo: mot } };
         case 'intra_bodega':
             return { kind: 'intraBodega', data: { origen_bodega_id: oBodega as number, destino_bodega_id: dBodega as number, items, observaciones: obs, motivo: mot } };
         case 'devolucion':
-            return { kind: 'devolucion', data: { origen_obra_id: oObra as number, destino_bodega_id: dBodega as number, items, observaciones: obs, ...pionetas } };
+            return { kind: 'devolucion', data: { origen_obra_id: oObra as number, destino_bodega_id: dBodega as number, items, observaciones: obs, motivo: mot, ...pionetas } };
         case 'intra_obra':
-            return { kind: 'intraObra', data: { origen_obra_id: oObra as number, destino_obra_id: dObra as number, items, observaciones: obs } };
+            return { kind: 'intraObra', data: { origen_obra_id: oObra as number, destino_obra_id: dObra as number, items, observaciones: obs, motivo: mot } };
         case 'orden_gerencia':
             return {
                 kind: 'ordenGerencia',

@@ -150,3 +150,28 @@ describe('inferMovimiento — toggles, permisos y validaciones', () => {
         expect(r.errores).toEqual([]);
     });
 });
+
+// El `motivo` debe viajar en el payload de TODOS los flujos que muestran el input
+// (regresión 2026-06: se perdía silenciosamente en solicitud / sol. materiales /
+// devolución / intra_obra; sí estaba en push_directo / intra_bodega / orden_gerencia).
+describe('inferMovimiento — motivo se propaga al payload', () => {
+    const MOT = 'Reposición de stock';
+
+    test.each([
+        ['solicitud',            base({ origen: { tipo: 'central' },     destino: { tipo: 'obra', id: 5 },   items: [ITEM],          motivo: MOT })],
+        ['solicitud_materiales', base({ origen: { tipo: 'central' },     destino: { tipo: 'obra', id: 5 },   itemsCustom: [CUSTOM],  motivo: MOT })],
+        ['push_directo',         base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'obra', id: 5 },   items: [ITEM],          motivo: MOT })],
+        ['intra_bodega',         base({ origen: { tipo: 'bodega', id: 2 }, destino: { tipo: 'bodega', id: 3 }, items: [ITEM],          motivo: MOT })],
+        ['devolucion',           base({ origen: { tipo: 'obra', id: 7 },   destino: { tipo: 'bodega', id: 3 }, items: [ITEM],          motivo: MOT })],
+        ['intra_obra',           base({ origen: { tipo: 'obra', id: 7 },   destino: { tipo: 'obra', id: 8 },   items: [ITEM],          motivo: MOT })],
+    ])('%s incluye motivo en data', (_flujo, state) => {
+        const r = inferMovimiento(state, TODOS);
+        expect(r.resuelto).not.toBeNull();
+        expect((r.resuelto as any).data.motivo).toBe(MOT);
+    });
+
+    test('motivo vacío → no se envía (undefined, el backend lo guarda como null)', () => {
+        const r = inferMovimiento(base({ origen: { tipo: 'central' }, destino: { tipo: 'obra', id: 5 }, items: [ITEM], motivo: '   ' }), TODOS);
+        expect((r.resuelto as any).data.motivo).toBeUndefined();
+    });
+});
