@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell } from 'lucide-react';
+import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
@@ -38,6 +38,7 @@ interface Props {
 export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const { hasPermission } = useAuth();
     const canCreate = hasPermission('vehiculos.crear');
+    const canEdit = hasPermission('vehiculos.editar');
     const canDelete = hasPermission('vehiculos.eliminar');
 
     const [docs, setDocs] = useState<VehiculoDocumento[]>([]);
@@ -48,6 +49,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const [file, setFile] = useState<File | null>(null);
     const [preview, setPreview] = useState<string | null>(null);
     const [form, setForm] = useState({ ...EMPTY_FORM });
+    const [editing, setEditing] = useState<{ kind: 'revision' | 'mantencion'; id: number } | null>(null);
     const [busy, setBusy] = useState(false);
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [viewer, setViewer] = useState<{ url: string; mime: string; name: string } | null>(null);
@@ -89,7 +91,33 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
         setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
         setForm({ ...EMPTY_FORM });
         setTipoValue('permiso_circulacion');
+        setEditing(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
+    };
+
+    const toDateInput = (s?: string | null) => s ? String(s).split('T')[0] : '';
+    const toTimeInput = (s?: string | null) => s ? String(s).slice(0, 5) : '08:00';
+
+    // Abre el formulario en modo edición pre-cargado con los datos del registro.
+    const handleEditRevision = (r: VehiculoRevision) => {
+        setTipoValue(r.tipo === 'gases' ? 'revision_gases' : 'revision_tecnica');
+        setForm({
+            lugar: r.planta || '', fecha: toDateInput(r.fecha), vencimiento: toDateInput(r.fecha_vencimiento),
+            observaciones: r.observaciones || '', diasAlerta: r.dias_alerta != null ? String(r.dias_alerta) : '30',
+            emailAlerta: r.email_alerta || '', horaAlerta: toTimeInput(r.hora_alerta),
+        });
+        setEditing({ kind: 'revision', id: r.id });
+        setShowAdd(true);
+    };
+    const handleEditMantencion = (m: VehiculoMantencion) => {
+        setTipoValue('mantencion');
+        setForm({
+            lugar: m.taller || '', fecha: toDateInput(m.fecha), vencimiento: toDateInput(m.fecha_proxima),
+            observaciones: m.descripcion || '', diasAlerta: m.dias_alerta != null ? String(m.dias_alerta) : '30',
+            emailAlerta: m.email_alerta || '', horaAlerta: toTimeInput(m.hora_alerta),
+        });
+        setEditing({ kind: 'mantencion', id: m.id });
+        setShowAdd(true);
     };
 
     // Subir archivo (tipos "file")
@@ -125,18 +153,22 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             const hora_alerta = form.horaAlerta || null;
             const observaciones = form.observaciones.trim() || null;
             if (tipo.endpoint === 'revisiones') {
-                await api.post(`/vehiculos/${vehiculoId}/revisiones`, {
+                const payload = {
                     tipo: tipo.revTipo, fecha: form.fecha, fecha_vencimiento: form.vencimiento,
                     planta: form.lugar.trim(), observaciones, resultado: 'aprobado', dias_alerta, email_alerta, hora_alerta,
-                });
+                };
+                if (editing?.kind === 'revision') await api.put(`/vehiculos/${vehiculoId}/revisiones/${editing.id}`, payload);
+                else await api.post(`/vehiculos/${vehiculoId}/revisiones`, payload);
             } else {
-                await api.post(`/vehiculos/${vehiculoId}/mantenciones`, {
+                const payload = {
                     fecha: form.fecha, tipo: 'Mantención', km_al_realizar: 0,
                     taller: form.lugar.trim(), descripcion: observaciones, fecha_proxima: form.vencimiento,
                     dias_alerta, email_alerta, hora_alerta,
-                });
+                };
+                if (editing?.kind === 'mantencion') await api.put(`/vehiculos/${vehiculoId}/mantenciones/${editing.id}`, payload);
+                else await api.post(`/vehiculos/${vehiculoId}/mantenciones`, payload);
             }
-            toast.success('Registro guardado');
+            toast.success(editing ? 'Registro actualizado' : 'Registro guardado');
             resetForm();
             fetchAll();
         } catch (err: any) {
@@ -208,7 +240,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             {showAdd && (
                 <div className="mb-2 p-3 rounded-xl border border-border bg-muted/40 space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo registro</span>
+                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">{editing ? 'Editar registro' : 'Nuevo registro'}</span>
                         <div className="flex items-center gap-1">
                             {/* Gris (plomo) hasta estar listo; verde cuando se puede guardar */}
                             <Button size="sm" aria-label={isData ? 'Guardar registro' : 'Subir documento'} title={isData ? 'Guardar registro' : 'Subir documento'}
@@ -222,8 +254,8 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                         </div>
                     </div>
 
-                    <select value={tipoValue} onChange={e => setTipoValue(e.target.value)}
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                    <select value={tipoValue} onChange={e => setTipoValue(e.target.value)} disabled={!!editing}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30 disabled:opacity-60">
                         {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
 
@@ -337,10 +369,16 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                     {r.observaciones && <span className="text-micro text-muted-foreground/70 italic">{r.observaciones}</span>}
                                     <AlertaBadge dias={r.dias_alerta} email={r.email_alerta} />
                                 </div>
-                                {canDelete && (
-                                    <IconButton size="sm" variant="danger" aria-label="Eliminar registro" className="shrink-0 mt-0.5"
-                                        onClick={() => handleDeleteRevision(r)} icon={<Trash2 className="h-3.5 w-3.5" />} />
-                                )}
+                                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                                    {canEdit && (
+                                        <IconButton size="sm" aria-label="Editar registro" onClick={() => handleEditRevision(r)}
+                                            className="hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-3.5 w-3.5" />} />
+                                    )}
+                                    {canDelete && (
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar registro"
+                                            onClick={() => handleDeleteRevision(r)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                    )}
+                                </div>
                             </div>
                         ))}
 
@@ -354,10 +392,16 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                     {m.descripcion && <span className="text-micro text-muted-foreground/70 italic">{m.descripcion}</span>}
                                     <AlertaBadge dias={m.dias_alerta} email={m.email_alerta} />
                                 </div>
-                                {canDelete && (
-                                    <IconButton size="sm" variant="danger" aria-label="Eliminar registro" className="shrink-0 mt-0.5"
-                                        onClick={() => handleDeleteMantencion(m)} icon={<Trash2 className="h-3.5 w-3.5" />} />
-                                )}
+                                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                                    {canEdit && (
+                                        <IconButton size="sm" aria-label="Editar registro" onClick={() => handleEditMantencion(m)}
+                                            className="hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-3.5 w-3.5" />} />
+                                    )}
+                                    {canDelete && (
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar registro"
+                                            onClick={() => handleDeleteMantencion(m)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                    )}
+                                </div>
                             </div>
                         ))}
                     </>
