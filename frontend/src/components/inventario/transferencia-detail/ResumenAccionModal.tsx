@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, PackageOpen } from 'lucide-react';
+import { CheckCircle2, PackageOpen, AlertTriangle } from 'lucide-react';
 import { Modal } from '../../ui/Modal';
 import { Button } from '../../ui/Button';
 import WhatsAppIcon from '../../ui/WhatsAppIcon';
@@ -49,17 +49,38 @@ const COPY: Record<ResumenAccionTipo, { title: string; subtitle: string }> = {
 const ResumenAccionModal: React.FC<Props> = ({ isOpen, onClose, t, tipo }) => {
     if (!t) return null;
 
-    const copy = COPY[tipo];
     const cfg = estadoConfig[t.estado] || estadoConfig.pendiente;
     const { origen, destino } = transferenciaRoute(t);
     const items: TransferenciaItem[] = t.items || [];
     const itemsCustom = ((t as { items_custom?: WhatsappCustomItem[] }).items_custom) || [];
 
+    // Una recepción "total" puede cerrar igual en `recibida` PERO con discrepancia
+    // (el backend registra la diferencia y el preview muestra "_Enviadas: N (±x)_").
+    // Detectamos ese caso para que el copy del modal NO afirme un cierre limpio
+    // mientras su propio preview muestra el faltante/sobrante.
+    const cerroConDiscrepancia = tipo === 'recibir_total' && t.estado === 'recibida' && (
+        items.some(it => it.cantidad_enviada != null && it.cantidad_recibida != null
+            && Number(it.cantidad_enviada) !== Number(it.cantidad_recibida))
+        || itemsCustom.some(it => {
+            const aprobada = it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : Number(it.cantidad);
+            return it.cantidad_recibida != null && Number(it.cantidad_recibida) !== aprobada;
+        })
+    );
+
+    const copy = cerroConDiscrepancia
+        ? {
+            title: 'Recepción registrada con discrepancia',
+            subtitle: 'Se cerró la recepción, pero las cantidades no calzan con lo enviado. Revisa la discrepancia y comparte el comprobante.',
+        }
+        : COPY[tipo];
+
     const text = buildTransferenciaWhatsappText({
         t, items, itemsCustom, estadoLabel: cfg.label, origen, destino,
     });
 
-    const HeaderIcon = tipo === 'recibir_parcial' ? PackageOpen : CheckCircle2;
+    const HeaderIcon = cerroConDiscrepancia ? AlertTriangle
+        : tipo === 'recibir_parcial' ? PackageOpen
+        : CheckCircle2;
 
     const handleEnviar = async () => {
         await prepareAndShareWithToast({
@@ -77,7 +98,7 @@ const ResumenAccionModal: React.FC<Props> = ({ isOpen, onClose, t, tipo }) => {
             onClose={onClose}
             title={
                 <span className="flex items-center gap-2">
-                    <HeaderIcon className="h-5 w-5 text-brand-primary shrink-0" />
+                    <HeaderIcon className={`h-5 w-5 shrink-0 ${cerroConDiscrepancia ? 'text-destructive' : 'text-brand-primary'}`} />
                     {copy.title}
                 </span>
             }
