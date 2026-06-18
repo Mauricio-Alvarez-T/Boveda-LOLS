@@ -182,7 +182,7 @@ const VehiculosPage: React.FC = () => {
         return (
             <div className="flex items-center gap-2.5 min-w-0">
                 <IconButton aria-label="Volver a empresas" onClick={volverANivel1}
-                    icon={<ChevronLeft className="h-5 w-5" />} />
+                    className="lg:hidden" icon={<ChevronLeft className="h-5 w-5" />} />
                 <div className="flex flex-col leading-tight min-w-0">
                     <h1 className="text-lg font-bold text-brand-dark flex items-center gap-2 min-w-0">
                         <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-sm font-bold truncate"
@@ -200,54 +200,60 @@ const VehiculosPage: React.FC = () => {
         );
     }, [enNivel2, vehiculos.length, vehiculosEmpresa.length, empresaActivaNombre, empresaActivaColor, volverANivel1]);
 
-    const headerActions = useMemo(() => {
-        if (!enNivel2) {
-            return hasPermission('vehiculos.crear') ? (
-                <Button size="sm" onClick={() => { setEditEmpresa(null); setModalEmpresa(true); }}
-                    leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
-                    <span className="hidden sm:inline">Nueva empresa</span>
-                    <span className="sm:hidden">Empresa</span>
-                </Button>
-            ) : null;
-        }
-        return (
-            <div className="flex items-center gap-2">
-                <Button
-                    size="sm"
-                    variant={showFiltros ? 'primary' : 'outline'}
-                    onClick={() => setShowFiltros(v => !v)}
-                    leftIcon={showFiltros ? <X className="h-3.5 w-3.5" /> : <Filter className="h-3.5 w-3.5" />}
-                    className="h-9"
-                >
-                    <span className="hidden sm:inline">Filtros</span>
-                    {filtrosActivos > 0 && (
-                        <span className={cn(
-                            "ml-1 flex h-4 w-4 items-center justify-center rounded-full text-micro font-bold",
-                            showFiltros ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
-                        )}>
-                            {filtrosActivos}
-                        </span>
-                    )}
-                </Button>
-                {hasPermission('vehiculos.crear') && (
-                    <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+    const headerActions = useMemo(() => (
+        <div className="flex items-center gap-2">
+            {/* Nueva empresa: en móvil/tablet solo en el Nivel 1; en desktop siempre
+                (la columna de empresas está siempre visible). */}
+            {hasPermission('vehiculos.crear') && (
+                <span className={cn(enNivel2 && 'hidden lg:inline-flex')}>
+                    <Button size="sm" onClick={() => { setEditEmpresa(null); setModalEmpresa(true); }}
                         leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
-                        <span className="hidden sm:inline">Nuevo vehículo</span>
-                        <span className="sm:hidden">Nuevo</span>
+                        <span className="hidden sm:inline">Nueva empresa</span>
+                        <span className="sm:hidden">Empresa</span>
                     </Button>
-                )}
-            </div>
-        );
-    }, [enNivel2, showFiltros, filtrosActivos, hasPermission]);
+                </span>
+            )}
+            {enNivel2 && (
+                <>
+                    <Button
+                        size="sm"
+                        variant={showFiltros ? 'primary' : 'outline'}
+                        onClick={() => setShowFiltros(v => !v)}
+                        leftIcon={showFiltros ? <X className="h-3.5 w-3.5" /> : <Filter className="h-3.5 w-3.5" />}
+                        className="h-9"
+                    >
+                        <span className="hidden sm:inline">Filtros</span>
+                        {filtrosActivos > 0 && (
+                            <span className={cn(
+                                "ml-1 flex h-4 w-4 items-center justify-center rounded-full text-micro font-bold",
+                                showFiltros ? "bg-card text-brand-primary" : "bg-brand-primary text-white"
+                            )}>
+                                {filtrosActivos}
+                            </span>
+                        )}
+                    </Button>
+                    {hasPermission('vehiculos.crear') && (
+                        <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+                            leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
+                            <span className="hidden sm:inline">Nuevo vehículo</span>
+                            <span className="sm:hidden">Nuevo</span>
+                        </Button>
+                    )}
+                </>
+            )}
+        </div>
+    ), [enNivel2, showFiltros, filtrosActivos, hasPermission]);
 
     useSetPageHeader(headerTitle, headerActions);
 
-    // Auto-selección del primer vehículo en desktop (sólo Nivel 2), para que el
-    // panel de detalle no quede vacío al entrar a una empresa.
+    // Auto-selección del primer vehículo SOLO en desktop ≥1024px (layout de 3
+    // columnas), para que el panel de detalle no quede vacío al elegir una empresa.
+    // En móvil/tablet (paso a paso) NO se auto-selecciona: el usuario ve primero la
+    // lista de vehículos y elige cuál abrir.
     useEffect(() => {
         if (!enNivel2 || selected || vehiculosEmpresa.length === 0) return;
-        const isDesktop = typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches;
-        if (isDesktop) setSelected(vehiculosEmpresa[0]);
+        const is3Col = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+        if (is3Col) setSelected(vehiculosEmpresa[0]);
     }, [enNivel2, vehiculosEmpresa, selected]);
 
     // Reconciliar el detalle: si el vehículo seleccionado salió del bucket activo
@@ -291,6 +297,7 @@ const VehiculosPage: React.FC = () => {
         nombre: string,
         color: string,
         count: number,
+        activa: boolean,
         onEnter: () => void,
         acciones?: React.ReactNode,
     ) => (
@@ -299,10 +306,12 @@ const VehiculosPage: React.FC = () => {
             role="button" tabIndex={0}
             onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEnter(); } }}
             className={cn(
-                'relative cursor-pointer transition-all px-4 md:px-6 py-3.5 border-l-[3px] border-l-transparent',
-                'border-b border-b-border/50 last:border-b-0',
-                'hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/40',
-                'focus:outline-none focus:bg-brand-primary/[0.05]'
+                'relative cursor-pointer transition-all px-4 md:px-6 py-3.5 border-l-[3px]',
+                'border-b border-b-border/50 last:border-b-0 focus:outline-none',
+                activa
+                    // Empresa activa: resaltada (en desktop queda visible junto a sus vehículos).
+                    ? 'border-l-brand-primary bg-brand-primary/[0.06]'
+                    : 'border-l-transparent hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/40 focus:bg-brand-primary/[0.05]'
             )}>
             <div className="flex items-center gap-3">
                 <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold shrink"
@@ -330,9 +339,8 @@ const VehiculosPage: React.FC = () => {
                     description={'Haz clic en "Nueva empresa" para comenzar'}
                     className="flex-1 justify-center px-4 md:px-6" />
             ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto w-full md:max-w-md lg:max-w-none lg:w-1/3">
-                    {/* Columna angosta (~1/3 del ancho en desktop): la lista de empresas no
-                        necesita todo el ancho. En móvil ocupa el 100%; en tablet se acota. */}
+                <div className="flex-1 min-h-0 overflow-y-auto w-full md:max-w-md lg:max-w-none">
+                    {/* Móvil 100%; tablet acotado. En desktop el ancho lo fija la columna (3 paneles). */}
                     {empresas.map(e => {
                         // Conteo autoritativo del backend (vehiculos_count); el cálculo
                         // client-side queda como fallback reactivo.
@@ -352,12 +360,13 @@ const VehiculosPage: React.FC = () => {
                                 )}
                             </>
                         );
-                        return renderEmpresaRow(e.id, e.nombre, e.color, count, () => entrarEmpresa(e), acciones);
+                        const activa = selectedEmpresa !== 'sin' && selectedEmpresa?.id === e.id;
+                        return renderEmpresaRow(e.id, e.nombre, e.color, count, activa, () => entrarEmpresa(e), acciones);
                     })}
 
                     {/* Grupo "Sin empresa": sólo aparece si hay vehículos sin asignar */}
                     {conteos.sin > 0 &&
-                        renderEmpresaRow('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, () => entrarEmpresa('sin'))}
+                        renderEmpresaRow('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, selectedEmpresa === 'sin', () => entrarEmpresa('sin'))}
                 </div>
             )}
         </div>
@@ -428,10 +437,11 @@ const VehiculosPage: React.FC = () => {
 
     // ── Nivel 2: vista detalle ────────────────────────────────────────────────
     const DetailView = selected ? (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 md:w-[420px] md:shrink-0 md:border-l md:border-border">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 lg:flex-none lg:w-[420px] lg:border-l lg:border-border">
             <div className="flex items-center gap-3 mb-4 shrink-0">
+                {/* Volver (móvil/tablet, panel único). En desktop 3-col no hace falta. */}
                 <IconButton aria-label="Volver" onClick={() => setSelected(null)}
-                    className="md:hidden" icon={<ChevronLeft className="h-5 w-5" />} />
+                    className="lg:hidden" icon={<ChevronLeft className="h-5 w-5" />} />
                 <div className="flex-1 min-w-0">
                     <p className="text-caption uppercase font-black text-muted-foreground tracking-widest">Detalle vehículo</p>
                     <h4 className="text-base font-black text-brand-dark truncate">
@@ -440,7 +450,7 @@ const VehiculosPage: React.FC = () => {
                     </h4>
                 </div>
                 <IconButton size="sm" aria-label="Cerrar detalle" onClick={() => setSelected(null)}
-                    className="hidden md:flex" icon={<X className="h-4 w-4" />} />
+                    className="hidden lg:flex" icon={<X className="h-4 w-4" />} />
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
@@ -572,25 +582,30 @@ const VehiculosPage: React.FC = () => {
                 </div>
             )}
 
-            {/* NIVEL 1: grid de empresas */}
-            {!enNivel2 ? (
-                <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+            {/* ═══ DESKTOP (≥lg): 3 columnas — empresas | vehículos | detalle ═══
+                Las empresas quedan SIEMPRE a la izquierda; al elegir una aparecen sus
+                vehículos (centro) y el detalle (derecha) sin perderlas de vista. */}
+            <div className="hidden lg:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                <div className="w-80 shrink-0 border-r border-border flex flex-col min-h-0">
                     {EmpresasList}
                 </div>
-            ) : (
-                <>
-                    {/* MOBILE: alterna entre lista y detalle */}
-                    <div className="md:hidden flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                        {selected ? DetailView : ListView}
-                    </div>
-
-                    {/* DESKTOP: lista + detalle dentro de un mismo card */}
-                    <div className="hidden md:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                {selectedEmpresa ? (
+                    <>
                         {ListView}
                         {DetailView}
+                    </>
+                ) : (
+                    <div className="flex-1 flex items-center justify-center p-6">
+                        <EmptyState icon={Truck} title="Selecciona una empresa"
+                            description="Elige una empresa de la izquierda para ver sus vehículos." />
                     </div>
-                </>
-            )}
+                )}
+            </div>
+
+            {/* ═══ MÓVIL + TABLET (<lg): un panel a la vez (empresas → vehículos → detalle) ═══ */}
+            <div className="lg:hidden flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                {!enNivel2 ? EmpresasList : (selected ? DetailView : ListView)}
+            </div>
 
             {/* ── Modales ── */}
             <Modal isOpen={modalVehiculo} onClose={() => setModalVehiculo(false)}
