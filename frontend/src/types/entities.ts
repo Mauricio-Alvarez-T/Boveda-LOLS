@@ -535,6 +535,14 @@ export interface RegistroBombaHormigon {
     obra_nombre?: string;
     fecha: string;
     tipo_bomba: string;
+    /** Hora de inicio del servicio (HH:MM[:SS]). */
+    hora_inicio?: string | null;
+    /** Si se realizó toma de muestras (probetas). */
+    toma_muestras?: boolean;
+    /** Si hubo traslado de bombas. */
+    traslado_bombas?: boolean;
+    /** Cantidad de vibradores usados. */
+    vibradores?: number | null;
     es_externa: boolean;
     proveedor: string | null;
     costo: number | null;

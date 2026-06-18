@@ -25,6 +25,10 @@ interface BombaFormState {
     obra_id: number | '';
     fecha: string;
     tipo_bomba: string;
+    hora_inicio: string;
+    toma_muestras: boolean;
+    traslado_bombas: boolean;
+    vibradores: string; // string para el input; se castea a number al enviar
     es_externa: boolean;
     proveedor: string;
     costo: string; // string para el input; se castea a number al enviar
@@ -39,6 +43,10 @@ const emptyForm = (): BombaFormState => ({
     obra_id: '',
     fecha: new Date().toISOString().slice(0, 10),
     tipo_bomba: '',
+    hora_inicio: '',
+    toma_muestras: false,
+    traslado_bombas: false,
+    vibradores: '',
     es_externa: false,
     proveedor: '',
     costo: '',
@@ -105,6 +113,10 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             obra_id: r.obra_id,
             fecha: r.fecha ? new Date(r.fecha).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
             tipo_bomba: r.tipo_bomba || '',
+            hora_inicio: r.hora_inicio ? String(r.hora_inicio).slice(0, 5) : '',
+            toma_muestras: !!r.toma_muestras,
+            traslado_bombas: !!r.traslado_bombas,
+            vibradores: r.vibradores != null ? String(r.vibradores) : '',
             es_externa: !!r.es_externa,
             proveedor: r.proveedor || '',
             costo: r.costo != null ? String(r.costo) : '',
@@ -133,6 +145,10 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             obra_id: Number(form.obra_id),
             fecha: form.fecha,
             tipo_bomba: form.tipo_bomba.trim(),
+            hora_inicio: form.hora_inicio || null,
+            toma_muestras: form.toma_muestras,
+            traslado_bombas: form.traslado_bombas,
+            vibradores: form.vibradores.trim() !== '' ? Number(form.vibradores) : null,
             es_externa: form.es_externa,
             proveedor: form.proveedor.trim() || null,
             observaciones: form.observaciones.trim() || null,
@@ -397,6 +413,56 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         <FieldError message={formErrors.tipo_bomba} className="mt-1" />
                     </div>
 
+                    {/* Hora de inicio + cantidad de vibradores */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Hora de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={form.hora_inicio}
+                                onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))}
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Vibradores <span className="text-muted-foreground font-normal">(cantidad)</span>
+                            </label>
+                            <input
+                                type="number"
+                                min={0}
+                                value={form.vibradores}
+                                onChange={e => setForm(f => ({ ...f, vibradores: e.target.value }))}
+                                placeholder="0"
+                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Checkboxes: toma de muestras / traslado de bombas */}
+                    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.toma_muestras}
+                                onChange={e => setForm(f => ({ ...f, toma_muestras: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Toma de muestras</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.traslado_bombas}
+                                onChange={e => setForm(f => ({ ...f, traslado_bombas: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Traslado de bombas</span>
+                        </label>
+                    </div>
+
                     {/* Propia / Externa toggle */}
                     <div>
                         <label className="text-xs font-bold text-brand-dark mb-1.5 block">Origen de la bomba <span className="text-red-500">*</span></label>
@@ -574,6 +640,28 @@ const BombaCard: React.FC<{
                 <span className="text-caption text-muted-foreground/50 mx-0.5">&middot;</span>
                 <span className="text-caption text-muted-foreground">{fmtDateShort(r.fecha)}</span>
             </div>
+
+            {/* Detalles extra: hora de inicio, vibradores, muestras, traslado */}
+            {(r.hora_inicio || r.toma_muestras || r.traslado_bombas || (r.vibradores ?? 0) > 0) && (
+                <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                    {r.hora_inicio && (
+                        <span className="text-micro font-medium text-brand-dark/70 bg-muted px-1.5 py-0.5 rounded-md">
+                            Inicio {String(r.hora_inicio).slice(0, 5)}
+                        </span>
+                    )}
+                    {(r.vibradores ?? 0) > 0 && (
+                        <span className="text-micro font-medium text-brand-dark/70 bg-muted px-1.5 py-0.5 rounded-md">
+                            {r.vibradores} vibrador{r.vibradores === 1 ? '' : 'es'}
+                        </span>
+                    )}
+                    {r.toma_muestras && (
+                        <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Muestras</span>
+                    )}
+                    {r.traslado_bombas && (
+                        <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Traslado</span>
+                    )}
+                </div>
+            )}
 
             {/* Bottom row: proveedor + costo */}
             {(r.proveedor || r.costo) && (
