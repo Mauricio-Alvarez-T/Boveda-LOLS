@@ -314,17 +314,22 @@ const VehiculosPage: React.FC = () => {
                     : 'border-l-transparent hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/40 focus:bg-brand-primary/[0.05]'
             )}>
             <div className="flex items-center gap-3">
-                <span className="inline-flex min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold shrink"
-                    style={{ color, backgroundColor: softBg(color) }}>
-                    <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                    <span className="truncate">{nombre}</span>
-                </span>
-                <span className="text-sm text-muted-foreground whitespace-nowrap shrink-0">
-                    <span className="font-bold text-brand-dark">{count}</span> {count === 1 ? 'vehículo' : 'vehículos'}
-                </span>
-                <div className="flex items-center gap-1 shrink-0 ml-auto">
+                {/* Nombre (badge) arriba con todo el ancho; conteo debajo → el nombre no se
+                    trunca por competir con el conteo en columnas angostas. */}
+                <div className="flex-1 min-w-0">
+                    <span className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold"
+                        style={{ color, backgroundColor: softBg(color) }}>
+                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                        <span className="truncate">{nombre}</span>
+                    </span>
+                    <p className="text-xs text-muted-foreground mt-1 pl-1">
+                        <span className="font-bold text-brand-dark">{count}</span> {count === 1 ? 'vehículo' : 'vehículos'}
+                    </p>
+                </div>
+                <div className="flex items-center gap-1 shrink-0">
                     {acciones}
-                    <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0" />
+                    {/* El chevron solo en móvil/tablet (ahí navega). En desktop 3-col, clic = seleccionar. */}
+                    <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0 lg:hidden" />
                 </div>
             </div>
         </div>
@@ -437,7 +442,7 @@ const VehiculosPage: React.FC = () => {
 
     // ── Nivel 2: vista detalle ────────────────────────────────────────────────
     const DetailView = selected ? (
-        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6 lg:flex-none lg:w-[420px] lg:border-l lg:border-border">
+        <div className="flex flex-col flex-1 min-h-0 p-4 md:p-6">
             <div className="flex items-center gap-3 mb-4 shrink-0">
                 {/* Volver (móvil/tablet, panel único). En desktop 3-col no hace falta. */}
                 <IconButton aria-label="Volver" onClick={() => setSelected(null)}
@@ -586,12 +591,15 @@ const VehiculosPage: React.FC = () => {
                 Las empresas quedan SIEMPRE a la izquierda; al elegir una aparecen sus
                 vehículos (centro) y el detalle (derecha) sin perderlas de vista. */}
             <div className="hidden lg:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                <div className="w-80 shrink-0 border-r border-border flex flex-col min-h-0">
+                {/* Empresas (~20%) · Vehículos (~26%) · Detalle (resto, ~54% — es lo importante) */}
+                <div className="w-[20%] shrink-0 border-r border-border flex flex-col min-h-0">
                     {EmpresasList}
                 </div>
                 {selectedEmpresa ? (
                     <>
-                        {ListView}
+                        <div className="w-[26%] shrink-0 border-r border-border flex flex-col min-h-0">
+                            {ListView}
+                        </div>
                         {DetailView}
                     </>
                 ) : (
