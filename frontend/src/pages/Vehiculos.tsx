@@ -330,7 +330,9 @@ const VehiculosPage: React.FC = () => {
                     description={'Haz clic en "Nueva empresa" para comenzar'}
                     className="flex-1 justify-center px-4 md:px-6" />
             ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto">
+                <div className="flex-1 min-h-0 overflow-y-auto w-full md:max-w-md lg:max-w-none lg:w-1/3">
+                    {/* Columna angosta (~1/3 del ancho en desktop): la lista de empresas no
+                        necesita todo el ancho. En móvil ocupa el 100%; en tablet se acota. */}
                     {empresas.map(e => {
                         // Conteo autoritativo del backend (vehiculos_count); el cálculo
                         // client-side queda como fallback reactivo.
