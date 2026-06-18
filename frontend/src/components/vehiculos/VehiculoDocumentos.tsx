@@ -1,22 +1,35 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
-import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText } from 'lucide-react';
+import { ScrollText, Plus, Eye, Trash2, Loader2, X, Upload, FileText, Save, Bell } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import { compressImage } from '../../utils/compressImage';
-import type { VehiculoDocumento, VehiculoDocumentoCategoria } from '../../types/entities';
+import type { VehiculoDocumento, VehiculoDocumentoCategoria, VehiculoRevision, VehiculoMantencion } from '../../types/entities';
 
-// Las 4 categorías de respaldo del vehículo (Antecedentes de Circulación).
-const CATEGORIAS: { value: VehiculoDocumentoCategoria; label: string }[] = [
-    { value: 'permiso_circulacion', label: 'Permiso de circulación' },
-    { value: 'seguro_terceros', label: 'Seguro contra terceros' },
-    { value: 'primera_inscripcion', label: 'Primera inscripción (padrón)' },
-    { value: 'poliza', label: 'Póliza' },
+// Tipos del apartado. Los "file" suben un archivo (foto/PDF); los "data" abren un
+// formulario (lugar, fecha, vencimiento, observaciones, alerta) y se guardan en
+// las tablas de revisiones/mantenciones existentes.
+type Tipo =
+    | { value: VehiculoDocumentoCategoria; label: string; kind: 'file' }
+    | { value: 'revision_tecnica' | 'revision_gases'; label: string; kind: 'data'; endpoint: 'revisiones'; revTipo: 'tecnica' | 'gases' }
+    | { value: 'mantencion'; label: string; kind: 'data'; endpoint: 'mantenciones' };
+
+const TIPOS: Tipo[] = [
+    { value: 'permiso_circulacion', label: 'Permiso de circulación', kind: 'file' },
+    { value: 'seguro_terceros', label: 'Seguro contra terceros', kind: 'file' },
+    { value: 'primera_inscripcion', label: 'Primera inscripción (padrón)', kind: 'file' },
+    { value: 'poliza', label: 'Póliza', kind: 'file' },
+    { value: 'revision_tecnica', label: 'Revisión técnica', kind: 'data', endpoint: 'revisiones', revTipo: 'tecnica' },
+    { value: 'revision_gases', label: 'Revisión de gases', kind: 'data', endpoint: 'revisiones', revTipo: 'gases' },
+    { value: 'mantencion', label: 'Mantención', kind: 'data', endpoint: 'mantenciones' },
 ];
 
-const labelCategoria = (c: string) => CATEGORIAS.find(x => x.value === c)?.label || c;
+const labelFile = (c: string) => TIPOS.find(t => t.value === c)?.label || c;
+const fmtFecha = (s?: string | null) => s ? String(s).split('T')[0].split('-').reverse().join('/') : '—';
+
+const EMPTY_FORM = { lugar: '', fecha: '', vencimiento: '', observaciones: '', diasAlerta: '30', emailAlerta: '' };
 
 interface Props {
     vehiculoId: number;
@@ -28,76 +41,108 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     const canDelete = hasPermission('vehiculos.eliminar');
 
     const [docs, setDocs] = useState<VehiculoDocumento[]>([]);
+    const [revisiones, setRevisiones] = useState<VehiculoRevision[]>([]);
+    const [mantenciones, setMantenciones] = useState<VehiculoMantencion[]>([]);
     const [showAdd, setShowAdd] = useState(false);
-    const [categoria, setCategoria] = useState<VehiculoDocumentoCategoria>('permiso_circulacion');
+    const [tipoValue, setTipoValue] = useState<string>('permiso_circulacion');
     const [file, setFile] = useState<File | null>(null);
-    const [preview, setPreview] = useState<string | null>(null); // objectURL de imagen seleccionada (vista previa)
-    const [uploading, setUploading] = useState(false);
+    const [preview, setPreview] = useState<string | null>(null);
+    const [form, setForm] = useState({ ...EMPTY_FORM });
+    const [busy, setBusy] = useState(false);
     const [viewingId, setViewingId] = useState<number | null>(null);
     const [viewer, setViewer] = useState<{ url: string; mime: string; name: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
-    // Genera/actualiza la vista previa al elegir un archivo. Solo imágenes → miniatura;
-    // PDF u otros → sin imagen (se muestra ficha con nombre).
-    const handleFileChange = (f: File | null) => {
-        setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
-        setFile(f);
-        if (f && f.type.startsWith('image/')) {
-            setPreview(window.URL.createObjectURL(f));
-        }
-    };
+    const tipo = TIPOS.find(t => t.value === tipoValue)!;
+    const isData = tipo.kind === 'data';
+    const dataValido = !!(form.lugar.trim() && form.fecha && form.vencimiento);
+    const listoParaGuardar = isData ? dataValido : !!file;
 
-    const fetchDocs = useCallback(async () => {
+    const fetchAll = useCallback(async () => {
         try {
-            const res = await api.get<{ data: VehiculoDocumento[] }>(`/vehiculos/${vehiculoId}/documentos`);
-            setDocs(res.data.data || []);
+            const [d, r, m] = await Promise.all([
+                api.get<{ data: VehiculoDocumento[] }>(`/vehiculos/${vehiculoId}/documentos`),
+                api.get<{ data: VehiculoRevision[] }>(`/vehiculos/${vehiculoId}/revisiones`),
+                api.get<{ data: VehiculoMantencion[] }>(`/vehiculos/${vehiculoId}/mantenciones`),
+            ]);
+            setDocs(d.data.data || []);
+            setRevisiones(r.data.data || []);
+            setMantenciones(m.data.data || []);
         } catch { /* silencioso */ }
     }, [vehiculoId]);
 
-    useEffect(() => { fetchDocs(); }, [fetchDocs]);
+    useEffect(() => { fetchAll(); }, [fetchAll]);
+
+    const handleFileChange = (f: File | null) => {
+        setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
+        setFile(f);
+        if (f && f.type.startsWith('image/')) setPreview(window.URL.createObjectURL(f));
+    };
 
     const resetForm = () => {
         setShowAdd(false);
         setFile(null);
         setPreview(prev => { if (prev) window.URL.revokeObjectURL(prev); return null; });
-        setCategoria('permiso_circulacion');
+        setForm({ ...EMPTY_FORM });
+        setTipoValue('permiso_circulacion');
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
 
+    // Subir archivo (tipos "file")
     const handleUpload = async () => {
         if (!file) { toast.error('Selecciona un archivo (PDF o imagen)'); return; }
-        setUploading(true);
+        setBusy(true);
         try {
-            // Las imágenes se comprimen en el navegador (objetivo ≤ 500 KB); los PDF van tal cual.
             const archivo = await compressImage(file, { maxBytes: 500 * 1024 });
             if (archivo.size > 10 * 1024 * 1024) {
                 toast.error('El archivo supera los 10 MB incluso comprimido. Sube un PDF más liviano.');
-                setUploading(false);
-                return;
+                setBusy(false); return;
             }
             const fd = new FormData();
             fd.append('archivo', archivo);
-            fd.append('categoria', categoria);
-            await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, {
-                headers: { 'Content-Type': 'multipart/form-data' },
-            });
+            fd.append('categoria', tipoValue);
+            await api.post(`/vehiculos/${vehiculoId}/documentos`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
             toast.success('Documento agregado');
             resetForm();
-            fetchDocs();
+            fetchAll();
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'Error al subir el documento');
-        } finally {
-            setUploading(false);
-        }
+        } finally { setBusy(false); }
+    };
+
+    // Guardar registro de datos (revisión técnica / gases / mantención)
+    const handleSaveData = async () => {
+        if (tipo.kind !== 'data') return;
+        if (!dataValido) { toast.error('Completa lugar, fecha y vencimiento'); return; }
+        setBusy(true);
+        try {
+            const dias_alerta = form.diasAlerta ? Number(form.diasAlerta) : null;
+            const email_alerta = form.emailAlerta.trim() || null;
+            const observaciones = form.observaciones.trim() || null;
+            if (tipo.endpoint === 'revisiones') {
+                await api.post(`/vehiculos/${vehiculoId}/revisiones`, {
+                    tipo: tipo.revTipo, fecha: form.fecha, fecha_vencimiento: form.vencimiento,
+                    planta: form.lugar.trim(), observaciones, resultado: 'aprobado', dias_alerta, email_alerta,
+                });
+            } else {
+                await api.post(`/vehiculos/${vehiculoId}/mantenciones`, {
+                    fecha: form.fecha, tipo: 'Mantención', km_al_realizar: 0,
+                    taller: form.lugar.trim(), descripcion: observaciones, fecha_proxima: form.vencimiento,
+                    dias_alerta, email_alerta,
+                });
+            }
+            toast.success('Registro guardado');
+            resetForm();
+            fetchAll();
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'Error al guardar el registro');
+        } finally { setBusy(false); }
     };
 
     const handleView = async (doc: VehiculoDocumento) => {
         setViewingId(doc.id);
         try {
             const res = await api.get(`/vehiculos/${vehiculoId}/documentos/${doc.id}/download`, { responseType: 'blob' });
-            // Derivar el MIME de la extensión del archivo (más confiable que el header
-            // del backend, que tras el proxy de cPanel puede llegar como octet-stream).
-            // Sin un type correcto, el navegador abre el JPEG/PDF como texto crudo.
             const ext = (doc.nombre_archivo.split('.').pop() || '').toLowerCase();
             const mimeByExt: Record<string, string> = {
                 jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
@@ -105,29 +150,38 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             };
             const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
             const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-            // Abrir en un modal dentro de la misma página (no pestaña nueva)
             setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return { url, mime, name: doc.nombre_archivo }; });
         } catch {
             toast.error('No se pudo abrir el documento');
-        } finally {
-            setViewingId(null);
-        }
+        } finally { setViewingId(null); }
     };
 
-    const closeViewer = () => {
-        setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return null; });
-    };
+    const closeViewer = () => setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return null; });
 
-    const handleDelete = async (doc: VehiculoDocumento) => {
+    const handleDeleteDoc = async (doc: VehiculoDocumento) => {
         if (!window.confirm(`¿Eliminar "${doc.nombre_archivo}"?`)) return;
-        try {
-            await api.delete(`/vehiculos/${vehiculoId}/documentos/${doc.id}`);
-            toast.success('Documento eliminado');
-            fetchDocs();
-        } catch {
-            toast.error('Error al eliminar el documento');
-        }
+        try { await api.delete(`/vehiculos/${vehiculoId}/documentos/${doc.id}`); toast.success('Documento eliminado'); fetchAll(); }
+        catch { toast.error('Error al eliminar el documento'); }
     };
+    const handleDeleteRevision = async (r: VehiculoRevision) => {
+        if (!window.confirm('¿Eliminar este registro?')) return;
+        try { await api.delete(`/vehiculos/${vehiculoId}/revisiones/${r.id}`); toast.success('Registro eliminado'); fetchAll(); }
+        catch { toast.error('Error al eliminar el registro'); }
+    };
+    const handleDeleteMantencion = async (m: VehiculoMantencion) => {
+        if (!window.confirm('¿Eliminar este registro?')) return;
+        try { await api.delete(`/vehiculos/${vehiculoId}/mantenciones/${m.id}`); toast.success('Registro eliminado'); fetchAll(); }
+        catch { toast.error('Error al eliminar el registro'); }
+    };
+
+    const vacio = docs.length === 0 && revisiones.length === 0 && mantenciones.length === 0;
+
+    const AlertaBadge = ({ dias, email }: { dias?: number | null; email?: string | null }) =>
+        (email && dias) ? (
+            <span className="inline-flex items-center gap-1 text-micro font-bold text-brand-primary bg-brand-primary/10 border border-brand-primary/20 px-1.5 py-0.5 rounded-md w-fit mt-0.5">
+                <Bell className="h-2.5 w-2.5" /> Avisa {dias}d antes
+            </span>
+        ) : null;
 
     return (
         <>
@@ -145,81 +199,162 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                 )}
             </div>
 
-            {/* Formulario inline de carga */}
+            {/* Formulario inline */}
             {showAdd && (
                 <div className="mb-2 p-3 rounded-xl border border-border bg-muted/40 space-y-2">
                     <div className="flex items-center justify-between">
-                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo documento</span>
+                        <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">Nuevo registro</span>
                         <div className="flex items-center gap-1">
-                            {/* SUBIR compacto: gris (plomo) sin archivo; verde apenas hay vista previa (listo para subir) */}
-                            <Button size="sm" aria-label="Subir documento" title="Subir documento"
-                                onClick={handleUpload} disabled={uploading || !file}
-                                variant={file ? 'primary' : 'secondary'}
-                                leftIcon={uploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Upload className="h-3.5 w-3.5" />}
+                            {/* Gris (plomo) hasta estar listo; verde cuando se puede guardar */}
+                            <Button size="sm" aria-label={isData ? 'Guardar registro' : 'Subir documento'} title={isData ? 'Guardar registro' : 'Subir documento'}
+                                onClick={isData ? handleSaveData : handleUpload} disabled={busy || !listoParaGuardar}
+                                variant={listoParaGuardar ? 'primary' : 'secondary'}
+                                leftIcon={busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (isData ? <Save className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />)}
                                 className="h-7 px-2.5 text-xs font-bold">
-                                SUBIR
+                                {isData ? 'GUARDAR' : 'SUBIR'}
                             </Button>
                             <IconButton size="sm" aria-label="Cancelar" onClick={resetForm} icon={<X className="h-3.5 w-3.5" />} />
                         </div>
                     </div>
-                    <select value={categoria} onChange={e => setCategoria(e.target.value as VehiculoDocumentoCategoria)}
-                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
-                        {CATEGORIAS.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                    </select>
-                    <input ref={fileInputRef} type="file" accept=".pdf,image/*"
-                        onChange={e => handleFileChange(e.target.files?.[0] || null)}
-                        className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20" />
 
-                    {/* Vista previa del archivo seleccionado (antes de subir) */}
-                    {file && (
-                        preview ? (
-                            <div className="rounded-lg border border-border bg-card p-2 flex flex-col items-center gap-1">
-                                <img src={preview} alt="Vista previa" className="max-h-48 w-auto rounded-md object-contain" />
-                                <span className="text-micro text-muted-foreground truncate max-w-full" title={file.name}>{file.name}</span>
-                            </div>
-                        ) : (
-                            <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-2">
-                                <FileText className="h-5 w-5 text-brand-primary shrink-0" />
-                                <span className="text-xs text-brand-dark truncate" title={file.name}>{file.name}</span>
-                            </div>
-                        )
+                    <select value={tipoValue} onChange={e => setTipoValue(e.target.value)}
+                        className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                        {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
+                    </select>
+
+                    {/* FILE: subir archivo + vista previa */}
+                    {!isData && (
+                        <>
+                            <input ref={fileInputRef} type="file" accept=".pdf,image/*"
+                                onChange={e => handleFileChange(e.target.files?.[0] || null)}
+                                className="w-full text-xs text-muted-foreground file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:bg-brand-primary/10 file:text-brand-primary file:text-xs file:font-semibold hover:file:bg-brand-primary/20" />
+                            {file && (
+                                preview ? (
+                                    <div className="rounded-lg border border-border bg-card p-2 flex flex-col items-center gap-1">
+                                        <img src={preview} alt="Vista previa" className="max-h-48 w-auto rounded-md object-contain" />
+                                        <span className="text-micro text-muted-foreground truncate max-w-full" title={file.name}>{file.name}</span>
+                                    </div>
+                                ) : (
+                                    <div className="rounded-lg border border-border bg-card p-3 flex items-center gap-2">
+                                        <FileText className="h-5 w-5 text-brand-primary shrink-0" />
+                                        <span className="text-xs text-brand-dark truncate" title={file.name}>{file.name}</span>
+                                    </div>
+                                )
+                            )}
+                            <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB).</p>
+                        </>
                     )}
-                    <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB).</p>
+
+                    {/* DATA: formulario lugar/fecha/vencimiento/observaciones + alerta */}
+                    {isData && (
+                        <div className="space-y-2">
+                            <input type="text" value={form.lugar} onChange={e => setForm(f => ({ ...f, lugar: e.target.value }))}
+                                placeholder={tipo.endpoint === 'mantenciones' ? 'Taller / lugar' : 'Planta / lugar de la revisión'}
+                                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <div className="grid grid-cols-2 gap-2">
+                                <label className="flex flex-col gap-0.5">
+                                    <span className="text-micro font-bold text-muted-foreground uppercase">Fecha</span>
+                                    <input type="date" value={form.fecha} onChange={e => setForm(f => ({ ...f, fecha: e.target.value }))}
+                                        className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                </label>
+                                <label className="flex flex-col gap-0.5">
+                                    <span className="text-micro font-bold text-muted-foreground uppercase">Vencimiento</span>
+                                    <input type="date" value={form.vencimiento} onChange={e => setForm(f => ({ ...f, vencimiento: e.target.value }))}
+                                        className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                </label>
+                            </div>
+                            <textarea value={form.observaciones} onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
+                                rows={2} placeholder="Observaciones (opcional)"
+                                className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                            <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5">
+                                <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento (opcional)</span>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <label className="flex flex-col gap-0.5">
+                                        <span className="text-micro text-muted-foreground">Días antes</span>
+                                        <input type="number" min={1} value={form.diasAlerta} onChange={e => setForm(f => ({ ...f, diasAlerta: e.target.value }))}
+                                            className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                    </label>
+                                    <label className="flex flex-col gap-0.5">
+                                        <span className="text-micro text-muted-foreground">Email alerta</span>
+                                        <input type="email" value={form.emailAlerta} onChange={e => setForm(f => ({ ...f, emailAlerta: e.target.value }))}
+                                            placeholder="correo@empresa.cl"
+                                            className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                                    </label>
+                                </div>
+                                <p className="text-micro text-muted-foreground/70">Avisa por correo los días indicados antes del vencimiento. Deja el email vacío para no enviar.</p>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
+            {/* Listado: documentos (archivo) + revisiones + mantenciones (datos) */}
             <div className="space-y-1.5">
-                {docs.length === 0 ? (
-                    <p className="text-xs text-muted-foreground py-1 pl-1 italic">Sin documentos cargados</p>
+                {vacio ? (
+                    <p className="text-xs text-muted-foreground py-1 pl-1 italic">Sin registros cargados</p>
                 ) : (
-                    docs.map(doc => (
-                        <div key={doc.id} className="flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border">
-                            <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                                <span className="text-xs font-bold text-brand-dark">{labelCategoria(doc.categoria)}</span>
-                                <span className="text-caption text-muted-foreground truncate" title={doc.nombre_archivo}>{doc.nombre_archivo}</span>
+                    <>
+                        {docs.map(doc => (
+                            <div key={`doc_${doc.id}`} className="flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border">
+                                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <span className="text-xs font-bold text-brand-dark">{labelFile(doc.categoria)}</span>
+                                    <span className="text-caption text-muted-foreground truncate" title={doc.nombre_archivo}>{doc.nombre_archivo}</span>
+                                </div>
+                                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                                    <IconButton size="sm" aria-label="Ver documento" onClick={() => handleView(doc)}
+                                        disabled={viewingId === doc.id}
+                                        className="hover:bg-brand-primary/10 hover:text-brand-primary"
+                                        icon={viewingId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
+                                    {canDelete && (
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar documento"
+                                            onClick={() => handleDeleteDoc(doc)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                    )}
+                                </div>
                             </div>
-                            <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                                <IconButton size="sm" aria-label="Ver documento" onClick={() => handleView(doc)}
-                                    disabled={viewingId === doc.id}
-                                    className="hover:bg-brand-primary/10 hover:text-brand-primary"
-                                    icon={viewingId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
+                        ))}
+
+                        {revisiones.map(r => (
+                            <div key={`rev_${r.id}`} className="flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border">
+                                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <span className="text-xs font-bold text-brand-dark">{r.tipo === 'gases' ? 'Revisión de gases' : 'Revisión técnica'}</span>
+                                    <span className="text-caption text-muted-foreground">
+                                        {r.planta ? `${r.planta} · ` : ''}{fmtFecha(r.fecha)} → vence {fmtFecha(r.fecha_vencimiento)}
+                                    </span>
+                                    {r.observaciones && <span className="text-micro text-muted-foreground/70 italic">{r.observaciones}</span>}
+                                    <AlertaBadge dias={r.dias_alerta} email={r.email_alerta} />
+                                </div>
                                 {canDelete && (
-                                    <IconButton size="sm" variant="danger" aria-label="Eliminar documento"
-                                        onClick={() => handleDelete(doc)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                    <IconButton size="sm" variant="danger" aria-label="Eliminar registro" className="shrink-0 mt-0.5"
+                                        onClick={() => handleDeleteRevision(r)} icon={<Trash2 className="h-3.5 w-3.5" />} />
                                 )}
                             </div>
-                        </div>
-                    ))
+                        ))}
+
+                        {mantenciones.map(m => (
+                            <div key={`man_${m.id}`} className="flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border">
+                                <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                                    <span className="text-xs font-bold text-brand-dark">Mantención</span>
+                                    <span className="text-caption text-muted-foreground">
+                                        {m.taller ? `${m.taller} · ` : ''}{fmtFecha(m.fecha)}{m.fecha_proxima ? ` → vence ${fmtFecha(m.fecha_proxima)}` : ''}
+                                    </span>
+                                    {m.descripcion && <span className="text-micro text-muted-foreground/70 italic">{m.descripcion}</span>}
+                                    <AlertaBadge dias={m.dias_alerta} email={m.email_alerta} />
+                                </div>
+                                {canDelete && (
+                                    <IconButton size="sm" variant="danger" aria-label="Eliminar registro" className="shrink-0 mt-0.5"
+                                        onClick={() => handleDeleteMantencion(m)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                )}
+                            </div>
+                        ))}
+                    </>
                 )}
             </div>
         </section>
 
-        {/* Visor de documento en modal (misma página, no pestaña nueva) */}
+        {/* Visor de documento en modal (misma página) */}
         {viewer && (
-            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4"
-                onClick={closeViewer}>
-                <div className="relative bg-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden"
-                    onClick={e => e.stopPropagation()}>
+            <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4" onClick={closeViewer}>
+                <div className="relative bg-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border shrink-0">
                         <span className="text-sm font-semibold text-brand-dark truncate" title={viewer.name}>{viewer.name}</span>
                         <IconButton size="sm" aria-label="Cerrar" onClick={closeViewer} icon={<X className="h-4 w-4" />} />

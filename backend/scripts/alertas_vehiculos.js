@@ -122,10 +122,10 @@ async function main() {
     // Modo normal: solo envía cuando faltan EXACTAMENTE los días configurados → 1 aviso por evento.
     // Modo --forzar: envía todo lo que tenga email_alerta (para pruebas).
     const condSeguro   = forzar ? 'AND s.email_alerta IS NOT NULL' : 'AND s.email_alerta IS NOT NULL AND s.dias_alerta IS NOT NULL AND DATEDIFF(s.fecha_vencimiento, CURDATE()) = s.dias_alerta';
-    // Para revisiones: alerta basada en 'fecha' (cuándo va a la planta), no en 'fecha_vencimiento' (cuándo expira el certificado)
-    const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : 'AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND DATEDIFF(r.fecha, CURDATE()) = r.dias_alerta';
-    // Para mantenciones: alerta basada en 'fecha' (Fecha por realizar), igual que revisiones.
-    const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL' : 'AND m.email_alerta IS NOT NULL AND m.dias_alerta IS NOT NULL AND DATEDIFF(m.fecha, CURDATE()) = m.dias_alerta';
+    // Revisiones: alerta basada en la fecha de VENCIMIENTO del certificado.
+    const condRevision = forzar ? 'AND r.email_alerta IS NOT NULL' : 'AND r.email_alerta IS NOT NULL AND r.dias_alerta IS NOT NULL AND r.fecha_vencimiento IS NOT NULL AND DATEDIFF(r.fecha_vencimiento, CURDATE()) = r.dias_alerta';
+    // Mantenciones: alerta basada en la fecha próxima (vencimiento de la mantención).
+    const condMant     = forzar ? 'AND m.email_alerta IS NOT NULL' : 'AND m.email_alerta IS NOT NULL AND m.dias_alerta IS NOT NULL AND m.fecha_proxima IS NOT NULL AND DATEDIFF(m.fecha_proxima, CURDATE()) = m.dias_alerta';
 
     if (forzar) console.log('⚠️  Modo --forzar: enviando TODAS las alertas con email configurado.\n');
 
@@ -138,14 +138,14 @@ async function main() {
 
     const [revisiones] = await pool.query(`
         SELECT r.*, v.patente, v.marca, v.modelo,
-               DATEDIFF(r.fecha, CURDATE()) AS dias_restantes
+               DATEDIFF(r.fecha_vencimiento, CURDATE()) AS dias_restantes
         FROM vehiculo_revisiones r JOIN vehiculos v ON v.id = r.vehiculo_id
         WHERE r.activo = 1 AND v.activo = 1 ${condRevision}
     `, []);
 
     const [mantenciones] = await pool.query(`
         SELECT m.*, v.patente, v.marca, v.modelo,
-               DATEDIFF(m.fecha, CURDATE()) AS dias_restantes
+               DATEDIFF(m.fecha_proxima, CURDATE()) AS dias_restantes
         FROM vehiculo_mantenciones m JOIN vehiculos v ON v.id = m.vehiculo_id
         WHERE m.activo = 1 AND v.activo = 1 ${condMant}
     `, []);

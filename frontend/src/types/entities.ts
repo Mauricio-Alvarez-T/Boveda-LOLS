@@ -163,6 +163,10 @@ export interface VehiculoMantencion {
     descripcion?: string | null;
     costo?: number | null;
     taller?: string | null;
+    fecha_proxima?: string | null;
+    dias_alerta?: number | null;
+    email_alerta?: string | null;
+    tel_alerta?: string | null;
     activo: boolean;
 }
 
