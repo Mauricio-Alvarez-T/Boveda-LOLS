@@ -289,10 +289,10 @@ const VehiculosPage: React.FC = () => {
         }
     };
 
-    // ── Nivel 1: lista de empresas (una por fila, apilada hacia abajo) ─────────
-    // Cada fila: badge (color + nombre) · conteo · editar · eliminar · ›. Escala
-    // mejor que un grid cuando crece la cantidad de empresas.
-    const renderEmpresaRow = (
+    // ── Nivel 1: empresas como TARJETAS (estilo "Obras Finalizadas") ──────────
+    // Cada empresa es una tarjeta: nombre (con su color, que envuelve a 2ª línea si
+    // es largo) + caja destacada con la cantidad de vehículos + editar/eliminar.
+    const renderEmpresaCard = (
         key: React.Key,
         nombre: string,
         color: string,
@@ -306,30 +306,35 @@ const VehiculosPage: React.FC = () => {
             role="button" tabIndex={0}
             onKeyDown={ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onEnter(); } }}
             className={cn(
-                'relative cursor-pointer transition-all px-4 md:px-6 py-3.5 border-l-[3px]',
-                'border-b border-b-border/50 last:border-b-0 focus:outline-none',
+                'flex flex-col rounded-2xl border bg-card shadow-sm cursor-pointer transition-all overflow-hidden',
+                'focus:outline-none focus:ring-2 focus:ring-brand-primary/30',
                 activa
                     // Empresa activa: resaltada (en desktop queda visible junto a sus vehículos).
-                    ? 'border-l-brand-primary bg-brand-primary/[0.06]'
-                    : 'border-l-transparent hover:bg-brand-primary/[0.03] hover:border-l-brand-primary/40 focus:bg-brand-primary/[0.05]'
+                    ? 'border-brand-primary ring-1 ring-brand-primary/30'
+                    : 'border-border hover:border-brand-primary/40 hover:shadow-md'
             )}>
-            <div className="flex items-center gap-3">
-                {/* Nombre (badge) arriba con todo el ancho; conteo debajo → el nombre no se
-                    trunca por competir con el conteo en columnas angostas. */}
-                <div className="flex-1 min-w-0">
-                    <span className="inline-flex max-w-full min-w-0 items-center gap-2 rounded-full px-3 py-1 text-sm font-bold"
-                        style={{ color, backgroundColor: softBg(color) }}>
-                        <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                        <span className="truncate">{nombre}</span>
-                    </span>
-                    <p className="text-xs text-muted-foreground mt-1 pl-1">
-                        <span className="font-bold text-brand-dark">{count}</span> {count === 1 ? 'vehículo' : 'vehículos'}
-                    </p>
+            {/* Cabecera: punto de color + nombre (envuelve, no se corta) + acciones */}
+            <div className="flex items-start justify-between gap-2 p-3.5 pb-2.5 border-b border-border/60">
+                <div className="flex items-start gap-2 min-w-0">
+                    <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: color }} />
+                    <h3 className="text-sm font-black leading-tight break-words" style={{ color }}>{nombre}</h3>
                 </div>
-                <div className="flex items-center gap-1 shrink-0">
+                <div className="flex items-center gap-0.5 shrink-0">
                     {acciones}
-                    {/* El chevron solo en móvil/tablet (ahí navega). En desktop 3-col, clic = seleccionar. */}
-                    <ChevronRight className="h-5 w-5 text-muted-foreground/40 shrink-0 lg:hidden" />
+                    {/* Chevron solo en móvil/tablet (ahí navega). En desktop 3-col, clic = seleccionar. */}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground/40 shrink-0 lg:hidden" />
+                </div>
+            </div>
+            {/* Caja destacada con la cantidad de vehículos */}
+            <div className="p-3.5 pt-3">
+                <div className="flex items-center gap-2.5 rounded-xl bg-brand-primary/5 border border-brand-primary/15 px-3 py-2">
+                    <Truck className="h-4 w-4 text-brand-primary shrink-0" />
+                    <div className="leading-tight">
+                        <p className="text-lg font-black text-brand-dark">{count}</p>
+                        <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">
+                            {count === 1 ? 'vehículo' : 'vehículos'}
+                        </p>
+                    </div>
                 </div>
             </div>
         </div>
@@ -344,8 +349,10 @@ const VehiculosPage: React.FC = () => {
                     description={'Haz clic en "Nueva empresa" para comenzar'}
                     className="flex-1 justify-center px-4 md:px-6" />
             ) : (
-                <div className="flex-1 min-h-0 overflow-y-auto w-full md:max-w-md lg:max-w-none">
-                    {/* Móvil 100%; tablet acotado. En desktop el ancho lo fija la columna (3 paneles). */}
+                <div className="flex-1 min-h-0 overflow-y-auto w-full md:max-w-md lg:max-w-none px-3 md:px-4">
+                    {/* Móvil 100%; tablet acotado. En desktop el ancho lo fija la columna (3 paneles).
+                        Tarjetas apiladas con separación (estilo Obras Finalizadas). */}
+                    <div className="flex flex-col gap-3">
                     {empresas.map(e => {
                         // Conteo autoritativo del backend (vehiculos_count); el cálculo
                         // client-side queda como fallback reactivo.
@@ -366,12 +373,13 @@ const VehiculosPage: React.FC = () => {
                             </>
                         );
                         const activa = selectedEmpresa !== 'sin' && selectedEmpresa?.id === e.id;
-                        return renderEmpresaRow(e.id, e.nombre, e.color, count, activa, () => entrarEmpresa(e), acciones);
+                        return renderEmpresaCard(e.id, e.nombre, e.color, count, activa, () => entrarEmpresa(e), acciones);
                     })}
 
                     {/* Grupo "Sin empresa": sólo aparece si hay vehículos sin asignar */}
                     {conteos.sin > 0 &&
-                        renderEmpresaRow('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, selectedEmpresa === 'sin', () => entrarEmpresa('sin'))}
+                        renderEmpresaCard('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, selectedEmpresa === 'sin', () => entrarEmpresa('sin'))}
+                    </div>
                 </div>
             )}
         </div>
@@ -404,12 +412,12 @@ const VehiculosPage: React.FC = () => {
                             <div className="flex items-center justify-between gap-3">
                                 <div className="flex-1 min-w-0">
                                     {/* marca · patente · conductor (la empresa ya está en el encabezado del nivel) */}
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                        <span className="font-semibold text-brand-dark text-sm">{v.marca}</span>
-                                        <span className="font-black text-brand-dark text-sm">{v.patente}</span>
+                                    <div className="flex items-center gap-x-2 gap-y-0.5 flex-wrap">
+                                        <span className="font-semibold text-brand-dark text-sm break-words min-w-0">{v.marca}</span>
+                                        <span className="font-black text-brand-dark text-sm break-words min-w-0">{v.patente}</span>
                                         {v.conductor_nombre && (
-                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand-dark">
-                                                <User className="h-3.5 w-3.5 text-brand-primary" /> {v.conductor_nombre}
+                                            <span className="inline-flex items-center gap-1 text-sm font-semibold text-brand-dark min-w-0">
+                                                <User className="h-3.5 w-3.5 text-brand-primary shrink-0" /> <span className="break-words min-w-0">{v.conductor_nombre}</span>
                                             </span>
                                         )}
                                     </div>
