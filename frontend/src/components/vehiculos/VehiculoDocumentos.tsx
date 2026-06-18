@@ -55,7 +55,8 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
 
     const tipo = TIPOS.find(t => t.value === tipoValue)!;
     const isData = tipo.kind === 'data';
-    const dataValido = !!(form.lugar.trim() && form.fecha && form.vencimiento);
+    // Obligatorios para guardar: lugar ≥ 4, fecha, vencimiento y email ≥ 5 caracteres.
+    const dataValido = form.lugar.trim().length >= 4 && !!form.fecha && !!form.vencimiento && form.emailAlerta.trim().length >= 5;
     const listoParaGuardar = isData ? dataValido : !!file;
 
     const fetchAll = useCallback(async () => {
@@ -116,7 +117,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
     // Guardar registro de datos (revisión técnica / gases / mantención)
     const handleSaveData = async () => {
         if (tipo.kind !== 'data') return;
-        if (!dataValido) { toast.error('Completa lugar, fecha y vencimiento'); return; }
+        if (!dataValido) { toast.error('Completa lugar (mín. 4), fecha, vencimiento y email de alerta (mín. 5)'); return; }
         setBusy(true);
         try {
             const dias_alerta = form.diasAlerta ? Number(form.diasAlerta) : null;
@@ -275,7 +276,7 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                 rows={2} placeholder="Observaciones (opcional)"
                                 className="w-full px-3 py-2 rounded-lg border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                             <div className="rounded-lg border border-border bg-card p-2.5 space-y-1.5">
-                                <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento (opcional)</span>
+                                <span className="text-micro font-bold text-muted-foreground uppercase flex items-center gap-1"><Bell className="h-3 w-3 text-brand-primary" /> Alerta de vencimiento</span>
                                 <div className="grid grid-cols-2 gap-2">
                                     <label className="flex flex-col gap-0.5">
                                         <span className="text-micro text-muted-foreground">Días antes</span>
@@ -288,13 +289,13 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                     <label className="flex flex-col gap-0.5 col-span-2">
-                                        <span className="text-micro text-muted-foreground">Email alerta</span>
+                                        <span className="text-micro text-muted-foreground">Email alerta <span className="text-destructive">*</span></span>
                                         <input type="email" value={form.emailAlerta} onChange={e => setForm(f => ({ ...f, emailAlerta: e.target.value }))}
-                                            placeholder="correo@empresa.cl"
+                                            placeholder="correo@empresa.cl" required
                                             className="w-full px-2 py-1.5 rounded-lg border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                                     </label>
                                 </div>
-                                <p className="text-micro text-muted-foreground/70">Avisa por correo los días indicados antes del vencimiento, a la hora elegida. Deja el email vacío para no enviar.</p>
+                                <p className="text-micro text-muted-foreground/70">Obligatorio: lugar (mín. 4), fecha, vencimiento y email (mín. 5). Avisa por correo los días indicados antes del vencimiento, a la hora elegida.</p>
                             </div>
                         </div>
                     )}
