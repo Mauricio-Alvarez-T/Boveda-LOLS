@@ -31,6 +31,10 @@ interface BombaFormState {
     observaciones: string;
 }
 
+// Tipos de bomba de hormigón. Si más adelante hay que administrarlos desde la UI,
+// conviene moverlos a un catálogo en BD (como las empresas de flota).
+const TIPOS_BOMBA = ['Estacionaria', 'Telescópica'];
+
 const emptyForm = (): BombaFormState => ({
     obra_id: '',
     fecha: new Date().toISOString().slice(0, 10),
@@ -375,16 +379,21 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                     {/* Tipo de bomba */}
                     <div>
                         <label className="text-xs font-bold text-brand-dark mb-1 block">Tipo de bomba <span className="text-red-500">*</span></label>
-                        <input
-                            type="text"
+                        <select
                             value={form.tipo_bomba}
                             onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
-                            placeholder="Ej: Pluma 32m, Estacionaria, Telescópica..."
                             className={cn(
-                                "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
                                 formErrors.tipo_bomba ? "border-destructive" : "border-border"
                             )}
-                        />
+                        >
+                            <option value="">Selecciona el tipo...</option>
+                            {/* Conserva un valor antiguo no estándar (registros previos a texto libre) */}
+                            {form.tipo_bomba && !TIPOS_BOMBA.includes(form.tipo_bomba) && (
+                                <option value={form.tipo_bomba}>{form.tipo_bomba}</option>
+                            )}
+                            {TIPOS_BOMBA.map(t => <option key={t} value={t}>{t}</option>)}
+                        </select>
                         <FieldError message={formErrors.tipo_bomba} className="mt-1" />
                     </div>
 
