@@ -232,13 +232,7 @@ const VehiculosPage: React.FC = () => {
                             </span>
                         )}
                     </Button>
-                    {hasPermission('vehiculos.crear') && (
-                        <Button size="sm" onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
-                            leftIcon={<Plus className="h-3.5 w-3.5" />} className="h-9">
-                            <span className="hidden sm:inline">Nuevo vehículo</span>
-                            <span className="sm:hidden">Nuevo</span>
-                        </Button>
-                    )}
+                    {/* "Nuevo vehículo" se movió a un ícono dentro de cada tarjeta de empresa. */}
                 </>
             )}
         </div>
@@ -359,14 +353,20 @@ const VehiculosPage: React.FC = () => {
                         const count = e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0);
                         const acciones = (
                             <>
+                                {hasPermission('vehiculos.crear') && (
+                                    <IconButton size="sm" aria-label="Nuevo vehículo en esta empresa" title="Nuevo vehículo"
+                                        onClick={ev => { ev.stopPropagation(); setSelectedEmpresa(e); setSelected(null); setEditVehiculo(null); setModalVehiculo(true); }}
+                                        className="text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
+                                        icon={<Plus className="h-4 w-4" />} />
+                                )}
                                 {hasPermission('vehiculos.editar') && (
-                                    <IconButton size="sm" aria-label="Editar empresa"
+                                    <IconButton size="sm" aria-label="Editar empresa" title="Editar empresa"
                                         onClick={ev => { ev.stopPropagation(); setEditEmpresa(e); setModalEmpresa(true); }}
                                         className="hover:bg-brand-primary/10 hover:text-brand-primary"
                                         icon={<Edit2 className="h-3.5 w-3.5" />} />
                                 )}
                                 {hasPermission('vehiculos.eliminar') && (
-                                    <IconButton size="sm" variant="danger" aria-label="Eliminar empresa"
+                                    <IconButton size="sm" variant="danger" aria-label="Eliminar empresa" title="Eliminar empresa"
                                         onClick={ev => { ev.stopPropagation(); handleDeleteEmpresa(e); }}
                                         icon={<Trash2 className="h-3.5 w-3.5" />} />
                                 )}
