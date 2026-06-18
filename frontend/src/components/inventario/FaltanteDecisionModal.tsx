@@ -3,14 +3,12 @@ import { AlertTriangle, PackagePlus, XCircle } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { cn } from '../../utils/cn';
+import { faltanteReason, type FaltanteItemRow } from './faltanteReason';
 
 export type FaltanteDecision = 'crear_nueva' | 'ninguna';
 
-interface FaltanteItemRow {
-    item_descripcion: string;
-    cantidad_faltante: number;
-    unidad?: string;
-}
+export type { FaltanteItemRow, FaltanteReasonKind } from './faltanteReason';
+export { faltanteReason } from './faltanteReason';
 
 interface Props {
     isOpen: boolean;
@@ -52,19 +50,32 @@ const FaltanteDecisionModal: React.FC<Props> = ({
 
                 {faltantes.length > 0 && (
                     <div className="rounded-lg border border-border/50 overflow-hidden">
-                        <div className="max-h-40 overflow-y-auto">
-                            <table className="w-full text-sm">
-                                <tbody>
-                                    {faltantes.map((f, i) => (
-                                        <tr key={i} className="border-b border-border/30 last:border-0">
-                                            <td className="px-3 py-2 text-foreground">{f.item_descripcion}</td>
-                                            <td className="px-3 py-2 text-right text-muted-foreground whitespace-nowrap">
-                                                {f.cantidad_faltante} {f.unidad || 'u'}
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="max-h-56 overflow-y-auto divide-y divide-border/30">
+                            {faltantes.map((f, i) => {
+                                const reason = faltanteReason(f);
+                                const u = f.unidad || 'u';
+                                return (
+                                    <div key={i} className="px-3 py-2">
+                                        <div className="flex items-start justify-between gap-2">
+                                            <span className="text-sm text-foreground font-medium">{f.item_descripcion}</span>
+                                            <span
+                                                className={cn(
+                                                    "text-caption font-bold px-1.5 py-0.5 rounded-md border whitespace-nowrap shrink-0",
+                                                    reason.kind === 'manual'
+                                                        ? "bg-muted text-muted-foreground border-border"
+                                                        : "bg-amber-500/10 text-amber-600 border-amber-500/30"
+                                                )}
+                                            >
+                                                {reason.label}
+                                            </span>
+                                        </div>
+                                        <div className="text-xs text-muted-foreground mt-0.5">
+                                            Pedido {f.cantidad_solicitada} · Enviando {f.cantidad_enviada} ·{' '}
+                                            Falta <span className="font-semibold text-foreground">{f.cantidad_faltante}</span> {u}
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 )}
@@ -124,6 +135,10 @@ const FaltanteDecisionModal: React.FC<Props> = ({
                         </div>
                     </label>
                 </div>
+
+                <p className="text-xs text-muted-foreground">
+                    También puedes cerrar este aviso y ajustar las cantidades antes de confirmar.
+                </p>
 
                 <div className="flex gap-2 justify-end pt-2">
                     <Button

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type {
     Transferencia, TransferenciaItem, ApprovalItemState, TransferenciaRecepcion,
 } from '../../types/entities';
+import type { FaltanteItemRow } from '../../components/inventario/FaltanteDecisionModal';
 
 /** Ubicación de stock disponible para un ítem (origen al aprobar). */
 export interface StockLocation {
@@ -99,7 +100,7 @@ export function useTransferenciaDetail({
     const [faltanteModal, setFaltanteModal] = useState<{
         isOpen: boolean;
         loading: boolean;
-        faltantes: { item_descripcion: string; cantidad_faltante: number; unidad?: string }[];
+        faltantes: FaltanteItemRow[];
     }>({ isOpen: false, loading: false, faltantes: [] });
 
     // Receive state — cantidad_recibida = "cantidad de ESTE viaje". Para parciales
@@ -144,6 +145,9 @@ export function useTransferenciaDetail({
         setHistorialOpen(false);
         setCierreFinal(false);
         setConfirmMermaOpen(false);
+        // Sin esto, el modal de faltante quedaba "abierto" en el estado del hook y
+        // reaparecía con datos viejos al abrir la aprobación de otra TRF.
+        setFaltanteModal({ isOpen: false, loading: false, faltantes: [] });
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [t.id]);
 

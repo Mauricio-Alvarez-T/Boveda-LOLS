@@ -4,7 +4,7 @@ import { cn } from '../../../utils/cn';
 import { formatBodegaNombreResponsable } from '../../../utils/formatBodega';
 import type { TransferenciaItem, ApprovalItemState, ApprovalSplit } from '../../../types/entities';
 import type { StockLocation } from '../../../hooks/inventario/useTransferenciaDetail';
-import FaltanteDecisionModal from '../FaltanteDecisionModal';
+import FaltanteDecisionModal, { type FaltanteItemRow } from '../FaltanteDecisionModal';
 import { QtyStepper } from '../../ui/QtyStepper';
 import { Button } from '../../ui/Button';
 import { IconButton } from '../../ui/IconButton';
@@ -13,7 +13,7 @@ import { CustomAprobacionEditor, initCustomEdits, buildNuevosPayload, customFalt
 interface FaltanteModalState {
     isOpen: boolean;
     loading: boolean;
-    faltantes: { item_descripcion: string; cantidad_faltante: number; unidad?: string }[];
+    faltantes: FaltanteItemRow[];
 }
 
 interface AprobarData {
@@ -222,15 +222,22 @@ export const AprobarForm: React.FC<{
     const puedeConfirmar = !hayError && hayAlgoParaEnviar && !customFalta;
 
     // Construir lista de faltantes para pasar al modal
-    const faltantesParaModal = items
-        .map((it, idx) => {
+    const faltantesParaModal: FaltanteItemRow[] = items
+        .map((it, idx): FaltanteItemRow | null => {
             const s = itemStatus[idx];
-            const faltante = it.cantidad_solicitada - (s?.total || 0);
-            return faltante > 0
-                ? { item_descripcion: it.item_descripcion || `Ítem #${it.item_id}`, cantidad_faltante: faltante, unidad: it.unidad }
-                : null;
+            const enviada = s?.total || 0;
+            const faltante = it.cantidad_solicitada - enviada;
+            if (faltante <= 0) return null;
+            return {
+                item_descripcion: it.item_descripcion || `Ítem #${it.item_id}`,
+                unidad: it.unidad,
+                cantidad_solicitada: it.cantidad_solicitada,
+                cantidad_enviada: enviada,
+                cantidad_faltante: faltante,
+                stock_disponible: s?.stockTotal || 0,
+            };
         })
-        .filter((x): x is { item_descripcion: string; cantidad_faltante: number; unidad: string | undefined } => !!x);
+        .filter((x): x is FaltanteItemRow => x !== null);
 
     const sendApproval = async () => {
         const payload = approvalItems.map(ai => ({
@@ -582,20 +589,9 @@ export const AprobarForm: React.FC<{
                 isOpen={faltanteModal.isOpen}
                 onClose={() => setFaltanteModal({ isOpen: false, loading: false, faltantes: [] })}
                 onConfirm={async (decision) => {
-                    // handled via inline closure using current approvalItems — we re-run here
+                    // Reusa sendApproval() (misma construcción de payload) para evitar drift.
                     setFaltanteModal(m => ({ ...m, loading: true }));
-                    const payload = approvalItems.map(ai => ({
-                        item_id: ai.item_id,
-                        splits: ai.splits.filter(s => s.cantidad > 0),
-                    }));
-                    const primero = payload.find(p => p.splits.length)?.splits[0];
-                    const ok = await onAprobar({
-                        origen_obra_id: primero?.origen_obra_id || null,
-                        origen_bodega_id: primero?.origen_bodega_id || null,
-                        items: payload,
-                        items_custom: customEdits,
-                        items_custom_nuevos: buildNuevosPayload(customNuevos),
-                    });
+                    const ok = await sendApproval();
                     if (ok && decision === 'crear_nueva' && onCrearFaltante) {
                         await onCrearFaltante(transferenciaId);
                     }
