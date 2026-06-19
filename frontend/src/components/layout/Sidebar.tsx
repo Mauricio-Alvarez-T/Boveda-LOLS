@@ -13,7 +13,8 @@ import {
     SearchCheck,
     Package,
     Truck,
-    Archive
+    Archive,
+    BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '../../utils/cn';
@@ -69,6 +70,12 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
             label: 'Obras Finalizadas',
             path: '/obras-finalizadas',
             visible: hasPermission('obras.ver')
+        },
+        {
+            icon: BookOpen,
+            label: 'Ayuda',
+            path: '/ayuda',
+            visible: true
         },
         {
             icon: Settings,
