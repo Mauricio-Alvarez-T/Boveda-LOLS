@@ -61,7 +61,7 @@ import ChangePasswordForm from '../components/settings/ChangePasswordForm';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ActivityLogsPanel } from '../components/settings/ActivityLogsPanel';
 import { FeriadosPanel } from '../components/settings/FeriadosPanel';
-import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive } from 'lucide-react';
+import { ShieldCheck, UserCog, Package, Warehouse, Wrench, Archive, Bell } from 'lucide-react';
 import { FinalizarObraModal } from '../components/obras/FinalizarObraModal';
 import { ParticipaToggle } from '../components/settings/ParticipaToggle';
 import { CategoriaInventarioForm } from '../components/settings/CategoriaInventarioForm';
@@ -70,9 +70,10 @@ import { ItemInventarioForm } from '../components/settings/ItemInventarioForm';
 import PermisosRolPanel from '../components/settings/PermisosRolPanel';
 import PermisosUsuarioPanel from '../components/settings/PermisosUsuarioPanel';
 import ReporteSuscriptoresPanel from '../components/settings/ReporteSuscriptoresPanel';
+import AvisosPanel from '../components/settings/AvisosPanel';
 import { Modal } from '../components/ui/Modal';
 
-type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
+type TabKey = 'empresas' | 'obras' | 'cargos' | 'conductores' | 'tipos_doc' | 'usuarios' | 'roles' | 'estados_asistencia' | 'tipos_ausencia' | 'horarios' | 'feriados' | 'mi_correo' | 'plantillas' | 'reportes_suscriptores' | 'avisos' | 'logs' | 'seguridad' | 'cat_inventario' | 'bodegas' | 'items_inventario';
 
 interface TabDef {
     key: TabKey;
@@ -139,6 +140,7 @@ const tabGroups: TabGroup[] = [
             { key: 'mi_correo', label: 'Mi Correo', shortLabel: 'Correo', icon: Mail },
             { key: 'plantillas', label: 'Plantillas Email', shortLabel: 'Plantillas', icon: FileText },
             { key: 'reportes_suscriptores', label: 'Reportes Automáticos', shortLabel: 'Reportes', icon: Mail },
+            { key: 'avisos', label: 'Avisos de Novedades', shortLabel: 'Avisos', icon: Bell },
             { key: 'logs', label: 'Historial de Actividad', shortLabel: 'Historial', icon: Clock },
             { key: 'seguridad', label: 'Seguridad', icon: Shield },
         ]
@@ -655,6 +657,15 @@ const SettingsPage: React.FC = () => {
                                 <p className="text-sm text-muted-foreground mt-1">Destinatarios del reporte semanal de RRHH (contrataciones, desvinculaciones, faltas y aniversarios). Se envía automáticamente los lunes a las 08:00.</p>
                             </div>
                             <ReporteSuscriptoresPanel />
+                        </div>
+                    )}
+                    {activeTab === 'avisos' && (
+                        <div className="space-y-4">
+                            <div>
+                                <h3 className="text-base font-semibold text-brand-dark">Avisos de Novedades</h3>
+                                <p className="text-sm text-muted-foreground mt-1">Resumen automático por email cada mañana con las novedades del día anterior (trabajadores, roles/permisos, inventario, vehículos, obras). Configura qué se vigila, el umbral y a quién llega.</p>
+                            </div>
+                            <AvisosPanel />
                         </div>
                     )}
                     {activeTab === 'logs' && (
