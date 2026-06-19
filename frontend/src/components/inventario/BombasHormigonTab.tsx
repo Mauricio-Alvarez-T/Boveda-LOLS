@@ -289,11 +289,12 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             {searchQuery && (
                                 <IconButton
                                     onClick={() => setSearchQuery('')}
-                                    icon={<X className="h-3 w-3" />}
+                                    icon={<X className="h-3.5 w-3.5" />}
                                     variant="ghost"
                                     size="sm"
                                     aria-label="Limpiar búsqueda"
-                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6"
+                                    title="Limpiar búsqueda"
+                                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
                                 />
                             )}
                         </div>

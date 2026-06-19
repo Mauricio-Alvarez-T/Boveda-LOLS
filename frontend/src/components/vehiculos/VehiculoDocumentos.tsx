@@ -431,7 +431,8 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                 <div className="relative bg-card rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
                     <div className="flex items-center justify-between gap-2 px-4 py-2.5 border-b border-border shrink-0">
                         <span className="text-sm font-semibold text-brand-dark truncate" title={viewer.name}>{viewer.name}</span>
-                        <IconButton size="sm" aria-label="Cerrar" onClick={closeViewer} icon={<X className="h-4 w-4" />} />
+                        <IconButton size="sm" aria-label="Cerrar" title="Cerrar" onClick={closeViewer}
+                            className="h-10 w-10 sm:h-8 sm:w-8" icon={<X className="h-5 w-5 sm:h-4 sm:w-4" />} />
                     </div>
                     <div className="flex-1 min-h-0 overflow-auto bg-muted/40 flex items-center justify-center">
                         {viewer.mime.startsWith('image/') ? (
