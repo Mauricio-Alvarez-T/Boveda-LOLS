@@ -69,8 +69,8 @@ const ResumenAccionModal: React.FC<Props> = ({ isOpen, onClose, t, tipo }) => {
 
     const copy = cerroConDiscrepancia
         ? {
-            title: 'Recepción registrada con discrepancia',
-            subtitle: 'Se cerró la recepción, pero las cantidades no calzan con lo enviado. Revisa la discrepancia y comparte el comprobante.',
+            title: 'Recepción registrada con diferencia',
+            subtitle: 'Se cerró la recepción, pero las cantidades no calzan con lo enviado. Revisa la diferencia y comparte el comprobante.',
         }
         : COPY[tipo];
 

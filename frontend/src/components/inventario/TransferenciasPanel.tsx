@@ -322,7 +322,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                         ) : (
                             <div className="flex-1 flex flex-col items-center justify-center text-center">
                                 <AlertTriangle className="h-10 w-10 text-muted-foreground/30 mb-3" />
-                                <p className="text-sm font-medium text-muted-foreground">Selecciona una discrepancia</p>
+                                <p className="text-sm font-medium text-muted-foreground">Selecciona una diferencia</p>
                                 <p className="text-xs text-muted-foreground/60 mt-1">para ver los ítems afectados</p>
                             </div>
                         )

@@ -82,14 +82,14 @@ const DiscrepanciasList: React.FC<Props> = ({
             {/* Card list */}
             <div className="flex-1 min-h-0 overflow-y-auto space-y-2">
                 {loading ? (
-                    <div className="py-8 text-center text-muted-foreground text-xs">Cargando discrepancias…</div>
+                    <div className="py-8 text-center text-muted-foreground text-xs">Cargando diferencias…</div>
                 ) : filtered.length === 0 ? (
                     <div className="py-12 text-center text-muted-foreground">
                         <PackageX className="h-10 w-10 mx-auto opacity-20 mb-3" />
                         <p className="text-xs font-semibold">
-                            {subFilter === 'pendiente' ? 'Sin discrepancias pendientes' :
-                             subFilter === 'resuelta' ? 'No hay discrepancias resueltas' :
-                             'No hay discrepancias descartadas'}
+                            {subFilter === 'pendiente' ? 'Sin diferencias pendientes' :
+                             subFilter === 'resuelta' ? 'No hay diferencias resueltas' :
+                             'No hay diferencias descartadas'}
                         </p>
                         {subFilter === 'pendiente' && (
                             <p className="text-caption text-muted-foreground/70 mt-1">

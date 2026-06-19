@@ -13,7 +13,7 @@ const STATUS_CHIPS: { value: string; label: string; icon: React.ElementType; dis
     { value: 'pendiente',     label: 'Pendientes',    icon: Clock },
     { value: 'aprobada',      label: 'Aprobadas',     icon: CheckCircle2 },
     { value: 'recibida',      label: 'Recibidas',     icon: PackageCheck },
-    { value: 'discrepancias', label: 'Discrepancias', icon: AlertTriangle, discrepancia: true },
+    { value: 'discrepancias', label: 'Diferencias', icon: AlertTriangle, discrepancia: true },
 ];
 
 interface Props {

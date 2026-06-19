@@ -389,7 +389,7 @@ export const RecibirForm: React.FC<{
                             <span className="font-bold">Esta es la entrega final</span> — los ítems faltantes quedarán como merma.
                             <Info className="inline h-3 w-3 ml-0.5 text-muted-foreground" />
                             <span className="block text-caption text-muted-foreground mt-0.5">
-                                Marca esta opción si NO van a venir más viajes. Los ítems no recibidos se registrarán como discrepancia.
+                                Marca esta opción si NO van a venir más viajes. Los ítems no recibidos se registrarán como diferencia.
                             </span>
                         </span>
                     </label>
@@ -454,7 +454,7 @@ export const RecibirForm: React.FC<{
                         disabled={loading}
                         isLoading={loading}
                         leftIcon={<PackageCheck className="h-3.5 w-3.5" />}
-                        title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como discrepancia."
+                        title="Cierra la transferencia. Cualquier diferencia entre lo enviado y lo recibido se registra como diferencia."
                         className="flex-1 min-w-[160px]"
                     >
                         {loading ? 'Cerrando...' : 'Esta es toda la entrega'}
@@ -519,7 +519,7 @@ export const RecibirForm: React.FC<{
                         </div>
                     )}
                     <p className="text-xs text-muted-foreground bg-amber-50 border border-amber-200 dark:bg-amber-950/40 dark:border-amber-900 rounded-lg px-3 py-2">
-                        Las diferencias se registrarán como <strong>discrepancia</strong>. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
+                        Las diferencias se registrarán como <strong>diferencia</strong>. La transferencia se cerrará y <strong>no podrás registrar más viajes</strong>.
                     </p>
                 </div>
             </Modal>

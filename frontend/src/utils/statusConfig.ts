@@ -87,7 +87,7 @@ export const movimientoTipoConfig: StatusMap<MovimientoTipo> = {
     ajuste_manual:         { label: 'Ajuste manual',   classes: 'bg-amber-100 text-amber-800 border-amber-200' },
     transferencia_salida:  { label: 'Transf. salida',  classes: 'bg-red-50 text-red-700 border-red-200',   icon: ArrowUp },
     transferencia_entrada: { label: 'Transf. entrada', classes: 'bg-green-50 text-green-700 border-green-200', icon: ArrowDown },
-    discrepancia:          { label: 'Discrepancia',    classes: 'bg-purple-50 text-purple-700 border-purple-200' },
+    discrepancia:          { label: 'Diferencia',    classes: 'bg-purple-50 text-purple-700 border-purple-200' },
     factura:               { label: 'Factura',         classes: 'bg-blue-50 text-blue-700 border-blue-200' },
     recepcion:             { label: 'Recepción',       classes: 'bg-teal-50 text-teal-700 border-teal-200' },
 };

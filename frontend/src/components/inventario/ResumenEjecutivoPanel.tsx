@@ -624,7 +624,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         <KpiCard
                             tone="red"
                             icon={<AlertTriangle className="h-5 w-5" />}
-                            label="Discrepancias"
+                            label="Diferencias"
                             value={String(data?.kpis.discrepancias_pendientes.transferencias_afectadas ?? 0)}
                             subline={
                                 (data?.kpis.discrepancias_pendientes.unidades_totales ?? 0) > 0
@@ -847,7 +847,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         </div>
                         <p className="text-sm font-bold text-brand-dark">Todo al día</p>
                         <p className="text-xs text-muted-foreground mt-1">
-                            No hay pendientes, discrepancias, faltantes, rechazos ni envíos atascados.
+                            No hay pendientes, diferencias, faltantes, rechazos ni envíos atascados.
                         </p>
                     </div>
                 ) : (

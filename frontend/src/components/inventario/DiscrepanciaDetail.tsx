@@ -312,7 +312,7 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                         {modalAction === 'resuelta'
                             ? <Check className="h-4 w-4 text-green-700 dark:text-green-300" />
                             : <XCircle className="h-4 w-4 text-muted-foreground" />}
-                        <span>{modalAction === 'resuelta' ? 'Resolver discrepancia' : 'Descartar discrepancia'}</span>
+                        <span>{modalAction === 'resuelta' ? 'Resolver diferencia' : 'Descartar diferencia'}</span>
                     </div>
                 }
                 footer={
