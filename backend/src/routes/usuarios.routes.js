@@ -10,6 +10,7 @@ const createCrudController = require('../controllers/crud.controller');
 const createCrudRoutes = require('./crud.routes');
 const validateBody = require('../middleware/validateBody');
 const { crearUsuario, editarUsuario } = require('../schemas/usuarios.schema');
+const { logManualActivity } = require('../middleware/logger');
 
 // Instantiate missing user service dynamically since the file doesnt exist
 const usuariosService = createCrudService('usuarios', { 
@@ -94,10 +95,19 @@ router.post('/roles/:id/permisos', auth, checkPermission('usuarios.permisos.gest
     try {
         const { permisos } = req.body; // Array of keys
         await permisosService.setPermisosRol(req.params.id, permisos);
-        
+
         // BUMP VERSION to invalidate sessions
         await versionService.increment(req.params.id);
-        
+
+        // Log explícito (modulo='roles') para que el resumen diario de novedades
+        // detecte el cambio de permisos como evento sensible.
+        try {
+            const [[rol]] = await db.query('SELECT nombre FROM roles WHERE id = ?', [req.params.id]);
+            await logManualActivity(req.user?.id || null, 'roles', 'UPDATE', String(req.params.id),
+                JSON.stringify({ evento: 'permisos_rol', permisos: Array.isArray(permisos) ? permisos.length : 0 }),
+                req, { entidad_tipo: 'rol', entidad_label: `Permisos del rol ${rol?.nombre || req.params.id}` });
+        } catch { /* el log no debe romper la acción */ }
+
         res.json({ message: 'Permisos de rol actualizados exitosamente' });
     } catch (err) { next(err); }
 });
@@ -115,12 +125,20 @@ router.post('/user-overrides/:id', auth, checkPermission('usuarios.permisos.gest
     try {
         const { overrides, rol_id } = req.body; // overrides: [{ permiso_clave, tipo }], rol_id (optional for bump)
         await permisosService.setOverrides(req.params.id, overrides);
-        
+
         // BUMP VERSION for this user's role to force logout/re-login (simplest way to invalidate one user for now)
         if (rol_id) {
             await versionService.increment(rol_id);
         }
-        
+
+        // Log explícito (modulo='roles') para el resumen diario de novedades.
+        try {
+            const [[usr]] = await db.query('SELECT nombre FROM usuarios WHERE id = ?', [req.params.id]);
+            await logManualActivity(req.user?.id || null, 'roles', 'UPDATE', String(req.params.id),
+                JSON.stringify({ evento: 'overrides_usuario', overrides: Array.isArray(overrides) ? overrides.length : 0 }),
+                req, { entidad_tipo: 'usuario', entidad_label: `Permisos de usuario ${usr?.nombre || req.params.id}` });
+        } catch { /* el log no debe romper la acción */ }
+
         res.json({ message: 'Permisos del usuario actualizados exitosamente' });
     } catch (err) { next(err); }
 });

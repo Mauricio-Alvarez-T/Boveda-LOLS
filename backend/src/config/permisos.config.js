@@ -135,6 +135,7 @@ const MAESTRO_PERMISOS = [
     ['sistema.estados.gestionar',    'Sistema', 'Gestionar Estados Asist.',       'Crear y editar estados de asistencia', 5],
     ['sistema.tipos_ausencia.gestionar', 'Sistema', 'Gestionar Tipos Ausencia',   'Crear y editar tipos de ausencia', 6],
     ['sistema.reportes.gestionar',   'Sistema', 'Gestionar Reportes Automáticos', 'Gestionar destinatarios y enviar prueba del reporte semanal RRHH', 7],
+    ['sistema.avisos.gestionar',     'Sistema', 'Gestionar Avisos',                'Configurar el resumen diario de novedades (categorías, umbrales, destinatarios) y enviar prueba', 8],
 
     // VEHÍCULOS
     ['vehiculos.ver',      'Vehículos', 'Ver Vehículos',       'Acceso al módulo de vehículos: listado, detalle, seguros, revisiones y mantenciones', 1],

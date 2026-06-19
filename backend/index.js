@@ -413,6 +413,7 @@ safeRoute('/api/feriados', './src/routes/feriados.routes', 'Feriados');
 safeRoute('/api/config-horarios', './src/routes/config-horarios.routes', 'Config Horarios');
 safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
+safeRoute('/api/avisos', './src/routes/avisos.routes', 'Avisos (Resumen de Novedades)');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
 
 // ============================================
