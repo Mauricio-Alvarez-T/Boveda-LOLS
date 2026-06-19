@@ -362,14 +362,14 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                     <span className="text-xs font-bold text-brand-dark">{labelFile(doc.categoria)}</span>
                                     <span className="text-caption text-muted-foreground truncate" title={doc.nombre_archivo}>{doc.nombre_archivo}</span>
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0 mt-0.5">
-                                    <IconButton size="sm" aria-label="Ver documento" onClick={() => handleView(doc)}
+                                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                                    <IconButton size="sm" aria-label="Ver documento" title="Ver documento" onClick={() => handleView(doc)}
                                         disabled={viewingId === doc.id}
-                                        className="hover:bg-brand-primary/10 hover:text-brand-primary"
-                                        icon={viewingId === doc.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Eye className="h-3.5 w-3.5" />} />
+                                        className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
+                                        icon={viewingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
                                     {canDelete && (
-                                        <IconButton size="sm" variant="danger" aria-label="Eliminar documento"
-                                            onClick={() => handleDeleteDoc(doc)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar documento" title="Eliminar"
+                                            onClick={() => handleDeleteDoc(doc)} className="h-10 w-10 sm:h-8 sm:w-8" icon={<Trash2 className="h-4 w-4" />} />
                                     )}
                                 </div>
                             </div>
@@ -385,14 +385,14 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                     {r.observaciones && <span className="text-micro text-muted-foreground/70 italic">{r.observaciones}</span>}
                                     <AlertaBadge dias={r.dias_alerta} email={r.email_alerta} />
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                                     {canEdit && (
-                                        <IconButton size="sm" aria-label="Editar registro" onClick={() => handleEditRevision(r)}
-                                            className="hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-3.5 w-3.5" />} />
+                                        <IconButton size="sm" aria-label="Editar registro" title="Editar" onClick={() => handleEditRevision(r)}
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-4 w-4" />} />
                                     )}
                                     {canDelete && (
-                                        <IconButton size="sm" variant="danger" aria-label="Eliminar registro"
-                                            onClick={() => handleDeleteRevision(r)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar registro" title="Eliminar"
+                                            onClick={() => handleDeleteRevision(r)} className="h-10 w-10 sm:h-8 sm:w-8" icon={<Trash2 className="h-4 w-4" />} />
                                     )}
                                 </div>
                             </div>
@@ -408,14 +408,14 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                                     {m.descripcion && <span className="text-micro text-muted-foreground/70 italic">{m.descripcion}</span>}
                                     <AlertaBadge dias={m.dias_alerta} email={m.email_alerta} />
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                                <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                                     {canEdit && (
-                                        <IconButton size="sm" aria-label="Editar registro" onClick={() => handleEditMantencion(m)}
-                                            className="hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-3.5 w-3.5" />} />
+                                        <IconButton size="sm" aria-label="Editar registro" title="Editar" onClick={() => handleEditMantencion(m)}
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-4 w-4" />} />
                                     )}
                                     {canDelete && (
-                                        <IconButton size="sm" variant="danger" aria-label="Eliminar registro"
-                                            onClick={() => handleDeleteMantencion(m)} icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar registro" title="Eliminar"
+                                            onClick={() => handleDeleteMantencion(m)} className="h-10 w-10 sm:h-8 sm:w-8" icon={<Trash2 className="h-4 w-4" />} />
                                     )}
                                 </div>
                             </div>

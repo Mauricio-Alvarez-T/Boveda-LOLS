@@ -284,7 +284,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 value={searchQuery}
                                 onChange={e => setSearchQuery(e.target.value)}
                                 placeholder="Buscar obra, tipo, proveedor..."
-                                className="w-full pl-8 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
+                                className="w-full pl-8 pr-8 py-2.5 text-base sm:py-2 sm:text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none transition-all"
                             />
                             {searchQuery && (
                                 <IconButton
@@ -302,7 +302,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             <select
                                 value={filterObraId}
                                 onChange={e => setFilterObraId(e.target.value ? Number(e.target.value) : '')}
-                                className="appearance-none pl-3 pr-8 py-2 text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none cursor-pointer"
+                                className="appearance-none pl-3 pr-8 py-2.5 text-base sm:py-2 sm:text-xs border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none cursor-pointer"
                             >
                                 <option value="">Todas las obras</option>
                                 {obras.map(o => <option key={o.id} value={o.id}>{o.nombre}</option>)}
@@ -435,7 +435,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 value={form.obra_id}
                                 onChange={e => { setForm(f => ({ ...f, obra_id: e.target.value ? Number(e.target.value) : '' })); if (formErrors.obra_id) setFormErrors(p => ({ ...p, obra_id: undefined })); }}
                                 className={cn(
-                                    "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    "w-full px-3 py-2.5 text-base border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
                                     formErrors.obra_id ? "border-destructive" : "border-border"
                                 )}
                             >
@@ -451,7 +451,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 value={form.fecha}
                                 onChange={e => { setForm(f => ({ ...f, fecha: e.target.value })); if (formErrors.fecha) setFormErrors(p => ({ ...p, fecha: undefined })); }}
                                 className={cn(
-                                    "w-full px-3 py-2 text-sm border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    "w-full px-3 py-2.5 text-base border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none",
                                     formErrors.fecha ? "border-destructive" : "border-border"
                                 )}
                             />
@@ -466,7 +466,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             value={form.tipo_bomba}
                             onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
                             className={cn(
-                                "w-full px-3 py-2 text-sm border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                "w-full px-3 py-2.5 text-base border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
                                 formErrors.tipo_bomba ? "border-destructive" : "border-border"
                             )}
                         >
@@ -490,7 +490,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 type="time"
                                 value={form.hora_inicio}
                                 onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))}
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             />
                         </div>
                         <div>
@@ -503,7 +503,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 value={form.vibradores}
                                 onChange={e => setForm(f => ({ ...f, vibradores: e.target.value }))}
                                 placeholder="0"
-                                className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             />
                         </div>
                     </div>
@@ -575,7 +575,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             value={form.proveedor}
                             onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
                             placeholder="Nombre del proveedor / arrendador"
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
                     </div>
 
@@ -592,7 +592,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                     value={form.costo}
                                     onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
                                     placeholder="0"
-                                    className="w-full pl-7 pr-3 py-2 text-sm border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                                    className="w-full pl-7 pr-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                                 />
                             </div>
                         </div>
@@ -607,7 +607,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             value={form.observaciones}
                             onChange={e => setForm(f => ({ ...f, observaciones: e.target.value }))}
                             placeholder="Opcional..."
-                            className="w-full px-3 py-2 text-sm border border-border rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl resize-none h-16 focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
                     </div>
                 </form>
