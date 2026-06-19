@@ -181,8 +181,10 @@ const VehiculosPage: React.FC = () => {
         }
         return (
             <div className="flex items-center gap-2.5 min-w-0">
+                {/* Sin botón "volver": en desktop las empresas están siempre a la izquierda
+                    y en móvil son chips arriba; el detalle de vehículo tiene su propio volver. */}
                 <IconButton aria-label="Volver a empresas" onClick={volverANivel1}
-                    className="lg:hidden" icon={<ChevronLeft className="h-5 w-5" />} />
+                    className="hidden" icon={<ChevronLeft className="h-5 w-5" />} />
                 <div className="flex flex-col leading-tight min-w-0">
                     <h1 className="text-lg font-bold text-brand-dark flex items-center gap-2 min-w-0">
                         <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-sm font-bold truncate"
@@ -248,6 +250,16 @@ const VehiculosPage: React.FC = () => {
         const is3Col = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
         if (is3Col) setSelected(vehiculosEmpresa[0]);
     }, [enNivel2, vehiculosEmpresa, selected]);
+
+    // En móvil (<lg) las empresas son chips arriba; preseleccionamos la primera para
+    // que la lista de vehículos no quede vacía. En desktop, null = placeholder (se deja).
+    useEffect(() => {
+        if (selectedEmpresa !== null) return;
+        const isMobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 1023px)').matches;
+        if (!isMobile) return;
+        if (empresas.length > 0) setSelectedEmpresa(empresas[0]);
+        else if (conteos.sin > 0) setSelectedEmpresa('sin');
+    }, [selectedEmpresa, empresas, conteos.sin]);
 
     // Reconciliar el detalle: si el vehículo seleccionado salió del bucket activo
     // (p.ej. se le cambió la empresa al editarlo) cerramos el detalle; si solo
@@ -331,6 +343,29 @@ const VehiculosPage: React.FC = () => {
                 </div>
             </div>
         </div>
+    );
+
+    // Chip compacto de empresa (selector horizontal en móvil): punto de color +
+    // nombre completo + contador. El activo se rellena con el color de la empresa.
+    const renderEmpresaChip = (
+        key: React.Key,
+        nombre: string,
+        color: string,
+        count: number,
+        activa: boolean,
+        onSelect: () => void,
+    ) => (
+        <button key={key} type="button" onClick={onSelect}
+            className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-bold whitespace-nowrap shrink-0 transition-colors',
+                activa ? 'border-transparent text-white shadow-sm' : 'border-border bg-card text-brand-dark'
+            )}
+            style={activa ? { backgroundColor: color } : undefined}
+        >
+            <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: activa ? '#ffffff' : color }} />
+            <span>{nombre}</span>
+            <span className={cn('rounded-full px-1.5 text-xs', activa ? 'bg-white/25' : 'bg-muted text-muted-foreground')}>{count}</span>
+        </button>
     );
 
     const EmpresasList = (
@@ -617,9 +652,63 @@ const VehiculosPage: React.FC = () => {
                 )}
             </div>
 
-            {/* ═══ MÓVIL + TABLET (<lg): un panel a la vez (empresas → vehículos → detalle) ═══ */}
-            <div className="lg:hidden flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
-                {!enNivel2 ? EmpresasList : (selected ? DetailView : ListView)}
+            {/* ═══ MÓVIL + TABLET (<lg): empresas como chips arriba + vehículos abajo ═══
+                Tocás un chip y abajo aparece el historial de vehículos de esa empresa.
+                Al tocar un vehículo se abre el detalle a pantalla completa (con volver). */}
+            <div className="lg:hidden flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+                {selected ? DetailView : (
+                    <>
+                        {/* Chips de empresas (scroll horizontal si hay muchas) */}
+                        <div className="shrink-0 border-b border-border overflow-x-auto">
+                            <div className="flex items-center gap-2 p-3 w-max">
+                                {empresas.map(e => renderEmpresaChip(
+                                    e.id, e.nombre, e.color,
+                                    e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0),
+                                    selectedEmpresa !== 'sin' && selectedEmpresa?.id === e.id,
+                                    () => entrarEmpresa(e),
+                                ))}
+                                {conteos.sin > 0 && renderEmpresaChip(
+                                    'sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin,
+                                    selectedEmpresa === 'sin', () => entrarEmpresa('sin'),
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Acciones de la empresa activa */}
+                        {enNivel2 && (
+                            <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border/60">
+                                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-dark min-w-0">
+                                    <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: empresaActivaColor }} />
+                                    <span className="truncate">{empresaActivaNombre}</span>
+                                </span>
+                                <div className="flex items-center gap-1 shrink-0 ml-auto">
+                                    {hasPermission('vehiculos.crear') && (
+                                        <IconButton size="sm" aria-label="Nuevo vehículo" title="Nuevo vehículo"
+                                            onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
+                                            className="text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={<Plus className="h-4 w-4" />} />
+                                    )}
+                                    {empresaActiva && hasPermission('vehiculos.editar') && (
+                                        <IconButton size="sm" aria-label="Editar empresa" title="Editar empresa"
+                                            onClick={() => { setEditEmpresa(empresaActiva); setModalEmpresa(true); }}
+                                            className="hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={<Edit2 className="h-3.5 w-3.5" />} />
+                                    )}
+                                    {empresaActiva && hasPermission('vehiculos.eliminar') && (
+                                        <IconButton size="sm" variant="danger" aria-label="Eliminar empresa" title="Eliminar empresa"
+                                            onClick={() => handleDeleteEmpresa(empresaActiva)}
+                                            icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Lista de vehículos de la empresa activa */}
+                        <div className="flex-1 min-h-0 flex flex-col">
+                            {ListView}
+                        </div>
+                    </>
+                )}
             </div>
 
             {/* ── Modales ── */}
