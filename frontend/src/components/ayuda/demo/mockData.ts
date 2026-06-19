@@ -72,3 +72,30 @@ export const stockDataDemo: Record<number, StockLocation[]> = {
         { type: 'obra', id: 2, nombre: 'Torre Centro', cantidad: 3 },
     ],
 };
+
+/**
+ * Stock por ítem y ubicación para el wizard en modo "Mover": al elegir un origen
+ * (bodega u obra) no-central, `stockEnOrigen` se calcula filtrando este mapa por
+ * `type` + `id` del origen, igual que el wizard real.
+ */
+export const stockMapDemo: Record<number, StockLocation[]> = {
+    1: [
+        { type: 'bodega', id: 101, nombre: 'Bodega Central', cantidad: 30, responsable_nombre: 'Juan Pérez' },
+        { type: 'bodega', id: 102, nombre: 'Bodega Norte', cantidad: 10, responsable_nombre: 'María Soto' },
+        { type: 'obra', id: 1, nombre: 'Edificio Las Condes', cantidad: 8 },
+        { type: 'obra', id: 2, nombre: 'Torre Centro', cantidad: 4 },
+    ],
+    2: [
+        { type: 'bodega', id: 101, nombre: 'Bodega Central', cantidad: 120, responsable_nombre: 'Juan Pérez' },
+        { type: 'obra', id: 1, nombre: 'Edificio Las Condes', cantidad: 15 },
+    ],
+    3: [
+        { type: 'bodega', id: 101, nombre: 'Bodega Central', cantidad: 6, responsable_nombre: 'Juan Pérez' },
+        { type: 'obra', id: 1, nombre: 'Edificio Las Condes', cantidad: 3 },
+        { type: 'obra', id: 2, nombre: 'Torre Centro', cantidad: 2 },
+    ],
+    4: [
+        { type: 'bodega', id: 101, nombre: 'Bodega Central', cantidad: 5, responsable_nombre: 'Juan Pérez' },
+        { type: 'obra', id: 1, nombre: 'Edificio Las Condes', cantidad: 2 },
+    ],
+};
