@@ -191,7 +191,13 @@ export const Modal: React.FC<ModalProps> = ({
                         animate={{ y: 0 }}
                         exit={{ y: '100%' }}
                         transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-                        className="relative w-full max-h-[92dvh] bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden"
+                        className={cn(
+                            "relative w-full bg-card rounded-t-[32px] shadow-2xl flex flex-col overflow-hidden",
+                            // size="full" (layouts con scroll interno: h-full + overflow-y-auto, ej. paneles de
+                            // permisos) necesita ALTURA DEFINIDA para que el scroll interno resuelva en móvil.
+                            // El resto se dimensiona por contenido (hasta el tope).
+                            size === 'full' ? 'h-[92dvh]' : 'max-h-[92dvh]'
+                        )}
                     >
                         {/* Handle & Header */}
                         <div className="shrink-0">
