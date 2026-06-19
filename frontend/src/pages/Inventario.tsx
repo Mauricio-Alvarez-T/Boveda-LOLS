@@ -34,7 +34,7 @@ const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.Elemen
     { key: 'resumen_ejecutivo', label: 'Resumen Ejecutivo', shortLabel: 'Ejecutivo', icon: BarChart3,       requiresPerm: 'inventario.tab.resumen_ejecutivo' },
     { key: 'resumen',           label: 'Resumen',           shortLabel: 'Resumen',   icon: ClipboardList,   requiresPerm: 'inventario.tab.resumen' },
     { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   shortLabel: 'Obra/Bod.', icon: Building2,       requiresPerm: 'inventario.tab.por_ubicacion' },
-    { key: 'transferencias',    label: 'Transferencias',    shortLabel: 'Transf.',   icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
+    { key: 'transferencias',    label: 'Solicitudes',       shortLabel: 'Solicitudes', icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
     { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
     { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: MixerTruck,      requiresPerm: 'inventario.tab.bombas' },
     { key: 'facturas',          label: 'Facturas',          shortLabel: 'Facturas',  icon: Receipt,         requiresPerm: 'inventario.facturas.ver' },
