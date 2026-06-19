@@ -4,6 +4,7 @@ import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { EmptyState } from '../components/ui/EmptyState';
 import { GuiaDetalle } from '../components/ayuda/GuiaDetalle';
+import { DemoTutorial } from '../components/ayuda/DemoTutorial';
 import { GUIAS, type Guia } from '../components/ayuda/guiasData';
 
 /**
@@ -96,7 +97,9 @@ const CentroAyuda: React.FC = () => {
     if (selected) {
         return (
             <div className="w-full max-w-3xl mx-auto">
-                <GuiaDetalle guia={selected} onBack={() => setSelectedId(null)} />
+                {selected.demoId
+                    ? <DemoTutorial guia={selected} onBack={() => setSelectedId(null)} />
+                    : <GuiaDetalle guia={selected} onBack={() => setSelectedId(null)} />}
             </div>
         );
     }
