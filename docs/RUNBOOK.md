@@ -140,6 +140,14 @@ npm run migrate
 1. Asegurarse de que el código ya llegó al servidor (deploy completado).
 2. cPanel → Setup Node.js App → tu app → **Run JS script** → seleccionar `migrate` → Run.
 
+> **⚠️ Glitch frecuente: "Package.json — Can't get list of scripts!"**
+> Al abrir **Run JS script** a veces cPanel muestra un toast rojo *"Can't get list of scripts!"* y el desplegable de scripts queda vacío. **No es problema del código ni del `package.json`** — es cPanel que no logró re-leer los scripts. Solución, en orden:
+> 1. Apretar **▶ Run NPM Install** y esperar a que termine; luego reintentar **▶ Run JS script** (al reinstalar, cPanel vuelve a leer `package.json` y puebla la lista). *Run NPM Install es seguro: solo instala dependencias.*
+> 2. Si sigue, **✏️ Edit** el `package.json` y confirmar que tenga el bloque `"scripts"` con `"migrate": "node scripts/migrate.js"`. Si `migrate` no está, el `package.json` desplegado en la raíz no es el del backend (problema de deploy).
+> 3. Refrescar la página del Node App o salir y volver a entrar a la app (a veces es transitorio).
+>
+> Conviene insistir con **Run JS script** (no un Cron Job) porque corre dentro del entorno de la app e **inyecta las variables `DB_*`**; un cron común corre fuera y no las toma (salvo que haya un `.env`).
+
 **Lo que hace `npm run migrate` (`scripts/migrate.js`):**
 1. Crea la tabla `schema_migrations` si no existe.
 2. Detecta si es primera vez en una BD existente → **bootstrap** (ver sección 3.3).
