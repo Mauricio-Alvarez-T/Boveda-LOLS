@@ -83,14 +83,16 @@ export const GUIAS: Guia[] = [
         demoId: 'recibir-materiales',
     },
 
-    // ── SOLICITUDES — resto de flujos (próximamente) ──
+    // ── SOLICITUDES — más flujos ──
     {
         id: 'pedir-materiales',
         modulo: 'Solicitudes',
         icon: ShoppingBag,
         titulo: 'Pedir materiales (a comprar)',
         descripcion: 'Pedir materiales que no están en el catálogo; quien aprueba decide cómo conseguirlos.',
-        estado: 'proximamente',
+        estado: 'disponible',
+        duracion: 'Interactivo · 3 min',
+        demoId: 'pedir-materiales',
     },
     {
         id: 'envio-directo',

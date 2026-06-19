@@ -15,6 +15,7 @@ export const DEMO_REGISTRY: Record<string, React.LazyExoticComponent<React.Compo
     'pedir-solicitud': React.lazy(() => import('./DemoPedir')),
     'aprobar-solicitud': React.lazy(() => import('./DemoAprobar')),
     'recibir-materiales': React.lazy(() => import('./DemoRecibir')),
+    'pedir-materiales': React.lazy(() => import('./DemoMateriales')),
     'envio-directo': moverDemo('envio-directo'),
     'devolucion': moverDemo('devolucion'),
     'traslado-obras': moverDemo('traslado-obras'),
