@@ -3,7 +3,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { Save, Loader2, LogOut } from 'lucide-react';
+import { Save, Loader2, LogOut, X } from 'lucide-react';
 
 import { Button } from '../ui/Button';
 import { Input } from '../ui/Input';
@@ -87,7 +87,9 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
 
             {/* Permisos se gestionan ahora desde el icono de escudo en la tabla de roles */}
 
-            <div className="flex justify-between items-center pt-6 border-t border-border">
+            {/* Pie responsive: en móvil solo iconos (más prolijo, sin apretar);
+                desde sm el texto completo. El title/aria-label conserva el significado. */}
+            <div className="flex justify-between items-center pt-6 border-t border-border gap-2">
                 <div>
                     {initialData && (
                         <Button
@@ -96,15 +98,21 @@ export const RolForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) =
                             onClick={handleResetSessions}
                             isLoading={resetingSessions}
                             leftIcon={<LogOut className="h-4 w-4" />}
+                            title="Liquidar Sesiones Activas"
+                            aria-label="Liquidar Sesiones Activas"
                         >
-                            Liquidar Sesiones Activas
+                            <span className="hidden sm:inline">Liquidar Sesiones Activas</span>
                         </Button>
                     )}
                 </div>
-                <div className="flex gap-3">
-                    <Button type="button" variant="glass" onClick={onCancel}>Cancelar</Button>
-                    <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}>
-                        {initialData ? 'Actualizar' : 'Crear'}
+                <div className="flex gap-2 sm:gap-3">
+                    <Button type="button" variant="glass" onClick={onCancel}
+                        leftIcon={<X className="h-4 w-4" />} title="Cancelar" aria-label="Cancelar">
+                        <span className="hidden sm:inline">Cancelar</span>
+                    </Button>
+                    <Button type="submit" isLoading={isSubmitting} leftIcon={<Save className="h-4 w-4" />}
+                        title={initialData ? 'Actualizar' : 'Crear'} aria-label={initialData ? 'Actualizar' : 'Crear'}>
+                        <span className="hidden sm:inline">{initialData ? 'Actualizar' : 'Crear'}</span>
                     </Button>
                 </div>
             </div>
