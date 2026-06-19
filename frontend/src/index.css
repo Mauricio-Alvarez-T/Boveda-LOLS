@@ -14,6 +14,12 @@
     &::-webkit-scrollbar { display: none; }
 }
 
+/* Padding inferior que respeta la barra de gestos / home indicator del celular.
+   Usado en el footer del bottom-sheet (Modal) para que los botones no queden tapados. */
+@utility safe-area-bottom {
+    padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,

@@ -211,7 +211,9 @@ export const Modal: React.FC<ModalProps> = ({
                                     {/* eslint-disable-next-line no-restricted-syntax -- interno de primitiva: cierre sheet móvil */}
                                     <button
                                         onClick={handleClose}
-                                        className="p-2 rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
+                                        aria-label="Cerrar"
+                                        title="Cerrar"
+                                        className="h-10 w-10 flex items-center justify-center rounded-full bg-background text-muted-foreground active:scale-95 transition-all"
                                     >
                                         <X className="h-5 w-5" />
                                     </button>

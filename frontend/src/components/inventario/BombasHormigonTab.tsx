@@ -262,20 +262,22 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             <div className="shrink-0 space-y-3 mb-4">
                 <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
                     <h3 className="text-sm font-bold text-brand-dark">Bombas de Hormigón</h3>
-                    <div className="flex items-center gap-2 flex-1">
+                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                         {canCreate && (
                             <Button
                                 variant="primary"
                                 size="sm"
                                 onClick={openCreate}
                                 leftIcon={<Plus className="h-3.5 w-3.5" />}
+                                title="Registrar uso"
+                                aria-label="Registrar uso"
                                 className="shrink-0 order-last sm:order-none"
                             >
                                 <span className="hidden sm:inline">Registrar uso</span>
                             </Button>
                         )}
                         {/* Search */}
-                        <div className="relative flex-1 max-w-xs">
+                        <div className="relative flex-1 min-w-0 max-w-xs">
                             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                             <input
                                 type="text"
@@ -659,22 +661,25 @@ const BombaCard: React.FC<{
                         {isExterna ? 'ARRIENDO' : 'EMPRESA'}
                     </span>
                     {canEdit && (
-                        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                        // Siempre visibles en móvil (táctil, sin hover); el hover queda para desktop.
+                        <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <IconButton
                                 onClick={onEdit}
-                                icon={<Pencil className="h-3 w-3" />}
+                                icon={<Pencil className="h-4 w-4 sm:h-3 sm:w-3" />}
                                 variant="ghost"
                                 size="sm"
                                 aria-label="Editar"
-                                className="h-7 w-7"
+                                title="Editar"
+                                className="h-9 w-9 sm:h-7 sm:w-7"
                             />
                             <IconButton
                                 onClick={onDelete}
-                                icon={<Trash2 className="h-3 w-3" />}
+                                icon={<Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />}
                                 variant="danger"
                                 size="sm"
                                 aria-label="Eliminar"
-                                className="h-7 w-7"
+                                title="Eliminar"
+                                className="h-9 w-9 sm:h-7 sm:w-7"
                             />
                         </div>
                     )}

@@ -250,16 +250,17 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
                 <div className="mb-2 p-3 rounded-xl border border-border bg-muted/40 space-y-2">
                     <div className="flex items-center justify-between">
                         <span className="text-caption font-bold text-muted-foreground uppercase tracking-wide">{editing ? 'Editar registro' : 'Nuevo registro'}</span>
-                        <div className="flex items-center gap-1">
+                        <div className="flex items-center gap-2">
                             {/* Gris (plomo) hasta estar listo; verde cuando se puede guardar */}
                             <Button size="sm" aria-label={isData ? 'Guardar registro' : 'Subir documento'} title={isData ? 'Guardar registro' : 'Subir documento'}
                                 onClick={isData ? handleSaveData : handleUpload} disabled={busy || !listoParaGuardar}
                                 variant={listoParaGuardar ? 'primary' : 'secondary'}
                                 leftIcon={busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : (isData ? <Save className="h-3.5 w-3.5" /> : <Upload className="h-3.5 w-3.5" />)}
-                                className="h-7 px-2.5 text-xs font-bold">
+                                className="h-9 px-3 text-xs font-bold">
                                 {isData ? 'GUARDAR' : 'SUBIR'}
                             </Button>
-                            <IconButton size="sm" aria-label="Cancelar" onClick={resetForm} icon={<X className="h-3.5 w-3.5" />} />
+                            <IconButton size="sm" aria-label="Cancelar" title="Cancelar" onClick={resetForm}
+                                className="h-9 w-9" icon={<X className="h-4 w-4" />} />
                         </div>
                     </div>
 

@@ -118,7 +118,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Tipo</label>
                     <select {...register('tipo')}
-                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                        className="w-full px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
                         <option value="camioneta">Camioneta</option>
                         <option value="camion">Camión</option>
                         <option value="auto">Auto</option>
@@ -147,7 +147,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                 <div>
                     <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Empresa</label>
                     <select {...register('empresa_id')}
-                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
+                        className="w-full px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30">
                         <option value="">Sin asignar</option>
                         {empresas.map(e => (
                             <option key={e.id} value={e.id}>{e.nombre}</option>
@@ -159,7 +159,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                     <input {...register('conductor_nombre')} list="conductores-list"
                         placeholder="Escribe o elige un nombre"
                         autoComplete="off"
-                        className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                        className="w-full px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
                     <datalist id="conductores-list">
                         {conductores.map(c => (
                             <option key={c.id} value={c.nombre} />
@@ -181,7 +181,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
                 <textarea {...register('observaciones')} rows={2}
-                    className="w-full px-3 py-2.5 rounded-xl border border-border bg-card text-sm text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
+                    className="w-full px-3 py-3 rounded-xl border border-border bg-card text-base text-brand-dark resize-none focus:outline-none focus:ring-2 focus:ring-brand-primary/30" />
             </div>
             {/* Botones Cancelar/Guardar viven en el header del Modal (headerAction). */}
         </form>

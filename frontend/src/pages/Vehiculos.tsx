@@ -461,17 +461,18 @@ const VehiculosPage: React.FC = () => {
                                         <span className="text-caption text-muted-foreground">{fmtNumber(v.kilometraje_actual || 0)} km</span>
                                     </div>
                                 </div>
-                                <div className="flex items-center gap-1 shrink-0">
+                                <div className="flex items-center gap-1.5 shrink-0">
                                     {hasPermission('vehiculos.editar') && (
-                                        <IconButton size="sm" aria-label="Editar vehículo"
+                                        <IconButton size="sm" aria-label="Editar vehículo" title="Editar vehículo"
                                             onClick={e => { e.stopPropagation(); setEditVehiculo(v); setModalVehiculo(true); }}
-                                            className="hover:bg-brand-primary/10 hover:text-brand-primary"
-                                            icon={<Edit2 className="h-3.5 w-3.5" />} />
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={<Edit2 className="h-4 w-4" />} />
                                     )}
                                     {hasPermission('vehiculos.eliminar') && (
-                                        <IconButton size="sm" variant="danger" aria-label="Dar de baja vehículo"
+                                        <IconButton size="sm" variant="danger" aria-label="Dar de baja vehículo" title="Dar de baja"
                                             onClick={e => { e.stopPropagation(); handleDelete(v); }}
-                                            icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                            className="h-10 w-10 sm:h-8 sm:w-8"
+                                            icon={<Trash2 className="h-4 w-4" />} />
                                     )}
                                 </div>
                             </div>
@@ -681,23 +682,24 @@ const VehiculosPage: React.FC = () => {
                                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: empresaActivaColor }} />
                                     <span className="truncate">{empresaActivaNombre}</span>
                                 </span>
-                                <div className="flex items-center gap-1 shrink-0 ml-auto">
+                                <div className="flex items-center gap-1.5 shrink-0 ml-auto">
                                     {hasPermission('vehiculos.crear') && (
                                         <IconButton size="sm" aria-label="Nuevo vehículo" title="Nuevo vehículo"
                                             onClick={() => { setEditVehiculo(null); setModalVehiculo(true); }}
-                                            className="text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
-                                            icon={<Plus className="h-4 w-4" />} />
+                                            className="h-10 w-10 text-brand-primary hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={<Plus className="h-5 w-5" />} />
                                     )}
                                     {empresaActiva && hasPermission('vehiculos.editar') && (
                                         <IconButton size="sm" aria-label="Editar empresa" title="Editar empresa"
                                             onClick={() => { setEditEmpresa(empresaActiva); setModalEmpresa(true); }}
-                                            className="hover:bg-brand-primary/10 hover:text-brand-primary"
-                                            icon={<Edit2 className="h-3.5 w-3.5" />} />
+                                            className="h-10 w-10 hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={<Edit2 className="h-4 w-4" />} />
                                     )}
                                     {empresaActiva && hasPermission('vehiculos.eliminar') && (
                                         <IconButton size="sm" variant="danger" aria-label="Eliminar empresa" title="Eliminar empresa"
                                             onClick={() => handleDeleteEmpresa(empresaActiva)}
-                                            icon={<Trash2 className="h-3.5 w-3.5" />} />
+                                            className="h-10 w-10"
+                                            icon={<Trash2 className="h-4 w-4" />} />
                                     )}
                                 </div>
                             </div>
