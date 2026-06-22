@@ -1,4 +1,4 @@
-import type { Transferencia, TransferenciaItem } from '../../../types/entities';
+import type { Transferencia, TransferenciaItem, TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem } from '../../../types/entities';
 import type { WizardEngine } from '../../inventario/nuevo-movimiento/wizardEngine';
 import { itemsDemo, obrasDemo, bodegasDemo } from '../demo/mockData';
 
@@ -165,4 +165,84 @@ export function rechazarTrfDemo(trf: DemoTransferencia, motivo: string): DemoTra
 }
 export function cancelarTrfDemo(trf: DemoTransferencia): DemoTransferencia {
     return { ...trf, estado: 'cancelada' };
+}
+
+/** ¿La transferencia recibida quedó con diferencia (merma/sobrante)? */
+export function tieneDiferencia(trf: DemoTransferencia): boolean {
+    return (trf.items || []).some(it => {
+        const enviada = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada) || 0;
+        return (Number(it.cantidad_recibida) || 0) !== enviada;
+    });
+}
+
+/** Construye la discrepancia de ejemplo a partir de una TRF recibida con diferencia. */
+export function buildDiscrepanciaDemo(trf: DemoTransferencia): TransferenciaConDiscrepancias {
+    const discrepancias: TransferenciaDiscrepanciaItem[] = (trf.items || [])
+        .map((it, idx): TransferenciaDiscrepanciaItem | null => {
+            const enviada = Number(it.cantidad_enviada) || Number(it.cantidad_solicitada) || 0;
+            const recibida = Number(it.cantidad_recibida) || 0;
+            const diferencia = enviada - recibida;
+            if (diferencia === 0) return null;
+            const itDemo = itemsDemo.find(i => i.id === it.item_id);
+            return {
+                id: idx + 1,
+                transferencia_id: trf.id,
+                item_id: it.item_id,
+                item_descripcion: it.item_descripcion || itDemo?.descripcion || `Ítem #${it.item_id}`,
+                nro_item: itDemo?.nro_item ?? it.item_id,
+                unidad: it.unidad || itDemo?.unidad || 'un',
+                cantidad_enviada: enviada,
+                cantidad_recibida: recibida,
+                diferencia,
+                observacion: null,
+                estado: 'pendiente',
+                resolucion: null,
+                resuelto_por: null,
+                resuelto_por_nombre: null,
+                fecha_resolucion: null,
+                reportado_por: -3,
+                reportado_por_nombre: 'Receptor (demostración)',
+                created_at: ahora(),
+            };
+        })
+        .filter((x): x is TransferenciaDiscrepanciaItem => x !== null);
+
+    return {
+        id: trf.id,
+        codigo: trf.codigo,
+        fecha_solicitud: trf.fecha_solicitud,
+        fecha_aprobacion: trf.fecha_aprobacion,
+        fecha_despacho: trf.fecha_despacho,
+        fecha_recepcion: trf.fecha_recepcion,
+        origen_obra_nombre: trf.origen_obra_nombre ?? null,
+        origen_bodega_nombre: trf.origen_bodega_nombre ?? null,
+        destino_obra_nombre: trf.destino_obra_nombre ?? null,
+        destino_bodega_nombre: trf.destino_bodega_nombre ?? null,
+        solicitante_id: trf.solicitante_id,
+        solicitante_nombre: trf.solicitante_nombre ?? null,
+        aprobador_id: trf.aprobador_id,
+        aprobador_nombre: trf.aprobador_nombre ?? null,
+        transportista_id: trf.transportista_id,
+        transportista_nombre: trf.transportista_nombre ?? null,
+        receptor_id: trf.receptor_id,
+        receptor_nombre: trf.receptor_nombre ?? null,
+        discrepancias,
+        total_unidades_perdidas: discrepancias.reduce((s, d) => s + Math.max(0, d.diferencia), 0),
+        total_items_afectados: discrepancias.length,
+    };
+}
+
+/** Marca un ítem de la discrepancia como resuelto/descartado. */
+export function resolverDiscrepanciaDemo(
+    disc: TransferenciaConDiscrepancias,
+    itemId: number,
+    estado: 'resuelta' | 'descartada',
+    resolucion: string,
+): TransferenciaConDiscrepancias {
+    return {
+        ...disc,
+        discrepancias: disc.discrepancias.map(d => d.id === itemId
+            ? { ...d, estado, resolucion, resuelto_por: 0, resuelto_por_nombre: 'Tú (demostración)', fecha_resolucion: ahora() }
+            : d),
+    };
 }

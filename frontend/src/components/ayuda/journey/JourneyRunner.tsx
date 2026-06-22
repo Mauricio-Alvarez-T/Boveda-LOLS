@@ -5,10 +5,13 @@ import { Button } from '../../ui/Button';
 import { NuevoMovimientoWizardView } from '../../inventario/nuevo-movimiento/NuevoMovimientoWizardView';
 import { useWizardEngine, type WizardData } from '../../inventario/nuevo-movimiento/wizardEngine';
 import TransferenciaDetail from '../../inventario/TransferenciaDetail';
+import DiscrepanciaDetail from '../../inventario/DiscrepanciaDetail';
 import type { PermisosMovimiento } from '../../../utils/inferMovimiento';
+import type { TransferenciaConDiscrepancias } from '../../../types/entities';
 import { itemsDemo, bodegasDemo, obrasDemo, categoriasDemo, stockMapDemo } from '../demo/mockData';
 import {
     buildTrfDemo, aprobarTrfDemo, recibirTrfDemo, rechazarTrfDemo, cancelarTrfDemo,
+    buildDiscrepanciaDemo, resolverDiscrepanciaDemo, tieneDiferencia,
     type DemoTransferencia,
 } from './journeyHelpers';
 import { useTutorialSpotlight } from './useTutorialSpotlight';
@@ -23,7 +26,7 @@ const PERMISOS_TODO: PermisosMovimiento = {
     intraBodega: true, devolucion: true, intraObra: true, ordenGerencia: true,
 };
 
-// Botones objetivo por fase, en orden de prioridad (los de formulario abierto
+// Botones objetivo por fase, en orden de prioridad (los de formulario/modal abierto
 // primero → el realce "salta" al botón de confirmar cuando se abre el form).
 const CREAR_LABELS = ['Crear solicitud', 'Crear movimiento', 'Siguiente'];
 const DETALLE_LABELS = [
@@ -31,6 +34,7 @@ const DETALLE_LABELS = [
     'Faltan más viajes', 'Registrar viaje (parcial)', 'Registrar otro viaje',
     'Revisar y aprobar', 'Registrar lo que llegó',
 ];
+const DISCREPANCIA_LABELS = ['Marcar como resuelta', 'Marcar como descartada', 'Resolver', 'Descartar'];
 const SIN_LABELS: string[] = [];
 
 const ESTADO_LABEL: Record<string, string> = {
@@ -74,41 +78,52 @@ export const JourneyRunner: React.FC<{
     onExit: () => void;
     /** Fecha ISO en que el usuario completó este tutorial (si ya lo hizo). */
     completadoAt?: string;
-    /** Se llama una vez al completar el recorrido (estado recibida). */
+    /** Se llama una vez al completar el recorrido. */
     onCompletar?: (id: string) => void;
 }> = ({ journey, onExit, completadoAt, onCompletar }) => {
     const engine = useWizardEngine(journey.modo ?? 'pedir', WIZARD_DATA, PERMISOS_TODO, journey.escenario);
     const [trf, setTrf] = useState<DemoTransferencia | null>(null);
+    const [discrepancia, setDiscrepancia] = useState<TransferenciaConDiscrepancias | null>(null);
+    const [discResuelta, setDiscResuelta] = useState(false);
     const screenRef = useRef<HTMLDivElement>(null);
     const marcado = useRef(false);
 
-    const reiniciar = () => { engine.reset(); setTrf(null); marcado.current = false; };
+    const reiniciar = () => {
+        engine.reset(); setTrf(null); setDiscrepancia(null); setDiscResuelta(false); marcado.current = false;
+    };
 
+    const conDiscrepancia = !!journey.conDiscrepancia;
+    const sinAprobacion = !!journey.sinAprobacion;
     const estado = trf?.estado;
     const terminalMalo = estado === 'rechazada' || estado === 'cancelada';
-    const completado = estado === 'recibida';
+    const enResolver = conDiscrepancia && !!discrepancia && !discResuelta;
+    const completado = conDiscrepancia ? discResuelta : estado === 'recibida';
 
-    // Marca el tutorial como completado (una sola vez) al cerrar el flujo.
+    // Marca el tutorial como completado (una sola vez).
     useEffect(() => {
         if (completado && !marcado.current) {
             marcado.current = true;
             onCompletar?.(journey.id);
         }
     }, [completado, journey.id, onCompletar]);
-    const sinAprobacion = !!journey.sinAprobacion;
-    const pasos = sinAprobacion ? ['Crear', 'Recibir'] : ['Crear', 'Aprobar', 'Recibir'];
+
+    const pasos = conDiscrepancia
+        ? ['Crear', 'Aprobar', 'Recibir', 'Resolver']
+        : sinAprobacion ? ['Crear', 'Recibir'] : ['Crear', 'Aprobar', 'Recibir'];
     const activo = !trf ? 0
         : completado ? pasos.length
-            : estado === 'pendiente' ? 1
-                : terminalMalo ? 1
-                    : (sinAprobacion ? 1 : 2); // en_transito / recepcion_parcial / aprobada
+            : (conDiscrepancia && estado === 'recibida') ? 3
+                : estado === 'pendiente' ? 1
+                    : terminalMalo ? 1
+                        : (sinAprobacion ? 1 : 2);
     const pasoNum = Math.min(activo + 1, pasos.length);
 
     const labels = useMemo(() => {
+        if (enResolver) return DISCREPANCIA_LABELS;
         if (!trf) return CREAR_LABELS;
         if (estado === 'pendiente' || estado === 'aprobada' || estado === 'en_transito' || estado === 'recepcion_parcial') return DETALLE_LABELS;
         return SIN_LABELS;
-    }, [trf, estado]);
+    }, [enResolver, trf, estado]);
 
     const spot = useTutorialSpotlight(screenRef, labels);
 
@@ -133,6 +148,14 @@ export const JourneyRunner: React.FC<{
                 ? `Escribe el motivo (obligatorio) y pulsa "${crearWord}".`
                 : `Revisa el resumen y pulsa "${crearWord}".`;
         }
+    } else if (enResolver) {
+        const m: Record<string, string> = {
+            'Marcar como resuelta': 'Escribe la nota de resolución y pulsa "Marcar como resuelta".',
+            'Marcar como descartada': 'Escribe la nota y pulsa "Marcar como descartada".',
+            'Resolver': 'Pulsa "Resolver" en el ítem con diferencia.',
+            'Descartar': 'O "Descartar" si la diferencia no requiere acción.',
+        };
+        instruccion = (spot.label && m[spot.label]) || 'Resuelve la diferencia: pulsa "Resolver" en el ítem, escribe una nota y confirma.';
     } else if (!completado && !terminalMalo) {
         const map: Record<string, string> = {
             'Confirmar Aprobación': spot.enabled ? 'Pulsa "Confirmar Aprobación".' : 'Elige de qué bodega(s) sale cada ítem; luego se habilita "Confirmar Aprobación".',
@@ -150,6 +173,8 @@ export const JourneyRunner: React.FC<{
     }
 
     const recap = journey.recap ?? RECAP_DEFAULT;
+    // Dead-end suave: journey de discrepancia pero el usuario recibió todo (sin diferencia).
+    const recibidaSinDiferencia = conDiscrepancia && estado === 'recibida' && !discrepancia && !discResuelta;
 
     return (
         <div className="w-full max-w-5xl mx-auto space-y-4">
@@ -199,7 +224,7 @@ export const JourneyRunner: React.FC<{
                 {!trf ? (
                     <div className="rounded-2xl border border-border bg-card p-4 sm:p-5">
                         <NuevoMovimientoWizardView
-                            modo={journey.modo ?? 'pedir'}
+                            modo={modo}
                             engine={engine}
                             data={WIZARD_DATA}
                             loadingData={false}
@@ -207,6 +232,19 @@ export const JourneyRunner: React.FC<{
                             onSubmit={async () => { setTrf(buildTrfDemo(engine)); return { id: 9001, codigo: 'TRF-DEMO-0001' }; }}
                         />
                     </div>
+                ) : enResolver && discrepancia ? (
+                    <DiscrepanciaDetail
+                        discrepancia={discrepancia}
+                        canEdit
+                        onBack={onExit}
+                        onResolver={async (id, est, resolucion) => {
+                            const upd = resolverDiscrepanciaDemo(discrepancia, id, est, resolucion);
+                            setDiscrepancia(upd);
+                            if (upd.discrepancias.every(d => d.estado !== 'pendiente')) setDiscResuelta(true);
+                            return true;
+                        }}
+                        onRefresh={async () => { /* no-op en demo */ }}
+                    />
                 ) : (
                     <TransferenciaDetail
                         transferencia={trf}
@@ -217,7 +255,15 @@ export const JourneyRunner: React.FC<{
                         onBack={onExit}
                         onFetchStock={async (ids) => Object.fromEntries(ids.map(id => [id, stockMapDemo[id] ?? []]))}
                         onAprobar={async (data) => { setTrf(prev => prev ? aprobarTrfDemo(prev, data) : prev); return true; }}
-                        onRecibir={async (items, tipo = 'total') => { setTrf(prev => prev ? recibirTrfDemo(prev, items, tipo) : prev); return 1; }}
+                        onRecibir={async (items, tipo = 'total') => {
+                            if (!trf) return null;
+                            const next = recibirTrfDemo(trf, items, tipo);
+                            setTrf(next);
+                            if (conDiscrepancia && tipo === 'total' && tieneDiferencia(next)) {
+                                setDiscrepancia(buildDiscrepanciaDemo(next));
+                            }
+                            return 1;
+                        }}
                         onRechazar={async (motivo) => { setTrf(prev => prev ? rechazarTrfDemo(prev, motivo) : prev); return true; }}
                         onRechazarRecepcion={async (motivo) => { setTrf(prev => prev ? rechazarTrfDemo(prev, motivo) : prev); return true; }}
                         onCancelar={async () => { setTrf(prev => prev ? cancelarTrfDemo(prev) : prev); return true; }}
@@ -226,6 +272,14 @@ export const JourneyRunner: React.FC<{
                     />
                 )}
             </div>
+
+            {/* Dead-end suave (discrepancia pero recibió todo) */}
+            {recibidaSinDiferencia && (
+                <div className="rounded-2xl border border-warning/30 bg-warning/5 px-4 py-3 flex items-center justify-between gap-3">
+                    <p className="text-sm text-brand-dark">Recibiste todo, así que no quedó diferencia. Para ver una discrepancia, <span className="font-bold">recibe menos de lo enviado</span>.</p>
+                    <Button variant="secondary" size="sm" onClick={reiniciar} leftIcon={<RotateCcw className="h-3.5 w-3.5" />}>Reintentar</Button>
+                </div>
+            )}
 
             {/* Recap al completar */}
             {completado && (

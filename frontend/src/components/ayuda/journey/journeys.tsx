@@ -24,6 +24,8 @@ export interface JourneyDef {
     escenario?: { origen: Origen; destino: Destino; ordenGerencia?: boolean };
     /** true si el flujo nace sin aprobación (envío directo / orden de gerencia) → stepper Crear→Recibir. */
     sinAprobacion?: boolean;
+    /** true si el recorrido termina resolviendo una discrepancia (paso extra "Resolver"). */
+    conDiscrepancia?: boolean;
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
     /** Resumen de pasos al completar (si se omite, uno por defecto). */
@@ -143,8 +145,23 @@ export const JOURNEYS: JourneyDef[] = [
         recap: ['Emitiste una orden de gerencia (con motivo, sin aprobación).', 'Nació En Tránsito.', 'Se recibió y quedó Recibida.'],
     },
 
-    // ── Próximamente ──
-    { id: 'discrepancias', modulo: 'Solicitudes', icon: AlertTriangle, titulo: 'Resolver una discrepancia', descripcion: 'Cuando llega menos (o más) de lo enviado: revisar y resolver la diferencia.', estado: 'proximamente' },
+    {
+        id: 'discrepancias', modulo: 'Solicitudes', icon: AlertTriangle,
+        titulo: 'Resolver una discrepancia',
+        descripcion: 'Cuando llega menos de lo enviado: el sistema crea una discrepancia y la resuelves.',
+        estado: 'disponible', duracion: 'Interactivo · 5 min', modo: 'pedir', conDiscrepancia: true,
+        textos: {
+            crear: 'Paso 1 — Crear la solicitud (catálogo) como siempre.',
+            aprobar: 'Paso 2 — Aprobar la solicitud.',
+            recibir: 'Paso 3 — Recibir MENOS de lo enviado (baja una cantidad) y pulsa "Esta es toda la entrega". Eso genera una discrepancia.',
+            fin: FIN,
+        },
+        recap: [
+            'Creaste y aprobaste una solicitud.',
+            'Al recibir llegó menos de lo enviado → se generó una discrepancia.',
+            'Resolviste la discrepancia con una nota.',
+        ],
+    },
 
     // ── Otros módulos ──
     { id: 'asistencia', modulo: 'Asistencia', icon: CheckSquare, titulo: 'Registrar asistencia', descripcion: 'Marcar la asistencia diaria de los trabajadores en obra.', estado: 'proximamente' },
