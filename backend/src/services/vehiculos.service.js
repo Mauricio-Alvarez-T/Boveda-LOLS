@@ -124,7 +124,7 @@ const vehiculosService = {
     },
 
     async create(data) {
-        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa_id, conductor_id } = data;
+        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa_id, conductor_id, valor = 0 } = data;
         if (!patente || !marca || !modelo || !anio) {
             throw Object.assign(new Error('patente, marca, modelo y anio son obligatorios'), { statusCode: 400 });
         }
@@ -133,9 +133,9 @@ const vehiculosService = {
             ? await this.resolveConductorId(data.conductor_nombre)
             : (conductor_id || null);
         const [result] = await db.query(
-            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa_id, conductor_id)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId]
+            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa_id, conductor_id, valor)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId, valor || 0]
         );
         return this.getById(result.insertId);
     },
@@ -146,7 +146,7 @@ const vehiculosService = {
         if (data.conductor_nombre !== undefined) {
             data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
         }
-        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id'];
+        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor'];
         const fields = [];
         const params = [];
         allowed.forEach(f => {

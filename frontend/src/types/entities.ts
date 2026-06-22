@@ -114,6 +114,8 @@ export interface Vehiculo {
     conductor_id?: number | null;
     kilometraje_actual: number;
     color?: string | null;
+    /** Valor de activo (patrimonio) del vehículo. Se suma por empresa de flota. */
+    valor?: number;
     observaciones?: string | null;
     activo: boolean;
     // Campos enriquecidos por el backend (subconsultas)

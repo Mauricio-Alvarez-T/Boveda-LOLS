@@ -34,6 +34,7 @@ const schema = z.object({
         .min(0, 'Los kilómetros no pueden ser negativos')
         .optional(),
     color:   z.string().trim().min(3, 'El color debe tener al menos 3 caracteres'),
+    valor:   z.coerce.number().min(0, 'El valor no puede ser negativo').optional(),
     observaciones: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
@@ -59,12 +60,14 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             conductor_nombre: initialData.conductor_nombre || '',
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
+            valor:   initialData.valor != null ? Number(initialData.valor) : 0,
             observaciones: initialData.observaciones || '',
         } : {
             tipo: 'camioneta',
             empresa_id: defaultEmpresaId != null ? String(defaultEmpresaId) : '',
             conductor_nombre: '',
             kilometraje_actual: 0,
+            valor: 0,
         },
     });
 
@@ -177,7 +180,10 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                 <Input label="Año" type="number" placeholder="2022" {...register('anio')} error={errors.anio?.message} />
                 <Input label="Color" placeholder="Blanco" {...register('color')} error={errors.color?.message} />
             </div>
-            <Input label="Kilómetros actuales" type="number" {...register('kilometraje_actual')} error={errors.kilometraje_actual?.message} />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Input label="Kilómetros actuales" type="number" {...register('kilometraje_actual')} error={errors.kilometraje_actual?.message} />
+                <Input label="Valor del vehículo ($)" type="number" placeholder="0" {...register('valor')} error={errors.valor?.message} />
+            </div>
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
                 <textarea {...register('observaciones')} rows={2}

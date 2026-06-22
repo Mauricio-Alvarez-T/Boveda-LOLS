@@ -68,6 +68,14 @@ export interface CategoriaValor {
     valor: number;
 }
 
+/** Patrimonio (valor en activos) por empresa propietaria: Dedalius (inventario) + empresas de flota (vehículos). */
+export interface PatrimonioEmpresa {
+    nombre: string;
+    color: string;
+    tipo: 'inventario' | 'vehiculos';
+    valor: number;
+}
+
 export interface BombasHormigonMes {
     eventos: number;
     obras_distintas: number;
@@ -77,6 +85,7 @@ export interface BombasHormigonMes {
 export interface DashboardEjecutivoData {
     filtered_obra_id: number | null;
     kpis: DashboardKpis;
+    patrimonio_por_empresa: PatrimonioEmpresa[];
     top_obras: TopObra[];
     alertas: DashboardAlerta[];
     rechazos_recientes: DashboardRechazo[];

@@ -691,6 +691,38 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 )}
             </div>
 
+            {/* Patrimonio por empresa (Dedalius=inventario, LOLS/TRANSPORTE=vehículos).
+                Solo en la vista "Todas las obras" (los vehículos son globales) y con
+                permiso de valores. El total ya está en la tarjeta Patrimonio. */}
+            {!obraFilter && verValoresResumen && (data?.patrimonio_por_empresa?.length ?? 0) > 0 && (
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
+                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
+                    Patrimonio por empresa
+                </h3>
+                <div className="flex flex-col gap-3">
+                    {(() => {
+                        const lista = data!.patrimonio_por_empresa;
+                        const maxPat = Math.max(1, ...lista.map(e => e.valor));
+                        return lista.map(e => (
+                            <div key={e.nombre}>
+                                <div className="flex items-baseline justify-between gap-3">
+                                    <span className="text-sm font-bold text-brand-dark flex items-center gap-2 min-w-0">
+                                        <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: e.color }} />
+                                        <span className="truncate">{e.nombre}</span>
+                                        <span className="text-caption text-muted-foreground font-semibold shrink-0">· {e.tipo === 'inventario' ? 'inventario' : 'vehículos'}</span>
+                                    </span>
+                                    <span className="shrink-0 text-sm font-black text-brand-dark">{fmtCLP(e.valor)}</span>
+                                </div>
+                                <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
+                                    <div className="h-full rounded-full transition-all" style={{ width: `${(e.valor / maxPat) * 100}%`, background: e.color }} />
+                                </div>
+                            </div>
+                        ));
+                    })()}
+                </div>
+            </div>
+            )}
+
             {/* Ranking de obras — oculto cuando hay filtro por obra o el
                 usuario no tiene permiso para ver valores monetarios. La
                 sección entera ranquea por $ — sin permiso $ no aporta. */}

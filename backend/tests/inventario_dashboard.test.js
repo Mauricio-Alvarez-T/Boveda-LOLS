@@ -102,7 +102,12 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             // 10. bombas hormigón mes actual
             .mockResolvedValueOnce([[{ eventos: 12, obras_distintas: 5, costo_externo: 3200000 }]])
             // 11. faltantes sin decisión (commit 3d03b3b) — sin faltantes en este mock
-            .mockResolvedValueOnce([[]]);
+            .mockResolvedValueOnce([[]])
+            // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[
+                { id: 1, nombre: 'LOLS', color: '#16a34a', valor: 48000000 },
+                { id: 2, nombre: 'TRANSPORTE', color: '#2563eb', valor: 32000000 },
+            ]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -162,6 +167,11 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(result.bombas_hormigon_mes).toEqual({
             eventos: 12, obras_distintas: 5, costo_externo: 3200000,
         });
+
+        // Patrimonio por empresa: Dedalius (inventario) + LOLS + TRANSPORTE (vehículos).
+        // En este mock el inventario no trae valor_patrimonial → Dedalius = 0.
+        expect(result.patrimonio_por_empresa.map(e => e.nombre)).toEqual(['Dedalius', 'LOLS', 'TRANSPORTE']);
+        expect(result.kpis.valor_total_patrimonio).toBeCloseTo(48000000 + 32000000, 0);
     });
 
     test('soporta estado vacío sin explotar', async () => {
@@ -178,12 +188,14 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
-            .mockResolvedValueOnce([[]]); // 11. faltantes sin decisión
+            .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión
+            .mockResolvedValueOnce([[]]); // 12. vehículos por empresa
 
         const result = await inventarioService.getDashboardEjecutivo();
 
         expect(result.kpis.transferencias_pendientes).toBe(0);
         expect(result.kpis.valor_total_obras).toBe(0);
+        expect(result.kpis.valor_total_patrimonio).toBe(0);
         expect(result.kpis.estancados_transito).toBe(0);
         expect(result.top_obras).toEqual([]);
         expect(result.alertas).toEqual([]);
@@ -215,7 +227,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 { id: 3, nombre: 'MOLDAJES', orden: 3, valor_neto: 9000000 },
             ]])
             .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]])  // 10 bombas
-            .mockResolvedValueOnce([[]]);  // 11 faltantes (usa filtro con alias t → [obraId, obraId])
+            .mockResolvedValueOnce([[]])  // 11 faltantes (usa filtro con alias t → [obraId, obraId])
+            .mockResolvedValueOnce([[]]);  // 12 vehículos por empresa (global, sin params)
 
         const result = await inventarioService.getDashboardEjecutivo(5);
 
@@ -235,9 +248,14 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(calls[0][1]).toEqual([5, 5]);
         // Query 4 (valor obras) debe tener params [5]
         expect(calls[3][1]).toEqual([5]);
-        // Faltantes (query 11) es ahora el último call y usa el filtro con alias t → [5, 5].
-        expect(calls[calls.length - 1][1]).toEqual([5, 5]);
-        // Bombas (penúltimo call) usa params directos [5].
-        expect(calls[calls.length - 2][1]).toEqual([5]);
+        // Vehículos por empresa (query 12) es ahora el ÚLTIMO call y es global (sin params de obra).
+        expect(calls[calls.length - 1][1]).toBeUndefined();
+        // Faltantes (query 11) es ahora el penúltimo y usa el filtro con alias t → [5, 5].
+        expect(calls[calls.length - 2][1]).toEqual([5, 5]);
+        // Bombas (antepenúltimo call) usa params directos [5].
+        expect(calls[calls.length - 3][1]).toEqual([5]);
+        // Con filtro por obra, los vehículos (globales) NO se suman → solo Dedalius en el desglose.
+        expect(result.patrimonio_por_empresa).toHaveLength(1);
+        expect(result.patrimonio_por_empresa[0].nombre).toBe('Dedalius');
     });
 });

@@ -555,6 +555,7 @@ const inventarioService = {
             [categoriaRows],
             [bombasRows],
             [faltantesRows],
+            [vehiculosPorEmpresaRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter} ${_exclTransfPrueba()}`, directParams),
@@ -743,6 +744,18 @@ const inventarioService = {
                 ORDER BY t.fecha_aprobacion ASC
                 LIMIT 5
             `, tParams),
+            // 12. Patrimonio de vehículos por empresa de flota (paramétrico).
+            //     Σ(vehiculos.valor) agrupado por empresa_vehiculos activa. Es global
+            //     (los vehículos no se asocian a una obra), no usa el filtro de obra.
+            db.query(`
+                SELECT ev.id, ev.nombre, ev.color,
+                       COALESCE(SUM(v.valor), 0) as valor
+                FROM empresas_vehiculos ev
+                LEFT JOIN vehiculos v ON v.empresa_id = ev.id AND v.activo = 1
+                WHERE ev.activo = 1
+                GROUP BY ev.id, ev.nombre, ev.color
+                ORDER BY ev.nombre ASC
+            `),
         ]);
 
         // Auditoría 6.1: el backend ya devuelve valor_neto y valor_bruto calculados en SQL.
@@ -755,8 +768,23 @@ const inventarioService = {
             return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc, valor_patrimonial: patrimonial };
         });
         const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);
-        // Patrimonio = valor de activo (Σ cantidad × valor_compra), sin descuento. Total sobre TODAS las obras.
-        const valor_total_patrimonio = obrasConValor.reduce((s, o) => s + o.valor_patrimonial, 0);
+        // Patrimonio (valor de activo) dividido por empresa propietaria:
+        //   · Dedalius = todo el inventario (Σ cantidad × valor_compra), sin descuento.
+        //   · cada empresa de flota = Σ valor de sus vehículos (paramétrico).
+        // El total es la suma de las tres+ empresas.
+        const patrimonio_dedalius = obrasConValor.reduce((s, o) => s + o.valor_patrimonial, 0);
+        // Los vehículos son globales (no por obra): solo se suman en la vista "Todas las obras".
+        const patrimonio_vehiculos = obraIdNum ? [] : (vehiculosPorEmpresaRows || []).map(r => ({
+            nombre: r.nombre,
+            color: r.color || '#64748b',
+            tipo: 'vehiculos',
+            valor: Number(r.valor) || 0,
+        }));
+        const patrimonio_por_empresa = [
+            { nombre: 'Dedalius', color: '#0F6E56', tipo: 'inventario', valor: patrimonio_dedalius },
+            ...patrimonio_vehiculos,
+        ];
+        const valor_total_patrimonio = patrimonio_por_empresa.reduce((s, e) => s + e.valor, 0);
         // Cuando hay filtro por obra, el "ranking" pierde sentido (es una sola obra) → vacío.
         const top_obras = obraIdNum
             ? []
@@ -925,6 +953,7 @@ const inventarioService = {
                 valor_total_patrimonio: Number(valor_total_patrimonio) || 0,
                 estancados_transito: Number(estancadosRows[0]?.count) || 0,
             },
+            patrimonio_por_empresa,
             top_obras,
             alertas: alertas.slice(0, 8),
             rechazos_recientes,
