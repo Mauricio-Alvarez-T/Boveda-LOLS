@@ -13,6 +13,7 @@
  *   node scripts/avisos_diarios.js --dry              # arma + previsualiza, NO envía
  *   node scripts/avisos_diarios.js --to a@b.cl        # fuerza destinatario(s)
  *   node scripts/avisos_diarios.js --fecha 2026-06-19 # usa esa fecha como "hoy" (resume su día anterior)
+ *   node scripts/avisos_diarios.js --historico        # REPORTE COMPLETO: todos los datos hasta hoy (no solo ayer)
  *
  * En cPanel: Cron Jobs → "0 8 * * *" →
  *   cd ~/test-boveda && /home/lolscl/nodevenv/test-boveda/20/bin/node scripts/avisos_diarios.js >> ~/avisos.log 2>&1
@@ -27,10 +28,11 @@ const mysql = require('mysql2/promise');
 const avisosService = require('../src/services/avisosDiarios.service');
 
 function parseArgs(argv) {
-    const out = { dry: false, to: null, fecha: null };
+    const out = { dry: false, to: null, fecha: null, historico: false };
     for (let i = 0; i < argv.length; i++) {
         const a = argv[i];
         if (a === '--dry') out.dry = true;
+        else if (a === '--historico') out.historico = true;
         else if (a === '--to' || a === '--fecha') out[a.slice(2)] = argv[++i];
         else if (a.startsWith('--to=')) out.to = a.slice(5);
         else if (a.startsWith('--fecha=')) out.fecha = a.slice(8);
@@ -45,8 +47,10 @@ async function main() {
         process.exit(1);
     }
 
-    const rango = avisosService.getDiaPrevio(args.fecha || undefined);
-    console.log(`🔔 Resumen de Novedades — día ${rango.label}${args.dry ? ' [DRY-RUN]' : ''}`);
+    const rango = args.historico
+        ? avisosService.getRangoHistorico(args.fecha || undefined)
+        : avisosService.getDiaPrevio(args.fecha || undefined);
+    console.log(`🔔 ${args.historico ? 'Reporte COMPLETO — datos hasta' : 'Resumen de Novedades — día'} ${rango.label}${args.dry ? ' [DRY-RUN]' : ''}`);
 
     const pool = mysql.createPool({
         host: process.env.DB_HOST || 'localhost',
@@ -59,7 +63,7 @@ async function main() {
 
     try {
         const result = await avisosService.enviarResumen({
-            db: pool, to: args.to, fecha: args.fecha || undefined, dry: args.dry,
+            db: pool, to: args.to, fecha: args.fecha || undefined, dry: args.dry, historico: args.historico,
         });
 
         if (result.dry) {

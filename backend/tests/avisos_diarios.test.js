@@ -87,6 +87,26 @@ describe('avisosDiarios.service', () => {
     test('construirResumen tolera que la tabla avisos_reglas no exista todavía (errno 1146)', async () => {
         const db = { query: jest.fn(async () => { const e = new Error('no table'); e.errno = 1146; throw e; }) };
         const res = await svc.construirResumen(db, { desde: 'a', hasta: 'b', label: 'c' });
-        expect(res).toEqual({ rango: { desde: 'a', hasta: 'b', label: 'c' }, categorias: [], total: 0 });
+        expect(res).toEqual({ rango: { desde: 'a', hasta: 'b', label: 'c' }, categorias: [], total: 0, modo: 'diario' });
+    });
+
+    test('getRangoHistorico cubre todo hasta hoy (desde antiguo, hasta = inicio de mañana)', () => {
+        const r = svc.getRangoHistorico('2026-06-22');
+        expect(r.desde).toBe('2000-01-01 00:00:00');
+        expect(r.hasta).toBe('2026-06-23 00:00:00');
+        expect(r.label).toBe('22 jun 2026');
+    });
+
+    test('modo histórico funciona sin la tabla avisos_reglas (usa categorías por defecto)', async () => {
+        const db = {
+            query: jest.fn(async (sql) => {
+                if (/FROM avisos_reglas/.test(sql)) { const e = new Error('no table'); e.errno = 1146; throw e; }
+                if (/FROM obras/.test(sql)) return [[{ id: 1, nombre: 'Obra Z', direccion: null, encargado_nombre: null, fecha_inicio: null }]];
+                return [[]]; // trabajadores, vehiculos, docs, logs → vacíos
+            }),
+        };
+        const res = await svc.construirResumen(db, { desde: 'a', hasta: 'b', label: 'c' }, { modo: 'historico' });
+        expect(res.modo).toBe('historico');
+        expect(res.categorias.map(c => c.key)).toContain('obras'); // categoría por defecto, sin tabla de config
     });
 });

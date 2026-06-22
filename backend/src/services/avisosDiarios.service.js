@@ -44,6 +44,16 @@ const LOG_QUERY = {
     roles_permisos: { modulos: ['roles'], accion: null },
 };
 
+// Categorías por defecto para el reporte COMPLETO (modo histórico), que no
+// depende de la tabla de configuración `avisos_reglas`.
+const DEFAULT_CATEGORIAS = [
+    { categoria: 'trabajadores', etiqueta: 'Trabajadores', umbral: 1 },
+    { categoria: 'vehiculos', etiqueta: 'Vehículos', umbral: 1 },
+    { categoria: 'obras', etiqueta: 'Obras', umbral: 1 },
+    { categoria: 'inventario', etiqueta: 'Inventario', umbral: 1 },
+    { categoria: 'roles_permisos', etiqueta: 'Roles y permisos', umbral: 1 },
+];
+
 function pad2(n) { return String(n).padStart(2, '0'); }
 function ymd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
 
@@ -62,6 +72,20 @@ function getDiaPrevio(ref) {
         desde: `${ymd(inicioAyer)} 00:00:00`,
         hasta: `${ymd(inicioHoy)} 00:00:00`,
         label: `${pad2(d.getDate())} ${MESES[d.getMonth()]} ${d.getFullYear()}`,
+    };
+}
+
+/**
+ * Ventana del reporte COMPLETO = todo lo cargado HASTA HOY (inclusive).
+ * Devuelve { desde (muy antiguo), hasta (inicio de mañana), label = hoy }.
+ */
+function getRangoHistorico(ref) {
+    const hoy = ref ? new Date(`${ref}T00:00:00`) : new Date();
+    const inicioManana = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() + 1);
+    return {
+        desde: '2000-01-01 00:00:00',
+        hasta: `${ymd(inicioManana)} 00:00:00`,
+        label: `${pad2(hoy.getDate())} ${MESES[hoy.getMonth()]} ${hoy.getFullYear()}`,
     };
 }
 
@@ -208,17 +232,21 @@ const COLLECTORS = {
  * pendiente siempre aflore aunque sea poco volumen).
  * @returns {Promise<{rango, categorias: Array<{key,etiqueta,count,conFaltantes,items}>, total}>}
  */
-async function construirResumen(db, rango) {
-    let reglas;
-    try {
-        const [rows] = await db.query('SELECT categoria, etiqueta, umbral FROM avisos_reglas WHERE activo = 1 ORDER BY orden ASC, id ASC');
-        reglas = rows;
-    } catch (err) {
-        if (err && err.errno === 1146) { // tabla aún no existe
-            logger.warn('Tabla avisos_reglas no existe todavía — resumen vacío.');
-            return { rango, categorias: [], total: 0 };
+async function construirResumen(db, rango, { reglas = null, modo = 'diario' } = {}) {
+    if (!reglas) {
+        try {
+            const [rows] = await db.query('SELECT categoria, etiqueta, umbral FROM avisos_reglas WHERE activo = 1 ORDER BY orden ASC, id ASC');
+            reglas = rows;
+        } catch (err) {
+            if (err && err.errno === 1146) { // tabla aún no existe
+                if (modo === 'historico') {
+                    reglas = DEFAULT_CATEGORIAS; // el reporte completo no depende de la config
+                } else {
+                    logger.warn('Tabla avisos_reglas no existe todavía — resumen vacío.');
+                    return { rango, categorias: [], total: 0, modo };
+                }
+            } else throw err;
         }
-        throw err;
     }
 
     const categorias = [];
@@ -249,12 +277,18 @@ async function construirResumen(db, rango) {
         total += count;
     }
 
-    return { rango, categorias, total };
+    return { rango, categorias, total, modo };
 }
 
 // ── Render ──────────────────────────────────────────────────────────────────
 
-function renderHtml({ rango, categorias, total }) {
+function renderHtml({ rango, categorias, total, modo = 'diario' }) {
+    const historico = modo === 'historico';
+    const unidad = historico ? 'registros' : 'novedades';
+    const fechaLabel = historico ? `al ${rango.label}` : rango.label;
+    const pie = historico
+        ? 'Reporte de los datos cargados hasta hoy. ⚠ marca lo que quedó pendiente por cargar.'
+        : 'Reporte automático del día anterior. ⚠ marca lo que quedó pendiente por cargar. Se configura en Configuración → Sistema → Avisos.';
     const secciones = categorias.map(c => {
         const filas = c.items.map(it => {
             const pend = it.faltantes.length
@@ -293,19 +327,20 @@ function renderHtml({ rango, categorias, total }) {
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.10)">
       <tr><td style="background:#1a7a3f;padding:24px 28px;text-align:center">
         <p style="margin:0 0 6px;font-size:11px;color:#bbf7d0;letter-spacing:2px;text-transform:uppercase;font-weight:700">Bóveda LOLS — Resumen de Novedades</p>
-        <p style="margin:0;font-size:22px;color:#ffffff;font-weight:900">${total} novedades · ${esc(rango.label)}</p>
+        <p style="margin:0;font-size:22px;color:#ffffff;font-weight:900">${total} ${unidad} · ${esc(fechaLabel)}</p>
       </td></tr>
       ${secciones}
       <tr><td style="padding:18px 28px 24px;border-top:1px solid #f3f4f6">
-        <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">Reporte automático del día anterior. ⚠ marca lo que quedó pendiente por cargar. Se configura en Configuración → Sistema → Avisos.</p>
+        <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">${pie}</p>
       </td></tr>
     </table>
   </td></tr></table>
 </body></html>`;
 }
 
-function renderText({ rango, categorias, total }) {
-    const lines = [`Resumen de Novedades — ${rango.label} (${total} novedades)`, ''];
+function renderText({ rango, categorias, total, modo = 'diario' }) {
+    const historico = modo === 'historico';
+    const lines = [`${historico ? 'Reporte de datos al' : 'Resumen de Novedades —'} ${rango.label} (${total} ${historico ? 'registros' : 'novedades'})`, ''];
     for (const c of categorias) {
         lines.push(`• ${c.etiqueta}: ${c.count}${c.conFaltantes ? ` (${c.conFaltantes} con pendientes)` : ''}`);
         for (const it of c.items) {
@@ -338,16 +373,17 @@ async function resolveRecipients(db, cliTo) {
  * Orquesta el resumen diario. Si no hay novedades, NO envía (evita correos vacíos),
  * salvo dry (preview) o forzar (prueba).
  */
-async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar = false } = {}) {
-    const rango = getDiaPrevio(fecha || undefined);
-    const resumen = await construirResumen(db, rango);
-    const subject = `Resumen de Novedades — ${rango.label}`;
+async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar = false, historico = false } = {}) {
+    const rango = historico ? getRangoHistorico(fecha || undefined) : getDiaPrevio(fecha || undefined);
+    const resumen = await construirResumen(db, rango, { modo: historico ? 'historico' : 'diario' });
+    const subject = historico ? `Reporte de datos — al ${rango.label}` : `Resumen de Novedades — ${rango.label}`;
     const html = renderHtml(resumen);
     const text = renderText(resumen);
 
     if (dry) return { dry: true, html, text, subject, resumen };
 
-    if (resumen.total === 0 && !forzar) {
+    // Un reporte completo solicitado se envía aunque esté vacío (igual que forzar).
+    if (resumen.total === 0 && !forzar && !historico) {
         return { sent: false, reason: 'sin-novedades', resumen };
     }
 
@@ -370,10 +406,11 @@ async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar 
 
 module.exports = {
     getDiaPrevio,
+    getRangoHistorico,
     construirResumen,
     resolveRecipients,
     enviarResumen,
     renderHtml,
     renderText,
-    _internals: { COLLECTORS, VEH_DOCS, LOG_QUERY, esc, ymd },
+    _internals: { COLLECTORS, VEH_DOCS, LOG_QUERY, DEFAULT_CATEGORIAS, esc, ymd },
 };
