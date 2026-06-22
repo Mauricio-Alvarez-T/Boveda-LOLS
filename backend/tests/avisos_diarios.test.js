@@ -25,10 +25,12 @@ describe('avisosDiarios.service', () => {
         };
         const res = await svc.construirResumen(db, { desde: 'a', hasta: 'b', label: 'c' });
         const obras = res.categorias.find(c => c.key === 'obras');
-        expect(obras.count).toBe(2);
-        expect(obras.conFaltantes).toBe(1);
-        expect(obras.items.find(i => i.label === 'Edificio Norte').faltantes).toContain('sin dirección');
-        expect(obras.items.find(i => i.label === 'Plaza Sur').faltantes).toEqual([]);
+        expect(obras.count).toBe(2);              // 2 nuevas
+        expect(obras.conFaltantes).toBe(1);       // 1 con pendientes
+        // items SOLO trae las que tienen pendientes (la completa no se lista)
+        expect(obras.items).toHaveLength(1);
+        expect(obras.items[0].label).toBe('Edificio Norte');
+        expect(obras.items[0].faltantes).toContain('sin dirección');
         expect(res.total).toBe(2);
     });
 

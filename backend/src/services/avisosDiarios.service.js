@@ -25,7 +25,7 @@
 const emailService = require('./email.service');
 const logger = require('../utils/logger-structured');
 
-const MUESTRAS_MAX = 12; // máximo de items a listar por categoría en el correo
+const MUESTRAS_MAX = 5; // máximo de ejemplos CON pendientes a listar por categoría (resto se resume)
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
 
 // Documentos esperados de un vehículo (categorías de vehiculo_documentos). El
@@ -281,7 +281,9 @@ async function construirResumen(db, rango, { reglas = null, modo = 'diario' } = 
 
         if (count === 0) continue;
 
-        const conFaltantes = items.filter(it => it.faltantes.length > 0).length;
+        // Solo nos interesa listar lo que tiene pendientes (lo completo se resume con el conteo).
+        const conPendientes = items.filter(it => it.faltantes.length > 0);
+        const conFaltantes = conPendientes.length;
         const umbral = regla.umbral || 1;
         if (count < umbral && conFaltantes === 0) continue; // no cruza umbral y nada pendiente
 
@@ -290,7 +292,7 @@ async function construirResumen(db, rango, { reglas = null, modo = 'diario' } = 
             etiqueta: regla.etiqueta,
             count,
             conFaltantes,
-            items: items.slice(0, MUESTRAS_MAX),
+            items: conPendientes.slice(0, MUESTRAS_MAX), // solo ejemplos CON pendientes
         });
         total += count;
     }
@@ -311,23 +313,22 @@ function renderHtml({ rango, categorias, total, modo = 'diario' }) {
             ? 'Radar semanal: movimiento y pendientes de la semana. ⚠ marca lo que sigue pendiente por cargar. Se configura en Configuración → Sistema → Avisos.'
             : 'Reporte automático del día anterior. ⚠ marca lo que quedó pendiente por cargar. Se configura en Configuración → Sistema → Avisos.';
     const secciones = categorias.map(c => {
-        const filas = c.items.map(it => {
-            const pend = it.faltantes.length
-                ? `<div style="margin-top:3px;font-size:12px;color:#b91c1c">⚠ ${esc(it.faltantes.join(' · '))}</div>` : '';
-            return `
+        const filas = c.items.map(it => `
             <tr>
               <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top">
                 <span style="font-size:13px;font-weight:700;color:#111827">${esc(it.label)}</span>
                 ${it.sub ? `<span style="font-size:11px;color:#9ca3af"> · ${esc(it.sub)}</span>` : ''}
-                ${pend}
+                <div style="margin-top:3px;font-size:12px;color:#b91c1c">⚠ ${esc(it.faltantes.join(' · '))}</div>
               </td>
-            </tr>`;
-        }).join('');
-        const extra = c.count > c.items.length
-            ? `<div style="padding:6px 12px;font-size:11px;color:#9ca3af">…y ${c.count - c.items.length} más</div>` : '';
+            </tr>`).join('');
+        const restantes = c.conFaltantes - c.items.length;
+        const extra = restantes > 0
+            ? `<div style="padding:8px 12px;font-size:11px;color:#9ca3af">…y ${restantes} más con pendientes</div>` : '';
+        const sinPend = c.conFaltantes === 0
+            ? `<div style="padding:10px 12px;font-size:12px;color:#059669">✓ ${c.count} nuevo(s), sin pendientes por cargar.</div>` : '';
         const badge = c.conFaltantes > 0
-            ? `<span style="float:right;font-size:12px;font-weight:800;color:#b91c1c">${c.conFaltantes} con pendientes · ${c.count}</span>`
-            : `<span style="float:right;font-size:13px;font-weight:800;color:#065f46">${c.count}</span>`;
+            ? `<span style="float:right;font-size:12px;font-weight:800;color:#b91c1c">${c.conFaltantes} con pendientes · ${c.count} nuevos</span>`
+            : `<span style="float:right;font-size:13px;font-weight:800;color:#065f46">${c.count} nuevos</span>`;
         return `
         <tr><td style="padding:16px 28px 0">
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
@@ -336,7 +337,7 @@ function renderHtml({ rango, categorias, total, modo = 'diario' }) {
               ${badge}
             </div>
             <table width="100%" cellpadding="0" cellspacing="0">${filas}</table>
-            ${extra}
+            ${extra}${sinPend}
           </div>
         </td></tr>`;
     }).join('');
@@ -365,12 +366,12 @@ function renderText({ rango, categorias, total, modo = 'diario' }) {
     const titulo = historico ? `Reporte de datos al ${rango.label}` : semanal ? `Radar semanal — semana ${rango.label}` : `Resumen de Novedades — ${rango.label}`;
     const lines = [`${titulo} (${total} ${historico ? 'registros' : 'novedades'})`, ''];
     for (const c of categorias) {
-        lines.push(`• ${c.etiqueta}: ${c.count}${c.conFaltantes ? ` (${c.conFaltantes} con pendientes)` : ''}`);
+        lines.push(`• ${c.etiqueta}: ${c.count} nuevo(s)${c.conFaltantes ? ` · ${c.conFaltantes} con pendientes` : ' · sin pendientes'}`);
         for (const it of c.items) {
-            const pend = it.faltantes.length ? ` — ⚠ ${it.faltantes.join(' · ')}` : '';
-            lines.push(`   - ${it.label}${it.sub ? ` (${it.sub})` : ''}${pend}`);
+            lines.push(`   - ${it.label}${it.sub ? ` (${it.sub})` : ''} — ⚠ ${it.faltantes.join(' · ')}`);
         }
-        if (c.count > c.items.length) lines.push(`   …y ${c.count - c.items.length} más`);
+        const restantes = c.conFaltantes - c.items.length;
+        if (restantes > 0) lines.push(`   …y ${restantes} más con pendientes`);
     }
     return lines.join('\n');
 }
