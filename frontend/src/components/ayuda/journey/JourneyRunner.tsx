@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, RotateCcw, Sparkles, Check, CheckCircle2 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { Button } from '../../ui/Button';
@@ -71,16 +71,32 @@ const Stepper: React.FC<{ activo: number }> = ({ activo }) => (
     </div>
 );
 
-export const JourneyRunner: React.FC<{ journey: JourneyDef; onExit: () => void }> = ({ journey, onExit }) => {
+export const JourneyRunner: React.FC<{
+    journey: JourneyDef;
+    onExit: () => void;
+    /** Fecha ISO en que el usuario completó este tutorial (si ya lo hizo). */
+    completadoAt?: string;
+    /** Se llama una vez al completar el recorrido (estado recibida). */
+    onCompletar?: (id: string) => void;
+}> = ({ journey, onExit, completadoAt, onCompletar }) => {
     const engine = useWizardEngine(journey.modo ?? 'pedir', WIZARD_DATA, PERMISOS_TODO);
     const [trf, setTrf] = useState<DemoTransferencia | null>(null);
     const screenRef = useRef<HTMLDivElement>(null);
+    const marcado = useRef(false);
 
-    const reiniciar = () => { engine.reset(); setTrf(null); };
+    const reiniciar = () => { engine.reset(); setTrf(null); marcado.current = false; };
 
     const estado = trf?.estado;
     const terminalMalo = estado === 'rechazada' || estado === 'cancelada';
     const completado = estado === 'recibida';
+
+    // Marca el tutorial como completado (una sola vez) al cerrar el flujo.
+    useEffect(() => {
+        if (completado && !marcado.current) {
+            marcado.current = true;
+            onCompletar?.(journey.id);
+        }
+    }, [completado, journey.id, onCompletar]);
     const activo = !trf ? 0
         : estado === 'pendiente' ? 1
             : completado ? 3
@@ -136,6 +152,11 @@ export const JourneyRunner: React.FC<{ journey: JourneyDef; onExit: () => void }
             <div>
                 <h1 className="text-title font-bold text-brand-dark leading-tight">{journey.titulo}</h1>
                 <p className="text-body text-muted-foreground mt-0.5">{journey.descripcion}</p>
+                {completadoAt && (
+                    <p className="mt-1.5 inline-flex items-center gap-1.5 text-caption font-bold text-success">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Ya completaste este tutorial el {new Date(completadoAt).toLocaleDateString('es-CL')}
+                    </p>
+                )}
             </div>
 
             <div className="flex flex-col items-center gap-1.5">

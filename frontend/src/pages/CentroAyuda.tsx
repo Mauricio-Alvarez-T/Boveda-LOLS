@@ -1,16 +1,19 @@
 import React, { useMemo, useState } from 'react';
-import { BookOpen, Search, Clock, ArrowRight } from 'lucide-react';
+import { BookOpen, Search, Clock, ArrowRight, CheckCircle2, RotateCcw } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { EmptyState } from '../components/ui/EmptyState';
+import { ProgressBar } from '../components/ui/ProgressBar';
+import { showConfirmToast } from '../utils/toastUtils';
 import { JourneyRunner } from '../components/ayuda/journey/JourneyRunner';
 import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys';
+import { useTutorialProgreso } from '../hooks/ayuda/useTutorialProgreso';
 
 /**
  * Centro de ayuda. Tutoriales organizados por FLUJO DE TRABAJO (end-to-end): cada
  * recorrido (`JourneyRunner`) usa las PANTALLAS REALES de la app con datos de
  * ejemplo, guiando crear → aprobar → recibir con texto entre pasos. Visible para
- * todos los usuarios.
+ * todos los usuarios. Muestra el progreso del usuario (cross-device).
  */
 
 const headerTitle = (
@@ -23,7 +26,7 @@ const headerTitle = (
     </div>
 );
 
-const JourneyCard: React.FC<{ journey: JourneyDef; onOpen: () => void }> = ({ journey, onOpen }) => {
+const JourneyCard: React.FC<{ journey: JourneyDef; completado: boolean; onOpen: () => void }> = ({ journey, completado, onOpen }) => {
     const Icon = journey.icon;
     const disponible = journey.estado === 'disponible';
     return (
@@ -33,7 +36,8 @@ const JourneyCard: React.FC<{ journey: JourneyDef; onOpen: () => void }> = ({ jo
             onClick={disponible ? onOpen : undefined}
             disabled={!disponible}
             className={cn(
-                'group flex flex-col text-left rounded-card border border-border bg-card p-5 transition-all h-full',
+                'group flex flex-col text-left rounded-card border bg-card p-5 transition-all h-full',
+                completado ? 'border-success/40' : 'border-border',
                 disponible
                     ? 'hover:border-brand-primary/40 hover:shadow-sm cursor-pointer'
                     : 'opacity-70 cursor-default'
@@ -43,7 +47,11 @@ const JourneyCard: React.FC<{ journey: JourneyDef; onOpen: () => void }> = ({ jo
                 <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center">
                     <Icon className="h-5 w-5 text-muted-foreground group-hover:text-brand-primary transition-colors" />
                 </div>
-                {disponible ? (
+                {completado ? (
+                    <span className="inline-flex items-center gap-1 text-label font-bold text-success bg-success/10 rounded-full px-2.5 py-1">
+                        <CheckCircle2 className="h-3.5 w-3.5" /> Completado
+                    </span>
+                ) : disponible ? (
                     <span className="text-label font-bold text-success bg-success/10 rounded-full px-2.5 py-1">Disponible</span>
                 ) : (
                     <span className="text-label font-bold text-muted-foreground bg-muted rounded-full px-2.5 py-1">Próximamente</span>
@@ -62,7 +70,7 @@ const JourneyCard: React.FC<{ journey: JourneyDef; onOpen: () => void }> = ({ jo
                 ) : <span />}
                 {disponible && (
                     <span className="inline-flex items-center gap-1 text-caption font-bold text-brand-primary">
-                        Empezar <ArrowRight className="h-3.5 w-3.5" />
+                        {completado ? 'Repetir' : 'Empezar'} <ArrowRight className="h-3.5 w-3.5" />
                     </span>
                 )}
             </div>
@@ -73,11 +81,24 @@ const JourneyCard: React.FC<{ journey: JourneyDef; onOpen: () => void }> = ({ jo
 const CentroAyuda: React.FC = () => {
     useSetPageHeader(headerTitle);
 
+    const { completados, marcar, reiniciar, isCompleto } = useTutorialProgreso();
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [query, setQuery] = useState('');
     const [cat, setCat] = useState<string | null>(null);
 
     const categorias = useMemo(() => Array.from(new Set(JOURNEYS.map(j => j.modulo))), []);
+
+    // Avance global (solo disponibles) + por categoría.
+    const disponibles = useMemo(() => JOURNEYS.filter(j => j.estado === 'disponible'), []);
+    const completadosDisp = disponibles.filter(j => isCompleto(j.id)).length;
+    const catProg = useMemo(() => {
+        const m: Record<string, { disp: number; comp: number }> = {};
+        JOURNEYS.forEach(j => {
+            if (!m[j.modulo]) m[j.modulo] = { disp: 0, comp: 0 };
+            if (j.estado === 'disponible') { m[j.modulo].disp++; if (completados[j.id]) m[j.modulo].comp++; }
+        });
+        return m;
+    }, [completados]);
 
     const filtradas = useMemo(() => {
         const q = query.trim().toLowerCase();
@@ -94,8 +115,22 @@ const CentroAyuda: React.FC = () => {
     const selected = selectedId ? JOURNEYS.find(j => j.id === selectedId) || null : null;
 
     if (selected && selected.estado === 'disponible') {
-        return <JourneyRunner journey={selected} onExit={() => setSelectedId(null)} />;
+        return (
+            <JourneyRunner
+                journey={selected}
+                completadoAt={completados[selected.id]}
+                onCompletar={marcar}
+                onExit={() => setSelectedId(null)}
+            />
+        );
     }
+
+    const pedirReinicio = () => showConfirmToast({
+        message: '¿Reiniciar tu progreso de tutoriales?',
+        confirmLabel: 'Sí, reiniciar',
+        cancelLabel: 'No',
+        onConfirm: async () => { await reiniciar(); },
+    });
 
     return (
         <div className="w-full max-w-6xl mx-auto space-y-5">
@@ -106,6 +141,28 @@ const CentroAyuda: React.FC = () => {
                     Elige un flujo de trabajo y recórrelo paso a paso sobre la app real. Iremos sumando más recorridos de a poco.
                 </p>
             </div>
+
+            {/* Resumen de avance */}
+            {disponibles.length > 0 && (
+                <div className="rounded-card border border-border bg-card p-4 flex items-center gap-4">
+                    <div className="flex-1 min-w-0">
+                        <p className="text-caption font-bold text-brand-dark mb-1.5">
+                            Tu progreso: {completadosDisp} de {disponibles.length} completados
+                        </p>
+                        <ProgressBar recibido={completadosDisp} pendiente={disponibles.length - completadosDisp} showLabel />
+                    </div>
+                    {completadosDisp > 0 && (
+                        // eslint-disable-next-line no-restricted-syntax -- enlace de acción secundaria (texto)
+                        <button
+                            type="button"
+                            onClick={pedirReinicio}
+                            className="shrink-0 inline-flex items-center gap-1.5 text-caption font-bold text-muted-foreground hover:text-destructive transition-colors"
+                        >
+                            <RotateCcw className="h-3.5 w-3.5" /> Reiniciar
+                        </button>
+                    )}
+                </div>
+            )}
 
             {/* Buscador + filtros */}
             <div className="space-y-3">
@@ -130,20 +187,23 @@ const CentroAyuda: React.FC = () => {
                     >
                         Todas
                     </button>
-                    {categorias.map(c => (
-                        // eslint-disable-next-line no-restricted-syntax -- chip de filtro (selector segmentado)
-                        <button
-                            key={c}
-                            type="button"
-                            onClick={() => setCat(c)}
-                            className={cn(
-                                'shrink-0 px-3 h-8 rounded-full text-caption font-bold border transition-colors whitespace-nowrap',
-                                cat === c ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40'
-                            )}
-                        >
-                            {c}
-                        </button>
-                    ))}
+                    {categorias.map(c => {
+                        const cp = catProg[c];
+                        return (
+                            // eslint-disable-next-line no-restricted-syntax -- chip de filtro (selector segmentado)
+                            <button
+                                key={c}
+                                type="button"
+                                onClick={() => setCat(c)}
+                                className={cn(
+                                    'shrink-0 px-3 h-8 rounded-full text-caption font-bold border transition-colors whitespace-nowrap',
+                                    cat === c ? 'bg-brand-primary text-white border-brand-primary' : 'bg-card text-muted-foreground border-border hover:border-brand-primary/40'
+                                )}
+                            >
+                                {c}{cp && cp.disp > 0 ? ` · ${cp.comp}/${cp.disp}` : ''}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
@@ -157,7 +217,7 @@ const CentroAyuda: React.FC = () => {
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filtradas.map(j => (
-                        <JourneyCard key={j.id} journey={j} onOpen={() => setSelectedId(j.id)} />
+                        <JourneyCard key={j.id} journey={j} completado={isCompleto(j.id)} onOpen={() => setSelectedId(j.id)} />
                     ))}
                 </div>
             )}

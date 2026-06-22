@@ -415,6 +415,7 @@ safeRoute('/api/logs', './src/routes/logs.routes', 'Logs');
 safeRoute('/api/reportes', './src/routes/reportes.routes', 'Reportes Suscriptores');
 safeRoute('/api/avisos', './src/routes/avisos.routes', 'Avisos (Resumen de Novedades)');
 safeRoute('/api/vehiculos', './src/routes/vehiculos.routes', 'Vehículos');
+safeRoute('/api/tutoriales-progreso', './src/routes/tutoriales.routes', 'Tutoriales (progreso Centro de ayuda)');
 
 // ============================================
 // Health Check & Dashboard
