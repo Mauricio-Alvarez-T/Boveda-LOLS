@@ -1,35 +1,48 @@
 /**
- * Resumen diario de Novedades — orquesta: lee `logs_actividad` del día previo →
- * agrupa por categoría (según `avisos_reglas` activas + umbral) → arma HTML →
- * (envía por email | dry-run). Compartido por el script de cron
- * (`scripts/avisos_diarios.js`) y el endpoint "enviar prueba" del API.
+ * Resumen diario de Novedades — reporte por email de lo cargado el día anterior,
+ * con aviso de lo que quedó PENDIENTE/faltante (para no llevarse sorpresas).
+ *
+ * Audiencia: operación/admin (no worker-facing). Compartido por el cron
+ * (`scripts/avisos_diarios.js`) y el endpoint "enviar prueba".
+ *
+ * Fuente de datos:
+ *   · Categorías con chequeo de completitud (trabajadores/vehiculos/obras): se
+ *     consultan las TABLAS de cada entidad por `created_at` (da la fila para
+ *     revisar lo que falta y la etiqueta real). Nota: logs_actividad no sirve
+ *     para esto porque en los CREATE el item_id queda NULL.
+ *   · Categorías sin chequeo (inventario, roles/permisos): se cuentan desde
+ *     `logs_actividad` (igual que antes).
+ *
+ * Los chequeos "de lo que falta" se apoyan en lo que el sistema YA define como
+ * obligatorio (tipos_documento.obligatorio) y en columnas existentes — no se
+ * inventan criterios ni se crean estructuras nuevas. Mismo SQL/lógica que
+ * documento.service.getFaltantes y vehiculos.service.getDocumentos, pero sobre
+ * el `db` inyectado (para respetar el contrato y la testeabilidad de este service).
  *
  * NO crea ni cierra conexiones: recibe `db` inyectado. Reutiliza
  * `emailService.sendSystemEmail` (mismo canal que el reporte semanal).
- *
- * Fuente de datos: tabla `logs_actividad` (mig 011), que el middleware global
- * `activityLogger` ya llena con cada alta/cambio/baja. No instrumenta nada nuevo.
  */
 const emailService = require('./email.service');
 const logger = require('../utils/logger-structured');
 
-// Map categoría → cómo se consulta en logs_actividad. La parte configurable
-// (activo / umbral / etiqueta) vive en la tabla `avisos_reglas`; esto es la
-// lógica de consulta que no puede vivir en la BD.
-//   modulos: valores de `logs_actividad.modulo` que cuentan para la categoría.
-//   accion:  filtro de acción (null = cualquiera).
-const QUERY_MAP = {
-    trabajadores:   { modulos: ['trabajadores'],     accion: 'CREATE' },
-    inventario:     { modulos: ['items-inventario'], accion: 'CREATE' },
-    vehiculos:      { modulos: ['vehiculos'],         accion: 'CREATE' },
-    obras:          { modulos: ['obras'],             accion: 'CREATE' },
-    // Eventos sensibles: logueados explícitamente bajo modulo='roles'
-    // (ver usuarios.routes.js → cambios de permisos / overrides).
-    roles_permisos: { modulos: ['roles'],             accion: null },
-};
-
-const MUESTRAS_MAX = 8; // cuántos ejemplos listar por categoría en el correo
+const MUESTRAS_MAX = 12; // máximo de items a listar por categoría en el correo
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+
+// Documentos esperados de un vehículo (categorías de vehiculo_documentos). El
+// sistema no los marca "obligatorios", así que esta lista es el criterio elegido
+// por el usuario para el aviso (editable acá).
+const VEH_DOCS = [
+    { key: 'permiso_circulacion', label: 'permiso de circulación' },
+    { key: 'seguro_terceros', label: 'seguro contra terceros' },
+    { key: 'primera_inscripcion', label: 'padrón / primera inscripción' },
+    { key: 'poliza', label: 'póliza' },
+];
+
+// Categorías que se cuentan desde logs_actividad (sin chequeo de completitud).
+const LOG_QUERY = {
+    inventario: { modulos: ['items-inventario'], accion: 'CREATE' },
+    roles_permisos: { modulos: ['roles'], accion: null },
+};
 
 function pad2(n) { return String(n).padStart(2, '0'); }
 function ymd(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
@@ -57,10 +70,143 @@ function esc(s) {
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// ── Colectores por categoría ────────────────────────────────────────────────
+// Cada uno devuelve { count, items:[{label, sub?, faltantes:[texto]}] }.
+
+/** Trabajadores creados ayer: campos clave vacíos + documentos obligatorios faltantes. */
+async function collectTrabajadores(db, rango) {
+    const [rows] = await db.query(
+        `SELECT id, nombres, apellido_paterno, apellido_materno, rut, cargo_id, obra_id, empresa_id
+         FROM trabajadores
+         WHERE created_at >= ? AND created_at < ? AND es_prueba = 0
+         ORDER BY created_at ASC`,
+        [rango.desde, rango.hasta]
+    );
+    if (rows.length === 0) return { count: 0, items: [] };
+
+    // Documentos obligatorios faltantes de estos trabajadores (misma lógica que
+    // documento.service.getFaltantes, acotada a los ids nuevos).
+    const ids = rows.map(r => r.id);
+    const faltanDocs = {}; // { trabajador_id: nº de documentos obligatorios pendientes }
+    try {
+        const ph = ids.map(() => '?').join(',');
+        const [docRows] = await db.query(
+            `SELECT t.id AS trabajador_id, COUNT(*) AS faltan
+             FROM trabajadores t
+             CROSS JOIN tipos_documento td
+             LEFT JOIN documentos d ON d.trabajador_id = t.id AND d.tipo_documento_id = td.id AND d.activo = 1
+             WHERE t.id IN (${ph}) AND td.obligatorio = 1 AND td.activo = 1 AND d.id IS NULL
+             GROUP BY t.id`,
+            ids
+        );
+        for (const r of docRows) faltanDocs[r.trabajador_id] = Number(r.faltan);
+    } catch (err) {
+        logger.warn('No se pudo calcular documentos obligatorios faltantes', { err: err.message });
+    }
+
+    const items = rows.map(t => {
+        const faltantes = [];
+        if (t.cargo_id == null) faltantes.push('sin cargo');
+        if (t.obra_id == null) faltantes.push('sin obra');
+        if (t.empresa_id == null) faltantes.push('sin empresa');
+        const n = faltanDocs[t.id] || 0;
+        if (n > 0) faltantes.push(`${n} documento(s) obligatorio(s) pendiente(s)`);
+        return {
+            label: [t.nombres, t.apellido_paterno, t.apellido_materno].filter(Boolean).join(' '),
+            sub: t.rut || null,
+            faltantes,
+        };
+    });
+    return { count: rows.length, items };
+}
+
+/** Vehículos creados ayer: documentos esperados que no se cargaron. */
+async function collectVehiculos(db, rango) {
+    const [rows] = await db.query(
+        `SELECT id, patente, marca, modelo
+         FROM vehiculos
+         WHERE created_at >= ? AND created_at < ?
+         ORDER BY created_at ASC`,
+        [rango.desde, rango.hasta]
+    );
+    if (rows.length === 0) return { count: 0, items: [] };
+
+    const ids = rows.map(r => r.id);
+    const docsPorVeh = {}; // { vehiculo_id: Set(categorias presentes) }
+    try {
+        const ph = ids.map(() => '?').join(',');
+        const [docRows] = await db.query(
+            `SELECT vehiculo_id, categoria FROM vehiculo_documentos
+             WHERE vehiculo_id IN (${ph}) AND activo = 1`,
+            ids
+        );
+        for (const r of docRows) (docsPorVeh[r.vehiculo_id] ||= new Set()).add(r.categoria);
+    } catch (err) {
+        logger.warn('No se pudieron leer documentos de vehículos', { err: err.message });
+    }
+
+    const items = rows.map(v => {
+        const presentes = docsPorVeh[v.id] || new Set();
+        const faltantes = VEH_DOCS.filter(d => !presentes.has(d.key)).map(d => `falta ${d.label}`);
+        return {
+            label: `${v.patente} · ${v.marca} ${v.modelo}`.trim(),
+            sub: null,
+            faltantes,
+        };
+    });
+    return { count: rows.length, items };
+}
+
+/** Obras creadas ayer: datos importantes vacíos. */
+async function collectObras(db, rango) {
+    const [rows] = await db.query(
+        `SELECT id, nombre, direccion, encargado_nombre, fecha_inicio
+         FROM obras
+         WHERE created_at >= ? AND created_at < ? AND es_prueba = 0
+         ORDER BY created_at ASC`,
+        [rango.desde, rango.hasta]
+    );
+    const items = rows.map(o => {
+        const faltantes = [];
+        if (o.direccion == null || o.direccion === '') faltantes.push('sin dirección');
+        if (o.encargado_nombre == null || o.encargado_nombre === '') faltantes.push('sin encargado');
+        if (o.fecha_inicio == null) faltantes.push('sin fecha de inicio');
+        return { label: o.nombre, sub: null, faltantes };
+    });
+    return { count: rows.length, items };
+}
+
+/** Categorías sin chequeo: se cuentan desde logs_actividad (label + usuario). */
+async function collectFromLogs(db, rango, { modulos, accion }) {
+    const where = ['l.created_at >= ?', 'l.created_at < ?', `l.modulo IN (${modulos.map(() => '?').join(',')})`];
+    const params = [rango.desde, rango.hasta, ...modulos];
+    if (accion) { where.push('l.accion = ?'); params.push(accion); }
+    const [rows] = await db.query(
+        `SELECT l.entidad_label, u.nombre AS usuario
+         FROM logs_actividad l
+         LEFT JOIN usuarios u ON u.id = l.usuario_id
+         WHERE ${where.join(' AND ')}
+         ORDER BY l.created_at ASC`,
+        params
+    );
+    return {
+        count: rows.length,
+        items: rows.map(r => ({ label: r.entidad_label || '—', sub: r.usuario || 'Sistema', faltantes: [] })),
+    };
+}
+
+const COLLECTORS = {
+    trabajadores: collectTrabajadores,
+    vehiculos: collectVehiculos,
+    obras: collectObras,
+};
+
 /**
- * Construye el resumen del día: por cada categoría activa cuyo conteo ≥ umbral,
- * devuelve el conteo y hasta MUESTRAS_MAX ejemplos (entidad + usuario que la hizo).
- * @returns {Promise<{rango, categorias: Array<{key,etiqueta,count,muestras}>, total: number}>}
+ * Construye el resumen del día previo. Por cada categoría activa (avisos_reglas)
+ * consulta sus registros nuevos y arma los faltantes. Una categoría se incluye si
+ * count >= umbral  O  hay al menos un registro con pendientes (para que lo
+ * pendiente siempre aflore aunque sea poco volumen).
+ * @returns {Promise<{rango, categorias: Array<{key,etiqueta,count,conFaltantes,items}>, total}>}
  */
 async function construirResumen(db, rango) {
     let reglas;
@@ -79,33 +225,26 @@ async function construirResumen(db, rango) {
     let total = 0;
 
     for (const regla of reglas) {
-        const map = QUERY_MAP[regla.categoria];
-        if (!map) continue; // categoría sin lógica de consulta definida
+        const collector = COLLECTORS[regla.categoria];
+        const logCfg = LOG_QUERY[regla.categoria];
+        if (!collector && !logCfg) continue; // categoría sin lógica definida
 
-        const where = ['l.created_at >= ?', 'l.created_at < ?', `l.modulo IN (${map.modulos.map(() => '?').join(',')})`];
-        const params = [rango.desde, rango.hasta, ...map.modulos];
-        if (map.accion) { where.push('l.accion = ?'); params.push(map.accion); }
+        const { count, items } = collector
+            ? await collector(db, rango)
+            : await collectFromLogs(db, rango, logCfg);
 
-        const [eventos] = await db.query(
-            `SELECT l.entidad_label, l.accion, u.nombre AS usuario, l.created_at
-             FROM logs_actividad l
-             LEFT JOIN usuarios u ON u.id = l.usuario_id
-             WHERE ${where.join(' AND ')}
-             ORDER BY l.created_at ASC`,
-            params
-        );
+        if (count === 0) continue;
 
-        const count = eventos.length;
-        if (count < (regla.umbral || 1)) continue; // no cruza el umbral → no se incluye
+        const conFaltantes = items.filter(it => it.faltantes.length > 0).length;
+        const umbral = regla.umbral || 1;
+        if (count < umbral && conFaltantes === 0) continue; // no cruza umbral y nada pendiente
 
         categorias.push({
             key: regla.categoria,
             etiqueta: regla.etiqueta,
             count,
-            muestras: eventos.slice(0, MUESTRAS_MAX).map(e => ({
-                label: e.entidad_label || '—',
-                usuario: e.usuario || 'Sistema',
-            })),
+            conFaltantes,
+            items: items.slice(0, MUESTRAS_MAX),
         });
         total += count;
     }
@@ -113,21 +252,33 @@ async function construirResumen(db, rango) {
     return { rango, categorias, total };
 }
 
+// ── Render ──────────────────────────────────────────────────────────────────
+
 function renderHtml({ rango, categorias, total }) {
     const secciones = categorias.map(c => {
-        const filas = c.muestras.map(m => `
+        const filas = c.items.map(it => {
+            const pend = it.faltantes.length
+                ? `<div style="margin-top:3px;font-size:12px;color:#b91c1c">⚠ ${esc(it.faltantes.join(' · '))}</div>` : '';
+            return `
             <tr>
-              <td style="padding:6px 12px;font-size:13px;color:#111827;border-bottom:1px solid #f1f5f9">${esc(m.label)}</td>
-              <td style="padding:6px 12px;font-size:12px;color:#6b7280;border-bottom:1px solid #f1f5f9;white-space:nowrap">${esc(m.usuario)}</td>
-            </tr>`).join('');
-        const extra = c.count > c.muestras.length
-            ? `<p style="margin:6px 0 0;font-size:12px;color:#9ca3af">…y ${c.count - c.muestras.length} más</p>` : '';
+              <td style="padding:8px 12px;border-bottom:1px solid #f1f5f9;vertical-align:top">
+                <span style="font-size:13px;font-weight:700;color:#111827">${esc(it.label)}</span>
+                ${it.sub ? `<span style="font-size:11px;color:#9ca3af"> · ${esc(it.sub)}</span>` : ''}
+                ${pend}
+              </td>
+            </tr>`;
+        }).join('');
+        const extra = c.count > c.items.length
+            ? `<div style="padding:6px 12px;font-size:11px;color:#9ca3af">…y ${c.count - c.items.length} más</div>` : '';
+        const badge = c.conFaltantes > 0
+            ? `<span style="float:right;font-size:12px;font-weight:800;color:#b91c1c">${c.conFaltantes} con pendientes · ${c.count}</span>`
+            : `<span style="float:right;font-size:13px;font-weight:800;color:#065f46">${c.count}</span>`;
         return `
         <tr><td style="padding:16px 28px 0">
           <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden">
             <div style="padding:10px 12px;background:#ecfdf5;border-bottom:1px solid #e5e7eb">
               <span style="font-size:14px;font-weight:800;color:#065f46">${esc(c.etiqueta)}</span>
-              <span style="float:right;font-size:13px;font-weight:800;color:#065f46">${c.count}</span>
+              ${badge}
             </div>
             <table width="100%" cellpadding="0" cellspacing="0">${filas}</table>
             ${extra}
@@ -146,7 +297,7 @@ function renderHtml({ rango, categorias, total }) {
       </td></tr>
       ${secciones}
       <tr><td style="padding:18px 28px 24px;border-top:1px solid #f3f4f6">
-        <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">Resumen automático del día anterior. Se configura en Configuración → Sistema → Avisos.</p>
+        <p style="margin:0;font-size:11px;color:#9ca3af;text-align:center">Reporte automático del día anterior. ⚠ marca lo que quedó pendiente por cargar. Se configura en Configuración → Sistema → Avisos.</p>
       </td></tr>
     </table>
   </td></tr></table>
@@ -156,9 +307,12 @@ function renderHtml({ rango, categorias, total }) {
 function renderText({ rango, categorias, total }) {
     const lines = [`Resumen de Novedades — ${rango.label} (${total} novedades)`, ''];
     for (const c of categorias) {
-        lines.push(`• ${c.etiqueta}: ${c.count}`);
-        c.muestras.forEach(m => lines.push(`   - ${m.label} (${m.usuario})`));
-        if (c.count > c.muestras.length) lines.push(`   …y ${c.count - c.muestras.length} más`);
+        lines.push(`• ${c.etiqueta}: ${c.count}${c.conFaltantes ? ` (${c.conFaltantes} con pendientes)` : ''}`);
+        for (const it of c.items) {
+            const pend = it.faltantes.length ? ` — ⚠ ${it.faltantes.join(' · ')}` : '';
+            lines.push(`   - ${it.label}${it.sub ? ` (${it.sub})` : ''}${pend}`);
+        }
+        if (c.count > c.items.length) lines.push(`   …y ${c.count - c.items.length} más`);
     }
     return lines.join('\n');
 }
@@ -181,11 +335,8 @@ async function resolveRecipients(db, cliTo) {
 }
 
 /**
- * Orquesta el resumen diario. Si no hay novedades que crucen umbral, NO envía
- * (evita correos vacíos), salvo dry (que siempre devuelve el preview).
- * @returns {Promise<object>} dry → {dry:true, html, text, subject, resumen};
- *   sin novedades → {sent:false, reason, resumen};
- *   envío → {sent:true, subject, recipients, messageId, total}.
+ * Orquesta el resumen diario. Si no hay novedades, NO envía (evita correos vacíos),
+ * salvo dry (preview) o forzar (prueba).
  */
 async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar = false } = {}) {
     const rango = getDiaPrevio(fecha || undefined);
@@ -196,8 +347,6 @@ async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar 
 
     if (dry) return { dry: true, html, text, subject, resumen };
 
-    // Sin novedades: el cron NO envía (evita correos vacíos). "Enviar prueba" pasa
-    // forzar=true para igual mandar el formato y validar SMTP.
     if (resumen.total === 0 && !forzar) {
         return { sent: false, reason: 'sin-novedades', resumen };
     }
@@ -226,5 +375,5 @@ module.exports = {
     enviarResumen,
     renderHtml,
     renderText,
-    _internals: { QUERY_MAP, esc, ymd },
+    _internals: { COLLECTORS, VEH_DOCS, LOG_QUERY, esc, ymd },
 };
