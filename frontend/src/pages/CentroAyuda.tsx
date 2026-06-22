@@ -3,15 +3,14 @@ import { BookOpen, Search, Clock, ArrowRight } from 'lucide-react';
 import { cn } from '../utils/cn';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { EmptyState } from '../components/ui/EmptyState';
-import { GuiaDetalle } from '../components/ayuda/GuiaDetalle';
-import { DemoTutorial } from '../components/ayuda/DemoTutorial';
-import { GUIAS, type Guia } from '../components/ayuda/guiasData';
+import { JourneyRunner } from '../components/ayuda/journey/JourneyRunner';
+import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys';
 
 /**
- * Centro de ayuda (Etapa 1 — cascarón). Catálogo de guías por módulo + detalle
- * paso a paso in-page. Visible para todos los usuarios. El contenido es
- * provisional (datos en `components/ayuda/guiasData.ts`) hasta definir el estilo
- * final; el cascarón (nav + página + layout de guía) queda estable.
+ * Centro de ayuda. Tutoriales organizados por FLUJO DE TRABAJO (end-to-end): cada
+ * recorrido (`JourneyRunner`) usa las PANTALLAS REALES de la app con datos de
+ * ejemplo, guiando crear → aprobar → recibir con texto entre pasos. Visible para
+ * todos los usuarios.
  */
 
 const headerTitle = (
@@ -24,9 +23,9 @@ const headerTitle = (
     </div>
 );
 
-const GuiaCard: React.FC<{ guia: Guia; onOpen: () => void }> = ({ guia, onOpen }) => {
-    const Icon = guia.icon;
-    const disponible = guia.estado === 'disponible';
+const JourneyCard: React.FC<{ journey: JourneyDef; onOpen: () => void }> = ({ journey, onOpen }) => {
+    const Icon = journey.icon;
+    const disponible = journey.estado === 'disponible';
     return (
         // eslint-disable-next-line no-restricted-syntax -- tarjeta-acción (toda la card es clickable; no encaja en Button)
         <button
@@ -51,19 +50,19 @@ const GuiaCard: React.FC<{ guia: Guia; onOpen: () => void }> = ({ guia, onOpen }
                 )}
             </div>
 
-            <p className="text-caption font-bold uppercase tracking-widest text-muted-foreground mt-4">{guia.modulo}</p>
-            <h3 className="text-title-sm font-bold text-brand-dark leading-snug mt-0.5">{guia.titulo}</h3>
-            <p className="text-caption text-muted-foreground mt-1.5 flex-1">{guia.descripcion}</p>
+            <p className="text-caption font-bold uppercase tracking-widest text-muted-foreground mt-4">{journey.modulo}</p>
+            <h3 className="text-title-sm font-bold text-brand-dark leading-snug mt-0.5">{journey.titulo}</h3>
+            <p className="text-caption text-muted-foreground mt-1.5 flex-1">{journey.descripcion}</p>
 
             <div className="flex items-center justify-between mt-4 pt-3 border-t border-border">
-                {guia.duracion ? (
+                {journey.duracion ? (
                     <span className="inline-flex items-center gap-1.5 text-caption text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5" /> {guia.duracion}
+                        <Clock className="h-3.5 w-3.5" /> {journey.duracion}
                     </span>
                 ) : <span />}
                 {disponible && (
                     <span className="inline-flex items-center gap-1 text-caption font-bold text-brand-primary">
-                        Ver guía <ArrowRight className="h-3.5 w-3.5" />
+                        Empezar <ArrowRight className="h-3.5 w-3.5" />
                     </span>
                 )}
             </div>
@@ -78,30 +77,24 @@ const CentroAyuda: React.FC = () => {
     const [query, setQuery] = useState('');
     const [cat, setCat] = useState<string | null>(null);
 
-    const categorias = useMemo(() => Array.from(new Set(GUIAS.map(g => g.modulo))), []);
+    const categorias = useMemo(() => Array.from(new Set(JOURNEYS.map(j => j.modulo))), []);
 
     const filtradas = useMemo(() => {
         const q = query.trim().toLowerCase();
-        return GUIAS.filter(g => {
-            if (cat && g.modulo !== cat) return false;
+        return JOURNEYS.filter(j => {
+            if (cat && j.modulo !== cat) return false;
             if (q) {
-                const hay = `${g.titulo} ${g.descripcion} ${g.modulo}`.toLowerCase();
+                const hay = `${j.titulo} ${j.descripcion} ${j.modulo}`.toLowerCase();
                 if (!hay.includes(q)) return false;
             }
             return true;
         });
     }, [query, cat]);
 
-    const selected = selectedId ? GUIAS.find(g => g.id === selectedId) || null : null;
+    const selected = selectedId ? JOURNEYS.find(j => j.id === selectedId) || null : null;
 
-    if (selected) {
-        return (
-            <div className="w-full max-w-3xl mx-auto">
-                {selected.demoId
-                    ? <DemoTutorial guia={selected} onBack={() => setSelectedId(null)} />
-                    : <GuiaDetalle guia={selected} onBack={() => setSelectedId(null)} />}
-            </div>
-        );
+    if (selected && selected.estado === 'disponible') {
+        return <JourneyRunner journey={selected} onExit={() => setSelectedId(null)} />;
     }
 
     return (
@@ -110,7 +103,7 @@ const CentroAyuda: React.FC = () => {
             <div>
                 <h2 className="text-headline font-bold text-brand-dark">¿Con qué te ayudamos hoy?</h2>
                 <p className="text-body text-muted-foreground mt-1">
-                    Elige un apartado y sigue la guía paso a paso. Iremos sumando más guías de a poco.
+                    Elige un flujo de trabajo y recórrelo paso a paso sobre la app real. Iremos sumando más recorridos de a poco.
                 </p>
             </div>
 
@@ -121,7 +114,7 @@ const CentroAyuda: React.FC = () => {
                     <input
                         value={query}
                         onChange={e => setQuery(e.target.value)}
-                        placeholder="Buscar una guía..."
+                        placeholder="Buscar un tutorial..."
                         className="w-full h-11 pl-9 pr-3 text-sm bg-card border border-input rounded-control outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary"
                     />
                 </div>
@@ -154,17 +147,17 @@ const CentroAyuda: React.FC = () => {
                 </div>
             </div>
 
-            {/* Grid de guías */}
+            {/* Grid de tutoriales */}
             {filtradas.length === 0 ? (
                 <EmptyState
                     icon={BookOpen}
-                    title="No encontramos guías"
+                    title="No encontramos tutoriales"
                     description="Prueba con otra palabra o quita el filtro de categoría."
                 />
             ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {filtradas.map(g => (
-                        <GuiaCard key={g.id} guia={g} onOpen={() => setSelectedId(g.id)} />
+                    {filtradas.map(j => (
+                        <JourneyCard key={j.id} journey={j} onOpen={() => setSelectedId(j.id)} />
                     ))}
                 </div>
             )}

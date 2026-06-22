@@ -98,4 +98,8 @@ export const stockMapDemo: Record<number, StockLocation[]> = {
         { type: 'bodega', id: 101, nombre: 'Bodega Central', cantidad: 5, responsable_nombre: 'Juan Pérez' },
         { type: 'obra', id: 1, nombre: 'Edificio Las Condes', cantidad: 2 },
     ],
+    5: [
+        { type: 'bodega', id: 101, nombre: 'Bodega Central', cantidad: 40, responsable_nombre: 'Juan Pérez' },
+        { type: 'bodega', id: 102, nombre: 'Bodega Norte', cantidad: 20, responsable_nombre: 'María Soto' },
+    ],
 };
