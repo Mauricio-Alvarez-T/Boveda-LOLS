@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Truck, Plus, Building2,
-    Trash2, Edit2, X, ChevronLeft, ChevronRight, Search, Filter, Save, User
+    Trash2, Edit2, X, ChevronLeft, ChevronRight, Search, Filter, Save, User, FileText
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -435,7 +435,8 @@ const VehiculosPage: React.FC = () => {
                 <div className="flex-1 min-h-0 overflow-y-auto">
                     {vehiculosFiltrados.map(v => (
                         <div key={v.id}
-                            onClick={() => setSelected(v)}
+                            onClick={() => { if (hasPermission('vehiculos.editar')) { setEditVehiculo(v); setModalVehiculo(true); } else setSelected(v); }}
+                            title={hasPermission('vehiculos.editar') ? 'Editar vehículo' : 'Ver documentos'}
                             className={cn(
                                 'relative cursor-pointer transition-all px-4 md:px-6 py-3 border-l-[3px]',
                                 'border-b border-b-border/50 last:border-b-0',
@@ -462,6 +463,10 @@ const VehiculosPage: React.FC = () => {
                                     </div>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0">
+                                    <IconButton size="sm" aria-label="Ver documentos" title="Documentos del vehículo"
+                                        onClick={e => { e.stopPropagation(); setSelected(v); }}
+                                        className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
+                                        icon={<FileText className="h-4 w-4" />} />
                                     {hasPermission('vehiculos.editar') && (
                                         <IconButton size="sm" aria-label="Editar vehículo" title="Editar vehículo"
                                             onClick={e => { e.stopPropagation(); setEditVehiculo(v); setModalVehiculo(true); }}
