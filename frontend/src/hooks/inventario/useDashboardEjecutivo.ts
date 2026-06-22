@@ -76,6 +76,14 @@ export interface PatrimonioEmpresa {
     valor: number;
 }
 
+/** Un vehículo con su valor, para el treemap de inversión en vehículos. */
+export interface InversionVehiculo {
+    label: string;
+    valor: number;
+    empresa: string;
+    color: string;
+}
+
 export interface BombasHormigonMes {
     eventos: number;
     obras_distintas: number;
@@ -86,6 +94,7 @@ export interface DashboardEjecutivoData {
     filtered_obra_id: number | null;
     kpis: DashboardKpis;
     patrimonio_por_empresa: PatrimonioEmpresa[];
+    inversion_vehiculos: InversionVehiculo[];
     top_obras: TopObra[];
     alertas: DashboardAlerta[];
     rechazos_recientes: DashboardRechazo[];

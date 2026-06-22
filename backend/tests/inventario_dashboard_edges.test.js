@@ -51,7 +51,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             // 10. bombas hormigón mes
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión (commit 3d03b3b)
-            .mockResolvedValueOnce([[]]); // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[]]) // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo (treemap)
     }
 
     test('delta_pct es null si no hay snapshots', async () => {
@@ -96,7 +97,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión (commit 3d03b3b)
-            .mockResolvedValueOnce([[]]); // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[]]) // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo (treemap)
 
         const result = await inventarioService.getDashboardEjecutivo();
         expect(result.historico.pendientes.mes_anterior).toBe(0);
@@ -125,7 +127,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             .mockResolvedValueOnce([[]])
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión (commit 3d03b3b)
-            .mockResolvedValueOnce([[]]); // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[]]) // 12. vehículos por empresa (patrimonio)
+            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo (treemap)
 
         const result = await inventarioService.getDashboardEjecutivo();
         expect(result.historico.pendientes.mes_anterior).toBe(10);

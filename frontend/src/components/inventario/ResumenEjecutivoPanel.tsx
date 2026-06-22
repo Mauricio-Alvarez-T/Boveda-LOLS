@@ -15,6 +15,7 @@ import {
     Droplets,
     Filter,
 } from 'lucide-react';
+import { Treemap, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
@@ -40,6 +41,27 @@ const fmtCLP = (n: number) => {
 };
 
 const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')}`;
+
+// Celda del treemap "Inversión en vehículos": un rectángulo por vehículo,
+// tamaño = valor, color = empresa. recharts inyecta x/y/width/height + el datum.
+const TreemapCell: React.FC<any> = ({ x, y, width, height, name, value, size, color, payload }) => {
+    if (!width || !height || width <= 0 || height <= 0) return null;
+    const fill = color || payload?.color || '#64748b';
+    const monto = value ?? size ?? payload?.size ?? 0;
+    const showLabel = width > 56 && height > 30;
+    return (
+        <g>
+            <title>{`${name}: ${fmtCLPFull(monto)}`}</title>
+            <rect x={x} y={y} width={width} height={height} rx={4} style={{ fill, stroke: 'var(--card)', strokeWidth: 2 }} />
+            {showLabel && (
+                <>
+                    <text x={x + 8} y={y + 18} fontSize={12} fontWeight={700} fill="#ffffff">{name}</text>
+                    <text x={x + 8} y={y + 34} fontSize={11} fill="#ffffff" opacity={0.85}>{fmtCLP(monto)}</text>
+                </>
+            )}
+        </g>
+    );
+};
 
 // ────────────────────────────────────────────────────────
 // Paleta de colores para categorías (barras horizontales)
@@ -719,6 +741,30 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             </div>
                         ));
                     })()}
+                </div>
+            </div>
+            )}
+
+            {/* Inversión en vehículos (treemap): un rectángulo por vehículo, tamaño = valor,
+                color por empresa. Va debajo del desglose por empresa. Mismo gate. */}
+            {!obraFilter && verValoresResumen && (data?.inversion_vehiculos?.length ?? 0) > 0 && (
+            <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
+                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
+                    Inversión en vehículos
+                </h3>
+                <p className="text-caption text-muted-foreground mb-3">
+                    Cada rectángulo es un vehículo; el tamaño representa su valor. Color por empresa.
+                </p>
+                <div className="h-[240px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <Treemap
+                            data={data!.inversion_vehiculos.map(v => ({ name: v.label, size: v.valor, color: v.color }))}
+                            dataKey="size"
+                            stroke="#fff"
+                            isAnimationActive={false}
+                            content={<TreemapCell />}
+                        />
+                    </ResponsiveContainer>
                 </div>
             </div>
             )}

@@ -556,6 +556,7 @@ const inventarioService = {
             [bombasRows],
             [faltantesRows],
             [vehiculosPorEmpresaRows],
+            [inversionVehiculosRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter} ${_exclTransfPrueba()}`, directParams),
@@ -756,6 +757,15 @@ const inventarioService = {
                 GROUP BY ev.id, ev.nombre, ev.color
                 ORDER BY ev.nombre ASC
             `),
+            // 13. Inversión por vehículo (treemap): cada vehículo con valor > 0,
+            //     con su empresa y color. Global (no usa filtro de obra).
+            db.query(`
+                SELECT v.id, v.patente, v.marca, v.valor, ev.nombre AS empresa, ev.color
+                FROM vehiculos v
+                LEFT JOIN empresas_vehiculos ev ON ev.id = v.empresa_id
+                WHERE v.activo = 1 AND v.valor > 0
+                ORDER BY v.valor DESC
+            `),
         ]);
 
         // Auditoría 6.1: el backend ya devuelve valor_neto y valor_bruto calculados en SQL.
@@ -785,6 +795,13 @@ const inventarioService = {
             ...patrimonio_vehiculos,
         ];
         const valor_total_patrimonio = patrimonio_por_empresa.reduce((s, e) => s + e.valor, 0);
+        // Inversión por vehículo (treemap). Global → vacío al filtrar por una obra.
+        const inversion_vehiculos = obraIdNum ? [] : (inversionVehiculosRows || []).map(r => ({
+            label: `${r.patente}${r.marca ? ' · ' + r.marca : ''}`,
+            valor: Number(r.valor) || 0,
+            empresa: r.empresa || 'Sin empresa',
+            color: r.color || '#64748b',
+        }));
         // Cuando hay filtro por obra, el "ranking" pierde sentido (es una sola obra) → vacío.
         const top_obras = obraIdNum
             ? []
@@ -954,6 +971,7 @@ const inventarioService = {
                 estancados_transito: Number(estancadosRows[0]?.count) || 0,
             },
             patrimonio_por_empresa,
+            inversion_vehiculos,
             top_obras,
             alertas: alertas.slice(0, 8),
             rechazos_recientes,
