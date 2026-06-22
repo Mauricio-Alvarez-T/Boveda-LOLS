@@ -10,6 +10,7 @@ export interface DashboardKpis {
         unidades_totales: number;
     };
     valor_total_obras: number;
+    valor_total_patrimonio: number;
     estancados_transito: number;
 }
 
@@ -29,6 +30,7 @@ export interface TopObra {
     valor_mensual: number;
     valor_bruto: number;
     descuento_porcentaje: number;
+    valor_patrimonial: number;
 }
 
 export interface DashboardAlerta {

@@ -4,6 +4,7 @@ import {
     AlertTriangle,
     Truck,
     Wallet,
+    Landmark,
     RefreshCw,
     ChevronRight,
     Package,
@@ -201,6 +202,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
     const tooltipLines = [
         `${obra.nombre}`,
         `Arriendo mensual neto: ${fmtCLPFull(obra.valor_mensual)}`,
+        `Patrimonio (valor en activos): ${fmtCLPFull(obra.valor_patrimonial)}`,
     ];
     if (obra.descuento_porcentaje > 0) {
         tooltipLines.push(`Bruto sin descuento: ${fmtCLPFull(obra.valor_bruto)}`);
@@ -232,6 +234,9 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                         className="h-full bg-brand-primary rounded-full transition-all"
                         style={{ width: `${pct}%` }}
                     />
+                </div>
+                <div className="mt-1 text-caption text-muted-foreground font-semibold">
+                    <Landmark className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Patrimonio: {fmtCLP(obra.valor_patrimonial)}
                 </div>
                 {obra.descuento_porcentaje > 0 && (
                     <div className="mt-1 text-caption text-muted-foreground font-semibold">
@@ -598,9 +603,10 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 shrink-0">
                 {loading && !data ? (
                     <>
+                        <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
@@ -669,6 +675,16 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 subline="arriendo mensual"
                                 tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
                                 historico={data?.historico?.valor_obras}
+                            />
+                        )}
+                        {verValoresResumen && (
+                            <KpiCard
+                                tone="blue"
+                                icon={<Landmark className="h-5 w-5" />}
+                                label="Patrimonio"
+                                value={fmtCLP(data?.kpis.valor_total_patrimonio ?? 0)}
+                                subline="valor en activos"
+                                tooltip="Valor patrimonial total: suma del valor de compra de todo el inventario asignado a obras activas (lo que las obras poseen en activos). No incluye vehículos."
                             />
                         )}
                     </>

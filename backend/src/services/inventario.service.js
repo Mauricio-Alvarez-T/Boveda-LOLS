@@ -581,6 +581,7 @@ const inventarioService = {
                            * (1 - COALESCE(d.porcentaje, 0) / 100)
                        ), 0) as valor_neto,
                        COALESCE(SUM(us.cantidad * COALESCE(us.valor_arriendo_override, i.valor_arriendo)), 0) as valor_bruto,
+                       COALESCE(SUM(us.cantidad * i.valor_compra), 0) as valor_patrimonial,
                        COALESCE(d.porcentaje, 0) as descuento_porcentaje
                 FROM obras o
                 LEFT JOIN ubicaciones_stock us ON us.obra_id = o.id
@@ -750,9 +751,12 @@ const inventarioService = {
             const neto = Number(r.valor_neto) || 0;
             const bruto = Number(r.valor_bruto) || 0;
             const desc = Number(r.descuento_porcentaje) || 0;
-            return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc };
+            const patrimonial = Number(r.valor_patrimonial) || 0;
+            return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc, valor_patrimonial: patrimonial };
         });
         const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);
+        // Patrimonio = valor de activo (Σ cantidad × valor_compra), sin descuento. Total sobre TODAS las obras.
+        const valor_total_patrimonio = obrasConValor.reduce((s, o) => s + o.valor_patrimonial, 0);
         // Cuando hay filtro por obra, el "ranking" pierde sentido (es una sola obra) → vacío.
         const top_obras = obraIdNum
             ? []
@@ -918,6 +922,7 @@ const inventarioService = {
                     unidades_totales: Number(discrepanciasRows[0]?.unidades_totales) || 0,
                 },
                 valor_total_obras: Number(valor_total_obras) || 0,
+                valor_total_patrimonio: Number(valor_total_patrimonio) || 0,
                 estancados_transito: Number(estancadosRows[0]?.count) || 0,
             },
             top_obras,
