@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import MockAdapter from 'axios-mock-adapter';
 import api from '../../../services/api';
 import { AuthContext } from '../../../context/AuthContext';
 import { ObraContext } from '../../../context/ObraContext';
-import { obraDemo, userDemo, estadosDemo, trabajadoresDemo, horariosDemo } from './asistenciaMockData';
+import { obraDemo, userDemo } from './asistenciaMockData';
+import { installAsistenciaMock } from './asistenciaMock';
 
 /**
  * Sandbox para montar las pantallas REALES de Asistencia en el Centro de ayuda sin
@@ -21,17 +21,7 @@ export const AsistenciaSandbox: React.FC<{ onGuardado?: () => void; children: Re
     cbRef.current = onGuardado;
 
     useEffect(() => {
-        const mock = new MockAdapter(api, { onNoMatch: 'passthrough', delayResponse: 150 });
-        mock.onGet('/asistencias/estados').reply(200, { data: estadosDemo });
-        mock.onGet(/\/trabajadores(\?|$)/).reply(200, { data: trabajadoresDemo });
-        mock.onGet(/\/asistencias\/obra\//).reply(200, { data: { registros: [], feriado: null } });
-        mock.onGet(/\/config-horarios\/obra\//).reply(200, { data: horariosDemo });
-        mock.onGet(/\/asistencias\/periodos/).reply(200, { data: [] });
-        mock.onGet(/\/asistencias\/alertas\//).reply(200, { data: [] });
-        mock.onPost(/\/asistencias\/bulk\//).reply(() => {
-            cbRef.current?.();
-            return [200, { data: { message: 'Asistencia guardada' } }];
-        });
+        const mock = installAsistenciaMock(api, () => cbRef.current?.());
         setReady(true);
         return () => { mock.restore(); };
     }, []);
