@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
 import { CalendarCheck } from 'lucide-react';
 import { Input } from '../ui/Input';
+import { CurrencyInput } from '../ui/CurrencyInput';
 import api from '../../services/api';
 import type { Vehiculo, Conductor, EmpresaVehiculo } from '../../types/entities';
 import type { ApiResponse } from '../../types';
@@ -48,7 +49,7 @@ interface Props {
 }
 
 export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, onSuccess, onCancel }) => {
-    const { register, handleSubmit, watch, formState: { errors, isDirty } } = useForm<FormData>({
+    const { register, handleSubmit, watch, control, formState: { errors, isDirty } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
         defaultValues: initialData ? {
             patente: initialData.patente,
@@ -182,7 +183,20 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Kilómetros actuales" type="number" {...register('kilometraje_actual')} error={errors.kilometraje_actual?.message} />
-                <Input label="Valor del vehículo ($)" type="number" placeholder="0" {...register('valor')} error={errors.valor?.message} />
+                <Controller
+                    name="valor"
+                    control={control}
+                    render={({ field }) => (
+                        <CurrencyInput
+                            label="Valor del vehículo"
+                            placeholder="$0"
+                            value={Number(field.value) || 0}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            error={errors.valor?.message}
+                        />
+                    )}
+                />
             </div>
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
