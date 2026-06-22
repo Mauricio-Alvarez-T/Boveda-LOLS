@@ -3,6 +3,7 @@ import {
     FileText, ShoppingBag, Send, Undo2, ArrowLeftRight, Warehouse, ShieldCheck, AlertTriangle,
     CheckSquare, SearchCheck, Truck, Archive, Settings,
 } from 'lucide-react';
+import type { Origen, Destino } from '../../../utils/inferMovimiento';
 
 /**
  * Catálogo de tutoriales del Centro de ayuda, organizados por FLUJO DE TRABAJO
@@ -19,6 +20,10 @@ export interface JourneyDef {
     duracion?: string;
     /** Modo del wizard en el paso "crear" (solo journeys disponibles). */
     modo?: 'pedir' | 'mover';
+    /** Ruta preseteada para guiar un flujo de "Mover" (origen/destino + toggle). */
+    escenario?: { origen: Origen; destino: Destino; ordenGerencia?: boolean };
+    /** true si el flujo nace sin aprobación (envío directo / orden de gerencia) → stepper Crear→Recibir. */
+    sinAprobacion?: boolean;
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
     /** Resumen de pasos al completar (si se omite, uno por defecto). */
@@ -66,12 +71,79 @@ export const JOURNEYS: JourneyDef[] = [
         ],
     },
 
-    // ── Próximamente (se irán activando) ──
-    { id: 'envio-directo', modulo: 'Solicitudes', icon: Send, titulo: 'Envío directo a una obra', descripcion: 'Enviar material de una bodega a una obra sin pasar por aprobación.', estado: 'proximamente' },
-    { id: 'devolucion', modulo: 'Solicitudes', icon: Undo2, titulo: 'Devolver material a bodega', descripcion: 'Devolver material sobrante de una obra a una bodega.', estado: 'proximamente' },
-    { id: 'traslado-obras', modulo: 'Solicitudes', icon: ArrowLeftRight, titulo: 'Trasladar entre obras', descripcion: 'Mover material de una obra a otra.', estado: 'proximamente' },
-    { id: 'movimiento-bodegas', modulo: 'Solicitudes', icon: Warehouse, titulo: 'Mover entre bodegas', descripcion: 'Mover material de una bodega a otra.', estado: 'proximamente' },
-    { id: 'orden-gerencia', modulo: 'Solicitudes', icon: ShieldCheck, titulo: 'Orden de gerencia', descripcion: 'Movimiento ejecutivo que omite la aprobación (requiere motivo).', estado: 'proximamente' },
+    // ── MOVER (flujos físicos; la ruta se presetea para guiar cada uno) ──
+    {
+        id: 'envio-directo', modulo: 'Solicitudes', icon: Send,
+        titulo: 'Envío directo a una obra',
+        descripcion: 'Enviar material de una bodega a una obra sin pasar por aprobación.',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', modo: 'mover', sinAprobacion: true,
+        escenario: { origen: { tipo: 'bodega', id: 101 }, destino: { tipo: 'obra', id: 1 } },
+        textos: {
+            crear: 'Paso 1 — Crear el envío. La ruta ya viene puesta (bodega → obra). Agrega los ítems y crea el movimiento. Nace En Tránsito, sin aprobación.',
+            aprobar: '',
+            recibir: 'Paso 2 — Recibir. Cuando llega a la obra, registra lo que llegó para cerrar.',
+            fin: FIN,
+        },
+        recap: ['Creaste un envío directo de bodega a obra (sin aprobación).', 'Nació En Tránsito, listo para recibir.', 'Se recibió y quedó Recibida.'],
+    },
+    {
+        id: 'devolucion', modulo: 'Solicitudes', icon: Undo2,
+        titulo: 'Devolver material a bodega',
+        descripcion: 'Devolver material sobrante de una obra a una bodega.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', modo: 'mover',
+        escenario: { origen: { tipo: 'obra', id: 1 }, destino: { tipo: 'bodega', id: 101 } },
+        textos: {
+            crear: 'Paso 1 — Crear la devolución. La ruta ya viene puesta (obra → bodega). Agrega lo que devuelves y crea el movimiento.',
+            aprobar: 'Paso 2 — Aprobar. Como encargado de bodega, revisa y aprueba la devolución.',
+            recibir: 'Paso 3 — Recibir. Registra lo que llegó a bodega para cerrar.',
+            fin: FIN,
+        },
+        recap: ['Creaste una devolución de obra a bodega.', 'Se aprobó.', 'Se recibió en bodega y quedó Recibida.'],
+    },
+    {
+        id: 'traslado-obras', modulo: 'Solicitudes', icon: ArrowLeftRight,
+        titulo: 'Trasladar entre obras',
+        descripcion: 'Mover material de una obra a otra.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', modo: 'mover',
+        escenario: { origen: { tipo: 'obra', id: 1 }, destino: { tipo: 'obra', id: 2 } },
+        textos: {
+            crear: 'Paso 1 — Crear el traslado. La ruta ya viene puesta (obra → obra). Agrega los ítems y crea el movimiento.',
+            aprobar: 'Paso 2 — Aprobar el traslado entre obras.',
+            recibir: 'Paso 3 — Recibir en la obra de destino.',
+            fin: FIN,
+        },
+        recap: ['Creaste un traslado entre obras.', 'Se aprobó.', 'Se recibió y quedó Recibida.'],
+    },
+    {
+        id: 'movimiento-bodegas', modulo: 'Solicitudes', icon: Warehouse,
+        titulo: 'Mover entre bodegas',
+        descripcion: 'Mover material de una bodega a otra.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', modo: 'mover',
+        escenario: { origen: { tipo: 'bodega', id: 101 }, destino: { tipo: 'bodega', id: 102 } },
+        textos: {
+            crear: 'Paso 1 — Crear el movimiento entre bodegas. La ruta ya viene puesta. Agrega los ítems y crea el movimiento.',
+            aprobar: 'Paso 2 — Aprobar el movimiento entre bodegas.',
+            recibir: 'Paso 3 — Recibir en la bodega de destino.',
+            fin: FIN,
+        },
+        recap: ['Creaste un movimiento entre bodegas.', 'Se aprobó.', 'Se recibió y quedó Recibida.'],
+    },
+    {
+        id: 'orden-gerencia', modulo: 'Solicitudes', icon: ShieldCheck,
+        titulo: 'Orden de gerencia',
+        descripcion: 'Movimiento ejecutivo que omite la aprobación (requiere motivo).',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', modo: 'mover', sinAprobacion: true,
+        escenario: { origen: { tipo: 'bodega', id: 101 }, destino: { tipo: 'obra', id: 1 }, ordenGerencia: true },
+        textos: {
+            crear: 'Paso 1 — Emitir la orden. La ruta viene puesta y el modo "Orden de gerencia" activado. Escribe el motivo (obligatorio) y crea el movimiento. Omite la aprobación.',
+            aprobar: '',
+            recibir: 'Paso 2 — Recibir. Registra lo que llegó para cerrar.',
+            fin: FIN,
+        },
+        recap: ['Emitiste una orden de gerencia (con motivo, sin aprobación).', 'Nació En Tránsito.', 'Se recibió y quedó Recibida.'],
+    },
+
+    // ── Próximamente ──
     { id: 'discrepancias', modulo: 'Solicitudes', icon: AlertTriangle, titulo: 'Resolver una discrepancia', descripcion: 'Cuando llega menos (o más) de lo enviado: revisar y resolver la diferencia.', estado: 'proximamente' },
 
     // ── Otros módulos ──

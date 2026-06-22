@@ -27,11 +27,20 @@ export const EMPTY_WIZARD_DATA: WizardData = { catalogo: [], bodegas: [], obras:
  * tanto el wizard real (`NuevoMovimientoWizard`) como las demos del Centro de ayuda
  * → un cambio aquí se refleja en ambos. No hace fetch (recibe `data`).
  */
-export function useWizardEngine(modo: 'pedir' | 'mover', data: WizardData, permisos: PermisosMovimiento) {
+/** Ruta/estado inicial opcional (el Centro de ayuda pre-selecciona origen/destino
+ *  para guiar un flujo de "Mover"). El wizard real NO lo pasa → defaults de siempre. */
+export interface WizardInicial {
+    origen?: Origen | null;
+    destino?: Destino | null;
+    ordenGerencia?: boolean;
+}
+
+export function useWizardEngine(modo: 'pedir' | 'mover', data: WizardData, permisos: PermisosMovimiento, inicial?: WizardInicial) {
+    const origenDefault = (): Origen | null => inicial?.origen ?? (modo === 'pedir' ? { tipo: 'central' } : null);
     const [paso, setPaso] = useState(0);
-    const [origen, setOrigen] = useState<Origen | null>(modo === 'pedir' ? { tipo: 'central' } : null);
-    const [destino, setDestino] = useState<Destino | null>(null);
-    const [ordenGerencia, setOrdenGerencia] = useState(false);
+    const [origen, setOrigen] = useState<Origen | null>(origenDefault);
+    const [destino, setDestino] = useState<Destino | null>(inicial?.destino ?? null);
+    const [ordenGerencia, setOrdenGerencia] = useState(inicial?.ordenGerencia ?? false);
     const [cart, setCart] = useState<ItemInput[]>([]);
     const [customItems, setCustomItems] = useState<CustomItemInput[]>([]);
     const [motivo, setMotivo] = useState('');
@@ -40,14 +49,14 @@ export function useWizardEngine(modo: 'pedir' | 'mover', data: WizardData, permi
     const [cantidadPionetas, setCantidadPionetas] = useState(0);
     const [submitting, setSubmitting] = useState(false);
 
-    /** Resetea todos los inputs (origen central fijo en modo Pedir). */
+    /** Resetea todos los inputs (a la ruta inicial; origen central fijo en modo Pedir). */
     const reset = useCallback(() => {
         setPaso(0);
-        setOrigen(modo === 'pedir' ? { tipo: 'central' } : null);
-        setDestino(null); setOrdenGerencia(false);
+        setOrigen(inicial?.origen ?? (modo === 'pedir' ? { tipo: 'central' } : null));
+        setDestino(inicial?.destino ?? null); setOrdenGerencia(inicial?.ordenGerencia ?? false);
         setCart([]); setCustomItems([]); setMotivo(''); setObservaciones('');
         setRequierePionetas(false); setCantidadPionetas(0); setSubmitting(false);
-    }, [modo]);
+    }, [modo, inicial]);
 
     const customLimpios = useMemo(() => customItems.filter(c => c.descripcion.trim()), [customItems]);
 

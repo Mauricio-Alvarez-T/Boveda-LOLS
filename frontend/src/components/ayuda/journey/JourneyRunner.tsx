@@ -23,8 +23,6 @@ const PERMISOS_TODO: PermisosMovimiento = {
     intraBodega: true, devolucion: true, intraObra: true, ordenGerencia: true,
 };
 
-const PASOS = ['Crear', 'Aprobar', 'Recibir'];
-
 // Botones objetivo por fase, en orden de prioridad (los de formulario abierto
 // primero → el realce "salta" al botón de confirmar cuando se abre el form).
 const CREAR_LABELS = ['Crear solicitud', 'Crear movimiento', 'Siguiente'];
@@ -46,9 +44,9 @@ const RECAP_DEFAULT = [
     'Se registró la recepción y quedó Recibida.',
 ];
 
-const Stepper: React.FC<{ activo: number }> = ({ activo }) => (
+const Stepper: React.FC<{ pasos: string[]; activo: number }> = ({ pasos, activo }) => (
     <div className="flex items-center justify-center gap-1 sm:gap-2">
-        {PASOS.map((label, idx) => {
+        {pasos.map((label, idx) => {
             const completado = idx < activo;
             const esActivo = idx === activo;
             return (
@@ -79,7 +77,7 @@ export const JourneyRunner: React.FC<{
     /** Se llama una vez al completar el recorrido (estado recibida). */
     onCompletar?: (id: string) => void;
 }> = ({ journey, onExit, completadoAt, onCompletar }) => {
-    const engine = useWizardEngine(journey.modo ?? 'pedir', WIZARD_DATA, PERMISOS_TODO);
+    const engine = useWizardEngine(journey.modo ?? 'pedir', WIZARD_DATA, PERMISOS_TODO, journey.escenario);
     const [trf, setTrf] = useState<DemoTransferencia | null>(null);
     const screenRef = useRef<HTMLDivElement>(null);
     const marcado = useRef(false);
@@ -97,12 +95,14 @@ export const JourneyRunner: React.FC<{
             onCompletar?.(journey.id);
         }
     }, [completado, journey.id, onCompletar]);
+    const sinAprobacion = !!journey.sinAprobacion;
+    const pasos = sinAprobacion ? ['Crear', 'Recibir'] : ['Crear', 'Aprobar', 'Recibir'];
     const activo = !trf ? 0
-        : estado === 'pendiente' ? 1
-            : completado ? 3
+        : completado ? pasos.length
+            : estado === 'pendiente' ? 1
                 : terminalMalo ? 1
-                    : 2; // aprobada / en_transito / recepcion_parcial
-    const pasoNum = Math.min(activo + 1, 3);
+                    : (sinAprobacion ? 1 : 2); // en_transito / recepcion_parcial / aprobada
+    const pasoNum = Math.min(activo + 1, pasos.length);
 
     const labels = useMemo(() => {
         if (!trf) return CREAR_LABELS;
@@ -114,15 +114,25 @@ export const JourneyRunner: React.FC<{
 
     // Instrucción state-aware del globo.
     const esMateriales = journey.id === 'catalogo-materiales';
+    const modo = journey.modo ?? 'pedir';
+    const crearWord = modo === 'mover' ? 'Crear movimiento' : 'Crear solicitud';
     let instruccion: string | null = null;
     if (!trf) {
-        if (engine.paso === 0) instruccion = engine.destino ? 'Listo el destino. Pulsa "Siguiente".' : 'Elige la obra de destino; luego se habilita "Siguiente".';
-        else if (engine.paso === 1) instruccion = engine.hayItems
-            ? 'Pulsa "Siguiente" para revisar.'
-            : (esMateriales
-                ? 'Agrega ítems del catálogo y, en la pestaña "Otros materiales", lo que no esté en el catálogo.'
-                : 'Agrega al menos un ítem con "Agregar" y ajusta la cantidad.');
-        else instruccion = 'Revisa el resumen y pulsa "Crear solicitud".';
+        if (engine.paso === 0) {
+            instruccion = modo === 'mover'
+                ? (engine.origen && engine.destino ? 'Revisa la ruta (ya viene puesta) y pulsa "Siguiente".' : 'Elige el origen y el destino; luego se habilita "Siguiente".')
+                : (engine.destino ? 'Listo el destino. Pulsa "Siguiente".' : 'Elige la obra de destino; luego se habilita "Siguiente".');
+        } else if (engine.paso === 1) {
+            instruccion = engine.hayItems
+                ? 'Pulsa "Siguiente" para revisar.'
+                : (esMateriales
+                    ? 'Agrega ítems del catálogo y, en la pestaña "Otros materiales", lo que no esté en el catálogo.'
+                    : 'Agrega al menos un ítem con "Agregar" y ajusta la cantidad.');
+        } else {
+            instruccion = (engine.ordenGerencia && !engine.motivo.trim())
+                ? `Escribe el motivo (obligatorio) y pulsa "${crearWord}".`
+                : `Revisa el resumen y pulsa "${crearWord}".`;
+        }
     } else if (!completado && !terminalMalo) {
         const map: Record<string, string> = {
             'Confirmar Aprobación': spot.enabled ? 'Pulsa "Confirmar Aprobación".' : 'Elige de qué bodega(s) sale cada ítem; luego se habilita "Confirmar Aprobación".',
@@ -160,9 +170,9 @@ export const JourneyRunner: React.FC<{
             </div>
 
             <div className="flex flex-col items-center gap-1.5">
-                <Stepper activo={activo} />
+                <Stepper pasos={pasos} activo={activo} />
                 <p className="text-caption text-muted-foreground">
-                    {completado ? 'Completado' : `Paso ${pasoNum} de 3`}
+                    {completado ? 'Completado' : `Paso ${pasoNum} de ${pasos.length}`}
                     {trf && <> · Estado: <span className="font-bold text-brand-dark">{ESTADO_LABEL[estado!] ?? estado}</span></>}
                 </p>
             </div>

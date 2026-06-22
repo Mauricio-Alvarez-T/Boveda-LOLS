@@ -1,6 +1,6 @@
 import type { Transferencia, TransferenciaItem } from '../../../types/entities';
 import type { WizardEngine } from '../../inventario/nuevo-movimiento/wizardEngine';
-import { itemsDemo, obrasDemo } from '../demo/mockData';
+import { itemsDemo, obrasDemo, bodegasDemo } from '../demo/mockData';
 
 /**
  * Helpers del motor de journeys: construyen y hacen avanzar una `Transferencia` de
@@ -36,8 +36,18 @@ type AprobarData = {
     >;
 };
 
-/** Construye la solicitud de ejemplo (estado `pendiente`) desde el estado del wizard. */
+const obraNombre = (id?: number | null) => (id == null ? null : (obrasDemo.find(o => o.id === id)?.nombre ?? null));
+const bodegaNombre = (id?: number | null) => (id == null ? null : (bodegasDemo.find(b => b.id === id)?.nombre ?? null));
+
+/**
+ * Construye la transferencia de ejemplo desde el estado del wizard. El estado
+ * inicial depende del tipo inferido: los flujos sin aprobación (envío directo,
+ * orden de gerencia) nacen `en_transito`; el resto, `pendiente`.
+ */
 export function buildTrfDemo(engine: WizardEngine): DemoTransferencia {
+    const tipo = (engine.infer.tipoFlujo ?? 'solicitud') as Transferencia['tipo_flujo'];
+    const sinAprobacion = tipo === 'push_directo' || tipo === 'orden_gerencia';
+
     const items: TransferenciaItem[] = engine.cart.map((l, idx) => {
         const it = itemsDemo.find(i => i.id === l.item_id);
         return {
@@ -46,7 +56,8 @@ export function buildTrfDemo(engine: WizardEngine): DemoTransferencia {
             item_id: l.item_id,
             item_descripcion: it?.descripcion,
             cantidad_solicitada: l.cantidad,
-            cantidad_enviada: null,
+            // En los flujos sin aprobación ya sale despachado (enviada = solicitada).
+            cantidad_enviada: sinAprobacion ? l.cantidad : null,
             cantidad_recibida: 0,
             observacion: null,
             unidad: it?.unidad,
@@ -63,20 +74,25 @@ export function buildTrfDemo(engine: WizardEngine): DemoTransferencia {
             observacion: c.observacion?.trim() || null,
         }));
 
-    const destino = engine.destino;
-    const destinoObraNombre = destino && destino.tipo === 'obra'
-        ? (obrasDemo.find(o => o.id === destino.id)?.nombre ?? null)
-        : null;
+    const o = engine.origen;
+    const d = engine.destino;
+    const origen_obra_id = o && o.tipo === 'obra' ? o.id : null;
+    const origen_bodega_id = o && o.tipo === 'bodega' ? o.id : null;
+    const destino_obra_id = d && d.tipo === 'obra' ? d.id : null;
+    const destino_bodega_id = d && d.tipo === 'bodega' ? d.id : null;
 
     return {
         id: 9001,
         codigo: 'TRF-DEMO-0001',
-        estado: 'pendiente',
-        origen_obra_id: null,
-        origen_bodega_id: null,
-        destino_obra_id: destino && destino.tipo === 'obra' ? destino.id : null,
-        destino_bodega_id: destino && destino.tipo === 'bodega' ? destino.id : null,
-        destino_obra_nombre: destinoObraNombre,
+        estado: sinAprobacion ? 'en_transito' : 'pendiente',
+        origen_obra_id,
+        origen_bodega_id,
+        destino_obra_id,
+        destino_bodega_id,
+        origen_obra_nombre: obraNombre(origen_obra_id),
+        origen_bodega_nombre: bodegaNombre(origen_bodega_id),
+        destino_obra_nombre: obraNombre(destino_obra_id),
+        destino_bodega_nombre: bodegaNombre(destino_bodega_id),
         solicitante_id: -1,
         solicitante_nombre: 'Tú (demostración)',
         aprobador_id: null,
@@ -89,7 +105,7 @@ export function buildTrfDemo(engine: WizardEngine): DemoTransferencia {
         requiere_pionetas: engine.requierePionetas,
         cantidad_pionetas: engine.requierePionetas ? engine.cantidadPionetas : null,
         observaciones: engine.observaciones.trim() || null,
-        tipo_flujo: (engine.infer.tipoFlujo ?? 'solicitud') as Transferencia['tipo_flujo'],
+        tipo_flujo: tipo,
         motivo: engine.motivo.trim() || null,
         activo: true,
         items,
