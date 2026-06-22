@@ -12,7 +12,8 @@ interface ObraContextType {
     refreshObras: () => void;
 }
 
-const ObraContext = createContext<ObraContextType | undefined>(undefined);
+// Exportado para overrides controlados (ej. sandbox del Centro de ayuda).
+export const ObraContext = createContext<ObraContextType | undefined>(undefined);
 
 const STORAGE_KEY = 'sgdl_obra_id';
 

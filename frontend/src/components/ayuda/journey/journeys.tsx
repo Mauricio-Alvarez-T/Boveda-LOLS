@@ -26,6 +26,8 @@ export interface JourneyDef {
     sinAprobacion?: boolean;
     /** true si el recorrido termina resolviendo una discrepancia (paso extra "Resolver"). */
     conDiscrepancia?: boolean;
+    /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia' = pantalla diaria real en sandbox. */
+    runner?: 'solicitudes' | 'asistencia';
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
     /** Resumen de pasos al completar (si se omite, uno por defecto). */
@@ -164,7 +166,12 @@ export const JOURNEYS: JourneyDef[] = [
     },
 
     // ── Otros módulos ──
-    { id: 'asistencia', modulo: 'Asistencia', icon: CheckSquare, titulo: 'Registrar asistencia', descripcion: 'Marcar la asistencia diaria de los trabajadores en obra.', estado: 'proximamente' },
+    {
+        id: 'asistencia', modulo: 'Asistencia', icon: CheckSquare,
+        titulo: 'Registrar asistencia diaria',
+        descripcion: 'Marcar el estado de cada trabajador del día y guardar.',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'asistencia',
+    },
     { id: 'consultas', modulo: 'Consultas', icon: SearchCheck, titulo: 'Consultar trabajadores', descripcion: 'Buscar trabajadores y revisar su información y documentos.', estado: 'proximamente' },
     { id: 'vehiculos', modulo: 'Vehículos', icon: Truck, titulo: 'Gestión de vehículos', descripcion: 'Documentos, revisión técnica, mantención y alertas de vencimiento.', estado: 'proximamente' },
     { id: 'obras', modulo: 'Obras', icon: Archive, titulo: 'Obras finalizadas', descripcion: 'Consultar el historial de obras ya terminadas.', estado: 'proximamente' },

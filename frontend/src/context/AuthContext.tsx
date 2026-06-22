@@ -11,7 +11,8 @@ interface AuthContextType {
     hasPermission: (permiso: string) => boolean;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+// Exportado para overrides controlados (ej. sandbox del Centro de ayuda).
+export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
