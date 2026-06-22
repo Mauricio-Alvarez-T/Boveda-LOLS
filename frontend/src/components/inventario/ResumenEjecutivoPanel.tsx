@@ -764,7 +764,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     return (
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 16, right: 16, left: 8, bottom: 16 }}>
+                                <LineChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 16 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                                     <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
                                         tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 500 }}
@@ -777,7 +777,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                         labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
                                         labelFormatter={(label: any) => `${label} vehículo(s)`}
                                         formatter={(value: any, name: any) => [fmtCLPFull(Number(value)), name]} />
-                                    <Legend wrapperStyle={{ fontSize: '12px' }} />
+                                    <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', paddingLeft: '12px' }} />
                                     {empresas.map(([empresa, color]) => (
                                         <Line key={empresa} type="monotone" dataKey={empresa} name={empresa}
                                             stroke={color} strokeWidth={3} connectNulls
