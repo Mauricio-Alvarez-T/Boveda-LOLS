@@ -15,7 +15,7 @@ import {
     Droplets,
     Filter,
 } from 'lucide-react';
-import { Treemap, ResponsiveContainer } from 'recharts';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Cell, LabelList, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
@@ -41,28 +41,6 @@ const fmtCLP = (n: number) => {
 };
 
 const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')}`;
-
-// Celda del treemap "Inversión en vehículos": un rectángulo por vehículo,
-// tamaño = valor, color = empresa. recharts inyecta x/y/width/height + el datum.
-const TreemapCell: React.FC<any> = ({ x, y, width, height, name, value, size, color, payload }) => {
-    // Saltar el nodo raíz (sin nombre) y celdas sin tamaño; solo dibujar vehículos.
-    if (!name || !width || !height || width <= 0 || height <= 0) return null;
-    const fill = color || payload?.color || '#64748b';
-    const monto = value ?? size ?? payload?.size ?? 0;
-    const showLabel = width > 56 && height > 30;
-    return (
-        <g>
-            <title>{`${name}: ${fmtCLPFull(monto)}`}</title>
-            <rect x={x} y={y} width={width} height={height} rx={4} style={{ fill, stroke: 'var(--card)', strokeWidth: 2 }} />
-            {showLabel && (
-                <>
-                    <text x={x + 8} y={y + 18} fontSize={12} fontWeight={700} fill="#ffffff">{name}</text>
-                    <text x={x + 8} y={y + 34} fontSize={11} fill="#ffffff" opacity={0.85}>{fmtCLP(monto)}</text>
-                </>
-            )}
-        </g>
-    );
-};
 
 // ────────────────────────────────────────────────────────
 // Paleta de colores para categorías (barras horizontales)
@@ -746,16 +724,28 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             </div>
             )}
 
-            {/* Inversión en vehículos (treemap): un rectángulo por vehículo, tamaño = valor,
-                color por empresa. Va debajo del desglose por empresa. Mismo gate. */}
+            {/* Inversión en vehículos: columnas por vehículo, coloreadas por empresa
+                (solo LOLS y TRANSPORTE). Va debajo del desglose por empresa. Mismo gate. */}
             {!obraFilter && verValoresResumen && (
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
-                    Inversión en vehículos
-                </h3>
-                <p className="text-caption text-muted-foreground mb-3">
-                    Cada rectángulo es un vehículo; el tamaño representa su valor. Color por empresa.
-                </p>
+                <div className="flex items-start justify-between gap-3 flex-wrap mb-3">
+                    <div>
+                        <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
+                            Inversión en vehículos
+                        </h3>
+                        <p className="text-caption text-muted-foreground">
+                            Valor de cada vehículo, por empresa.
+                        </p>
+                    </div>
+                    {/* Leyenda por empresa (colores reales de cada empresa de flota) */}
+                    <div className="flex items-center gap-4">
+                        {[...new Map((data?.inversion_vehiculos ?? []).map(v => [v.empresa, v.color])).entries()].map(([empresa, color]) => (
+                            <span key={empresa} className="flex items-center gap-1.5 text-caption font-semibold text-brand-dark">
+                                <span className="w-2.5 h-2.5 rounded-full" style={{ background: color }} /> {empresa}
+                            </span>
+                        ))}
+                    </div>
+                </div>
                 {(data?.inversion_vehiculos?.length ?? 0) === 0 ? (
                     <div className="py-10 text-center text-muted-foreground">
                         <Truck className="h-10 w-10 mx-auto mb-2 opacity-30" />
@@ -763,15 +753,28 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         <p className="text-xs mt-1">Ve a Vehículos → editar un vehículo y completa "Valor del vehículo" para ver el gráfico.</p>
                     </div>
                 ) : (
-                    <div className="h-[240px] w-full">
+                    <div className="h-[300px] w-full">
                         <ResponsiveContainer width="100%" height="100%">
-                            <Treemap
-                                data={data!.inversion_vehiculos.map(v => ({ name: v.label, size: v.valor, color: v.color }))}
-                                dataKey="size"
-                                stroke="#fff"
-                                isAnimationActive={false}
-                                content={<TreemapCell />}
-                            />
+                            <BarChart data={data!.inversion_vehiculos} margin={{ top: 24, right: 8, left: 4, bottom: 8 }}>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                <XAxis dataKey="label" interval={0} height={56} axisLine={false} tickLine={false}
+                                    angle={-18} textAnchor="end"
+                                    tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 500 }} />
+                                <YAxis axisLine={false} tickLine={false} width={50}
+                                    tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                                    tickFormatter={(v: number) => fmtCLP(v)} />
+                                <Tooltip
+                                    cursor={{ fill: 'var(--muted)', opacity: 0.3 }}
+                                    contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
+                                    labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
+                                    formatter={(value: any) => [fmtCLPFull(Number(value)), 'Valor']} />
+                                <Bar dataKey="valor" radius={[6, 6, 0, 0]} maxBarSize={72} isAnimationActive={false}>
+                                    {data!.inversion_vehiculos.map((v, i) => <Cell key={i} fill={v.color} />)}
+                                    <LabelList dataKey="valor" position="top"
+                                        formatter={(v: any) => fmtCLP(Number(v))}
+                                        style={{ fill: 'var(--foreground)', fontSize: 11, fontWeight: 700 }} />
+                                </Bar>
+                            </BarChart>
                         </ResponsiveContainer>
                     </div>
                 )}
