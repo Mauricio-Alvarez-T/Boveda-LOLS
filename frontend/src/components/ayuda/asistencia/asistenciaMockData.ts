@@ -55,3 +55,79 @@ export const horariosDemo = ['lun', 'mar', 'mie', 'jue', 'vie'].map((dia, i) => 
     hora_entrada: '08:00:00', hora_salida: '18:00:00',
     hora_colacion_inicio: '13:00:00', hora_colacion_fin: '14:00:00', activo: true,
 }));
+
+const OBRA_ID_2 = 9002;
+
+/** 2ª obra: destino válido para el modal de Traslado de Obra (debe ser activa y != actual). */
+export const obraDemo2: Obra = {
+    id: OBRA_ID_2,
+    nombre: 'Obra Norte (ejemplo)',
+    direccion: 'Camino Norte 456',
+    empresa_id: 1,
+    empresa_nombre: 'LOLS',
+    activa: true,
+    participa_asistencia: true,
+    participa_inventario: true,
+    participa_transferencias: true,
+};
+
+/**
+ * Registros de un día laboral PREVIO (todos presentes con horario estándar) para que
+ * el tutorial "Repetir día anterior" siempre encuentre un día desde el cual copiar.
+ * Se devuelve en GET /asistencias/obra/:id cuando la fecha consultada no es hoy.
+ */
+export const registrosDiaPrevioDemo = trabajadoresDemo.map(t => ({
+    trabajador_id: t.id,
+    estado_id: 1,            // A = Asiste
+    tipo_ausencia_id: null,
+    hora_entrada: '08:00',
+    hora_salida: '18:00',
+    hora_colacion_inicio: '13:00',
+    hora_colacion_fin: '14:00',
+    horas_extra: 0,
+    observacion: null,
+}));
+
+/** GET /asistencias/periodos → { data: periodosDemo } (sin períodos activos previos). */
+export const periodosDemo: unknown[] = [];
+
+/** GET /sabados-extra → { data: sabadosDemo } (sin citaciones este mes; se crea una en el tutorial). */
+export const sabadosDemo: unknown[] = [];
+
+/**
+ * GET /sabados-extra/:id → { data: sabadoDetalleDemo }. Detalle de una citación recién
+ * creada con los 4 trabajadores demo citados (aún sin marcar asistencia).
+ */
+export const sabadoDetalleDemo = {
+    id: 7001,
+    obra_id: OBRA_ID,
+    obra_nombre: 'Obra de ejemplo',
+    fecha: '2026-01-10',          // un sábado de ejemplo
+    estado: 'citada' as const,
+    horas_default: 8,
+    observaciones_globales: null,
+    observaciones_por_cargo: null,
+    creado_por: 0,
+    creado_por_nombre: 'Usuario de ejemplo',
+    actualizado_por: null,
+    created_at: '2026-01-05T12:00:00.000Z',
+    updated_at: '2026-01-05T12:00:00.000Z',
+    trabajadores: trabajadoresDemo.map(t => ({
+        id: t.id,
+        sabado_id: 7001,
+        trabajador_id: t.id,
+        obra_origen_id: OBRA_ID,
+        obra_origen_nombre: 'Obra de ejemplo',
+        citado: 1 as const,
+        asistio: null,
+        estado: 'citado' as const,
+        horas_trabajadas: null,
+        observacion: null,
+        rut: t.rut,
+        nombres: t.nombres,
+        apellido_paterno: t.apellido_paterno,
+        apellido_materno: t.apellido_materno,
+        cargo_id: t.cargo_id,
+        cargo_nombre: t.cargo_nombre,
+    })),
+};

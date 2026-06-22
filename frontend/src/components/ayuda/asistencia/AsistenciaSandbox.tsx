@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import api from '../../../services/api';
 import { AuthContext } from '../../../context/AuthContext';
 import { ObraContext } from '../../../context/ObraContext';
-import { obraDemo, userDemo } from './asistenciaMockData';
+import { obraDemo, obraDemo2, userDemo } from './asistenciaMockData';
 import { installAsistenciaMock } from './asistenciaMock';
 
 /**
@@ -15,13 +15,13 @@ import { installAsistenciaMock } from './asistenciaMock';
  *    la pantalla real funcione para cualquier usuario.
  * Renderiza children SOLO tras montar el mock (la pantalla fetchea al montar).
  */
-export const AsistenciaSandbox: React.FC<{ onGuardado?: () => void; children: React.ReactNode }> = ({ onGuardado, children }) => {
+export const AsistenciaSandbox: React.FC<{ onAccion?: (tipo: string) => void; children: React.ReactNode }> = ({ onAccion, children }) => {
     const [ready, setReady] = useState(false);
-    const cbRef = useRef(onGuardado);
-    cbRef.current = onGuardado;
+    const cbRef = useRef(onAccion);
+    cbRef.current = onAccion;
 
     useEffect(() => {
-        const mock = installAsistenciaMock(api, () => cbRef.current?.());
+        const mock = installAsistenciaMock(api, { onAccion: (tipo) => cbRef.current?.(tipo) });
         setReady(true);
         return () => { mock.restore(); };
     }, []);
@@ -30,8 +30,9 @@ export const AsistenciaSandbox: React.FC<{ onGuardado?: () => void; children: Re
         user: userDemo, token: 'demo', isAuthenticated: true, isLoading: false,
         login: () => { /* no-op en demo */ }, logout: () => { /* no-op */ }, hasPermission: () => true,
     }), []);
+    // 2 obras: la actual (demo) + una 2ª como destino válido del modal de Traslado.
     const obraValue = useMemo(() => ({
-        obras: [obraDemo], selectedObra: obraDemo, setSelectedObra: () => { /* no-op */ }, isLoading: false, refreshObras: () => { /* no-op */ },
+        obras: [obraDemo, obraDemo2], selectedObra: obraDemo, setSelectedObra: () => { /* no-op */ }, isLoading: false, refreshObras: () => { /* no-op */ },
     }), []);
 
     if (!ready) return null;

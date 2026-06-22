@@ -38,11 +38,29 @@ export function useTutorialSpotlight(
         let raf = 0;
         let scheduled = false;
 
+        // El texto del botón puede venir como contenido o, en botones icon-only, en
+        // `title`/`aria-label` (ej. acciones del header de Asistencia).
+        const matchLabel = (b: HTMLButtonElement, lbl: string) =>
+            norm(b.textContent).includes(lbl)
+            || norm(b.getAttribute('aria-label')).includes(lbl)
+            || norm(b.getAttribute('title')).includes(lbl);
+
         const find = (): { el: HTMLButtonElement | null; label: string | null } => {
-            const buttons = Array.from(container.querySelectorAll('button')) as HTMLButtonElement[];
+            // Busca dentro de la pantalla (container) Y dentro de los overlays de
+            // modales: los <Modal> portalean a document.body (fuera del container),
+            // así que sus botones no estarían en `container`. Recogemos ambos sin
+            // duplicar (un botón aparece en un solo scope).
+            const scopes: HTMLElement[] = [container, ...Array.from(document.querySelectorAll<HTMLElement>('div.fixed.inset-0'))];
+            const seen = new Set<HTMLButtonElement>();
+            const buttons: HTMLButtonElement[] = [];
+            for (const scope of scopes) {
+                for (const b of Array.from(scope.querySelectorAll('button')) as HTMLButtonElement[]) {
+                    if (!seen.has(b)) { seen.add(b); buttons.push(b); }
+                }
+            }
             const visible = buttons.filter(b => b.getClientRects().length > 0);
             for (const lbl of labels) {
-                const match = visible.find(b => norm(b.textContent).includes(lbl));
+                const match = visible.find(b => matchLabel(b, lbl));
                 if (match) return { el: match, label: lbl };
             }
             return { el: null, label: null };

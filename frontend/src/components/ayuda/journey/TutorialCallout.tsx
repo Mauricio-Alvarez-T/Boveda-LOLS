@@ -25,7 +25,7 @@ export const TutorialCallout: React.FC<{ rect: DOMRect | null; children: React.R
         <div
             role="status"
             aria-live="polite"
-            style={{ position: 'fixed', top, left, width: W, transform, zIndex: 70, pointerEvents: 'none' }}
+            style={{ position: 'fixed', top, left, width: W, transform, zIndex: 1100, pointerEvents: 'none' }}
         >
             <div className="relative rounded-xl border border-brand-primary/40 bg-card shadow-xl px-3 py-2.5">
                 <div className="flex items-start gap-2 text-sm text-brand-dark">

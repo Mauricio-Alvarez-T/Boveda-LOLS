@@ -17,7 +17,13 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     { archivo: 'inventario/transferencia-detail/AprobarForm.tsx', etiquetas: ['Confirmar Aprobación'] },
     { archivo: 'inventario/transferencia-detail/MaterialesRecepcionPanel.tsx', etiquetas: ['Cerrar entrega (total)', 'Registrar viaje (parcial)'] },
     { archivo: 'inventario/DiscrepanciaDetail.tsx', etiquetas: ['Resolver', 'Descartar', 'Marcar como resuelta'] },
-    { archivo: 'attendance/ui/AttendanceHeaderActions.tsx', etiquetas: ['Guardar'] },
+    // Asistencia — pantalla diaria y acciones del header (icon-only: texto en title/aria-label).
+    { archivo: 'attendance/ui/AttendanceHeaderActions.tsx', etiquetas: ['Guardar', 'Marcar Feriado', 'Quitar Feriado', 'Repetir día anterior', 'Reporte Mensual', 'Compartir por WhatsApp'] },
+    { archivo: 'attendance/TrasladoObraModal.tsx', etiquetas: ['Completar Traslado'] },
+    { archivo: 'attendance/WorkerCalendarModal.tsx', etiquetas: ['Confirmar Período'] },
+    { archivo: 'attendance/sabados/SabadosExtraList.tsx', etiquetas: ['Nueva citación'] },
+    { archivo: 'attendance/sabados/SabadoExtraForm.tsx', etiquetas: ['Crear citación'] },
+    { archivo: 'attendance/sabados/SabadoExtraAsistencia.tsx', etiquetas: ['Guardar asistencia'] },
 ];
 
 describe('etiquetas de botones que los tutoriales resaltan (no romper en silencio)', () => {

@@ -2,6 +2,7 @@ import type { LucideIcon } from 'lucide-react';
 import {
     FileText, ShoppingBag, Send, Undo2, ArrowLeftRight, Warehouse, ShieldCheck, AlertTriangle,
     CheckSquare, SearchCheck, Truck, Archive, Settings,
+    CalendarOff, CopyPlus, FileSpreadsheet, Share2, CalendarClock, CalendarPlus,
 } from 'lucide-react';
 import type { Origen, Destino } from '../../../utils/inferMovimiento';
 
@@ -26,8 +27,10 @@ export interface JourneyDef {
     sinAprobacion?: boolean;
     /** true si el recorrido termina resolviendo una discrepancia (paso extra "Resolver"). */
     conDiscrepancia?: boolean;
-    /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia' = pantalla diaria real en sandbox. */
+    /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia' = pantalla real de Asistencia en sandbox. */
     runner?: 'solicitudes' | 'asistencia';
+    /** Flujo concreto del runner de Asistencia: define qué pantalla montar, qué botón resaltar, la instrucción y el recap (ver AsistenciaJourneyRunner). */
+    asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'sabado';
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
     /** Resumen de pasos al completar (si se omite, uno por defecto). */
@@ -170,7 +173,49 @@ export const JOURNEYS: JourneyDef[] = [
         id: 'asistencia', modulo: 'Asistencia', icon: CheckSquare,
         titulo: 'Registrar asistencia diaria',
         descripcion: 'Marcar el estado de cada trabajador del día y guardar.',
-        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'asistencia',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'asistencia', asistenciaFlujo: 'diaria',
+    },
+    {
+        id: 'asistencia-traslado', modulo: 'Asistencia', icon: ArrowLeftRight,
+        titulo: 'Trasladar un trabajador de obra',
+        descripcion: 'Marcar a alguien con estado TO y enviarlo a otra obra desde la asistencia del día.',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'asistencia', asistenciaFlujo: 'traslado',
+    },
+    {
+        id: 'asistencia-periodo', modulo: 'Asistencia', icon: CalendarClock,
+        titulo: 'Justificar una ausencia por período',
+        descripcion: 'Asignar Vacaciones, Licencia u otra ausencia a un rango de días desde el calendario del trabajador.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', runner: 'asistencia', asistenciaFlujo: 'periodo',
+    },
+    {
+        id: 'asistencia-feriado', modulo: 'Asistencia', icon: CalendarOff,
+        titulo: 'Marcar un día como feriado',
+        descripcion: 'Declarar un feriado para la obra (y cómo quitarlo) desde la pantalla diaria.',
+        estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'feriado',
+    },
+    {
+        id: 'asistencia-repetir', modulo: 'Asistencia', icon: CopyPlus,
+        titulo: 'Repetir el día anterior',
+        descripcion: 'Copiar la asistencia del último día laboral para no marcar todo de nuevo; luego revisas y guardas.',
+        estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'repetir',
+    },
+    {
+        id: 'asistencia-sabado', modulo: 'Asistencia', icon: CalendarPlus,
+        titulo: 'Citar y registrar un sábado extra',
+        descripcion: 'Crear una citación de sábado, citar trabajadores y luego marcar su asistencia.',
+        estado: 'disponible', duracion: 'Interactivo · 4 min', runner: 'asistencia', asistenciaFlujo: 'sabado',
+    },
+    {
+        id: 'asistencia-excel', modulo: 'Asistencia', icon: FileSpreadsheet,
+        titulo: 'Exportar el reporte a Excel',
+        descripcion: 'Descargar el reporte mensual de asistencia en una planilla Excel.',
+        estado: 'disponible', duracion: 'Interactivo · 1 min', runner: 'asistencia', asistenciaFlujo: 'export-excel',
+    },
+    {
+        id: 'asistencia-whatsapp', modulo: 'Asistencia', icon: Share2,
+        titulo: 'Compartir la asistencia por WhatsApp',
+        descripcion: 'Generar el resumen del día y compartirlo por WhatsApp con un toque.',
+        estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'whatsapp',
     },
     { id: 'consultas', modulo: 'Consultas', icon: SearchCheck, titulo: 'Consultar trabajadores', descripcion: 'Buscar trabajadores y revisar su información y documentos.', estado: 'proximamente' },
     { id: 'vehiculos', modulo: 'Vehículos', icon: Truck, titulo: 'Gestión de vehículos', descripcion: 'Documentos, revisión técnica, mantención y alertas de vencimiento.', estado: 'proximamente' },
