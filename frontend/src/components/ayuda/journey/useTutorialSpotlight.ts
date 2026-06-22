@@ -46,11 +46,17 @@ export function useTutorialSpotlight(
             || norm(b.getAttribute('title')).includes(lbl);
 
         const find = (): { el: HTMLButtonElement | null; label: string | null } => {
-            // Busca dentro de la pantalla (container) Y dentro de los overlays de
-            // modales: los <Modal> portalean a document.body (fuera del container),
-            // así que sus botones no estarían en `container`. Recogemos ambos sin
-            // duplicar (un botón aparece en un solo scope).
-            const scopes: HTMLElement[] = [container, ...Array.from(document.querySelectorAll<HTMLElement>('div.fixed.inset-0'))];
+            // Busca en 3 lugares (un botón cae en un solo scope, dedup con Set):
+            //  - container: la pantalla montada (botones inline: estados, Detalle, listas…).
+            //  - <header> global: AttendanceDailyTab inyecta sus acciones (Guardar, WhatsApp,
+            //    Excel, Feriado, Repetir) al header de MainLayout vía useSetPageHeader → quedan
+            //    FUERA del container; sin esto el spotlight no los encontraría.
+            //  - div.fixed.inset-0: overlays de <Modal> (portal a body) — Traslado/Período/Sábado.
+            const scopes: HTMLElement[] = [
+                container,
+                ...Array.from(document.querySelectorAll<HTMLElement>('header')),
+                ...Array.from(document.querySelectorAll<HTMLElement>('div.fixed.inset-0')),
+            ];
             const seen = new Set<HTMLButtonElement>();
             const buttons: HTMLButtonElement[] = [];
             for (const scope of scopes) {
@@ -83,8 +89,10 @@ export function useTutorialSpotlight(
                 pulsed.current = null;
             }
 
-            // Auto-scroll cuando cambia el objetivo y está fuera de la vista.
-            if (el && el !== lastEl.current) {
+            // Auto-scroll cuando cambia el objetivo y está fuera de la vista. Solo si el
+            // objetivo está DENTRO de la pantalla scrolleable (container); no scrollear por
+            // un botón del header fijo o de un overlay de modal (ya visibles).
+            if (el && el !== lastEl.current && container.contains(el)) {
                 const r = el.getBoundingClientRect();
                 if (r.top < 80 || r.bottom > window.innerHeight - 80) {
                     el.scrollIntoView({ block: 'center', behavior: 'smooth' });

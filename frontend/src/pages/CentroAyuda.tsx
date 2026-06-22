@@ -37,16 +37,16 @@ const JourneyCard: React.FC<{ journey: JourneyDef; completado: boolean; onOpen: 
             onClick={disponible ? onOpen : undefined}
             disabled={!disponible}
             className={cn(
-                'group flex flex-col text-left rounded-card border bg-card p-5 transition-all h-full',
-                completado ? 'border-success/40' : 'border-border',
+                'group flex flex-col text-left rounded-card border p-5 transition-all h-full',
+                completado ? 'border-success bg-success/5 shadow-sm' : 'border-border bg-card',
                 disponible
                     ? 'hover:border-brand-primary/40 hover:shadow-sm cursor-pointer'
                     : 'opacity-70 cursor-default'
             )}
         >
             <div className="flex items-center justify-between">
-                <div className="h-11 w-11 rounded-xl bg-muted flex items-center justify-center">
-                    <Icon className="h-5 w-5 text-muted-foreground group-hover:text-brand-primary transition-colors" />
+                <div className={cn('h-11 w-11 rounded-xl flex items-center justify-center', completado ? 'bg-success/15' : 'bg-muted')}>
+                    <Icon className={cn('h-5 w-5 transition-colors', completado ? 'text-success' : 'text-muted-foreground group-hover:text-brand-primary')} />
                 </div>
                 {completado ? (
                     <span className="inline-flex items-center gap-1 text-label font-bold text-success bg-success/10 rounded-full px-2.5 py-1">

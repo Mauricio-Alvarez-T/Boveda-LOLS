@@ -112,7 +112,7 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     },
     sabado: {
         pantalla: 'sabados',
-        labels: ['Crear citación', 'Guardar asistencia'],
+        labels: ['Nueva citación', 'Crear citación', 'Guardar asistencia'],
         instruccion: 'Pulsa "Nueva citación". Elige una fecha que caiga en SÁBADO (otros días no se aceptan), marca a los trabajadores en la lista y pulsa "Crear citación". Después, en el detalle, puedes marcar su asistencia y pulsar "Guardar asistencia".',
         accion: 'sabado-crear',
         finTitulo: '¡Citación de sábado creada!',
