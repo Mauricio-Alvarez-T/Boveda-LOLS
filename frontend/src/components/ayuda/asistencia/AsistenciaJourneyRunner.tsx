@@ -54,7 +54,7 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     feriado: {
         pantalla: 'diaria',
         labels: ['Marcar Feriado', 'Quitar Feriado'],
-        instruccion: 'Pulsa el botón de feriado (icono de calendario) en la barra superior y escribe un nombre cuando el navegador lo pida. Para quitarlo, vuelve a pulsar el mismo botón.',
+        instruccion: 'Pulsa el botón de feriado (icono de calendario) en la barra superior y escribe un nombre cuando el navegador lo pida. Para quitarlo, vuelve a pulsar el mismo botón. (Si la pantalla es angosta y no ves el botón, ábrelo desde el menú ⋯ de la barra.)',
         accion: 'feriado-crear',
         finTitulo: '¡Día marcado como feriado!',
         recap: [
@@ -66,7 +66,7 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     repetir: {
         pantalla: 'diaria',
         labels: ['Repetir día anterior'],
-        instruccion: 'Pulsa "Repetir día anterior" en la barra superior: copia el último día laboral registrado. Revisa los estados y pulsa "Guardar". (Si hoy es fin de semana, usa ← → para ir a un día hábil.)',
+        instruccion: 'Pulsa "Repetir día anterior" en la barra superior: copia el último día laboral registrado. Luego revisa los estados y pulsa "Guardar" para terminar. (Si hoy es fin de semana, usa ← → para ir a un día hábil; si no ves el botón, ábrelo desde el menú ⋯.)',
         accion: 'guardar',
         finTitulo: '¡Día copiado y guardado!',
         recap: [
@@ -78,7 +78,7 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     'export-excel': {
         pantalla: 'diaria',
         labels: ['Reporte Mensual'],
-        instruccion: 'Pulsa "Reporte Mensual" (icono de descarga) en la barra superior. Se descargará una planilla Excel con el reporte del mes.',
+        instruccion: 'Pulsa "Reporte Mensual" (icono de descarga) en la barra superior. Se descargará una planilla Excel con el reporte del mes. (Si no ves el botón, ábrelo desde el menú ⋯ de la barra.)',
         accion: 'export-excel',
         finTitulo: '¡Reporte descargado!',
         recap: [
@@ -89,7 +89,7 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     whatsapp: {
         pantalla: 'diaria',
         labels: ['Compartir por WhatsApp'],
-        instruccion: 'Pulsa el botón de WhatsApp en la barra superior. Se arma el resumen del día y se copia; luego aparece un aviso para enviarlo por WhatsApp.',
+        instruccion: 'Pulsa el botón de WhatsApp en la barra superior. Se arma el resumen del día y se copia; luego aparece un aviso para enviarlo por WhatsApp. (Si no ves el botón, ábrelo desde el menú ⋯ de la barra.)',
         accion: 'whatsapp',
         finTitulo: '¡Resumen listo para enviar!',
         recap: [
@@ -113,13 +113,13 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
     sabado: {
         pantalla: 'sabados',
         labels: ['Crear citación', 'Guardar asistencia'],
-        instruccion: 'Pulsa "Nueva citación", elige los trabajadores y pulsa "Crear citación". Luego, en el detalle, marca su asistencia y pulsa "Guardar asistencia".',
+        instruccion: 'Pulsa "Nueva citación". Elige una fecha que caiga en SÁBADO (otros días no se aceptan), marca a los trabajadores en la lista y pulsa "Crear citación". Después, en el detalle, puedes marcar su asistencia y pulsar "Guardar asistencia".',
         accion: 'sabado-crear',
         finTitulo: '¡Citación de sábado creada!',
         recap: [
-            'Pulsaste "Nueva citación" y elegiste a los trabajadores.',
-            'Creaste la citación del sábado.',
-            'En el detalle puedes marcar la asistencia y guardarla.',
+            'Pulsaste "Nueva citación".',
+            'Elegiste un sábado y marcaste a los trabajadores.',
+            'Creaste la citación. En el detalle puedes marcar la asistencia y guardarla.',
         ],
     },
 };
