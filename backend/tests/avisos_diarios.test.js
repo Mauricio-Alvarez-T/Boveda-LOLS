@@ -97,6 +97,30 @@ describe('avisosDiarios.service', () => {
         expect(r.label).toBe('22 jun 2026');
     });
 
+    test('getSemanaPrevia devuelve la semana anterior lun–dom como ventana datetime', () => {
+        // 2026-06-22 es lunes → la semana anterior es lun 15 jun a dom 21 jun
+        const r = svc.getSemanaPrevia('2026-06-22');
+        expect(r.desde).toBe('2026-06-15 00:00:00');
+        expect(r.hasta).toBe('2026-06-22 00:00:00'); // exclusivo = lunes de la semana ref
+        expect(r.label).toMatch(/15 jun .* 21 jun 2026/);
+    });
+
+    test('modo semanal usa la ventana semanal y arma faltantes (mismos colectores)', async () => {
+        const reglas = [{ categoria: 'obras', etiqueta: 'Obras nuevas', umbral: 1 }];
+        const db = {
+            query: jest.fn(async (sql) => {
+                if (/FROM avisos_reglas/.test(sql)) return [reglas];
+                if (/FROM obras/.test(sql)) return [[{ id: 1, nombre: 'Obra Semana', direccion: null, encargado_nombre: 'Ana', fecha_inicio: '2026-06-16' }]];
+                return [[]];
+            }),
+        };
+        const rango = svc.getSemanaPrevia('2026-06-22');
+        const res = await svc.construirResumen(db, rango, { modo: 'semanal' });
+        expect(res.modo).toBe('semanal');
+        const obras = res.categorias.find(c => c.key === 'obras');
+        expect(obras.items[0].faltantes).toContain('sin dirección');
+    });
+
     test('modo histórico funciona sin la tabla avisos_reglas (usa categorías por defecto)', async () => {
         const db = {
             query: jest.fn(async (sql) => {

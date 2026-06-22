@@ -17,6 +17,7 @@
     "reporte-semanal": "node scripts/reporte_semanal.js",
     "avisos-diarios": "node scripts/avisos_diarios.js",
     "avisos-diarios-dry": "node scripts/avisos_diarios.js --dry",
+    "avisos-semanal": "node scripts/avisos_diarios.js --semanal",
     "avisos-reporte-hoy": "node scripts/avisos_diarios.js --historico --to marcos.uribe.impdali@gmail.com",
     "diag-estados": "node scripts/diag_estados.js",
     "alertas-vehiculos": "node scripts/alertas_vehiculos.js",

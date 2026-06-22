@@ -89,6 +89,24 @@ function getRangoHistorico(ref) {
     };
 }
 
+/**
+ * Ventana SEMANAL = la semana anterior (lunes a domingo) relativa a `ref`.
+ * Mismo criterio lun–dom que reporteSemanal.service, pero como rango datetime
+ * compatible con los colectores (created_at >= desde AND < hasta).
+ */
+function getSemanaPrevia(ref) {
+    const d = ref ? new Date(`${ref}T00:00:00`) : new Date();
+    const sinceMon = (d.getDay() + 6) % 7;           // días desde el lunes de ESTA semana
+    const thisMon = new Date(d.getFullYear(), d.getMonth(), d.getDate() - sinceMon);
+    const prevMon = new Date(thisMon); prevMon.setDate(thisMon.getDate() - 7);
+    const prevSun = new Date(thisMon); prevSun.setDate(thisMon.getDate() - 1);
+    return {
+        desde: `${ymd(prevMon)} 00:00:00`,
+        hasta: `${ymd(thisMon)} 00:00:00`,           // exclusivo = inicio del lunes de la semana ref
+        label: `${pad2(prevMon.getDate())} ${MESES[prevMon.getMonth()]} – ${pad2(prevSun.getDate())} ${MESES[prevSun.getMonth()]} ${prevSun.getFullYear()}`,
+    };
+}
+
 function esc(s) {
     return String(s == null ? '' : s)
         .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -284,11 +302,14 @@ async function construirResumen(db, rango, { reglas = null, modo = 'diario' } = 
 
 function renderHtml({ rango, categorias, total, modo = 'diario' }) {
     const historico = modo === 'historico';
+    const semanal = modo === 'semanal';
     const unidad = historico ? 'registros' : 'novedades';
-    const fechaLabel = historico ? `al ${rango.label}` : rango.label;
+    const fechaLabel = historico ? `al ${rango.label}` : (semanal ? `semana ${rango.label}` : rango.label);
     const pie = historico
         ? 'Reporte de los datos cargados hasta hoy. ⚠ marca lo que quedó pendiente por cargar.'
-        : 'Reporte automático del día anterior. ⚠ marca lo que quedó pendiente por cargar. Se configura en Configuración → Sistema → Avisos.';
+        : semanal
+            ? 'Radar semanal: movimiento y pendientes de la semana. ⚠ marca lo que sigue pendiente por cargar. Se configura en Configuración → Sistema → Avisos.'
+            : 'Reporte automático del día anterior. ⚠ marca lo que quedó pendiente por cargar. Se configura en Configuración → Sistema → Avisos.';
     const secciones = categorias.map(c => {
         const filas = c.items.map(it => {
             const pend = it.faltantes.length
@@ -326,7 +347,7 @@ function renderHtml({ rango, categorias, total, modo = 'diario' }) {
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f0f4f8;padding:24px 16px"><tr><td align="center">
     <table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.10)">
       <tr><td style="background:#1a7a3f;padding:24px 28px;text-align:center">
-        <p style="margin:0 0 6px;font-size:11px;color:#bbf7d0;letter-spacing:2px;text-transform:uppercase;font-weight:700">Bóveda LOLS — Resumen de Novedades</p>
+        <p style="margin:0 0 6px;font-size:11px;color:#bbf7d0;letter-spacing:2px;text-transform:uppercase;font-weight:700">Bóveda LOLS — ${historico ? 'Reporte de Datos' : semanal ? 'Radar Semanal' : 'Resumen de Novedades'}</p>
         <p style="margin:0;font-size:22px;color:#ffffff;font-weight:900">${total} ${unidad} · ${esc(fechaLabel)}</p>
       </td></tr>
       ${secciones}
@@ -340,7 +361,9 @@ function renderHtml({ rango, categorias, total, modo = 'diario' }) {
 
 function renderText({ rango, categorias, total, modo = 'diario' }) {
     const historico = modo === 'historico';
-    const lines = [`${historico ? 'Reporte de datos al' : 'Resumen de Novedades —'} ${rango.label} (${total} ${historico ? 'registros' : 'novedades'})`, ''];
+    const semanal = modo === 'semanal';
+    const titulo = historico ? `Reporte de datos al ${rango.label}` : semanal ? `Radar semanal — semana ${rango.label}` : `Resumen de Novedades — ${rango.label}`;
+    const lines = [`${titulo} (${total} ${historico ? 'registros' : 'novedades'})`, ''];
     for (const c of categorias) {
         lines.push(`• ${c.etiqueta}: ${c.count}${c.conFaltantes ? ` (${c.conFaltantes} con pendientes)` : ''}`);
         for (const it of c.items) {
@@ -373,10 +396,15 @@ async function resolveRecipients(db, cliTo) {
  * Orquesta el resumen diario. Si no hay novedades, NO envía (evita correos vacíos),
  * salvo dry (preview) o forzar (prueba).
  */
-async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar = false, historico = false } = {}) {
-    const rango = historico ? getRangoHistorico(fecha || undefined) : getDiaPrevio(fecha || undefined);
-    const resumen = await construirResumen(db, rango, { modo: historico ? 'historico' : 'diario' });
-    const subject = historico ? `Reporte de datos — al ${rango.label}` : `Resumen de Novedades — ${rango.label}`;
+async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar = false, historico = false, semanal = false } = {}) {
+    const modo = historico ? 'historico' : semanal ? 'semanal' : 'diario';
+    const rango = historico ? getRangoHistorico(fecha || undefined)
+        : semanal ? getSemanaPrevia(fecha || undefined)
+        : getDiaPrevio(fecha || undefined);
+    const resumen = await construirResumen(db, rango, { modo });
+    const subject = historico ? `Reporte de datos — al ${rango.label}`
+        : semanal ? `Radar semanal — semana ${rango.label}`
+        : `Resumen de Novedades — ${rango.label}`;
     const html = renderHtml(resumen);
     const text = renderText(resumen);
 
@@ -407,6 +435,7 @@ async function enviarResumen({ db, to = null, fecha = null, dry = false, forzar 
 module.exports = {
     getDiaPrevio,
     getRangoHistorico,
+    getSemanaPrevia,
     construirResumen,
     resolveRecipients,
     enviarResumen,
