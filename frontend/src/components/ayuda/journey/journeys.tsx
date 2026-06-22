@@ -21,6 +21,8 @@ export interface JourneyDef {
     modo?: 'pedir' | 'mover';
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
+    /** Resumen de pasos al completar (si se omite, uno por defecto). */
+    recap?: string[];
 }
 
 const FIN = '¡Recorriste el flujo completo! Así se ve de principio a fin en la app real.';
@@ -57,6 +59,11 @@ export const JOURNEYS: JourneyDef[] = [
             recibir: 'Paso 3 — Recibir. Registra lo que llegó para cerrar la entrega.',
             fin: FIN,
         },
+        recap: [
+            'Creaste la solicitud con ítems del catálogo y materiales extra.',
+            'Se aprobó: origen de los de catálogo + comprar/traer los materiales.',
+            'Se registró la recepción y quedó Recibida.',
+        ],
     },
 
     // ── Próximamente (se irán activando) ──

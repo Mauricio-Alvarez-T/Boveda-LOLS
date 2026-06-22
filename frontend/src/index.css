@@ -20,6 +20,25 @@
     padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
 
+/* Pulso de guía para los tutoriales del Centro de ayuda: resalta el botón que se
+   debe presionar en cada paso. Se aplica por JS (classList) al <button> real, sin
+   tocar los componentes. Anillo estático siempre visible + halo que late; con
+   prefers-reduced-motion el halo se apaga (queda solo el anillo). */
+@keyframes tutorial-pulse-ring {
+    0%   { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 50%, transparent); }
+    70%  { box-shadow: 0 0 0 10px color-mix(in srgb, var(--ring) 0%, transparent); }
+    100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--ring) 0%, transparent); }
+}
+.tutorial-pulse {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    position: relative;
+    z-index: 1;
+}
+@media (prefers-reduced-motion: no-preference) {
+    .tutorial-pulse { animation: tutorial-pulse-ring 1.6s ease-out infinite; }
+}
+
 /* ──────────────────────────────────────────────────────────────────
    Design tokens
    Los tokens que generan las utilidades (bg-card, text-foreground,
