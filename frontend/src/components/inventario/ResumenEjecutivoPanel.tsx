@@ -45,7 +45,8 @@ const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')
 // Celda del treemap "Inversión en vehículos": un rectángulo por vehículo,
 // tamaño = valor, color = empresa. recharts inyecta x/y/width/height + el datum.
 const TreemapCell: React.FC<any> = ({ x, y, width, height, name, value, size, color, payload }) => {
-    if (!width || !height || width <= 0 || height <= 0) return null;
+    // Saltar el nodo raíz (sin nombre) y celdas sin tamaño; solo dibujar vehículos.
+    if (!name || !width || !height || width <= 0 || height <= 0) return null;
     const fill = color || payload?.color || '#64748b';
     const monto = value ?? size ?? payload?.size ?? 0;
     const showLabel = width > 56 && height > 30;
@@ -747,7 +748,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
 
             {/* Inversión en vehículos (treemap): un rectángulo por vehículo, tamaño = valor,
                 color por empresa. Va debajo del desglose por empresa. Mismo gate. */}
-            {!obraFilter && verValoresResumen && (data?.inversion_vehiculos?.length ?? 0) > 0 && (
+            {!obraFilter && verValoresResumen && (
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
                 <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
                     Inversión en vehículos
@@ -755,17 +756,25 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 <p className="text-caption text-muted-foreground mb-3">
                     Cada rectángulo es un vehículo; el tamaño representa su valor. Color por empresa.
                 </p>
-                <div className="h-[240px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <Treemap
-                            data={data!.inversion_vehiculos.map(v => ({ name: v.label, size: v.valor, color: v.color }))}
-                            dataKey="size"
-                            stroke="#fff"
-                            isAnimationActive={false}
-                            content={<TreemapCell />}
-                        />
-                    </ResponsiveContainer>
-                </div>
+                {(data?.inversion_vehiculos?.length ?? 0) === 0 ? (
+                    <div className="py-10 text-center text-muted-foreground">
+                        <Truck className="h-10 w-10 mx-auto mb-2 opacity-30" />
+                        <p className="text-sm font-medium">Aún no hay vehículos con valor cargado.</p>
+                        <p className="text-xs mt-1">Ve a Vehículos → editar un vehículo y completa "Valor del vehículo" para ver el gráfico.</p>
+                    </div>
+                ) : (
+                    <div className="h-[240px] w-full">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <Treemap
+                                data={data!.inversion_vehiculos.map(v => ({ name: v.label, size: v.valor, color: v.color }))}
+                                dataKey="size"
+                                stroke="#fff"
+                                isAnimationActive={false}
+                                content={<TreemapCell />}
+                            />
+                        </ResponsiveContainer>
+                    </div>
+                )}
             </div>
             )}
 
