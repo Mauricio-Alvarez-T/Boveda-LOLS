@@ -732,7 +732,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     Inversión en vehículos
                 </h3>
                 <p className="text-caption text-muted-foreground mb-3">
-                    Valor de los vehículos por empresa.
+                    Inversión acumulada: cada paso suma un vehículo; el final de cada línea es el total invertido por empresa.
                 </p>
                 {(data?.inversion_vehiculos?.length ?? 0) === 0 ? (
                     <div className="py-10 text-center text-muted-foreground">
@@ -741,24 +741,41 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         <p className="text-xs mt-1">Ve a Vehículos → editar un vehículo y completa "Valor del vehículo" para ver el gráfico.</p>
                     </div>
                 ) : (() => {
-                    // Una serie (línea) por empresa; cada vehículo es un punto en el eje X
-                    // bajo la línea de su empresa. connectNulls une los puntos de cada empresa.
-                    const empresas = [...new Map(data!.inversion_vehiculos.map(v => [v.empresa, v.color])).entries()];
-                    const chartData = data!.inversion_vehiculos.map(v => ({ name: v.label, [v.empresa]: v.valor }));
+                    // Inversión ACUMULADA: por cada empresa, ordenamos sus vehículos de mayor a
+                    // menor valor y vamos sumando. El eje X es el N° de vehículos acumulados; cada
+                    // línea sube y termina en el total invertido de su empresa.
+                    const byEmp = new Map<string, { color: string; vals: number[] }>();
+                    for (const v of data!.inversion_vehiculos) {
+                        if (!byEmp.has(v.empresa)) byEmp.set(v.empresa, { color: v.color, vals: [] });
+                        byEmp.get(v.empresa)!.vals.push(v.valor);
+                    }
+                    for (const info of byEmp.values()) info.vals.sort((a, b) => b - a);
+                    const empresas = [...byEmp.entries()].map(([nombre, info]) => [nombre, info.color] as [string, string]);
+                    const maxLen = Math.max(0, ...[...byEmp.values()].map(e => e.vals.length));
+                    const run: Record<string, number> = {};
+                    empresas.forEach(([n]) => (run[n] = 0));
+                    const chartData = Array.from({ length: maxLen }, (_, k) => {
+                        const row: any = { step: k + 1 };
+                        for (const [nombre, info] of byEmp) {
+                            if (k < info.vals.length) { run[nombre] += info.vals[k]; row[nombre] = run[nombre]; }
+                        }
+                        return row;
+                    });
                     return (
                         <div className="h-[300px] w-full">
                             <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 16, right: 12, left: 4, bottom: 8 }}>
+                                <LineChart data={chartData} margin={{ top: 16, right: 16, left: 8, bottom: 16 }}>
                                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                    <XAxis dataKey="name" interval={0} height={56} axisLine={false} tickLine={false}
-                                        angle={-18} textAnchor="end"
-                                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 500 }} />
-                                    <YAxis axisLine={false} tickLine={false} width={50}
+                                    <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
+                                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 500 }}
+                                        label={{ value: 'N° de vehículos acumulados', position: 'insideBottom', offset: -6, fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                                    <YAxis axisLine={false} tickLine={false} width={52}
                                         tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
                                         tickFormatter={(v: number) => fmtCLP(v)} />
                                     <Tooltip
                                         contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
                                         labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
+                                        labelFormatter={(label: any) => `${label} vehículo(s)`}
                                         formatter={(value: any, name: any) => [fmtCLPFull(Number(value)), name]} />
                                     <Legend wrapperStyle={{ fontSize: '12px' }} />
                                     {empresas.map(([empresa, color]) => (
