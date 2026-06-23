@@ -7,6 +7,7 @@ import { ProgressBar } from '../components/ui/ProgressBar';
 import { showConfirmToast } from '../utils/toastUtils';
 import { JourneyRunner } from '../components/ayuda/journey/JourneyRunner';
 import { AsistenciaJourneyRunner } from '../components/ayuda/asistencia/AsistenciaJourneyRunner';
+import { VehiculosJourneyRunner } from '../components/ayuda/vehiculos/VehiculosJourneyRunner';
 import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys';
 import { useTutorialProgreso } from '../hooks/ayuda/useTutorialProgreso';
 
@@ -122,9 +123,9 @@ const CentroAyuda: React.FC = () => {
             onCompletar: marcar,
             onExit: () => setSelectedId(null),
         };
-        return selected.runner === 'asistencia'
-            ? <AsistenciaJourneyRunner {...props} />
-            : <JourneyRunner {...props} />;
+        if (selected.runner === 'asistencia') return <AsistenciaJourneyRunner {...props} />;
+        if (selected.runner === 'vehiculos') return <VehiculosJourneyRunner {...props} />;
+        return <JourneyRunner {...props} />;
     }
 
     const pedirReinicio = () => showConfirmToast({

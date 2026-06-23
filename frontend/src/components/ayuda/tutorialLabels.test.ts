@@ -24,6 +24,9 @@ const CASOS: Array<{ archivo: string; etiquetas: string[] }> = [
     { archivo: 'attendance/sabados/SabadosExtraList.tsx', etiquetas: ['Nueva citación'] },
     { archivo: 'attendance/sabados/SabadoExtraForm.tsx', etiquetas: ['Crear citación'] },
     { archivo: 'attendance/sabados/SabadoExtraAsistencia.tsx', etiquetas: ['Guardar asistencia'] },
+    // Vehículos — página (lista/modal) y panel de documentos.
+    { archivo: '../pages/Vehiculos.tsx', etiquetas: ['Nuevo vehículo', 'Editar vehículo', 'Guardar'] },
+    { archivo: 'vehiculos/VehiculoDocumentos.tsx', etiquetas: ['Agregar', 'Subir documento'] },
 ];
 
 describe('etiquetas de botones que los tutoriales resaltan (no romper en silencio)', () => {

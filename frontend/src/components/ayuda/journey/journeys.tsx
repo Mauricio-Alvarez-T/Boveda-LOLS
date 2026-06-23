@@ -3,6 +3,7 @@ import {
     FileText, ShoppingBag, Send, Undo2, ArrowLeftRight, Warehouse, ShieldCheck, AlertTriangle,
     CheckSquare, SearchCheck, Truck, Archive, Settings,
     CalendarOff, CopyPlus, FileSpreadsheet, Share2, CalendarClock, CalendarPlus,
+    Pencil,
 } from 'lucide-react';
 import type { Origen, Destino } from '../../../utils/inferMovimiento';
 
@@ -27,10 +28,12 @@ export interface JourneyDef {
     sinAprobacion?: boolean;
     /** true si el recorrido termina resolviendo una discrepancia (paso extra "Resolver"). */
     conDiscrepancia?: boolean;
-    /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia' = pantalla real de Asistencia en sandbox. */
-    runner?: 'solicitudes' | 'asistencia';
+    /** Motor que recorre el journey. 'solicitudes' (default) = wizard+detalle; 'asistencia'/'vehiculos' = pantalla real en sandbox. */
+    runner?: 'solicitudes' | 'asistencia' | 'vehiculos';
     /** Flujo concreto del runner de Asistencia: define qué pantalla montar, qué botón resaltar, la instrucción y el recap (ver AsistenciaJourneyRunner). */
     asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'sabado';
+    /** Flujo concreto del runner de Vehículos (ver VehiculosJourneyRunner). */
+    vehiculoFlujo?: 'registrar' | 'editar' | 'documento';
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
     /** Resumen de pasos al completar (si se omite, uno por defecto). */
@@ -218,7 +221,24 @@ export const JOURNEYS: JourneyDef[] = [
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'asistencia', asistenciaFlujo: 'whatsapp',
     },
     { id: 'consultas', modulo: 'Consultas', icon: SearchCheck, titulo: 'Consultar trabajadores', descripcion: 'Buscar trabajadores y revisar su información y documentos.', estado: 'proximamente' },
-    { id: 'vehiculos', modulo: 'Vehículos', icon: Truck, titulo: 'Gestión de vehículos', descripcion: 'Documentos, revisión técnica, mantención y alertas de vencimiento.', estado: 'proximamente' },
+    {
+        id: 'vehiculo-registrar', modulo: 'Vehículos', icon: Truck,
+        titulo: 'Registrar un vehículo',
+        descripcion: 'Dar de alta un vehículo en una empresa de flota: patente, marca, modelo y datos.',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'vehiculos', vehiculoFlujo: 'registrar',
+    },
+    {
+        id: 'vehiculo-editar', modulo: 'Vehículos', icon: Pencil,
+        titulo: 'Editar un vehículo',
+        descripcion: 'Actualizar los datos de un vehículo existente (conductor, kilómetros, etc.).',
+        estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'vehiculos', vehiculoFlujo: 'editar',
+    },
+    {
+        id: 'vehiculo-documento', modulo: 'Vehículos', icon: FileText,
+        titulo: 'Subir un documento del vehículo',
+        descripcion: 'Adjuntar el permiso de circulación, seguro u otro documento a un vehículo.',
+        estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'vehiculos', vehiculoFlujo: 'documento',
+    },
     { id: 'obras', modulo: 'Obras', icon: Archive, titulo: 'Obras finalizadas', descripcion: 'Consultar el historial de obras ya terminadas.', estado: 'proximamente' },
     { id: 'configuracion', modulo: 'Configuración', icon: Settings, titulo: 'Configuración del sistema', descripcion: 'Usuarios, roles, empresas, obras y catálogos.', estado: 'proximamente' },
 ];
