@@ -25,8 +25,10 @@ describe('installVehiculosMock', () => {
         await ax.post('/vehiculos', { patente: 'ABCD12' });
         await ax.put('/vehiculos/5001', { color: 'Azul' });
         await ax.post('/vehiculos/5001/documentos', { categoria: 'permiso_circulacion' });
+        await ax.post('/vehiculos/5001/revisiones', { tipo: 'tecnica' });
+        await ax.post('/vehiculos/5001/mantenciones', { taller: 'Taller demo' });
 
-        expect(acciones).toEqual(expect.arrayContaining(['crear', 'editar', 'doc-subir']));
+        expect(acciones).toEqual(expect.arrayContaining(['crear', 'editar', 'doc-subir', 'revision', 'mantencion']));
 
         mock.restore();
     });

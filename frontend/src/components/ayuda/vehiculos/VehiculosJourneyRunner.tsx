@@ -54,6 +54,28 @@ const CONFIG: Record<Flujo, FlujoConfig> = {
             'Subiste el documento y quedó en la ficha del vehículo.',
         ],
     },
+    revision: {
+        labels: ['Guardar registro', 'Agregar'],
+        instruccion: 'Elige una empresa y un vehículo (su detalle aparece a la derecha). En "Documentos" pulsa "Agregar", en el selector elige "Revisión técnica", completa la planta/lugar, la fecha, el vencimiento y un email de alerta, y pulsa "Guardar registro".',
+        accion: 'revision',
+        finTitulo: '¡Revisión técnica registrada!',
+        recap: [
+            'Abriste el detalle de un vehículo y pulsaste "Agregar".',
+            'Elegiste el tipo "Revisión técnica" y completaste lugar, fecha, vencimiento y email de alerta.',
+            'Guardaste el registro; el sistema avisará por correo antes del vencimiento.',
+        ],
+    },
+    mantencion: {
+        labels: ['Guardar registro', 'Agregar'],
+        instruccion: 'Elige una empresa y un vehículo (su detalle aparece a la derecha). En "Documentos" pulsa "Agregar", en el selector elige "Mantención", completa el taller/lugar, la fecha, la próxima mantención (vencimiento) y un email de alerta, y pulsa "Guardar registro".',
+        accion: 'mantencion',
+        finTitulo: '¡Mantención registrada!',
+        recap: [
+            'Abriste el detalle de un vehículo y pulsaste "Agregar".',
+            'Elegiste el tipo "Mantención" y completaste taller, fecha, próxima mantención y email de alerta.',
+            'Guardaste el registro; el sistema avisará por correo antes de la próxima.',
+        ],
+    },
 };
 
 /**

@@ -48,10 +48,18 @@ export function installVehiculosMock(api: AxiosInstance, opts: VehiculosMockOpts
         return [200, { data: { ...vehiculosDemo[0] } }];
     });
 
+    // Revisión técnica/gases y mantención = tipos "data" del panel de documentos.
+    mock.onPost(/\/vehiculos\/\d+\/revisiones/).reply(() => {
+        accion('revision');
+        return [201, { data: {} }];
+    });
+    mock.onPost(/\/vehiculos\/\d+\/mantenciones/).reply(() => {
+        accion('mantencion');
+        return [201, { data: {} }];
+    });
+
     // ── No-op para no romper si el usuario toca otras acciones (passthrough evitado) ──
-    mock.onPost(/\/vehiculos\/\d+\/revisiones/).reply(201, { data: {} });
     mock.onPut(/\/vehiculos\/\d+\/revisiones\/\d+/).reply(200, { data: {} });
-    mock.onPost(/\/vehiculos\/\d+\/mantenciones/).reply(201, { data: {} });
     mock.onPut(/\/vehiculos\/\d+\/mantenciones\/\d+/).reply(200, { data: {} });
     mock.onDelete(/\/vehiculos\/\d+\/documentos\/\d+/).reply(200, { data: {} });
     mock.onDelete(/\/vehiculos\/\d+\/(revisiones|mantenciones)\/\d+/).reply(200, { data: {} });

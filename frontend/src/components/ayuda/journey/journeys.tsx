@@ -3,7 +3,7 @@ import {
     FileText, ShoppingBag, Send, Undo2, ArrowLeftRight, Warehouse, ShieldCheck, AlertTriangle,
     CheckSquare, SearchCheck, Truck, Archive, Settings,
     CalendarOff, CopyPlus, FileSpreadsheet, Share2, CalendarClock, CalendarPlus,
-    Pencil,
+    Pencil, ClipboardCheck, Wrench,
 } from 'lucide-react';
 import type { Origen, Destino } from '../../../utils/inferMovimiento';
 
@@ -33,7 +33,7 @@ export interface JourneyDef {
     /** Flujo concreto del runner de Asistencia: define qué pantalla montar, qué botón resaltar, la instrucción y el recap (ver AsistenciaJourneyRunner). */
     asistenciaFlujo?: 'diaria' | 'traslado' | 'feriado' | 'repetir' | 'export-excel' | 'whatsapp' | 'periodo' | 'sabado';
     /** Flujo concreto del runner de Vehículos (ver VehiculosJourneyRunner). */
-    vehiculoFlujo?: 'registrar' | 'editar' | 'documento';
+    vehiculoFlujo?: 'registrar' | 'editar' | 'documento' | 'revision' | 'mantencion';
     /** Textos de ayuda por fase del recorrido. */
     textos?: { crear: string; aprobar: string; recibir: string; fin: string };
     /** Resumen de pasos al completar (si se omite, uno por defecto). */
@@ -238,6 +238,18 @@ export const JOURNEYS: JourneyDef[] = [
         titulo: 'Subir un documento del vehículo',
         descripcion: 'Adjuntar el permiso de circulación, seguro u otro documento a un vehículo.',
         estado: 'disponible', duracion: 'Interactivo · 2 min', runner: 'vehiculos', vehiculoFlujo: 'documento',
+    },
+    {
+        id: 'vehiculo-revision', modulo: 'Vehículos', icon: ClipboardCheck,
+        titulo: 'Registrar una revisión técnica',
+        descripcion: 'Anotar la revisión técnica (o de gases) de un vehículo y su vencimiento, con aviso por correo.',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'vehiculos', vehiculoFlujo: 'revision',
+    },
+    {
+        id: 'vehiculo-mantencion', modulo: 'Vehículos', icon: Wrench,
+        titulo: 'Registrar una mantención',
+        descripcion: 'Dejar registro de una mantención del vehículo y agendar la próxima con aviso por correo.',
+        estado: 'disponible', duracion: 'Interactivo · 3 min', runner: 'vehiculos', vehiculoFlujo: 'mantencion',
     },
     { id: 'obras', modulo: 'Obras', icon: Archive, titulo: 'Obras finalizadas', descripcion: 'Consultar el historial de obras ya terminadas.', estado: 'proximamente' },
     { id: 'configuracion', modulo: 'Configuración', icon: Settings, titulo: 'Configuración del sistema', descripcion: 'Usuarios, roles, empresas, obras y catálogos.', estado: 'proximamente' },
