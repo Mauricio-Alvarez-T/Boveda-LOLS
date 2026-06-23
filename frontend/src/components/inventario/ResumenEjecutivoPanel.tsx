@@ -15,6 +15,7 @@ import {
     Droplets,
     Filter,
 } from 'lucide-react';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
@@ -738,6 +739,24 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     </div>
                 ) : (() => {
                     const vehs = data!.inversion_vehiculos;
+                    // Inversión ACUMULADA por empresa (para el área estilo "Tendencia de Asistencia").
+                    const byEmp = new Map<string, { color: string; vals: number[] }>();
+                    for (const v of vehs) {
+                        if (!byEmp.has(v.empresa)) byEmp.set(v.empresa, { color: v.color, vals: [] });
+                        byEmp.get(v.empresa)!.vals.push(v.valor);
+                    }
+                    for (const info of byEmp.values()) info.vals.sort((a, b) => b - a);
+                    const empresasAcum = [...byEmp.entries()].map(([nombre, info]) => [nombre, info.color] as [string, string]);
+                    const maxLen = Math.max(0, ...[...byEmp.values()].map(e => e.vals.length));
+                    const run: Record<string, number> = {};
+                    empresasAcum.forEach(([n]) => (run[n] = 0));
+                    const chartData = Array.from({ length: maxLen }, (_, k) => {
+                        const row: any = { step: k + 1 };
+                        for (const [nombre, info] of byEmp) {
+                            if (k < info.vals.length) { run[nombre] += info.vals[k]; row[nombre] = run[nombre]; }
+                        }
+                        return row;
+                    });
                     // Inversión por TIPO de vehículo (total + cantidad + promedio).
                     const porTipo = Object.values(
                         vehs.reduce((acc: Record<string, { tipo: string; count: number; total: number }>, v) => {
@@ -749,6 +768,40 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     ).sort((a, b) => b.total - a.total);
                     return (
                         <>
+                            {/* Área acumulada (estilo "Tendencia de Asistencia") */}
+                            <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Inversión acumulada</p>
+                            <div className="h-[240px] w-full mb-5">
+                                <ResponsiveContainer width="100%" height="100%">
+                                    <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -4, bottom: 12 }}>
+                                        <defs>
+                                            {empresasAcum.map(([emp, color], i) => (
+                                                <linearGradient key={emp} id={`gradVeh-${i}`} x1="0" y1="0" x2="0" y2="1">
+                                                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                                                    <stop offset="95%" stopColor={color} stopOpacity={0} />
+                                                </linearGradient>
+                                            ))}
+                                        </defs>
+                                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
+                                        <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
+                                            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                                            label={{ value: 'N° de vehículos acumulados', position: 'insideBottom', offset: -4, fill: 'var(--muted-foreground)', fontSize: 11 }} />
+                                        <YAxis axisLine={false} tickLine={false} width={52}
+                                            tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
+                                            tickFormatter={(v: number) => fmtCLP(v)} />
+                                        <Tooltip
+                                            contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
+                                            labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
+                                            labelFormatter={(label: any) => `${label} vehículo(s)`}
+                                            formatter={(value: any, name: any) => [fmtCLPFull(Number(value)), name]} />
+                                        <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', paddingLeft: '12px' }} />
+                                        {empresasAcum.map(([emp, color], i) => (
+                                            <Area key={emp} type="monotone" dataKey={emp} name={emp}
+                                                stroke={color} strokeWidth={3} fill={`url(#gradVeh-${i})`} fillOpacity={1}
+                                                connectNulls dot={{ r: 3, fill: color }} activeDot={{ r: 5 }} isAnimationActive={false} />
+                                        ))}
+                                    </AreaChart>
+                                </ResponsiveContainer>
+                            </div>
                             {/* Por tipo */}
                             <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Por tipo de vehículo</p>
                             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
