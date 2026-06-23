@@ -800,12 +800,12 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             </div>
                             {/* Por tipo */}
                             <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Por tipo de vehículo</p>
-                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
+                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6 gap-2 mb-5">
                                 {porTipo.map(t => (
-                                    <div key={t.tipo} className="rounded-xl border border-border p-3">
-                                        <p className="text-sm font-bold text-brand-dark capitalize">{t.tipo}</p>
-                                        <p className="text-base font-black text-brand-dark">{fmtCLPFull(t.total)}</p>
-                                        <p className="text-caption text-muted-foreground">{t.count} auto{t.count !== 1 ? 's' : ''} · prom {fmtCLP(t.total / t.count)}</p>
+                                    <div key={t.tipo} className="rounded-lg border border-border px-2.5 py-2 min-w-0">
+                                        <p className="text-xs font-bold text-brand-dark capitalize truncate">{t.tipo}</p>
+                                        <p className="text-sm font-black text-brand-dark truncate" title={fmtCLPFull(t.total)}>{fmtCLP(t.total)}</p>
+                                        <p className="text-micro text-muted-foreground truncate">{t.count} auto{t.count !== 1 ? 's' : ''} · prom {fmtCLP(t.total / t.count)}</p>
                                     </div>
                                 ))}
                             </div>
