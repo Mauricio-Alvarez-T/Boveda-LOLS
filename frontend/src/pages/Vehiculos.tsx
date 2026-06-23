@@ -208,9 +208,10 @@ const VehiculosPage: React.FC = () => {
                 (la columna de empresas está siempre visible). */}
             {hasPermission('vehiculos.crear') && (
                 <span className={cn(enNivel2 && 'hidden lg:inline-flex')}>
-                    <Button size="icon" onClick={() => { setEditEmpresa(null); setModalEmpresa(true); }}
-                        title="Nueva empresa" aria-label="Nueva empresa" className="h-9 w-9">
-                        <Plus className="h-4 w-4" />
+                    <Button size="sm" onClick={() => { setEditEmpresa(null); setModalEmpresa(true); }}
+                        title="Nueva empresa" aria-label="Nueva empresa"
+                        leftIcon={<Plus className="h-4 w-4" />} className="h-9">
+                        <span className="hidden sm:inline">Nueva empresa</span>
                     </Button>
                 </span>
             )}
