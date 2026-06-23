@@ -8,6 +8,7 @@ import { showConfirmToast } from '../utils/toastUtils';
 import { JourneyRunner } from '../components/ayuda/journey/JourneyRunner';
 import { AsistenciaJourneyRunner } from '../components/ayuda/asistencia/AsistenciaJourneyRunner';
 import { VehiculosJourneyRunner } from '../components/ayuda/vehiculos/VehiculosJourneyRunner';
+import { ConsultasJourneyRunner } from '../components/ayuda/consultas/ConsultasJourneyRunner';
 import { JOURNEYS, type JourneyDef } from '../components/ayuda/journey/journeys';
 import { useTutorialProgreso } from '../hooks/ayuda/useTutorialProgreso';
 
@@ -125,6 +126,7 @@ const CentroAyuda: React.FC = () => {
         };
         if (selected.runner === 'asistencia') return <AsistenciaJourneyRunner {...props} />;
         if (selected.runner === 'vehiculos') return <VehiculosJourneyRunner {...props} />;
+        if (selected.runner === 'consultas') return <ConsultasJourneyRunner {...props} />;
         return <JourneyRunner {...props} />;
     }
 

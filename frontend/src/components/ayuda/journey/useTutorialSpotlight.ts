@@ -39,11 +39,14 @@ export function useTutorialSpotlight(
         let scheduled = false;
 
         // El texto del botón puede venir como contenido o, en botones icon-only, en
-        // `title`/`aria-label` (ej. acciones del header de Asistencia).
-        const matchLabel = (b: HTMLButtonElement, lbl: string) =>
-            norm(b.textContent).includes(lbl)
-            || norm(b.getAttribute('aria-label')).includes(lbl)
-            || norm(b.getAttribute('title')).includes(lbl);
+        // `title`/`aria-label` (ej. acciones del header). Case-insensitive: algunos
+        // botones van en MAYÚSCULAS (ej. "CREAR") y los aria-label en Title Case.
+        const matchLabel = (b: HTMLButtonElement, lbl: string) => {
+            const needle = lbl.toLowerCase();
+            return norm(b.textContent).toLowerCase().includes(needle)
+                || norm(b.getAttribute('aria-label')).toLowerCase().includes(needle)
+                || norm(b.getAttribute('title')).toLowerCase().includes(needle);
+        };
 
         const find = (): { el: HTMLButtonElement | null; label: string | null } => {
             // Busca en 3 lugares (un botón cae en un solo scope, dedup con Set):
