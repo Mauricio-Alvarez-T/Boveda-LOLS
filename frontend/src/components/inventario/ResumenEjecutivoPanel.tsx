@@ -5,6 +5,7 @@ import {
     Truck,
     Wallet,
     Landmark,
+    Coins,
     RefreshCw,
     ChevronRight,
     Package,
@@ -52,7 +53,7 @@ const CAT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b
 // Sparkline — mini gráfico SVG sin dependencias
 // React.memo: el sparkline solo cambia cuando data o tone cambian.
 // ────────────────────────────────────────────────────────
-const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' | 'slate' }> = ({ data, tone }) => {
+const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' | 'slate' | 'indigo' }> = ({ data, tone }) => {
     if (!data || data.length < 2) return null;
     const w = 80;
     const h = 22;
@@ -62,7 +63,7 @@ const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' |
     const step = w / (data.length - 1);
     const points = data.map((v, i) => `${i * step},${h - ((v - min) / range) * h}`).join(' ');
     // paleta de data-viz (recharts requiere valores literales); colorMap ya usa la rampa accesible -700/-800
-    const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857', slate: '#334155' };
+    const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857', slate: '#334155', indigo: '#4338ca' };
     return (
         <svg width={w} height={h} className="shrink-0" aria-hidden="true">
             <polyline
@@ -111,7 +112,7 @@ const ComparativaChip = React.memo(ComparativaChipImpl);
 // React.memo aplicado al final (después de la definición).
 // ────────────────────────────────────────────────────────
 interface KpiCardProps {
-    tone: 'amber' | 'red' | 'blue' | 'green' | 'slate';
+    tone: 'amber' | 'red' | 'blue' | 'green' | 'slate' | 'indigo';
     icon: React.ReactNode;
     label: string;
     value: string;
@@ -131,6 +132,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
         blue:   'bg-blue-50   border-blue-200   hover:border-blue-400   text-blue-900 dark:bg-blue-950/40 dark:border-blue-900 dark:hover:border-blue-700 dark:text-blue-200',
         green:  'bg-emerald-50 border-emerald-200 hover:border-emerald-400 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:hover:border-emerald-700 dark:text-emerald-200',
         slate:  'bg-slate-50  border-slate-200  hover:border-slate-400  text-slate-900 dark:bg-slate-900/40 dark:border-slate-800 dark:hover:border-slate-600 dark:text-slate-200',
+        indigo: 'bg-indigo-50 border-indigo-200 hover:border-indigo-400 text-indigo-900 dark:bg-indigo-950/40 dark:border-indigo-900 dark:hover:border-indigo-700 dark:text-indigo-200',
     };
     const iconClasses: Record<KpiCardProps['tone'], string> = {
         amber:  'bg-amber-200/60  text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
@@ -138,6 +140,7 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
         blue:   'bg-blue-200/60   text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
         green:  'bg-emerald-200/60 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
         slate:  'bg-slate-200/60  text-slate-700 dark:bg-slate-500/20 dark:text-slate-300',
+        indigo: 'bg-indigo-200/60 text-indigo-700 dark:bg-indigo-500/20 dark:text-indigo-300',
     };
 
     // card clickable: la KPI completa actúa como botón (elemento dinámico, no <button> JSX)
@@ -606,9 +609,10 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 md:gap-4 shrink-0">
                 {loading && !data ? (
                     <>
+                        <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
@@ -657,6 +661,16 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 value={fmtCLP(data?.kpis.valor_vehiculos ?? 0)}
                                 subline="valor de compra"
                                 tooltip="Lo invertido en compra de todos los vehículos activos (suma del valor de cada vehículo). El detalle por empresa y por auto está más abajo en 'Inversión en vehículos'."
+                            />
+                        )}
+                        {!obraFilter && verValoresResumen && (
+                            <KpiCard
+                                tone="indigo"
+                                icon={<Coins className="h-5 w-5" />}
+                                label="Total"
+                                value={fmtCLP((data?.kpis.valor_inventario ?? 0) + (data?.kpis.valor_vehiculos ?? 0))}
+                                subline="inventario + vehículos"
+                                tooltip="Total invertido en compra: suma del valor de compra del inventario más el de todos los vehículos."
                             />
                         )}
                     </>
