@@ -770,17 +770,9 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         <>
                             {/* Área acumulada (estilo "Tendencia de Asistencia") */}
                             <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Inversión acumulada</p>
-                            <div className="h-[240px] w-full mb-5">
+                            <div className="h-[240px] w-full mb-5 rounded-xl bg-muted/50 p-2 pr-1">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={chartData} margin={{ top: 10, right: 12, left: -4, bottom: 12 }}>
-                                        <defs>
-                                            {empresasAcum.map(([emp, color], i) => (
-                                                <linearGradient key={emp} id={`gradVeh-${i}`} x1="0" y1="0" x2="0" y2="1">
-                                                    <stop offset="5%" stopColor={color} stopOpacity={0.3} />
-                                                    <stop offset="95%" stopColor={color} stopOpacity={0} />
-                                                </linearGradient>
-                                            ))}
-                                        </defs>
                                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
                                         <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
@@ -794,9 +786,9 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                             labelFormatter={(label: any) => `${label} vehículo(s)`}
                                             formatter={(value: any, name: any) => [fmtCLPFull(Number(value)), name]} />
                                         <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', paddingLeft: '12px' }} />
-                                        {empresasAcum.map(([emp, color], i) => (
+                                        {empresasAcum.map(([emp, color]) => (
                                             <Area key={emp} type="monotone" dataKey={emp} name={emp}
-                                                stroke={color} strokeWidth={3} fill={`url(#gradVeh-${i})`} fillOpacity={1}
+                                                stroke={color} strokeWidth={3} fill="none"
                                                 connectNulls dot={{ r: 3, fill: color }} activeDot={{ r: 5 }} isAnimationActive={false} />
                                         ))}
                                     </AreaChart>
