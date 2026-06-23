@@ -802,12 +802,25 @@ const inventarioService = {
         const patrimonio_vehiculos = obraIdNum ? [] : (vehiculosPorEmpresaRows || []).map(r => ({
             nombre: r.nombre,
             color: r.color || '#64748b',
-            tipo: 'vehiculos',
             valor: Number(r.valor) || 0,
         }));
+        // El inventario y la empresa de flota con el MISMO nombre ("Dedalius") son la misma
+        // empresa → se fusionan en una sola fila (inventario + sus vehículos). El resto de
+        // empresas de flota (LOLS, etc.) van como filas de "vehículos".
+        const DEDALIUS = 'Dedalius';
+        const norm = (s) => String(s || '').trim().toLowerCase();
+        const dedaliusVehTotal = patrimonio_vehiculos
+            .filter(v => norm(v.nombre) === norm(DEDALIUS))
+            .reduce((s, v) => s + v.valor, 0);
+        const otrasEmpresas = patrimonio_vehiculos.filter(v => norm(v.nombre) !== norm(DEDALIUS));
         const patrimonio_por_empresa = [
-            { nombre: 'Dedalius', color: '#0F6E56', tipo: 'inventario', valor: patrimonio_dedalius },
-            ...patrimonio_vehiculos,
+            {
+                nombre: DEDALIUS,
+                color: '#0F6E56',
+                tipo: dedaliusVehTotal > 0 ? 'inventario + vehículos' : 'inventario',
+                valor: patrimonio_dedalius + dedaliusVehTotal,
+            },
+            ...otrasEmpresas.map(v => ({ ...v, tipo: 'vehículos' })),
         ];
         const valor_total_patrimonio = patrimonio_por_empresa.reduce((s, e) => s + e.valor, 0);
         // Inversión por vehículo (treemap). Global → vacío al filtrar por una obra.

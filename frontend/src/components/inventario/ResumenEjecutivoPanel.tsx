@@ -710,7 +710,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                     <span className="text-sm font-bold text-brand-dark flex items-center gap-2 min-w-0">
                                         <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: e.color }} />
                                         <span className="truncate">{e.nombre}</span>
-                                        <span className="text-caption text-muted-foreground font-semibold shrink-0">· {e.tipo === 'inventario' ? 'inventario' : 'vehículos'}</span>
+                                        <span className="text-caption text-muted-foreground font-semibold shrink-0">· {e.tipo}</span>
                                     </span>
                                     <span className="shrink-0 text-sm font-black text-brand-dark">{fmtCLP(e.valor)}</span>
                                 </div>

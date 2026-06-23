@@ -72,7 +72,8 @@ export interface CategoriaValor {
 export interface PatrimonioEmpresa {
     nombre: string;
     color: string;
-    tipo: 'inventario' | 'vehiculos';
+    /** Sub-rótulo descriptivo: 'inventario', 'vehículos' o 'inventario + vehículos'. */
+    tipo: string;
     valor: number;
 }
 
