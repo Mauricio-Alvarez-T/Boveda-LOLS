@@ -894,8 +894,12 @@ const transferenciaService = {
             const trfItemIdMap = {};
             const itemRowMap = {};
             dbItems.forEach(r => {
-                enviadaMap[r.item_id] = r.cantidad_enviada || 0;
-                acumuladoMap[r.item_id] = r.cantidad_recibida || 0;
+                // mysql2 devuelve DECIMAL como string ('10.0000'); normalizar a número.
+                // Sin esto, el guard de discrepancia (totalRecibidoFinal !== enviadaMap)
+                // compara number vs string y SIEMPRE da true → crea discrepancias
+                // fantasma con diferencia 0 aunque las cantidades cuadren.
+                enviadaMap[r.item_id] = Number(r.cantidad_enviada) || 0;
+                acumuladoMap[r.item_id] = Number(r.cantidad_recibida) || 0;
                 trfItemIdMap[r.item_id] = r.id;
                 itemRowMap[r.item_id] = r;
             });
@@ -1751,7 +1755,9 @@ const transferenciaService = {
         const offset = (page - 1) * limit;
 
         const params = [];
-        let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
+        // Defensa en profundidad: nunca listar filas con diferencia 0 (semánticamente
+        // imposibles; datos fantasma de versiones previas). El fix de raíz vive en recibir().
+        let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA + ' AND d.diferencia <> 0';
         if (estado) { where += ' AND d.estado = ?'; params.push(estado); }
 
         // 1. Traer transferencias distintas que tienen al menos una discrepancia
@@ -1793,7 +1799,7 @@ const transferenciaService = {
             JOIN items_inventario i ON d.item_id = i.id
             LEFT JOIN usuarios ru ON d.resuelto_por = ru.id
             LEFT JOIN usuarios rp ON d.reportado_por = rp.id
-            WHERE d.transferencia_id IN (?)
+            WHERE d.transferencia_id IN (?) AND d.diferencia <> 0
             ORDER BY d.transferencia_id, d.id
         `, [trfIds]);
 

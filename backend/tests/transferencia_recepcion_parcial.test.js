@@ -386,6 +386,49 @@ describe('recibir() — modo parcial', () => {
         );
         expect(discrepCalls).toHaveLength(0);
     });
+
+    test('10) tipo=total con cantidad_enviada DECIMAL string (mysql2) y recibido == enviado → NO crea discrepancia (regresión coerción number vs string)', async () => {
+        // El test #9 mockea cantidad_enviada como número (10) y por eso NO atrapa el
+        // bug real: en producción mysql2 devuelve DECIMAL(12,4) como STRING ('1.0000').
+        // Si recibir() no normaliza, `1 !== '1.0000'` es true → discrepancia fantasma.
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+
+        const trfRow = {
+            id: 100, estado: 'en_transito', stock_reconciliado: 1,
+            destino_obra_id: 9, destino_bodega_id: null,
+            origen_obra_id: null, origen_bodega_id: 2,
+            transportista_id: 50,
+        };
+
+        conn.query
+            .mockResolvedValueOnce([[trfRow]])
+            // dbItems: cantidad_enviada como STRING DECIMAL (lo que devuelve mysql2), recibida null
+            .mockResolvedValueOnce([[{ id: 200, item_id: 5, cantidad_enviada: '1.0000', cantidad_recibida: null, origen_obra_id: null, origen_bodega_id: 2 }]])
+            .mockResolvedValueOnce([{ insertId: 5005 }])  // INSERT header
+            .mockResolvedValueOnce([[{ id: 700, origen_obra_id: null, origen_bodega_id: 2, cantidad_enviada: 1, cantidad_decrementada: 0 }]])
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // decremento origen
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE split decrementada
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // UPDATE cantidad_recibida
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT destino
+            .mockResolvedValueOnce([{ affectedRows: 1 }])  // INSERT recepcion_items
+            .mockResolvedValueOnce([{ affectedRows: 1 }]); // UPDATE estado → recibida
+        // Red de seguridad: si el bug reaparece e inserta una discrepancia de más,
+        // que no falle por falta de mock — la aserción de abajo lo detecta.
+        conn.query.mockResolvedValue([{ affectedRows: 1 }]);
+
+        // Recibe total: 1 de 1 enviado → cuadra exacto, NO debe haber discrepancia.
+        await transferenciaService.recibir(
+            100, 77, [{ item_id: 5, cantidad_recibida: 1 }],
+            ['inventario.transferencias.recibir'],
+            'total'
+        );
+
+        const discrepCalls = conn.query.mock.calls.filter(c =>
+            /INSERT INTO transferencia_discrepancias/.test(c[0])
+        );
+        expect(discrepCalls).toHaveLength(0);
+    });
 });
 
 describe('getRecepciones() — historial de eventos', () => {
