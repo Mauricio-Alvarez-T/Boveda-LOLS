@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye } from 'lucide-react';
+import { X, Pencil, FileText, Calendar, Building2, Briefcase, MapPin, Clock, Loader2, Phone, Mail, Download, ArrowLeft, FilePlus, Save, Eye, CalendarCheck, CalendarOff, CalendarClock, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
+import { fmtFecha } from '../../utils/format';
 import { IconButton } from '../ui/IconButton';
 import { cn } from '../../utils/cn';
 import { WorkerCalendarModal } from '../attendance/WorkerCalendarModal';
@@ -30,8 +31,22 @@ interface WorkerData {
     email: string | null;
     telefono: string | null;
     fecha_ingreso: string | null;
+    fecha_desvinculacion: string | null;
     categoria_reporte: string;
     activo: boolean;
+}
+
+/** GET /trabajadores/:id/resumen — stats de contrato/asistencia para la ficha. */
+interface ResumenData {
+    fecha_ingreso: string | null;
+    fecha_desvinculacion: string | null;
+    activo: boolean;
+    dias_trabajados: number;
+    faltas: number;
+    dias_presente: number;
+    dias_vacaciones: number;
+    dias_licencia: number;
+    dias_registrados: number;
 }
 
 interface DocInfo {
@@ -53,6 +68,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
     workerId, onClose, onEditWorker, onViewDocuments, onViewAttendance, onUpdate
 }) => {
     const [worker, setWorker] = useState<WorkerData | null>(null);
+    const [resumen, setResumen] = useState<ResumenData | null>(null);
     const [docs, setDocs] = useState<DocInfo[]>([]);
     const [totalRequired, setTotalRequired] = useState(0);
     const [loading, setLoading] = useState(false);
@@ -106,6 +122,7 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
         setLoading(true);
         setWorker(null);
         setDocs([]);
+        setResumen(null);
 
         const p1 = api.get(`/trabajadores/${workerId}`)
             .then(res => {
@@ -138,7 +155,15 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
             })
             .catch(() => { });
 
-        Promise.all([p1, p2, p3, p4]).finally(() => setLoading(false));
+        // Ficha-resumen: contrato + stats de asistencia (días trabajados, faltas…).
+        const p5 = api.get(`/trabajadores/${workerId}/resumen`)
+            .then(res => {
+                const d = (res.data as any).data || res.data;
+                if (d && typeof d === 'object') setResumen(d as ResumenData);
+            })
+            .catch(() => { });
+
+        Promise.all([p1, p2, p3, p4, p5]).finally(() => setLoading(false));
     }, [workerId, refreshKey]);
 
     const isOpen = workerId !== null;
@@ -228,7 +253,10 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                                 </h3>
                                                 <p className="text-sm text-muted-foreground">{worker.rut}</p>
                                                 {!worker.activo && (
-                                                    <span className="inline-block mt-1 px-2 py-0.5 rounded bg-destructive/10 text-destructive text-caption font-bold uppercase">Finiquitado</span>
+                                                    <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded bg-destructive/10 text-destructive text-caption font-bold uppercase">
+                                                        <CalendarOff className="h-3 w-3" />
+                                                        Finiquitado{worker.fecha_desvinculacion ? ` · ${fmtFecha(worker.fecha_desvinculacion)}` : ''}
+                                                    </span>
                                                 )}
                                             </div>
                                         </div>
@@ -270,6 +298,57 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             )}
                                         </div>
                                     )}
+
+                                    {/* ── Ficha resumen: contrato + asistencia ── */}
+                                    <div className="rounded-2xl border border-border bg-card p-4 space-y-3">
+                                        <p className="text-caption font-black text-brand-dark/50 uppercase tracking-widest flex items-center gap-1.5">
+                                            <CalendarClock className="h-3.5 w-3.5" /> Ficha del trabajador
+                                        </p>
+
+                                        {/* Contrato: inicio + término */}
+                                        <div className="grid grid-cols-2 gap-2">
+                                            <div className="rounded-xl bg-background border border-border px-3 py-2">
+                                                <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide flex items-center gap-1">
+                                                    <CalendarCheck className="h-3 w-3 text-brand-primary" /> Inicio contrato
+                                                </p>
+                                                <p className="text-sm font-bold text-brand-dark mt-0.5">{worker.fecha_ingreso ? fmtFecha(worker.fecha_ingreso) : '—'}</p>
+                                            </div>
+                                            <div className="rounded-xl bg-background border border-border px-3 py-2">
+                                                <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide flex items-center gap-1">
+                                                    <CalendarOff className="h-3 w-3 text-destructive" /> Término
+                                                </p>
+                                                <p className="text-sm font-bold text-brand-dark mt-0.5">{worker.fecha_desvinculacion ? fmtFecha(worker.fecha_desvinculacion) : (worker.activo ? 'Vigente' : '—')}</p>
+                                            </div>
+                                        </div>
+
+                                        {/* Stats de asistencia */}
+                                        {resumen && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div className="rounded-xl bg-success/5 border border-success/20 px-3 py-2">
+                                                    <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">Días trabajados</p>
+                                                    <p className="text-lg font-black text-success leading-tight mt-0.5">{resumen.dias_trabajados}</p>
+                                                </div>
+                                                <div className="rounded-xl bg-destructive/5 border border-destructive/20 px-3 py-2">
+                                                    <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide flex items-center gap-1">
+                                                        <AlertTriangle className="h-3 w-3 text-destructive" /> Faltas
+                                                    </p>
+                                                    <p className="text-lg font-black text-destructive leading-tight mt-0.5">{resumen.faltas}</p>
+                                                </div>
+                                                {resumen.dias_vacaciones > 0 && (
+                                                    <div className="rounded-xl bg-background border border-border px-3 py-2">
+                                                        <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">Vacaciones</p>
+                                                        <p className="text-sm font-bold text-brand-dark mt-0.5">{resumen.dias_vacaciones} días</p>
+                                                    </div>
+                                                )}
+                                                {resumen.dias_licencia > 0 && (
+                                                    <div className="rounded-xl bg-background border border-border px-3 py-2">
+                                                        <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">Licencia médica</p>
+                                                        <p className="text-sm font-bold text-brand-dark mt-0.5">{resumen.dias_licencia} días</p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     {/* ── Document Compliance ── */}
                                     <div className="bg-background rounded-2xl p-4">

@@ -35,6 +35,13 @@ export function installConsultasMock(api: AxiosInstance, opts: ConsultasMockOpts
         accion('ver-trabajador');
         return [200, workerDetalleDemo];
     });
+    // Ficha-resumen (stats de contrato/asistencia) — datos de ejemplo.
+    mock.onGet(/\/trabajadores\/\d+\/resumen/).reply(200, {
+        data: {
+            fecha_ingreso: '2025-01-01', fecha_desvinculacion: null, activo: true,
+            dias_trabajados: 120, faltas: 3, dias_presente: 118, dias_vacaciones: 5, dias_licencia: 2, dias_registrados: 130,
+        },
+    });
     mock.onGet(/\/documentos\/download\/\d+/).reply(() => {
         accion('ver-doc');
         return [200, 'demo-doc'];

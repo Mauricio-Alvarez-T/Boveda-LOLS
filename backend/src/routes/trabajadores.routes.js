@@ -85,6 +85,51 @@ router.get('/:id/quick-view', auth, async (req, res, next) => {
     } catch (err) { next(err); }
 });
 
+// Ficha-resumen del trabajador: datos de contrato + stats de asistencia agregados.
+// Solo lectura. "Día trabajado" = estados con cuenta_dia_trabajado=1 (NO es_presente);
+// "falta" = código 'F' (ver docs/reglas/asistencia.md). Las asistencias solo existen
+// dentro del período laboral, así que se cuentan todas las del trabajador.
+router.get('/:id/resumen', auth, checkPermission('trabajadores.ver'), async (req, res, next) => {
+    try {
+        const { id } = req.params;
+
+        const [contrato] = await db.query(
+            `SELECT fecha_ingreso, fecha_desvinculacion, activo FROM trabajadores WHERE id = ?`,
+            [id]
+        );
+        if (!contrato.length) return res.status(404).json({ error: 'Trabajador no encontrado' });
+
+        const [stats] = await db.query(
+            `SELECT
+                COUNT(DISTINCT CASE WHEN ea.cuenta_dia_trabajado = 1 THEN a.fecha END) AS dias_trabajados,
+                COUNT(DISTINCT CASE WHEN ea.codigo = 'F'            THEN a.fecha END) AS faltas,
+                COUNT(DISTINCT CASE WHEN ea.es_presente = 1         THEN a.fecha END) AS dias_presente,
+                COUNT(DISTINCT CASE WHEN ea.codigo = 'V'            THEN a.fecha END) AS dias_vacaciones,
+                COUNT(DISTINCT CASE WHEN ea.codigo = 'LM'           THEN a.fecha END) AS dias_licencia,
+                COUNT(DISTINCT a.fecha) AS dias_registrados
+             FROM asistencias a
+             JOIN estados_asistencia ea ON a.estado_id = ea.id
+             WHERE a.trabajador_id = ?`,
+            [id]
+        );
+        const s = stats[0] || {};
+
+        res.json({
+            data: {
+                fecha_ingreso: contrato[0].fecha_ingreso,
+                fecha_desvinculacion: contrato[0].fecha_desvinculacion,
+                activo: !!contrato[0].activo,
+                dias_trabajados: Number(s.dias_trabajados || 0),
+                faltas: Number(s.faltas || 0),
+                dias_presente: Number(s.dias_presente || 0),
+                dias_vacaciones: Number(s.dias_vacaciones || 0),
+                dias_licencia: Number(s.dias_licencia || 0),
+                dias_registrados: Number(s.dias_registrados || 0),
+            }
+        });
+    } catch (err) { next(err); }
+});
+
 // Depuración permanente (Hard delete en cascada)
 router.delete('/:id/depurar', auth, checkPermission('trabajadores.depurar'), async (req, res, next) => {
     let connection;
