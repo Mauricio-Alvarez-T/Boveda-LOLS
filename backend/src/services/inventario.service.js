@@ -557,6 +557,7 @@ const inventarioService = {
             [faltantesRows],
             [vehiculosPorEmpresaRows],
             [inversionVehiculosRows],
+            [inventarioPatrimonioRows],
         ] = await Promise.all([
             // 1. Count transferencias pendientes
             db.query(`SELECT COUNT(*) as count FROM transferencias WHERE activo = 1 AND estado = 'pendiente' ${directFilter} ${_exclTransfPrueba()}`, directParams),
@@ -766,6 +767,16 @@ const inventarioService = {
                 WHERE v.activo = 1 AND v.valor > 0
                 ORDER BY v.valor DESC
             `),
+            // 14. Patrimonio TOTAL del inventario (Dedalius): valor de compra de TODO el
+            //     inventario activo, esté en obras o en bodega. Global (sin filtro de obra);
+            //     excluye stock de obras de prueba. La vista por-obra usa el valor por-obra (query 4).
+            db.query(`
+                SELECT COALESCE(SUM(us.cantidad * i.valor_compra), 0) AS total
+                FROM ubicaciones_stock us
+                JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
+                LEFT JOIN obras o ON o.id = us.obra_id
+                WHERE (us.obra_id IS NULL OR COALESCE(o.es_prueba, 0) = 0)
+            `),
         ]);
 
         // Auditoría 6.1: el backend ya devuelve valor_neto y valor_bruto calculados en SQL.
@@ -782,7 +793,11 @@ const inventarioService = {
         //   · Dedalius = todo el inventario (Σ cantidad × valor_compra), sin descuento.
         //   · cada empresa de flota = Σ valor de sus vehículos (paramétrico).
         // El total es la suma de las tres+ empresas.
-        const patrimonio_dedalius = obrasConValor.reduce((s, o) => s + o.valor_patrimonial, 0);
+        // Dedalius = todo el inventario que poseen (obras + bodegas) en la vista global;
+        // al filtrar por una obra, solo el inventario de esa obra.
+        const patrimonio_dedalius = obraIdNum
+            ? obrasConValor.reduce((s, o) => s + o.valor_patrimonial, 0)
+            : (Number(inventarioPatrimonioRows[0]?.total) || 0);
         // Los vehículos son globales (no por obra): solo se suman en la vista "Todas las obras".
         const patrimonio_vehiculos = obraIdNum ? [] : (vehiculosPorEmpresaRows || []).map(r => ({
             nombre: r.nombre,

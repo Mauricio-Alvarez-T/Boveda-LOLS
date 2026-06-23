@@ -52,7 +52,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión (commit 3d03b3b)
             .mockResolvedValueOnce([[]]) // 12. vehículos por empresa (patrimonio)
-            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo (treemap)
+            .mockResolvedValueOnce([[]]) // 13. inversión por vehículo (treemap)
+            .mockResolvedValueOnce([[{ total: 0 }]]); // 14. patrimonio total inventario
     }
 
     test('delta_pct es null si no hay snapshots', async () => {
@@ -98,7 +99,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión (commit 3d03b3b)
             .mockResolvedValueOnce([[]]) // 12. vehículos por empresa (patrimonio)
-            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo (treemap)
+            .mockResolvedValueOnce([[]]) // 13. inversión por vehículo (treemap)
+            .mockResolvedValueOnce([[{ total: 0 }]]); // 14. patrimonio total inventario
 
         const result = await inventarioService.getDashboardEjecutivo();
         expect(result.historico.pendientes.mes_anterior).toBe(0);
@@ -128,7 +130,8 @@ describe('getDashboardEjecutivo — edge cases delta_pct', () => {
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión (commit 3d03b3b)
             .mockResolvedValueOnce([[]]) // 12. vehículos por empresa (patrimonio)
-            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo (treemap)
+            .mockResolvedValueOnce([[]]) // 13. inversión por vehículo (treemap)
+            .mockResolvedValueOnce([[{ total: 0 }]]); // 14. patrimonio total inventario
 
         const result = await inventarioService.getDashboardEjecutivo();
         expect(result.historico.pendientes.mes_anterior).toBe(10);

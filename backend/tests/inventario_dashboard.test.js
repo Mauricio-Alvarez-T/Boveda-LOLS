@@ -113,7 +113,9 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
                 { id: 1, patente: 'ABCD12', marca: 'Toyota', valor: 30000000, empresa: 'LOLS', color: '#16a34a' },
                 { id: 2, patente: 'WXYZ34', marca: 'Hino', valor: 18000000, empresa: 'LOLS', color: '#16a34a' },
                 { id: 3, patente: 'JKLM56', marca: 'Kia', valor: 32000000, empresa: 'TRANSPORTE', color: '#2563eb' },
-            ]]);
+            ]])
+            // 14. patrimonio total del inventario (Dedalius: obras + bodegas)
+            .mockResolvedValueOnce([[{ total: 7000000 }]]);
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -177,7 +179,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         // Patrimonio por empresa: Dedalius (inventario) + LOLS + TRANSPORTE (vehículos).
         // En este mock el inventario no trae valor_patrimonial → Dedalius = 0.
         expect(result.patrimonio_por_empresa.map(e => e.nombre)).toEqual(['Dedalius', 'LOLS', 'TRANSPORTE']);
-        expect(result.kpis.valor_total_patrimonio).toBeCloseTo(48000000 + 32000000, 0);
+        expect(result.patrimonio_por_empresa[0].valor).toBe(7000000); // Dedalius = total inventario (obras+bodegas)
+        expect(result.kpis.valor_total_patrimonio).toBeCloseTo(7000000 + 48000000 + 32000000, 0);
 
         // Inversión por vehículo (treemap): 3 vehículos con valor.
         expect(result.inversion_vehiculos).toHaveLength(3);
@@ -200,7 +203,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ eventos: 0, obras_distintas: 0, costo_externo: 0 }]])
             .mockResolvedValueOnce([[]]) // 11. faltantes sin decisión
             .mockResolvedValueOnce([[]]) // 12. vehículos por empresa
-            .mockResolvedValueOnce([[]]); // 13. inversión por vehículo
+            .mockResolvedValueOnce([[]]) // 13. inversión por vehículo
+            .mockResolvedValueOnce([[{ total: 0 }]]); // 14. patrimonio total inventario
 
         const result = await inventarioService.getDashboardEjecutivo();
 
@@ -240,7 +244,8 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
             .mockResolvedValueOnce([[{ eventos: 1, obras_distintas: 1, costo_externo: 0 }]])  // 10 bombas
             .mockResolvedValueOnce([[]])  // 11 faltantes (usa filtro con alias t → [obraId, obraId])
             .mockResolvedValueOnce([[]])  // 12 vehículos por empresa (global, sin params)
-            .mockResolvedValueOnce([[]]);  // 13 inversión por vehículo (global, sin params)
+            .mockResolvedValueOnce([[]])  // 13 inversión por vehículo (global, sin params)
+            .mockResolvedValueOnce([[{ total: 0 }]]);  // 14 patrimonio total inventario (global, sin params)
 
         const result = await inventarioService.getDashboardEjecutivo(5);
 
@@ -260,13 +265,14 @@ describe('Inventario Service — getDashboardEjecutivo', () => {
         expect(calls[0][1]).toEqual([5, 5]);
         // Query 4 (valor obras) debe tener params [5]
         expect(calls[3][1]).toEqual([5]);
-        // Las 2 últimas queries (12 vehículos por empresa, 13 inversión por vehículo) son globales (sin params).
+        // Las 3 últimas (12 vehículos-empresa, 13 inversión-vehículo, 14 patrimonio-total) son globales (sin params).
         expect(calls[calls.length - 1][1]).toBeUndefined();
         expect(calls[calls.length - 2][1]).toBeUndefined();
+        expect(calls[calls.length - 3][1]).toBeUndefined();
         // Faltantes (query 11) usa el filtro con alias t → [5, 5].
-        expect(calls[calls.length - 3][1]).toEqual([5, 5]);
+        expect(calls[calls.length - 4][1]).toEqual([5, 5]);
         // Bombas (query 10) usa params directos [5].
-        expect(calls[calls.length - 4][1]).toEqual([5]);
+        expect(calls[calls.length - 5][1]).toEqual([5]);
         // Con filtro por obra, los vehículos (globales) NO se suman → solo Dedalius en el desglose.
         expect(result.patrimonio_por_empresa).toHaveLength(1);
         expect(result.patrimonio_por_empresa[0].nombre).toBe('Dedalius');
