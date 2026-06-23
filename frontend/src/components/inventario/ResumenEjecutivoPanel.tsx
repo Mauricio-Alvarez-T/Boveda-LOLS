@@ -52,7 +52,7 @@ const CAT_COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b
 // Sparkline — mini gráfico SVG sin dependencias
 // React.memo: el sparkline solo cambia cuando data o tone cambian.
 // ────────────────────────────────────────────────────────
-const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' }> = ({ data, tone }) => {
+const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' | 'green' | 'slate' }> = ({ data, tone }) => {
     if (!data || data.length < 2) return null;
     const w = 80;
     const h = 22;
@@ -62,7 +62,7 @@ const SparklineImpl: React.FC<{ data: number[]; tone: 'amber' | 'red' | 'blue' |
     const step = w / (data.length - 1);
     const points = data.map((v, i) => `${i * step},${h - ((v - min) / range) * h}`).join(' ');
     // paleta de data-viz (recharts requiere valores literales); colorMap ya usa la rampa accesible -700/-800
-    const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857' };
+    const colorMap = { amber: '#b45309', red: '#b91c1c', blue: '#1d4ed8', green: '#047857', slate: '#334155' };
     return (
         <svg width={w} height={h} className="shrink-0" aria-hidden="true">
             <polyline
@@ -111,7 +111,7 @@ const ComparativaChip = React.memo(ComparativaChipImpl);
 // React.memo aplicado al final (después de la definición).
 // ────────────────────────────────────────────────────────
 interface KpiCardProps {
-    tone: 'amber' | 'red' | 'blue' | 'green';
+    tone: 'amber' | 'red' | 'blue' | 'green' | 'slate';
     icon: React.ReactNode;
     label: string;
     value: string;
@@ -130,12 +130,14 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
         red:    'bg-red-50    border-red-200    hover:border-red-400    text-red-900 dark:bg-red-950/40 dark:border-red-900 dark:hover:border-red-700 dark:text-red-200',
         blue:   'bg-blue-50   border-blue-200   hover:border-blue-400   text-blue-900 dark:bg-blue-950/40 dark:border-blue-900 dark:hover:border-blue-700 dark:text-blue-200',
         green:  'bg-emerald-50 border-emerald-200 hover:border-emerald-400 text-emerald-900 dark:bg-emerald-950/40 dark:border-emerald-900 dark:hover:border-emerald-700 dark:text-emerald-200',
+        slate:  'bg-slate-50  border-slate-200  hover:border-slate-400  text-slate-900 dark:bg-slate-900/40 dark:border-slate-800 dark:hover:border-slate-600 dark:text-slate-200',
     };
     const iconClasses: Record<KpiCardProps['tone'], string> = {
         amber:  'bg-amber-200/60  text-amber-700 dark:bg-amber-500/20 dark:text-amber-300',
         red:    'bg-red-200/60    text-red-700 dark:bg-red-500/20 dark:text-red-300',
         blue:   'bg-blue-200/60   text-blue-700 dark:bg-blue-500/20 dark:text-blue-300',
         green:  'bg-emerald-200/60 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-300',
+        slate:  'bg-slate-200/60  text-slate-700 dark:bg-slate-500/20 dark:text-slate-300',
     };
 
     // card clickable: la KPI completa actúa como botón (elemento dinámico, no <button> JSX)
@@ -604,11 +606,9 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             )}
 
             {/* KPI Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 md:gap-4 shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 shrink-0">
                 {loading && !data ? (
                     <>
-                        <Skeleton className="h-[148px]" />
-                        <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
                         <Skeleton className="h-[148px]" />
@@ -628,45 +628,6 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             historico={data?.historico?.pendientes}
                             invertDelta
                         />
-                        <KpiCard
-                            tone="red"
-                            icon={<AlertTriangle className="h-5 w-5" />}
-                            label="Diferencias"
-                            value={String(data?.kpis.discrepancias_pendientes.transferencias_afectadas ?? 0)}
-                            subline={
-                                (data?.kpis.discrepancias_pendientes.unidades_totales ?? 0) > 0
-                                    ? `${data!.kpis.discrepancias_pendientes.unidades_totales} u. afectadas`
-                                    : 'sin pendientes'
-                            }
-                            onClick={() => onNavigateTransferencias({ estado: 'discrepancias' })}
-                            disabled={(data?.kpis.discrepancias_pendientes.transferencias_afectadas ?? 0) === 0}
-                            tooltip="Transferencias recibidas con cantidad distinta a la enviada (merma, sobrante o error). Requieren revisión para ajustar stock."
-                            historico={data?.historico?.discrepancias}
-                            invertDelta
-                        />
-                        <KpiCard
-                            tone="blue"
-                            icon={<Truck className="h-5 w-5" />}
-                            label="En tránsito"
-                            value={String(data?.kpis.transferencias_en_transito ?? 0)}
-                            subline={(data?.kpis.transferencias_en_transito ?? 0) === 1 ? 'envío' : 'envíos'}
-                            onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
-                            disabled={(data?.kpis.transferencias_en_transito ?? 0) === 0}
-                            tooltip="Transferencias ya aprobadas y despachadas, esperando confirmación de recepción en destino."
-                            historico={data?.historico?.en_transito}
-                        />
-                        <KpiCard
-                            tone="red"
-                            icon={<Timer className="h-5 w-5" />}
-                            label="Estancados +7d"
-                            value={String(data?.kpis.estancados_transito ?? 0)}
-                            subline={(data?.kpis.estancados_transito ?? 0) === 1 ? 'envío sin recibir' : 'envíos sin recibir'}
-                            onClick={() => onNavigateTransferencias({ estado: 'en_transito' })}
-                            disabled={(data?.kpis.estancados_transito ?? 0) === 0}
-                            tooltip="Transferencias en tránsito que llevan más de 7 días sin ser recibidas. Require seguimiento urgente."
-                            historico={data?.historico?.estancados}
-                            invertDelta
-                        />
                         {verValoresResumen && (
                             <KpiCard
                                 tone="green"
@@ -682,10 +643,20 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             <KpiCard
                                 tone="blue"
                                 icon={<Landmark className="h-5 w-5" />}
-                                label="Patrimonio"
-                                value={fmtCLP(data?.kpis.valor_total_patrimonio ?? 0)}
-                                subline="valor en activos"
-                                tooltip="Valor patrimonial total: suma del valor de compra de todo el inventario asignado a obras activas (lo que las obras poseen en activos). No incluye vehículos."
+                                label="Inventario"
+                                value={fmtCLP(data?.kpis.valor_inventario ?? 0)}
+                                subline="valor de compra"
+                                tooltip="Lo invertido en compra del inventario: suma de (cantidad × valor de compra) de todos los ítems —andamios, alzaprimas, moldajes, maquinaria y vigas— en obras y bodegas. No incluye vehículos."
+                            />
+                        )}
+                        {!obraFilter && verValoresResumen && (
+                            <KpiCard
+                                tone="slate"
+                                icon={<Truck className="h-5 w-5" />}
+                                label="Vehículos"
+                                value={fmtCLP(data?.kpis.valor_vehiculos ?? 0)}
+                                subline="valor de compra"
+                                tooltip="Lo invertido en compra de todos los vehículos activos (suma del valor de cada vehículo). El detalle por empresa y por auto está más abajo en 'Inversión en vehículos'."
                             />
                         )}
                     </>

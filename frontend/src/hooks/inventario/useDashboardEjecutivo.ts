@@ -11,6 +11,10 @@ export interface DashboardKpis {
     };
     valor_total_obras: number;
     valor_total_patrimonio: number;
+    /** Solo inventario (Σ cantidad × valor_compra), sin vehículos. */
+    valor_inventario: number;
+    /** Lo invertido en compra de todos los vehículos activos (global). */
+    valor_vehiculos: number;
     estancados_transito: number;
 }
 

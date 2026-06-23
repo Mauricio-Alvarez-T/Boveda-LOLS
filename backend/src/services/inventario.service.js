@@ -823,6 +823,11 @@ const inventarioService = {
             ...otrasEmpresas.map(v => ({ ...v, tipo: 'vehículos' })),
         ];
         const valor_total_patrimonio = patrimonio_por_empresa.reduce((s, e) => s + e.valor, 0);
+        // Montos para las tarjetas separadas del Ejecutivo:
+        //   · valor_inventario = solo inventario (Σ cantidad × valor_compra), SIN vehículos.
+        //   · valor_vehiculos  = lo invertido en compra de TODOS los vehículos activos (global).
+        const valor_inventario = patrimonio_dedalius;
+        const valor_vehiculos = (inversionVehiculosRows || []).reduce((s, r) => s + (Number(r.valor) || 0), 0);
         // Inversión por vehículo (treemap). Global → vacío al filtrar por una obra.
         const inversion_vehiculos = obraIdNum ? [] : (inversionVehiculosRows || []).map(r => ({
             label: `${r.patente}${r.marca ? ' · ' + r.marca : ''}`,
@@ -997,6 +1002,8 @@ const inventarioService = {
                 },
                 valor_total_obras: Number(valor_total_obras) || 0,
                 valor_total_patrimonio: Number(valor_total_patrimonio) || 0,
+                valor_inventario: Number(valor_inventario) || 0,
+                valor_vehiculos: Number(valor_vehiculos) || 0,
                 estancados_transito: Number(estancadosRows[0]?.count) || 0,
             },
             patrimonio_por_empresa,
