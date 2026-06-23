@@ -398,6 +398,19 @@ export function useTransferencias() {
         }
     }, []);
 
+    // Hard delete (permanente): saca la transferencia del historial. Gateado por
+    // inventario.transferencias.eliminar. NO revierte stock (decisión de producto).
+    const eliminar = useCallback(async (id: number) => {
+        try {
+            await api.delete(`/transferencias/${id}`);
+            toast.success('Transferencia eliminada');
+            return true;
+        } catch (err) {
+            showApiError(err, 'Error al eliminar la transferencia');
+            return false;
+        }
+    }, []);
+
     const fetchDiscrepancias = useCallback(async (estado: string = 'pendiente') => {
         setLoading(true);
         try {
@@ -431,6 +444,19 @@ export function useTransferencias() {
         }
     }, []);
 
+    // Hard delete de una diferencia: la saca del historial (sin tocar la
+    // transferencia ni el stock). Gateado por inventario.transferencias.eliminar.
+    const eliminarDiscrepancia = useCallback(async (id: number) => {
+        try {
+            await api.delete(`/transferencias/discrepancias/${id}`);
+            toast.success('Diferencia eliminada');
+            return true;
+        } catch (err) {
+            showApiError(err, 'Error al eliminar la diferencia');
+            return false;
+        }
+    }, []);
+
     const fetchStockPorItems = useCallback(async (itemIds: number[]): Promise<Record<number, { type: string; id: number; nombre: string; cantidad: number }[]>> => {
         try {
             const res = await api.post<{ data: Record<number, { type: string; id: number; nombre: string; cantidad: number }[]> }>('/inventario/stock-por-items', { item_ids: itemIds });
@@ -445,8 +471,8 @@ export function useTransferencias() {
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
         fetchAll, fetchById, crear, solicitudMateriales, pushDirecto, intraBodega, devolucion,
         intraObra, ordenGerencia,
-        aprobar, crearFaltante, despachar, recibir, uploadFotoRecepcion, fetchRecepciones, rechazar, rechazarRecepcion, cancelar,
-        fetchDiscrepancias, resolverDiscrepancia,
+        aprobar, crearFaltante, despachar, recibir, uploadFotoRecepcion, fetchRecepciones, rechazar, rechazarRecepcion, cancelar, eliminar,
+        fetchDiscrepancias, resolverDiscrepancia, eliminarDiscrepancia,
         fetchStockPorItems, setSelected
     };
 }

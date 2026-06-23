@@ -75,6 +75,16 @@ router.post('/discrepancias/:id/foto', auth, checkPermission('inventario.transfe
     } catch (err) { next(err); }
 });
 
+// DELETE /api/transferencias/discrepancias/:id — borrado PERMANENTE de una
+// diferencia (la saca del historial). Va junto a las rutas /discrepancias
+// (antes de /:id). Gateado por el permiso de eliminar.
+router.delete('/discrepancias/:id', auth, checkPermission('inventario.transferencias.eliminar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.eliminarDiscrepancia(req.params.id, req.user.id);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/transferencias/:id
 // Defensa en profundidad: si NO tiene `inventario.transferencias.ver_todas`,
 // sólo puede ver el detalle de transferencias que él mismo creó. Evita
@@ -238,6 +248,16 @@ router.post('/:id/crear-faltante', auth, checkPermission('inventario.transferenc
 router.put('/:id/cancelar', auth, checkPermission('inventario.transferencias.cancelar'), async (req, res, next) => {
     try {
         const result = await transferenciaService.cancelar(req.params.id, req.user.id, req.user.p);
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
+// DELETE /api/transferencias/:id — borrado PERMANENTE (hard delete) de la
+// transferencia y, por CASCADE, sus items/discrepancias/recepciones. NO toca
+// stock (decisión: purgar datos de prueba). Gateado por el permiso de eliminar.
+router.delete('/:id', auth, checkPermission('inventario.transferencias.eliminar'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.eliminar(req.params.id, req.user.id);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

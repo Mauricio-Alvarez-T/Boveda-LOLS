@@ -236,6 +236,7 @@ export const JourneyRunner: React.FC<{
                     <DiscrepanciaDetail
                         discrepancia={discrepancia}
                         canEdit
+                        canEliminar={false}
                         onBack={onExit}
                         onResolver={async (id, est, resolucion) => {
                             const upd = resolverDiscrepanciaDemo(discrepancia, id, est, resolucion);
@@ -243,6 +244,8 @@ export const JourneyRunner: React.FC<{
                             if (upd.discrepancias.every(d => d.estado !== 'pendiente')) setDiscResuelta(true);
                             return true;
                         }}
+                        onEliminarTransferencia={async () => true}
+                        onEliminarDiscrepancia={async () => true}
                         onRefresh={async () => { /* no-op en demo */ }}
                     />
                 ) : (
@@ -267,6 +270,7 @@ export const JourneyRunner: React.FC<{
                         onRechazar={async (motivo) => { setTrf(prev => prev ? rechazarTrfDemo(prev, motivo) : prev); return true; }}
                         onRechazarRecepcion={async (motivo) => { setTrf(prev => prev ? rechazarTrfDemo(prev, motivo) : prev); return true; }}
                         onCancelar={async () => { setTrf(prev => prev ? cancelarTrfDemo(prev) : prev); return true; }}
+                        onEliminar={async () => true}
                         onFetchRecepciones={async () => []}
                         onUploadFotoRecepcion={async () => true}
                     />

@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionStock');
 const { registrarMovimiento } = require('./stockMovimiento.service');
+const logger = require('../utils/logger-structured');
 
 // Aislamiento de datos de prueba: excluye transferencias cuyo origen o destino
 // sea una obra marcada es_prueba. NULL-safe (origen/destino puede ser bodega →
@@ -1311,6 +1312,47 @@ const transferenciaService = {
         } finally {
             conn.release();
         }
+    },
+
+    /**
+     * Hard delete de una transferencia — la borra de forma PERMANENTE junto a,
+     * por FK ON DELETE CASCADE, sus items, items_custom, splits (item_origenes),
+     * discrepancias y recepciones. Pensado para purgar datos de prueba que
+     * ensucian el historial. Gateado por `inventario.transferencias.eliminar`.
+     *
+     * DECISIÓN (usuario): NO revierte stock — el kardex (stock_movimientos) no
+     * tiene FK a transferencias y se conserva. El inventario NO se ajusta al borrar.
+     */
+    async eliminar(id, userId) {
+        const conn = await db.getConnection();
+        try {
+            await conn.beginTransaction();
+            const [rows] = await conn.query('SELECT id, codigo, estado FROM transferencias WHERE id = ? FOR UPDATE', [id]);
+            if (!rows.length) { const e = new Error('Transferencia no encontrada'); e.statusCode = 404; throw e; }
+            const t = rows[0];
+            await conn.query('DELETE FROM transferencias WHERE id = ?', [id]); // CASCADE limpia hijos
+            await conn.commit();
+            logger.warn('[Transferencia] hard delete', { id: Number(id), codigo: t.codigo, estado: t.estado, userId });
+            return { id: Number(id), codigo: t.codigo };
+        } catch (err) {
+            await conn.rollback();
+            throw err;
+        } finally {
+            conn.release();
+        }
+    },
+
+    /**
+     * Hard delete de UNA fila de discrepancia (diferencia) — la saca del
+     * historial sin tocar la transferencia ni el stock. Gateado por
+     * `inventario.transferencias.eliminar`.
+     */
+    async eliminarDiscrepancia(id, userId) {
+        const [rows] = await db.query('SELECT id, transferencia_id FROM transferencia_discrepancias WHERE id = ?', [id]);
+        if (!rows.length) { const e = new Error('Diferencia no encontrada'); e.statusCode = 404; throw e; }
+        await db.query('DELETE FROM transferencia_discrepancias WHERE id = ?', [id]);
+        logger.warn('[Transferencia] hard delete discrepancia', { id: Number(id), transferencia_id: rows[0].transferencia_id, userId });
+        return { id: Number(id) };
     },
 
     /**

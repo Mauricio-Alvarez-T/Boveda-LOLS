@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     ArrowLeft, ArrowRight, AlertTriangle, Check, XCircle, Clock,
-    CheckCircle2, Ban, Package, MapPin, Warehouse, User, Calendar, FileText
+    CheckCircle2, Ban, Package, MapPin, Warehouse, User, Calendar, FileText, Trash2
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { Modal } from '../ui/Modal';
@@ -11,12 +11,19 @@ import type { TransferenciaConDiscrepancias, TransferenciaDiscrepanciaItem } fro
 import { useItemDetail } from '../../hooks/inventario/useItemDetail';
 import ItemDetailModal from './ItemDetailModal';
 import { formatBodegaNombreResponsable } from '../../utils/formatBodega';
+import { showDeleteToast } from '../../utils/toastUtils';
 
 interface Props {
     discrepancia: TransferenciaConDiscrepancias;
     canEdit: boolean;
+    /** Permiso inventario.transferencias.eliminar — habilita el borrado permanente. */
+    canEliminar: boolean;
     onBack: () => void;
     onResolver: (id: number, estado: 'resuelta' | 'descartada', resolucion: string) => Promise<boolean>;
+    /** Hard delete de la transferencia completa (la saca del historial). */
+    onEliminarTransferencia: (id: number) => Promise<boolean>;
+    /** Hard delete de UNA fila de diferencia. */
+    onEliminarDiscrepancia: (id: number) => Promise<boolean>;
     onRefresh: () => Promise<void>;
 }
 
@@ -30,7 +37,7 @@ const fmtFecha = (s: string | null) => s
     ? new Date(s).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' })
     : '—';
 
-const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, onResolver, onRefresh }) => {
+const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, canEliminar, onBack, onResolver, onEliminarTransferencia, onEliminarDiscrepancia, onRefresh }) => {
     const itemDetail = useItemDetail();
     const [modalOpen, setModalOpen] = useState(false);
     const [modalAction, setModalAction] = useState<'resuelta' | 'descartada'>('resuelta');
@@ -62,6 +69,18 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
             await onRefresh();
         }
     };
+
+    const handleEliminarTrf = () => showDeleteToast({
+        message: `¿Eliminar la transferencia ${discrepancia.codigo}? Se borra del historial de forma permanente y no se puede deshacer.`,
+        successMessage: 'Transferencia eliminada',
+        onConfirm: async () => { await onEliminarTransferencia(discrepancia.id); },
+    });
+
+    const handleEliminarDiff = (item: TransferenciaDiscrepanciaItem) => showDeleteToast({
+        message: `¿Eliminar esta diferencia (#${item.nro_item} ${item.item_descripcion})? Se borra del historial.`,
+        successMessage: 'Diferencia eliminada',
+        onConfirm: async () => { await onEliminarDiscrepancia(item.id); },
+    });
 
     const origenLabel = discrepancia.origen_obra_nombre
         || (discrepancia.origen_bodega_nombre
@@ -96,6 +115,16 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                         <h3 className="text-sm font-black text-brand-dark">{discrepancia.codigo}</h3>
                     </div>
                 </div>
+                {canEliminar && (
+                    <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleEliminarTrf}
+                        leftIcon={<Trash2 className="h-3.5 w-3.5" />}
+                    >
+                        Eliminar
+                    </Button>
+                )}
             </div>
 
             {/* Scrollable body */}
@@ -193,6 +222,16 @@ const DiscrepanciaDetail: React.FC<Props> = ({ discrepancia, canEdit, onBack, on
                                             {item.item_descripcion}
                                         </button>
                                     </div>
+                                    {canEliminar && (
+                                        <IconButton
+                                            variant="danger"
+                                            size="sm"
+                                            aria-label="Eliminar diferencia"
+                                            onClick={() => handleEliminarDiff(item)}
+                                            icon={<Trash2 className="h-3.5 w-3.5" />}
+                                            className="shrink-0"
+                                        />
+                                    )}
                                 </div>
 
                                 {/* Métricas cant. enviada vs recibida */}

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckCircle2, PackageCheck, XCircle, Ban, MoreHorizontal, ChevronDown } from 'lucide-react';
+import { CheckCircle2, PackageCheck, XCircle, Ban, MoreHorizontal, ChevronDown, Trash2 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { Button } from '../ui/Button';
@@ -11,6 +11,7 @@ interface Props {
     canRecibir: boolean;
     canRechazarRecepcion: boolean;
     canCancelar: boolean;
+    canEliminar: boolean;
     canCompartirWhatsApp: boolean;
     actionLoading: boolean;
     onAprobar: () => void;
@@ -18,6 +19,7 @@ interface Props {
     onRecibir: () => void;
     onRechazarRecepcion: () => void;
     onCancelar: () => void;
+    onEliminar: () => void;
     onWhatsApp: () => void;
     /** Si la TRF está en estado 'pendiente' — cambia el texto del WhatsApp. */
     isPendiente?: boolean;
@@ -30,8 +32,8 @@ interface Props {
  * (Rechazar / Rechazar Recepción / Cancelar) se agrupan en un menú "Acciones ▾".
  */
 const TransferenciaActionsMenu: React.FC<Props> = ({
-    canAprobar, canRechazar, canRecibir, canRechazarRecepcion, canCancelar, canCompartirWhatsApp,
-    actionLoading, onAprobar, onRechazar, onRecibir, onRechazarRecepcion, onCancelar, onWhatsApp,
+    canAprobar, canRechazar, canRecibir, canRechazarRecepcion, canCancelar, canEliminar, canCompartirWhatsApp,
+    actionLoading, onAprobar, onRechazar, onRecibir, onRechazarRecepcion, onCancelar, onEliminar, onWhatsApp,
     isPendiente = false,
 }) => {
     const [open, setOpen] = useState(false);
@@ -64,6 +66,7 @@ const TransferenciaActionsMenu: React.FC<Props> = ({
         canRechazar && { key: 'rechazar', label: 'Rechazar', icon: <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />, onClick: onRechazar },
         canRechazarRecepcion && { key: 'rechazar-recepcion', label: 'Rechazar Recepción', icon: <XCircle className="h-3.5 w-3.5 shrink-0 text-red-600" />, onClick: onRechazarRecepcion },
         canCancelar && { key: 'cancelar', label: 'Cancelar', icon: <Ban className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />, onClick: onCancelar },
+        canEliminar && { key: 'eliminar', label: 'Eliminar', icon: <Trash2 className="h-3.5 w-3.5 shrink-0 text-red-600" />, onClick: onEliminar },
     ].filter(Boolean) as { key: string; label: string; icon: React.ReactNode; onClick: () => void }[];
 
     const hasActions = canAprobar || canRecibir || canCompartirWhatsApp || secondaryActions.length > 0;

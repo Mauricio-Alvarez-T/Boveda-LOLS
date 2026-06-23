@@ -163,6 +163,18 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         return ok;
     }, [selectedId, trfHook.cancelar, refreshAll]);
 
+    // Hard delete: borra la transferencia y la saca del historial. Limpia la
+    // selección y refetch del listado (NO fetchById — ya no existe). Sin stock.
+    const handleEliminar = useCallback(async () => {
+        const ok = await trfHook.eliminar(selectedId!);
+        if (ok) {
+            setSelectedId(null);
+            trfHook.setSelected(null);
+            await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
+        }
+        return ok;
+    }, [selectedId, statusFilter, trfHook]);
+
     // Handler ÚNICO de creación: el wizard infiere el tipo (inferMovimiento) y nos
     // pasa el `resuelto` tipado; acá despachamos a la función correcta del hook.
     // Reemplaza los 7 handlers específicos del alta vieja (Fase 4).
@@ -228,6 +240,23 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
             trfHook.setSelectedDiscrepancia(fresh || null);
         }
     }, [discSubFilter, trfHook.fetchDiscrepancias, trfHook.selectedDiscrepancia, trfHook.setSelectedDiscrepancia]);
+
+    // Eliminar (hard delete) una diferencia suelta: la saca del historial.
+    const handleEliminarDiscrepancia = useCallback(async (id: number) => {
+        const ok = await trfHook.eliminarDiscrepancia(id);
+        if (ok) await refreshDiscrepancias();
+        return ok;
+    }, [trfHook.eliminarDiscrepancia, refreshDiscrepancias]);
+
+    // Eliminar (hard delete) la transferencia completa desde la vista de diferencias.
+    const handleEliminarTransferenciaDisc = useCallback(async (id: number) => {
+        const ok = await trfHook.eliminar(id);
+        if (ok) {
+            trfHook.setSelectedDiscrepancia(null);
+            await refreshDiscrepancias();
+        }
+        return ok;
+    }, [trfHook.eliminar, trfHook.setSelectedDiscrepancia, refreshDiscrepancias]);
 
     // Decide what to render in the detail pane
     const detailPaneActive = isDiscrepanciasMode
@@ -315,8 +344,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             <DiscrepanciaDetail
                                 discrepancia={trfHook.selectedDiscrepancia}
                                 canEdit={hasPermission('inventario.editar')}
+                                canEliminar={hasPermission('inventario.transferencias.eliminar')}
                                 onBack={() => trfHook.setSelectedDiscrepancia(null)}
                                 onResolver={handleResolverDiscrepancia}
+                                onEliminarTransferencia={handleEliminarTransferenciaDisc}
+                                onEliminarDiscrepancia={handleEliminarDiscrepancia}
                                 onRefresh={refreshDiscrepancias}
                             />
                         ) : (
@@ -343,6 +375,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onRechazar={handleRechazar}
                             onRechazarRecepcion={handleRechazarRecepcion}
                             onCancelar={handleCancelar}
+                            onEliminar={handleEliminar}
                         />
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center text-center">

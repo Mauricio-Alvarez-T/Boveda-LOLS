@@ -17,7 +17,7 @@ import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
 import { transferenciaRoute } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
 import { buildTransferenciaWhatsappText } from '../../utils/transferenciaWhatsApp';
-import { showConfirmToast } from '../../utils/toastUtils';
+import { showConfirmToast, showDeleteToast } from '../../utils/toastUtils';
 import { useTransferenciaDetail, type StockLocation } from '../../hooks/inventario/useTransferenciaDetail';
 import MaterialesAprobacionPanel from './transferencia-detail/MaterialesAprobacionPanel';
 import MaterialesRecepcionPanel from './transferencia-detail/MaterialesRecepcionPanel';
@@ -80,6 +80,7 @@ interface Props {
     onRechazar: (motivo: string) => Promise<boolean>;
     onRechazarRecepcion?: (motivo: string) => Promise<boolean>;
     onCancelar: () => Promise<boolean>;
+    onEliminar: () => Promise<boolean>;
     /** Sube una foto OPCIONAL a una recepción ya creada (best-effort, no bloquea el flujo). */
     onUploadFotoRecepcion?: (transferenciaId: number, recepcionId: number, file: File) => Promise<boolean>;
 }
@@ -95,7 +96,7 @@ const fmtDateTime = fmtFechaHora;
 
 const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
-    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar, onUploadFotoRecepcion,
+    onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar, onEliminar, onUploadFotoRecepcion,
 }) => {
     const items: TransferenciaItem[] = t.items || [];
     // Items personalizados (fuera de catálogo). Schema mínimo, no comparte interfaz
@@ -184,6 +185,17 @@ const TransferenciaDetail: React.FC<Props> = ({
         });
     };
 
+    // Eliminar (hard delete): saca la transferencia del historial. Permanente,
+    // sin stock. Gateado por inventario.transferencias.eliminar.
+    const canEliminar = hasPermission('inventario.transferencias.eliminar');
+    const handleEliminarConfirm = () => {
+        showDeleteToast({
+            message: `¿Eliminar la transferencia ${t.codigo}? Se borra del historial de forma permanente y no se puede deshacer.`,
+            successMessage: 'Transferencia eliminada',
+            onConfirm: async () => { await onEliminar(); },
+        });
+    };
+
     // Menú de acciones — UNA sola fuente (antes duplicado en los 2 layouts, origen
     // del bug de Cancelar). El guard `!activeForm` se aplica por-layout (catálogo
     // lo oculta con forms inline; materiales lo deja visible bajo el modal).
@@ -194,6 +206,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             canRecibir={canRecibir}
             canRechazarRecepcion={canRechazarRecepcion}
             canCancelar={canCancelar}
+            canEliminar={canEliminar}
             canCompartirWhatsApp={canCompartirWhatsApp}
             actionLoading={actionLoading}
             onAprobar={() => setActiveForm('aprobar')}
@@ -201,6 +214,7 @@ const TransferenciaDetail: React.FC<Props> = ({
             onRecibir={() => setActiveForm('recibir')}
             onRechazarRecepcion={() => setActiveForm('rechazar_recepcion')}
             onCancelar={handleCancelarConfirm}
+            onEliminar={handleEliminarConfirm}
             onWhatsApp={handleShareWhatsApp}
             isPendiente={t.estado === 'pendiente'}
         />
