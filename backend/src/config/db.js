@@ -8,9 +8,13 @@ const pool = mysql.createPool({
     database: process.env.DB_NAME || 'sgdl',
     port: process.env.DB_PORT || 3306,
     waitForConnections: true,
-    // Tunable por env (insurance ante picos multi-usuario; las queries son rápidas
-    // y liberan pronto). waitForConnections:true encola en vez de rechazar.
-    connectionLimit: Number(process.env.DB_POOL_LIMIT) || 50,
+    // Default conservador (10): staging y prod comparten el usuario MySQL
+    // `lolscl_boveda` en hosting compartido, donde `max_user_connections` es
+    // bajo (~15-25). Un pool alto reventaba con "User ... already has more than
+    // 'max_user_connections' active connections" (dejando el dashboard en $0).
+    // Afinable por entorno con DB_POOL_LIMIT (p.ej. staging=5, prod=10);
+    // waitForConnections:true ENCOLA en vez de abrir de más / rechazar.
+    connectionLimit: Number(process.env.DB_POOL_LIMIT) || 10,
     queueLimit: 50,
     charset: 'utf8mb4',
     // Fase 1 plan v2: BOOLEAN/TINYINT(1) → boolean real en todo el API (antes
