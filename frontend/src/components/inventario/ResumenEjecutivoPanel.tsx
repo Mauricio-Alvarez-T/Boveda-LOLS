@@ -15,7 +15,6 @@ import {
     Droplets,
     Filter,
 } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { toast } from 'sonner';
 import { cn } from '../../utils/cn';
 import api from '../../services/api';
@@ -724,68 +723,59 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
             </div>
             )}
 
-            {/* Inversión en vehículos: gráfico de LÍNEAS, una línea por empresa
-                (solo LOLS y TRANSPORTE). Va debajo del desglose por empresa. Mismo gate. */}
+            {/* Inversión en vehículos: indicadores "cuánta plata por auto" — por tipo de
+                vehículo + detalle (ranking) por auto. Solo LOLS y TRANSPORTE. Mismo gate. */}
             {!obraFilter && verValoresResumen && (
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
+                <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider mb-3">
                     Inversión en vehículos
                 </h3>
-                <p className="text-caption text-muted-foreground mb-3">
-                    Inversión acumulada: cada paso suma un vehículo; el final de cada línea es el total invertido por empresa.
-                </p>
                 {(data?.inversion_vehiculos?.length ?? 0) === 0 ? (
                     <div className="py-10 text-center text-muted-foreground">
                         <Truck className="h-10 w-10 mx-auto mb-2 opacity-30" />
                         <p className="text-sm font-medium">Aún no hay vehículos con valor cargado.</p>
-                        <p className="text-xs mt-1">Ve a Vehículos → editar un vehículo y completa "Valor del vehículo" para ver el gráfico.</p>
+                        <p className="text-xs mt-1">Ve a Vehículos → editar un vehículo y completa "Valor del vehículo" para verlo.</p>
                     </div>
                 ) : (() => {
-                    // Inversión ACUMULADA: por cada empresa, ordenamos sus vehículos de mayor a
-                    // menor valor y vamos sumando. El eje X es el N° de vehículos acumulados; cada
-                    // línea sube y termina en el total invertido de su empresa.
-                    const byEmp = new Map<string, { color: string; vals: number[] }>();
-                    for (const v of data!.inversion_vehiculos) {
-                        if (!byEmp.has(v.empresa)) byEmp.set(v.empresa, { color: v.color, vals: [] });
-                        byEmp.get(v.empresa)!.vals.push(v.valor);
-                    }
-                    for (const info of byEmp.values()) info.vals.sort((a, b) => b - a);
-                    const empresas = [...byEmp.entries()].map(([nombre, info]) => [nombre, info.color] as [string, string]);
-                    const maxLen = Math.max(0, ...[...byEmp.values()].map(e => e.vals.length));
-                    const run: Record<string, number> = {};
-                    empresas.forEach(([n]) => (run[n] = 0));
-                    const chartData = Array.from({ length: maxLen }, (_, k) => {
-                        const row: any = { step: k + 1 };
-                        for (const [nombre, info] of byEmp) {
-                            if (k < info.vals.length) { run[nombre] += info.vals[k]; row[nombre] = run[nombre]; }
-                        }
-                        return row;
-                    });
+                    const vehs = data!.inversion_vehiculos;
+                    // Inversión por TIPO de vehículo (total + cantidad + promedio).
+                    const porTipo = Object.values(
+                        vehs.reduce((acc: Record<string, { tipo: string; count: number; total: number }>, v) => {
+                            const t = v.tipo || 'otro';
+                            (acc[t] = acc[t] || { tipo: t, count: 0, total: 0 });
+                            acc[t].count += 1; acc[t].total += v.valor;
+                            return acc;
+                        }, {})
+                    ).sort((a, b) => b.total - a.total);
                     return (
-                        <div className="h-[300px] w-full">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <LineChart data={chartData} margin={{ top: 16, right: 24, left: 8, bottom: 16 }}>
-                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="var(--border)" />
-                                    <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
-                                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10, fontWeight: 500 }}
-                                        label={{ value: 'N° de vehículos acumulados', position: 'insideBottom', offset: -6, fill: 'var(--muted-foreground)', fontSize: 11 }} />
-                                    <YAxis axisLine={false} tickLine={false} width={52}
-                                        tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                                        tickFormatter={(v: number) => fmtCLP(v)} />
-                                    <Tooltip
-                                        contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
-                                        labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
-                                        labelFormatter={(label: any) => `${label} vehículo(s)`}
-                                        formatter={(value: any, name: any) => [fmtCLPFull(Number(value)), name]} />
-                                    <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', paddingLeft: '12px' }} />
-                                    {empresas.map(([empresa, color]) => (
-                                        <Line key={empresa} type="monotone" dataKey={empresa} name={empresa}
-                                            stroke={color} strokeWidth={3} connectNulls
-                                            dot={{ r: 4, fill: color }} activeDot={{ r: 6 }} isAnimationActive={false} />
-                                    ))}
-                                </LineChart>
-                            </ResponsiveContainer>
-                        </div>
+                        <>
+                            {/* Por tipo */}
+                            <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-2">Por tipo de vehículo</p>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
+                                {porTipo.map(t => (
+                                    <div key={t.tipo} className="rounded-xl border border-border p-3">
+                                        <p className="text-sm font-bold text-brand-dark capitalize">{t.tipo}</p>
+                                        <p className="text-base font-black text-brand-dark">{fmtCLPFull(t.total)}</p>
+                                        <p className="text-caption text-muted-foreground">{t.count} auto{t.count !== 1 ? 's' : ''} · prom {fmtCLP(t.total / t.count)}</p>
+                                    </div>
+                                ))}
+                            </div>
+                            {/* Detalle por auto (ranking, ya viene ordenado de mayor a menor) */}
+                            <p className="text-caption uppercase font-black text-muted-foreground tracking-widest mb-1">Detalle por auto</p>
+                            <div className="divide-y divide-border">
+                                {vehs.map((v, i) => (
+                                    <div key={i} className="flex items-center gap-3 py-2.5">
+                                        <span className="shrink-0 w-6 text-caption font-black text-muted-foreground text-right">{i + 1}</span>
+                                        <span className="shrink-0 w-2.5 h-2.5 rounded-full" style={{ background: v.color }} title={v.empresa} />
+                                        <div className="flex-1 min-w-0">
+                                            <span className="text-sm font-bold text-brand-dark">{v.label}</span>
+                                            <span className="text-caption text-muted-foreground"> · {v.empresa}</span>
+                                        </div>
+                                        <span className="shrink-0 text-sm font-black text-brand-dark">{fmtCLPFull(v.valor)}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        </>
                     );
                 })()}
             </div>

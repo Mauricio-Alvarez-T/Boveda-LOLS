@@ -82,6 +82,7 @@ export interface InversionVehiculo {
     valor: number;
     empresa: string;
     color: string;
+    tipo: string;
 }
 
 export interface BombasHormigonMes {
