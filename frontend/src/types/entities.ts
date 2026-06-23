@@ -116,6 +116,8 @@ export interface Vehiculo {
     color?: string | null;
     /** Valor de activo (patrimonio) del vehículo. Se suma por empresa de flota. */
     valor?: number;
+    /** TRUE si el vehículo está en leasing (arriendo financiero, no es propio). */
+    es_leasing?: boolean;
     observaciones?: string | null;
     activo: boolean;
     // Campos enriquecidos por el backend (subconsultas)

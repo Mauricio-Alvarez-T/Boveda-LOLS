@@ -36,6 +36,7 @@ const schema = z.object({
         .optional(),
     color:   z.string().trim().min(3, 'El color debe tener al menos 3 caracteres'),
     valor:   z.coerce.number().min(0, 'El valor no puede ser negativo').optional(),
+    es_leasing: z.boolean().optional(),
     observaciones: z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
@@ -62,6 +63,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
             valor:   initialData.valor != null ? Number(initialData.valor) : 0,
+            es_leasing: initialData.es_leasing ?? false,
             observaciones: initialData.observaciones || '',
         } : {
             tipo: 'camioneta',
@@ -69,6 +71,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             conductor_nombre: '',
             kilometraje_actual: 0,
             valor: 0,
+            es_leasing: false,
         },
     });
 
@@ -198,6 +201,25 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                     )}
                 />
             </div>
+
+            {/* Leasing: flag sí/no con explicación de qué significa en el contexto de la app. */}
+            <label className="flex items-start gap-3 cursor-pointer rounded-xl border border-border bg-card px-3.5 py-3 hover:border-brand-primary/40 transition-colors">
+                <input
+                    type="checkbox"
+                    {...register('es_leasing')}
+                    className="mt-0.5 h-5 w-5 shrink-0 rounded border-border text-brand-primary focus:ring-brand-primary cursor-pointer"
+                />
+                <span className="flex flex-col">
+                    <span className="text-sm font-semibold text-brand-dark">¿Es leasing?</span>
+                    <span className="text-xs text-muted-foreground mt-0.5 leading-snug">
+                        En Chile, un leasing de vehículos es un contrato de arriendo financiero con una institución
+                        (banco o automotora): pagas cuotas mensuales por el uso del auto y la entidad sigue siendo
+                        la dueña legal hasta el final del contrato. Al terminar, decides si pagas una cuota final
+                        (opción de compra) para quedártelo, lo devuelves o lo renuevas.
+                    </span>
+                </span>
+            </label>
+
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
                 <textarea {...register('observaciones')} rows={2}

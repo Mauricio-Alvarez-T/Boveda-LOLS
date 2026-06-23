@@ -460,6 +460,9 @@ const VehiculosPage: React.FC = () => {
                                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                         <span className="text-caption text-muted-foreground">{v.modelo} {v.anio}</span>
                                         <span className="text-caption px-1.5 py-0.5 rounded-md bg-muted text-muted-foreground font-semibold capitalize">{v.tipo}</span>
+                                        {v.es_leasing && (
+                                            <span className="text-caption px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 font-semibold dark:bg-amber-500/20 dark:text-amber-300">Leasing</span>
+                                        )}
                                         <span className="text-caption text-muted-foreground">{fmtNumber(v.kilometraje_actual || 0)} km</span>
                                     </div>
                                 </div>
