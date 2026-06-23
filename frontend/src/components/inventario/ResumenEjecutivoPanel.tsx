@@ -750,13 +750,17 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     const maxLen = Math.max(0, ...[...byEmp.values()].map(e => e.vals.length));
                     const run: Record<string, number> = {};
                     empresasAcum.forEach(([n]) => (run[n] = 0));
-                    const chartData = Array.from({ length: maxLen }, (_, k) => {
+                    // Punto inicial en 0 (0 vehículos = $0) para que las líneas suban desde el piso
+                    // y no queden "flotando" arrancando en el valor del primer vehículo.
+                    const zeroRow: any = { step: 0 };
+                    empresasAcum.forEach(([n]) => (zeroRow[n] = 0));
+                    const chartData = [zeroRow, ...Array.from({ length: maxLen }, (_, k) => {
                         const row: any = { step: k + 1 };
                         for (const [nombre, info] of byEmp) {
                             if (k < info.vals.length) { run[nombre] += info.vals[k]; row[nombre] = run[nombre]; }
                         }
                         return row;
-                    });
+                    })];
                     // Inversión por TIPO de vehículo (total + cantidad + promedio).
                     const porTipo = Object.values(
                         vehs.reduce((acc: Record<string, { tipo: string; count: number; total: number }>, v) => {
