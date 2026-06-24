@@ -501,8 +501,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         <FieldError message={formErrors.tipo_bomba} className="mt-1" />
                     </div>
 
-                    {/* Hora de inicio + cantidad de vibradores */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Hora de inicio + origen de vibradores (apilan a ancho completo en móvil) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">
                                 Hora de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
