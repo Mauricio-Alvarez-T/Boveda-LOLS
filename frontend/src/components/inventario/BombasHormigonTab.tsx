@@ -30,9 +30,11 @@ interface BombaFormState {
     hora_inicio: string;
     toma_muestras: boolean;
     traslado_bombas: boolean;
-    vibradores: string; // string para el input; se castea a number al enviar
+    vibradores_origen: string;
     tipo_hormigon: string;
     cantidad_m3: string; // string para el input; se castea a number al enviar
+    frecuencia: string;
+    hidrofugo: boolean;
     es_externa: boolean;
     proveedor: string;
     costo: string; // string para el input; se castea a number al enviar
@@ -50,9 +52,11 @@ const emptyForm = (): BombaFormState => ({
     hora_inicio: '',
     toma_muestras: false,
     traslado_bombas: false,
-    vibradores: '',
+    vibradores_origen: '',
     tipo_hormigon: '',
     cantidad_m3: '',
+    frecuencia: '',
+    hidrofugo: false,
     es_externa: false,
     proveedor: '',
     costo: '',
@@ -122,9 +126,11 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             hora_inicio: r.hora_inicio ? String(r.hora_inicio).slice(0, 5) : '',
             toma_muestras: !!r.toma_muestras,
             traslado_bombas: !!r.traslado_bombas,
-            vibradores: r.vibradores != null ? String(r.vibradores) : '',
+            vibradores_origen: r.vibradores_origen || '',
             tipo_hormigon: r.tipo_hormigon || '',
             cantidad_m3: r.cantidad_m3 != null ? String(r.cantidad_m3) : '',
+            frecuencia: r.frecuencia || '',
+            hidrofugo: !!r.hidrofugo,
             es_externa: !!r.es_externa,
             proveedor: r.proveedor || '',
             costo: r.costo != null ? String(r.costo) : '',
@@ -156,9 +162,11 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             hora_inicio: form.hora_inicio || null,
             toma_muestras: form.toma_muestras,
             traslado_bombas: form.traslado_bombas,
-            vibradores: form.vibradores.trim() !== '' ? Number(form.vibradores) : null,
+            vibradores_origen: form.vibradores_origen || null,
             tipo_hormigon: form.tipo_hormigon.trim() || null,
             cantidad_m3: form.cantidad_m3.trim() !== '' ? Number(form.cantidad_m3) : null,
+            frecuencia: form.frecuencia.trim() || null,
+            hidrofugo: form.hidrofugo,
             es_externa: form.es_externa,
             proveedor: form.proveedor.trim() || null,
             observaciones: form.observaciones.trim() || null,
@@ -197,7 +205,11 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         if (form.hora_inicio) lines.push(`🕐 Hora de inicio: ${form.hora_inicio}`);
         lines.push(`🧪 Toma de muestras: ${form.toma_muestras ? 'Sí' : 'No'}`);
         lines.push(`🔄 Traslado de bombas: ${form.traslado_bombas ? 'Sí' : 'No'}`);
-        if (form.vibradores.trim() && Number(form.vibradores) > 0) lines.push(`📳 Vibradores: ${form.vibradores}`);
+        if (form.vibradores_origen) lines.push(`📳 Vibradores: ${form.vibradores_origen}`);
+        if (form.tipo_hormigon.trim()) lines.push(`🧱 Tipo de hormigón: ${form.tipo_hormigon.trim()}`);
+        if (form.cantidad_m3.trim()) lines.push(`📦 Cantidad: ${form.cantidad_m3} m³`);
+        if (form.frecuencia.trim()) lines.push(`🔁 Frecuencia: ${form.frecuencia.trim()}`);
+        lines.push(`💧 Hidrófugo: ${form.hidrofugo ? 'Sí' : 'No'}`);
         lines.push(`🏢 Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
         if (form.proveedor.trim()) lines.push(`👷 Proveedor: ${form.proveedor.trim()}`);
         if (verCostos && form.costo.trim()) lines.push(`💵 Costo: $${form.costo}`);
@@ -404,7 +416,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             <Modal
                 isOpen={showModal}
                 onClose={closeModal}
-                title={editingId ? 'Editar uso de bomba a Hormigón' : 'Registrar uso de bomba a Hormigón'}
+                title="Hormigón"
                 size="md"
                 headerAction={
                     <>
@@ -503,17 +515,16 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">
-                                Vibradores <span className="text-muted-foreground font-normal">(cantidad)</span>
-                            </label>
-                            <input
-                                type="number"
-                                min={0}
-                                value={form.vibradores}
-                                onChange={e => setForm(f => ({ ...f, vibradores: e.target.value }))}
-                                placeholder="0"
-                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            />
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Vibradores</label>
+                            <select
+                                value={form.vibradores_origen}
+                                onChange={e => setForm(f => ({ ...f, vibradores_origen: e.target.value }))}
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            >
+                                <option value="">Seleccionar...</option>
+                                <option value="Arriendo">Arriendo</option>
+                                <option value="De la casa">De la casa</option>
+                            </select>
                         </div>
                     </div>
 
@@ -565,6 +576,33 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             placeholder="0"
                             className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                         />
+                    </div>
+
+                    {/* Frecuencia (texto libre) */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.frecuencia}
+                            onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
+                            placeholder="Escribe la frecuencia..."
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
+                    {/* Hidrófugo (sí/no) */}
+                    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.hidrofugo}
+                                onChange={e => setForm(f => ({ ...f, hidrofugo: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Hidrófugo</span>
+                        </label>
                     </div>
 
                     {/* Propia / Externa toggle */}
@@ -731,21 +769,24 @@ const BombaCard: React.FC<{
                 <span className="text-caption text-muted-foreground">{fmtDateShort(r.fecha)}</span>
             </div>
 
-            {/* Detalles extra: hora de inicio, vibradores, muestras, traslado */}
-            {(r.hora_inicio || r.toma_muestras || r.traslado_bombas || (r.vibradores ?? 0) > 0) && (
+            {/* Detalles extra: hora de inicio, vibradores, muestras, traslado, hidrófugo */}
+            {(r.hora_inicio || r.toma_muestras || r.traslado_bombas || r.vibradores_origen || r.hidrofugo) && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                     {r.hora_inicio && (
                         <span className="text-micro font-medium text-brand-dark/70 bg-muted px-1.5 py-0.5 rounded-md">
                             Inicio {String(r.hora_inicio).slice(0, 5)}
                         </span>
                     )}
-                    {(r.vibradores ?? 0) > 0 && (
+                    {r.vibradores_origen && (
                         <span className="text-micro font-medium text-brand-dark/70 bg-muted px-1.5 py-0.5 rounded-md">
-                            {r.vibradores} vibrador{r.vibradores === 1 ? '' : 'es'}
+                            Vibradores: {r.vibradores_origen}
                         </span>
                     )}
                     {r.toma_muestras && (
                         <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Muestras</span>
+                    )}
+                    {r.hidrofugo && (
+                        <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Hidrófugo</span>
                     )}
                     {r.traslado_bombas && (
                         <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Traslado</span>

@@ -551,6 +551,12 @@ export interface RegistroBombaHormigon {
     tipo_hormigon?: string | null;
     /** Volumen bombeado en metros cúbicos. */
     cantidad_m3?: number | null;
+    /** Frecuencia (texto libre). */
+    frecuencia?: string | null;
+    /** Si el hormigón lleva aditivo hidrófugo (impermeabilizante). */
+    hidrofugo?: boolean;
+    /** Origen de los vibradores: "Arriendo" o "De la casa". */
+    vibradores_origen?: string | null;
     es_externa: boolean;
     proveedor: string | null;
     costo: number | null;
