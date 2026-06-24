@@ -485,7 +485,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             <FieldError message={formErrors.obra_id} className="mt-1" />
                         </div>
                         <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">Fecha <span className="text-red-500">*</span></label>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Fecha <span className="text-muted-foreground font-normal">(programar)</span> <span className="text-red-500">*</span></label>
                             <input
                                 type="date"
                                 value={form.fecha}
