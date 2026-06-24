@@ -43,6 +43,20 @@ Implementación: `backend/src/services/transferencia.service.js`.
 - El chip de fuente (Comprar/Traer de obra) solo se muestra cuando `estado != 'pendiente'`
   (la fuente es decisión del aprobador).
 
+## Regla de oro: el stock se saca primero de BODEGAS
+
+- El **solicitante** (modo "pedir") ve y pide contra el stock de **bodegas** (suma de todas las
+  bodegas; las obras NO se le muestran). Nunca elige origen — eso lo decide el aprobador.
+- **Sobre-pedido permitido**: puede crear la solicitud aunque supere el stock en bodega. El wizard
+  avisa por ítem _"en bodega hay X, el aprobador revisará el resto"_; `crear()` **NO valida stock**
+  para la solicitud (sí lo valida para `devolucion`/`intra_obra`/`intra_bodega`, que mueven desde un
+  origen físico fijo). Ref: `transferencia.service.js` crear(); `wizardEngine.ts` `disponibleTotal`
+  (solo bodegas); `CatalogoCarrito.tsx` (aviso ámbar no-bloqueante).
+- El **aprobador** es el ÚNICO que completa el faltante desde una **obra**. Ve bodegas + obras y arma
+  el origen con splits multi-origen; el auto-armado (`AprobarForm.autoCompletar`) **agota bodegas
+  primero** y usa obras solo para el remanente. Las ubicaciones de obra se distinguen visualmente
+  (verde + pin) de las de bodega (ámbar + ícono bodega).
+
 ## Segregación de funciones (SoD)
 
 - Regla: **solicitante ≠ aprobador ≠ transportista ≠ receptor** (flujos normales).

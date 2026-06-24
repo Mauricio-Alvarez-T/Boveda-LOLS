@@ -123,13 +123,19 @@ export const AprobarForm: React.FC<{
             if (coverage.size === 0) break; // ninguna location cubre algún ítem restante
 
             // Mejor: más ítems; tie-break: mayor stock disponible sumado
+            // Mejor: más ítems cubiertos; a igualdad, BODEGA antes que obra (regla de oro);
+            // a igualdad de tipo, mayor stock disponible.
             let best: { loc: StockLocation; items: number[]; totalDisp: number } | null = null;
             for (const entry of coverage.values()) {
-                if (!best ||
+                const entryBodega = entry.loc.type === 'bodega';
+                const bestBodega = best?.loc.type === 'bodega';
+                const isBetter = !best ||
                     entry.items.length > best.items.length ||
-                    (entry.items.length === best.items.length && entry.totalDisp > best.totalDisp)) {
-                    best = entry;
-                }
+                    (entry.items.length === best.items.length && (
+                        (entryBodega && !bestBodega) ||
+                        (entryBodega === bestBodega && entry.totalDisp > best.totalDisp)
+                    ));
+                if (isBetter) best = entry;
             }
             if (!best) break;
 
@@ -149,8 +155,14 @@ export const AprobarForm: React.FC<{
                     }],
                 };
             }
-            // Fallback: split multi-ubicación, mayor stock primero
-            const locs = [...(stockData[ai.item_id] || [])].sort((a, b) => b.cantidad - a.cantidad);
+            // Fallback: split multi-ubicación. Regla de oro: AGOTAR bodegas primero
+            // (a igualdad de tipo, mayor stock); las obras solo cubren el remanente.
+            const locs = [...(stockData[ai.item_id] || [])].sort((a, b) => {
+                const ab = a.type === 'bodega' ? 0 : 1;
+                const bb = b.type === 'bodega' ? 0 : 1;
+                if (ab !== bb) return ab - bb;
+                return b.cantidad - a.cantidad;
+            });
             let restante = ai.cantidad_solicitada;
             const splits: ApprovalSplit[] = [];
             for (const l of locs) {

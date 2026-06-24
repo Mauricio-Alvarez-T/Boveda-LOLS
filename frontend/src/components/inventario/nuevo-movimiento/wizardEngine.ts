@@ -80,11 +80,15 @@ export function useWizardEngine(modo: 'pedir' | 'mover', data: WizardData, permi
         return m;
     }, [data.stockMap, origen]);
 
-    // Stock total por ítem (modo Pedir): suma de todas las ubicaciones (sin exponer cuál).
+    // Stock que ve el SOLICITANTE (modo Pedir): SOLO bodegas (regla de oro — el stock se
+    // saca primero de bodegas; las obras solo las completa el aprobador al aprobar). El
+    // solicitante puede sobre-pedir; el wizard avisa que el resto lo revisa el aprobador.
     const disponibleTotal = useMemo(() => {
         const m: Record<number, number> = {};
         Object.entries(data.stockMap).forEach(([itemId, ubis]) => {
-            m[Number(itemId)] = ubis.reduce((s, u) => s + (Number(u.cantidad) || 0), 0);
+            m[Number(itemId)] = ubis
+                .filter(u => u.type === 'bodega')
+                .reduce((s, u) => s + (Number(u.cantidad) || 0), 0);
         });
         return m;
     }, [data.stockMap]);

@@ -223,11 +223,12 @@ const transferenciaService = {
         try {
             await conn.beginTransaction();
 
-            // Red de seguridad: validar stock GLOBAL por ítem (suma todas las ubicaciones).
-            // El frontend ya lo valida, pero evitamos que solicitudes imposibles entren
-            // al flujo si el cliente está stale o alguien bypasea la UI.
-            // Para devolución, el stock relevante es el de la obra origen (no global).
+            // Validación de stock por ORIGEN FÍSICO: devolución/intra_obra (obra origen) e
+            // intra_bodega (bodega origen) no pueden mover más de lo que existe en ese origen.
+            // REGLA DE ORO: la SOLICITUD (origen central/global) NO valida stock — se PERMITE
+            // SOBRE-PEDIR; el aprobador la abastece (bodegas primero; obras solo él, al aprobar).
             for (const item of itemsArr) {
+                if (!validarStockPorObra && !validarStockPorBodega) continue; // solicitud: sobre-pedido permitido
                 let disponible;
                 let desc;
                 if (validarStockPorObra) {
@@ -240,7 +241,7 @@ const transferenciaService = {
                     );
                     disponible = stockRows.length ? Number(stockRows[0].total) || 0 : 0;
                     desc = stockRows.length ? stockRows[0].descripcion : `ítem ${item.item_id}`;
-                } else if (validarStockPorBodega) {
+                } else {
                     const [stockRows] = await conn.query(
                         `SELECT COALESCE(cantidad, 0) as total,
                                 (SELECT descripcion FROM items_inventario WHERE id = ?) as descripcion
@@ -250,15 +251,6 @@ const transferenciaService = {
                     );
                     disponible = stockRows.length ? Number(stockRows[0].total) || 0 : 0;
                     desc = stockRows.length ? stockRows[0].descripcion : `ítem ${item.item_id}`;
-                } else {
-                    const [stockRows] = await conn.query(
-                        `SELECT COALESCE(SUM(cantidad), 0) as total,
-                                (SELECT descripcion FROM items_inventario WHERE id = ?) as descripcion
-                         FROM ubicaciones_stock WHERE item_id = ?`,
-                        [item.item_id, item.item_id]
-                    );
-                    disponible = Number(stockRows[0].total) || 0;
-                    desc = stockRows[0].descripcion || `ítem ${item.item_id}`;
                 }
                 const solicitado = Number(item.cantidad) || 0;
                 if (solicitado > disponible) {

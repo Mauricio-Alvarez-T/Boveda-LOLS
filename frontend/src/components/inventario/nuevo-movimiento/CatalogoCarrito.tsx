@@ -20,7 +20,7 @@ export const CatalogoCarrito: React.FC<{
     /** Stock disponible por ítem en el origen elegido (modo Mover). */
     stockEnOrigen: Record<number, number>;
     conStockFiltro: boolean;
-    /** Modo Pedir: stock total del ítem (Σ de todas las ubicaciones, sin exponer cuál). */
+    /** Modo Pedir: stock en BODEGAS del ítem (regla de oro: el solicitante pide contra bodegas). */
     disponibleTotal?: Record<number, number>;
     categorias?: CategoriaInventario[];
     loading: boolean;
@@ -103,8 +103,15 @@ export const CatalogoCarrito: React.FC<{
                                             #{item.nro_item}
                                             {conStockFiltro
                                                 ? ` · ${disponible} ${item.unidad} en origen`
-                                                : disponibleTotal ? (total > 0 ? ` · ${total} ${item.unidad} en stock` : ' · sin stock') : ''}
+                                                : disponibleTotal ? (total > 0 ? ` · ${total} ${item.unidad} en bodega` : ' · sin stock en bodega') : ''}
                                         </div>
+                                        {/* Regla de oro: se pide contra bodegas y se permite sobre-pedir;
+                                            aviso no-bloqueante cuando la cantidad supera el stock en bodega. */}
+                                        {!conStockFiltro && disponibleTotal && enCarrito !== undefined && enCarrito > total && (
+                                            <div className="text-caption font-medium text-amber-700 dark:text-amber-300 mt-0.5">
+                                                En bodega hay {total}. El aprobador revisará el resto ({enCarrito - total}).
+                                            </div>
+                                        )}
                                     </div>
                                     {enCarrito === undefined ? (
                                         <Button type="button" variant="primary" size="sm" onClick={() => addToCart(item.id)} leftIcon={<Plus className="h-3.5 w-3.5" strokeWidth={3} />} className="shrink-0">Agregar</Button>

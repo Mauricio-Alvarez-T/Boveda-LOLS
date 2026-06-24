@@ -123,8 +123,7 @@ describe('crear() — items_custom', () => {
         db.query.mockResolvedValueOnce([[]]);
 
         conn.query
-            // SELECT stock para validar item_id=5
-            .mockResolvedValueOnce([[{ total: 50, descripcion: 'Item A' }]])
+            // Solicitud: NO valida stock (sobre-pedido permitido) → sin SELECT de stock.
             // INSERT INTO transferencias
             .mockResolvedValueOnce([{ insertId: 600 }])
             // INSERT INTO transferencia_items
@@ -148,6 +147,27 @@ describe('crear() — items_custom', () => {
         );
         expect(customInserts).toHaveLength(1);
         expect(customInserts[0][1]).toEqual([600, 'Algo a comprar', 3, null, null]);
+        expect(conn.commit).toHaveBeenCalled();
+    });
+
+    test('solicitud PERMITE sobre-pedido (no valida stock global; regla de oro bodegas-primero)', async () => {
+        const conn = makeConn();
+        db.getConnection.mockResolvedValue(conn);
+        db.query.mockResolvedValueOnce([[]]); // _generarCodigo
+
+        conn.query
+            .mockResolvedValueOnce([{ insertId: 700 }])   // INSERT transferencias
+            .mockResolvedValueOnce([{ affectedRows: 1 }]); // INSERT transferencia_items
+
+        // Pide 99999 aunque no haya stock → debe CREAR igual (el aprobador abastece: bodegas primero).
+        const result = await transferenciaService.crear({
+            destino_obra_id: 9,
+            items: [{ item_id: 5, cantidad: 99999 }],
+        }, 42);
+
+        expect(result).toMatchObject({ id: 700 });
+        const stockSelects = conn.query.mock.calls.filter(c => /FROM ubicaciones_stock/i.test(c[0]));
+        expect(stockSelects).toHaveLength(0);
         expect(conn.commit).toHaveBeenCalled();
     });
 });
