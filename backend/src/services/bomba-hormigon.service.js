@@ -4,21 +4,21 @@ const bombaHormigonService = {
     async registrar(data, userId) {
         const { obra_id, fecha, tipo_bomba, es_externa, proveedor, costo, observaciones,
             hora_inicio, toma_muestras, traslado_bombas, vibradores, tipo_hormigon, cantidad_m3,
-            frecuencia, hidrofugo, vibradores_origen, permiso_calzada } = data;
+            frecuencia, hidrofugo, vibradores_origen, permiso_calzada, vibradores_detalle } = data;
         const [result] = await db.query(
             `INSERT INTO registro_bombas_hormigon
-                (obra_id, fecha, tipo_bomba, hora_inicio, toma_muestras, traslado_bombas, vibradores, es_externa, proveedor, costo, observaciones, tipo_hormigon, cantidad_m3, frecuencia, hidrofugo, vibradores_origen, permiso_calzada, registrado_por)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                (obra_id, fecha, tipo_bomba, hora_inicio, toma_muestras, traslado_bombas, vibradores, es_externa, proveedor, costo, observaciones, tipo_hormigon, cantidad_m3, frecuencia, hidrofugo, vibradores_origen, permiso_calzada, vibradores_detalle, registrado_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [obra_id, fecha, tipo_bomba, hora_inicio || null, toma_muestras ? 1 : 0,
              traslado_bombas ? 1 : 0, vibradores ?? null, es_externa || false,
              proveedor || null, costo || null, observaciones || null, tipo_hormigon || null, cantidad_m3 ?? null,
-             frecuencia || null, hidrofugo ? 1 : 0, vibradores_origen || null, permiso_calzada ? 1 : 0, userId]
+             frecuencia || null, hidrofugo ? 1 : 0, vibradores_origen || null, permiso_calzada ? 1 : 0, vibradores_detalle || null, userId]
         );
         return { id: result.insertId };
     },
 
     async update(id, data) {
-        const fields = ['obra_id', 'fecha', 'tipo_bomba', 'hora_inicio', 'toma_muestras', 'traslado_bombas', 'vibradores', 'es_externa', 'proveedor', 'costo', 'observaciones', 'tipo_hormigon', 'cantidad_m3', 'frecuencia', 'hidrofugo', 'vibradores_origen', 'permiso_calzada']
+        const fields = ['obra_id', 'fecha', 'tipo_bomba', 'hora_inicio', 'toma_muestras', 'traslado_bombas', 'vibradores', 'es_externa', 'proveedor', 'costo', 'observaciones', 'tipo_hormigon', 'cantidad_m3', 'frecuencia', 'hidrofugo', 'vibradores_origen', 'permiso_calzada', 'vibradores_detalle']
             .filter(f => data[f] !== undefined);
         if (!fields.length) throw new Error('Nada que actualizar');
 

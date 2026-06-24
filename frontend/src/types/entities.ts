@@ -555,8 +555,10 @@ export interface RegistroBombaHormigon {
     frecuencia?: string | null;
     /** Si el hormigón lleva aditivo hidrófugo (impermeabilizante). */
     hidrofugo?: boolean;
-    /** Origen de los vibradores: "Arriendo" o "De la casa". */
+    /** Origen de los vibradores: "Empresa" o "Externa". */
     vibradores_origen?: string | null;
+    /** Detalle libre de los vibradores (cantidad, sonda, etc.). */
+    vibradores_detalle?: string | null;
     /** Si se contaba con permiso para ocupar la calzada (vía pública). */
     permiso_calzada?: boolean;
     es_externa: boolean;

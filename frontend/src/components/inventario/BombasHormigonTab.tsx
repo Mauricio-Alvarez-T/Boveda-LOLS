@@ -31,6 +31,7 @@ interface BombaFormState {
     toma_muestras: boolean;
     traslado_bombas: boolean;
     vibradores_origen: string;
+    vibradores_detalle: string;
     tipo_hormigon: string;
     cantidad_m3: string; // string para el input; se castea a number al enviar
     frecuencia: string;
@@ -54,6 +55,7 @@ const emptyForm = (): BombaFormState => ({
     toma_muestras: false,
     traslado_bombas: false,
     vibradores_origen: '',
+    vibradores_detalle: '',
     tipo_hormigon: '',
     cantidad_m3: '',
     frecuencia: '',
@@ -131,6 +133,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             toma_muestras: !!r.toma_muestras,
             traslado_bombas: !!r.traslado_bombas,
             vibradores_origen: r.vibradores_origen || '',
+            vibradores_detalle: r.vibradores_detalle || '',
             tipo_hormigon: r.tipo_hormigon || '',
             cantidad_m3: r.cantidad_m3 != null ? String(r.cantidad_m3) : '',
             frecuencia: r.frecuencia || '',
@@ -168,6 +171,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             toma_muestras: form.toma_muestras,
             traslado_bombas: form.traslado_bombas,
             vibradores_origen: form.vibradores_origen || null,
+            vibradores_detalle: form.vibradores_detalle.trim() || null,
             tipo_hormigon: form.tipo_hormigon.trim() || null,
             cantidad_m3: form.cantidad_m3.trim() !== '' ? Number(form.cantidad_m3) : null,
             frecuencia: form.frecuencia.trim() || null,
@@ -211,7 +215,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         if (form.hora_inicio) lines.push(`🕐 Hora de inicio: ${form.hora_inicio}`);
         lines.push(`🧪 Toma de muestras: ${form.toma_muestras ? 'Sí' : 'No'}`);
         lines.push(`🔄 Traslado de bombas: ${form.traslado_bombas ? 'Sí' : 'No'}`);
-        if (form.vibradores_origen) lines.push(`📳 Vibradores: ${form.vibradores_origen}`);
+        if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(`📳 Vibradores: ${[form.vibradores_origen, form.vibradores_detalle.trim()].filter(Boolean).join(' — ')}`);
         if (form.tipo_hormigon.trim()) lines.push(`🧱 Tipo de hormigón: ${form.tipo_hormigon.trim()}`);
         if (form.cantidad_m3.trim()) lines.push(`📦 Cantidad: ${form.cantidad_m3} m³`);
         if (form.frecuencia.trim()) lines.push(`🔁 Frecuencia: ${form.frecuencia.trim()}`);
@@ -614,10 +618,28 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             >
                                 <option value="">Seleccionar...</option>
-                                <option value="Arriendo">Arriendo</option>
-                                <option value="De la casa">De la casa</option>
+                                {/* Conserva un valor antiguo (registros previos a Empresa/Externa) */}
+                                {form.vibradores_origen && !['Empresa', 'Externa'].includes(form.vibradores_origen) && (
+                                    <option value={form.vibradores_origen}>{form.vibradores_origen}</option>
+                                )}
+                                <option value="Empresa">Empresa</option>
+                                <option value="Externa">Externa</option>
                             </select>
                         </div>
+                    </div>
+
+                    {/* Detalle de vibradores (cantidad, sonda, etc.) */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Detalle de vibradores <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.vibradores_detalle}
+                            onChange={e => setForm(f => ({ ...f, vibradores_detalle: e.target.value }))}
+                            placeholder="Ej: 3 vibradores con sonda de 45"
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
                     </div>
 
                     {/* Frecuencia (texto libre) */}
