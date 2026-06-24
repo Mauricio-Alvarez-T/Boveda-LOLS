@@ -1,6 +1,7 @@
 import React from 'react';
 import { MapPin, ShoppingBag, MessageSquare } from 'lucide-react';
 import { cn } from '../../../utils/cn';
+import { ProgressBar } from '../../ui/ProgressBar';
 
 /**
  * Helpers de SOLO LECTURA del detalle de transferencia (columna "Lo que se pide"
@@ -15,6 +16,7 @@ export const MatEmpty: React.FC<{ children: string }> = ({ children }) => (
 export const MatRequestRow: React.FC<{
     it: {
         descripcion: string; cantidad: number; cantidad_aprobada?: number | null;
+        cantidad_recibida?: number | null;
         unidad: string | null; aprobado?: boolean; fuente?: 'comprar' | 'obra';
         origen_obra_nombre?: string | null; observacion?: string | null;
         nota_aprobador?: string | null; agregado_por_aprobador?: boolean;
@@ -22,8 +24,11 @@ export const MatRequestRow: React.FC<{
     estado: string;
 }> = ({ it, estado }) => {
     const rechazado = it.aprobado === false;
-    const ajustada = it.cantidad_aprobada != null && Number(it.cantidad_aprobada) !== Number(it.cantidad);
-    const cant = it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : Number(it.cantidad);
+    // Paridad con el detalle de catálogo: Solicit.=cantidad, Enviada=cantidad_aprobada,
+    // Recibida=cantidad_recibida, barra recibido/pendiente.
+    const recibido = Number(it.cantidad_recibida) || 0;
+    const totalEsperado = it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : Number(it.cantidad);
+    const pendiente = Math.max(0, totalEsperado - recibido);
     return (
         <div className={cn(
             "flex items-start justify-between gap-2 p-3 rounded-xl bg-muted/40 border border-border",
@@ -50,14 +55,17 @@ export const MatRequestRow: React.FC<{
                         </span>
                     )}
                 </div>
-                <p className="text-label text-muted-foreground">
-                    {ajustada ? (
-                        <><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-foreground font-bold">{cant}</span></>
-                    ) : (
-                        <span className="font-semibold">{cant}</span>
-                    )}
-                    {it.unidad ? ` ${it.unidad}` : ''}
-                </p>
+                <div className="flex items-center gap-3 text-label text-muted-foreground">
+                    <span>Solicit. <span className="font-bold text-brand-dark">{Number(it.cantidad)}</span></span>
+                    <span>Enviada <span className="font-bold text-brand-dark">{it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : (rechazado ? 0 : '—')}</span></span>
+                    <span>Recibida <span className="font-bold text-brand-dark">{recibido > 0 ? recibido : '—'}</span></span>
+                    {it.unidad ? <span className="text-muted-foreground/70">{it.unidad}</span> : null}
+                </div>
+                {!rechazado && totalEsperado > 0 && (
+                    <div className="max-w-[220px] mt-0.5">
+                        <ProgressBar recibido={recibido} pendiente={pendiente} compact showLabel />
+                    </div>
+                )}
                 {it.observacion && <p className="text-caption text-muted-foreground/70 italic">{it.observacion}</p>}
                 {it.nota_aprobador && (
                     <p className="text-caption text-muted-foreground inline-flex items-center gap-1">
