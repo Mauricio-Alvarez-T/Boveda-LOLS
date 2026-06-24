@@ -38,8 +38,6 @@ interface BombaFormState {
     hidrofugo: boolean;
     permiso_calzada: boolean;
     es_externa: boolean;
-    proveedor: string;
-    costo: string; // string para el input; se castea a number al enviar
     observaciones: string;
 }
 
@@ -62,8 +60,6 @@ const emptyForm = (): BombaFormState => ({
     hidrofugo: false,
     permiso_calzada: false,
     es_externa: false,
-    proveedor: '',
-    costo: '',
     observaciones: '',
 });
 
@@ -140,8 +136,6 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             hidrofugo: !!r.hidrofugo,
             permiso_calzada: !!r.permiso_calzada,
             es_externa: !!r.es_externa,
-            proveedor: r.proveedor || '',
-            costo: r.costo != null ? String(r.costo) : '',
             observaciones: r.observaciones || '',
         });
         setFormErrors({});
@@ -178,12 +172,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             hidrofugo: form.hidrofugo,
             permiso_calzada: form.permiso_calzada,
             es_externa: form.es_externa,
-            proveedor: form.proveedor.trim() || null,
             observaciones: form.observaciones.trim() || null,
         };
-        if (verCostos && form.costo.trim() !== '') {
-            payload.costo = Number(form.costo) || 0;
-        }
 
         setSubmitting(true);
         try {
@@ -222,8 +212,6 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         lines.push(`💧 Hidrófugo: ${form.hidrofugo ? 'Sí' : 'No'}`);
         lines.push(`🚧 Permiso de la calzada: ${form.permiso_calzada ? 'Sí' : 'No'}`);
         lines.push(`🏢 Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
-        if (form.proveedor.trim()) lines.push(`👷 Proveedor: ${form.proveedor.trim()}`);
-        if (verCostos && form.costo.trim()) lines.push(`💵 Costo: $${form.costo}`);
         if (form.observaciones.trim()) lines.push(`📝 Observaciones: ${form.observaciones.trim()}`);
         return lines.join('\n');
     };
@@ -567,38 +555,38 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         </div>
                     </div>
 
-                    {/* Tipo de hormigón (texto libre) */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Tipo de hormigón <span className="text-muted-foreground font-normal">(opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={form.tipo_hormigon}
-                            onChange={e => setForm(f => ({ ...f, tipo_hormigon: e.target.value }))}
-                            placeholder="Ej: H-30, H-25 bombeable..."
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
+                    {/* Tipo de hormigón + cantidad (m³) — fila compacta */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Tipo de hormigón <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={form.tipo_hormigon}
+                                onChange={e => setForm(f => ({ ...f, tipo_hormigon: e.target.value }))}
+                                placeholder="Ej: H-30..."
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Cantidad <span className="text-muted-foreground font-normal">(m³)</span>
+                            </label>
+                            <input
+                                type="number"
+                                min={0}
+                                step="any"
+                                value={form.cantidad_m3}
+                                onChange={e => setForm(f => ({ ...f, cantidad_m3: e.target.value }))}
+                                placeholder="0"
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
                     </div>
 
-                    {/* Cantidad en m³ */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Cantidad <span className="text-muted-foreground font-normal">(metros cúbicos)</span>
-                        </label>
-                        <input
-                            type="number"
-                            min={0}
-                            step="any"
-                            value={form.cantidad_m3}
-                            onChange={e => setForm(f => ({ ...f, cantidad_m3: e.target.value }))}
-                            placeholder="0"
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-
-                    {/* Hora de inicio + origen de vibradores (apilan a ancho completo en móvil) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    {/* Hora de inicio + vibradores */}
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">
                                 Hora de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
@@ -628,32 +616,32 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         </div>
                     </div>
 
-                    {/* Detalle de vibradores (cantidad, sonda, etc.) */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Detalle de vibradores <span className="text-muted-foreground font-normal">(opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={form.vibradores_detalle}
-                            onChange={e => setForm(f => ({ ...f, vibradores_detalle: e.target.value }))}
-                            placeholder="Ej: 3 vibradores con sonda de 45"
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-
-                    {/* Frecuencia (texto libre) */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={form.frecuencia}
-                            onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
-                            placeholder="Escribe la frecuencia..."
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
+                    {/* Detalle de vibradores + frecuencia (apilan en móvil) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Detalle de vibradores <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={form.vibradores_detalle}
+                                onChange={e => setForm(f => ({ ...f, vibradores_detalle: e.target.value }))}
+                                placeholder="Ej: 3 vibradores con sonda de 45"
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={form.frecuencia}
+                                onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
+                                placeholder="Escribe la frecuencia..."
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
                     </div>
 
                     {/* Los 4 checkboxes juntos: muestras, traslado, hidrófugo, permiso de la calzada */}
@@ -695,39 +683,6 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             <span className="text-sm text-brand-dark font-medium">Permiso de la calzada</span>
                         </label>
                     </div>
-
-                    {/* Proveedor (opcional) */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Proveedor <span className="text-muted-foreground font-normal">(opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={form.proveedor}
-                            onChange={e => setForm(f => ({ ...f, proveedor: e.target.value }))}
-                            placeholder="Nombre del proveedor / arrendador"
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-
-                    {/* Costo (opcional, solo si tiene permiso financiero) */}
-                    {verCostos && (
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">
-                                Costo <span className="text-muted-foreground font-normal">(opcional)</span>
-                            </label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
-                                <input
-                                    type="number" step="any"
-                                    value={form.costo}
-                                    onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
-                                    placeholder="0"
-                                    className="w-full pl-7 pr-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                                />
-                            </div>
-                        </div>
-                    )}
 
                     {/* Observaciones */}
                     <div>
