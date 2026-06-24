@@ -461,14 +461,14 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             type="submit"
                             form="bomba-form"
                             variant="primary"
-                            size="icon"
+                            size="sm"
                             disabled={submitting}
                             isLoading={submitting}
                             title={editingId ? 'Guardar cambios' : 'Registrar'}
-                            className="rounded-full h-8 w-8"
+                            leftIcon={<Check className="h-4 w-4" />}
+                            className="rounded-full"
                         >
-                            <Check className="h-4 w-4" />
-                            <span className="sr-only">{editingId ? 'Guardar cambios' : 'Registrar'}</span>
+                            Guardar
                         </Button>
                     </>
                 }
