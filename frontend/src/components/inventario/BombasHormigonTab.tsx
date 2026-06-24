@@ -467,8 +467,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                 }
             >
                 <form id="bomba-form" onSubmit={handleSubmit} className="space-y-4" noValidate>
-                    {/* Obra + Fecha */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {/* Obra + Fecha (misma fila, también en móvil) */}
+                    <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Obra <span className="text-red-500">*</span></label>
                             <select
