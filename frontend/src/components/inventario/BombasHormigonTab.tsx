@@ -644,8 +644,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         </div>
                     </div>
 
-                    {/* Los 4 checkboxes juntos: muestras, traslado, hidrófugo, permiso de la calzada */}
-                    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                    {/* Los 4 checkboxes en 2 columnas (2x2) — compacto, también en móvil */}
+                    <div className="grid grid-cols-2 gap-x-3 gap-y-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                         <label className="flex items-center gap-2.5 cursor-pointer select-none">
                             <input
                                 type="checkbox"
