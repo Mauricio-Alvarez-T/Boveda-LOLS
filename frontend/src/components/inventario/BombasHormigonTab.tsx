@@ -499,59 +499,37 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         </div>
                     </div>
 
-                    {/* Tipo de bomba */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">Tipo de bomba <span className="text-red-500">*</span></label>
-                        <select
-                            value={form.tipo_bomba}
-                            onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
-                            className={cn(
-                                "w-full px-3 py-2.5 text-base border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
-                                formErrors.tipo_bomba ? "border-destructive" : "border-border"
-                            )}
-                        >
-                            <option value="">Selecciona el tipo...</option>
-                            {/* Conserva un valor antiguo no estándar (registros previos a texto libre) */}
-                            {form.tipo_bomba && !TIPOS_BOMBA.includes(form.tipo_bomba) && (
-                                <option value={form.tipo_bomba}>{form.tipo_bomba}</option>
-                            )}
-                            {TIPOS_BOMBA.map(t => <option key={t} value={t}>{t}</option>)}
-                        </select>
-                        <FieldError message={formErrors.tipo_bomba} className="mt-1" />
-                    </div>
-
-                    {/* Origen de la bomba: propia / externa */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1.5 block">Origen de la bomba <span className="text-red-500">*</span></label>
-                        <div className="grid grid-cols-2 gap-2">
-                            {/* eslint-disable-next-line no-restricted-syntax -- toggle estado BD (color emerald) */}
-                            <button
-                                type="button"
-                                onClick={() => setForm(f => ({ ...f, es_externa: false }))}
+                    {/* Tipo de bomba + origen (dropdown) — fila compacta */}
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Tipo de bomba <span className="text-red-500">*</span></label>
+                            <select
+                                value={form.tipo_bomba}
+                                onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
                                 className={cn(
-                                    "flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all",
-                                    !form.es_externa
-                                        ? "bg-emerald-500 text-white border-emerald-500 shadow-sm"
-                                        : "bg-card text-muted-foreground border-border hover:border-emerald-300"
+                                    "w-full px-3 py-2.5 text-base border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
+                                    formErrors.tipo_bomba ? "border-destructive" : "border-border"
                                 )}
                             >
-                                <Building2 className="h-3.5 w-3.5" />
-                                Empresa (propia)
-                            </button>
-                            {/* eslint-disable-next-line no-restricted-syntax -- toggle estado BD (color amber) */}
-                            <button
-                                type="button"
-                                onClick={() => setForm(f => ({ ...f, es_externa: true }))}
-                                className={cn(
-                                    "flex items-center justify-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all",
-                                    form.es_externa
-                                        ? "bg-amber-500 text-white border-amber-500 shadow-sm"
-                                        : "bg-card text-muted-foreground border-border hover:border-amber-300"
+                                <option value="">Selecciona el tipo...</option>
+                                {/* Conserva un valor antiguo no estándar (registros previos a texto libre) */}
+                                {form.tipo_bomba && !TIPOS_BOMBA.includes(form.tipo_bomba) && (
+                                    <option value={form.tipo_bomba}>{form.tipo_bomba}</option>
                                 )}
+                                {TIPOS_BOMBA.map(t => <option key={t} value={t}>{t}</option>)}
+                            </select>
+                            <FieldError message={formErrors.tipo_bomba} className="mt-1" />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Origen de la bomba <span className="text-red-500">*</span></label>
+                            <select
+                                value={form.es_externa ? 'externa' : 'empresa'}
+                                onChange={e => setForm(f => ({ ...f, es_externa: e.target.value === 'externa' }))}
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             >
-                                <Truck className="h-3.5 w-3.5" />
-                                Externa (arriendo)
-                            </button>
+                                <option value="empresa">Empresa (propia)</option>
+                                <option value="externa">Externa (arriendo)</option>
+                            </select>
                         </div>
                     </div>
 
@@ -585,7 +563,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         </div>
                     </div>
 
-                    {/* Hora de inicio + vibradores */}
+                    {/* Hora de inicio + frecuencia */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">
@@ -596,6 +574,34 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 value={form.hora_inicio}
                                 onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))}
                                 className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={form.frecuencia}
+                                onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
+                                placeholder="Escribe la frecuencia..."
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                    </div>
+
+                    {/* Detalle de vibradores + vibradores (apilan en móvil) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Detalle de vibradores <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="text"
+                                value={form.vibradores_detalle}
+                                onChange={e => setForm(f => ({ ...f, vibradores_detalle: e.target.value }))}
+                                placeholder="Ej: 3 vibradores con sonda de 45"
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             />
                         </div>
                         <div>
@@ -613,34 +619,6 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 <option value="Empresa">Empresa</option>
                                 <option value="Externa">Externa</option>
                             </select>
-                        </div>
-                    </div>
-
-                    {/* Detalle de vibradores + frecuencia (apilan en móvil) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">
-                                Detalle de vibradores <span className="text-muted-foreground font-normal">(opcional)</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={form.vibradores_detalle}
-                                onChange={e => setForm(f => ({ ...f, vibradores_detalle: e.target.value }))}
-                                placeholder="Ej: 3 vibradores con sonda de 45"
-                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">
-                                Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
-                            </label>
-                            <input
-                                type="text"
-                                value={form.frecuencia}
-                                onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
-                                placeholder="Escribe la frecuencia..."
-                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            />
                         </div>
                     </div>
 
