@@ -547,6 +547,10 @@ export interface RegistroBombaHormigon {
     traslado_bombas?: boolean;
     /** Cantidad de vibradores usados. */
     vibradores?: number | null;
+    /** Tipo de hormigón bombeado (texto libre, ej. "H-30"). */
+    tipo_hormigon?: string | null;
+    /** Volumen bombeado en metros cúbicos. */
+    cantidad_m3?: number | null;
     es_externa: boolean;
     proveedor: string | null;
     costo: number | null;

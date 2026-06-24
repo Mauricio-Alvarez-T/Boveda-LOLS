@@ -31,6 +31,8 @@ interface BombaFormState {
     toma_muestras: boolean;
     traslado_bombas: boolean;
     vibradores: string; // string para el input; se castea a number al enviar
+    tipo_hormigon: string;
+    cantidad_m3: string; // string para el input; se castea a number al enviar
     es_externa: boolean;
     proveedor: string;
     costo: string; // string para el input; se castea a number al enviar
@@ -49,6 +51,8 @@ const emptyForm = (): BombaFormState => ({
     toma_muestras: false,
     traslado_bombas: false,
     vibradores: '',
+    tipo_hormigon: '',
+    cantidad_m3: '',
     es_externa: false,
     proveedor: '',
     costo: '',
@@ -119,6 +123,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             toma_muestras: !!r.toma_muestras,
             traslado_bombas: !!r.traslado_bombas,
             vibradores: r.vibradores != null ? String(r.vibradores) : '',
+            tipo_hormigon: r.tipo_hormigon || '',
+            cantidad_m3: r.cantidad_m3 != null ? String(r.cantidad_m3) : '',
             es_externa: !!r.es_externa,
             proveedor: r.proveedor || '',
             costo: r.costo != null ? String(r.costo) : '',
@@ -151,6 +157,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             toma_muestras: form.toma_muestras,
             traslado_bombas: form.traslado_bombas,
             vibradores: form.vibradores.trim() !== '' ? Number(form.vibradores) : null,
+            tipo_hormigon: form.tipo_hormigon.trim() || null,
+            cantidad_m3: form.cantidad_m3.trim() !== '' ? Number(form.cantidad_m3) : null,
             es_externa: form.es_externa,
             proveedor: form.proveedor.trim() || null,
             observaciones: form.observaciones.trim() || null,
@@ -396,7 +404,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             <Modal
                 isOpen={showModal}
                 onClose={closeModal}
-                title={editingId ? 'Editar uso de bomba' : 'Registrar uso de bomba'}
+                title={editingId ? 'Editar uso de bomba a Hormigón' : 'Registrar uso de bomba a Hormigón'}
                 size="md"
                 headerAction={
                     <>
@@ -529,6 +537,34 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             />
                             <span className="text-sm text-brand-dark font-medium">Traslado de bombas</span>
                         </label>
+                    </div>
+
+                    {/* Tipo de hormigón (texto libre) + cantidad bombeada en m³ */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Tipo de hormigón <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.tipo_hormigon}
+                            onChange={e => setForm(f => ({ ...f, tipo_hormigon: e.target.value }))}
+                            placeholder="Ej: H-30, H-25 bombeable..."
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Cantidad <span className="text-muted-foreground font-normal">(metros cúbicos)</span>
+                        </label>
+                        <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={form.cantidad_m3}
+                            onChange={e => setForm(f => ({ ...f, cantidad_m3: e.target.value }))}
+                            placeholder="0"
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
                     </div>
 
                     {/* Propia / Externa toggle */}
