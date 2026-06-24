@@ -35,6 +35,7 @@ interface BombaFormState {
     cantidad_m3: string; // string para el input; se castea a number al enviar
     frecuencia: string;
     hidrofugo: boolean;
+    permiso_calzada: boolean;
     es_externa: boolean;
     proveedor: string;
     costo: string; // string para el input; se castea a number al enviar
@@ -57,6 +58,7 @@ const emptyForm = (): BombaFormState => ({
     cantidad_m3: '',
     frecuencia: '',
     hidrofugo: false,
+    permiso_calzada: false,
     es_externa: false,
     proveedor: '',
     costo: '',
@@ -131,6 +133,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             cantidad_m3: r.cantidad_m3 != null ? String(r.cantidad_m3) : '',
             frecuencia: r.frecuencia || '',
             hidrofugo: !!r.hidrofugo,
+            permiso_calzada: !!r.permiso_calzada,
             es_externa: !!r.es_externa,
             proveedor: r.proveedor || '',
             costo: r.costo != null ? String(r.costo) : '',
@@ -167,6 +170,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             cantidad_m3: form.cantidad_m3.trim() !== '' ? Number(form.cantidad_m3) : null,
             frecuencia: form.frecuencia.trim() || null,
             hidrofugo: form.hidrofugo,
+            permiso_calzada: form.permiso_calzada,
             es_externa: form.es_externa,
             proveedor: form.proveedor.trim() || null,
             observaciones: form.observaciones.trim() || null,
@@ -210,6 +214,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         if (form.cantidad_m3.trim()) lines.push(`📦 Cantidad: ${form.cantidad_m3} m³`);
         if (form.frecuencia.trim()) lines.push(`🔁 Frecuencia: ${form.frecuencia.trim()}`);
         lines.push(`💧 Hidrófugo: ${form.hidrofugo ? 'Sí' : 'No'}`);
+        lines.push(`🚧 Permiso de la calzada: ${form.permiso_calzada ? 'Sí' : 'No'}`);
         lines.push(`🏢 Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
         if (form.proveedor.trim()) lines.push(`👷 Proveedor: ${form.proveedor.trim()}`);
         if (verCostos && form.costo.trim()) lines.push(`💵 Costo: $${form.costo}`);
@@ -592,7 +597,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         />
                     </div>
 
-                    {/* Hidrófugo (sí/no) */}
+                    {/* Hidrófugo + permiso de la calzada (sí/no) */}
                     <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
                         <label className="flex items-center gap-2.5 cursor-pointer select-none">
                             <input
@@ -602,6 +607,15 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
                             />
                             <span className="text-sm text-brand-dark font-medium">Hidrófugo</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.permiso_calzada}
+                                onChange={e => setForm(f => ({ ...f, permiso_calzada: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Permiso de la calzada</span>
                         </label>
                     </div>
 
@@ -770,7 +784,7 @@ const BombaCard: React.FC<{
             </div>
 
             {/* Detalles extra: hora de inicio, vibradores, muestras, traslado, hidrófugo */}
-            {(r.hora_inicio || r.toma_muestras || r.traslado_bombas || r.vibradores_origen || r.hidrofugo) && (
+            {(r.hora_inicio || r.toma_muestras || r.traslado_bombas || r.vibradores_origen || r.hidrofugo || r.permiso_calzada) && (
                 <div className="flex flex-wrap items-center gap-1.5 mb-1">
                     {r.hora_inicio && (
                         <span className="text-micro font-medium text-brand-dark/70 bg-muted px-1.5 py-0.5 rounded-md">
@@ -787,6 +801,9 @@ const BombaCard: React.FC<{
                     )}
                     {r.hidrofugo && (
                         <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Hidrófugo</span>
+                    )}
+                    {r.permiso_calzada && (
+                        <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Permiso calzada</span>
                     )}
                     {r.traslado_bombas && (
                         <span className="text-micro font-medium text-brand-primary bg-brand-primary/10 px-1.5 py-0.5 rounded-md">Traslado</span>

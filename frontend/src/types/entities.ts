@@ -557,6 +557,8 @@ export interface RegistroBombaHormigon {
     hidrofugo?: boolean;
     /** Origen de los vibradores: "Arriendo" o "De la casa". */
     vibradores_origen?: string | null;
+    /** Si se contaba con permiso para ocupar la calzada (vía pública). */
+    permiso_calzada?: boolean;
     es_externa: boolean;
     proveedor: string | null;
     costo: number | null;
