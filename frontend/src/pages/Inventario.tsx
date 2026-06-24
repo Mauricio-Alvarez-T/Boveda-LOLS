@@ -36,7 +36,7 @@ const tabs: { key: TabKey; label: string; shortLabel: string; icon: React.Elemen
     { key: 'por_ubicacion',     label: 'Por Obra/Bodega',   shortLabel: 'Obra/Bod.', icon: Building2,       requiresPerm: 'inventario.tab.por_ubicacion' },
     { key: 'transferencias',    label: 'Solicitudes',       shortLabel: 'Solicitudes', icon: ArrowLeftRight,  requiresPerm: 'inventario.tab.transferencias' },
     { key: 'maestro',           label: 'Maestro',           shortLabel: 'Maestro',   icon: LayoutGrid,      requiresPerm: 'inventario.tab.maestro' },
-    { key: 'bombas',            label: 'Bombas Hormigón',   shortLabel: 'Bombas',    icon: MixerTruck,      requiresPerm: 'inventario.tab.bombas' },
+    { key: 'bombas',            label: 'Hormigón',          shortLabel: 'Hormigón',  icon: MixerTruck,      requiresPerm: 'inventario.tab.bombas' },
     { key: 'facturas',          label: 'Facturas',          shortLabel: 'Facturas',  icon: Receipt,         requiresPerm: 'inventario.facturas.ver' },
     { key: 'movimientos',       label: 'Movimientos',       shortLabel: 'Movim.',    icon: History,         requiresPerm: 'inventario.movimientos.ver' },
 ];
