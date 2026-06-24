@@ -435,7 +435,14 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             <Modal
                 isOpen={showModal}
                 onClose={closeModal}
-                title="Hormigón"
+                title={
+                    <span className="inline-flex items-baseline gap-2">
+                        Hormigón
+                        <span className="text-xs font-normal text-muted-foreground">
+                            (<span className="text-red-500">*</span> obligatorio)
+                        </span>
+                    </span>
+                }
                 size="md"
                 headerAction={
                     <>
