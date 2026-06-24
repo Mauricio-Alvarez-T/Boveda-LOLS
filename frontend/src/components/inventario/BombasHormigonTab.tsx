@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, Search, X, Plus, Pencil, Trash2, Check } from 'lucide-react';
+import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, ChevronRight, ChevronLeft, Search, X, Plus, Pencil, Trash2, Check } from 'lucide-react';
 import { MixerTruck } from '../icons/MixerTruck';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -82,6 +82,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     const [loading, setLoading] = useState(false);
     const [filterObraId, setFilterObraId] = useState<number | ''>('');
     const [searchQuery, setSearchQuery] = useState('');
+    // Mes abierto en el historial (drill-down). null = vista de lista de meses.
+    const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
 
     // Modal de registro/edición
     const [showModal, setShowModal] = useState(false);
@@ -253,33 +255,38 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         );
     }, [registros, searchQuery]);
 
-    // Stats
-    const stats = useMemo(() => {
-        const total = filtered.length;
-        const externas = filtered.filter(r => r.es_externa).length;
-        const propias = total - externas;
-        const costoTotal = filtered.reduce((sum, r) => sum + (Number(r.costo) || 0), 0);
-        return { total, externas, propias, costoTotal };
-    }, [filtered]);
-
-    // Group by month
+    // Agrupar por mes (más reciente primero). Dentro de cada mes los registros
+    // ya vienen ordenados por fecha DESC (más reciente arriba) desde el backend.
     const grouped = useMemo(() => {
         const groups: Record<string, RegistroBombaHormigon[]> = {};
         for (const r of filtered) {
             const d = new Date(r.fecha);
             const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-            const label = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
             if (!groups[key]) groups[key] = [];
             groups[key].push(r);
         }
-        // Sort keys descending
         const sorted = Object.entries(groups).sort(([a], [b]) => b.localeCompare(a));
         return sorted.map(([key, items]) => {
             const d = new Date(items[0].fecha);
             const label = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-            return { key, label: label.charAt(0).toUpperCase() + label.slice(1), items };
+            const propias = items.filter(r => !r.es_externa).length;
+            return { key, label: label.charAt(0).toUpperCase() + label.slice(1), items, propias, externas: items.length - propias };
         });
     }, [filtered]);
+
+    // Mes abierto en el drill-down (null = lista de meses). Si el mes ya no existe
+    // tras un filtro, cae a null → se muestra la lista de meses.
+    const selectedGroup = selectedMonth ? (grouped.find(g => g.key === selectedMonth) ?? null) : null;
+
+    // Stats del alcance visible: el mes abierto, o todo el historial filtrado.
+    const scopeRecords = selectedGroup ? selectedGroup.items : filtered;
+    const stats = useMemo(() => {
+        const total = scopeRecords.length;
+        const externas = scopeRecords.filter(r => r.es_externa).length;
+        const propias = total - externas;
+        const costoTotal = scopeRecords.reduce((sum, r) => sum + (Number(r.costo) || 0), 0);
+        return { total, externas, propias, costoTotal };
+    }, [scopeRecords]);
 
     return (
         <div className="flex flex-col flex-1 min-h-0">
@@ -381,35 +388,50 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             {searchQuery ? 'No hay resultados para la búsqueda' : 'No se han registrado bombeos aún'}
                         </p>
                     </div>
+                ) : selectedGroup ? (
+                    /* ─── Detalle del mes: registros por día, más reciente primero ─── */
+                    <div className="space-y-3">
+                        <div className="flex items-center gap-2">
+                            <Button variant="ghost" size="sm" onClick={() => setSelectedMonth(null)} leftIcon={<ChevronLeft className="h-4 w-4" />}>
+                                Meses
+                            </Button>
+                            <span className="text-sm font-bold text-brand-dark capitalize">{selectedGroup.label}</span>
+                            <span className="text-caption text-muted-foreground/50">({selectedGroup.items.length})</span>
+                        </div>
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+                            {selectedGroup.items.map(r => (
+                                <BombaCard
+                                    key={r.id}
+                                    registro={r}
+                                    canEdit={canEdit}
+                                    onEdit={() => openEdit(r)}
+                                    onDelete={() => handleDelete(r)}
+                                />
+                            ))}
+                        </div>
+                    </div>
                 ) : (
-                    <div className="space-y-5">
+                    /* ─── Vista de meses: lista clickeable, más reciente arriba ─── */
+                    <div className="space-y-2">
                         {grouped.map(group => (
-                            <div key={group.key}>
-                                {/* Month header */}
-                                <div className="flex items-center gap-2 mb-2 px-1">
-                                    <Calendar className="h-3 w-3 text-muted-foreground/50" />
-                                    <span className="text-caption font-bold uppercase tracking-wider text-muted-foreground/70">
-                                        {group.label}
-                                    </span>
-                                    <span className="text-caption text-muted-foreground/40">
-                                        ({group.items.length})
-                                    </span>
-                                    <div className="flex-1 border-t border-border/60" />
+                            /* eslint-disable-next-line no-restricted-syntax -- fila de mes clickeable (drill-down al detalle) */
+                            <button
+                                key={group.key}
+                                type="button"
+                                onClick={() => setSelectedMonth(group.key)}
+                                className="w-full flex items-center gap-3 p-3 rounded-xl border border-border bg-card text-left transition-all hover:border-brand-primary/40 hover:bg-brand-primary/[0.03] active:scale-[0.99]"
+                            >
+                                <div className="shrink-0 h-10 w-10 rounded-xl bg-muted flex items-center justify-center">
+                                    <Calendar className="h-5 w-5 text-muted-foreground" />
                                 </div>
-
-                                {/* Cards grid */}
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-                                    {group.items.map(r => (
-                                        <BombaCard
-                                            key={r.id}
-                                            registro={r}
-                                            canEdit={canEdit}
-                                            onEdit={() => openEdit(r)}
-                                            onDelete={() => handleDelete(r)}
-                                        />
-                                    ))}
+                                <div className="flex-1 min-w-0">
+                                    <div className="text-sm font-bold text-brand-dark capitalize">{group.label}</div>
+                                    <div className="text-caption text-muted-foreground">
+                                        {group.items.length} bombeo{group.items.length === 1 ? '' : 's'} · {group.propias} empresa · {group.externas} arriendo
+                                    </div>
                                 </div>
-                            </div>
+                                <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40" />
+                            </button>
                         ))}
                     </div>
                 )}
