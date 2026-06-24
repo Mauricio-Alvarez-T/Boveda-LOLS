@@ -506,120 +506,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         <FieldError message={formErrors.tipo_bomba} className="mt-1" />
                     </div>
 
-                    {/* Hora de inicio + origen de vibradores (apilan a ancho completo en móvil) */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">
-                                Hora de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
-                            </label>
-                            <input
-                                type="time"
-                                value={form.hora_inicio}
-                                onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))}
-                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-xs font-bold text-brand-dark mb-1 block">Vibradores</label>
-                            <select
-                                value={form.vibradores_origen}
-                                onChange={e => setForm(f => ({ ...f, vibradores_origen: e.target.value }))}
-                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                            >
-                                <option value="">Seleccionar...</option>
-                                <option value="Arriendo">Arriendo</option>
-                                <option value="De la casa">De la casa</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    {/* Checkboxes: toma de muestras / traslado de bombas */}
-                    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={form.toma_muestras}
-                                onChange={e => setForm(f => ({ ...f, toma_muestras: e.target.checked }))}
-                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
-                            />
-                            <span className="text-sm text-brand-dark font-medium">Toma de muestras</span>
-                        </label>
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={form.traslado_bombas}
-                                onChange={e => setForm(f => ({ ...f, traslado_bombas: e.target.checked }))}
-                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
-                            />
-                            <span className="text-sm text-brand-dark font-medium">Traslado de bombas</span>
-                        </label>
-                    </div>
-
-                    {/* Tipo de hormigón (texto libre) + cantidad bombeada en m³ */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Tipo de hormigón <span className="text-muted-foreground font-normal">(opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={form.tipo_hormigon}
-                            onChange={e => setForm(f => ({ ...f, tipo_hormigon: e.target.value }))}
-                            placeholder="Ej: H-30, H-25 bombeable..."
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Cantidad <span className="text-muted-foreground font-normal">(metros cúbicos)</span>
-                        </label>
-                        <input
-                            type="number"
-                            min={0}
-                            step="any"
-                            value={form.cantidad_m3}
-                            onChange={e => setForm(f => ({ ...f, cantidad_m3: e.target.value }))}
-                            placeholder="0"
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-
-                    {/* Frecuencia (texto libre) */}
-                    <div>
-                        <label className="text-xs font-bold text-brand-dark mb-1 block">
-                            Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
-                        </label>
-                        <input
-                            type="text"
-                            value={form.frecuencia}
-                            onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
-                            placeholder="Escribe la frecuencia..."
-                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
-                        />
-                    </div>
-
-                    {/* Hidrófugo + permiso de la calzada (sí/no) */}
-                    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={form.hidrofugo}
-                                onChange={e => setForm(f => ({ ...f, hidrofugo: e.target.checked }))}
-                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
-                            />
-                            <span className="text-sm text-brand-dark font-medium">Hidrófugo</span>
-                        </label>
-                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
-                            <input
-                                type="checkbox"
-                                checked={form.permiso_calzada}
-                                onChange={e => setForm(f => ({ ...f, permiso_calzada: e.target.checked }))}
-                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
-                            />
-                            <span className="text-sm text-brand-dark font-medium">Permiso de la calzada</span>
-                        </label>
-                    </div>
-
-                    {/* Propia / Externa toggle */}
+                    {/* Origen de la bomba: propia / externa */}
                     <div>
                         <label className="text-xs font-bold text-brand-dark mb-1.5 block">Origen de la bomba <span className="text-red-500">*</span></label>
                         <div className="grid grid-cols-2 gap-2">
@@ -652,6 +539,117 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 Externa (arriendo)
                             </button>
                         </div>
+                    </div>
+
+                    {/* Tipo de hormigón (texto libre) */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Tipo de hormigón <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.tipo_hormigon}
+                            onChange={e => setForm(f => ({ ...f, tipo_hormigon: e.target.value }))}
+                            placeholder="Ej: H-30, H-25 bombeable..."
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
+                    {/* Cantidad en m³ */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Cantidad <span className="text-muted-foreground font-normal">(metros cúbicos)</span>
+                        </label>
+                        <input
+                            type="number"
+                            min={0}
+                            step="any"
+                            value={form.cantidad_m3}
+                            onChange={e => setForm(f => ({ ...f, cantidad_m3: e.target.value }))}
+                            placeholder="0"
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
+                    {/* Hora de inicio + origen de vibradores (apilan a ancho completo en móvil) */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">
+                                Hora de inicio <span className="text-muted-foreground font-normal">(opcional)</span>
+                            </label>
+                            <input
+                                type="time"
+                                value={form.hora_inicio}
+                                onChange={e => setForm(f => ({ ...f, hora_inicio: e.target.value }))}
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            />
+                        </div>
+                        <div>
+                            <label className="text-xs font-bold text-brand-dark mb-1 block">Vibradores</label>
+                            <select
+                                value={form.vibradores_origen}
+                                onChange={e => setForm(f => ({ ...f, vibradores_origen: e.target.value }))}
+                                className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                            >
+                                <option value="">Seleccionar...</option>
+                                <option value="Arriendo">Arriendo</option>
+                                <option value="De la casa">De la casa</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    {/* Frecuencia (texto libre) */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Frecuencia <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.frecuencia}
+                            onChange={e => setForm(f => ({ ...f, frecuencia: e.target.value }))}
+                            placeholder="Escribe la frecuencia..."
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
+                    {/* Los 4 checkboxes juntos: muestras, traslado, hidrófugo, permiso de la calzada */}
+                    <div className="flex flex-col gap-2.5 rounded-xl border border-border bg-muted/30 px-3 py-2.5">
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.toma_muestras}
+                                onChange={e => setForm(f => ({ ...f, toma_muestras: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Toma de muestras</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.traslado_bombas}
+                                onChange={e => setForm(f => ({ ...f, traslado_bombas: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Traslado de bombas</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.hidrofugo}
+                                onChange={e => setForm(f => ({ ...f, hidrofugo: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Hidrófugo</span>
+                        </label>
+                        <label className="flex items-center gap-2.5 cursor-pointer select-none">
+                            <input
+                                type="checkbox"
+                                checked={form.permiso_calzada}
+                                onChange={e => setForm(f => ({ ...f, permiso_calzada: e.target.checked }))}
+                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                            />
+                            <span className="text-sm text-brand-dark font-medium">Permiso de la calzada</span>
+                        </label>
                     </div>
 
                     {/* Proveedor (opcional) */}
