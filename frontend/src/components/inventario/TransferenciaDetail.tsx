@@ -12,6 +12,7 @@ import ItemDetailModal from './ItemDetailModal';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { ProgressBar } from '../ui/ProgressBar';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { fmtFecha, fmtFechaHora } from '../../utils/fechas';
 import { transferenciaRoute } from '../../utils/formatBodega';
@@ -370,19 +371,26 @@ const TransferenciaDetail: React.FC<Props> = ({
                             <thead>
                                 <tr className="bg-brand-primary">
                                     <th className="text-left px-3 py-2 font-bold text-white">Descripción</th>
-                                    <th className="text-center px-2 py-2 font-bold text-white w-20">Cantidad</th>
-                                    <th className="text-left px-2 py-2 font-bold text-white w-24">Unidad</th>
+                                    <th className="text-center px-2 py-2 font-bold text-white w-16">Solicit.</th>
+                                    <th className="text-center px-2 py-2 font-bold text-white w-16">Enviada</th>
+                                    <th className="text-center px-2 py-2 font-bold text-white w-16">Recibida</th>
+                                    <th className="text-center px-2 py-2 font-bold text-white w-24">Progreso</th>
                                 </tr>
                             </thead>
                             <tbody>
                                 {itemsCustom.map((it, idx) => {
                                     const rechazado = it.aprobado === false;
-                                    const ajustada = it.cantidad_aprobada != null && Number(it.cantidad_aprobada) !== Number(it.cantidad);
+                                    // Paridad con la tabla de catálogo: Solicit.=cantidad, Enviada=cantidad_aprobada
+                                    // (lo aprobado para enviar), Recibida=cantidad_recibida, barra recibido/pendiente.
+                                    const recibido = Number(it.cantidad_recibida) || 0;
+                                    const totalEsperado = it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : Number(it.cantidad);
+                                    const pendiente = Math.max(0, totalEsperado - recibido);
                                     return (
                                         <tr key={it.id || idx} className={cn(idx % 2 === 0 ? "bg-card" : "bg-muted/40", rechazado && "opacity-50")}>
                                             <td className="px-3 py-1.5 font-medium text-brand-dark">
                                                 <div className="flex flex-wrap items-center gap-1.5">
                                                     <span className={cn(rechazado && "line-through")}>{it.descripcion}</span>
+                                                    {it.unidad && <span className="text-micro text-muted-foreground">· {it.unidad}</span>}
                                                     {it.agregado_por_aprobador && (
                                                         <span className="px-1.5 py-0.5 rounded-full bg-brand-primary/10 text-green-700 dark:text-green-300 text-micro font-bold uppercase">+ aprobador</span>
                                                     )}
@@ -405,14 +413,14 @@ const TransferenciaDetail: React.FC<Props> = ({
                                                     <div className="text-caption text-muted-foreground mt-0.5 inline-flex items-center gap-1"><MessageSquare className="h-2.5 w-2.5 shrink-0" /> {it.nota_aprobador}</div>
                                                 )}
                                             </td>
-                                            <td className="px-2 py-1.5 text-center font-semibold">
-                                                {ajustada ? (
-                                                    <span><span className="line-through text-muted-foreground/60 mr-1">{Number(it.cantidad)}</span><span className="text-foreground">{Number(it.cantidad_aprobada)}</span></span>
-                                                ) : (
-                                                    <span className={cn(rechazado && "line-through text-muted-foreground")}>{Number(it.cantidad_aprobada != null ? it.cantidad_aprobada : it.cantidad)}</span>
-                                                )}
+                                            <td className="px-2 py-1.5 text-center font-semibold">{Number(it.cantidad)}</td>
+                                            <td className="px-2 py-1.5 text-center">{it.cantidad_aprobada != null ? Number(it.cantidad_aprobada) : (rechazado ? 0 : '—')}</td>
+                                            <td className="px-2 py-1.5 text-center">{recibido > 0 ? recibido : '—'}</td>
+                                            <td className="px-2 py-1.5">
+                                                {!rechazado && totalEsperado > 0
+                                                    ? <ProgressBar recibido={recibido} pendiente={pendiente} compact showLabel />
+                                                    : <span className="text-micro text-muted-foreground/50 block text-center">—</span>}
                                             </td>
-                                            <td className="px-2 py-1.5 text-left text-muted-foreground">{it.unidad || '—'}</td>
                                         </tr>
                                     );
                                 })}
