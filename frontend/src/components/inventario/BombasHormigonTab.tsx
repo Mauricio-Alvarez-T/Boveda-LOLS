@@ -197,22 +197,22 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     const buildWhatsAppMessage = (): string => {
         const obraNombre = obras.find(o => o.id === form.obra_id)?.nombre || '—';
         const lines = [
-            '🚜 *Registro de uso de bomba*',
-            `🏗️ Obra: ${obraNombre}`,
-            `📅 Fecha: ${form.fecha ? form.fecha.split('-').reverse().join('/') : '—'}`,
-            `🔧 Tipo: ${form.tipo_bomba || '—'}`,
+            '*Registro de uso de bomba*',
+            `Obra: ${obraNombre}`,
+            `Fecha: ${form.fecha ? form.fecha.split('-').reverse().join('/') : '—'}`,
+            `Tipo: ${form.tipo_bomba || '—'}`,
         ];
-        if (form.hora_inicio) lines.push(`🕐 Hora de inicio: ${form.hora_inicio}`);
-        lines.push(`🧪 Toma de muestras: ${form.toma_muestras ? 'Sí' : 'No'}`);
-        lines.push(`🔄 Traslado de bombas: ${form.traslado_bombas ? 'Sí' : 'No'}`);
-        if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(`📳 Vibradores: ${[form.vibradores_origen, form.vibradores_detalle.trim()].filter(Boolean).join(' — ')}`);
-        if (form.tipo_hormigon.trim()) lines.push(`🧱 Tipo de hormigón: ${form.tipo_hormigon.trim()}`);
-        if (form.cantidad_m3.trim()) lines.push(`📦 Cantidad: ${form.cantidad_m3} m³`);
-        if (form.frecuencia.trim()) lines.push(`🔁 Frecuencia: ${form.frecuencia.trim()}`);
-        lines.push(`💧 Hidrófugo: ${form.hidrofugo ? 'Sí' : 'No'}`);
-        lines.push(`🚧 Permiso de la calzada: ${form.permiso_calzada ? 'Sí' : 'No'}`);
-        lines.push(`🏢 Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
-        if (form.observaciones.trim()) lines.push(`📝 Observaciones: ${form.observaciones.trim()}`);
+        if (form.hora_inicio) lines.push(`Hora de inicio: ${form.hora_inicio}`);
+        lines.push(`Toma de muestras: ${form.toma_muestras ? 'Sí' : 'No'}`);
+        lines.push(`Traslado de bombas: ${form.traslado_bombas ? 'Sí' : 'No'}`);
+        if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(`Vibradores: ${[form.vibradores_origen, form.vibradores_detalle.trim()].filter(Boolean).join(' — ')}`);
+        if (form.tipo_hormigon.trim()) lines.push(`Tipo de hormigón: ${form.tipo_hormigon.trim()}`);
+        if (form.cantidad_m3.trim()) lines.push(`Cantidad: ${form.cantidad_m3} m³`);
+        if (form.frecuencia.trim()) lines.push(`Frecuencia: ${form.frecuencia.trim()}`);
+        lines.push(`Hidrófugo: ${form.hidrofugo ? 'Sí' : 'No'}`);
+        lines.push(`Permiso de la calzada: ${form.permiso_calzada ? 'Sí' : 'No'}`);
+        lines.push(`Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
+        if (form.observaciones.trim()) lines.push(`Observaciones: ${form.observaciones.trim()}`);
         return lines.join('\n');
     };
 
