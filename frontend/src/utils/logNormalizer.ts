@@ -49,8 +49,47 @@ const labelMap: Record<string, string> = {
     comentario: 'Comentario',
     fecha_vencimiento: 'F. Vencimiento',
     resumen: 'Resumen',
-    cambios: 'Cambios'
+    cambios: 'Cambios',
+    // Inventario / transferencias / vehículos — keys que antes salían crudas.
+    item_ids: 'Ítems', items: 'Ítems', cantidad: 'Cantidad',
+    cantidad_solicitada: 'Cant. solicitada', cantidad_enviada: 'Cant. enviada',
+    cantidad_recibida: 'Cant. recibida', tipo_flujo: 'Tipo', tipo: 'Tipo',
+    unidad: 'Unidad', fuente: 'Origen', detalles: 'Ítems',
+    origen_obra_id: 'Obra origen', destino_obra_id: 'Obra destino',
+    origen_bodega_id: 'Bodega origen', destino_bodega_id: 'Bodega destino',
+    patente: 'Patente', marca: 'Marca', modelo: 'Modelo', anio: 'Año',
+    color: 'Color', kilometraje_actual: 'Kilómetros'
 };
+
+/** Nombres legibles de módulo (slug del path → etiqueta). Desconocido → prettify. */
+const moduloLabels: Record<string, string> = {
+    'items-inventario': 'Inventario', inventario: 'Inventario',
+    transferencias: 'Solicitudes', asistencias: 'Asistencia',
+    trabajadores: 'Trabajadores', usuarios: 'Usuarios', empresas: 'Empresas',
+    obras: 'Obras', cargos: 'Cargos', 'tipos-ausencia': 'Tipos de ausencia',
+    'estados-asistencia': 'Estados de asistencia', bodegas: 'Bodegas',
+    'sabados-extra': 'Sábados extra', documentos: 'Documentos',
+    vehiculos: 'Vehículos', 'empresas-vehiculos': 'Empresas de flota',
+    conductores: 'Conductores', feriados: 'Feriados', roles: 'Roles',
+    'bombas-hormigon': 'Bombas de hormigón', sistema: 'Sistema',
+};
+
+/** Verbo legible por acción (para encabezados del detalle). */
+const accionVerbo: Record<string, string> = {
+    CREATE: 'Creó', UPDATE: 'Editó', DELETE: 'Eliminó',
+    LOGIN: 'Inició sesión', UPLOAD: 'Subió', EMAIL: 'Envió correo',
+};
+
+/** snake_case / kebab → "Title case" (fallback de etiquetas sin mapear). */
+const prettify = (key: string): string => {
+    const s = String(key).replace(/[_-]+/g, ' ').trim();
+    return s ? s.charAt(0).toUpperCase() + s.slice(1) : key;
+};
+
+export const getModuloLabel = (modulo: string | null | undefined): string =>
+    modulo ? (moduloLabels[modulo] || prettify(modulo)) : 'Sistema';
+
+export const describeAccion = (accion: string): string => accionVerbo[accion] || accion;
 
 /**
  * Intenta reparar un JSON truncado cerrando llaves y corchetes pendientes.
@@ -178,4 +217,4 @@ export const normalizeLogDetail = (detail: string | object | null): LogDetail =>
     return parsed as LogDetail;
 };
 
-export const getLabel = (key: string): string => labelMap[key] || key;
+export const getLabel = (key: string): string => labelMap[key] || prettify(key);

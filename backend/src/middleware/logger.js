@@ -115,7 +115,17 @@ const buildCreateResumen = (body) => {
             parts.push(`${label}: ${body[key]}`);
         }
     }
-    return parts.join(' | ') || 'Nuevo registro';
+    if (parts.length) return parts.join(' | ');
+
+    // Fallback para creaciones "bulk" sin campos prioritarios (ej. solicitudes con
+    // arreglos de ítems): describir por conteo en vez de caer a "Nuevo registro".
+    const countLabels = { items: 'ítems', item_ids: 'ítems', trabajador_ids: 'trabajadores', trabajadores: 'trabajadores', registros: 'registros', detalles: 'ítems' };
+    for (const key of Object.keys(countLabels)) {
+        if (Array.isArray(body[key]) && body[key].length) {
+            return `${body[key].length} ${countLabels[key]}`;
+        }
+    }
+    return 'Nuevo registro';
 };
 
 /**

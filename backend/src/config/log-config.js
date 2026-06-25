@@ -26,7 +26,14 @@ const LABEL_MAP = {
     horas_extra: 'Horas Extra', fecha_ingreso: 'F. Ingreso',
     categoria_reporte: 'Categoría Reporte', rol_id: 'Rol',
     tipo_documento_id: 'Tipo Documento', trabajador_id: 'Trabajador',
-    fecha_vencimiento: 'F. Vencimiento'
+    fecha_vencimiento: 'F. Vencimiento',
+    // Inventario / transferencias y otros campos frecuentes en el detalle.
+    descripcion: 'Descripción', codigo: 'Código', motivo: 'Motivo',
+    items: 'Ítems', item_ids: 'Ítems', trabajador_ids: 'Trabajadores',
+    cantidad: 'Cantidad', cantidad_solicitada: 'Cant. solicitada',
+    cantidad_enviada: 'Cant. enviada', cantidad_recibida: 'Cant. recibida',
+    tipo_flujo: 'Tipo', tipo: 'Tipo', unidad: 'Unidad', fuente: 'Origen',
+    fecha: 'Fecha', monto: 'Monto', patente: 'Patente', marca: 'Marca', modelo: 'Modelo'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios

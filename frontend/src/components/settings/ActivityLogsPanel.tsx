@@ -12,7 +12,7 @@ import { Input } from '../ui/Input';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
 import {
-    normalizeLogDetail, getLabel,
+    normalizeLogDetail, getLabel, getModuloLabel, describeAccion,
     type BulkAsistenciaTrabajador,
 } from '../../utils/logNormalizer';
 
@@ -175,7 +175,13 @@ const LegacyDiffViewer: React.FC<{ antes: any, nuevo: any, responsable?: string 
     return <CompactDiffViewer cambios={cambios} responsable={responsable} />;
 };
 
-const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ parsed, responsable }) => {
+const GenericDetailView: React.FC<{ parsed: any, responsable?: string, accion?: string, modulo?: string, resumen?: string }> = ({ parsed, responsable, accion, modulo, resumen }) => {
+    // Subtítulo legible: "Creó · Inventario" en vez de "Información completa almacenada".
+    const subtitulo = accion ? `${describeAccion(accion)} · ${getModuloLabel(modulo)}` : 'Información completa almacenada';
+    // No mostrar como campos las claves meta ni los objetos anidados.
+    const entradas = Object.entries(parsed || {}).filter(
+        ([k, v]) => !['type', 'resumen', 'datos'].includes(k) && !(typeof v === 'object' && v !== null && !Array.isArray(v))
+    );
     return (
         <div className="space-y-6">
             <div className="bg-card p-5 rounded-2xl border border-border shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -184,8 +190,8 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                         <History className="h-6 w-6 text-muted-foreground" />
                     </div>
                     <div>
-                        <h4 className="text-sm font-bold text-brand-dark uppercase tracking-tight">Datos del Registro</h4>
-                        <p className="text-xs text-muted-foreground font-medium">Información completa almacenada</p>
+                        <h4 className="text-sm font-bold text-brand-dark tracking-tight">Datos del registro</h4>
+                        <p className="text-xs text-muted-foreground font-medium">{subtitulo}</p>
                     </div>
                 </div>
                 {responsable && (
@@ -196,27 +202,33 @@ const GenericDetailView: React.FC<{ parsed: any, responsable?: string }> = ({ pa
                 )}
             </div>
 
-            <div className="bg-card rounded-2xl border border-border overflow-hidden">
-                <div className="grid grid-cols-1 md:grid-cols-2">
-                    {Object.entries(parsed).map(([key, value], index) => {
-                        if (typeof value === 'object' && value !== null && !Array.isArray(value)) return null;
-                        return (
+            {resumen && (
+                <div className="bg-brand-primary/5 border border-brand-primary/15 rounded-2xl px-4 py-3">
+                    <span className="text-caption font-black text-brand-primary uppercase tracking-widest">Resumen</span>
+                    <p className="text-sm font-semibold text-brand-dark mt-0.5">{resumen}</p>
+                </div>
+            )}
+
+            {entradas.length > 0 && (
+                <div className="bg-card rounded-2xl border border-border overflow-hidden">
+                    <div className="grid grid-cols-1 md:grid-cols-2">
+                        {entradas.map(([key, value], index) => (
                             <div key={key} className={cn(
                                 "p-5 flex flex-col gap-2 border-background",
                                 index % 2 === 0 ? "md:border-r" : "",
-                                index < Object.entries(parsed).length - 2 ? "border-b" : ""
+                                index < entradas.length - 2 ? "border-b" : ""
                             )}>
                                 <span className="text-xs font-black text-muted-foreground uppercase tracking-widest leading-none mb-0.5">
                                     {getLabel(key)}
                                 </span>
                                 <span className="text-base text-brand-dark font-semibold tracking-tight">
-                                    {Array.isArray(value) ? `${value.length} elementos` : String(value ?? '—')}
+                                    {Array.isArray(value) ? `${value.length} ${getLabel(key).toLowerCase()}` : String(value ?? '—')}
                                 </span>
                             </div>
-                        );
-                    })}
+                        ))}
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
@@ -735,7 +747,7 @@ export const ActivityLogsPanel: React.FC = () => {
                                             {getActionDisplay(log.accion).label}
                                         </span>
                                         <span className="text-label font-bold text-brand-dark">{log.usuario_nombre || 'Sistema'}</span>
-                                        <span className="text-caption text-muted-foreground uppercase">{log.modulo}</span>
+                                        <span className="text-caption text-muted-foreground">{getModuloLabel(log.modulo)}</span>
                                         {log.entidad_label && (
                                             <span className="text-label font-bold text-brand-primary truncate max-w-[200px]" title={log.entidad_label}>
                                                 → {log.entidad_label}
@@ -798,7 +810,7 @@ export const ActivityLogsPanel: React.FC = () => {
                 <Modal
                     isOpen={!!openLog}
                     onClose={() => setOpenLog(null)}
-                    title={`Detalle · ${openLog.modulo.toUpperCase()}${openLog.entidad_label ? ` — ${openLog.entidad_label}` : ''}`}
+                    title={`Detalle · ${getModuloLabel(openLog.modulo)}${openLog.entidad_label ? ` — ${openLog.entidad_label}` : ''}`}
                     size="lg"
                 >
                     <DetailModalContent log={openLog} />
@@ -828,10 +840,9 @@ const DetailModalContent: React.FC<{ log: Log }> = ({ log }) => {
     }
     if (typeof parsed === 'object' && (parsed as any).type === 'summary') {
         const s = parsed as any;
-        if (s.datos) return <GenericDetailView parsed={s.datos} responsable={responsable} />;
-        return <p className="text-sm text-brand-dark">{s.resumen || 'Sin detalle adicional'}</p>;
+        return <GenericDetailView parsed={s.datos || {}} resumen={s.resumen} accion={log.accion} modulo={log.modulo} responsable={responsable} />;
     }
-    return <GenericDetailView parsed={parsed} responsable={responsable} />;
+    return <GenericDetailView parsed={parsed} resumen={(parsed as any)?.resumen} accion={log.accion} modulo={log.modulo} responsable={responsable} />;
 };
 
 const getActionDisplay = (accion: string) => {
