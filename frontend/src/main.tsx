@@ -8,6 +8,11 @@ import { Toaster } from 'sonner'
 import { PageHeaderProvider } from './context/PageHeaderContext.tsx'
 import { ThemeProvider, useTheme } from './context/ThemeContext.tsx'
 import { ErrorBoundary } from './components/ui/ErrorBoundary.tsx'
+import { reloadOnceForChunkError } from './utils/lazyWithRetry.ts'
+
+// "Chunk viejo tras deploy": si Vite no puede precargar un módulo (deploy en curso o
+// chunk rotado), recarga UNA vez para traer el build nuevo. Complementa lazyWithRetry.
+window.addEventListener('vite:preloadError', () => { reloadOnceForChunkError(); });
 
 /** Toaster que sigue el tema activo (claro/oscuro). */
 const ThemedToaster: React.FC = () => {

@@ -3,18 +3,20 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { useAuth } from './context/AuthContext';
 import LoginPage from './pages/Login';
 import { MainLayout } from './components/layout/MainLayout';
+import { lazyWithRetry } from './utils/lazyWithRetry';
 
 // Code-splitting: las páginas pesadas (recharts, dnd-kit, xlsx, etc.) se cargan
 // al entrar a su ruta, no en el bundle inicial. Login y el layout quedan eager
-// porque son el punto de entrada.
-const Dashboard = React.lazy(() => import('./pages/Dashboard'));
-const AttendancePage = React.lazy(() => import('./pages/Attendance'));
-const ConsultasPage = React.lazy(() => import('./pages/Consultas'));
-const InventarioPage = React.lazy(() => import('./pages/Inventario'));
-const VehiculosPage = React.lazy(() => import('./pages/Vehiculos'));
-const ObrasFinalizadasPage = React.lazy(() => import('./pages/ObrasFinalizadas'));
-const CentroAyudaPage = React.lazy(() => import('./pages/CentroAyuda'));
-const SettingsPage = React.lazy(() => import('./pages/Settings'));
+// porque son el punto de entrada. `lazyWithRetry` auto-recupera el "chunk viejo
+// tras deploy" (reintento + recarga única) en vez de mostrar "Algo salió mal".
+const Dashboard = lazyWithRetry(() => import('./pages/Dashboard'));
+const AttendancePage = lazyWithRetry(() => import('./pages/Attendance'));
+const ConsultasPage = lazyWithRetry(() => import('./pages/Consultas'));
+const InventarioPage = lazyWithRetry(() => import('./pages/Inventario'));
+const VehiculosPage = lazyWithRetry(() => import('./pages/Vehiculos'));
+const ObrasFinalizadasPage = lazyWithRetry(() => import('./pages/ObrasFinalizadas'));
+const CentroAyudaPage = lazyWithRetry(() => import('./pages/CentroAyuda'));
+const SettingsPage = lazyWithRetry(() => import('./pages/Settings'));
 
 const FullScreenSpinner: React.FC = () => (
   <div className="min-h-[100dvh] bg-background flex items-center justify-center">
