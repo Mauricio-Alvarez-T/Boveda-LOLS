@@ -36,6 +36,7 @@ const schema = z.object({
         .optional(),
     color:   z.string().trim().min(3, 'El color debe tener al menos 3 caracteres'),
     valor:   z.coerce.number().min(0, 'El valor no puede ser negativo').optional(),
+    precio_compra: z.coerce.number().min(0, 'El precio de compra no puede ser negativo').optional(),
     es_leasing: z.boolean().optional(),
     observaciones: z.string().optional(),
 });
@@ -63,6 +64,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             kilometraje_actual: initialData.kilometraje_actual,
             color:   initialData.color || '',
             valor:   initialData.valor != null ? Number(initialData.valor) : 0,
+            precio_compra: initialData.precio_compra != null ? Number(initialData.precio_compra) : 0,
             es_leasing: initialData.es_leasing ?? false,
             observaciones: initialData.observaciones || '',
         } : {
@@ -71,6 +73,7 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             conductor_nombre: '',
             kilometraje_actual: 0,
             valor: 0,
+            precio_compra: 0,
             es_leasing: false,
         },
     });
@@ -186,6 +189,22 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Input label="Kilómetros actuales" type="number" {...register('kilometraje_actual')} error={errors.kilometraje_actual?.message} />
+                <Controller
+                    name="precio_compra"
+                    control={control}
+                    render={({ field }) => (
+                        <CurrencyInput
+                            label="Precio de compra"
+                            placeholder="$0"
+                            value={Number(field.value) || 0}
+                            onChange={field.onChange}
+                            onBlur={field.onBlur}
+                            error={errors.precio_compra?.message}
+                        />
+                    )}
+                />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <Controller
                     name="valor"
                     control={control}

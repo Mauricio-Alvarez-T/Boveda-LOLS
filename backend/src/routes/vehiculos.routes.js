@@ -16,6 +16,12 @@ router.get('/alertas', auth, checkPermission('vehiculos.ver'), async (req, res, 
     } catch (err) { next(err); }
 });
 
+// ── Ventas / historial de vendidos (antes de /:id para que no sea capturado) ──
+router.get('/ventas', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
+    try { res.json({ data: await svc.getVentas() }); }
+    catch (err) { next(err); }
+});
+
 // ── Vehículos CRUD ──────────────────────────────────────────────────────
 router.get('/', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
     try { res.json({ data: await svc.getAll(req.query) }); }
@@ -24,6 +30,12 @@ router.get('/', auth, checkPermission('vehiculos.ver'), async (req, res, next) =
 
 router.get('/:id', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
     try { res.json({ data: await svc.getById(req.params.id) }); }
+    catch (err) { next(err); }
+});
+
+// Vender (dar de baja por venta): registra la venta y deja el vehículo activo = 0.
+router.post('/:id/vender', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
+    try { res.status(201).json({ data: await svc.venderVehiculo(req.params.id, req.body, req.user?.id) }); }
     catch (err) { next(err); }
 });
 

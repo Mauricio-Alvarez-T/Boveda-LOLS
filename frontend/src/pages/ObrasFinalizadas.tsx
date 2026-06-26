@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import { useAuth } from '../context/AuthContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { ObraFinalizadaCard } from '../components/obras/ObraFinalizadaCard';
+import { VehiculosVendidos } from '../components/obras/VehiculosVendidos';
 import { IconButton } from '../components/ui/IconButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import api from '../services/api';
@@ -21,6 +22,8 @@ const Skeleton: React.FC = () => (
 const ObrasFinalizadasPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const canReactivar = hasPermission('obras.finalizar');
+    // El historial de vehículos vendidos se muestra acá, pero usa el permiso de vehículos.
+    const canVerVehiculos = hasPermission('vehiculos.ver');
 
     const [obras, setObras] = useState<ObraFinalizada[]>([]);
     const [loading, setLoading] = useState(true);
@@ -90,8 +93,8 @@ const ObrasFinalizadasPage: React.FC = () => {
                 )}
             </div>
 
-            {/* Grid de tarjetas */}
-            <div className="flex-1 min-h-0 overflow-y-auto">
+            {/* Contenido scrolleable: obras finalizadas + historial de vehículos vendidos */}
+            <div className="flex-1 min-h-0 overflow-y-auto space-y-6">
                 {loading ? (
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {[1, 2, 3, 4].map(i => <Skeleton key={i} />)}
@@ -108,7 +111,7 @@ const ObrasFinalizadasPage: React.FC = () => {
                         title={`No se encontraron resultados para "${filtro}"`}
                     />
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pb-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
                         {obrasFiltradas.map((obra, idx) => (
                             <ObraFinalizadaCard
                                 key={obra.id}
@@ -119,6 +122,14 @@ const ObrasFinalizadasPage: React.FC = () => {
                             />
                         ))}
                     </div>
+                )}
+
+                {/* Historial de vehículos vendidos (compra vs. venta) */}
+                {canVerVehiculos && (
+                    <>
+                        <div className="border-t border-border/70" />
+                        <VehiculosVendidos />
+                    </>
                 )}
             </div>
         </div>

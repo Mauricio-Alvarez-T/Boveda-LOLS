@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
     Truck, Plus, Building2,
-    Trash2, Edit2, X, ChevronLeft, ChevronRight, Search, Filter, Save, User, FileText
+    Trash2, Edit2, X, ChevronLeft, ChevronRight, Search, Filter, Save, User, FileText, Banknote
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '../utils/cn';
@@ -13,6 +13,7 @@ import { IconButton } from '../components/ui/IconButton';
 import { EmptyState } from '../components/ui/EmptyState';
 import { fmtNumber } from '../utils/format';
 import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
+import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
 import { EmpresaForm } from '../components/vehiculos/EmpresaForm';
 import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
 import api from '../services/api';
@@ -53,6 +54,8 @@ const VehiculosPage: React.FC = () => {
     const [editVehiculo, setEditVehiculo] = useState<Vehiculo | null>(null);
     const [modalEmpresa, setModalEmpresa] = useState(false);
     const [editEmpresa, setEditEmpresa] = useState<EmpresaVehiculo | null>(null);
+    // Modal de venta (dar de baja por venta)
+    const [vehiculoVender, setVehiculoVender] = useState<Vehiculo | null>(null);
 
     // ── Fetch ─────────────────────────────────────────────────────────────────
 
@@ -477,6 +480,12 @@ const VehiculosPage: React.FC = () => {
                                             className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
                                             icon={<Edit2 className="h-4 w-4" />} />
                                     )}
+                                    {hasPermission('vehiculos.editar') && (
+                                        <IconButton size="sm" aria-label="Vender vehículo" title="Vender (dar de baja por venta)"
+                                            onClick={e => { e.stopPropagation(); setVehiculoVender(v); }}
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-emerald-500/10 hover:text-emerald-600"
+                                            icon={<Banknote className="h-4 w-4" />} />
+                                    )}
                                     {hasPermission('vehiculos.eliminar') && (
                                         <IconButton size="sm" variant="danger" aria-label="Dar de baja vehículo" title="Dar de baja"
                                             onClick={e => { e.stopPropagation(); handleDelete(v); }}
@@ -737,6 +746,20 @@ const VehiculosPage: React.FC = () => {
                 headerAction={formActions('empresa-form', () => setModalEmpresa(false))}>
                 <EmpresaForm initialData={editEmpresa} onCancel={() => setModalEmpresa(false)}
                     onSuccess={() => { setModalEmpresa(false); fetchEmpresas(); }} />
+            </Modal>
+
+            <Modal isOpen={!!vehiculoVender} onClose={() => setVehiculoVender(null)}
+                title="Vender vehículo" size="md"
+                headerAction={formActions('vender-form', () => setVehiculoVender(null))}>
+                {vehiculoVender && (
+                    <VenderVehiculoForm vehiculo={vehiculoVender}
+                        onCancel={() => setVehiculoVender(null)}
+                        onSuccess={() => {
+                            if (selected?.id === vehiculoVender.id) setSelected(null);
+                            setVehiculoVender(null);
+                            fetchVehiculos(); fetchEmpresas();
+                        }} />
+                )}
             </Modal>
 
         </div>

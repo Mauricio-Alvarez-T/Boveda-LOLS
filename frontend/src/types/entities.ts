@@ -116,6 +116,8 @@ export interface Vehiculo {
     color?: string | null;
     /** Valor de activo (patrimonio) del vehículo. Se suma por empresa de flota. */
     valor?: number;
+    /** Precio de compra/adquisición. Base de la diferencia compra-venta al vender. */
+    precio_compra?: number;
     /** TRUE si el vehículo está en leasing (arriendo financiero, no es propio). */
     es_leasing?: boolean;
     observaciones?: string | null;
@@ -126,6 +128,32 @@ export interface Vehiculo {
     seguro_vencimiento?: string | null;
     revision_tecnica_vencimiento?: string | null;
     revision_gases_vencimiento?: string | null;
+}
+
+/**
+ * Venta de un vehículo (historial). Los montos llegan como string desde MySQL
+ * (columnas DECIMAL); castea con Number() antes de operar/formatear.
+ */
+export interface VehiculoVenta {
+    id: number;
+    vehiculo_id: number;
+    fecha_venta: string;
+    precio_compra: number;
+    precio_venta: number;
+    /** Calculada por el backend: precio_venta − precio_compra (+ ganancia, − pérdida). */
+    diferencia: number;
+    comprador?: string | null;
+    observaciones?: string | null;
+    vendido_por?: number | null;
+    created_at?: string;
+    // Datos del vehículo, enriquecidos por el backend vía JOIN.
+    patente: string;
+    marca: string;
+    modelo: string;
+    anio: number;
+    tipo: string;
+    empresa_nombre?: string | null;
+    empresa_color?: string | null;
 }
 
 export type VehiculoDocumentoCategoria =

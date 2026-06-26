@@ -124,7 +124,7 @@ const vehiculosService = {
     },
 
     async create(data) {
-        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa_id, conductor_id, valor = 0, es_leasing = false } = data;
+        const { patente, marca, modelo, anio, tipo = 'camioneta', kilometraje_actual = 0, color, observaciones, empresa_id, conductor_id, valor = 0, precio_compra = 0, es_leasing = false } = data;
         if (!patente || !marca || !modelo || !anio) {
             throw Object.assign(new Error('patente, marca, modelo y anio son obligatorios'), { statusCode: 400 });
         }
@@ -133,9 +133,9 @@ const vehiculosService = {
             ? await this.resolveConductorId(data.conductor_nombre)
             : (conductor_id || null);
         const [result] = await db.query(
-            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa_id, conductor_id, valor, es_leasing)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId, valor || 0, es_leasing ? 1 : 0]
+            `INSERT INTO vehiculos (patente, marca, modelo, anio, tipo, kilometraje_actual, color, observaciones, empresa_id, conductor_id, valor, precio_compra, es_leasing)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId, valor || 0, precio_compra || 0, es_leasing ? 1 : 0]
         );
         return this.getById(result.insertId);
     },
@@ -146,7 +146,7 @@ const vehiculosService = {
         if (data.conductor_nombre !== undefined) {
             data.conductor_id = await this.resolveConductorId(data.conductor_nombre);
         }
-        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor', 'es_leasing'];
+        const allowed = ['patente', 'marca', 'modelo', 'anio', 'tipo', 'kilometraje_actual', 'color', 'observaciones', 'activo', 'empresa_id', 'conductor_id', 'valor', 'precio_compra', 'es_leasing'];
         const fields = [];
         const params = [];
         allowed.forEach(f => {
@@ -164,6 +164,70 @@ const vehiculosService = {
     async remove(id) {
         await db.query('UPDATE vehiculos SET activo = 0 WHERE id = ?', [id]);
         return { id, activo: false };
+    },
+
+    // ── Ventas (historial de vehículos vendidos) ────────────────────────
+    // Vender = dar de baja por venta. Se guarda el detalle en vehiculo_ventas
+    // (con snapshot del precio de compra) y el vehículo sale de la flota activa
+    // (activo = 0). La diferencia venta − compra se calcula al leer el historial.
+
+    async venderVehiculo(id, data = {}, userId = null) {
+        // getById exige activo = 1 → no se puede vender un vehículo ya dado de baja/vendido.
+        const veh = await this.getById(id);
+
+        if (!data.fecha_venta) {
+            throw Object.assign(new Error('La fecha de venta es obligatoria'), { statusCode: 400 });
+        }
+        const precioVenta = Number(data.precio_venta);
+        if (data.precio_venta == null || data.precio_venta === '' || Number.isNaN(precioVenta)) {
+            throw Object.assign(new Error('El precio de venta es obligatorio'), { statusCode: 400 });
+        }
+        // Precio de compra: el que venga del formulario; si no, el del propio vehículo.
+        const precioCompra = (data.precio_compra != null && data.precio_compra !== '')
+            ? Number(data.precio_compra)
+            : Number(veh.precio_compra || 0);
+
+        const [result] = await db.query(
+            `INSERT INTO vehiculo_ventas
+                (vehiculo_id, fecha_venta, precio_compra, precio_venta, comprador, observaciones, vendido_por)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`,
+            [
+                id, data.fecha_venta, precioCompra || 0, precioVenta,
+                (data.comprador || '').trim() || null,
+                (data.observaciones || '').trim() || null,
+                userId,
+            ]
+        );
+        // Baja por venta: el vehículo sale de la flota activa.
+        await db.query('UPDATE vehiculos SET activo = 0 WHERE id = ?', [id]);
+        return this.getVentaById(result.insertId);
+    },
+
+    // SELECT compartido por getVentas / getVentaById: enriquece con datos del
+    // vehículo (aunque esté inactivo) y calcula la diferencia venta − compra.
+    _ventaSelect(whereClause = '', params = []) {
+        return db.query(`
+            SELECT vv.id, vv.vehiculo_id, vv.fecha_venta, vv.precio_compra, vv.precio_venta,
+                   (vv.precio_venta - vv.precio_compra) AS diferencia,
+                   vv.comprador, vv.observaciones, vv.vendido_por, vv.created_at,
+                   v.patente, v.marca, v.modelo, v.anio, v.tipo,
+                   ev.nombre AS empresa_nombre, ev.color AS empresa_color
+            FROM vehiculo_ventas vv
+            JOIN vehiculos v ON v.id = vv.vehiculo_id
+            LEFT JOIN empresas_vehiculos ev ON ev.id = v.empresa_id
+            ${whereClause}
+            ORDER BY vv.fecha_venta DESC, vv.id DESC
+        `, params);
+    },
+
+    async getVentas() {
+        const [rows] = await this._ventaSelect();
+        return rows;
+    },
+
+    async getVentaById(ventaId) {
+        const [rows] = await this._ventaSelect('WHERE vv.id = ?', [ventaId]);
+        return rows[0] || null;
     },
 
     // ── Seguros ────────────────────────────────────────────────────────
