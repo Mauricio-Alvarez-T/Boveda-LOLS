@@ -208,7 +208,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
     const tooltipLines = [
         `${obra.nombre}`,
         `Arriendo mensual neto: ${fmtCLPFull(obra.valor_mensual)}`,
-        `Patrimonio (valor en activos): ${fmtCLPFull(obra.valor_patrimonial)}`,
+        `Costo (valor de compra de los artículos): ${fmtCLPFull(obra.valor_patrimonial)}`,
     ];
     if (obra.descuento_porcentaje > 0) {
         tooltipLines.push(`Bruto sin descuento: ${fmtCLPFull(obra.valor_bruto)}`);
@@ -241,8 +241,9 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                         style={{ width: `${pct}%` }}
                     />
                 </div>
-                <div className="mt-1 text-caption text-muted-foreground font-semibold">
-                    <Landmark className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Patrimonio: {fmtCLP(obra.valor_patrimonial)}
+                <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-muted-foreground font-semibold">
+                    <span><Wallet className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Arriendo: {fmtCLP(obra.valor_mensual)}/mes</span>
+                    <span><Landmark className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Costo: {fmtCLP(obra.valor_patrimonial)}</span>
                 </div>
                 {obra.descuento_porcentaje > 0 && (
                     <div className="mt-1 text-caption text-muted-foreground font-semibold">
@@ -820,10 +821,16 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                 sección entera ranquea por $ — sin permiso $ no aporta. */}
             {!obraFilter && verValoresResumen && (
             <div className="bg-card border border-border rounded-2xl p-4 md:p-5 shrink-0">
-                <div className="flex items-center justify-between mb-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 mb-3">
                     <h3 className="text-sm font-black text-brand-dark uppercase tracking-wider">
-                        Obras por valor (arriendo mensual)
+                        Obras por valor (arriendo y costo)
                     </h3>
+                    {data && (
+                        <div className="flex items-baseline gap-3 text-label font-semibold text-muted-foreground">
+                            <span><Wallet className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Arriendo: <span className="text-brand-dark font-black">{fmtCLP(data.kpis.valor_total_obras)}</span>/mes</span>
+                            <span><Landmark className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Costo: <span className="text-brand-dark font-black">{fmtCLP(data.kpis.valor_total_costo_obras)}</span></span>
+                        </div>
+                    )}
                 </div>
                 {loading && !data ? (
                     <div className="space-y-2">

@@ -77,7 +77,7 @@ function sanitizeResumenInventario(resumen, perms) {
 
     // kpis.valor_total_obras anidado dentro de kpis — limpiar
     if (clean.kpis && typeof clean.kpis === 'object') {
-        const { valor_total_obras, ...kRest } = clean.kpis;
+        const { valor_total_obras, valor_total_costo_obras, ...kRest } = clean.kpis;
         clean.kpis = kRest;
     }
 

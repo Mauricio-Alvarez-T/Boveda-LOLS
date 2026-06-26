@@ -789,6 +789,10 @@ const inventarioService = {
             return { obra_id: r.id, nombre: r.nombre, valor_mensual: neto, valor_bruto: bruto, descuento_porcentaje: desc, valor_patrimonial: patrimonial };
         });
         const valor_total_obras = obrasConValor.reduce((s, o) => s + o.valor_mensual, 0);
+        // Costo (valor de compra) de los artículos asignados a obras, sumado en toda
+        // la empresa = Σ por obra de (cantidad × valor_compra). Es el contraparte "costo"
+        // del arriendo total; NO incluye stock en bodega (eso es valor_inventario).
+        const valor_total_costo_obras = obrasConValor.reduce((s, o) => s + o.valor_patrimonial, 0);
         // Patrimonio (valor de activo) dividido por empresa propietaria:
         //   · Dedalius = todo el inventario (Σ cantidad × valor_compra), sin descuento.
         //   · cada empresa de flota = Σ valor de sus vehículos (paramétrico).
@@ -1001,6 +1005,7 @@ const inventarioService = {
                     unidades_totales: Number(discrepanciasRows[0]?.unidades_totales) || 0,
                 },
                 valor_total_obras: Number(valor_total_obras) || 0,
+                valor_total_costo_obras: Number(valor_total_costo_obras) || 0,
                 valor_total_patrimonio: Number(valor_total_patrimonio) || 0,
                 valor_inventario: Number(valor_inventario) || 0,
                 valor_vehiculos: Number(valor_vehiculos) || 0,

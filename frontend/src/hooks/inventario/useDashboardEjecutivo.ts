@@ -10,6 +10,8 @@ export interface DashboardKpis {
         unidades_totales: number;
     };
     valor_total_obras: number;
+    /** Costo (valor de compra) de los ítems asignados a obras, toda la empresa. */
+    valor_total_costo_obras: number;
     valor_total_patrimonio: number;
     /** Solo inventario (Σ cantidad × valor_compra), sin vehículos. */
     valor_inventario: number;
