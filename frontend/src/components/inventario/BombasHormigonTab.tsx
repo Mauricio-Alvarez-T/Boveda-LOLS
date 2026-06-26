@@ -8,6 +8,7 @@ import type { RegistroBombaHormigon, Obra } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { shareViaWhatsApp } from '../../utils/whatsappShare';
+import { buildBombaHormigonWhatsappText } from '../../utils/bombaHormigonWhatsApp';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
@@ -194,26 +195,10 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     };
 
     // ── Compartir por WhatsApp (mismo patrón que asistencia) ──
+    // El armado del texto vive en utils/bombaHormigonWhatsApp.ts (función pura, testeable).
     const buildWhatsAppMessage = (): string => {
         const obraNombre = obras.find(o => o.id === form.obra_id)?.nombre || '—';
-        const lines = [
-            '*Registro de uso de bomba*',
-            `Obra: ${obraNombre}`,
-            `Fecha: ${form.fecha ? form.fecha.split('-').reverse().join('/') : '—'}`,
-            `Tipo: ${form.tipo_bomba || '—'}`,
-        ];
-        if (form.hora_inicio) lines.push(`Hora de inicio: ${form.hora_inicio}`);
-        lines.push(`Toma de muestras: ${form.toma_muestras ? 'Sí' : 'No'}`);
-        lines.push(`Traslado de bombas: ${form.traslado_bombas ? 'Sí' : 'No'}`);
-        if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(`Vibradores: ${[form.vibradores_origen, form.vibradores_detalle.trim()].filter(Boolean).join(' — ')}`);
-        if (form.tipo_hormigon.trim()) lines.push(`Tipo de hormigón: ${form.tipo_hormigon.trim()}`);
-        if (form.cantidad_m3.trim()) lines.push(`Cantidad: ${form.cantidad_m3} m³`);
-        if (form.frecuencia.trim()) lines.push(`Frecuencia: ${form.frecuencia.trim()}`);
-        lines.push(`Hidrófugo: ${form.hidrofugo ? 'Sí' : 'No'}`);
-        lines.push(`Permiso de la calzada: ${form.permiso_calzada ? 'Sí' : 'No'}`);
-        lines.push(`Origen: ${form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'}`);
-        if (form.observaciones.trim()) lines.push(`Observaciones: ${form.observaciones.trim()}`);
-        return lines.join('\n');
+        return buildBombaHormigonWhatsappText(form, obraNombre);
     };
 
     const handleShareWhatsApp = () => {
@@ -353,7 +338,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                     />
                     <StatCard
                         icon={Truck}
-                        label="Arriendo Ext."
+                        label="Externas"
                         value={String(stats.externas)}
                         color="bg-muted text-muted-foreground"
                     />
@@ -419,7 +404,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 <div className="flex-1 min-w-0">
                                     <div className="text-sm font-bold text-brand-dark capitalize">{group.label}</div>
                                     <div className="text-caption text-muted-foreground">
-                                        {group.items.length} bombeo{group.items.length === 1 ? '' : 's'} · {group.propias} empresa · {group.externas} arriendo
+                                        {group.items.length} bombeo{group.items.length === 1 ? '' : 's'} · {group.propias} empresa · {group.externas} externa{group.externas === 1 ? '' : 's'}
                                     </div>
                                 </div>
                                 <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40" />
@@ -708,14 +693,26 @@ const BombaCard: React.FC<{
     onDelete?: () => void;
 }> = ({ registro: r, canEdit = false, onEdit, onDelete }) => {
     const isExterna = r.es_externa;
+    // Toda la tarjeta abre la edición (no solo el lápiz). Solo si hay permiso de editar.
+    const clickToEdit = canEdit && !!onEdit;
 
     return (
-        <div className={cn(
-            "group flex flex-col px-3.5 py-3 rounded-xl border transition-colors",
-            isExterna
-                ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/20 dark:hover:border-amber-700"
-                : "border-border bg-card hover:border-brand-primary/20"
-        )}>
+        <div
+            role={clickToEdit ? 'button' : undefined}
+            tabIndex={clickToEdit ? 0 : undefined}
+            onClick={clickToEdit ? () => onEdit?.() : undefined}
+            onKeyDown={clickToEdit ? (e) => {
+                if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEdit?.(); }
+            } : undefined}
+            title={clickToEdit ? 'Editar registro' : undefined}
+            className={cn(
+                "group flex flex-col px-3.5 py-3 rounded-xl border transition-colors",
+                isExterna
+                    ? "border-amber-200/70 bg-amber-50/30 hover:border-amber-300 dark:border-amber-900/60 dark:bg-amber-950/20 dark:hover:border-amber-700"
+                    : "border-border bg-card hover:border-brand-primary/20",
+                clickToEdit && "cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary/40"
+            )}
+        >
             {/* Top row: obra + badge + acciones */}
             <div className="flex items-start justify-between gap-2 mb-1.5">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -729,13 +726,13 @@ const BombaCard: React.FC<{
                             ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60"
                             : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60"
                     )}>
-                        {isExterna ? 'ARRIENDO' : 'EMPRESA'}
+                        {isExterna ? 'EXTERNA' : 'EMPRESA'}
                     </span>
                     {canEdit && (
                         // Siempre visibles en móvil (táctil, sin hover); el hover queda para desktop.
                         <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
                             <IconButton
-                                onClick={onEdit}
+                                onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
                                 icon={<Pencil className="h-4 w-4 sm:h-3 sm:w-3" />}
                                 variant="ghost"
                                 size="sm"
@@ -744,7 +741,7 @@ const BombaCard: React.FC<{
                                 className="h-9 w-9 sm:h-7 sm:w-7"
                             />
                             <IconButton
-                                onClick={onDelete}
+                                onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
                                 icon={<Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />}
                                 variant="danger"
                                 size="sm"
