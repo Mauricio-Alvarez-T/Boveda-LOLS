@@ -206,7 +206,10 @@ export function usePermissionsEditor(args: Args) {
             } catch (err) {
                 if (cancelled) return;
                 console.error('Error fetching permissions:', err);
-                toast.error('Error al cargar datos de permisos');
+                const e = err as { response?: { status?: number; data?: { error?: string } }; message?: string };
+                const status = e?.response?.status;
+                const detail = e?.response?.data?.error || e?.message;
+                toast.error(`Error al cargar datos de permisos${status ? ` (HTTP ${status})` : ''}${detail ? `: ${detail}` : ''}`);
                 dispatch({ type: 'LOAD_ERR' });
             }
         };
