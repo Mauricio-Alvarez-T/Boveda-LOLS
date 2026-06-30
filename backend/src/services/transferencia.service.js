@@ -1628,12 +1628,18 @@ const transferenciaService = {
         // Cuando solicitanteId viene seteado, scopear el listado a las solicitudes
         // del usuario (caller decide; típicamente cuando NO tiene
         // `inventario.transferencias.ver_todas`). null = sin filtro = ver todas.
-        const { estado, page = 1, limit = 20 } = query;
+        const { estado, page = 1, limit = 20, fecha_desde, fecha_hasta, solicitante_id } = query;
         let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
         const params = [];
 
         if (solicitanteId != null) { where += ' AND t.solicitante_id = ?'; params.push(solicitanteId); }
         if (estado) { where += ' AND t.estado = ?'; params.push(estado); }
+        // Filtros de búsqueda del panel: rango por fecha de solicitud + solicitante.
+        // (solicitante_id de query solo afina cuando el caller ve todas; si ya está
+        // scopeado por el posicional, este AND es redundante pero inofensivo.)
+        if (fecha_desde) { where += ' AND t.fecha_solicitud >= ?'; params.push(fecha_desde); }
+        if (fecha_hasta) { where += ' AND t.fecha_solicitud < DATE_ADD(?, INTERVAL 1 DAY)'; params.push(fecha_hasta); }
+        if (solicitante_id) { where += ' AND t.solicitante_id = ?'; params.push(solicitante_id); }
 
         const offset = (page - 1) * limit;
         const [rows] = await db.query(`
@@ -1658,6 +1664,18 @@ const transferenciaService = {
         const [countRows] = await db.query(`SELECT COUNT(*) as total FROM transferencias t ${where}`, params);
 
         return { data: rows, total: countRows[0].total, page, limit };
+    },
+
+    /** Solicitantes DISTINCT que han creado transferencias (para el filtro del panel). */
+    async getSolicitantes() {
+        const [rows] = await db.query(`
+            SELECT DISTINCT u.id, u.nombre
+            FROM transferencias t
+            JOIN usuarios u ON t.solicitante_id = u.id
+            WHERE t.activo = 1
+            ORDER BY u.nombre ASC
+        `);
+        return rows;
     },
 
     async getById(id) {

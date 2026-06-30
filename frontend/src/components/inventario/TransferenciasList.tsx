@@ -96,6 +96,7 @@ const TransferenciasList: React.FC<Props> = ({
                         const flujo = t.tipo_flujo && t.tipo_flujo !== 'solicitud'
                             ? tipoFlujoConfig[t.tipo_flujo] || null
                             : null;
+                        const solicitante = (t as any).solicitante_nombre as string | undefined;
 
                         return (
                             <div
@@ -133,6 +134,12 @@ const TransferenciasList: React.FC<Props> = ({
                                         <>
                                             <span className="text-muted-foreground/30 shrink-0">·</span>
                                             <span className="truncate shrink-0 text-muted-foreground/70">{flujo.label}</span>
+                                        </>
+                                    )}
+                                    {solicitante && (
+                                        <>
+                                            <span className="text-muted-foreground/30 shrink-0">·</span>
+                                            <span className="truncate shrink-0 text-muted-foreground/70">{solicitante}</span>
                                         </>
                                     )}
                                 </div>

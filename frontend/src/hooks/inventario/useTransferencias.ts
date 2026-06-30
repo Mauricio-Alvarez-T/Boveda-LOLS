@@ -466,6 +466,16 @@ export function useTransferencias() {
         }
     }, []);
 
+    // Solicitantes que han creado transferencias (para el filtro por usuario del panel).
+    const fetchSolicitantes = useCallback(async (): Promise<{ id: number; nombre: string }[]> => {
+        try {
+            const res = await api.get<{ data: { id: number; nombre: string }[] }>('/transferencias/solicitantes');
+            return res.data.data;
+        } catch {
+            return [];
+        }
+    }, []);
+
     return {
         transferencias, selected, loading, total,
         discrepancias, selectedDiscrepancia, setSelectedDiscrepancia,
@@ -473,6 +483,6 @@ export function useTransferencias() {
         intraObra, ordenGerencia,
         aprobar, crearFaltante, despachar, recibir, uploadFotoRecepcion, fetchRecepciones, rechazar, rechazarRecepcion, cancelar, eliminar,
         fetchDiscrepancias, resolverDiscrepancia, eliminarDiscrepancia,
-        fetchStockPorItems, setSelected
+        fetchStockPorItems, fetchSolicitantes, setSelected
     };
 }

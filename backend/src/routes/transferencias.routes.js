@@ -43,6 +43,15 @@ router.get('/mis-solicitudes', auth, checkPermission('inventario.ver'), async (r
     } catch (err) { next(err); }
 });
 
+// GET /api/transferencias/solicitantes — lista de solicitantes para el filtro del
+// panel. Va ANTES de /:id para que Express no interprete 'solicitantes' como un ID.
+router.get('/solicitantes', auth, checkPermission('inventario.ver'), async (req, res, next) => {
+    try {
+        const result = await transferenciaService.getSolicitantes();
+        res.json({ data: result });
+    } catch (err) { next(err); }
+});
+
 // GET /api/transferencias/discrepancias?estado=pendiente|resuelta|descartada
 // (debe ir ANTES de /:id para que Express no interprete 'discrepancias' como un ID)
 router.get('/discrepancias', auth, checkPermission('inventario.transferencias.aprobar'), async (req, res, next) => {
