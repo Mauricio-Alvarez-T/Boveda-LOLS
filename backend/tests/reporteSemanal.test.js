@@ -89,7 +89,35 @@ describe('buildReportData — queries + transformación', () => {
         expect(data.desvinculaciones).toEqual([]);
         expect(data.faltas).toEqual([]);
         expect(data.aniversarios).toEqual([]);
-        expect(data.totales).toMatchObject({ contrataciones: 0, desvinculaciones: 0, faltas: 0, faltas_dias: 0, aniversarios: 0 });
+        expect(data.porObra).toEqual([]);
+        expect(data.totales).toMatchObject({ contrataciones: 0, desvinculaciones: 0, faltas: 0, faltas_dias: 0, aniversarios: 0, obras: 0 });
+    });
+
+    test('porObra: agrega altas/bajas/faltas por obra, agrupa nulos en "Sin obra", ordena por faltas', async () => {
+        const db = makeDb({
+            contrataciones: [
+                { rut: '1', nombres: 'A', apellido_paterno: 'A', apellido_materno: null, fecha_ingreso: '2026-05-20', empresa: 'E', obra: 'ABATE 80', cargo: 'J' },
+                { rut: '2', nombres: 'B', apellido_paterno: 'B', apellido_materno: null, fecha_ingreso: '2026-05-21', empresa: 'E', obra: null, cargo: 'J' },
+            ],
+            desvinculaciones: [
+                { rut: '3', nombres: 'C', apellido_paterno: 'C', apellido_materno: null, fecha_desvinculacion: '2026-05-22', empresa: 'E', obra: 'ABATE 80', cargo: 'J' },
+            ],
+            faltas: [
+                { trabajador_id: 7, rut: '9', nombres: 'D', apellido_paterno: 'D', apellido_materno: null, obra: 'EW 195', fecha: '2026-05-19' },
+                { trabajador_id: 7, rut: '9', nombres: 'D', apellido_paterno: 'D', apellido_materno: null, obra: 'EW 195', fecha: '2026-05-20' },
+                { trabajador_id: 8, rut: '8', nombres: 'E', apellido_paterno: 'E', apellido_materno: null, obra: 'EW 195', fecha: '2026-05-20' },
+            ],
+        });
+        const data = await svc.buildReportData(db, { desde: '2026-05-18', hasta: '2026-05-24' });
+        const ew = data.porObra.find(o => o.obra === 'EW 195');
+        const abate = data.porObra.find(o => o.obra === 'ABATE 80');
+        const sinObra = data.porObra.find(o => o.obra === 'Sin obra');
+        expect(ew).toMatchObject({ altas: 0, bajas: 0, faltas_dias: 3, trabajadores_falta: 2 });
+        expect(abate).toMatchObject({ altas: 1, bajas: 1, faltas_dias: 0, trabajadores_falta: 0 });
+        expect(sinObra).toMatchObject({ altas: 1, bajas: 0, faltas_dias: 0 });
+        expect(data.totales.obras).toBe(3);
+        // Orden: la obra con más faltas (días) primero.
+        expect(data.porObra[0].obra).toBe('EW 195');
     });
 
     test('la query de faltas filtra por estado código A (ausente)', async () => {
@@ -218,6 +246,26 @@ describe('renderHtml / renderText — puro, sin DB', () => {
         const html = svc.renderHtml({ ...sampleData, aniversariosVigentes: false });
         expect(html).toContain('se informan en el primer reporte de cada mes');
         expect(html).toContain('se informa 1er lunes');
+    });
+
+    test('renderHtml incluye la sección "Resumen por obra" con los nombres de obra', () => {
+        const d = { ...sampleData, porObra: [{ obra: 'ABATE 80', altas: 2, bajas: 0, faltas_dias: 3, trabajadores_falta: 1 }] };
+        const html = svc.renderHtml(d);
+        expect(html).toContain('Resumen por obra');
+        expect(html).toContain('ABATE 80');
+    });
+
+    test('renderHtml: sin movimiento por obra → estado vacío', () => {
+        const html = svc.renderHtml({ ...sampleData, porObra: [] });
+        expect(html).toContain('Resumen por obra');
+        expect(html).toContain('Sin movimiento por obra');
+    });
+
+    test('renderText incluye el bloque "Resumen por obra"', () => {
+        const d = { ...sampleData, porObra: [{ obra: 'ABATE 80', altas: 2, bajas: 0, faltas_dias: 3, trabajadores_falta: 1 }] };
+        const txt = svc.renderText(d);
+        expect(txt).toContain('Resumen por obra');
+        expect(txt).toContain('ABATE 80');
     });
 });
 

@@ -31,9 +31,12 @@
 ## Reporte semanal RRHH por email
 
 - Script standalone `backend/scripts/reporte_semanal.js` (abre/cierra su propia conexión).
-- Contenido: 4 KPIs semanales (contrataciones, desvinculaciones, faltas F, aniversarios 10m) + 3
-  tendencias mensuales; **HTML puro compatible Gmail/Outlook** (tablas, sin JS).
+- Contenido: línea de resumen ejecutivo + 4 KPIs semanales (contrataciones, desvinculaciones,
+  faltas F, aniversarios 10m) + **desglose por obra** (altas/bajas/faltas-días por obra, ordenado
+  por faltas) + 3 tendencias mensuales; **HTML puro compatible Gmail/Outlook** (tablas, sin JS).
 - Aniversarios solo el **primer lunes del mes**.
+- Diagnóstico de envío (no manda correo): `npm run reporte-doctor` — chequea `MAIL_*` + SMTP
+  (`verify`) + destinatarios. Ver `docs/RUNBOOK.md §4.1`.
 - Destinatarios (precedencia): flag `--to` > tabla `reportes_suscriptores` (Slice B, UI en
   Settings) > env `REPORTE_TO` (CSV). Degrada con gracia si la tabla no existe.
 - Cron: `0 8 * * 1` en **cPanel Cron Jobs** (NUNCA node-cron — Passenger duerme el proceso).

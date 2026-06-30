@@ -2,6 +2,34 @@ const nodemailer = require('nodemailer');
 const path = require('path');
 const logger = require('../utils/logger-structured');
 
+/**
+ * Construye el transporter de la cuenta de SISTEMA a partir del entorno
+ * (MAIL_HOST / MAIL_PORT / MAIL_SECURE / MAIL_USER / MAIL_PASS). Lanza si faltan
+ * las requeridas. Compartido por sendSystemEmail() y verifyTransport().
+ * @returns {{ transporter: import('nodemailer').Transporter, host: string, port: number, secure: boolean, user: string }}
+ */
+function buildSystemTransport() {
+    const host = process.env.MAIL_HOST;
+    const user = process.env.MAIL_USER;
+    const pass = process.env.MAIL_PASS;
+    if (!host || !user || !pass) {
+        throw new Error('Faltan variables de entorno MAIL_HOST / MAIL_USER / MAIL_PASS para el envío de sistema.');
+    }
+    const port = Number(process.env.MAIL_PORT) || 465;
+    // Si MAIL_SECURE no está definido, inferir: 465 → SSL directo (true), otro → STARTTLS (false).
+    const secure = process.env.MAIL_SECURE != null
+        ? String(process.env.MAIL_SECURE) === 'true'
+        : port === 465;
+    const transporter = nodemailer.createTransport({
+        host,
+        port,
+        secure,
+        auth: { user, pass },
+        tls: { rejectUnauthorized: false }
+    });
+    return { transporter, host, port, secure, user };
+}
+
 const emailService = {
     /**
      * Envía un email con múltiples archivos adjuntos (Excel y ZIP).
@@ -69,28 +97,10 @@ const emailService = {
      * @param {string} [options.fromName] - Nombre visible del remitente.
      */
     async sendSystemEmail({ to, subject, html, text, attachments = [], fromName = 'Bóveda LOLS — Reportes' }) {
-        const host = process.env.MAIL_HOST;
-        const user = process.env.MAIL_USER;
-        const pass = process.env.MAIL_PASS;
-        if (!host || !user || !pass) {
-            throw new Error('Faltan variables de entorno MAIL_HOST / MAIL_USER / MAIL_PASS para el envío de sistema.');
-        }
-        const port = Number(process.env.MAIL_PORT) || 465;
-        // Si MAIL_SECURE no está definido, inferir: 465 → SSL directo (true), otro → STARTTLS (false).
-        const secure = process.env.MAIL_SECURE != null
-            ? String(process.env.MAIL_SECURE) === 'true'
-            : port === 465;
+        const { transporter, user } = buildSystemTransport();
 
         const recipients = Array.isArray(to) ? to.filter(Boolean).join(', ') : to;
         if (!recipients) throw new Error('sendSystemEmail: lista de destinatarios vacía.');
-
-        const transporter = nodemailer.createTransport({
-            host,
-            port,
-            secure,
-            auth: { user, pass },
-            tls: { rejectUnauthorized: false }
-        });
 
         const info = await transporter.sendMail({
             from: `"${fromName}" <${user}>`,
@@ -102,6 +112,18 @@ const emailService = {
         });
 
         return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected };
+    },
+
+    /**
+     * Verifica la conexión SMTP de la cuenta de SISTEMA sin enviar correo.
+     * Diagnóstico (usado por el script `reporte-doctor`). Lanza si faltan las
+     * variables MAIL_* requeridas o si el handshake SMTP falla.
+     * @returns {Promise<{ host: string, port: number, secure: boolean, user: string }>}
+     */
+    async verifyTransport() {
+        const { transporter, host, port, secure, user } = buildSystemTransport();
+        await transporter.verify();
+        return { host, port, secure, user };
     }
 };
 

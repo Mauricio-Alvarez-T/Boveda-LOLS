@@ -3,6 +3,12 @@
 Fecha: 2026-05-29. Release a producción: merge `0410ff4` en `main` (deploy verde).
 Doc/runbook al día en `develop` (`aa03df3`).
 
+> **Actualización 2026-06-30:** el reporte ahora incluye **desglose por obra** (altas/bajas/faltas
+> días por obra) + una línea de **resumen ejecutivo** bajo el rango de fechas. Nuevo script de
+> diagnóstico `npm run reporte-doctor` (chequea `MAIL_*`, conexión SMTP con `verify` y destinatarios,
+> **sin enviar**) — correrlo en cPanel para confirmar el envío. Slice B (CRUD suscriptores) ya está
+> LIVE en Configuración → Reportes Automáticos.
+
 ## Estado actual
 
 **Slice A + C EN PRODUCCIÓN y staging. Slice B (CRUD suscriptores) sin iniciar.**

@@ -265,7 +265,8 @@ a mano desde cPanel → Run JS script → `snapshot-dashboard`.
 ### Caso concreto: Reporte Semanal RRHH (lunes 08:00)
 
 Correo HTML con KPIs de la semana anterior (contrataciones, desvinculaciones,
-faltas injustificadas código `A`, aniversarios de 10 meses) + tendencias mensuales.
+faltas injustificadas código `A`, aniversarios de 10 meses) + línea de resumen ejecutivo +
+**desglose por obra** (altas/bajas/faltas por obra) + tendencias mensuales.
 Gráficos en HTML puro (compatibles con Gmail/Outlook/móvil), logo LOLS embebido por CID.
 
 - **Script:** `backend/scripts/reporte_semanal.js` · alias `npm run reporte-semanal`
@@ -279,9 +280,13 @@ Gráficos en HTML puro (compatibles con Gmail/Outlook/móvil), logo LOLS embebid
   - `--dry` → arma el HTML y lo escribe en `tmp/reporte_preview.html`, **no envía**.
   - `--to a@b.cl,c@d.cl` → fuerza destinatarios (prioridad máxima), ignora `REPORTE_TO`.
   - `--fecha YYYY-MM-DD` → usa esa fecha como "hoy" (la ventana = su semana previa).
+- **Diagnóstico previo (NO envía):** `npm run reporte-doctor` (alias de `scripts/reporte_doctor.js`).
+  Chequea las variables `MAIL_*`, prueba la conexión SMTP real (`verify`, sin mandar correo) y
+  muestra los destinatarios efectivos (✅/❌). Úsalo cuando "no llega el reporte": exit 0 = listo
+  para enviar, exit 1 = revisar los ❌. La prueba de envío real sigue siendo `reporte-semanal -- --to`.
 - **Destinatarios** (orden de prioridad): flag `--to` → tabla `reportes_suscriptores`
-  (activos; aún no existe → Slice B pendiente) → env `REPORTE_TO` (lista CSV). Fallback
-  graceful si la tabla no existe (`errno 1146`).
+  (activos; gestionables en Configuración → Reportes Automáticos) → env `REPORTE_TO` (lista CSV).
+  Fallback graceful si la tabla no existe (`errno 1146`).
 - **Variables `.env` requeridas:** `MAIL_HOST`, `MAIL_PORT`, `MAIL_SECURE`, `MAIL_USER`,
   `MAIL_PASS`, `REPORTE_TO`. La contraseña SMTP va **solo** en el `.env` del servidor,
   nunca en el repo ni en el chat.

@@ -276,6 +276,41 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         })),
     };
 
+    // ── Desglose por obra (derivado de filas ya consultadas, sin SQL extra) ──
+    // Faltas (días) + trabajadores con falta se atribuyen a la obra de CADA asistencia
+    // (faltasRows es día-nivel con su propio obra_id); altas/bajas salen de los arrays ya
+    // transformados. Obra nula/'—' se agrupa como 'Sin obra'.
+    const SIN_OBRA = 'Sin obra';
+    const obraKey = (o) => (o && o !== '—' ? o : SIN_OBRA);
+    const porObraMap = new Map();
+    const ensureObra = (obra) => {
+        const key = obraKey(obra);
+        let e = porObraMap.get(key);
+        if (!e) {
+            e = { obra: key, altas: 0, bajas: 0, faltas_dias: 0, _trab: new Set() };
+            porObraMap.set(key, e);
+        }
+        return e;
+    };
+    for (const c of contrataciones) ensureObra(c.obra).altas++;
+    for (const d of desvinculaciones) ensureObra(d.obra).bajas++;
+    for (const r of faltasRows) {
+        const e = ensureObra(r.obra);
+        e.faltas_dias++;
+        e._trab.add(r.trabajador_id);
+    }
+    const porObra = Array.from(porObraMap.values())
+        .map(e => ({
+            obra: e.obra, altas: e.altas, bajas: e.bajas,
+            faltas_dias: e.faltas_dias, trabajadores_falta: e._trab.size,
+        }))
+        .filter(e => e.altas > 0 || e.bajas > 0 || e.faltas_dias > 0)
+        .sort((a, b) =>
+            b.faltas_dias - a.faltas_dias ||
+            (b.altas + b.bajas) - (a.altas + a.bajas) ||
+            a.obra.localeCompare(b.obra, 'es')
+        );
+
     return {
         rango: { desde, hasta },
         generado_en: new Date().toISOString(),
@@ -286,12 +321,14 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         // Aniversarios solo se informan el 1er lunes del mes (evita repetir 4 semanas).
         aniversariosVigentes: esPrimerLunesDelMes(ref),
         tendencias,
+        porObra,
         totales: {
             contrataciones: contrataciones.length,
             desvinculaciones: desvinculaciones.length,
             faltas: faltas.length,
             faltas_dias: faltas.reduce((s, f) => s + f.total, 0),
             aniversarios: aniversarios.length,
+            obras: porObra.length,
         },
     };
 }
@@ -488,8 +525,19 @@ function renderHtml(data, opts = {}) {
     const { logoCid, logoSrc, tituloEmpresa = 'LOLS Ingeniería' } = opts;
     const { rango, totales } = data;
     const tendencias = data.tendencias;
+    const porObra = Array.isArray(data.porObra) ? data.porObra : [];
     // Aniversarios solo vigentes el 1er lunes del mes (default true si no viene el flag).
     const anivVigente = data.aniversariosVigentes !== false;
+
+    // Línea de resumen ejecutivo (bajo el rango). Pluralización simple es/plural.
+    const pl = (n, s, p) => `${n} ${n === 1 ? s : p}`;
+    const resumenLinea = [
+        pl(totales.contrataciones, 'contratación', 'contrataciones'),
+        pl(totales.desvinculaciones, 'desvinculación', 'desvinculaciones'),
+        pl(totales.faltas_dias, 'falta', 'faltas'),
+    ].join(' · ')
+        + (porObra.length ? ` · ${pl(porObra.length, 'obra', 'obras')} con movimiento` : '')
+        + (anivVigente && totales.aniversarios ? ` · ${pl(totales.aniversarios, 'aniversario', 'aniversarios')}` : '');
 
     const imgSrc = logoSrc || (logoCid ? `cid:${esc(logoCid)}` : null);
     const logoInner = imgSrc
@@ -566,6 +614,21 @@ function renderHtml(data, opts = {}) {
                 ])
             );
 
+    // ── Resumen por obra (overview transversal: dónde ocurre el movimiento) ──
+    const porObraInner = porObra.length === 0
+        ? emptyState('Sin movimiento por obra en la semana.')
+        : dataTable(
+            ['Obra', 'Altas', 'Bajas', 'Faltas (días)', 'Trab. c/faltas'],
+            porObra.map(o => [
+                `<strong>${esc(o.obra)}</strong>`,
+                String(o.altas),
+                String(o.bajas),
+                o.faltas_dias > 0 ? `<strong style="color:${C.red};">${o.faltas_dias}</strong>` : '0',
+                String(o.trabajadores_falta),
+            ])
+        );
+    const porObraSection = sectionCard('Resumen por obra', porObra.length, C.slate, porObraInner);
+
     const sections =
         sectionCard('Contrataciones nuevas', totales.contrataciones, C.brand, contratacionesInner) +
         sectionCard('Desvinculaciones', totales.desvinculaciones, C.slate, desvinculacionesInner) +
@@ -603,6 +666,7 @@ function renderHtml(data, opts = {}) {
         <tr><td bgcolor="${C.white}" style="background:${C.white};padding:22px 24px 8px 24px;">
             <div style="font:400 10px/1.2 ${FONT};color:${C.slateLite};text-transform:uppercase;letter-spacing:1.2px;">Resumen de la semana</div>
             <div style="font:800 20px/1.3 ${FONT};color:${C.ink};margin-top:5px;letter-spacing:-.3px;">${fmtFecha(rango.desde)} <span style="color:${C.slateLite};font-weight:600;">al</span> ${fmtFecha(rango.hasta)}</div>
+            <div style="font:400 12px/1.45 ${FONT};color:${C.slate};margin-top:7px;">${esc(resumenLinea)}</div>
         </td></tr>
         <!-- KPIs -->
         <tr><td bgcolor="${C.white}" style="background:${C.white};padding-bottom:8px;">
@@ -612,6 +676,7 @@ function renderHtml(data, opts = {}) {
         <tr><td bgcolor="${C.surfaceAlt}" style="background:${C.surfaceAlt};padding:6px 0 4px 0;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
                 ${chartsBlock}
+                ${porObraSection}
                 ${sections}
             </table>
         </td></tr>
@@ -638,6 +703,11 @@ function renderText(data) {
     lines.push(`REPORTE SEMANAL RRHH — Semana ${fmtFecha(rango.desde)} al ${fmtFecha(rango.hasta)}`);
     lines.push('');
     lines.push(`Resumen: ${totales.contrataciones} contrataciones · ${totales.desvinculaciones} desvinculaciones · ${totales.faltas_dias} faltas · ${totales.aniversarios} aniversarios`);
+    lines.push('');
+    const porObra = Array.isArray(data.porObra) ? data.porObra : [];
+    lines.push(`Resumen por obra (${porObra.length}):`);
+    porObra.forEach(o => lines.push(`  - ${o.obra}: ${o.altas} alta(s), ${o.bajas} baja(s), ${o.faltas_dias} falta(s) en ${o.trabajadores_falta} trabajador(es)`));
+    if (!porObra.length) lines.push('  (sin movimiento por obra)');
     lines.push('');
     lines.push(`Contrataciones nuevas (${totales.contrataciones}):`);
     data.contrataciones.forEach(c => lines.push(`  - ${c.nombre} (${c.rut}) · ${c.empresa} · ${c.obra} · ${c.cargo} · ingreso ${fmtFecha(c.fecha_ingreso)}`));
