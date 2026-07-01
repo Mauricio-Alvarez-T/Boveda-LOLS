@@ -120,11 +120,27 @@ describe('buildReportData — queries + transformación', () => {
         expect(data.porObra[0].obra).toBe('EW 195');
     });
 
-    test('la query de faltas filtra por estado código A (ausente)', async () => {
+    test("la query de faltas filtra por estado código 'F' (Falta), NO 'A' (Asiste=presente)", async () => {
         const db = makeDb({});
         await svc.buildReportData(db, { desde: '2026-05-18', hasta: '2026-05-24' });
         const faltasCall = db.query.mock.calls[2][0];
-        expect(faltasCall).toMatch(/es\.codigo\s*=\s*'A'/);
+        expect(faltasCall).toMatch(/es\.codigo\s*=\s*'F'/);
+        expect(faltasCall).not.toMatch(/es\.codigo\s*=\s*'A'/);
+    });
+
+    test('normaliza fechas de mysql2 (objeto Date) a YYYY-MM-DD, no a inglés ("Mon Jun 22")', async () => {
+        const db = makeDb({
+            faltas: [
+                { trabajador_id: 5, rut: '1-1', nombres: 'X', apellido_paterno: 'Y', apellido_materno: null, obra: 'O', fecha: new Date(2026, 5, 22) },
+            ],
+            contrataciones: [
+                { rut: '2-2', nombres: 'A', apellido_paterno: 'B', apellido_materno: null, fecha_ingreso: new Date(2026, 5, 20), empresa: 'E', obra: 'O', cargo: 'C' },
+            ],
+        });
+        const data = await svc.buildReportData(db, { desde: '2026-06-22', hasta: '2026-06-28' });
+        expect(data.faltas[0].fechas[0]).toBe('2026-06-22');
+        expect(data.contrataciones[0].fecha_ingreso).toBe('2026-06-20');
+        expect(data.faltas[0].fechas[0]).not.toMatch(/[A-Za-z]/); // sin nombres de día/mes en inglés
     });
 
     test('la query de aniversarios usa PERIOD_DIFF = 10', async () => {
@@ -141,7 +157,7 @@ describe('buildReportData — queries + transformación', () => {
         expect(db.query).toHaveBeenCalledTimes(7);
         const faltasMesSql = db.query.mock.calls[4][0];
         expect(faltasMesSql).toMatch(/DATE_FORMAT\(a\.fecha, '%Y-%m'\)/);
-        expect(faltasMesSql).toMatch(/es\.codigo\s*=\s*'A'/);
+        expect(faltasMesSql).toMatch(/es\.codigo\s*=\s*'F'/);
         expect(db.query.mock.calls[5][0]).toMatch(/fecha_ingreso >= \? AND fecha_ingreso < \?/);
         expect(db.query.mock.calls[6][0]).toMatch(/fecha_desvinculacion >= \? AND fecha_desvinculacion < \?/);
     });
@@ -175,6 +191,13 @@ describe('helpers de tendencias / cadencia', () => {
         expect(svc._internals.esPrimerLunesDelMes('2026-05-04')).toBe(true);  // lunes, día 4
         expect(svc._internals.esPrimerLunesDelMes('2026-05-18')).toBe(false); // 3er lunes
         expect(svc._internals.esPrimerLunesDelMes('2026-05-06')).toBe(false); // miércoles
+    });
+
+    test('toYmd: Date → YYYY-MM-DD local; string-fecha se conserva; null→null', () => {
+        expect(svc._internals.toYmd(new Date(2026, 5, 22))).toBe('2026-06-22'); // mes 5 = junio
+        expect(svc._internals.toYmd('2026-06-22')).toBe('2026-06-22');
+        expect(svc._internals.toYmd('2026-06-22T00:00:00.000Z')).toBe('2026-06-22');
+        expect(svc._internals.toYmd(null)).toBeNull();
     });
 
     test('spineMeses devuelve N meses terminando en el mes de ref', () => {

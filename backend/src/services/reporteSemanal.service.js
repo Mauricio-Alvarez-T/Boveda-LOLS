@@ -35,6 +35,19 @@ function ymd(d) {
 }
 
 /**
+ * Normaliza un valor de columna DATE de mysql2 a 'YYYY-MM-DD'.
+ * mysql2 devuelve DATE como objeto Date (el typeCast del proyecto solo castea booleans),
+ * y `String(date).slice(0,10)` daría "Mon Jun 22" (inglés) que luego fmtFecha no reformatea.
+ * Para Date usamos ymd() (local, sin shift UTC); para string ya-'YYYY-MM-DD' lo extraemos tal cual.
+ */
+function toYmd(v) {
+    if (v == null) return null;
+    if (v instanceof Date) return ymd(v);
+    const m = /^(\d{4}-\d{2}-\d{2})/.exec(String(v));
+    return m ? m[1] : String(v).slice(0, 10);
+}
+
+/**
  * Normaliza `ref` (Date | 'YYYY-MM-DD' | undefined) a un Date local a medianoche.
  * Un string 'YYYY-MM-DD' se parsea como fecha LOCAL (no UTC) para evitar corrimientos.
  */
@@ -153,8 +166,10 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         [desde, hasta]
     );
 
-    // Faltas injustificadas: estado código 'A' (Ausente). Una fila por día de falta;
-    // se agrupan por trabajador en JS para listar las fechas.
+    // Faltas injustificadas: estado código 'F' (Falta). OJO: 'A' = "Asiste" (PRESENTE),
+    // NO ausente — filtrar por 'A' contaba presencias como faltas. Fuente de verdad:
+    // estados_asistencia seed + asistencia.service.getAlertasFaltas (usa 'F'). Una fila por
+    // día de falta; se agrupan por trabajador en JS para listar las fechas.
     const [faltasRows] = await db.query(
         `SELECT t.id AS trabajador_id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
                 o.nombre AS obra, a.fecha
@@ -162,7 +177,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
            JOIN trabajadores t       ON t.id = a.trabajador_id
            JOIN estados_asistencia es ON es.id = a.estado_id
            LEFT JOIN obras o         ON o.id = a.obra_id
-          WHERE es.codigo = 'A' AND t.es_prueba = 0 AND a.fecha BETWEEN ? AND ?
+          WHERE es.codigo = 'F' AND es.activo = 1 AND t.es_prueba = 0 AND a.fecha BETWEEN ? AND ?
           ORDER BY t.apellido_paterno ASC, t.nombres ASC, a.fecha ASC`,
         [desde, hasta]
     );
@@ -186,13 +201,13 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
     );
 
     // ── Tendencias mensuales (últimos 6 meses, para los gráficos) ──
-    // Faltas por mes = días de ausencia código 'A' (una fila de asistencia = un día).
+    // Faltas por mes = días de falta código 'F' (una fila de asistencia = un día). 'A' = presente.
     const [faltasMesRows] = await db.query(
         `SELECT DATE_FORMAT(a.fecha, '%Y-%m') AS ym, COUNT(*) AS total
            FROM asistencias a
            JOIN estados_asistencia es ON es.id = a.estado_id
            JOIN trabajadores t ON t.id = a.trabajador_id
-          WHERE es.codigo = 'A' AND t.es_prueba = 0 AND a.fecha >= ? AND a.fecha < ?
+          WHERE es.codigo = 'F' AND es.activo = 1 AND t.es_prueba = 0 AND a.fecha >= ? AND a.fecha < ?
           GROUP BY ym`,
         [mesInicio, mesFin]
     );
@@ -218,7 +233,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         empresa: r.empresa || '—',
         obra: r.obra || '—',
         cargo: r.cargo || '—',
-        fecha_ingreso: r.fecha_ingreso ? String(r.fecha_ingreso).slice(0, 10) : null,
+        fecha_ingreso: toYmd(r.fecha_ingreso),
     }));
 
     const desvinculaciones = desvinculacionesRows.map(r => ({
@@ -227,7 +242,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         empresa: r.empresa || '—',
         obra: r.obra || '—',
         cargo: r.cargo || '—',
-        fecha_desvinculacion: r.fecha_desvinculacion ? String(r.fecha_desvinculacion).slice(0, 10) : null,
+        fecha_desvinculacion: toYmd(r.fecha_desvinculacion),
     }));
 
     // Agrupar faltas por trabajador.
@@ -243,7 +258,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
             };
             faltasMap.set(r.trabajador_id, entry);
         }
-        entry.fechas.push(String(r.fecha).slice(0, 10));
+        entry.fechas.push(toYmd(r.fecha));
     }
     const faltas = Array.from(faltasMap.values()).map(f => ({ ...f, total: f.fechas.length }));
 
@@ -253,7 +268,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
         empresa: r.empresa || '—',
         obra: r.obra || '—',
         cargo: r.cargo || '—',
-        fecha_ingreso: r.fecha_ingreso ? String(r.fecha_ingreso).slice(0, 10) : null,
+        fecha_ingreso: toYmd(r.fecha_ingreso),
         meses: 10,
     }));
 
@@ -822,5 +837,5 @@ module.exports = {
     resolveRecipients,
     resolveLogo,
     // exportados para test
-    _internals: { ymd, parseRef, nombreCompleto, fmtFecha, fmtFechaHora, esc, bar, barChart, esPrimerLunesDelMes, spineMeses },
+    _internals: { ymd, toYmd, parseRef, nombreCompleto, fmtFecha, fmtFechaHora, esc, bar, barChart, esPrimerLunesDelMes, spineMeses },
 };
