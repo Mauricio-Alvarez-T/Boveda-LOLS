@@ -419,7 +419,7 @@ function bar(heightPx, widthPx, color) {
  */
 function barChart(categorias, series, opts = {}) {
     const plotH = opts.plotH || 132;
-    const showValues = opts.showValues !== false && series.length === 1;
+    const showValues = opts.showValues !== false;
     const grouped = series.length > 1;
     const barW = grouped ? 15 : 30;
 
@@ -435,14 +435,17 @@ function barChart(categorias, series, opts = {}) {
     const plotCells = categorias.map((_, i) => {
         let barsRow;
         if (grouped) {
-            const inner = series.map(s =>
-                `<td valign="bottom" style="padding:0 2px;">${bar(hPx(s.data[i] || 0), barW, s.color)}</td>`
-            ).join('');
+            const inner = series.map(s => {
+                const v = s.data[i] || 0;
+                const num = showValues ? `<div style="font:700 10px/1 ${FONT};color:${s.color};padding-bottom:3px;">${v}</div>` : '';
+                return `<td valign="bottom" align="center" style="padding:0 2px;">${num}${bar(hPx(v), barW, s.color)}</td>`;
+            }).join('');
             barsRow = `<table role="presentation" align="center" cellpadding="0" cellspacing="0" style="margin:0 auto;"><tr style="vertical-align:bottom;">${inner}</tr></table>`;
         } else {
             barsRow = bar(hPx(series[0].data[i] || 0), barW, series[0].color);
         }
-        const valueLabel = showValues
+        // Número de nivel-celda solo para 1 serie (en grouped el número va sobre cada barra).
+        const valueLabel = (showValues && !grouped)
             ? `<div style="font:700 12px/1 ${FONT};color:${C.ink};padding-bottom:7px;">${series[0].data[i] || 0}</div>`
             : '';
         return `<td width="${colW}" valign="bottom" align="center" style="padding:0 4px;">${valueLabel}${barsRow}</td>`;
@@ -582,7 +585,7 @@ function renderHtml(data, opts = {}) {
         const movChart = barChart(cats, [
             { name: 'Contrataciones', color: C.brand, data: tendencias.movimientoMes.map(p => p.contrataciones) },
             { name: 'Desvinculaciones', color: C.slateLite, data: tendencias.movimientoMes.map(p => p.desvinculaciones) },
-        ], { showValues: false });
+        ], { showValues: true });
         chartsBlock += chartCard('Contrataciones vs Desvinculaciones', `Movimiento de dotación · últimos ${cats.length} meses`, movChart);
     }
 
