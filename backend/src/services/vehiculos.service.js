@@ -109,22 +109,36 @@ const vehiculosService = {
     },
 
     // ── Cuotas de leasing ──────────────────────────────────────────────
+    // Resiliente a la migración 095 pendiente: si la tabla aún no existe en el
+    // entorno (deploy antes de correr `migrate`), degrada a [] en vez de romper
+    // getById — que se usa en TODO el módulo de vehículos (listado, detalle, editar).
     async getCuotas(vehiculoId) {
-        const [rows] = await db.query(
-            `SELECT id, DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, pagada
-             FROM vehiculo_leasing_cuotas WHERE vehiculo_id = ? ORDER BY fecha ASC`,
-            [vehiculoId]
-        );
-        return rows;
+        try {
+            const [rows] = await db.query(
+                `SELECT id, DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, pagada
+                 FROM vehiculo_leasing_cuotas WHERE vehiculo_id = ? ORDER BY fecha ASC`,
+                [vehiculoId]
+            );
+            return rows;
+        } catch (e) {
+            if (e && e.code === 'ER_NO_SUCH_TABLE') return [];
+            throw e;
+        }
     },
 
     // Reemplazo completo (bulk replace) de las cuotas de un vehículo.
     async _replaceCuotas(vehiculoId, cuotas) {
-        await db.query('DELETE FROM vehiculo_leasing_cuotas WHERE vehiculo_id = ?', [vehiculoId]);
-        const list = Array.isArray(cuotas) ? cuotas.filter(c => c && c.fecha) : [];
-        if (list.length) {
-            const values = list.map(c => [vehiculoId, c.fecha, c.pagada ? 1 : 0]);
-            await db.query('INSERT INTO vehiculo_leasing_cuotas (vehiculo_id, fecha, pagada) VALUES ?', [values]);
+        try {
+            await db.query('DELETE FROM vehiculo_leasing_cuotas WHERE vehiculo_id = ?', [vehiculoId]);
+            const list = Array.isArray(cuotas) ? cuotas.filter(c => c && c.fecha) : [];
+            if (list.length) {
+                const values = list.map(c => [vehiculoId, c.fecha, c.pagada ? 1 : 0]);
+                await db.query('INSERT INTO vehiculo_leasing_cuotas (vehiculo_id, fecha, pagada) VALUES ?', [values]);
+            }
+        } catch (e) {
+            // Migración 095 pendiente: no bloquear el guardado del vehículo.
+            if (e && e.code === 'ER_NO_SUCH_TABLE') return;
+            throw e;
         }
     },
 
