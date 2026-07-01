@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es" translate="no">
+
+<head>
+  <meta name="google" content="notranslate" />
+  <meta charset="UTF-8" />
+  <script>
+    // Anti-FOUC: aplica el tema guardado antes del primer paint.
+    (function () {
+      try {
+        var t = localStorage.getItem('sgdl_theme');
+        var sysDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        // Default = claro. Sólo aplicamos oscuro si el usuario eligió 'dark',
+        // o eligió 'system' y su SO está en oscuro. Sin preferencia → claro.
+        if (t === 'dark' || (t === 'system' && sysDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      } catch (e) { /* noop */ }
+    })();
+  </script>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#029E4D">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="Bóveda LOLS">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <!-- Inter (familia UI, con optical sizing para titulares grandes estilo SF Pro)
+       + DM Sans 700 SOLO para el wordmark del Logo (Logo.tsx usa DM Sans en su SVG). -->
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&family=DM+Sans:wght@700&display=swap"
+    rel="stylesheet">
+  <title>Bóveda LOLS</title>
+  <script type="module" crossorigin src="/assets/index-dFQHhQCv.js"></script>
+  <link rel="stylesheet" crossorigin href="/assets/index-C2vdjUaD.css">
+</head>
+
+<body>
+  <div id="root"></div>
+</body>
+
+</html>
