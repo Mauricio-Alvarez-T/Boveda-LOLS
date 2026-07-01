@@ -111,6 +111,15 @@ const emailService = {
             attachments
         });
 
+        // Rechazo PARCIAL: nodemailer solo LANZA si TODOS son rechazados; si algunos pasan
+        // y otros no, resuelve OK con `rejected` poblado → lo dejamos visible en el log.
+        if (info.rejected && info.rejected.length) {
+            logger.warn('sendSystemEmail: el servidor rechazó destinatarios', {
+                rejected: info.rejected,
+                response: info.response,
+            });
+        }
+
         return { messageId: info.messageId, accepted: info.accepted, rejected: info.rejected };
     },
 

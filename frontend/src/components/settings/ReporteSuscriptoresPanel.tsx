@@ -27,7 +27,7 @@ const PERMISO = 'sistema.reportes.gestionar';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 const ReporteSuscriptoresPanel: React.FC = () => {
-    const { hasPermission } = useAuth();
+    const { hasPermission, user } = useAuth();
     const puedeGestionar = hasPermission(PERMISO);
 
     const [suscriptores, setSuscriptores] = useState<Suscriptor[]>([]);
@@ -37,6 +37,8 @@ const ReporteSuscriptoresPanel: React.FC = () => {
     const [form, setForm] = useState<FormState>({ email: '', nombre: '', activo: true });
     const [saving, setSaving] = useState(false);
     const [sendingId, setSendingId] = useState<number | 'me' | null>(null);
+    // Dirección opcional para la prueba: si está vacía, el backend usa el email de login.
+    const [testEmail, setTestEmail] = useState('');
 
     const fetchSuscriptores = async () => {
         setLoading(true);
@@ -108,11 +110,29 @@ const ReporteSuscriptoresPanel: React.FC = () => {
         });
     };
 
-    /** Envía el reporte real de la semana previa a un destinatario (prueba). */
+    /**
+     * Envía el reporte real de la semana previa a un destinatario (prueba).
+     * - target 'me': usa la dirección tipeada en `testEmail` si es válida; si está
+     *   vacía, manda body vacío → el backend usa el email de login (req.user.email).
+     * - target {id,email}: prueba al correo de ese suscriptor.
+     */
     const handleSendTest = async (target: { id: number; email: string } | 'me') => {
-        const key = target === 'me' ? 'me' : target.id;
+        let key: number | 'me' = 'me';
+        let body: { to?: string } = {};
+        if (target !== 'me') {
+            key = target.id;
+            body = { to: target.email };
+        } else {
+            const typed = testEmail.trim();
+            if (typed) {
+                if (!EMAIL_RE.test(typed)) {
+                    toast.error('Ingresa un email válido para la prueba');
+                    return;
+                }
+                body = { to: typed };
+            }
+        }
         setSendingId(key);
-        const body = target === 'me' ? {} : { to: target.email };
         const tid = toast.loading('Enviando correo de prueba…');
         try {
             const res = await api.post<{ to: string }>('/reportes/enviar-prueba', body);
@@ -135,21 +155,37 @@ const ReporteSuscriptoresPanel: React.FC = () => {
     return (
         <div className="space-y-5">
             {/* Header */}
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <p className="text-sm text-muted-foreground">
-                    {suscriptores.length} suscriptor{suscriptores.length !== 1 ? 'es' : ''} · el reporte se envía los lunes 08:00
-                </p>
+            <div className="space-y-2">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <p className="text-sm text-muted-foreground">
+                        {suscriptores.length} suscriptor{suscriptores.length !== 1 ? 'es' : ''} · el reporte se envía los lunes 08:00
+                    </p>
+                    {puedeGestionar && (
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <Input
+                                type="email"
+                                placeholder="Probar a otra dirección (opcional)"
+                                value={testEmail}
+                                onChange={(e) => setTestEmail(e.target.value)}
+                                className="sm:w-60"
+                            />
+                            <div className="flex gap-2">
+                                <Button variant="secondary" size="sm" onClick={() => handleSendTest('me')} isLoading={sendingId === 'me'} leftIcon={<Send className="h-4 w-4" />}>
+                                    <span className="hidden sm:inline">{testEmail.trim() ? 'Probar dirección' : 'Probarme a mí'}</span>
+                                    <span className="sm:hidden">Probar</span>
+                                </Button>
+                                <Button size="sm" onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
+                                    <span className="hidden sm:inline">Nuevo Suscriptor</span>
+                                    <span className="sm:hidden">Nuevo</span>
+                                </Button>
+                            </div>
+                        </div>
+                    )}
+                </div>
                 {puedeGestionar && (
-                    <div className="flex gap-2">
-                        <Button variant="secondary" size="sm" onClick={() => handleSendTest('me')} isLoading={sendingId === 'me'} leftIcon={<Send className="h-4 w-4" />}>
-                            <span className="hidden sm:inline">Probarme a mí</span>
-                            <span className="sm:hidden">Probar</span>
-                        </Button>
-                        <Button size="sm" onClick={handleOpenCreate} leftIcon={<Plus className="h-4 w-4" />}>
-                            <span className="hidden sm:inline">Nuevo Suscriptor</span>
-                            <span className="sm:hidden">Nuevo</span>
-                        </Button>
-                    </div>
+                    <p className="text-xs text-muted-foreground">
+                        "Probar" envía el reporte real: con el campo vacío va a tu correo de acceso{user?.email ? ` (${user.email})` : ''}; o escribe otra dirección para enviarlo ahí.
+                    </p>
                 )}
             </div>
 

@@ -87,6 +87,12 @@ async function main() {
 
         console.log(`✅ Enviado a ${result.recipients.length} destinatario(s): ${result.recipients.join(', ')}`);
         console.log(`   messageId=${result.messageId} aceptados=${result.accepted.length} rechazados=${result.rejected.length}`);
+        // Rechazo PARCIAL: el envío resolvió OK pero el servidor rechazó algún buzón → visible en el log.
+        if (result.rejected && result.rejected.length) {
+            const dirs = result.rejected.map(r => (typeof r === 'string' ? r : (r && r.address) || JSON.stringify(r)));
+            console.warn(`⚠️  ${result.rejected.length} destinatario(s) RECHAZADO(s) por el servidor: ${dirs.join(', ')}`);
+            console.warn('   Verificá que sean buzones válidos:  npm run reporte-doctor -- --probe <email>');
+        }
     } finally {
         await pool.end().catch(() => {});
     }

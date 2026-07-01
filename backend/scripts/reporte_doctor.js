@@ -10,16 +10,18 @@
  *   1. Variables de entorno MAIL_* (requeridas: HOST/USER/PASS; info: PORT/SECURE) + REPORTE_TO.
  *      NUNCA imprime el valor de MAIL_PASS (solo si está presente y su largo).
  *   2. Conexión SMTP real (emailService.verifyTransport → transporter.verify, handshake).
+ *   2b. (--probe <email>) Envío REAL mínimo → ejercita RCPT y detecta buzón inexistente (550).
+ *       verify() por sí solo NO ve ese error; el 550 ocurre recién al enviar.
  *   3. Destinatarios efectivos: suscriptores activos o fallback REPORTE_TO.
  *
  * USO:
- *   node scripts/reporte_doctor.js          # imprime tabla ✅/❌ y sale 0 (OK) o 1 (problema)
+ *   node scripts/reporte_doctor.js                       # solo diagnóstico (no envía)
+ *   node scripts/reporte_doctor.js --probe tu@correo.cl  # + envío real de prueba a esa dirección
  *
  * En cPanel: Setup Node.js App → Run JS script → `reporte-doctor`, o Terminal:
- *   cd ~/boveda && /home/lolscl/nodevenv/boveda/20/bin/node scripts/reporte_doctor.js
+ *   cd ~/boveda && /home/lolscl/nodevenv/boveda/20/bin/node scripts/reporte_doctor.js --probe tu@correo.cl
  *
- * Exit codes: 0 = listo para enviar (env + SMTP + destinatarios OK) · 1 = falta algo.
- * NO envía correo: la prueba real de envío es `reporte-semanal -- --to tu@correo.cl`.
+ * Exit codes: 0 = listo (env + SMTP + destinatarios OK; y si hubo --probe, entregado) · 1 = falta algo.
  */
 require('dotenv').config();
 const mysql = require('mysql2/promise');
@@ -33,7 +35,17 @@ const INFO = 'ℹ️ ';
 
 function line(estado, txt) { console.log(`  ${estado} ${txt}`); }
 
+/** Parse simple de `--probe <email>` / `--probe=email`. */
+function parseProbe(argv) {
+    for (let i = 0; i < argv.length; i++) {
+        if (argv[i] === '--probe') return argv[i + 1] || null;
+        if (argv[i].startsWith('--probe=')) return argv[i].slice(8);
+    }
+    return null;
+}
+
 async function main() {
+    const probe = parseProbe(process.argv.slice(2));
     console.log('🩺 Reporte Doctor — diagnóstico de envío de correos de sistema\n');
 
     // ── 1) Variables de entorno ──
@@ -65,6 +77,37 @@ async function main() {
         line(BAD, `SMTP NO conecta — ${err && err.message ? err.message : err}`);
     }
     console.log('');
+
+    // ── 2b) Envío de prueba REAL (solo con --probe) ──
+    // verify() NO detecta buzones inexistentes (el 550 ocurre en RCPT, al enviar). Con
+    // --probe hacemos un envío real mínimo que ejercita RCPT y expone ese rechazo.
+    let probeOk = null; // null = no se pidió
+    if (probe) {
+        console.log(`2b) Envío de prueba REAL a ${probe} (ejercita RCPT → detecta buzón inexistente)`);
+        try {
+            const info = await emailService.sendSystemEmail({
+                to: probe,
+                subject: 'Prueba reporte-doctor — Bóveda LOLS',
+                text: 'Correo de prueba de reporte-doctor. Si lo recibiste, el envío funciona correctamente.',
+            });
+            const rejected = Array.isArray(info.rejected) ? info.rejected : [];
+            if (rejected.length) {
+                probeOk = false;
+                line(BAD, `Rechazado — el servidor no aceptó: ${rejected.join(', ')}`);
+            } else {
+                probeOk = true;
+                line(OK, `Enviado — messageId=${info.messageId} aceptados=${(info.accepted || []).join(', ') || '(sin lista)'}`);
+            }
+        } catch (err) {
+            probeOk = false;
+            const motivo = (err && (err.response || err.message)) || String(err);
+            line(BAD, `Rechazado por el servidor — ${motivo}`);
+        }
+        console.log('');
+    } else {
+        line(INFO, 'Tip: `reporte-doctor -- --probe tu@correo.cl` hace un ENVÍO real (verify() solo prueba conexión, no entrega).');
+        console.log('');
+    }
 
     // ── 3) Destinatarios efectivos ──
     console.log('3) Destinatarios efectivos (suscriptores activos o fallback REPORTE_TO)');
@@ -102,10 +145,10 @@ async function main() {
     }
     console.log('');
 
-    // ── Veredicto ──
-    const allOk = envOk && smtpOk && recipientsOk;
+    // ── Veredicto ── (el probe solo cuenta si se pidió: probeOk===false lo reprueba)
+    const allOk = envOk && smtpOk && recipientsOk && probeOk !== false;
     console.log(allOk
-        ? `${OK} TODO LISTO — el reporte puede enviarse. Prueba real: reporte-semanal -- --to tu@correo.cl`
+        ? `${OK} TODO LISTO — el reporte puede enviarse.${probe ? '' : ' Verificá ENTREGA real con: reporte-doctor -- --probe tu@correo.cl'}`
         : `${BAD} HAY PENDIENTES — revisa los ${BAD} de arriba antes de confiar en el cron.`);
     process.exit(allOk ? 0 : 1);
 }
