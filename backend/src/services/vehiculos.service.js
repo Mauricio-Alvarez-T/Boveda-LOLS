@@ -103,7 +103,29 @@ const vehiculosService = {
              WHERE v.id = ? AND v.activo = 1`, [id]
         );
         if (!rows.length) throw Object.assign(new Error('Vehículo no encontrado'), { statusCode: 404 });
-        return rows[0];
+        const veh = rows[0];
+        veh.cuotas = await this.getCuotas(veh.id);
+        return veh;
+    },
+
+    // ── Cuotas de leasing ──────────────────────────────────────────────
+    async getCuotas(vehiculoId) {
+        const [rows] = await db.query(
+            `SELECT id, DATE_FORMAT(fecha, '%Y-%m-%d') AS fecha, pagada
+             FROM vehiculo_leasing_cuotas WHERE vehiculo_id = ? ORDER BY fecha ASC`,
+            [vehiculoId]
+        );
+        return rows;
+    },
+
+    // Reemplazo completo (bulk replace) de las cuotas de un vehículo.
+    async _replaceCuotas(vehiculoId, cuotas) {
+        await db.query('DELETE FROM vehiculo_leasing_cuotas WHERE vehiculo_id = ?', [vehiculoId]);
+        const list = Array.isArray(cuotas) ? cuotas.filter(c => c && c.fecha) : [];
+        if (list.length) {
+            const values = list.map(c => [vehiculoId, c.fecha, c.pagada ? 1 : 0]);
+            await db.query('INSERT INTO vehiculo_leasing_cuotas (vehiculo_id, fecha, pagada) VALUES ?', [values]);
+        }
     },
 
     /**
@@ -137,6 +159,7 @@ const vehiculosService = {
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [patente.toUpperCase().trim(), marca, modelo, anio, tipo, kilometraje_actual, color || null, observaciones || null, empresa_id || null, resolvedConductorId, valor || 0, precio_compra || 0, es_leasing ? 1 : 0]
         );
+        if (data.cuotas !== undefined) await this._replaceCuotas(result.insertId, data.cuotas);
         return this.getById(result.insertId);
     },
 
@@ -155,9 +178,12 @@ const vehiculosService = {
                 params.push(f === 'patente' ? data[f].toUpperCase().trim() : data[f]);
             }
         });
-        if (!fields.length) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
-        params.push(id);
-        await db.query(`UPDATE vehiculos SET ${fields.join(', ')} WHERE id = ?`, params);
+        if (!fields.length && data.cuotas === undefined) throw Object.assign(new Error('Sin campos para actualizar'), { statusCode: 400 });
+        if (fields.length) {
+            params.push(id);
+            await db.query(`UPDATE vehiculos SET ${fields.join(', ')} WHERE id = ?`, params);
+        }
+        if (data.cuotas !== undefined) await this._replaceCuotas(id, data.cuotas);
         return this.getById(id);
     },
 

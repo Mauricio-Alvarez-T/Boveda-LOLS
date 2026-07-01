@@ -99,6 +99,14 @@ export interface EmpresaVehiculo {
     vehiculos_count?: number;
 }
 
+/** Una cuota del leasing de un vehículo (fecha + estado de pago). */
+export interface VehiculoLeasingCuota {
+    id?: number;
+    /** Fecha de la cuota, 'YYYY-MM-DD'. */
+    fecha: string;
+    pagada: boolean;
+}
+
 export interface Vehiculo {
     id: number;
     patente: string;
@@ -120,6 +128,8 @@ export interface Vehiculo {
     precio_compra?: number;
     /** TRUE si el vehículo está en leasing (arriendo financiero, no es propio). */
     es_leasing?: boolean;
+    /** Cuotas del leasing (solo si es_leasing). Las trae el backend en getById. */
+    cuotas?: VehiculoLeasingCuota[];
     observaciones?: string | null;
     activo: boolean;
     // Campos enriquecidos por el backend (subconsultas)

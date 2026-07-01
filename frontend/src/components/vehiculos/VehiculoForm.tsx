@@ -3,7 +3,7 @@ import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { toast } from 'sonner';
-import { CalendarCheck } from 'lucide-react';
+import { CalendarCheck, X } from 'lucide-react';
 import { Input } from '../ui/Input';
 import { CurrencyInput } from '../ui/CurrencyInput';
 import api from '../../services/api';
@@ -100,11 +100,27 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
     const patente = watch('patente');
     const mesRevision = mesRevisionPorPatente(patente);
 
+    // ── Cuotas del leasing (lista dinámica, manejada fuera de RHF) ──
+    const esLeasing = watch('es_leasing');
+    const [cuotas, setCuotas] = useState<{ fecha: string; pagada: boolean }[]>(
+        (initialData?.cuotas || []).map(c => ({ fecha: (c.fecha || '').slice(0, 10), pagada: !!c.pagada }))
+    );
+    const [nuevaCuota, setNuevaCuota] = useState('');
+    const agregarCuota = () => {
+        if (!nuevaCuota) return;
+        setCuotas(prev => [...prev, { fecha: nuevaCuota, pagada: false }].sort((a, b) => a.fecha.localeCompare(b.fecha)));
+        setNuevaCuota('');
+    };
+    const quitarCuota = (i: number) => setCuotas(prev => prev.filter((_, idx) => idx !== i));
+    const togglePagada = (i: number) => setCuotas(prev => prev.map((c, idx) => idx === i ? { ...c, pagada: !c.pagada } : c));
+    const fmtCuotaFecha = (f: string) => new Date(f + 'T00:00:00').toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
+
     const onSubmit = async (data: FormData) => {
         const payload = {
             ...data,
             empresa_id: data.empresa_id ? Number(data.empresa_id) : null,
             conductor_nombre: data.conductor_nombre?.trim() || null, // backend resuelve/crea en el catálogo
+            cuotas: data.es_leasing ? cuotas : [], // si no es leasing, se limpian
         };
         try {
             if (initialData) {
@@ -238,6 +254,64 @@ export const VehiculoForm: React.FC<Props> = ({ initialData, defaultEmpresaId, o
                     </span>
                 </span>
             </label>
+
+            {/* Cuotas del leasing: solo visible si está marcado "¿Es leasing?". */}
+            {esLeasing && (
+                <div className="rounded-xl border border-border bg-card px-3.5 py-3 space-y-2.5">
+                    <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider">Cuotas del leasing (fechas)</label>
+                    <div className="flex gap-2">
+                        <input
+                            type="date"
+                            value={nuevaCuota}
+                            onChange={e => setNuevaCuota(e.target.value)}
+                            className="flex-1 min-w-0 px-3 h-11 rounded-xl border border-border bg-card text-base text-brand-dark focus:outline-none focus:ring-2 focus:ring-brand-primary/30"
+                        />
+                        {/* eslint-disable-next-line no-restricted-syntax -- botón "agregar cuota" con estilo propio inline */}
+                        <button
+                            type="button"
+                            onClick={agregarCuota}
+                            disabled={!nuevaCuota}
+                            className="shrink-0 px-4 h-11 rounded-xl bg-brand-primary text-white text-sm font-semibold disabled:opacity-50 active:scale-[0.98] transition"
+                        >
+                            Agregar
+                        </button>
+                    </div>
+                    {cuotas.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Aún no agregas cuotas. Indica la fecha de cada cuota y márcala como pagada cuando corresponda.</p>
+                    ) : (
+                        <>
+                            <ul className="divide-y divide-border rounded-lg border border-border">
+                                {cuotas.map((c, i) => (
+                                    <li key={i} className="flex items-center gap-3 px-3 py-2">
+                                        <span className="w-5 shrink-0 text-xs font-bold text-muted-foreground">{i + 1}</span>
+                                        <span className="flex-1 min-w-0 text-sm text-brand-dark">{fmtCuotaFecha(c.fecha)}</span>
+                                        <label className="flex items-center gap-1.5 text-xs font-medium text-brand-dark cursor-pointer select-none shrink-0">
+                                            <input
+                                                type="checkbox"
+                                                checked={c.pagada}
+                                                onChange={() => togglePagada(i)}
+                                                className="h-4 w-4 rounded border-border text-brand-primary focus:ring-brand-primary"
+                                            />
+                                            Pagada
+                                        </label>
+                                        {/* eslint-disable-next-line no-restricted-syntax -- icon-button "quitar cuota" con estilo propio inline */}
+                                        <button
+                                            type="button"
+                                            onClick={() => quitarCuota(i)}
+                                            title="Quitar cuota"
+                                            className="shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-muted-foreground hover:bg-red-50 hover:text-red-600 transition"
+                                        >
+                                            <X className="h-4 w-4" />
+                                            <span className="sr-only">Quitar cuota</span>
+                                        </button>
+                                    </li>
+                                ))}
+                            </ul>
+                            <p className="text-micro text-muted-foreground/70">{cuotas.filter(c => c.pagada).length} de {cuotas.length} cuotas pagadas.</p>
+                        </>
+                    )}
+                </div>
+            )}
 
             <div>
                 <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Observaciones</label>
