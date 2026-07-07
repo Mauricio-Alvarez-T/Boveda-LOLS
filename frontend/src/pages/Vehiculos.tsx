@@ -440,7 +440,7 @@ const VehiculosPage: React.FC = () => {
                                 )}
                             </>
                         );
-                        const activa = selectedEmpresa !== 'sin' && selectedEmpresa?.id === e.id;
+                        const activa = empresaActiva?.id === e.id;
                         return renderEmpresaCard(e.id, e.nombre, e.color, count, activa, () => entrarEmpresa(e), acciones);
                     })}
 
@@ -722,7 +722,7 @@ const VehiculosPage: React.FC = () => {
                                 {empresas.map(e => renderEmpresaChip(
                                     e.id, e.nombre, e.color,
                                     e.vehiculos_count ?? (conteos.porEmpresa.get(e.id) || 0),
-                                    selectedEmpresa !== 'sin' && selectedEmpresa?.id === e.id,
+                                    empresaActiva?.id === e.id,
                                     () => entrarEmpresa(e),
                                 ))}
                                 {conteos.sin > 0 && renderEmpresaChip(

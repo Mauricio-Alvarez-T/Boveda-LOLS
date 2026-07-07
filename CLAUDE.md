@@ -122,9 +122,13 @@ Esto evita la confusión de crear PRs vacíos.
 Antes de todo push a `develop` o `main`:
 
 ```bash
-cd frontend && npx tsc --noEmit    # Type check (evita runtime errors en staging)
+cd frontend && npx tsc -b          # Type check REAL (lo mismo que corre el build de CI)
 cd backend && npm test             # Tests siempre pasan
 ```
+
+> ⚠️ **NO usar `npx tsc --noEmit`**: el `tsconfig.json` del frontend es "solution style"
+> (solo `references`, sin archivos) → `tsc --noEmit` no chequea NADA y siempre sale 0
+> (falso verde). El build de CI corre `tsc -b && vite build`; usa `tsc -b` localmente.
 
 ---
 
