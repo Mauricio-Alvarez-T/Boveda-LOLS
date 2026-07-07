@@ -5,10 +5,12 @@
   `tipo_trabajo` (texto libre, ej. "Coronación tapa" — mig 096), `tipo_hormigon`, `cantidad_m3`,
   `hora_inicio`, `frecuencia`, `hidrofugo`, `permiso_calzada`, `vibradores_origen` +
   `vibradores_detalle`.
-- **Mensaje de WhatsApp** (`utils/bombaHormigonWhatsApp.ts`, función pura testeada): orden fijo
-  pedido por obra → **Obra → Fecha → Tipo de trabajo → Tipo de hormigón → Tipo (de bomba) →
-  Origen → resto** (cantidad, hora, frecuencia, muestras, traslado, hidrófugo, permiso calzada,
-  vibradores, observaciones). Cambiar el orden/wording exige actualizar `bombaHormigonWhatsApp.test.ts`.
+- **Mensaje de WhatsApp** (`utils/bombaHormigonWhatsApp.ts`, función pura testeada): título
+  "*Programación de hormigón*"; orden fijo pedido por obra → **Obra → Fecha → Tipo de trabajo →
+  Tipo de hormigón → Tipo (de bomba) → Origen → resto** (cantidad, hora, frecuencia, muestras,
+  traslado, hidrófugo, permiso calzada, vibradores, observaciones) → **Solicitante** (nombre del
+  usuario logueado, cierra el mensaje). Cambiar el orden/wording exige actualizar
+  `bombaHormigonWhatsApp.test.ts`.
 - Listado excluye obras `es_prueba=1` y `finalizada=1` (`bomba-hormigon.service.js`); los
   **registros históricos NO se filtran** por `participa_bombas` (solo el selector de obra al crear
   — mig 075, fetch `?participa_bombas=1`).

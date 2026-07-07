@@ -33,9 +33,9 @@ const makeForm = (overrides: Partial<BombaWhatsappForm> = {}): BombaWhatsappForm
 
 describe('buildBombaHormigonWhatsappText', () => {
     it('el mensaje refleja exactamente los checkbox y dropdown seleccionados', () => {
-        const msg = buildBombaHormigonWhatsappText(makeForm(), 'Edificio Norte');
+        const msg = buildBombaHormigonWhatsappText(makeForm(), 'Edificio Norte', 'Franco Gutiérrez');
 
-        expect(msg).toContain('*Registro de uso de bomba*');
+        expect(msg).toContain('*Programación de hormigón*');
         expect(msg).toContain('Obra: Edificio Norte');
         expect(msg).toContain('Fecha: 24/06/2026');                       // YYYY-MM-DD → DD/MM/YYYY
         expect(msg).toContain('Tipo de trabajo: Coronación tapa');        // texto libre tipo_trabajo
@@ -51,6 +51,9 @@ describe('buildBombaHormigonWhatsappText', () => {
         expect(msg).toContain('Hora de inicio: 08:30');
         expect(msg).toContain('Frecuencia: Cada 2 h');
         expect(msg).toContain('Observaciones: Hormigonado losa piso 3');
+        // El solicitante (usuario logueado) cierra el mensaje.
+        const lineas = msg.split('\n');
+        expect(lineas[lineas.length - 1]).toBe('Solicitante: Franco Gutiérrez');
     });
 
     it('al invertir las selecciones el mensaje cambia de forma consistente (no miente)', () => {
@@ -91,8 +94,9 @@ describe('buildBombaHormigonWhatsappText', () => {
             'Edificio Norte',
         );
 
-        // Condicionales ausentes
+        // Condicionales ausentes (sin solicitante: no se pasó el 3er argumento)
         expect(msg).not.toContain('Tipo de trabajo:');
+        expect(msg).not.toContain('Solicitante:');
         expect(msg).not.toContain('Hora de inicio:');
         expect(msg).not.toContain('Tipo de hormigón:');
         expect(msg).not.toContain('Cantidad:');

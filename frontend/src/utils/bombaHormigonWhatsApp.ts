@@ -9,14 +9,16 @@
  *
  * ORDEN del mensaje (pedido por el jefe de obra, así se envía el día a día):
  *   Obra → Fecha → Tipo de trabajo → Tipo de hormigón → Tipo (de bomba) →
- *   Origen → y luego el resto de los datos.
+ *   Origen → el resto de los datos → Solicitante (quien pide, al final).
  *
  * REGLAS de formato (no cambiar sin actualizar el test):
+ * - Título: "*Programación de hormigón*".
  * - `Fecha` se muestra DD/MM/YYYY (la fecha del form viene YYYY-MM-DD).
  * - Líneas SIEMPRE presentes: Tipo (de bomba), Origen (Empresa/Externa),
  *   Toma de muestras, Traslado de bombas, Hidrófugo, Permiso de la calzada.
  * - Líneas CONDICIONALES (solo si hay dato): Tipo de trabajo, Tipo de hormigón,
- *   Cantidad, Hora de inicio, Frecuencia, Vibradores, Observaciones.
+ *   Cantidad, Hora de inicio, Frecuencia, Vibradores, Observaciones,
+ *   Solicitante (usuario logueado que arma la programación; cierra el mensaje).
  */
 
 /** Subconjunto del form de bomba que necesita el mensaje (sin `obra_id`: la obra entra como nombre). */
@@ -38,10 +40,10 @@ export interface BombaWhatsappForm {
     observaciones: string;
 }
 
-/** Construye el texto del registro de uso de bomba para compartir por WhatsApp. */
-export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNombre: string): string {
+/** Construye el texto de la programación de hormigón para compartir por WhatsApp. */
+export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNombre: string, solicitanteNombre = ''): string {
     const lines = [
-        '*Registro de uso de bomba*',
+        '*Programación de hormigón*',
         `Obra: ${obraNombre}`,
         `Fecha: ${form.fecha ? form.fecha.split('-').reverse().join('/') : '—'}`,
     ];
@@ -60,5 +62,7 @@ export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNomb
     lines.push(`Permiso de la calzada: ${form.permiso_calzada ? 'Sí' : 'No'}`);
     if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(`Vibradores: ${[form.vibradores_origen, form.vibradores_detalle.trim()].filter(Boolean).join(' — ')}`);
     if (form.observaciones.trim()) lines.push(`Observaciones: ${form.observaciones.trim()}`);
+    // Quien hace la solicitud (usuario logueado) cierra el mensaje.
+    if (solicitanteNombre.trim()) lines.push(`Solicitante: ${solicitanteNombre.trim()}`);
     return lines.join('\n');
 }

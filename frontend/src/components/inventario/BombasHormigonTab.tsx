@@ -74,7 +74,8 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     // Gate financiero: usuarios sin `inventario.bombas.ver_costos` no ven
     // el StatCard "Costo Total" ni la columna costo por registro (el backend
     // ya sanitiza `r.costo` → undefined, aquí cubrimos la parte UI).
-    const { hasPermission } = useAuth();
+    // `user` → nombre del solicitante en el mensaje de WhatsApp.
+    const { hasPermission, user } = useAuth();
     const verCostos = hasPermission('inventario.bombas.ver_costos');
 
     const [registros, setRegistros] = useState<RegistroBombaHormigon[]>([]);
@@ -202,7 +203,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     // El armado del texto vive en utils/bombaHormigonWhatsApp.ts (función pura, testeable).
     const buildWhatsAppMessage = (): string => {
         const obraNombre = obras.find(o => o.id === form.obra_id)?.nombre || '—';
-        return buildBombaHormigonWhatsappText(form, obraNombre);
+        return buildBombaHormigonWhatsappText(form, obraNombre, user?.nombre || '');
     };
 
     const handleShareWhatsApp = () => {
@@ -210,7 +211,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
             toast.error('Completa al menos obra y tipo de bomba para compartir');
             return;
         }
-        shareViaWhatsApp(buildWhatsAppMessage(), 'Registro de uso de bomba');
+        shareViaWhatsApp(buildWhatsAppMessage(), 'Programación de hormigón');
     };
 
     // ── Eliminar ──
