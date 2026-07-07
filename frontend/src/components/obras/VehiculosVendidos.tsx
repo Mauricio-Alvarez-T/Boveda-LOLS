@@ -15,8 +15,9 @@ const Skeleton: React.FC = () => (
 
 /**
  * Historial de vehículos vendidos: cada venta muestra la diferencia entre el
- * precio de compra y el de venta (ganancia / pérdida). Se muestra dentro de
- * "Obras Finalizadas". Los montos llegan como string (DECIMAL) → Number().
+ * precio de compra y el de venta (ganancia / pérdida). Se muestra en la página
+ * de "Vehículos", debajo del panel de flota. Los montos llegan como string
+ * (DECIMAL) → Number().
  */
 export const VehiculosVendidos: React.FC = () => {
     const [ventas, setVentas] = useState<VehiculoVenta[]>([]);

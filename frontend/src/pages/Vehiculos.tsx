@@ -16,6 +16,7 @@ import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
 import { EmpresaForm } from '../components/vehiculos/EmpresaForm';
 import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
+import { VehiculosVendidos } from '../components/obras/VehiculosVendidos';
 import api from '../services/api';
 import type { Vehiculo, EmpresaVehiculo } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -648,10 +649,15 @@ const VehiculosPage: React.FC = () => {
                 </div>
             )}
 
+            {/* Contenido scrolleable: panel de flota + historial de vehículos vendidos.
+                El panel de flota tiene alto acotado (vh) para que sus columnas conserven
+                su scroll interno; el historial de vendidos queda debajo, a ancho completo. */}
+            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-6">
+
             {/* ═══ DESKTOP (≥lg): 3 columnas — empresas | vehículos | detalle ═══
                 Las empresas quedan SIEMPRE a la izquierda; al elegir una aparecen sus
                 vehículos (centro) y el detalle (derecha) sin perderlas de vista. */}
-            <div className="hidden lg:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+            <div className="hidden lg:flex h-[72vh] min-h-[460px] shrink-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* Empresas (~20%) · Vehículos (~26%) · Detalle (resto, ~54% — es lo importante) */}
                 <div className="w-[20%] shrink-0 border-r border-border flex flex-col min-h-0">
                     {EmpresasList}
@@ -674,7 +680,7 @@ const VehiculosPage: React.FC = () => {
             {/* ═══ MÓVIL + TABLET (<lg): empresas como chips arriba + vehículos abajo ═══
                 Tocás un chip y abajo aparece el historial de vehículos de esa empresa.
                 Al tocar un vehículo se abre el detalle a pantalla completa (con volver). */}
-            <div className="lg:hidden flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+            <div className="lg:hidden flex flex-col h-[72vh] min-h-[440px] shrink-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {selected ? DetailView : (
                     <>
                         {/* Chips de empresas (scroll horizontal si hay muchas) */}
@@ -729,6 +735,15 @@ const VehiculosPage: React.FC = () => {
                         </div>
                     </>
                 )}
+            </div>
+
+            {/* Historial de vehículos vendidos (compra vs. venta), a ancho completo
+                debajo del panel de flota. Antes vivía en "Obras Finalizadas". */}
+            <div className="shrink-0">
+                <div className="border-t border-border/70 mb-4" />
+                <VehiculosVendidos />
+            </div>
+
             </div>
 
             {/* ── Modales ── */}
