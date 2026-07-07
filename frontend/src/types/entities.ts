@@ -576,6 +576,8 @@ export interface RegistroBombaHormigon {
     obra_id: number;
     obra_nombre?: string;
     fecha: string;
+    /** Tipo de trabajo del bombeo (texto libre, ej. "Coronación tapa", "Radier"). */
+    tipo_trabajo?: string | null;
     tipo_bomba: string;
     /** Hora de inicio del servicio (HH:MM[:SS]). */
     hora_inicio?: string | null;

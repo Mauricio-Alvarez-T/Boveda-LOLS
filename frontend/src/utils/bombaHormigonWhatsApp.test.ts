@@ -13,6 +13,7 @@ import { buildBombaHormigonWhatsappText, type BombaWhatsappForm } from './bombaH
 // con valores mixtos (algunos Sí, otros No; dropdowns no triviales).
 const baseForm = (): BombaWhatsappForm => ({
     fecha: '2026-06-24',
+    tipo_trabajo: 'Coronación tapa',    // texto libre "tipo de trabajo"
     tipo_bomba: 'Telescópica',          // dropdown tipo de bomba
     hora_inicio: '08:30',
     toma_muestras: true,                 // checkbox
@@ -37,6 +38,7 @@ describe('buildBombaHormigonWhatsappText', () => {
         expect(msg).toContain('*Registro de uso de bomba*');
         expect(msg).toContain('Obra: Edificio Norte');
         expect(msg).toContain('Fecha: 24/06/2026');                       // YYYY-MM-DD → DD/MM/YYYY
+        expect(msg).toContain('Tipo de trabajo: Coronación tapa');        // texto libre tipo_trabajo
         expect(msg).toContain('Tipo: Telescópica');                       // dropdown tipo_bomba
         expect(msg).toContain('Origen: Externa (arriendo)');              // dropdown es_externa = true
         expect(msg).toContain('Vibradores: Externa — 3 con sonda de 45'); // dropdown + detalle
@@ -77,6 +79,7 @@ describe('buildBombaHormigonWhatsappText', () => {
     it('omite las líneas opcionales cuando no hay dato, pero conserva las obligatorias', () => {
         const msg = buildBombaHormigonWhatsappText(
             makeForm({
+                tipo_trabajo: '',
                 hora_inicio: '',
                 tipo_hormigon: '',
                 cantidad_m3: '',
@@ -89,6 +92,7 @@ describe('buildBombaHormigonWhatsappText', () => {
         );
 
         // Condicionales ausentes
+        expect(msg).not.toContain('Tipo de trabajo:');
         expect(msg).not.toContain('Hora de inicio:');
         expect(msg).not.toContain('Tipo de hormigón:');
         expect(msg).not.toContain('Cantidad:');

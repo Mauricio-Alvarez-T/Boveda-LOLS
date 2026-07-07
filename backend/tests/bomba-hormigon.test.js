@@ -39,6 +39,7 @@ const makeToken = (permisos) =>
 const usoPayload = () => ({
     obra_id: 5,
     fecha: '2026-06-24',
+    tipo_trabajo: 'Coronación tapa',    // texto libre "tipo de trabajo"
     tipo_bomba: 'Telescópica',          // dropdown
     hora_inicio: '08:30',
     toma_muestras: true,                 // checkbox
@@ -61,7 +62,7 @@ const COL = {
     traslado_bombas: 5, vibradores: 6, es_externa: 7, proveedor: 8, costo: 9,
     observaciones: 10, tipo_hormigon: 11, cantidad_m3: 12, frecuencia: 13,
     hidrofugo: 14, vibradores_origen: 15, permiso_calzada: 16, vibradores_detalle: 17,
-    registrado_por: 18,
+    tipo_trabajo: 18, registrado_por: 19,
 };
 
 const insertParams = () => db.query.mock.calls[0][1];
@@ -83,6 +84,7 @@ describe('POST /api/bombas-hormigon — nuevo uso de bomba', () => {
 
         // El INSERT recibió exactamente las selecciones del formulario.
         const p = insertParams();
+        expect(p[COL.tipo_trabajo]).toBe('Coronación tapa');     // texto libre
         expect(p[COL.tipo_bomba]).toBe('Telescópica');           // dropdown
         expect(p[COL.es_externa]).toBe(true);                    // dropdown "Origen" = Externa
         expect(p[COL.vibradores_origen]).toBe('Externa');        // dropdown

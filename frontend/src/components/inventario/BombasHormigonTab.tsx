@@ -27,6 +27,7 @@ interface Props {
 interface BombaFormState {
     obra_id: number | '';
     fecha: string;
+    tipo_trabajo: string;
     tipo_bomba: string;
     hora_inicio: string;
     toma_muestras: boolean;
@@ -49,6 +50,7 @@ const TIPOS_BOMBA = ['Estacionaria', 'Telescópica'];
 const emptyForm = (): BombaFormState => ({
     obra_id: '',
     fecha: new Date().toISOString().slice(0, 10),
+    tipo_trabajo: '',
     tipo_bomba: '',
     hora_inicio: '',
     toma_muestras: false,
@@ -125,6 +127,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         setForm({
             obra_id: r.obra_id,
             fecha: r.fecha ? new Date(r.fecha).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
+            tipo_trabajo: r.tipo_trabajo || '',
             tipo_bomba: r.tipo_bomba || '',
             hora_inicio: r.hora_inicio ? String(r.hora_inicio).slice(0, 5) : '',
             toma_muestras: !!r.toma_muestras,
@@ -161,6 +164,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         const payload: Record<string, unknown> = {
             obra_id: Number(form.obra_id),
             fecha: form.fecha,
+            tipo_trabajo: form.tipo_trabajo.trim() || null,
             tipo_bomba: form.tipo_bomba.trim(),
             hora_inicio: form.hora_inicio || null,
             toma_muestras: form.toma_muestras,
@@ -491,6 +495,20 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         </div>
                     </div>
 
+                    {/* Tipo de trabajo (texto libre): qué se hormigona — ej. "Coronación tapa" */}
+                    <div>
+                        <label className="text-xs font-bold text-brand-dark mb-1 block">
+                            Tipo de trabajo <span className="text-muted-foreground font-normal">(opcional)</span>
+                        </label>
+                        <input
+                            type="text"
+                            value={form.tipo_trabajo}
+                            onChange={e => setForm(f => ({ ...f, tipo_trabajo: e.target.value }))}
+                            placeholder="Ej: Coronación tapa, Radier, Losa piso 3..."
+                            className="w-full px-3 py-2.5 text-base border border-border rounded-xl focus:ring-2 focus:ring-brand-primary/20 outline-none"
+                        />
+                    </div>
+
                     {/* Tipo de bomba + origen (dropdown) — fila compacta */}
                     <div className="grid grid-cols-2 gap-3">
                         <div>
@@ -761,6 +779,13 @@ const BombaCard: React.FC<{
                 <span className="text-caption text-muted-foreground/50 mx-0.5">&middot;</span>
                 <span className="text-caption text-muted-foreground">{fmtDateShort(r.fecha)}</span>
             </div>
+
+            {/* Tipo de trabajo (qué se hormigona) */}
+            {r.tipo_trabajo && (
+                <div className="text-caption text-brand-dark/70 font-medium mb-1 truncate" title={r.tipo_trabajo}>
+                    {r.tipo_trabajo}
+                </div>
+            )}
 
             {/* Detalles extra: hora de inicio, vibradores, muestras, traslado, hidrófugo */}
             {(r.hora_inicio || r.toma_muestras || r.traslado_bombas || r.vibradores_origen || r.hidrofugo || r.permiso_calzada) && (
