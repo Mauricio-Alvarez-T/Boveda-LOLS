@@ -16,13 +16,15 @@ import { VehiculoForm } from '../components/vehiculos/VehiculoForm';
 import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
 import { EmpresaForm } from '../components/vehiculos/EmpresaForm';
 import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
-import { VehiculosVendidos } from '../components/obras/VehiculosVendidos';
+import { VehiculosVendidos } from '../components/vehiculos/VehiculosVendidos';
 import api from '../services/api';
-import type { Vehiculo, EmpresaVehiculo } from '../types/entities';
+import type { Vehiculo, EmpresaVehiculo, VehiculoVenta } from '../types/entities';
 import type { ApiResponse } from '../types';
 
 // Color neutro para el grupo "Sin empresa" (slate-400). No es una empresa real.
 const SIN_EMPRESA_COLOR = '#94a3b8';
+// Color del grupo "Vehículos vendidos" (emerald-600). Tampoco es una empresa real.
+const VENDIDOS_COLOR = '#059669';
 // Fondo suave a partir de un hex de 6 dígitos (~10% alpha).
 const softBg = (hex: string) => `${hex}1a`;
 
@@ -39,7 +41,8 @@ const VehiculosPage: React.FC = () => {
     //   null            → Nivel 1: grid de empresas
     //   EmpresaVehiculo → Nivel 2: vehículos de esa empresa
     //   'sin'           → Nivel 2: vehículos sin empresa asignada
-    const [selectedEmpresa, setSelectedEmpresa] = useState<EmpresaVehiculo | 'sin' | null>(null);
+    //   'vendidos'      → Nivel 2: historial de vehículos vendidos (compra vs. venta)
+    const [selectedEmpresa, setSelectedEmpresa] = useState<EmpresaVehiculo | 'sin' | 'vendidos' | null>(null);
     // Dentro del Nivel 2, vehículo seleccionado para el panel de detalle.
     const [selected, setSelected] = useState<Vehiculo | null>(null);
 
@@ -78,11 +81,25 @@ const VehiculosPage: React.FC = () => {
         } catch { /* no bloquea: el grid puede armarse desde los vehículos */ }
     }, []);
 
-    useEffect(() => { fetchVehiculos(); fetchEmpresas(); }, [fetchVehiculos, fetchEmpresas]);
+    // Historial de ventas (compra vs. venta). Se fetchea acá (y no en el
+    // componente) para poder mostrar el contador en la card "Vehículos vendidos".
+    const [ventas, setVentas] = useState<VehiculoVenta[]>([]);
+    const [loadingVentas, setLoadingVentas] = useState(true);
+    const fetchVentas = useCallback(async () => {
+        setLoadingVentas(true);
+        try {
+            const res = await api.get<{ data: VehiculoVenta[] }>('/vehiculos/ventas');
+            setVentas(res.data.data || []);
+        } catch { setVentas([]); /* no bloquea el resto de la página */ }
+        finally { setLoadingVentas(false); }
+    }, []);
+
+    useEffect(() => { fetchVehiculos(); fetchEmpresas(); fetchVentas(); }, [fetchVehiculos, fetchEmpresas, fetchVentas]);
 
     // ── Estado derivado de navegación ───────────────────────────────────────
     const enNivel2 = selectedEmpresa !== null;
-    const empresaActiva = selectedEmpresa === 'sin' || selectedEmpresa === null ? null : selectedEmpresa;
+    const esVendidos = selectedEmpresa === 'vendidos';
+    const empresaActiva = selectedEmpresa && typeof selectedEmpresa === 'object' ? selectedEmpresa : null;
 
     // Ids de empresas activas (las que aparecen como tarjeta en el Nivel 1).
     const empresasActivasIds = useMemo(() => new Set(empresas.map(e => e.id)), [empresas]);
@@ -107,6 +124,8 @@ const VehiculosPage: React.FC = () => {
         if (selectedEmpresa === 'sin') {
             return vehiculos.filter(v => v.empresa_id == null || !empresasActivasIds.has(v.empresa_id));
         }
+        // El grupo "vendidos" no lista vehículos activos (su panel es aparte).
+        if (selectedEmpresa === 'vendidos') return [];
         return vehiculos.filter(v => v.empresa_id === (selectedEmpresa as EmpresaVehiculo).id);
     }, [vehiculos, empresasActivasIds, selectedEmpresa, enNivel2]);
 
@@ -157,14 +176,22 @@ const VehiculosPage: React.FC = () => {
         limpiarFiltros();
     }, []);
 
-    const entrarEmpresa = (e: EmpresaVehiculo | 'sin') => {
+    const entrarEmpresa = (e: EmpresaVehiculo | 'sin' | 'vendidos') => {
         setSelectedEmpresa(e);
         setSelected(null);
     };
 
     // ── Header global de página (cambia según el nivel) ─────────────────────
-    const empresaActivaNombre = selectedEmpresa === 'sin' ? 'Sin empresa' : empresaActiva?.nombre ?? '';
-    const empresaActivaColor  = selectedEmpresa === 'sin' ? SIN_EMPRESA_COLOR : empresaActiva?.color ?? SIN_EMPRESA_COLOR;
+    const empresaActivaNombre =
+        selectedEmpresa === 'sin' ? 'Sin empresa'
+        : esVendidos ? 'Vehículos vendidos'
+        : empresaActiva?.nombre ?? '';
+    const empresaActivaColor =
+        selectedEmpresa === 'sin' ? SIN_EMPRESA_COLOR
+        : esVendidos ? VENDIDOS_COLOR
+        : empresaActiva?.color ?? SIN_EMPRESA_COLOR;
+    // Contador del nivel 2: vehículos de la empresa, o ventas si es el grupo "vendidos".
+    const nivel2Count = esVendidos ? ventas.length : vehiculosEmpresa.length;
 
     const headerTitle = useMemo(() => {
         if (!enNivel2) {
@@ -197,14 +224,14 @@ const VehiculosPage: React.FC = () => {
                             <span className="truncate">{empresaActivaNombre}</span>
                         </span>
                         <span className="text-xs font-black bg-brand-primary/10 text-brand-primary px-2 py-0.5 rounded-md align-middle shrink-0">
-                            {vehiculosEmpresa.length}
+                            {nivel2Count}
                         </span>
                     </h1>
-                    <p className="text-muted-foreground text-xs">Vehículos de la empresa</p>
+                    <p className="text-muted-foreground text-xs">{esVendidos ? 'Historial de ventas' : 'Vehículos de la empresa'}</p>
                 </div>
             </div>
         );
-    }, [enNivel2, vehiculos.length, vehiculosEmpresa.length, empresaActivaNombre, empresaActivaColor, volverANivel1]);
+    }, [enNivel2, vehiculos.length, nivel2Count, esVendidos, empresaActivaNombre, empresaActivaColor, volverANivel1]);
 
     const headerActions = useMemo(() => (
         <div className="flex items-center gap-2">
@@ -219,7 +246,7 @@ const VehiculosPage: React.FC = () => {
                     </Button>
                 </span>
             )}
-            {enNivel2 && (
+            {enNivel2 && !esVendidos && (
                 <>
                     <Button
                         size="sm"
@@ -242,7 +269,7 @@ const VehiculosPage: React.FC = () => {
                 </>
             )}
         </div>
-    ), [enNivel2, showFiltros, filtrosActivos, hasPermission]);
+    ), [enNivel2, esVendidos, showFiltros, filtrosActivos, hasPermission]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -310,6 +337,8 @@ const VehiculosPage: React.FC = () => {
         activa: boolean,
         onEnter: () => void,
         acciones?: React.ReactNode,
+        // Personalización para grupos que no son empresas (ej. "Vehículos vendidos").
+        opts?: { icon?: React.ElementType; unidad?: [singular: string, plural: string] },
     ) => (
         <div key={key}
             onClick={onEnter}
@@ -338,11 +367,11 @@ const VehiculosPage: React.FC = () => {
             {/* Caja destacada con la cantidad de vehículos */}
             <div className="p-3.5 pt-3">
                 <div className="flex items-center gap-2.5 rounded-xl bg-brand-primary/5 border border-brand-primary/15 px-3 py-2">
-                    <Truck className="h-4 w-4 text-brand-primary shrink-0" />
+                    {React.createElement(opts?.icon ?? Truck, { className: 'h-4 w-4 text-brand-primary shrink-0' })}
                     <div className="leading-tight">
                         <p className="text-lg font-black text-brand-dark">{count}</p>
                         <p className="text-micro text-muted-foreground uppercase font-bold tracking-wide">
-                            {count === 1 ? 'vehículo' : 'vehículos'}
+                            {count === 1 ? (opts?.unidad?.[0] ?? 'vehículo') : (opts?.unidad?.[1] ?? 'vehículos')}
                         </p>
                     </div>
                 </div>
@@ -377,7 +406,7 @@ const VehiculosPage: React.FC = () => {
         <div className="flex flex-col flex-1 min-h-0 py-4 md:py-6 min-w-0">
             {loading ? (
                 <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 md:px-6">Cargando...</div>
-            ) : empresas.length === 0 && conteos.sin === 0 ? (
+            ) : empresas.length === 0 && conteos.sin === 0 && ventas.length === 0 ? (
                 <EmptyState icon={Building2} title="Sin empresas registradas"
                     description={'Haz clic en "Nueva empresa" para comenzar'}
                     className="flex-1 justify-center px-4 md:px-6" />
@@ -418,6 +447,12 @@ const VehiculosPage: React.FC = () => {
                     {/* Grupo "Sin empresa": sólo aparece si hay vehículos sin asignar */}
                     {conteos.sin > 0 &&
                         renderEmpresaCard('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, selectedEmpresa === 'sin', () => entrarEmpresa('sin'))}
+
+                    {/* Grupo "Vehículos vendidos": card fija al final (misma pinta que
+                        una empresa); clic → historial de ventas en el panel principal. */}
+                    {renderEmpresaCard('vendidos', 'Vehículos vendidos', VENDIDOS_COLOR, ventas.length,
+                        esVendidos, () => entrarEmpresa('vendidos'), undefined,
+                        { icon: Banknote, unidad: ['vendido', 'vendidos'] })}
                     </div>
                 </div>
             )}
@@ -540,8 +575,8 @@ const VehiculosPage: React.FC = () => {
 
     return (
         <div className="flex flex-col flex-1 min-h-0 gap-3">
-            {/* PANEL DE FILTROS (toggle desde el header) — sólo Nivel 2 */}
-            {enNivel2 && showFiltros && (
+            {/* PANEL DE FILTROS (toggle desde el header) — sólo Nivel 2 (no aplica a "vendidos") */}
+            {enNivel2 && !esVendidos && showFiltros && (
                 <div className="bg-card border border-border rounded-2xl shadow-sm p-4 md:p-5 shrink-0 animate-in slide-in-from-top-2 duration-200">
                     <div className="flex items-center gap-2 mb-3">
                         <Filter className="h-3.5 w-3.5 text-brand-primary" />
@@ -649,20 +684,18 @@ const VehiculosPage: React.FC = () => {
                 </div>
             )}
 
-            {/* Contenido scrolleable: panel de flota + historial de vehículos vendidos.
-                El panel de flota tiene alto acotado (vh) para que sus columnas conserven
-                su scroll interno; el historial de vendidos queda debajo, a ancho completo. */}
-            <div className="flex-1 min-h-0 overflow-y-auto flex flex-col gap-6">
-
             {/* ═══ DESKTOP (≥lg): 3 columnas — empresas | vehículos | detalle ═══
                 Las empresas quedan SIEMPRE a la izquierda; al elegir una aparecen sus
                 vehículos (centro) y el detalle (derecha) sin perderlas de vista. */}
-            <div className="hidden lg:flex h-[72vh] min-h-[460px] shrink-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+            <div className="hidden lg:flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* Empresas (~20%) · Vehículos (~26%) · Detalle (resto, ~54% — es lo importante) */}
                 <div className="w-[20%] shrink-0 border-r border-border flex flex-col min-h-0">
                     {EmpresasList}
                 </div>
-                {selectedEmpresa ? (
+                {esVendidos ? (
+                    /* Historial de vehículos vendidos (ocupa el resto del panel) */
+                    <VehiculosVendidos ventas={ventas} loading={loadingVentas} />
+                ) : selectedEmpresa ? (
                     <>
                         <div className="w-[26%] shrink-0 border-r border-border flex flex-col min-h-0">
                             {ListView}
@@ -680,7 +713,7 @@ const VehiculosPage: React.FC = () => {
             {/* ═══ MÓVIL + TABLET (<lg): empresas como chips arriba + vehículos abajo ═══
                 Tocás un chip y abajo aparece el historial de vehículos de esa empresa.
                 Al tocar un vehículo se abre el detalle a pantalla completa (con volver). */}
-            <div className="lg:hidden flex flex-col h-[72vh] min-h-[440px] shrink-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
+            <div className="lg:hidden flex flex-col flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {selected ? DetailView : (
                     <>
                         {/* Chips de empresas (scroll horizontal si hay muchas) */}
@@ -696,11 +729,15 @@ const VehiculosPage: React.FC = () => {
                                     'sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin,
                                     selectedEmpresa === 'sin', () => entrarEmpresa('sin'),
                                 )}
+                                {renderEmpresaChip(
+                                    'vendidos', 'Vendidos', VENDIDOS_COLOR, ventas.length,
+                                    esVendidos, () => entrarEmpresa('vendidos'),
+                                )}
                             </div>
                         </div>
 
-                        {/* Acciones de la empresa activa */}
-                        {enNivel2 && (
+                        {/* Acciones de la empresa activa (no aplican al grupo "vendidos") */}
+                        {enNivel2 && !esVendidos && (
                             <div className="shrink-0 flex items-center gap-2 px-4 py-2 border-b border-border/60">
                                 <span className="inline-flex items-center gap-1.5 text-sm font-bold text-brand-dark min-w-0">
                                     <span className="h-2 w-2 rounded-full shrink-0" style={{ backgroundColor: empresaActivaColor }} />
@@ -729,21 +766,14 @@ const VehiculosPage: React.FC = () => {
                             </div>
                         )}
 
-                        {/* Lista de vehículos de la empresa activa */}
+                        {/* Lista de vehículos de la empresa activa (o historial de ventas) */}
                         <div className="flex-1 min-h-0 flex flex-col">
-                            {ListView}
+                            {esVendidos
+                                ? <VehiculosVendidos ventas={ventas} loading={loadingVentas} />
+                                : ListView}
                         </div>
                     </>
                 )}
-            </div>
-
-            {/* Historial de vehículos vendidos (compra vs. venta), a ancho completo
-                debajo del panel de flota. Antes vivía en "Obras Finalizadas". */}
-            <div className="shrink-0">
-                <div className="border-t border-border/70 mb-4" />
-                <VehiculosVendidos />
-            </div>
-
             </div>
 
             {/* ── Modales ── */}
@@ -772,7 +802,7 @@ const VehiculosPage: React.FC = () => {
                         onSuccess={() => {
                             if (selected?.id === vehiculoVender.id) setSelected(null);
                             setVehiculoVender(null);
-                            fetchVehiculos(); fetchEmpresas();
+                            fetchVehiculos(); fetchEmpresas(); fetchVentas();
                         }} />
                 )}
             </Modal>
