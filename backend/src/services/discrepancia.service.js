@@ -1,6 +1,7 @@
 const db = require('../config/db');
 const { normalizeUbicacion } = require('../utils/ubicacionStock');
 const { registrarMovimiento } = require('./stockMovimiento.service');
+const { normalizePagination } = require('../utils/pagination');
 
 const discrepanciaService = {
     async reportar(data, userId) {
@@ -82,13 +83,13 @@ const discrepanciaService = {
     },
 
     async getAll(query = {}) {
-        const { estado, page = 1, limit = 20 } = query;
+        const { estado } = query;
+        const { limit, offset } = normalizePagination(query);
         // NULL-safe: la discrepancia puede ser de bodega (obra_id NULL) → no excluir esas.
         let where = 'WHERE d.activo = 1 AND (o.es_prueba = 0 OR o.id IS NULL) AND (o.finalizada = 0 OR o.id IS NULL)';
         const params = [];
         if (estado) { where += ' AND d.estado = ?'; params.push(estado); }
 
-        const offset = (page - 1) * limit;
         const [rows] = await db.query(`
             SELECT d.*, i.descripcion as item_descripcion, i.nro_item,
                    o.nombre as obra_nombre, b.nombre as bodega_nombre,

@@ -1,5 +1,6 @@
 const db = require('../config/db');
 const { normalizeUbicacion } = require('../utils/ubicacionStock');
+const { normalizePagination } = require('../utils/pagination');
 
 const facturaInventarioService = {
     async crear(data, userId) {
@@ -47,8 +48,7 @@ const facturaInventarioService = {
     },
 
     async getAll(query = {}) {
-        const { page = 1, limit = 20 } = query;
-        const offset = (page - 1) * limit;
+        const { limit, offset } = normalizePagination(query);
         const [rows] = await db.query(`
             SELECT f.*, u.nombre as registrado_por_nombre
             FROM facturas_inventario f

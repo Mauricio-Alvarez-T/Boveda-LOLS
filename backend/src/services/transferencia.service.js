@@ -2,6 +2,7 @@ const db = require('../config/db');
 const { normalizeUbicacion: _normalizeUbicacion } = require('../utils/ubicacionStock');
 const { registrarMovimiento } = require('./stockMovimiento.service');
 const logger = require('../utils/logger-structured');
+const { normalizePagination } = require('../utils/pagination');
 
 // Aislamiento de datos de prueba: excluye transferencias cuyo origen o destino
 // sea una obra marcada es_prueba. NULL-safe (origen/destino puede ser bodega →
@@ -35,26 +36,6 @@ function _sodError(msg) {
     const e = new Error(msg);
     e.statusCode = 403;
     return e;
-}
-
-/**
- * Normaliza page/limit de paginación. Vienen de req.query como STRING; mysql2
- * bindea el string literalmente (`LIMIT '20'`) y MariaDB lo rechaza con
- * "error in your SQL syntax near ''20' OFFSET 0'". Hay que castear a entero
- * ANTES de meterlos al SQL. Clampa limit a [1, maxLimit] y page a >= 1, e
- * ignora basura (NaN, negativos) cayendo al default. Patrón único usado por
- * getAll / getMisSolicitudes / getDiscrepancias (antes Auditoría 3.6, ahora
- * centralizado).
- */
-function _pagination(query = {}, defaultLimit = 20, maxLimit = 200) {
-    const rawPage = Number(query.page);
-    const rawLimit = Number(query.limit);
-    const page = Number.isFinite(rawPage) && rawPage > 0 ? Math.trunc(rawPage) : 1;
-    const limit = Number.isFinite(rawLimit) && rawLimit > 0
-        ? Math.min(Math.max(Math.trunc(rawLimit), 1), maxLimit)
-        : defaultLimit;
-    const offset = (page - 1) * limit;
-    return { page, limit, offset };
 }
 
 /**
@@ -1671,7 +1652,7 @@ const transferenciaService = {
         // destinoBodegaId (usuarios.bodega_id, mig 097): un bodeguero además ve las
         // transferencias DESTINADAS a su bodega aunque no las haya creado él.
         const { estado, fecha_desde, fecha_hasta, solicitante_id } = query;
-        const { page, limit, offset } = _pagination(query);
+        const { page, limit, offset } = normalizePagination(query);
         let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
         const params = [];
 
@@ -1825,7 +1806,7 @@ const transferenciaService = {
     },
 
     async getMisSolicitudes(userId, query = {}) {
-        const { limit, offset } = _pagination(query);
+        const { limit, offset } = normalizePagination(query);
         const [rows] = await db.query(`
             SELECT t.*, do2.nombre as destino_obra_nombre, db2.nombre as destino_bodega_nombre,
                    db2.responsable_nombre as destino_bodega_responsable_nombre
@@ -1847,7 +1828,7 @@ const transferenciaService = {
     async getDiscrepancias(query = {}) {
         // Auditoría 3.6: validar/clamp page+limit antes de armar SQL (default 50).
         const { estado } = query;
-        const { page, limit, offset } = _pagination(query, 50);
+        const { page, limit, offset } = normalizePagination(query, 50);
 
         const params = [];
         // Defensa en profundidad: nunca listar filas con diferencia 0 (semánticamente

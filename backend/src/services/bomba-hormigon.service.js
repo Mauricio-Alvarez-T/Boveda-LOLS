@@ -1,4 +1,5 @@
 const db = require('../config/db');
+const { normalizePagination } = require('../utils/pagination');
 
 const bombaHormigonService = {
     async registrar(data, userId) {
@@ -34,14 +35,14 @@ const bombaHormigonService = {
     },
 
     async getAll(query = {}) {
-        const { obra_id, fecha_desde, fecha_hasta, page = 1, limit = 50 } = query;
+        const { obra_id, fecha_desde, fecha_hasta } = query;
+        const { limit, offset } = normalizePagination(query, 50);
         let where = 'WHERE r.activo = 1 AND o.es_prueba = 0 AND o.finalizada = 0';
         const params = [];
         if (obra_id) { where += ' AND r.obra_id = ?'; params.push(obra_id); }
         if (fecha_desde) { where += ' AND r.fecha >= ?'; params.push(fecha_desde); }
         if (fecha_hasta) { where += ' AND r.fecha <= ?'; params.push(fecha_hasta); }
 
-        const offset = (page - 1) * limit;
         const [rows] = await db.query(`
             SELECT r.*, o.nombre as obra_nombre, u.nombre as registrado_por_nombre
             FROM registro_bombas_hormigon r
