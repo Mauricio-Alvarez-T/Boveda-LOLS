@@ -13,6 +13,7 @@ const crearUsuario = {
     password: { required: true, type: 'string', minLength: 5, maxLength: 200 },
     rol_id: { required: true, type: 'integer', min: 1 },
     obra_id: { type: 'integer', min: 1 },                 // nullable: null pasa el strip
+    bodega_id: { type: 'integer', min: 1 },               // nullable: bodeguero (mig 097)
     email_corporativo: { type: 'string', format: 'email', maxLength: 255 },
 };
 
@@ -22,6 +23,7 @@ const editarUsuario = {
     password: { type: 'string', minLength: 5, maxLength: 200 },  // handler → password_hash
     rol_id: { type: 'integer', min: 1 },
     obra_id: { type: 'integer', min: 1 },
+    bodega_id: { type: 'integer', min: 1 },               // nullable: bodeguero (mig 097)
     email_corporativo: { type: 'string', format: 'email', maxLength: 255 },
     activo: { type: 'boolean' },
 };

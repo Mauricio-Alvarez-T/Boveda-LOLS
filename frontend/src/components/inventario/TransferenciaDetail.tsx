@@ -19,6 +19,7 @@ import { transferenciaRoute } from '../../utils/formatBodega';
 import { prepareAndShareWithToast } from '../../utils/whatsappShare';
 import { buildTransferenciaWhatsappText } from '../../utils/transferenciaWhatsApp';
 import { showConfirmToast, showDeleteToast } from '../../utils/toastUtils';
+import { useAuth } from '../../context/AuthContext';
 import { useTransferenciaDetail, type StockLocation } from '../../hooks/inventario/useTransferenciaDetail';
 import MaterialesAprobacionPanel from './transferencia-detail/MaterialesAprobacionPanel';
 import MaterialesRecepcionPanel from './transferencia-detail/MaterialesRecepcionPanel';
@@ -99,6 +100,8 @@ const TransferenciaDetail: React.FC<Props> = ({
     transferencia: t, obras, actionLoading, hasPermission, userId,
     onBack, onFetchStock, onAprobar, onCrearFaltante, onRecibir, onFetchRecepciones, onRechazar, onRechazarRecepcion, onCancelar, onEliminar, onUploadFotoRecepcion,
 }) => {
+    // Bodega del usuario logueado (rol bodeguero): restringe recepción a su bodega.
+    const { user } = useAuth();
     const items: TransferenciaItem[] = t.items || [];
     // Items personalizados (fuera de catálogo). Schema mínimo, no comparte interfaz
     // con TransferenciaItem porque no tiene item_id ni splits.
@@ -146,7 +149,7 @@ const TransferenciaDetail: React.FC<Props> = ({
         canCompartirWhatsApp,
         showSodBannerSolicitante, showSodBannerAprobador, showSodBannerTransportista,
         pendientePorItem,
-    } = useTransferenciaDetail({ t, items, userId, hasPermission, onFetchStock, onFetchRecepciones, onRechazarRecepcion });
+    } = useTransferenciaDetail({ t, items, userId, userBodegaId: user?.bodega_id ?? null, hasPermission, onFetchStock, onFetchRecepciones, onRechazarRecepcion });
 
     // ── WhatsApp share ──
     // Patrón replicado del módulo de asistencia (useAttendanceExport):

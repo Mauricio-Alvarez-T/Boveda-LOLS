@@ -154,11 +154,16 @@ router.get('/', auth, checkPermission('usuarios.ver'), async (req, res, next) =>
 
 router.post('/', auth, checkPermission('usuarios.crear'), validateBody(crearUsuario, { strip: true }), async (req, res, next) => {
     try {
-        const { nombre, email, password, rol_id, obra_id, email_corporativo } = req.body;
+        const { nombre, email, password, rol_id, obra_id, bodega_id, email_corporativo } = req.body;
         const hash = await bcrypt.hash(password, 10);
+        // bodega_id se incluye solo si viene (mig 097): crear usuarios SIN bodega
+        // sigue funcionando aunque la migración no haya corrido todavía.
+        const cols = ['nombre', 'email', 'password_hash', 'rol_id', 'obra_id', 'email_corporativo'];
+        const vals = [nombre, email, hash, rol_id, obra_id || null, email_corporativo || null];
+        if (bodega_id != null) { cols.push('bodega_id'); vals.push(bodega_id); }
         const [result] = await db.query(
-            'INSERT INTO usuarios (nombre, email, password_hash, rol_id, obra_id, email_corporativo) VALUES (?, ?, ?, ?, ?, ?)',
-            [nombre, email, hash, rol_id, obra_id || null, email_corporativo || null]
+            `INSERT INTO usuarios (${cols.join(', ')}) VALUES (${cols.map(() => '?').join(', ')})`,
+            vals
         );
         res.status(201).json({ id: result.insertId, nombre, email, rol_id });
     } catch (err) { next(err); }
@@ -172,17 +177,38 @@ router.put('/:id', auth, checkPermission('usuarios.editar'), validateBody(editar
             delete data.password;
         }
 
-        // Detectar cambio de rol_id ANTES del update para saber si invalidar
-        // la sesión activa del usuario. Si no detectamos el cambio, el usuario
-        // mantiene su JWT viejo (con rol_id viejo + permisos viejos) hasta
-        // logout manual — bug reportado por jefatura mayo 2026.
+        // Detectar cambio de rol_id o bodega_id ANTES del update para saber si
+        // invalidar la sesión activa del usuario. Si no detectamos el cambio, el
+        // usuario mantiene su JWT viejo (rol/permisos/bodega viejos) hasta logout
+        // manual — bug reportado por jefatura mayo 2026.
         let oldRolId = null;
-        if (data.rol_id !== undefined) {
+        let oldBodegaId;
+        if (data.rol_id !== undefined || data.bodega_id !== undefined) {
             const [rows] = await db.query('SELECT rol_id FROM usuarios WHERE id = ?', [req.params.id]);
             if (rows.length) oldRolId = rows[0].rol_id;
         }
+        if (data.bodega_id !== undefined) {
+            // Query aparte y tolerante: si la mig 097 no corrió aún (errno 1054),
+            // no rompe el resto del update.
+            try {
+                const [rows] = await db.query('SELECT bodega_id FROM usuarios WHERE id = ?', [req.params.id]);
+                if (rows.length) oldBodegaId = rows[0].bodega_id;
+            } catch (e) { if (e.errno !== 1054) throw e; }
+        }
 
-        const user = await usuariosService.update(req.params.id, data);
+        // Ventana deploy→migrate: el front SIEMPRE manda bodega_id (null si "Sin
+        // bodega"). Si la columna aún no existe (mig 097 sin correr) → errno 1054.
+        // Reintentar sin bodega_id preserva la edición de usuarios (nombre/rol/etc.)
+        // hasta que se corra la migración. Post-migrate, setear/limpiar bodega funciona.
+        let user;
+        try {
+            user = await usuariosService.update(req.params.id, data);
+        } catch (e) {
+            if (e && e.errno === 1054 && 'bodega_id' in data) {
+                const { bodega_id, ...rest } = data;
+                user = await usuariosService.update(req.params.id, rest);
+            } else { throw e; }
+        }
 
         // Si el rol_id cambió, bumpear la versión del rol VIEJO. Esto causa
         // mismatch en auth middleware (rv del JWT ≠ versionService.get(oldRol))
@@ -193,6 +219,14 @@ router.put('/:id', auth, checkPermission('usuarios.editar'), validateBody(editar
         // también se desloguean. Trade-off OK para escala Bóveda LOLS (~50 users).
         if (oldRolId != null && data.rol_id != null && Number(oldRolId) !== Number(data.rol_id)) {
             await versionService.increment(oldRolId);
+        }
+
+        // Si la bodega asignada cambió, bumpear la versión del rol ACTUAL del
+        // usuario: bodega_id vive en el JWT (scope bodeguero, mig 097) → sin
+        // re-login seguiría viendo/recibiendo con la bodega vieja.
+        if (data.bodega_id !== undefined && oldRolId != null
+            && (oldBodegaId ?? null) !== (data.bodega_id ?? null)) {
+            await versionService.increment(data.rol_id != null ? data.rol_id : oldRolId);
         }
 
         res.json(user);

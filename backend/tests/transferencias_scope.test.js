@@ -27,7 +27,8 @@ const jwt = require('jsonwebtoken');
 const SECRET = process.env.JWT_SECRET || 'secret';
 const VER_TODAS = 'inventario.transferencias.ver_todas';
 // rol_id 2 (NO super admin) — el aislamiento NO debe depender del rol, solo del permiso.
-const makeToken = (permisos, id = 5) => jwt.sign({ id, email: 'u@lols.cl', rol_id: 2, rv: 1, p: permisos }, SECRET);
+const makeToken = (permisos, id = 5, bodegaId = null) =>
+    jwt.sign({ id, email: 'u@lols.cl', rol_id: 2, rv: 1, p: permisos, bodega_id: bodegaId }, SECRET);
 
 describe('GET /api/transferencias — aislamiento por usuario', () => {
     beforeEach(() => {
@@ -40,7 +41,7 @@ describe('GET /api/transferencias — aislamiento por usuario', () => {
             .get('/api/transferencias')
             .set('Authorization', `Bearer ${makeToken(['inventario.ver'], 5)}`);
         expect(res.status).toBe(200);
-        expect(service.getAll).toHaveBeenCalledWith(expect.any(Object), 5);
+        expect(service.getAll).toHaveBeenCalledWith(expect.any(Object), 5, null);
     });
 
     test('CON ver_todas → getAll sin scope (solicitanteId null)', async () => {
@@ -48,7 +49,15 @@ describe('GET /api/transferencias — aislamiento por usuario', () => {
             .get('/api/transferencias')
             .set('Authorization', `Bearer ${makeToken(['inventario.ver', VER_TODAS], 5)}`);
         expect(res.status).toBe(200);
-        expect(service.getAll).toHaveBeenCalledWith(expect.any(Object), null);
+        expect(service.getAll).toHaveBeenCalledWith(expect.any(Object), null, null);
+    });
+
+    test('bodeguero (bodega_id en JWT, sin ver_todas) → getAll con scope de bodega destino', async () => {
+        const res = await request(app)
+            .get('/api/transferencias')
+            .set('Authorization', `Bearer ${makeToken(['inventario.ver'], 5, 3)}`);
+        expect(res.status).toBe(200);
+        expect(service.getAll).toHaveBeenCalledWith(expect.any(Object), 5, 3);
     });
 
     test('sin inventario.ver → 403', async () => {
@@ -89,5 +98,21 @@ describe('GET /api/transferencias/:id — defensa en profundidad', () => {
             .get('/api/transferencias/9')
             .set('Authorization', `Bearer ${makeToken(['inventario.ver', VER_TODAS], 5)}`);
         expect(res.status).toBe(200);
+    });
+
+    test('bodeguero: TRF ajena DESTINADA a su bodega → 200', async () => {
+        service.getById.mockResolvedValue({ id: 9, solicitante_id: 7, destino_bodega_id: 3, items: [] });
+        const res = await request(app)
+            .get('/api/transferencias/9')
+            .set('Authorization', `Bearer ${makeToken(['inventario.ver'], 5, 3)}`);
+        expect(res.status).toBe(200);
+    });
+
+    test('bodeguero: TRF ajena destinada a OTRA bodega → 403', async () => {
+        service.getById.mockResolvedValue({ id: 9, solicitante_id: 7, destino_bodega_id: 8, items: [] });
+        const res = await request(app)
+            .get('/api/transferencias/9')
+            .set('Authorization', `Bearer ${makeToken(['inventario.ver'], 5, 3)}`);
+        expect(res.status).toBe(403);
     });
 });

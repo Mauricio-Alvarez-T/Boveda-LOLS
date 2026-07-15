@@ -16,13 +16,15 @@ const {
 
 // GET /api/transferencias
 // Si NO tiene `inventario.transferencias.ver_todas` → backend scopea por
-// solicitante_id = user.id (sólo ve sus propias). Permiso default deny;
-// admin lo concede a roles que necesiten visión global.
+// solicitante_id = user.id (sólo ve sus propias) + las DESTINADAS a su bodega
+// si tiene una asignada (usuarios.bodega_id, rol bodeguero — mig 097).
+// Permiso default deny; admin lo concede a roles que necesiten visión global.
 router.get('/', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const verTodas = Array.isArray(req.user?.p) && req.user.p.includes('inventario.transferencias.ver_todas');
         const solicitanteId = verTodas ? null : req.user.id;
-        const result = await transferenciaService.getAll(req.query, solicitanteId);
+        const destinoBodegaId = verTodas ? null : (req.user.bodega_id ?? null);
+        const result = await transferenciaService.getAll(req.query, solicitanteId, destinoBodegaId);
         res.json(result);
     } catch (err) { next(err); }
 });
@@ -96,15 +98,17 @@ router.delete('/discrepancias/:id', auth, checkPermission('inventario.transferen
 
 // GET /api/transferencias/:id
 // Defensa en profundidad: si NO tiene `inventario.transferencias.ver_todas`,
-// sólo puede ver el detalle de transferencias que él mismo creó. Evita
-// que un usuario adivine IDs y abra solicitudes de terceros.
+// sólo puede ver el detalle de transferencias que él mismo creó o que están
+// DESTINADAS a su bodega (usuarios.bodega_id, rol bodeguero). Evita que un
+// usuario adivine IDs y abra solicitudes de terceros.
 router.get('/:id', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
         const result = await transferenciaService.getById(req.params.id);
         if (!result) return res.status(404).json({ error: 'Transferencia no encontrada' });
 
         const verTodas = Array.isArray(req.user?.p) && req.user.p.includes('inventario.transferencias.ver_todas');
-        if (!verTodas && result.solicitante_id !== req.user.id) {
+        const esDestinoMiBodega = req.user.bodega_id != null && result.destino_bodega_id === req.user.bodega_id;
+        if (!verTodas && result.solicitante_id !== req.user.id && !esDestinoMiBodega) {
             return res.status(403).json({ error: 'No tienes permiso para ver esta transferencia' });
         }
         res.json({ data: result });
@@ -197,18 +201,25 @@ router.put('/:id/despachar', auth, checkPermission('inventario.transferencias.de
 router.put('/:id/recibir', auth, checkPermission('inventario.transferencias.recibir'), validateBody(recibir, { strip: true }), async (req, res, next) => {
     try {
         const tipo = req.body.tipo === 'parcial' ? 'parcial' : 'total';
-        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo, req.body.observacion, req.body.items_custom);
+        const result = await transferenciaService.recibir(req.params.id, req.user.id, req.body.items, req.user.p, tipo, req.body.observacion, req.body.items_custom, req.user.bodega_id ?? null);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
 
 // GET /api/transferencias/:id/recepciones — historial de eventos de recepción
-// Cualquier usuario con permiso de ver la TRF puede ver su historial.
-// Usa 'inventario.ver' (mismo que GET / y GET /:id). El antiguo
-// 'inventario.transferencias.ver' NO existe en permisos.config → daba 403 a
-// TODOS (incl. Super Admin) y dejaba el historial de entregas vacío.
+// Mismo scoping que GET /:id (defensa en profundidad): sin `ver_todas` solo se ve
+// el historial de TRFs propias o destinadas a la bodega del usuario. Antes NO
+// scopeaba → un usuario con `inventario.ver` (ej. bodeguero) podía iterar IDs y
+// leer recepciones de todo el sistema.
 router.get('/:id/recepciones', auth, checkPermission('inventario.ver'), async (req, res, next) => {
     try {
+        const trf = await transferenciaService.getById(req.params.id);
+        if (!trf) return res.status(404).json({ error: 'Transferencia no encontrada' });
+        const verTodas = Array.isArray(req.user?.p) && req.user.p.includes('inventario.transferencias.ver_todas');
+        const esDestinoMiBodega = req.user.bodega_id != null && trf.destino_bodega_id === req.user.bodega_id;
+        if (!verTodas && trf.solicitante_id !== req.user.id && !esDestinoMiBodega) {
+            return res.status(403).json({ error: 'No tienes permiso para ver esta transferencia' });
+        }
         const result = await transferenciaService.getRecepciones(req.params.id);
         res.json({ data: result });
     } catch (err) { next(err); }
@@ -221,7 +232,9 @@ router.post('/:id/recepciones/:recepcionId/foto', auth, checkPermission('inventa
     try {
         if (!req.file) { const e = new Error('No se recibió ninguna imagen'); e.statusCode = 400; throw e; }
         const fotoUrl = `/api/uploads/transferencias/${req.file.filename}`;
-        const result = await transferenciaService.setFotoRecepcion(req.params.id, req.params.recepcionId, fotoUrl);
+        // Mismo enforcement de bodega que recibir(): un bodeguero solo adjunta fotos
+        // a recepciones de TRFs destinadas a SU bodega (evita manipular evidencia ajena).
+        const result = await transferenciaService.setFotoRecepcion(req.params.id, req.params.recepcionId, fotoUrl, req.user.bodega_id ?? null);
         res.json({ data: result });
     } catch (err) { next(err); }
 });
@@ -238,7 +251,7 @@ router.put('/:id/rechazar', auth, checkPermission('inventario.transferencias.apr
 // Permiso del receptor (no del aprobador) — bodeguero/jefe obra destino.
 router.put('/:id/rechazar-recepcion', auth, checkPermission('inventario.transferencias.recibir'), async (req, res, next) => {
     try {
-        const result = await transferenciaService.rechazar(req.params.id, req.user.id, req.body.motivo);
+        const result = await transferenciaService.rechazar(req.params.id, req.user.id, req.body.motivo, req.user.bodega_id ?? null);
         res.json({ data: result });
     } catch (err) { next(err); }
 });

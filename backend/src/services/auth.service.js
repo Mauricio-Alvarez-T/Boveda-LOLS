@@ -31,13 +31,14 @@ const authService = {
         const rolVersion = versionService.get(user.rol_id);
 
         const token = jwt.sign(
-            { 
-                id: user.id, 
-                email: user.email, 
-                rol_id: user.rol_id, 
-                obra_id: user.obra_id, 
+            {
+                id: user.id,
+                email: user.email,
+                rol_id: user.rol_id,
+                obra_id: user.obra_id,
+                bodega_id: user.bodega_id ?? null, // bodeguero: scope por bodega destino (mig 097)
                 p: permisosEfectivos, // Permissions as array of strings
-                rv: rolVersion 
+                rv: rolVersion
             },
             process.env.JWT_SECRET,
             { expiresIn: process.env.JWT_EXPIRES_IN || '8h' }
@@ -53,6 +54,7 @@ const authService = {
                 rol: user.rol_nombre,
                 rol_id: user.rol_id,
                 obra_id: user.obra_id,
+                bodega_id: user.bodega_id ?? null,
                 permisos: permisosEfectivos
             }
         };

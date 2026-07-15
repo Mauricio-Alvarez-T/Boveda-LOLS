@@ -23,6 +23,11 @@ interface Obra {
     nombre: string;
 }
 
+interface Bodega {
+    id: number;
+    nombre: string;
+}
+
 interface UserData {
     id: number;
     nombre: string;
@@ -30,6 +35,7 @@ interface UserData {
     email_corporativo?: string | null;
     rol_id: number;
     obra_id?: number | null;
+    bodega_id?: number | null;
     activo: boolean;
 }
 
@@ -44,6 +50,7 @@ const schema = z.object({
     email_corporativo: z.string().optional(),
     rol_id: z.preprocess((val) => Number(val), z.number().min(1, 'Selecciona un rol')),
     obra_id: z.preprocess((val) => Number(val), z.number().optional()),
+    bodega_id: z.preprocess((val) => Number(val), z.number().optional()),
 });
 
 type FormData = {
@@ -53,6 +60,7 @@ type FormData = {
     email_corporativo?: string;
     rol_id: number;
     obra_id?: number;
+    bodega_id?: number;
 };
 
 interface Props {
@@ -64,6 +72,7 @@ interface Props {
 export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel }) => {
     const [roles, setRoles] = useState<Role[]>([]);
     const [obras, setObras] = useState<Obra[]>([]);
+    const [bodegas, setBodegas] = useState<Bodega[]>([]);
 
     const { register, handleSubmit, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
         resolver: zodResolver(schema) as any,
@@ -74,6 +83,7 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             email_corporativo: initialData?.email_corporativo || '',
             rol_id: initialData?.rol_id || 0,
             obra_id: initialData?.obra_id || 0,
+            bodega_id: initialData?.bodega_id || 0,
         },
     });
 
@@ -90,6 +100,7 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
     useEffect(() => {
         api.get<ApiResponse<Role[]>>('/usuarios/roles/list').then(res => setRoles(res.data.data)).catch(() => { });
         api.get<ApiResponse<Obra[]>>('/obras?activo=true').then(res => setObras(res.data.data)).catch(() => { });
+        api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&limit=100').then(res => setBodegas(res.data.data || [])).catch(() => { });
     }, []);
 
     const onSubmit = async (data: FormData) => {
@@ -97,17 +108,19 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
             const payload: any = { ...data };
             if (!payload.password) delete payload.password;
             if (!payload.obra_id) payload.obra_id = null;
+            if (!payload.bodega_id) payload.bodega_id = null;
             if (!payload.email_corporativo) payload.email_corporativo = null;
 
             if (initialData) {
-                // Detectar cambio de rol_id para mostrar toast informando
+                // Detectar cambio de rol_id o bodega_id para mostrar toast informando
                 // que el usuario será forzado a re-loguear (backend bumpea
-                // versionService del rol viejo).
+                // versionService; bodega_id vive en el JWT).
                 const rolChanged = Number(initialData.rol_id) !== Number(data.rol_id);
+                const bodegaChanged = (initialData.bodega_id || 0) !== (data.bodega_id || 0);
                 await api.put(`/usuarios/${initialData.id}`, payload);
-                if (rolChanged) {
+                if (rolChanged || bodegaChanged) {
                     toast.success(
-                        'Usuario actualizado. Si está conectado actualmente, será desconectado automáticamente para aplicar el rol nuevo.',
+                        'Usuario actualizado. Si está conectado actualmente, será desconectado automáticamente para aplicar el cambio.',
                         { duration: 6000 }
                     );
                 } else {
@@ -179,6 +192,19 @@ export const UsuarioForm: React.FC<Props> = ({ initialData, onSuccess, onCancel 
                         ))}
                     </select>
                 </div>
+            </div>
+
+            <div className="space-y-1.5">
+                <label className="text-sm font-medium text-muted-foreground ml-1">Bodega Asignada (bodeguero)</label>
+                <select {...register('bodega_id')} className={selectClass}>
+                    <option value={0} className="bg-card text-brand-dark">Sin bodega</option>
+                    {bodegas.map(b => (
+                        <option key={b.id} value={b.id} className="bg-card text-brand-dark">{b.nombre}</option>
+                    ))}
+                </select>
+                <p className="text-xs text-muted-foreground ml-1">
+                    Con bodega asignada, el usuario ve y recepciona solo las transferencias destinadas a esa bodega.
+                </p>
             </div>
 
             <div className="flex justify-end gap-3 pt-4 border-t border-white/10">

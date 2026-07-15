@@ -8,6 +8,8 @@ export interface User {
     rol: string;
     rol_id: number;
     obra_id?: number | null;
+    /** Bodega asignada (rol bodeguero, mig 097): restringe recepción a su bodega. */
+    bodega_id?: number | null;
     permisos: Permission[]; // Now a simple array of strings like ['asistencia.ver', ...]
 }
 

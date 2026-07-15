@@ -18,6 +18,9 @@ export interface UseTransferenciaDetailParams {
     t: Transferencia;
     items: TransferenciaItem[];
     userId: number;
+    /** Bodega asignada al usuario (usuarios.bodega_id, rol bodeguero). Si viene,
+     *  solo puede recibir/rechazar-recepción de TRFs destinadas a SU bodega. */
+    userBodegaId?: number | null;
     hasPermission: (p: string) => boolean;
     onFetchStock: (itemIds: number[]) => Promise<Record<number, StockLocation[]>>;
     onFetchRecepciones?: (id: number) => Promise<TransferenciaRecepcion[]>;
@@ -31,7 +34,7 @@ export interface UseTransferenciaDetailParams {
  * handlers siguen en el componente y consumen lo que retorna este hook.
  */
 export function useTransferenciaDetail({
-    t, items, userId, hasPermission, onFetchStock, onFetchRecepciones, onRechazarRecepcion,
+    t, items, userId, userBodegaId = null, hasPermission, onFetchStock, onFetchRecepciones, onRechazarRecepcion,
 }: UseTransferenciaDetailParams) {
     // ── Action permissions + SoD identity checks ──
     // SoD: solicitante ≠ aprobador ≠ transportista ≠ receptor. UI oculta el
@@ -52,9 +55,13 @@ export function useTransferenciaDetail({
         t.estado === 'aprobada' &&
         hasPermission('inventario.transferencias.despachar') &&
         (!isAprobador || hasBypass);
+    // Bodeguero (usuarios.bodega_id): solo puede actuar en recepción sobre TRFs
+    // DESTINADAS a su bodega. Backend valida igual (403, defensa en profundidad).
+    const esOtraBodega = userBodegaId != null && (t as any).destino_bodega_id !== userBodegaId;
     const canRecibir =
         (t.estado === 'en_transito' || t.estado === 'aprobada' || t.estado === 'recepcion_parcial') &&
         hasPermission('inventario.transferencias.recibir') &&
+        !esOtraBodega &&
         // si estado aprobada (sin paso por despacho), bloquea si soy el aprobador
         (t.estado === 'aprobada' ? (!isAprobador || hasBypass) : (!isTransportista || hasBypass));
     // Rechazo de recepción: solo en en_transito (antes de recibir nada). Una vez
@@ -64,6 +71,7 @@ export function useTransferenciaDetail({
     const canRechazarRecepcion =
         t.estado === 'en_transito' &&
         hasPermission('inventario.transferencias.recibir') &&
+        !esOtraBodega &&
         (!isTransportista || hasBypass) &&
         !!onRechazarRecepcion;
     // Cancelar: el solicitante siempre puede cancelar su propia TRF pendiente/aprobada.

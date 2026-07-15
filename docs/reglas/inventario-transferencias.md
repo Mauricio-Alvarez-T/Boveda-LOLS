@@ -88,6 +88,21 @@ Implementación: `backend/src/services/transferencia.service.js`.
 - En `solicitud_materiales` la recepción es simple: confirmar con observación de sobrantes
   (`MaterialesRecepcionPanel`), cierra con tipo 'total'.
 
+## Bodeguero — scoping por bodega destino (mig 097)
+
+- `usuarios.bodega_id` (NULL = sin bodega, comportamiento clásico). Se asigna en el form de
+  usuario (Configuración → Usuarios → "Bodega Asignada"); vive en el JWT → **re-login tras
+  asignar/cambiar** (el PUT bumpea la versión del rol para forzarlo).
+- **Visibilidad**: sin `ver_todas`, un usuario con bodega ve sus propias solicitudes **+ las
+  transferencias DESTINADAS a su bodega** (`getAll`: `solicitante_id = ? OR destino_bodega_id = ?`;
+  `GET /:id` también lo permite).
+- **Enforcement**: usuario con bodega solo puede `recibir` / `rechazar-recepcion` transferencias
+  destinadas a SU bodega (403 si ajena; backend + gating de botón en `useTransferenciaDetail`).
+  Usuarios sin bodega: sin cambio. El SoD existente se mantiene.
+- Rol típico "Bodeguero" (creado por UI): `inventario.ver` + `inventario.tab.transferencias` +
+  `inventario.tab.por_ubicacion` + `inventario.transferencias.recibir`. SIN ver_todas / solicitar /
+  aprobar. El flujo de entrada del material a bodega es **devolución** (obra→bodega).
+
 ## Discrepancias
 
 - Auto-creadas al recibir si `cantidad_recibida ≠ cantidad_enviada`. Vista propia (chip

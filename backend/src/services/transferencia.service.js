@@ -799,7 +799,7 @@ const transferenciaService = {
      * directa (sin despacho intermedio): tampoco el aprobador. Se valida en
      * CADA evento.
      */
-    async recibir(id, receptorId, items, userPermisos, tipo = 'total', observacion = null, itemsCustom = []) {
+    async recibir(id, receptorId, items, userPermisos, tipo = 'total', observacion = null, itemsCustom = [], userBodegaId = null) {
         // items vacío es válido en transferencias de sólo items_custom (ej. solicitud_materiales).
         // Se valida después: si hay items de catálogo en BD, exigimos items en el payload.
         items = Array.isArray(items) ? items : [];
@@ -816,6 +816,12 @@ const transferenciaService = {
             const trf = trfRows[0];
             if (!['en_transito', 'aprobada', 'recepcion_parcial'].includes(trf.estado)) {
                 throw new Error('Transferencia no puede ser recibida');
+            }
+
+            // Bodeguero (usuarios.bodega_id, mig 097): solo puede recepcionar
+            // transferencias DESTINADAS a su bodega. Usuarios sin bodega = sin cambio.
+            if (userBodegaId != null && trf.destino_bodega_id !== userBodegaId) {
+                throw Object.assign(new Error('Solo puedes recepcionar transferencias destinadas a tu bodega.'), { statusCode: 403 });
             }
 
             // SoD: el receptor no puede ser el transportista (quien despachó).
@@ -1180,15 +1186,22 @@ const transferenciaService = {
      * Valida que la recepción pertenezca a la transferencia. La foto nunca
      * bloquea el flujo de recepción: esto es un paso aparte y opcional.
      */
-    async setFotoRecepcion(transferenciaId, recepcionId, fotoUrl) {
+    async setFotoRecepcion(transferenciaId, recepcionId, fotoUrl, userBodegaId = null) {
         const [rows] = await db.query(
-            'SELECT id FROM transferencia_recepciones WHERE id = ? AND transferencia_id = ?',
+            `SELECT r.id, t.destino_bodega_id
+               FROM transferencia_recepciones r
+               JOIN transferencias t ON t.id = r.transferencia_id
+              WHERE r.id = ? AND r.transferencia_id = ?`,
             [recepcionId, transferenciaId]
         );
         if (rows.length === 0) {
             const err = new Error('Recepción no encontrada para esta transferencia');
             err.statusCode = 404;
             throw err;
+        }
+        // Bodeguero (usuarios.bodega_id): solo su bodega — igual que recibir()/rechazar().
+        if (userBodegaId != null && rows[0].destino_bodega_id !== userBodegaId) {
+            throw Object.assign(new Error('Solo puedes adjuntar fotos a recepciones de transferencias destinadas a tu bodega.'), { statusCode: 403 });
         }
         await db.query('UPDATE transferencia_recepciones SET foto_url = ? WHERE id = ?', [fotoUrl, recepcionId]);
         return { recepcion_id: Number(recepcionId), foto_url: fotoUrl };
@@ -1217,19 +1230,26 @@ const transferenciaService = {
      * Ambos terminan en estado 'rechazada'. La ruta
      * PUT /:id/rechazar-recepcion invoca este mismo método con permiso distinto.
      */
-    async rechazar(id, aprobadorId, motivo) {
+    async rechazar(id, aprobadorId, motivo, userBodegaId = null) {
         const conn = await db.getConnection();
         try {
             await conn.beginTransaction();
 
             const trf = await this._selectForStatusChange(
                 conn,
-                'SELECT estado, origen_obra_id, origen_bodega_id, {reconcil} FROM transferencias WHERE id = ? FOR UPDATE',
+                'SELECT estado, origen_obra_id, origen_bodega_id, destino_bodega_id, {reconcil} FROM transferencias WHERE id = ? FOR UPDATE',
                 [id]
             );
             if (!trf) throw new Error('Transferencia no encontrada');
             if (!['pendiente', 'aprobada', 'en_transito'].includes(trf.estado)) {
                 throw new Error('Solo se pueden rechazar transferencias pendientes, aprobadas o en tránsito');
+            }
+
+            // Bodeguero (usuarios.bodega_id): en rechazo de RECEPCIÓN solo puede actuar
+            // sobre transferencias destinadas a su bodega (la ruta del aprobador no pasa
+            // userBodegaId → sin cambio para ese flujo).
+            if (userBodegaId != null && trf.destino_bodega_id !== userBodegaId) {
+                throw Object.assign(new Error('Solo puedes rechazar la recepción de transferencias destinadas a tu bodega.'), { statusCode: 403 });
             }
 
             // Legacy (stock_reconciliado=FALSE) + aprobada|en_transito → revertir stock.
@@ -1624,15 +1644,25 @@ const transferenciaService = {
         }
     },
 
-    async getAll(query = {}, solicitanteId = null) {
+    async getAll(query = {}, solicitanteId = null, destinoBodegaId = null) {
         // Cuando solicitanteId viene seteado, scopear el listado a las solicitudes
         // del usuario (caller decide; típicamente cuando NO tiene
         // `inventario.transferencias.ver_todas`). null = sin filtro = ver todas.
+        // destinoBodegaId (usuarios.bodega_id, mig 097): un bodeguero además ve las
+        // transferencias DESTINADAS a su bodega aunque no las haya creado él.
         const { estado, page = 1, limit = 20, fecha_desde, fecha_hasta, solicitante_id } = query;
         let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
         const params = [];
 
-        if (solicitanteId != null) { where += ' AND t.solicitante_id = ?'; params.push(solicitanteId); }
+        if (solicitanteId != null) {
+            if (destinoBodegaId != null) {
+                where += ' AND (t.solicitante_id = ? OR t.destino_bodega_id = ?)';
+                params.push(solicitanteId, destinoBodegaId);
+            } else {
+                where += ' AND t.solicitante_id = ?';
+                params.push(solicitanteId);
+            }
+        }
         if (estado) { where += ' AND t.estado = ?'; params.push(estado); }
         // Filtros de búsqueda del panel: rango por fecha de solicitud + solicitante.
         // (solicitante_id de query solo afina cuando el caller ve todas; si ya está
