@@ -22,10 +22,27 @@
  * - `Fecha` se muestra DD/MM/YYYY (la fecha del form viene YYYY-MM-DD).
  * - Líneas SIEMPRE presentes: Tipo de bomba, Origen (Empresa/Externa),
  *   Toma de muestras, Traslado de bombas, Hidrófugo, Permiso de la calzada.
+ * - **Hormigonado SIN bomba**: `tipo_bomba === BOMBA_NO_SOLICITADA` es el ÚNICO
+ *   dato que marca "no se pidió bomba" (no hay columna nueva en BD; `es_externa`
+ *   queda en false). En ese caso el Origen también dice "No solicitado" —
+ *   decisión de obra: explícito, para que se lea "se decidió no pedir bomba" y
+ *   no "faltó el dato". Son el MISMO hecho, por eso la UI sincroniza los dos
+ *   dropdown y acá el Origen se DERIVA del tipo.
  * - Líneas CONDICIONALES (solo si hay dato): Tipo de trabajo, Tipo de hormigón,
  *   Cantidad, Hora de inicio, Frecuencia, Vibradores, Observaciones,
  *   Solicitante (usuario logueado que arma la programación; cierra el mensaje).
  */
+
+/**
+ * Valor de `tipo_bomba` que marca un hormigonado SIN bomba.
+ * Fuente de verdad compartida con la UI (`BombasHormigonTab.tsx`): se guarda en
+ * la columna `tipo_bomba` que ya existe, sin migración de BD.
+ */
+export const BOMBA_NO_SOLICITADA = 'No solicitado';
+
+/** true si el registro/form corresponde a un hormigonado sin bomba. */
+export const esBombaNoSolicitada = (tipoBomba?: string | null) =>
+    (tipoBomba || '').trim().toLowerCase() === BOMBA_NO_SOLICITADA.toLowerCase();
 
 /** Subconjunto del form de bomba que necesita el mensaje (sin `obra_id`: la obra entra como nombre). */
 export interface BombaWhatsappForm {
@@ -60,7 +77,10 @@ export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNomb
     if (form.tipo_trabajo.trim()) lines.push(linea('Tipo de trabajo', form.tipo_trabajo.trim()));
     if (form.tipo_hormigon.trim()) lines.push(linea('Tipo de hormigón', form.tipo_hormigon.trim()));
     lines.push(linea('Tipo de bomba', form.tipo_bomba || '—'));
-    lines.push(linea('Origen', form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'));
+    // Origen DERIVADO: sin bomba pedida, "Empresa (propia)" mentiría.
+    lines.push(linea('Origen', esBombaNoSolicitada(form.tipo_bomba)
+        ? BOMBA_NO_SOLICITADA
+        : form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'));
     // Resto de los datos.
     if (form.cantidad_m3.trim()) lines.push(linea('Cantidad', `${form.cantidad_m3} m³`));
     if (form.hora_inicio) lines.push(linea('Hora de inicio', form.hora_inicio));

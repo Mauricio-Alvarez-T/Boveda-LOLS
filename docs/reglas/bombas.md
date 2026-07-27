@@ -15,6 +15,20 @@
   (angosta, incómoda en el celular) → texto plano, igual que `transferenciaWhatsApp.ts`. El test
   incluye `expect(msg).not.toContain('```')` para que no vuelva. Cambiar el orden/wording exige
   actualizar `bombaHormigonWhatsApp.test.ts`.
+- **Hormigonado SIN bomba** (decisión usuario 2026-07-27): `tipo_bomba = 'No solicitado'`
+  (`BOMBA_NO_SOLICITADA` en `utils/bombaHormigonWhatsApp.ts`) es el ÚNICO dato que lo marca — **NO hay
+  columna nueva**, se reusa `tipo_bomba` y `es_externa` queda en 0. "Tipo de bomba" y "Origen de la
+  bomba" son el **mismo hecho**: los dos dropdown se sincronizan (elegir "No solicitado" en uno lo pone
+  en el otro; volver a Empresa/Externa limpia el tipo para que se elija uno real) y en el mensaje de
+  WhatsApp el **Origen se deriva** → ambas líneas dicen "No solicitado". En el listado: badge **neutro**
+  "NO SOLICITADO" (sin bomba no es bueno ni malo), la fila de tipo omite el texto para no repetirlo, y
+  esos registros **no cuentan** ni en "Empresa" ni en "Externas" (aparecen como "N sin bomba" en la fila
+  del mes). Usar `esBombaNoSolicitada()`, no comparar strings a mano.
+- **Solicitante = `registrado_por`** (usuario que creó la programación, NOT NULL desde mig 020). El
+  `getAll` lo expone como `registrado_por_nombre` (LEFT JOIN `usuarios`) y la **tarjeta del listado lo
+  muestra en el pie** ("Solicitante: Nombre"), con el MISMO nombre que cierra el mensaje de WhatsApp —
+  tarjeta y mensaje enviado no deben contradecirse. `update` NO reescribe `registrado_por`: si otro
+  usuario edita el registro, el solicitante sigue siendo quien lo pidió.
 - Listado excluye obras `es_prueba=1` y `finalizada=1` (`bomba-hormigon.service.js`); los
   **registros históricos NO se filtran** por `participa_bombas` (solo el selector de obra al crear
   — mig 075, fetch `?participa_bombas=1`).

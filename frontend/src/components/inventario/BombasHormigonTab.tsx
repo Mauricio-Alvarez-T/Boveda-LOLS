@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, ChevronRight, ChevronLeft, Search, X, Plus, Pencil, Trash2, Check } from 'lucide-react';
+import { Building2, Truck, DollarSign, Calendar, MapPin, ChevronDown, ChevronRight, ChevronLeft, Search, X, Plus, Pencil, Trash2, Check, User } from 'lucide-react';
 import { MixerTruck } from '../icons/MixerTruck';
 import { toast } from 'sonner';
 import api from '../../services/api';
@@ -8,7 +8,7 @@ import type { RegistroBombaHormigon, Obra } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { shareViaWhatsApp } from '../../utils/whatsappShare';
-import { buildBombaHormigonWhatsappText } from '../../utils/bombaHormigonWhatsApp';
+import { buildBombaHormigonWhatsappText, BOMBA_NO_SOLICITADA, esBombaNoSolicitada } from '../../utils/bombaHormigonWhatsApp';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
@@ -45,7 +45,9 @@ interface BombaFormState {
 
 // Tipos de bomba de hormigón. Si más adelante hay que administrarlos desde la UI,
 // conviene moverlos a un catálogo en BD (como las empresas de flota).
-const TIPOS_BOMBA = ['Estacionaria', 'Telescópica'];
+// `BOMBA_NO_SOLICITADA` no es un tipo de bomba: marca el hormigonado SIN bomba
+// (se guarda en `tipo_bomba` para no agregar columna) y va último en la lista.
+const TIPOS_BOMBA = ['Estacionaria', 'Telescópica', BOMBA_NO_SOLICITADA];
 
 const emptyForm = (): BombaFormState => ({
     obra_id: '',
@@ -251,8 +253,11 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
         return sorted.map(([key, items]) => {
             const d = new Date(items[0].fecha);
             const label = d.toLocaleDateString('es-CL', { month: 'long', year: 'numeric' });
-            const propias = items.filter(r => !r.es_externa).length;
-            return { key, label: label.charAt(0).toUpperCase() + label.slice(1), items, propias, externas: items.length - propias };
+            // Los "sin bomba" (No solicitado) NO son propios ni externos: van aparte.
+            const sinBomba = items.filter(r => esBombaNoSolicitada(r.tipo_bomba)).length;
+            const externas = items.filter(r => r.es_externa && !esBombaNoSolicitada(r.tipo_bomba)).length;
+            const propias = items.length - externas - sinBomba;
+            return { key, label: label.charAt(0).toUpperCase() + label.slice(1), items, propias, externas, sinBomba };
         });
     }, [filtered]);
 
@@ -264,10 +269,12 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
     const scopeRecords = selectedGroup ? selectedGroup.items : filtered;
     const stats = useMemo(() => {
         const total = scopeRecords.length;
-        const externas = scopeRecords.filter(r => r.es_externa).length;
-        const propias = total - externas;
+        // "No solicitado" (hormigonado sin bomba) no cuenta ni como propia ni como externa.
+        const sinBomba = scopeRecords.filter(r => esBombaNoSolicitada(r.tipo_bomba)).length;
+        const externas = scopeRecords.filter(r => r.es_externa && !esBombaNoSolicitada(r.tipo_bomba)).length;
+        const propias = total - externas - sinBomba;
         const costoTotal = scopeRecords.reduce((sum, r) => sum + (Number(r.costo) || 0), 0);
-        return { total, externas, propias, costoTotal };
+        return { total, externas, propias, sinBomba, costoTotal };
     }, [scopeRecords]);
 
     return (
@@ -410,6 +417,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                     <div className="text-sm font-bold text-brand-dark capitalize">{group.label}</div>
                                     <div className="text-caption text-muted-foreground">
                                         {group.items.length} bombeo{group.items.length === 1 ? '' : 's'} · {group.propias} empresa · {group.externas} externa{group.externas === 1 ? '' : 's'}
+                                        {group.sinBomba > 0 && ` · ${group.sinBomba} sin bomba`}
                                     </div>
                                 </div>
                                 <ChevronRight className="shrink-0 h-4 w-4 text-muted-foreground/40" />
@@ -516,7 +524,14 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Tipo de bomba <span className="text-red-500">*</span></label>
                             <select
                                 value={form.tipo_bomba}
-                                onChange={e => { setForm(f => ({ ...f, tipo_bomba: e.target.value })); if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined })); }}
+                                onChange={e => {
+                                    const tipo = e.target.value;
+                                    // "No solicitado" no tiene origen: apagamos es_externa para que
+                                    // el dropdown Origen (derivado) muestre "No solicitado" y no
+                                    // "Empresa (propia)", que sería mentira.
+                                    setForm(f => ({ ...f, tipo_bomba: tipo, es_externa: esBombaNoSolicitada(tipo) ? false : f.es_externa }));
+                                    if (formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined }));
+                                }}
                                 className={cn(
                                     "w-full px-3 py-2.5 text-base border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none",
                                     formErrors.tipo_bomba ? "border-destructive" : "border-border"
@@ -534,12 +549,27 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                         <div>
                             <label className="text-xs font-bold text-brand-dark mb-1 block">Origen de la bomba <span className="text-red-500">*</span></label>
                             <select
-                                value={form.es_externa ? 'externa' : 'empresa'}
-                                onChange={e => setForm(f => ({ ...f, es_externa: e.target.value === 'externa' }))}
+                                value={esBombaNoSolicitada(form.tipo_bomba) ? 'no_solicitado' : form.es_externa ? 'externa' : 'empresa'}
+                                onChange={e => {
+                                    const v = e.target.value;
+                                    setForm(f => ({
+                                        ...f,
+                                        es_externa: v === 'externa',
+                                        // Sincronía con "Tipo de bomba": son el MISMO hecho (no se pidió
+                                        // bomba). Al volver a Empresa/Externa se limpia el tipo para que
+                                        // se elija uno real — el campo es obligatorio.
+                                        tipo_bomba: v === 'no_solicitado'
+                                            ? BOMBA_NO_SOLICITADA
+                                            : esBombaNoSolicitada(f.tipo_bomba) ? '' : f.tipo_bomba,
+                                    }));
+                                    // Con "No solicitado" el tipo ya es válido → sacamos el error inline.
+                                    if (v === 'no_solicitado' && formErrors.tipo_bomba) setFormErrors(p => ({ ...p, tipo_bomba: undefined }));
+                                }}
                                 className="w-full px-3 py-2.5 text-base border border-border rounded-xl bg-card focus:ring-2 focus:ring-brand-primary/20 outline-none"
                             >
                                 <option value="empresa">Empresa (propia)</option>
                                 <option value="externa">Externa (arriendo)</option>
+                                <option value="no_solicitado">{BOMBA_NO_SOLICITADA}</option>
                             </select>
                         </div>
                     </div>
@@ -711,7 +741,9 @@ const BombaCard: React.FC<{
     onEdit?: () => void;
     onDelete?: () => void;
 }> = ({ registro: r, canEdit = false, onEdit, onDelete }) => {
-    const isExterna = r.es_externa;
+    // Hormigonado SIN bomba: el origen (empresa/externa) no aplica → badge neutro.
+    const noSolicitada = esBombaNoSolicitada(r.tipo_bomba);
+    const isExterna = !noSolicitada && r.es_externa;
     // Toda la tarjeta abre la edición (no solo el lápiz). Solo si hay permiso de editar.
     const clickToEdit = canEdit && !!onEdit;
 
@@ -741,11 +773,15 @@ const BombaCard: React.FC<{
                 <div className="flex items-center gap-1 shrink-0">
                     <span className={cn(
                         "text-micro font-bold px-2 py-0.5 rounded-full border whitespace-nowrap",
-                        isExterna
-                            ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60"
-                            : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60"
+                        noSolicitada
+                            // Neutro: "sin bomba" no es un estado bueno ni malo, es la ausencia del servicio.
+                            ? "bg-muted text-muted-foreground border-border"
+                            : isExterna
+                                ? "bg-amber-100 text-amber-700 border-amber-200 dark:bg-amber-500/15 dark:text-amber-300 dark:border-amber-800/60"
+                                : "bg-emerald-100 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-300 dark:border-emerald-800/60"
                     )}>
-                        {isExterna ? 'EXTERNA' : 'EMPRESA'}
+                        {/* Mismo wording que el dropdown y que el mensaje de WhatsApp. */}
+                        {noSolicitada ? 'NO SOLICITADO' : isExterna ? 'EXTERNA' : 'EMPRESA'}
                     </span>
                     {canEdit && (
                         // Siempre visibles en móvil (táctil, sin hover); el hover queda para desktop.
@@ -773,11 +809,16 @@ const BombaCard: React.FC<{
                 </div>
             </div>
 
-            {/* Type + date row */}
+            {/* Type + date row. Con "No solicitado" se omite el tipo: ya lo dice el badge
+                y repetirlo llena la tarjeta con el mismo texto dos veces. */}
             <div className="flex items-center gap-1.5 mb-1">
                 <MixerTruck className="h-3 w-3 text-muted-foreground shrink-0" />
-                <span className="text-xs text-brand-dark/80 font-medium">{r.tipo_bomba}</span>
-                <span className="text-caption text-muted-foreground/50 mx-0.5">&middot;</span>
+                {!noSolicitada && (
+                    <>
+                        <span className="text-xs text-brand-dark/80 font-medium">{r.tipo_bomba}</span>
+                        <span className="text-caption text-muted-foreground/50 mx-0.5">&middot;</span>
+                    </>
+                )}
                 <span className="text-caption text-muted-foreground">{fmtDateShort(r.fecha)}</span>
             </div>
 
@@ -816,12 +857,30 @@ const BombaCard: React.FC<{
                 </div>
             )}
 
-            {/* Bottom row: proveedor + costo */}
-            {(r.proveedor || r.costo) && (
+            {/* Bottom row: solicitante + proveedor + costo.
+                El solicitante es `registrado_por` (quien creó la programación), el MISMO nombre que
+                cierra el mensaje de WhatsApp — así la tarjeta y el mensaje enviado no se contradicen. */}
+            {(r.registrado_por_nombre || r.proveedor || r.costo) && (
                 <div className="flex items-center justify-between gap-2 mt-0.5 pt-1.5 border-t border-border/50">
-                    {r.proveedor && (
-                        <span className="text-caption text-muted-foreground truncate">{r.proveedor}</span>
-                    )}
+                    <div className="flex items-center gap-1.5 min-w-0">
+                        {r.registrado_por_nombre && (
+                            <span
+                                className="inline-flex items-center gap-1 min-w-0 text-caption text-muted-foreground"
+                                title={`Solicitante: ${r.registrado_por_nombre}`}
+                            >
+                                <User className="h-3 w-3 shrink-0 text-muted-foreground/60" />
+                                <span className="truncate">
+                                    Solicitante: <span className="font-semibold text-brand-dark">{r.registrado_por_nombre}</span>
+                                </span>
+                            </span>
+                        )}
+                        {r.registrado_por_nombre && r.proveedor && (
+                            <span className="text-caption text-muted-foreground/40 shrink-0">&middot;</span>
+                        )}
+                        {r.proveedor && (
+                            <span className="text-caption text-muted-foreground truncate">{r.proveedor}</span>
+                        )}
+                    </div>
                     {r.costo && (
                         <span className="text-label font-bold text-brand-dark shrink-0">{fmtMoney(Number(r.costo))}</span>
                     )}

@@ -605,6 +605,10 @@ export interface RegistroBombaHormigon {
     proveedor: string | null;
     costo: number | null;
     observaciones: string | null;
+    /** Usuario que creó la programación = el "Solicitante" del mensaje de WhatsApp. */
+    registrado_por?: number;
+    /** Nombre del solicitante (JOIN usuarios en `bomba-hormigon.service.js`). */
+    registrado_por_nombre?: string | null;
     activo: boolean;
 }
 

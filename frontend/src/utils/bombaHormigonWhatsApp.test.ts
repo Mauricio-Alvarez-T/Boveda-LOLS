@@ -7,7 +7,12 @@
  * (anti-regresión). Usa la MISMA fixture que el test de backend
  * `backend/tests/bomba-hormigon.test.js`; juntos cubren creación → WhatsApp.
  */
-import { buildBombaHormigonWhatsappText, type BombaWhatsappForm } from './bombaHormigonWhatsApp';
+import {
+    buildBombaHormigonWhatsappText,
+    BOMBA_NO_SOLICITADA,
+    esBombaNoSolicitada,
+    type BombaWhatsappForm,
+} from './bombaHormigonWhatsApp';
 
 // Fixture "rica": un uso que ejercita todos los checkbox/dropdown del formulario
 // con valores mixtos (algunos Sí, otros No; dropdowns no triviales).
@@ -109,6 +114,34 @@ describe('buildBombaHormigonWhatsappText', () => {
         // Obligatorias presentes
         expect(msg).toContain('*Toma de muestras:* Sí');
         expect(msg).toContain('*Origen:* Externa (arriendo)');
+    });
+
+    it('hormigonado SIN bomba: tipo y origen dicen "No solicitado"', () => {
+        // Los dos son el MISMO hecho (no se pidió bomba): el tipo lo guarda y el
+        // origen se deriva. Con es_externa en true (basura del form) el origen NO
+        // debe decir "Externa (arriendo)": manda el "No solicitado".
+        const msg = buildBombaHormigonWhatsappText(
+            makeForm({ tipo_bomba: BOMBA_NO_SOLICITADA, es_externa: true }),
+            'Edificio Norte',
+        );
+
+        expect(msg).toContain('*Tipo de bomba:* No solicitado');
+        expect(msg).toContain('*Origen:* No solicitado');
+        expect(msg).not.toContain('Externa (arriendo)');
+        expect(msg).not.toContain('Empresa (propia)');
+        // El resto de la programación sigue saliendo (hay hormigón, solo no hay bomba).
+        expect(msg).toContain('*Tipo de hormigón:* H-30');
+        expect(msg).toContain('*Cantidad:* 25.5 m³');
+    });
+
+    it('esBombaNoSolicitada tolera espacios y mayúsculas, y no confunde otros tipos', () => {
+        expect(esBombaNoSolicitada(BOMBA_NO_SOLICITADA)).toBe(true);
+        expect(esBombaNoSolicitada('  no solicitado ')).toBe(true);
+        expect(esBombaNoSolicitada('NO SOLICITADO')).toBe(true);
+        expect(esBombaNoSolicitada('Estacionaria')).toBe(false);
+        expect(esBombaNoSolicitada('')).toBe(false);
+        expect(esBombaNoSolicitada(null)).toBe(false);
+        expect(esBombaNoSolicitada(undefined)).toBe(false);
     });
 
     it('sin obra resuelta usa el placeholder —', () => {
