@@ -15,6 +15,14 @@
   (angosta, incómoda en el celular) → texto plano, igual que `transferenciaWhatsApp.ts`. El test
   incluye `expect(msg).not.toContain('```')` para que no vuelva. Cambiar el orden/wording exige
   actualizar `bombaHormigonWhatsApp.test.ts`.
+- **Wording de ORIGEN** (bomba y vibradores, decisión usuario 2026-07-27): se muestra **"Empresa
+  (propia)" / "Externa (arriendo)"** en los dropdown, en el mensaje de WhatsApp y en el chip de la
+  tarjeta. ⚠️ El **valor en BD sigue siendo `'Empresa'` / `'Externa'`** — `ORIGEN_LABELS` /
+  `origenLabel()` (en `bombaHormigonWhatsApp.ts`) solo traducen para mostrar; cambiar los valores
+  obligaría a migrar `vibradores_origen` histórico y los informes que filtran por esos strings. Un valor
+  desconocido (registro viejo) se muestra tal cual. Los tests que niegan un origen deben apuntar a la
+  **línea** (`not.toContain('*Origen:* Externa (arriendo)')`), porque el wording lo comparten bomba y
+  vibradores.
 - **Hormigonado SIN bomba** (decisión usuario 2026-07-27): `tipo_bomba = 'No solicitado'`
   (`BOMBA_NO_SOLICITADA` en `utils/bombaHormigonWhatsApp.ts`) es el ÚNICO dato que lo marca — **NO hay
   columna nueva**, se reusa `tipo_bomba` y `es_externa` queda en 0. "Tipo de bomba" y "Origen de la

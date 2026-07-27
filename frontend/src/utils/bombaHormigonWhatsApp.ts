@@ -44,6 +44,23 @@ export const BOMBA_NO_SOLICITADA = 'No solicitado';
 export const esBombaNoSolicitada = (tipoBomba?: string | null) =>
     (tipoBomba || '').trim().toLowerCase() === BOMBA_NO_SOLICITADA.toLowerCase();
 
+/**
+ * Etiquetas de ORIGEN (mismas para bomba y vibradores): quién pone el equipo.
+ * ⚠️ El VALOR guardado en BD sigue siendo 'Empresa' / 'Externa' — acá solo se
+ * traduce para mostrar. Cambiar los valores exigiría migrar `vibradores_origen`
+ * de los registros históricos y tocar los informes que filtran por esos strings.
+ */
+export const ORIGEN_LABELS: Record<string, string> = {
+    Empresa: 'Empresa (propia)',
+    Externa: 'Externa (arriendo)',
+};
+
+/** Etiqueta legible de un origen. Un valor desconocido (registro antiguo) se devuelve tal cual. */
+export const origenLabel = (origen?: string | null) => {
+    const v = (origen || '').trim();
+    return ORIGEN_LABELS[v] ?? v;
+};
+
 /** Subconjunto del form de bomba que necesita el mensaje (sin `obra_id`: la obra entra como nombre). */
 export interface BombaWhatsappForm {
     fecha: string;
@@ -80,7 +97,7 @@ export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNomb
     // Origen DERIVADO: sin bomba pedida, "Empresa (propia)" mentiría.
     lines.push(linea('Origen', esBombaNoSolicitada(form.tipo_bomba)
         ? BOMBA_NO_SOLICITADA
-        : form.es_externa ? 'Externa (arriendo)' : 'Empresa (propia)'));
+        : origenLabel(form.es_externa ? 'Externa' : 'Empresa')));
     // Resto de los datos.
     if (form.cantidad_m3.trim()) lines.push(linea('Cantidad', `${form.cantidad_m3} m³`));
     if (form.hora_inicio) lines.push(linea('Hora de inicio', form.hora_inicio));
@@ -89,7 +106,9 @@ export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNomb
     lines.push(linea('Traslado de bombas', form.traslado_bombas ? 'Sí' : 'No'));
     lines.push(linea('Hidrófugo', form.hidrofugo ? 'Sí' : 'No'));
     lines.push(linea('Permiso de la calzada', form.permiso_calzada ? 'Sí' : 'No'));
-    if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(linea('Vibradores', [form.vibradores_origen, form.vibradores_detalle.trim()].filter(Boolean).join(' — ')));
+    // Vibradores: mismo wording que el Origen de la bomba — "Empresa (propia)" /
+    // "Externa (arriendo)", para que quede claro quién los pone.
+    if (form.vibradores_origen || form.vibradores_detalle.trim()) lines.push(linea('Vibradores', [origenLabel(form.vibradores_origen), form.vibradores_detalle.trim()].filter(Boolean).join(' — ')));
     if (form.observaciones.trim()) lines.push(linea('Observaciones', form.observaciones.trim()));
     // Quien hace la solicitud (usuario logueado) cierra el mensaje.
     if (solicitanteNombre.trim()) lines.push(linea('Solicitante', solicitanteNombre.trim()));

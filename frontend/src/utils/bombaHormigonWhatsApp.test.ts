@@ -11,6 +11,7 @@ import {
     buildBombaHormigonWhatsappText,
     BOMBA_NO_SOLICITADA,
     esBombaNoSolicitada,
+    origenLabel,
     type BombaWhatsappForm,
 } from './bombaHormigonWhatsApp';
 
@@ -47,7 +48,8 @@ describe('buildBombaHormigonWhatsappText', () => {
         expect(msg).toContain('*Tipo de trabajo:* Coronación tapa');        // texto libre tipo_trabajo
         expect(msg).toContain('*Tipo de bomba:* Telescópica');              // dropdown, etiqueta completa
         expect(msg).toContain('*Origen:* Externa (arriendo)');              // dropdown es_externa = true
-        expect(msg).toContain('*Vibradores:* Externa — 3 con sonda de 45'); // dropdown + detalle
+        // Vibradores: MISMO wording que el Origen de la bomba (valor en BD: 'Externa').
+        expect(msg).toContain('*Vibradores:* Externa (arriendo) — 3 con sonda de 45');
         expect(msg).toContain('*Toma de muestras:* Sí');                    // checkbox true
         expect(msg).toContain('*Traslado de bombas:* No');                  // checkbox false
         expect(msg).toContain('*Hidrófugo:* Sí');                           // checkbox true
@@ -78,7 +80,10 @@ describe('buildBombaHormigonWhatsappText', () => {
         );
 
         expect(msg).toContain('*Origen:* Empresa (propia)');
-        expect(msg).not.toContain('Externa (arriendo)');
+        // La aserción va sobre la LÍNEA de origen: "Externa (arriendo)" es wording
+        // compartido con Vibradores (la fixture los tiene externos), no basta con
+        // buscarlo en todo el mensaje.
+        expect(msg).not.toContain('*Origen:* Externa (arriendo)');
         expect(msg).toContain('*Hidrófugo:* No');
         expect(msg).toContain('*Toma de muestras:* No');
         expect(msg).toContain('*Traslado de bombas:* Sí');
@@ -127,11 +132,32 @@ describe('buildBombaHormigonWhatsappText', () => {
 
         expect(msg).toContain('*Tipo de bomba:* No solicitado');
         expect(msg).toContain('*Origen:* No solicitado');
-        expect(msg).not.toContain('Externa (arriendo)');
-        expect(msg).not.toContain('Empresa (propia)');
+        // Solo la línea de Origen: los VIBRADORES sí pueden ser externos aunque no
+        // se pida bomba (comparten el wording "Externa (arriendo)").
+        expect(msg).not.toContain('*Origen:* Externa (arriendo)');
+        expect(msg).not.toContain('*Origen:* Empresa (propia)');
         // El resto de la programación sigue saliendo (hay hormigón, solo no hay bomba).
         expect(msg).toContain('*Tipo de hormigón:* H-30');
         expect(msg).toContain('*Cantidad:* 25.5 m³');
+    });
+
+    it('origenLabel: etiqueta larga para Empresa/Externa, valor crudo si es desconocido', () => {
+        // La BD guarda 'Empresa'/'Externa'; la etiqueta larga es solo de presentación.
+        expect(origenLabel('Empresa')).toBe('Empresa (propia)');
+        expect(origenLabel('Externa')).toBe('Externa (arriendo)');
+        // Registros antiguos con otro texto se muestran tal cual (no se pierden).
+        expect(origenLabel('Subcontrato Pérez')).toBe('Subcontrato Pérez');
+        expect(origenLabel('')).toBe('');
+        expect(origenLabel(null)).toBe('');
+        expect(origenLabel(undefined)).toBe('');
+    });
+
+    it('vibradores de la empresa: el mensaje dice "Empresa (propia)"', () => {
+        const msg = buildBombaHormigonWhatsappText(
+            makeForm({ vibradores_origen: 'Empresa', vibradores_detalle: '3 vibradores con sonda de 45' }),
+            'Edificio Norte',
+        );
+        expect(msg).toContain('*Vibradores:* Empresa (propia) — 3 vibradores con sonda de 45');
     });
 
     it('esBombaNoSolicitada tolera espacios y mayúsculas, y no confunde otros tipos', () => {

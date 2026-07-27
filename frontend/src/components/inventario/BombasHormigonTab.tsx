@@ -8,7 +8,7 @@ import type { RegistroBombaHormigon, Obra } from '../../types/entities';
 import { cn } from '../../utils/cn';
 import WhatsAppIcon from '../ui/WhatsAppIcon';
 import { shareViaWhatsApp } from '../../utils/whatsappShare';
-import { buildBombaHormigonWhatsappText, BOMBA_NO_SOLICITADA, esBombaNoSolicitada } from '../../utils/bombaHormigonWhatsApp';
+import { buildBombaHormigonWhatsappText, BOMBA_NO_SOLICITADA, esBombaNoSolicitada, ORIGEN_LABELS, origenLabel } from '../../utils/bombaHormigonWhatsApp';
 import { useAuth } from '../../context/AuthContext';
 import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
@@ -657,8 +657,9 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                 {form.vibradores_origen && !['Empresa', 'Externa'].includes(form.vibradores_origen) && (
                                     <option value={form.vibradores_origen}>{form.vibradores_origen}</option>
                                 )}
-                                <option value="Empresa">Empresa</option>
-                                <option value="Externa">Externa</option>
+                                {/* El VALOR sigue siendo 'Empresa'/'Externa' (BD intacta); cambia la etiqueta. */}
+                                <option value="Empresa">{ORIGEN_LABELS.Empresa}</option>
+                                <option value="Externa">{ORIGEN_LABELS.Externa}</option>
                             </select>
                         </div>
                     </div>
@@ -839,7 +840,8 @@ const BombaCard: React.FC<{
                     )}
                     {r.vibradores_origen && (
                         <span className="text-micro font-medium text-brand-dark/70 bg-muted px-1.5 py-0.5 rounded-md">
-                            Vibradores: {r.vibradores_origen}
+                            {/* Mismo wording que el dropdown y el mensaje de WhatsApp. */}
+                            Vibradores: {origenLabel(r.vibradores_origen)}
                         </span>
                     )}
                     {r.toma_muestras && (
