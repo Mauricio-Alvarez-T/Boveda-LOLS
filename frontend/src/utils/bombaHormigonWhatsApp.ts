@@ -13,10 +13,12 @@
  *
  * REGLAS de formato (no cambiar sin actualizar el test):
  * - Título: "*Programación de hormigón*".
- * - Cada línea es `*Etiqueta:* ```valor```` — etiqueta en NEGRITA y valor en
- *   MONOESPACIADO (WhatsApp lo pinta gris, "menos negro" que la negrita; no
- *   existen colores custom en WhatsApp). La etiqueta del tipo de bomba es el
- *   nombre completo: "Tipo de bomba" (no "Tipo").
+ * - Cada línea es `*Etiqueta:* valor` — etiqueta en NEGRITA y valor en la LETRA
+ *   NORMAL de WhatsApp. Antes el valor iba en monoespaciado (```valor```) para
+ *   que se viera gris, pero en obra reclamaron esa tipografía de máquina de
+ *   escribir (angosta y difícil de leer en el celular) → se volvió a texto
+ *   plano, que es lo que usan los otros mensajes (`transferenciaWhatsApp.ts`).
+ *   La etiqueta del tipo de bomba es el nombre completo: "Tipo de bomba" (no "Tipo").
  * - `Fecha` se muestra DD/MM/YYYY (la fecha del form viene YYYY-MM-DD).
  * - Líneas SIEMPRE presentes: Tipo de bomba, Origen (Empresa/Externa),
  *   Toma de muestras, Traslado de bombas, Hidrófugo, Permiso de la calzada.
@@ -44,11 +46,8 @@ export interface BombaWhatsappForm {
     observaciones: string;
 }
 
-/**
- * Línea `*Etiqueta:* ```valor```` — etiqueta en negrita, valor en monoespaciado
- * (WhatsApp lo renderiza gris: el "color intermedio" pedido por obra).
- */
-const linea = (etiqueta: string, valor: string) => `*${etiqueta}:* \`\`\`${valor}\`\`\``;
+/** Línea `*Etiqueta:* valor` — etiqueta en negrita, valor en la letra normal de WhatsApp. */
+const linea = (etiqueta: string, valor: string) => `*${etiqueta}:* ${valor}`;
 
 /** Construye el texto de la programación de hormigón para compartir por WhatsApp. */
 export function buildBombaHormigonWhatsappText(form: BombaWhatsappForm, obraNombre: string, solicitanteNombre = ''): string {

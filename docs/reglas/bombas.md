@@ -9,9 +9,12 @@
   "*Programación de hormigón*"; orden fijo pedido por obra → **Obra → Fecha → Tipo de trabajo →
   Tipo de hormigón → Tipo de bomba → Origen → resto** (cantidad, hora, frecuencia, muestras,
   traslado, hidrófugo, permiso calzada, vibradores, observaciones) → **Solicitante** (nombre del
-  usuario logueado, cierra el mensaje). Formato por línea: `*Etiqueta:* ```valor```` — etiqueta en
-  **negrita**, valor en monoespaciado (WhatsApp lo pinta gris; no hay colores custom). Cambiar el
-  orden/wording exige actualizar `bombaHormigonWhatsApp.test.ts`.
+  usuario logueado, cierra el mensaje). Formato por línea: `*Etiqueta:* valor` — etiqueta en
+  **negrita**, valor en **letra normal**. ⚠️ El valor NO va en monoespaciado (` ```valor``` `): se
+  probó para que WhatsApp lo pintara gris y en obra reclamaron la tipografía de máquina de escribir
+  (angosta, incómoda en el celular) → texto plano, igual que `transferenciaWhatsApp.ts`. El test
+  incluye `expect(msg).not.toContain('```')` para que no vuelva. Cambiar el orden/wording exige
+  actualizar `bombaHormigonWhatsApp.test.ts`.
 - Listado excluye obras `es_prueba=1` y `finalizada=1` (`bomba-hormigon.service.js`); los
   **registros históricos NO se filtran** por `participa_bombas` (solo el selector de obra al crear
   — mig 075, fetch `?participa_bombas=1`).

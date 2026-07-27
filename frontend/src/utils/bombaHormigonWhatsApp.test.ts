@@ -35,26 +35,28 @@ describe('buildBombaHormigonWhatsappText', () => {
     it('el mensaje refleja exactamente los checkbox y dropdown seleccionados', () => {
         const msg = buildBombaHormigonWhatsappText(makeForm(), 'Edificio Norte', 'Franco Gutiérrez');
 
-        // Formato WhatsApp: etiqueta en *negrita*, valor en ```monoespaciado``` (gris).
+        // Formato WhatsApp: etiqueta en *negrita*, valor en letra normal (sin monoespaciado).
         expect(msg).toContain('*Programación de hormigón*');
-        expect(msg).toContain('*Obra:* ```Edificio Norte```');
-        expect(msg).toContain('*Fecha:* ```24/06/2026```');                       // YYYY-MM-DD → DD/MM/YYYY
-        expect(msg).toContain('*Tipo de trabajo:* ```Coronación tapa```');        // texto libre tipo_trabajo
-        expect(msg).toContain('*Tipo de bomba:* ```Telescópica```');              // dropdown, etiqueta completa
-        expect(msg).toContain('*Origen:* ```Externa (arriendo)```');              // dropdown es_externa = true
-        expect(msg).toContain('*Vibradores:* ```Externa — 3 con sonda de 45```'); // dropdown + detalle
-        expect(msg).toContain('*Toma de muestras:* ```Sí```');                    // checkbox true
-        expect(msg).toContain('*Traslado de bombas:* ```No```');                  // checkbox false
-        expect(msg).toContain('*Hidrófugo:* ```Sí```');                           // checkbox true
-        expect(msg).toContain('*Permiso de la calzada:* ```No```');               // checkbox false
-        expect(msg).toContain('*Tipo de hormigón:* ```H-30```');
-        expect(msg).toContain('*Cantidad:* ```25.5 m³```');
-        expect(msg).toContain('*Hora de inicio:* ```08:30```');
-        expect(msg).toContain('*Frecuencia:* ```Cada 2 h```');
-        expect(msg).toContain('*Observaciones:* ```Hormigonado losa piso 3```');
+        expect(msg).toContain('*Obra:* Edificio Norte');
+        expect(msg).toContain('*Fecha:* 24/06/2026');                       // YYYY-MM-DD → DD/MM/YYYY
+        expect(msg).toContain('*Tipo de trabajo:* Coronación tapa');        // texto libre tipo_trabajo
+        expect(msg).toContain('*Tipo de bomba:* Telescópica');              // dropdown, etiqueta completa
+        expect(msg).toContain('*Origen:* Externa (arriendo)');              // dropdown es_externa = true
+        expect(msg).toContain('*Vibradores:* Externa — 3 con sonda de 45'); // dropdown + detalle
+        expect(msg).toContain('*Toma de muestras:* Sí');                    // checkbox true
+        expect(msg).toContain('*Traslado de bombas:* No');                  // checkbox false
+        expect(msg).toContain('*Hidrófugo:* Sí');                           // checkbox true
+        expect(msg).toContain('*Permiso de la calzada:* No');               // checkbox false
+        expect(msg).toContain('*Tipo de hormigón:* H-30');
+        expect(msg).toContain('*Cantidad:* 25.5 m³');
+        expect(msg).toContain('*Hora de inicio:* 08:30');
+        expect(msg).toContain('*Frecuencia:* Cada 2 h');
+        expect(msg).toContain('*Observaciones:* Hormigonado losa piso 3');
+        // Ningún valor va en monoespaciado: en obra reclamaron esa tipografía.
+        expect(msg).not.toContain('```');
         // El solicitante (usuario logueado) cierra el mensaje.
         const lineas = msg.split('\n');
-        expect(lineas[lineas.length - 1]).toBe('*Solicitante:* ```Franco Gutiérrez```');
+        expect(lineas[lineas.length - 1]).toBe('*Solicitante:* Franco Gutiérrez');
     });
 
     it('al invertir las selecciones el mensaje cambia de forma consistente (no miente)', () => {
@@ -70,13 +72,13 @@ describe('buildBombaHormigonWhatsappText', () => {
             'Edificio Norte',
         );
 
-        expect(msg).toContain('*Origen:* ```Empresa (propia)```');
+        expect(msg).toContain('*Origen:* Empresa (propia)');
         expect(msg).not.toContain('Externa (arriendo)');
-        expect(msg).toContain('*Hidrófugo:* ```No```');
-        expect(msg).toContain('*Toma de muestras:* ```No```');
-        expect(msg).toContain('*Traslado de bombas:* ```Sí```');
-        expect(msg).toContain('*Permiso de la calzada:* ```Sí```');
-        expect(msg).toContain('*Tipo de bomba:* ```Estacionaria```');
+        expect(msg).toContain('*Hidrófugo:* No');
+        expect(msg).toContain('*Toma de muestras:* No');
+        expect(msg).toContain('*Traslado de bombas:* Sí');
+        expect(msg).toContain('*Permiso de la calzada:* Sí');
+        expect(msg).toContain('*Tipo de bomba:* Estacionaria');
         expect(msg).not.toContain('Telescópica');
     });
 
@@ -105,12 +107,12 @@ describe('buildBombaHormigonWhatsappText', () => {
         expect(msg).not.toContain('Observaciones:');
         expect(msg).not.toContain('Vibradores:');
         // Obligatorias presentes
-        expect(msg).toContain('*Toma de muestras:* ```Sí```');
-        expect(msg).toContain('*Origen:* ```Externa (arriendo)```');
+        expect(msg).toContain('*Toma de muestras:* Sí');
+        expect(msg).toContain('*Origen:* Externa (arriendo)');
     });
 
     it('sin obra resuelta usa el placeholder —', () => {
         const msg = buildBombaHormigonWhatsappText(makeForm(), '—');
-        expect(msg).toContain('*Obra:* ```—```');
+        expect(msg).toContain('*Obra:* —');
     });
 });
