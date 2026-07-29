@@ -19,7 +19,11 @@ const ZEBRA         = 'F8F8FB';    // filas alternas
 const BORDER_COLOR  = 'D8D8DD';
 const RED_TEXT       = 'DC2626';
 
-const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
+// Dinero CLP sin decimales: MISMO criterio que la tabla en pantalla
+// (`ResumenMensualTable.tsx`) — redondea (.5 hacia arriba) para no exportar
+// "$10.443.738,5" donde la app muestra "$10.443.739". Los montos del Excel
+// tienen que cuadrar con los que el usuario ve en la app.
+const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
 const fmtDate  = () => new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
 
 /* ── Helpers de estilo ── */
@@ -66,7 +70,9 @@ export async function exportStockObra(data: StockObraData, modo: ExportStockObra
 
     const sheetName = data.obra.nombre.substring(0, 31);
     const ws = wb.addWorksheet(sheetName, {
-        views: [{ showGridLines: false }],
+        // Encabezado fijo al bajar (misma estructura que el Resumen General:
+        // título 1, subtítulo 2, separador 3, encabezado 4).
+        views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
     });
 
     // ── Anchos de columna ──
@@ -359,7 +365,11 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     wb.created = new Date();
 
     const ws = wb.addWorksheet('Resumen General', {
-        views: [{ showGridLines: false }],
+        // `state: 'frozen'` + ySplit 4 → título, subtítulo, separador y la fila de
+        // encabezado (obras/bodegas) quedan FIJOS al bajar por el listado, que es
+        // largo: sin esto se pierde de vista a qué obra corresponde cada columna.
+        // Solo horizontal (no xSplit) para no partir el título mergeado A1:R1.
+        views: [{ showGridLines: false, state: 'frozen', ySplit: 4 }],
     });
 
     // Construir columnas base
@@ -512,10 +522,12 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
             sum + cat.items.reduce((s, item) => s + (item.ubicaciones[`obra_${o.id}`]?.total || 0), 0), 0
         )
     );
+    // Misma fórmula que `ResumenMensualTable.tsx` (redondeo antes de dividir) para
+    // que el Excel y la pantalla den EXACTAMENTE el mismo número.
     const obraDescuentos = data.obras.map((o, i) => {
         const descPorcentaje = data.descuentos[o.id] || 0;
         if (descPorcentaje <= 0) return 0;
-        return (obraArriendoAmounts[i] * descPorcentaje) / 100;
+        return Math.round(obraArriendoAmounts[i] * descPorcentaje) / 100;
     });
     obraDescuentos.forEach(d => { totalDescuento += d; });
 
@@ -609,36 +621,49 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
         c.border = thinBorder;
     }
 
-    // Descuentos
+    // ── TOTAL CON DESCUENTO ──
+    // El neto (bruto − descuento) va BAJO CADA COLUMNA DE OBRA, igual que el
+    // tfoot de `ResumenMensualTable.tsx`. Antes el Excel tenía dos filas globales
+    // ("DESCUENTOS APLICADOS" + "TOTAL CON DESCUENTOS") que solo llenaban la
+    // última columna: en pantalla se veía el detalle por obra y en el Excel no,
+    // que es justo el reclamo de obra. La fila "DESCUENTOS APLICADOS" se eliminó
+    // porque duplicaba el total que ya cierra "DESCUENTO POR OBRA".
     if (totalDescuento > 0) {
-        currentRow++;
-        row = ws.getRow(currentRow);
-        row.height = 22;
-        ws.mergeCells(`A${currentRow}:E${currentRow}`);
-        c = row.getCell(1);
-        c.value = 'DESCUENTOS APLICADOS';
-        c.font = boldFont(10, '999999');
-        c.fill = fill(DISCOUNT_BG);
-        c.alignment = { vertical: 'middle', horizontal: 'right' };
-        c.border = thinBorder;
-
-        c = row.getCell(totalArriendoCol);
-        c.value = `-${fmtMoney(totalDescuento)}`;
-        c.font = boldFont(11, RED_TEXT);
-        c.fill = fill(DISCOUNT_BG);
-        c.alignment = { vertical: 'middle', horizontal: 'right' };
-        c.border = thinBorder;
-
         currentRow++;
         row = ws.getRow(currentRow);
         row.height = 26;
         ws.mergeCells(`A${currentRow}:E${currentRow}`);
         c = row.getCell(1);
-        c.value = 'TOTAL CON DESCUENTOS';
+        c.value = 'TOTAL CON DESCUENTO';
         c.font = boldFont(12, '1a1a1a');
         c.fill = fill(TOTAL_BG);
         c.alignment = { vertical: 'middle', horizontal: 'right' };
         c.border = thinBorder;
+
+        // Col 6: fondo sin valor (la cantidad no cambia con el descuento)
+        c = row.getCell(6);
+        c.fill = fill(TOTAL_BG);
+        c.border = thinBorder;
+
+        // Neto por obra: se muestra también en las obras SIN descuento (ahí el
+        // neto es igual al bruto), para poder leer la fila completa de corrido.
+        obraArriendoAmounts.forEach((monto, i) => {
+            c = row.getCell(7 + i);
+            c.fill = fill(TOTAL_BG);
+            c.border = thinBorder;
+            c.alignment = { vertical: 'middle', horizontal: 'right' };
+            const neto = monto - obraDescuentos[i];
+            if (neto > 0) {
+                c.value = fmtMoney(neto);
+                c.font = boldFont(10, BRAND_PRIMARY);
+            }
+        });
+        // Bodegas: solo fondo (el descuento es por obra)
+        data.bodegas.forEach((_, i) => {
+            c = row.getCell(7 + data.obras.length + i);
+            c.fill = fill(TOTAL_BG);
+            c.border = thinBorder;
+        });
 
         c = row.getCell(totalArriendoCol);
         c.value = fmtMoney(totalArriendo - totalDescuento);

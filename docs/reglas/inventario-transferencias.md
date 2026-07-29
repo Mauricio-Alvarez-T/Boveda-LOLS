@@ -169,6 +169,24 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - Backend **sanitiza** el JSON (campos $ no llegan) si el usuario no tiene permiso —
   `backend/src/utils/sanitizeFinancialFields.js`.
 
+## Export a Excel del Resumen General (`utils/exportExcel.ts`)
+
+- El pie del Excel debe **reflejar el tfoot de la app** (`ResumenMensualTable.tsx`): tres filas —
+  **TOTAL GENERAL → DESCUENTO POR OBRA → TOTAL CON DESCUENTO** — y las tres con monto **bajo cada
+  columna de obra**, no solo en la última columna. Pedido de obra 2026-07-29: el Excel mostraba dos
+  filas globales ("DESCUENTOS APLICADOS" + "TOTAL CON DESCUENTOS") que dejaban las columnas vacías y
+  parecía que no había descuentos. El neto se muestra también en obras SIN descuento (ahí neto =
+  bruto) para leer la fila de corrido; las bodegas nunca llevan monto (el descuento es por obra).
+- **Montos redondeados** con el mismo criterio que la pantalla (`Math.round` antes de formatear) y
+  descuento con la misma fórmula (`Math.round(total * pct) / 100`). Si divergen, el usuario ve
+  "$10.443.738,5" en el Excel y "$10.443.739" en la app y desconfía del reporte.
+- **Encabezado congelado**: `views: [{ state: 'frozen', ySplit: 4 }]` en las dos hojas (Resumen
+  General y Por Obra) — fila 4 es el encabezado con los nombres de obra. Sin `xSplit`: partiría el
+  título mergeado `A1:<última>1`.
+- Anti-regresión: `frontend/src/utils/exportExcel.test.ts` **genera el .xlsx y lo reabre** (ExcelJS
+  corre en node; `file-saver` mockeado para capturar el Blob) y verifica montos por columna, ausencia
+  de la fila duplicada, redondeo y el panel congelado.
+
 ## Items y bodegas
 
 - `items_inventario`: soft-delete (`activo=0`) — preserva historial; imagen vía `/api/uploads/...`.
