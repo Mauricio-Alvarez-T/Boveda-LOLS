@@ -171,15 +171,20 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 
 ## Export a Excel del Resumen General (`utils/exportExcel.ts`)
 
-- Pie del Excel: **cuatro** filas en este orden — **TOTAL GENERAL → DESCUENTO POR OBRA →
-  DESCUENTOS APLICADOS → TOTAL CON DESCUENTO** — todas con monto **bajo cada columna de obra**, no
-  solo en la última. Pedido de obra 2026-07-29: antes las dos últimas eran globales y dejaban las
-  columnas vacías, así que parecía que no había descuentos. El neto se muestra también en obras SIN
-  descuento (ahí neto = bruto) para leer la fila de corrido; las bodegas nunca llevan monto (el
-  descuento es por obra).
-- ⚠️ **"DESCUENTOS APLICADOS" repite los montos de "DESCUENTO POR OBRA" a propósito** — se quitó por
-  duplicada y obra pidió reponerla ("pedido es pedido", 2026-07-29). **No borrarla sin consultarles.**
-  El pie del Excel tiene una fila MÁS que el tfoot de la app; esa es la única diferencia esperada.
+- Pie del Excel: **cuatro** filas en este orden — **TOTAL GENERAL → % DESCUENTO POR OBRA →
+  DESCUENTO POR OBRA → TOTAL CON DESCUENTO** — con valor **bajo cada columna de obra**, no solo en la
+  última. Pedido de obra 2026-07-29: antes las filas de descuento eran globales y dejaban las columnas
+  vacías, así que parecía que no había descuentos. El neto se muestra también en obras SIN descuento
+  (ahí neto = bruto) para leer la fila de corrido; las bodegas nunca llevan monto (el descuento es por
+  obra).
+- **`% DESCUENTO POR OBRA`** es fila propia (no va pegado al monto): cada obra tiene su porcentaje
+  configurado (ej. Bascuñán 661 = 50%) y "50% -$5.221.869" en una sola celda queda cortado — las
+  columnas de obra miden 10. Obra sin descuento va **vacía**, no "0%" (que se leería como un descuento
+  fijado en cero). La última columna no lleva % porque no existe un porcentaje global.
+- Historial del pie (para no repetir vueltas): existió una fila **"DESCUENTOS APLICADOS"** que
+  duplicaba los montos de `DESCUENTO POR OBRA`; obra pidió sacarla, luego reponerla, y finalmente
+  **sacarla de nuevo** (2026-07-29). Hoy NO va. Si la vuelven a pedir es un bloque idéntico al de
+  `DESCUENTO POR OBRA` con otra etiqueta.
 - **Montos redondeados** con el mismo criterio que la pantalla (`Math.round` antes de formatear) y
   descuento con la misma fórmula (`Math.round(total * pct) / 100`). Si divergen, el usuario ve
   "$10.443.738,5" en el Excel y "$10.443.739" en la app y desconfía del reporte.

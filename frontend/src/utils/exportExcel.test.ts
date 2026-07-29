@@ -6,8 +6,8 @@
  * Nacen de dos reclamos de obra (2026-07-29):
  *   1. En pantalla el descuento y el neto se ven por obra, pero en el Excel las
  *      filas de descuento salían vacías (solo la última columna tenía monto).
- *      La fila "DESCUENTOS APLICADOS" repite a "DESCUENTO POR OBRA" y aun así se
- *      mantiene: obra la pide explícitamente. No borrarla sin consultarles.
+ *      Cada obra debe mostrar su PORCENTAJE (ej. Bascuñán 661 = 50%) y el monto
+ *      que resulta de aplicarlo.
  *   2. El encabezado con los nombres de obra debe quedar FIJO al bajar.
  * Además fijan que los montos del Excel cuadren con los de la app (redondeados).
  */
@@ -101,25 +101,38 @@ describe('exportResumen — filas de totales', () => {
         expect(fila!.getCell(10).value).toBe('-$3.000');
     });
 
-    it('DESCUENTOS APLICADOS existe y trae monto por obra (la piden aunque repita)', async () => {
-        // Duplica a propósito los montos de DESCUENTO POR OBRA: pedido explícito de
-        // obra (2026-07-29). Lo que NO puede volver a pasar es que salga vacía.
+    it('% DESCUENTO POR OBRA muestra el porcentaje configurado de cada obra', async () => {
         const ws = await generar(resumen());
-        const fila = buscarFila(ws, 'DESCUENTOS APLICADOS');
+        const fila = buscarFila(ws, '% DESCUENTO POR OBRA');
         expect(fila).toBeDefined();
-        expect(fila!.getCell(7).value).toBe('-$3.000');
+        expect(fila!.getCell(7).value).toBe('25%');   // obra A: 25% configurado
+        // Obra sin descuento: celda vacía (no "0%", que se leería como un descuento fijado en cero)
         expect(fila!.getCell(8).value == null || fila!.getCell(8).value === '').toBe(true);
-        expect(fila!.getCell(10).value).toBe('-$3.000');
+        // No hay % global: cada obra tiene el suyo
+        expect(fila!.getCell(10).value == null || fila!.getCell(10).value === '').toBe(true);
     });
 
-    it('el pie va en orden: TOTAL GENERAL → DESCUENTO POR OBRA → DESCUENTOS APLICADOS → TOTAL CON DESCUENTO', async () => {
+    it('porcentaje con decimales se muestra en formato es-CL', async () => {
+        const data = resumen();
+        data.descuentos = { [OBRA_A]: 12.5 };
+        const ws = await generar(data);
+        expect(buscarFila(ws, '% DESCUENTO POR OBRA')!.getCell(7).value).toBe('12,5%');
+    });
+
+    it('la fila DESCUENTOS APLICADOS no existe (obra pidió sacarla)', async () => {
         const ws = await generar(resumen());
+        expect(buscarFila(ws, 'DESCUENTOS APLICADOS')).toBeUndefined();
+    });
+
+    it('el pie va en orden: TOTAL GENERAL → % DESCUENTO POR OBRA → DESCUENTO POR OBRA → TOTAL CON DESCUENTO', async () => {
+        const ws = await generar(resumen());
+        const esperadas = ['TOTAL GENERAL', '% DESCUENTO POR OBRA', 'DESCUENTO POR OBRA', 'TOTAL CON DESCUENTO'];
         const etiquetas: string[] = [];
         ws.eachRow(r => {
             const v = String(r.getCell(1).value ?? '').trim();
-            if (['TOTAL GENERAL', 'DESCUENTO POR OBRA', 'DESCUENTOS APLICADOS', 'TOTAL CON DESCUENTO'].includes(v)) etiquetas.push(v);
+            if (esperadas.includes(v)) etiquetas.push(v);
         });
-        expect(etiquetas).toEqual(['TOTAL GENERAL', 'DESCUENTO POR OBRA', 'DESCUENTOS APLICADOS', 'TOTAL CON DESCUENTO']);
+        expect(etiquetas).toEqual(esperadas);
     });
 
     it('los montos van redondeados, como en pantalla (nunca "…,5")', async () => {
@@ -137,8 +150,8 @@ describe('exportResumen — filas de totales', () => {
     it('sin descuentos configurados no aparecen las filas de descuento', async () => {
         const ws = await generar({ ...resumen(), descuentos: {} });
         expect(buscarFila(ws, 'TOTAL GENERAL')).toBeDefined();
+        expect(buscarFila(ws, '% DESCUENTO POR OBRA')).toBeUndefined();
         expect(buscarFila(ws, 'DESCUENTO POR OBRA')).toBeUndefined();
-        expect(buscarFila(ws, 'DESCUENTOS APLICADOS')).toBeUndefined();
         expect(buscarFila(ws, 'TOTAL CON DESCUENTO')).toBeUndefined();
     });
 });

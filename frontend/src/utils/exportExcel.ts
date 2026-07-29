@@ -576,8 +576,52 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     c.alignment = { vertical: 'middle', horizontal: 'right' };
     c.border = thinBorder;
 
-    // ── DESCUENTO POR OBRA ──
+    // ── % DESCUENTO POR OBRA ──
+    // Cada obra tiene su propio porcentaje configurado (ej. Bascuñán 661 = 50%).
+    // Va en su propia fila y no pegado al monto porque las columnas de obra son
+    // angostas: "50% -$5.221.869" en una sola celda queda cortado en Excel.
     const hayDescuentoPorObra = obraDescuentos.some(d => d > 0);
+    if (hayDescuentoPorObra) {
+        currentRow++;
+        row = ws.getRow(currentRow);
+        row.height = 18;
+        ws.mergeCells(`A${currentRow}:E${currentRow}`);
+        c = row.getCell(1);
+        c.value = '% DESCUENTO POR OBRA';
+        c.font = boldFont(9, '999999');
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+
+        // Col 6: fondo sin valor
+        c = row.getCell(6);
+        c.fill = fill(DISCOUNT_BG);
+        c.border = thinBorder;
+
+        data.obras.forEach((o, i) => {
+            c = row.getCell(7 + i);
+            c.fill = fill(DISCOUNT_BG);
+            c.border = thinBorder;
+            c.alignment = { vertical: 'middle', horizontal: 'right' };
+            const pct = data.descuentos[o.id] || 0;
+            if (pct > 0) {
+                c.value = `${pct.toLocaleString('es-CL')}%`;
+                c.font = boldFont(10, RED_TEXT);
+            }
+        });
+        // Bodegas: solo fondo (el descuento es por obra)
+        data.bodegas.forEach((_, i) => {
+            c = row.getCell(7 + data.obras.length + i);
+            c.fill = fill(DISCOUNT_BG);
+            c.border = thinBorder;
+        });
+        // Última columna: no hay un % global (cada obra tiene el suyo)
+        c = row.getCell(totalArriendoCol);
+        c.fill = fill(DISCOUNT_BG);
+        c.border = thinBorder;
+    }
+
+    // ── DESCUENTO POR OBRA (monto) ──
     if (hayDescuentoPorObra) {
         currentRow++;
         row = ws.getRow(currentRow);
@@ -621,53 +665,10 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
         c.border = thinBorder;
     }
 
-    // ── DESCUENTOS APLICADOS ──
-    // Repite los montos de "DESCUENTO POR OBRA" a propósito: el Excel es un
-    // reporte que se manda afuera y esta fila la piden explícitamente (decisión
-    // usuario 2026-07-29, tras haberla quitado por duplicada). Lleva monto en
-    // cada columna de obra — antes solo llenaba la última y se veía vacía, que
-    // fue el reclamo original. NO borrar sin pedirlo a obra.
-    if (totalDescuento > 0) {
-        currentRow++;
-        row = ws.getRow(currentRow);
-        row.height = 22;
-        ws.mergeCells(`A${currentRow}:E${currentRow}`);
-        c = row.getCell(1);
-        c.value = 'DESCUENTOS APLICADOS';
-        c.font = boldFont(10, '999999');
-        c.fill = fill(DISCOUNT_BG);
-        c.alignment = { vertical: 'middle', horizontal: 'right' };
-        c.border = thinBorder;
-
-        // Col 6: fondo sin valor
-        c = row.getCell(6);
-        c.fill = fill(DISCOUNT_BG);
-        c.border = thinBorder;
-
-        obraDescuentos.forEach((descMonto, i) => {
-            c = row.getCell(7 + i);
-            c.fill = fill(DISCOUNT_BG);
-            c.border = thinBorder;
-            c.alignment = { vertical: 'middle', horizontal: 'right' };
-            if (descMonto > 0) {
-                c.value = `-${fmtMoney(descMonto)}`;
-                c.font = boldFont(10, RED_TEXT);
-            }
-        });
-        // Bodegas: solo fondo (el descuento es por obra)
-        data.bodegas.forEach((_, i) => {
-            c = row.getCell(7 + data.obras.length + i);
-            c.fill = fill(DISCOUNT_BG);
-            c.border = thinBorder;
-        });
-
-        c = row.getCell(totalArriendoCol);
-        c.value = `-${fmtMoney(totalDescuento)}`;
-        c.font = boldFont(11, RED_TEXT);
-        c.fill = fill(DISCOUNT_BG);
-        c.alignment = { vertical: 'middle', horizontal: 'right' };
-        c.border = thinBorder;
-    }
+    // OJO: acá vivía la fila "DESCUENTOS APLICADOS", que repetía los montos de
+    // "DESCUENTO POR OBRA". Obra pidió reponerla y después sacarla de nuevo
+    // (2026-07-29). Si vuelve a pedirse, es un bloque igual al de arriba con la
+    // etiqueta cambiada — no hace falta recalcular nada.
 
     // ── TOTAL CON DESCUENTO ──
     // El neto (bruto − descuento) va BAJO CADA COLUMNA DE OBRA, igual que el
