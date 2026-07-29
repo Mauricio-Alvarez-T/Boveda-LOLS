@@ -151,7 +151,7 @@ export const DocumentList: React.FC<DocumentListProps> = ({ trabajadorId }) => {
                                                     <h4 className="text-sm font-bold text-brand-dark truncate" title={doc.tipo_nombre}>
                                                         {doc.tipo_nombre || 'Documento'}
                                                     </h4>
-                                                    <span className="text-label text-muted truncate mt-0.5" title={doc.nombre_archivo}>
+                                                    <span className="text-label text-muted-foreground truncate mt-0.5" title={doc.nombre_archivo}>
                                                         {doc.nombre_archivo}
                                                     </span>
                                                 </div>

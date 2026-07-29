@@ -358,9 +358,16 @@ const WorkerQuickView: React.FC<WorkerQuickViewProps> = ({
                                             </span>
                                             <span className={cn(
                                                 "text-xs font-bold px-2.5 py-1 rounded-lg",
-                                                docPct === 100 ? "bg-brand-accent/10 text-brand-accent" :
-                                                    docPct > 50 ? "bg-warning/10 text-warning" :
-                                                        "bg-destructive/10 text-destructive"
+                                                // Rampa accesible para el TEXTO (los tokens saturados sobre su
+                                                // tinte /10 dan 1.77–2.86:1 y fallan AA en las tres ramas). El
+                                                // tinte de fondo se conserva: el significado ya viaja en el relleno.
+                                                // Verde/ámbar van en -800 (no -700) porque sobre el tinte /10 la
+                                                // -700 mide 4.2–4.3:1 — misma excepción que la rúbrica documenta
+                                                // para amber sobre bg-muted. Medido: -800 da 6.06:1. El rojo -700
+                                                // sí pasa sobre su tinte (5.17:1).
+                                                docPct === 100 ? "bg-brand-accent/10 text-green-800 dark:text-green-300" :
+                                                    docPct > 50 ? "bg-warning/10 text-amber-800 dark:text-amber-300" :
+                                                        "bg-destructive/10 text-red-700 dark:text-red-300"
                                             )}>
                                                 {completedDocs}/{totalRequired}
                                             </span>

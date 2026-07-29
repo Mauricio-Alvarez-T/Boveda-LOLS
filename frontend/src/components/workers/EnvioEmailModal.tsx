@@ -121,8 +121,11 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
     /* ── Shared form content ── */
     const FormContent = ({ isMobile = false }: { isMobile?: boolean }) => (
         <div className="space-y-4">
+            {/* Texto en la rampa accesible (amber-700/300), no text-warning: #FF9F0A sobre
+                el tinte ámbar da 1.94:1 en claro — el aviso más accionable del modal quedaba
+                ilegible justo cuando hay que leerlo. El tinte de fondo/borde se conserva. */}
             {!hasCredentials && (
-                <div className="flex items-start gap-2 p-3 bg-warning/8 border border-warning/30 rounded-xl text-sm text-warning">
+                <div className="flex items-start gap-2 p-3 bg-warning/8 border border-warning/30 rounded-xl text-sm text-amber-700 dark:text-amber-300">
                     ⚠️ No tienes credenciales de correo guardadas. Ve a <strong>Configuración &gt; Mi Correo</strong> para configurarlas.
                 </div>
             )}
@@ -162,7 +165,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                     value={emailDestino}
                     onChange={(e) => setEmailDestino(e.target.value)}
                     placeholder="correo@ejemplo.com"
-                    className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
+                    className="w-full rounded-xl border border-border bg-card px-4 py-2.5 text-sm text-brand-dark placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all"
                 />
             </div>
 
@@ -188,13 +191,13 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                 {editMode ? (
                     <textarea
                         rows={isMobile ? 6 : 10}
-                        className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-brand-dark placeholder:text-muted focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
+                        className="w-full rounded-xl border border-border bg-card px-4 py-3 text-sm text-brand-dark placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-brand-primary/30 focus:border-brand-primary transition-all resize-none"
                         value={cuerpo}
                         onChange={(e) => setCuerpo(e.target.value)}
                     />
                 ) : (
                     <div className="w-full min-h-[120px] md:min-h-[200px] rounded-xl border border-border bg-background px-4 py-3 text-sm text-brand-dark whitespace-pre-line">
-                        {cuerpo || <span className="text-muted italic">Selecciona una plantilla o escribe un mensaje</span>}
+                        {cuerpo || <span className="text-muted-foreground italic">Selecciona una plantilla o escribe un mensaje</span>}
                     </div>
                 )}
             </div>
@@ -313,7 +316,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                             {/* Left: Template List */}
                             {plantillas.length > 0 && (
                                 <div className="w-52 flex-shrink-0 border-r border-border overflow-y-auto bg-background">
-                                    <p className="text-caption font-bold uppercase tracking-wider text-muted px-4 pt-4 pb-2">
+                                    <p className="text-caption font-bold uppercase tracking-wider text-muted-foreground px-4 pt-4 pb-2">
                                         Plantillas
                                     </p>
                                     {plantillas.map(p => (
@@ -331,7 +334,7 @@ const EnvioEmailModal: React.FC<EnvioEmailModalProps> = ({ isOpen, onClose, dest
                                                     <span className="text-xs font-semibold truncate">{p.nombre}</span>
                                                     {p.es_predeterminada && <Star className="h-2.5 w-2.5 fill-warning text-warning flex-shrink-0" />}
                                                 </div>
-                                                <p className="text-caption text-muted truncate mt-0.5">{p.asunto}</p>
+                                                <p className="text-caption text-muted-foreground truncate mt-0.5">{p.asunto}</p>
                                             </div>
                                             {selectedId === p.id && <ChevronRight className="h-3.5 w-3.5 flex-shrink-0 mt-0.5" />}
                                         </button>
