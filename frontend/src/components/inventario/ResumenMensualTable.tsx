@@ -395,7 +395,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                                         {/* Info */}
                                                         <div className="flex-1 min-w-0">
                                                             <p
-                                                                className="text-xs font-bold text-brand-dark truncate hover:underline hover:text-brand-primary transition-colors cursor-pointer"
+                                                                className="text-xs font-bold text-brand-dark break-words hover:underline hover:text-brand-primary transition-colors cursor-pointer"
                                                                 onClick={(e) => { e.stopPropagation(); itemDetail.openItem(item.id, item); }}
                                                             >{item.descripcion}</p>
                                                             <div className="flex items-center gap-2 mt-0.5">

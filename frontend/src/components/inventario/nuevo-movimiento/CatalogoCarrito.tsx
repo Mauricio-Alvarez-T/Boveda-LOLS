@@ -98,7 +98,9 @@ export const CatalogoCarrito: React.FC<{
                             return (
                                 <li key={item.id} className="flex items-center gap-2 px-3 py-2">
                                     <div className="flex-1 min-w-0">
-                                        <div className="text-xs font-bold text-brand-dark truncate">{item.descripcion}</div>
+                                        {/* Sin truncar: la medida va al FINAL de la descripción y es lo que
+                                            distingue un moldaje 15x60 de un 15x120. Que envuelva. */}
+                                        <div className="text-xs font-bold text-brand-dark break-words">{item.descripcion}</div>
                                         <div className="text-caption text-muted-foreground">
                                             #{item.nro_item}
                                             {conStockFiltro

@@ -378,7 +378,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 {(detalle.items || []).map((it: any, idx: number) => (
                                     <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
                                         <div className="min-w-0">
-                                            <p className="text-xs font-semibold text-brand-dark truncate">{it.item_descripcion}</p>
+                                            <p className="text-xs font-semibold text-brand-dark break-words">{it.item_descripcion}</p>
                                             <p className="text-caption text-muted-foreground">
                                                 {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
                                                 {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
