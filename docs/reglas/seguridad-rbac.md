@@ -30,6 +30,18 @@
   (`backend/src/utils/sanitizeFinancialFields.js`) — sin permiso, los montos no llegan ni por
   DevTools. El backend es la fuente de verdad.
 
+## Permisos granulares sobre gates genéricos (patrón OR)
+
+- Cuando un rol necesita UNA acción de un módulo sin heredar todo el módulo, se agrega una clave
+  específica y el gate se vuelve **OR**: `checkPermission('inventario.bombas.crear',
+  'inventario.crear')` (el middleware ya es OR) + el mismo `||` en el componente. Así el rol nuevo
+  queda scopeado y **ningún rol existente pierde acceso** — no hace falta backfillear la clave nueva
+  a los roles que ya tenían el genérico.
+- Caso vigente: `inventario.bombas.crear` / `inventario.bombas.editar` (mig 098) para que "En
+  Terreno" programe hormigón sin poder editar stock/ítems. Ver reglas/bombas.md.
+- ⚠️ Al asignar por migración: insertar primero en `permisos_catalogo` (hay FK desde
+  `permisos_rol_v2.permiso_clave`) y avisar **re-login** — el token trae la lista de permisos.
+
 ## SoD transferencias
 
 - 9 permisos granulares: solicitar, aprobar, despachar, recibir, cancelar, push_directo,

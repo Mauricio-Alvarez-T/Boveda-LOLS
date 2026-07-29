@@ -111,6 +111,47 @@ describe('POST /api/bombas-hormigon — nuevo uso de bomba', () => {
         expect(db.query).not.toHaveBeenCalled();                 // ni siquiera llega al INSERT
     });
 
+    // Permiso granular del tab Hormigón (mig 098): habilita a "En Terreno" a
+    // llenar la solicitud sin darle `inventario.crear` (que abre ítems, stock,
+    // categorías y discrepancias).
+    test('crea el uso con SOLO inventario.bombas.crear (sin inventario.crear)', async () => {
+        const token = makeToken(['inventario.ver', 'inventario.tab.bombas', 'inventario.bombas.crear']);
+        db.query.mockResolvedValueOnce([{ insertId: 102, affectedRows: 1 }]);
+
+        const res = await request(app)
+            .post('/api/bombas-hormigon')
+            .set('Authorization', `Bearer ${token}`)
+            .send(usoPayload());
+
+        expect(res.status).toBe(201);
+        expect(insertParams()[COL.tipo_bomba]).toBe('Telescópica');
+    });
+
+    test('el permiso de bombas NO alcanza para editar: PUT exige el suyo', async () => {
+        // Solo `crear`: el PUT pide `inventario.bombas.editar` o `inventario.editar`.
+        const token = makeToken(['inventario.ver', 'inventario.bombas.crear']);
+
+        const res = await request(app)
+            .put('/api/bombas-hormigon/5')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ tipo_bomba: 'Estacionaria' });
+
+        expect(res.status).toBe(403);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('PUT acepta inventario.bombas.editar sin inventario.editar', async () => {
+        const token = makeToken(['inventario.ver', 'inventario.bombas.editar']);
+        db.query.mockResolvedValueOnce([{ affectedRows: 1 }]);
+
+        const res = await request(app)
+            .put('/api/bombas-hormigon/5')
+            .set('Authorization', `Bearer ${token}`)
+            .send({ tipo_bomba: 'Estacionaria' });
+
+        expect(res.status).toBe(200);
+    });
+
     test('gate financiero: sin ver_costos descarta el costo pero crea el uso', async () => {
         const token = makeToken(['inventario.crear']);
         db.query.mockResolvedValueOnce([{ insertId: 101, affectedRows: 1 }]);

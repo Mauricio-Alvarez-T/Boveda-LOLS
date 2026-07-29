@@ -42,5 +42,13 @@
   — mig 075, fetch `?participa_bombas=1`).
 - **Costo gateado** por `inventario.bombas.ver_costos`: sin permiso, el backend sanitiza `costo`
   del JSON y la UI oculta el StatCard "Costo Total" y la columna.
-- Permisos: `inventario.bombas.ver / crear / editar` (tab gateado por `inventario.tab.bombas`).
+- **Permisos** (mig 098): el tab lo gatea `inventario.tab.bombas` y el listado `inventario.ver`.
+  Crear/editar tienen permisos **propios del tab** — `inventario.bombas.crear` /
+  `inventario.bombas.editar` — porque los genéricos `inventario.crear` / `inventario.editar` abren
+  además stock, ítems, categorías, bodegas y discrepancias, y terreno necesitaba llenar la solicitud
+  de hormigón sin eso. Los gates son **OR** (`checkPermission('inventario.bombas.crear',
+  'inventario.crear')` y el mismo OR en `Inventario.tsx`) → los roles que ya podían siguen igual sin
+  recibir la clave nueva. **Eliminar NO se delegó**: el DELETE exige `inventario.eliminar` y por eso
+  el tacho de la tarjeta va por `canDelete` aparte de `canEdit` (si no, se mostraba un botón que
+  devolvía 403). Rol "En Terreno" tiene crear+editar desde mig 098 (pedido 2026-07-29).
 - UI: tab BOMBAS dentro de Inventario (`BombasHormigonTab.tsx`), filtro por obra + búsqueda.

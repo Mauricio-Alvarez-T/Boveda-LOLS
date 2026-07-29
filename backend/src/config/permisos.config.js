@@ -96,6 +96,12 @@ const MAESTRO_PERMISOS = [
     ['inventario.tab.transferencias',   'Inventario','Ver Tab Transferencias',   'Inventario → Pestaña "Transferencias": si está denegado, la pestaña no aparece en el menú superior del módulo.', 9],
     ['inventario.tab.maestro',          'Inventario','Ver Tab Maestro',          'Inventario → Pestaña "Maestro" (edición de items y stock): si está denegado, la pestaña no aparece. Requiere también "Editar Inventario" para usar las acciones internas.', 10],
     ['inventario.tab.bombas',           'Inventario','Ver Tab Bombas Hormigón',  'Inventario → Pestaña "Bombas Hormigón": si está denegado, la pestaña no aparece en el menú superior del módulo.', 11],
+    // ── Bombas de hormigón: crear/editar SIN abrir todo Inventario ──
+    // Los gates son OR con los genéricos (`inventario.crear`/`.editar`), así que
+    // los roles que ya podían siguen igual. Existen para habilitar a terreno a
+    // programar hormigón sin darles edición de stock/ítems (mig 097).
+    ['inventario.bombas.crear',         'Inventario','Crear Programación Hormigón','Inventario → Pestaña "Bombas Hormigón": permite crear programaciones de hormigón (botón "Registrar uso") SIN necesidad de "Crear en Inventario". Requiere también "Ver Inventario" y "Ver Tab Bombas Hormigón".', 19],
+    ['inventario.bombas.editar',        'Inventario','Editar Programación Hormigón','Inventario → Pestaña "Bombas Hormigón": permite editar programaciones existentes SIN necesidad de "Editar Inventario" (que habilita stock e ítems). Eliminar sigue requiriendo "Eliminar en Inventario".', 20],
     // Visibilidad transversal en pestaña Transferencias: si está denegado, el
     // listado SÓLO muestra las transferencias cuyo solicitante_id = usuario actual.
     // Sin este permiso, el usuario nunca ve solicitudes de terceros (ni por GET /:id).

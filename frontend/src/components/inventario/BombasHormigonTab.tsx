@@ -19,8 +19,14 @@ interface Props {
     /** Ya no se usa: el tab fetchea sus obras filtradas por participa_bombas. */
     obras?: { id: number; nombre: string }[];
     canCreate: boolean;
-    /** Permite editar/eliminar registros existentes. Default false. */
+    /** Permite editar registros existentes (abrir la tarjeta). Default false. */
     canEdit?: boolean;
+    /**
+     * Permite eliminar registros. Separado de `canEdit` porque el DELETE del
+     * backend exige `inventario.eliminar`: con el permiso de bombas se puede
+     * editar pero NO borrar, y mostrar el tacho igual daría un 403.
+     */
+    canDelete?: boolean;
 }
 
 /** Shape del formulario de registro/edición de bomba. */
@@ -72,7 +78,7 @@ const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmtDateShort = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 
-const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
+const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false, canDelete = false }) => {
     // Gate financiero: usuarios sin `inventario.bombas.ver_costos` no ven
     // el StatCard "Costo Total" ni la columna costo por registro (el backend
     // ya sanitiza `r.costo` → undefined, aquí cubrimos la parte UI).
@@ -393,6 +399,7 @@ const BombasHormigonTab: React.FC<Props> = ({ canCreate, canEdit = false }) => {
                                     key={r.id}
                                     registro={r}
                                     canEdit={canEdit}
+                                    canDelete={canDelete}
                                     onEdit={() => openEdit(r)}
                                     onDelete={() => handleDelete(r)}
                                 />
@@ -739,9 +746,10 @@ const StatCard: React.FC<{ icon: React.ElementType; label: string; value: string
 const BombaCard: React.FC<{
     registro: RegistroBombaHormigon;
     canEdit?: boolean;
+    canDelete?: boolean;
     onEdit?: () => void;
     onDelete?: () => void;
-}> = ({ registro: r, canEdit = false, onEdit, onDelete }) => {
+}> = ({ registro: r, canEdit = false, canDelete = false, onEdit, onDelete }) => {
     // Hormigonado SIN bomba: el origen (empresa/externa) no aplica → badge neutro.
     const noSolicitada = esBombaNoSolicitada(r.tipo_bomba);
     const isExterna = !noSolicitada && r.es_externa;
@@ -784,27 +792,33 @@ const BombaCard: React.FC<{
                         {/* Mismo wording que el dropdown y que el mensaje de WhatsApp. */}
                         {noSolicitada ? 'NO SOLICITADO' : isExterna ? 'EXTERNA' : 'EMPRESA'}
                     </span>
-                    {canEdit && (
+                    {(canEdit || canDelete) && (
                         // Siempre visibles en móvil (táctil, sin hover); el hover queda para desktop.
                         <div className="flex items-center gap-1.5 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
-                            <IconButton
-                                onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
-                                icon={<Pencil className="h-4 w-4 sm:h-3 sm:w-3" />}
-                                variant="ghost"
-                                size="sm"
-                                aria-label="Editar"
-                                title="Editar"
-                                className="h-9 w-9 sm:h-7 sm:w-7"
-                            />
-                            <IconButton
-                                onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
-                                icon={<Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />}
-                                variant="danger"
-                                size="sm"
-                                aria-label="Eliminar"
-                                title="Eliminar"
-                                className="h-9 w-9 sm:h-7 sm:w-7"
-                            />
+                            {canEdit && (
+                                <IconButton
+                                    onClick={(e) => { e.stopPropagation(); onEdit?.(); }}
+                                    icon={<Pencil className="h-4 w-4 sm:h-3 sm:w-3" />}
+                                    variant="ghost"
+                                    size="sm"
+                                    aria-label="Editar"
+                                    title="Editar"
+                                    className="h-9 w-9 sm:h-7 sm:w-7"
+                                />
+                            )}
+                            {/* El tacho exige `inventario.eliminar`: sin él no se muestra,
+                                porque el DELETE del backend devolvería 403. */}
+                            {canDelete && (
+                                <IconButton
+                                    onClick={(e) => { e.stopPropagation(); onDelete?.(); }}
+                                    icon={<Trash2 className="h-4 w-4 sm:h-3 sm:w-3" />}
+                                    variant="danger"
+                                    size="sm"
+                                    aria-label="Eliminar"
+                                    title="Eliminar"
+                                    className="h-9 w-9 sm:h-7 sm:w-7"
+                                />
+                            )}
                         </div>
                     )}
                 </div>

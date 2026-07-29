@@ -74,6 +74,7 @@ export const SECCIONES_META: Record<Seccion, SeccionMeta> = {
         subseccionesOrden: [
             'Acceso Base',
             'Tabs Visibles',
+            'Bombas Hormigón',
             'Transferencias',
             'Datos Sensibles',
         ],
@@ -145,6 +146,8 @@ export const PERMISO_HIERARCHY: Record<string, HierarchyEntry> = {
     'inventario.tab.maestro':                  { seccion: 'inventario', subseccion: 'Tabs Visibles',   verbo: 'ver' },
     'inventario.tab.bombas':                   { seccion: 'inventario', subseccion: 'Tabs Visibles',   verbo: 'ver' },
     'inventario.movimientos.ver':              { seccion: 'inventario', subseccion: 'Tabs Visibles',   verbo: 'ver' },
+    'inventario.bombas.crear':                 { seccion: 'inventario', subseccion: 'Bombas Hormigón', verbo: 'crear' },
+    'inventario.bombas.editar':                { seccion: 'inventario', subseccion: 'Bombas Hormigón', verbo: 'editar' },
     'inventario.transferencias.ver_todas':     { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'ver' },
     'inventario.transferencias.solicitar':     { seccion: 'inventario', subseccion: 'Transferencias',  verbo: 'crear' },
     'inventario.transferencias.solicitud_materiales': { seccion: 'inventario', subseccion: 'Transferencias', verbo: 'crear' },

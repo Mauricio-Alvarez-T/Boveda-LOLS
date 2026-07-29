@@ -42,7 +42,10 @@ router.get('/resumen/:obraId', auth, checkPermission('inventario.ver'), async (r
     } catch (err) { next(err); }
 });
 
-router.post('/', auth, checkPermission('inventario.crear'), async (req, res, next) => {
+// `checkPermission` es OR: el permiso específico de bombas habilita a terreno sin
+// darle `inventario.crear` (que abre ítems, categorías, bodegas y discrepancias);
+// el genérico se mantiene para no romper a los roles que ya podían.
+router.post('/', auth, checkPermission('inventario.bombas.crear', 'inventario.crear'), async (req, res, next) => {
     try {
         // Si el body trae `costo` y el usuario no tiene permiso $, lo descartamos
         // silenciosamente — preserva la creación sin filtrar montos sensibles.
@@ -54,7 +57,9 @@ router.post('/', auth, checkPermission('inventario.crear'), async (req, res, nex
     } catch (err) { next(err); }
 });
 
-router.put('/:id', auth, checkPermission('inventario.editar'), async (req, res, next) => {
+// Igual que el POST: específico de bombas O el genérico de inventario.
+// DELETE sigue exigiendo `inventario.eliminar` — borrar no se delega a terreno.
+router.put('/:id', auth, checkPermission('inventario.bombas.editar', 'inventario.editar'), async (req, res, next) => {
     try {
         // Bloqueo de edición de `costo` sin permiso $ — 403 explícito porque
         // editar costos sin verlos lleva a errores y burla intención del gate.

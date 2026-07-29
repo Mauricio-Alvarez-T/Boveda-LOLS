@@ -491,10 +491,14 @@ const InventarioPage: React.FC = () => {
                 )}
 
                 {activeTab === 'bombas' && (
+                    /* Permiso específico de bombas O el genérico de inventario (mismo OR
+                       que el backend): terreno puede programar hormigón sin poder editar
+                       stock/ítems. Eliminar va aparte — no se delega con `editar`. */
                     <BombasHormigonTab
                         obras={allObras as any}
-                        canCreate={hasPermission('inventario.crear')}
-                        canEdit={hasPermission('inventario.editar')}
+                        canCreate={hasPermission('inventario.bombas.crear') || hasPermission('inventario.crear')}
+                        canEdit={hasPermission('inventario.bombas.editar') || hasPermission('inventario.editar')}
+                        canDelete={hasPermission('inventario.eliminar')}
                     />
                 )}
 
