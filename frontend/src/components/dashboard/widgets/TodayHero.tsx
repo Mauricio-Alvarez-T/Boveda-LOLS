@@ -100,11 +100,19 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                             // Semántica: al día = verde · pendiente/precaución = ámbar · crítico = rojo.
                             const isOk = insight.severity === 'ok';
                             const Icon = isOk ? CheckCircle2 : AlertTriangle;
-                            const tone = isOk ? 'text-brand-primary' : insight.severity === 'critical' ? 'text-destructive' : 'text-warning';
+                            // Los tokens saturados sirven para ÍCONOS (basta 3:1) pero fallan AA
+                            // como color de TEXTO chico (#FF9F0A sobre blanco = 2.06:1) → el texto
+                            // usa la rampa accesible, mismo patrón que `ui/Chip.tsx`.
+                            const toneIcono = isOk ? 'text-brand-primary' : insight.severity === 'critical' ? 'text-destructive' : 'text-warning';
+                            const toneTexto = isOk
+                                ? 'text-green-700 dark:text-green-300'
+                                : insight.severity === 'critical'
+                                    ? 'text-red-700 dark:text-red-300'
+                                    : 'text-amber-700 dark:text-amber-300';
                             return (
                                 <div key={idx} className="flex items-start gap-2.5">
-                                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${tone}`} />
-                                    <p className={`text-base leading-relaxed ${tone}`}>{insight.text}</p>
+                                    <Icon className={`mt-0.5 h-4 w-4 shrink-0 ${toneIcono}`} />
+                                    <p className={`text-base leading-relaxed ${toneTexto}`}>{insight.text}</p>
                                 </div>
                             );
                         })}
@@ -113,7 +121,7 @@ const TodayHero: React.FC<Props> = ({ userName, counters, pendingTasksCount, att
                     {pendingTasksCount > 0 && (
                         <div className="mt-4 flex items-center gap-1.5">
                             <Zap className="h-3.5 w-3.5 text-warning" />
-                            <span className="text-sm font-medium text-warning">
+                            <span className="text-sm font-medium text-amber-700 dark:text-amber-300">
                                 {pendingTasksCount} tarea{pendingTasksCount !== 1 ? 's' : ''} pendiente{pendingTasksCount !== 1 ? 's' : ''}
                             </span>
                         </div>
