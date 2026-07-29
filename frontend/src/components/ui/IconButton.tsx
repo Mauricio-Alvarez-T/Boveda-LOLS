@@ -12,7 +12,7 @@ import { cn } from '../../utils/cn';
 type IconButtonProps = Omit<HTMLMotionProps<'button'>, 'children'> & {
     icon: React.ReactNode;
     variant?: 'ghost' | 'danger' | 'primary';
-    size?: 'sm' | 'md';
+    size?: 'sm' | 'md' | 'lg';
     'aria-label': string;
 };
 
@@ -27,9 +27,13 @@ const variants = {
     primary: 'bg-brand-primary text-white hover:bg-[#027A3B]',
 };
 
+// Ergonomía táctil: en un teléfono el objetivo mínimo es 44x44 (Apple HIG) — un dedo
+// con guante en obra no acierta 36px. Desde `md:` (puntero preciso) se conservan los
+// tamaños densos originales, así que ningún layout de escritorio se mueve.
 const sizes = {
-    sm: 'h-8 w-8',
-    md: 'h-9 w-9',
+    sm: 'h-8 w-8',                  // espacios muy justos (dentro de inputs): sin cambio
+    md: 'h-11 w-11 md:h-9 md:w-9',  // 44px táctil en móvil · 36px en escritorio
+    lg: 'h-11 w-11',                // 44px siempre (controles de navegación / acción principal)
 };
 
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(

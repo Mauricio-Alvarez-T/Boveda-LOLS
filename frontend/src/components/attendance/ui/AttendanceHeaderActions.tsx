@@ -95,7 +95,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     onClick={handleShareWhatsApp}
                     disabled={!canSendWhatsApp}
                     className={cn(
-                        "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
+                        "h-11 w-11 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
                         !canSendWhatsApp && "opacity-40 grayscale pointer-events-none"
                     )}
                     title={whatsAppTitle}
@@ -108,7 +108,7 @@ export const AttendanceHeaderActions: React.FC<AttendanceHeaderActionsProps> = (
                     isLoading={saving}
                     disabled={isSaveDisabled}
                     className={cn(
-                        "h-9 w-9 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
+                        "h-11 w-11 p-0 justify-center rounded-xl bg-brand-primary text-white shadow-md active:scale-95 transition-all flex items-center shrink-0",
                         isSaveDisabled && "opacity-40 grayscale pointer-events-none"
                     )}
                     title="Guardar"
@@ -277,7 +277,7 @@ const DesktopOverflowMenu: React.FC<DesktopOverflowMenuProps> = ({
             <button
                 onClick={() => setOpen(v => !v)}
                 className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl border transition-all",
+                    "flex h-11 w-11 items-center justify-center rounded-xl border transition-all",
                     open
                         ? "bg-brand-primary text-white border-transparent shadow-lg"
                         : "bg-card text-muted-foreground border-border shadow-sm hover:border-brand-primary/30"
@@ -412,7 +412,7 @@ const MobileFilterMenu: React.FC<MobileFilterMenuProps> = ({
                 ref={buttonRef}
                 onClick={() => setOpen(v => !v)}
                 className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl border transition-all shrink-0 relative",
+                    "flex h-11 w-11 items-center justify-center rounded-xl border transition-all shrink-0 relative",
                     open
                         ? "bg-brand-dark text-white border-transparent shadow-lg"
                         : hasActiveFilter
@@ -537,7 +537,7 @@ const MobileReportMenu: React.FC<MobileReportMenuProps> = ({
                 ref={buttonRef}
                 onClick={() => setOpen(v => !v)}
                 className={cn(
-                    "flex h-9 w-9 items-center justify-center rounded-xl border transition-all shrink-0",
+                    "flex h-11 w-11 items-center justify-center rounded-xl border transition-all shrink-0",
                     open
                         ? "bg-brand-dark text-white border-transparent shadow-lg"
                         : "bg-card text-muted-foreground border-border shadow-sm hover:border-brand-primary/30"
