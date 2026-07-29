@@ -171,12 +171,15 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 
 ## Export a Excel del Resumen General (`utils/exportExcel.ts`)
 
-- El pie del Excel debe **reflejar el tfoot de la app** (`ResumenMensualTable.tsx`): tres filas —
-  **TOTAL GENERAL → DESCUENTO POR OBRA → TOTAL CON DESCUENTO** — y las tres con monto **bajo cada
-  columna de obra**, no solo en la última columna. Pedido de obra 2026-07-29: el Excel mostraba dos
-  filas globales ("DESCUENTOS APLICADOS" + "TOTAL CON DESCUENTOS") que dejaban las columnas vacías y
-  parecía que no había descuentos. El neto se muestra también en obras SIN descuento (ahí neto =
-  bruto) para leer la fila de corrido; las bodegas nunca llevan monto (el descuento es por obra).
+- Pie del Excel: **cuatro** filas en este orden — **TOTAL GENERAL → DESCUENTO POR OBRA →
+  DESCUENTOS APLICADOS → TOTAL CON DESCUENTO** — todas con monto **bajo cada columna de obra**, no
+  solo en la última. Pedido de obra 2026-07-29: antes las dos últimas eran globales y dejaban las
+  columnas vacías, así que parecía que no había descuentos. El neto se muestra también en obras SIN
+  descuento (ahí neto = bruto) para leer la fila de corrido; las bodegas nunca llevan monto (el
+  descuento es por obra).
+- ⚠️ **"DESCUENTOS APLICADOS" repite los montos de "DESCUENTO POR OBRA" a propósito** — se quitó por
+  duplicada y obra pidió reponerla ("pedido es pedido", 2026-07-29). **No borrarla sin consultarles.**
+  El pie del Excel tiene una fila MÁS que el tfoot de la app; esa es la única diferencia esperada.
 - **Montos redondeados** con el mismo criterio que la pantalla (`Math.round` antes de formatear) y
   descuento con la misma fórmula (`Math.round(total * pct) / 100`). Si divergen, el usuario ve
   "$10.443.738,5" en el Excel y "$10.443.739" en la app y desconfía del reporte.

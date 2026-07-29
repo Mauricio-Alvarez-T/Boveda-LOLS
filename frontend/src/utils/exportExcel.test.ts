@@ -6,6 +6,8 @@
  * Nacen de dos reclamos de obra (2026-07-29):
  *   1. En pantalla el descuento y el neto se ven por obra, pero en el Excel las
  *      filas de descuento salían vacías (solo la última columna tenía monto).
+ *      La fila "DESCUENTOS APLICADOS" repite a "DESCUENTO POR OBRA" y aun así se
+ *      mantiene: obra la pide explícitamente. No borrarla sin consultarles.
  *   2. El encabezado con los nombres de obra debe quedar FIJO al bajar.
  * Además fijan que los montos del Excel cuadren con los de la app (redondeados).
  */
@@ -99,9 +101,25 @@ describe('exportResumen — filas de totales', () => {
         expect(fila!.getCell(10).value).toBe('-$3.000');
     });
 
-    it('ya no existe la fila duplicada "DESCUENTOS APLICADOS"', async () => {
+    it('DESCUENTOS APLICADOS existe y trae monto por obra (la piden aunque repita)', async () => {
+        // Duplica a propósito los montos de DESCUENTO POR OBRA: pedido explícito de
+        // obra (2026-07-29). Lo que NO puede volver a pasar es que salga vacía.
         const ws = await generar(resumen());
-        expect(buscarFila(ws, 'DESCUENTOS APLICADOS')).toBeUndefined();
+        const fila = buscarFila(ws, 'DESCUENTOS APLICADOS');
+        expect(fila).toBeDefined();
+        expect(fila!.getCell(7).value).toBe('-$3.000');
+        expect(fila!.getCell(8).value == null || fila!.getCell(8).value === '').toBe(true);
+        expect(fila!.getCell(10).value).toBe('-$3.000');
+    });
+
+    it('el pie va en orden: TOTAL GENERAL → DESCUENTO POR OBRA → DESCUENTOS APLICADOS → TOTAL CON DESCUENTO', async () => {
+        const ws = await generar(resumen());
+        const etiquetas: string[] = [];
+        ws.eachRow(r => {
+            const v = String(r.getCell(1).value ?? '').trim();
+            if (['TOTAL GENERAL', 'DESCUENTO POR OBRA', 'DESCUENTOS APLICADOS', 'TOTAL CON DESCUENTO'].includes(v)) etiquetas.push(v);
+        });
+        expect(etiquetas).toEqual(['TOTAL GENERAL', 'DESCUENTO POR OBRA', 'DESCUENTOS APLICADOS', 'TOTAL CON DESCUENTO']);
     });
 
     it('los montos van redondeados, como en pantalla (nunca "…,5")', async () => {
@@ -120,6 +138,7 @@ describe('exportResumen — filas de totales', () => {
         const ws = await generar({ ...resumen(), descuentos: {} });
         expect(buscarFila(ws, 'TOTAL GENERAL')).toBeDefined();
         expect(buscarFila(ws, 'DESCUENTO POR OBRA')).toBeUndefined();
+        expect(buscarFila(ws, 'DESCUENTOS APLICADOS')).toBeUndefined();
         expect(buscarFila(ws, 'TOTAL CON DESCUENTO')).toBeUndefined();
     });
 });

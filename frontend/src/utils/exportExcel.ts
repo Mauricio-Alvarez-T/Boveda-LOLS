@@ -621,13 +621,57 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
         c.border = thinBorder;
     }
 
+    // ── DESCUENTOS APLICADOS ──
+    // Repite los montos de "DESCUENTO POR OBRA" a propósito: el Excel es un
+    // reporte que se manda afuera y esta fila la piden explícitamente (decisión
+    // usuario 2026-07-29, tras haberla quitado por duplicada). Lleva monto en
+    // cada columna de obra — antes solo llenaba la última y se veía vacía, que
+    // fue el reclamo original. NO borrar sin pedirlo a obra.
+    if (totalDescuento > 0) {
+        currentRow++;
+        row = ws.getRow(currentRow);
+        row.height = 22;
+        ws.mergeCells(`A${currentRow}:E${currentRow}`);
+        c = row.getCell(1);
+        c.value = 'DESCUENTOS APLICADOS';
+        c.font = boldFont(10, '999999');
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+
+        // Col 6: fondo sin valor
+        c = row.getCell(6);
+        c.fill = fill(DISCOUNT_BG);
+        c.border = thinBorder;
+
+        obraDescuentos.forEach((descMonto, i) => {
+            c = row.getCell(7 + i);
+            c.fill = fill(DISCOUNT_BG);
+            c.border = thinBorder;
+            c.alignment = { vertical: 'middle', horizontal: 'right' };
+            if (descMonto > 0) {
+                c.value = `-${fmtMoney(descMonto)}`;
+                c.font = boldFont(10, RED_TEXT);
+            }
+        });
+        // Bodegas: solo fondo (el descuento es por obra)
+        data.bodegas.forEach((_, i) => {
+            c = row.getCell(7 + data.obras.length + i);
+            c.fill = fill(DISCOUNT_BG);
+            c.border = thinBorder;
+        });
+
+        c = row.getCell(totalArriendoCol);
+        c.value = `-${fmtMoney(totalDescuento)}`;
+        c.font = boldFont(11, RED_TEXT);
+        c.fill = fill(DISCOUNT_BG);
+        c.alignment = { vertical: 'middle', horizontal: 'right' };
+        c.border = thinBorder;
+    }
+
     // ── TOTAL CON DESCUENTO ──
     // El neto (bruto − descuento) va BAJO CADA COLUMNA DE OBRA, igual que el
-    // tfoot de `ResumenMensualTable.tsx`. Antes el Excel tenía dos filas globales
-    // ("DESCUENTOS APLICADOS" + "TOTAL CON DESCUENTOS") que solo llenaban la
-    // última columna: en pantalla se veía el detalle por obra y en el Excel no,
-    // que es justo el reclamo de obra. La fila "DESCUENTOS APLICADOS" se eliminó
-    // porque duplicaba el total que ya cierra "DESCUENTO POR OBRA".
+    // tfoot de `ResumenMensualTable.tsx`.
     if (totalDescuento > 0) {
         currentRow++;
         row = ws.getRow(currentRow);
