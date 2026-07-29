@@ -75,7 +75,8 @@ export const PasoRevisar: React.FC<{
                     <ul className="space-y-1.5">
                         {itemRows.map(r => (
                             <li key={r.item_id} className="flex items-center gap-2">
-                                <span className="flex-1 min-w-0 text-xs text-brand-dark truncate">{r.item?.descripcion || `Item #${r.item_id}`}</span>
+                                {/* Sin truncar: la medida va al final y es el identificador real del ítem. */}
+                                <span className="flex-1 min-w-0 text-xs text-brand-dark break-words">{r.item?.descripcion || `Item #${r.item_id}`}</span>
                                 <div className="shrink-0 flex items-center gap-1">
                                     <QtyStepper value={r.cantidad} onChange={c => updateQty(r.item_id, c)} size="sm" unidad={r.item?.unidad} ariaLabel={r.item?.descripcion} />
                                     <IconButton icon={<Trash2 className="h-3.5 w-3.5" />} variant="danger" size="sm" onClick={() => updateQty(r.item_id, 0)} className="ml-0.5" aria-label="Quitar ítem" />

@@ -357,7 +357,7 @@ export const RecibirForm: React.FC<{
                         {customPend.map(c => (
                             <li key={c.id} className="flex items-center justify-between gap-2">
                                 <div className="min-w-0">
-                                    <div className="text-xs font-medium text-brand-dark truncate">{c.descripcion}</div>
+                                    <div className="text-xs font-medium text-brand-dark break-words">{c.descripcion}</div>
                                     <div className="text-caption text-muted-foreground tabular-nums">aprobado {c.aprob} · pendiente {c.pendiente}{c.unidad ? ` ${c.unidad}` : ''}</div>
                                 </div>
                                 <QtyStepper
