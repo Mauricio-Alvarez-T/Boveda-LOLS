@@ -155,14 +155,22 @@ const InventarioItemCard: React.FC<Props> = ({
                 </span>
 
                 {/* Activo toggle */}
-                {/* eslint-disable-next-line no-restricted-syntax -- toggle estado BD */}
+                {/* Rellenos OPACOS: el chip va sobre la foto del ítem, y con alpha el
+                    contraste depende de la imagen de atrás (el verde /80 medía 2.04:1
+                    sobre foto clara; sólido da 4.95:1 siempre). El backdrop-blur sale
+                    porque ya no aporta sobre un fondo opaco. 44px táctiles en móvil,
+                    tamaño denso desde md:. `text-base` explícito porque tailwind-merge
+                    descartaba `text-caption` al ganar `text-white` — el chip ya venía
+                    heredando 16px y así no encoge si el merge cambia. */}
+                {/* eslint-disable-next-line no-restricted-syntax -- toggle del buffer de edición (dirty); se persiste con "Guardar cambios" */}
                 <button
                     onClick={() => setField('activo', !activo)}
                     className={cn(
-                        "absolute top-2 right-2 px-2 py-0.5 rounded-lg text-caption font-bold backdrop-blur-sm transition-all",
+                        "absolute top-2 right-2 inline-flex items-center justify-center min-h-11 md:min-h-0",
+                        "px-3 md:px-2 py-0.5 rounded-lg text-base font-bold transition-all",
                         activo
-                            ? "bg-green-500/80 text-white"
-                            : "bg-black/50 text-white"
+                            ? "bg-green-700 text-white"
+                            : "bg-neutral-900 text-white"
                     )}
                 >
                     {activo ? 'Activo' : 'Inactivo'}
