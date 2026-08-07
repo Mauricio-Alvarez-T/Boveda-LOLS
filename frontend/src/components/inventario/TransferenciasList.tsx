@@ -17,6 +17,10 @@ interface Props {
     discrepanciasCount?: number;
     /** Si false, el chip "Discrepancias" se oculta. Default true para back-compat. */
     canVerDiscrepancias?: boolean;
+    /** Total real del backend (la lista solo trae la primera página). */
+    total?: number;
+    /** Abre el modo Histórico (tabla paginada con todo). */
+    onVerHistorico?: () => void;
 }
 
 // Paleta simplificada: verde (aprobada/recibida), rojo (pendiente/rechazada), gris para el resto.
@@ -62,6 +66,8 @@ const TransferenciasList: React.FC<Props> = ({
     statusFilter, onStatusFilterChange, searchQuery, onSearchChange,
     discrepanciasCount = 0,
     canVerDiscrepancias = true,
+    total,
+    onVerHistorico,
 }) => {
     const filtered = transferencias.filter(t =>
         !searchQuery || t.codigo.toLowerCase().includes(searchQuery.toLowerCase())
@@ -148,6 +154,21 @@ const TransferenciasList: React.FC<Props> = ({
                     })
                 )}
             </div>
+
+            {/* La lista solo trae la primera página del backend: si hay más, ofrecer el
+                histórico completo. Oculto durante búsqueda client-side (contaría mal). */}
+            {!loading && !searchQuery && onVerHistorico && total != null && total > transferencias.length && (
+                <div className="shrink-0 px-3 md:px-4 pt-2 border-t border-border/50 text-label text-muted-foreground">
+                    Mostrando {transferencias.length} de {total} ·{' '}
+                    {/* eslint-disable-next-line no-restricted-syntax -- link inline al histórico */}
+                    <button
+                        onClick={onVerHistorico}
+                        className="font-bold text-brand-primary hover:underline"
+                    >
+                        Ver histórico completo
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

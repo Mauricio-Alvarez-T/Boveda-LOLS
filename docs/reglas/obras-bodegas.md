@@ -28,6 +28,9 @@
   total de trabajadores y desglose por cargo; permite reactivar.
 - Queries globales de asistencia/inventario/dashboard/transferencias/bombas/discrepancias/
   fiscalización excluyen `finalizada=1`.
+- **Escapes explícitos** a esa exclusión (la de `es_prueba=1` NO se levanta nunca):
+  `GET /obras?incluir_finalizadas=true` y `GET /transferencias?incluir_finalizadas=true`
+  (este último lo usa el modo Histórico de Inventario → Solicitudes).
 
 ## Flags de bodega (`bodegas`)
 

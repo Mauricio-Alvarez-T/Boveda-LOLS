@@ -50,6 +50,58 @@ describe('getAll() — filtros fecha + solicitante', () => {
     });
 });
 
+describe('getAll() — q + incluir_finalizadas (histórico)', () => {
+    beforeEach(() => { jest.clearAllMocks(); db.query.mockReset(); });
+
+    test('q busca por código (LIKE parametrizado) también en el COUNT', async () => {
+        db.query
+            .mockResolvedValueOnce([[]])
+            .mockResolvedValueOnce([[{ total: 0 }]]);
+
+        await transferenciaService.getAll({ q: 'TRF-00' });
+
+        const sql = db.query.mock.calls[0][0];
+        const params = db.query.mock.calls[0][1];
+        expect(sql).toMatch(/t\.codigo LIKE \?/);
+        expect(params).toEqual(expect.arrayContaining(['%TRF-00%']));
+        // El count reusa el mismo WHERE y los mismos params (sin limit/offset).
+        const countSql = db.query.mock.calls[1][0];
+        const countParams = db.query.mock.calls[1][1];
+        expect(countSql).toMatch(/t\.codigo LIKE \?/);
+        expect(countParams).toEqual(expect.arrayContaining(['%TRF-00%']));
+    });
+
+    test('q vacío o solo espacios NO agrega LIKE', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ total: 0 }]]);
+        await transferenciaService.getAll({ q: '   ' });
+        expect(db.query.mock.calls[0][0]).not.toMatch(/LIKE/);
+    });
+
+    test('default (sin flag): el listado sigue excluyendo obras finalizadas', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ total: 0 }]]);
+        await transferenciaService.getAll({});
+        expect(db.query.mock.calls[0][0]).toMatch(/es_prueba = 1 OR finalizada = 1/);
+    });
+
+    test('incluir_finalizadas=true levanta la exclusión de finalizadas pero NUNCA la de prueba', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ total: 0 }]]);
+        await transferenciaService.getAll({ incluir_finalizadas: 'true' });
+        const sql = db.query.mock.calls[0][0];
+        expect(sql).not.toMatch(/finalizada = 1/);
+        expect(sql).toMatch(/es_prueba = 1/);
+    });
+
+    test('incluir_finalizadas=true conserva el scoping por solicitante/bodega (histórico no abre datos ajenos)', async () => {
+        db.query.mockResolvedValueOnce([[]]).mockResolvedValueOnce([[{ total: 0 }]]);
+        await transferenciaService.getAll({ incluir_finalizadas: 'true' }, 5, 3);
+        const sql = db.query.mock.calls[0][0];
+        const params = db.query.mock.calls[0][1];
+        expect(sql).toMatch(/\(t\.solicitante_id = \? OR t\.destino_bodega_id = \?\)/);
+        expect(params[0]).toBe(5);
+        expect(params[1]).toBe(3);
+    });
+});
+
 describe('paginación — page/limit como STRING (req.query) bindean NÚMEROS', () => {
     // Regresión: page/limit vienen de req.query como string; mysql2 bindeaba
     // `LIMIT '20'` y MariaDB lo rechazaba (500 "near ''20' OFFSET 0'"). El fix

@@ -10,6 +10,7 @@ import { NuevoMovimientoWizard } from './nuevo-movimiento/NuevoMovimientoWizard'
 import type { MovimientoResuelto } from '../../utils/inferMovimiento';
 import DiscrepanciasList from './DiscrepanciasList';
 import DiscrepanciaDetail from './DiscrepanciaDetail';
+import TransferenciasHistorico from './TransferenciasHistorico';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import { SearchableSelect } from '../ui/SearchableSelect';
@@ -51,6 +52,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     // Discrepancias mode
     const isDiscrepanciasMode = statusFilter === 'discrepancias';
+    // Histórico mode: tabla paginada server-side; fetchea lo suyo (TransferenciasHistorico).
+    const isHistoricoMode = statusFilter === 'historico';
     const [discSubFilter, setDiscSubFilter] = useState<'pendiente' | 'resuelta' | 'descartada'>('pendiente');
     const [discSearchQuery, setDiscSearchQuery] = useState('');
     // Counter for badge (always reflects PENDING discrepancies regardless of subfilter)
@@ -81,6 +84,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
 
     // Fetch list when filter changes
     useEffect(() => {
+        // El modo histórico fetchea lo suyo; sin este guard mandaríamos ?estado=historico.
+        if (isHistoricoMode) return;
         if (isDiscrepanciasMode) {
             trfHook.fetchDiscrepancias(discSubFilter).then(list => {
                 if (discSubFilter === 'pendiente') setPendientesCount(list.length);
@@ -109,6 +114,15 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
         await trfHook.fetchById(id);
     }, [trfHook.fetchById]);
 
+    // Abrir el detalle desde la tabla del histórico: vuelve al master-detail con la
+    // TRF seleccionada. NO usa handleStatusChange (ese limpia la selección); el
+    // auto-select no la pisa porque selectedId ya viene seteado.
+    const handleOpenFromHistorico = useCallback(async (id: number) => {
+        setStatusFilter('todas');
+        setSelectedId(id);
+        await trfHook.fetchById(id);
+    }, [trfHook.fetchById]);
+
     // Cambiar de filtro limpia la selección abierta: en móvil el detalle oculta la
     // lista (detailPaneActive), así que sin esto los chips "no hacían nada". En
     // desktop el effect de auto-selección vuelve a elegir el primero del nuevo filtro.
@@ -122,12 +136,12 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
     // Auto-selección del primer movimiento en desktop (como Vehículos), para que el
     // panel de detalle no quede vacío al entrar. Respeta initialSelectedId y discrepancias.
     useEffect(() => {
-        if (selectedId || isDiscrepanciasMode || trfHook.transferencias.length === 0) return;
+        if (selectedId || isDiscrepanciasMode || isHistoricoMode || trfHook.transferencias.length === 0) return;
         if (typeof window !== 'undefined' && window.matchMedia('(min-width: 768px)').matches) {
             handleSelect(trfHook.transferencias[0].id);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [trfHook.transferencias, selectedId, isDiscrepanciasMode]);
+    }, [trfHook.transferencias, selectedId, isDiscrepanciasMode, isHistoricoMode]);
 
     const refreshAll = useCallback(async () => {
         await trfHook.fetchAll({ estado: statusFilter === 'todas' ? undefined : statusFilter });
@@ -294,11 +308,11 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
                 searchQuery={isDiscrepanciasMode ? discSearchQuery : searchQuery}
                 onSearchChange={isDiscrepanciasMode ? setDiscSearchQuery : setSearchQuery}
-                canPedir={!isDiscrepanciasMode && (
+                canPedir={!isDiscrepanciasMode && !isHistoricoMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.solicitud_materiales')
                 )}
-                canMover={!isDiscrepanciasMode && (
+                canMover={!isDiscrepanciasMode && !isHistoricoMode && (
                     hasPermission('inventario.transferencias.solicitar') ||
                     hasPermission('inventario.transferencias.push_directo') ||
                     hasPermission('inventario.transferencias.intra_bodega') ||
@@ -308,7 +322,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 )}
                 onPedir={() => setWizardModo('pedir')}
                 onMover={() => setWizardModo('mover')}
-                showFiltros={!isDiscrepanciasMode}
+                showFiltros={!isDiscrepanciasMode && !isHistoricoMode}
+                showSearch={!isHistoricoMode}
                 fechaDesde={fechaDesde}
                 fechaHasta={fechaHasta}
                 onFechaDesde={setFechaDesde}
@@ -320,6 +335,15 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                 onLimpiarFiltros={() => { setFechaDesde(''); setFechaHasta(''); setSolicitanteId(null); }}
             />
 
+            {isHistoricoMode ? (
+                /* HISTÓRICO: tabla paginada full-width; reemplaza el master-detail
+                   (mismo patrón de swap que el modo Diferencias). */
+                <TransferenciasHistorico
+                    canVerTodas={canVerTodas}
+                    solicitantes={solicitantes}
+                    onOpenDetail={handleOpenFromHistorico}
+                />
+            ) : (
             <div className="flex flex-1 min-h-0 bg-card border border-border rounded-3xl shadow-sm overflow-hidden">
                 {/* LEFT: Lista (crece) — siempre visible en desktop, oculta en mobile cuando hay detalle */}
                 <div className={cn(
@@ -354,6 +378,8 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                             onSearchChange={setSearchQuery}
                             discrepanciasCount={pendientesCount}
                             canVerDiscrepancias={hasPermission('inventario.transferencias.aprobar')}
+                            total={trfHook.total}
+                            onVerHistorico={() => handleStatusChange('historico')}
                         />
                     )}
                 </div>
@@ -414,6 +440,7 @@ const TransferenciasPanel: React.FC<Props> = ({ obras, hasPermission, initialSta
                     )}
                 </div>
             </div>
+            )}
 
             {/* Wizard adaptativo (Fase 4.1) — dos modos: Pedir (solicitud) / Mover stock. */}
             <NuevoMovimientoWizard
@@ -456,6 +483,8 @@ interface BarraFiltrosProps {
     onMover: () => void;
     // Filtros avanzados (solo listado de transferencias, no discrepancias).
     showFiltros?: boolean;
+    /** Lupa de búsqueda client-side. Oculta en histórico (trae la suya server-side). */
+    showSearch?: boolean;
     fechaDesde?: string;
     fechaHasta?: string;
     onFechaDesde?: (v: string) => void;
@@ -470,7 +499,7 @@ interface BarraFiltrosProps {
 const BarraFiltros: React.FC<BarraFiltrosProps> = ({
     statusFilter, onStatusChange, pendientesCount, canVerDiscrepancias,
     searchQuery, onSearchChange, canPedir, canMover, onPedir, onMover,
-    showFiltros = false, fechaDesde = '', fechaHasta = '', onFechaDesde, onFechaHasta,
+    showFiltros = false, showSearch = true, fechaDesde = '', fechaHasta = '', onFechaDesde, onFechaHasta,
     canFiltrarUsuario = false, solicitantes = [], solicitanteId = null, onSolicitante, onLimpiarFiltros,
 }) => {
     const [searchOpen, setSearchOpen] = React.useState(false);
@@ -508,7 +537,7 @@ const BarraFiltros: React.FC<BarraFiltrosProps> = ({
                     (visibles); en desktop empujadas a la derecha. flex-wrap evita overflow. */}
                 <div className="flex flex-wrap items-center justify-end gap-1.5 shrink-0 md:ml-auto md:flex-nowrap">
                     {/* Lupa: ícono solo → expandible con input al hacer clic */}
-                    {searchOpen ? (
+                    {!showSearch ? null : searchOpen ? (
                         <div className="relative flex items-center animate-in fade-in slide-in-from-right-2 duration-150">
                             <Search className="absolute left-2.5 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
                             <input

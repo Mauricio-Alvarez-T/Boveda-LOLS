@@ -103,6 +103,20 @@ Implementación: `backend/src/services/transferencia.service.js`.
   `inventario.tab.por_ubicacion` + `inventario.transferencias.recibir`. SIN ver_todas / solicitar /
   aprobar. El flujo de entrada del material a bodega es **devolución** (obra→bodega).
 
+## Histórico general (chip "Histórico" en Inventario → Solicitudes)
+
+- Tabla paginada server-side (`TransferenciasHistorico.tsx`, 50/página) sobre el mismo
+  `GET /transferencias`. **Sin permiso nuevo**: quien ve el tab lo ve; el scoping backend
+  se mantiene (sin `ver_todas` → propias + destinadas a su bodega).
+- Params de `getAll` para el histórico: `q` (LIKE por `codigo`, parametrizado) e
+  `incluir_finalizadas=true` (levanta SOLO la exclusión de obras `finalizada=1`; la de
+  `es_prueba=1` es innegociable y no se levanta nunca). La lista master NO manda el flag
+  → sigue ocultando finalizadas por política.
+- Contexto: la lista master solo trae la primera página (default `limit=20` de
+  `normalizePagination`); su footer "Mostrando X de N" enlaza al histórico.
+- Filtros del histórico: estado (los 7), fecha desde/hasta, solicitante (solo `ver_todas`),
+  código con debounce 300ms. Click en fila → vuelve al master-detail con la TRF abierta.
+
 ## Discrepancias
 
 - Auto-creadas al recibir si `cantidad_recibida ≠ cantidad_enviada`. Vista propia (chip

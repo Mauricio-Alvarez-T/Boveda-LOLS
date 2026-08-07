@@ -8,6 +8,12 @@ const { normalizePagination } = require('../utils/pagination');
 // sea una obra marcada es_prueba. NULL-safe (origen/destino puede ser bodega →
 // obra_id NULL). Se concatena al WHERE de los listados; funciona también en el
 // COUNT (no depende de los alias de JOIN, sólo de las columnas base de `t`).
+// INNEGOCIABLE: los datos de prueba nunca se muestran, en ningún listado.
+const EXCLUIR_SOLO_PRUEBA =
+    ' AND (t.origen_obra_id IS NULL OR t.origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))' +
+    ' AND (t.destino_obra_id IS NULL OR t.destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1))';
+// Política default de los listados: además de prueba, oculta obras FINALIZADAS.
+// El histórico la levanta con ?incluir_finalizadas=true (mismo escape que GET /obras).
 const EXCLUIR_OBRAS_PRUEBA =
     ' AND (t.origen_obra_id IS NULL OR t.origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))' +
     ' AND (t.destino_obra_id IS NULL OR t.destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))';
@@ -1651,9 +1657,11 @@ const transferenciaService = {
         // `inventario.transferencias.ver_todas`). null = sin filtro = ver todas.
         // destinoBodegaId (usuarios.bodega_id, mig 097): un bodeguero además ve las
         // transferencias DESTINADAS a su bodega aunque no las haya creado él.
-        const { estado, fecha_desde, fecha_hasta, solicitante_id } = query;
+        const { estado, fecha_desde, fecha_hasta, solicitante_id, q, incluir_finalizadas } = query;
         const { page, limit, offset } = normalizePagination(query);
-        let where = 'WHERE t.activo = 1' + EXCLUIR_OBRAS_PRUEBA;
+        // Histórico: incluye TRFs de obras finalizadas; la exclusión de prueba se mantiene SIEMPRE.
+        const exclusion = String(incluir_finalizadas) === 'true' ? EXCLUIR_SOLO_PRUEBA : EXCLUIR_OBRAS_PRUEBA;
+        let where = 'WHERE t.activo = 1' + exclusion;
         const params = [];
 
         if (solicitanteId != null) {
@@ -1672,6 +1680,9 @@ const transferenciaService = {
         if (fecha_desde) { where += ' AND t.fecha_solicitud >= ?'; params.push(fecha_desde); }
         if (fecha_hasta) { where += ' AND t.fecha_solicitud < DATE_ADD(?, INTERVAL 1 DAY)'; params.push(fecha_hasta); }
         if (solicitante_id) { where += ' AND t.solicitante_id = ?'; params.push(solicitante_id); }
+        // Búsqueda por código (histórico): server-side, parametrizada.
+        const qTrim = typeof q === 'string' ? q.trim() : '';
+        if (qTrim) { where += ' AND t.codigo LIKE ?'; params.push(`%${qTrim}%`); }
 
         const [rows] = await db.query(`
             SELECT t.*,

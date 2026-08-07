@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, CheckCircle2, PackageCheck, AlertTriangle, LayoutGrid } from 'lucide-react';
+import { Clock, CheckCircle2, PackageCheck, AlertTriangle, LayoutGrid, History } from 'lucide-react';
 import { cn } from '../../utils/cn';
 
 /**
@@ -13,6 +13,9 @@ const STATUS_CHIPS: { value: string; label: string; icon: React.ElementType; dis
     { value: 'pendiente',     label: 'Pendientes',    icon: Clock },
     { value: 'aprobada',      label: 'Aprobadas',     icon: CheckCircle2 },
     { value: 'recibida',      label: 'Recibidas',     icon: PackageCheck },
+    // Histórico general: tabla paginada con TODAS las solicitudes visibles para el
+    // usuario (mismo scoping del backend). Sin gate de permiso: quien ve el tab, lo ve.
+    { value: 'historico',     label: 'Histórico',     icon: History },
     { value: 'discrepancias', label: 'Diferencias', icon: AlertTriangle, discrepancia: true },
 ];
 
