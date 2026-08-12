@@ -342,6 +342,22 @@ try {
     orderBy: 'orden ASC',
     allowedFields: ['nombre', 'orden', 'activo']
   }));
+  // Guard: la Bodega Virtual (mig 099) es el destino permanente del módulo
+  // Facturas para ítems fuera del sistema — no se puede eliminar. Montado ANTES
+  // del CRUD genérico para interceptar solo el DELETE (además evita el quirk
+  // ER_DUP_ENTRY del crud.service que borra físicamente filas inactivas
+  // homónimas al recrear). GET/POST/PUT caen al router genérico.
+  const bodegaVirtualGuard = express.Router();
+  bodegaVirtualGuard.delete('/:id', authMw, checkPermission(invPerms.eliminar), async (req, res, next) => {
+    try {
+      const [rows] = await db.query('SELECT es_virtual FROM bodegas WHERE id = ?', [req.params.id]);
+      if (rows.length && (rows[0].es_virtual === 1 || rows[0].es_virtual === true)) {
+        return res.status(400).json({ error: 'La Bodega Virtual no se puede eliminar (destino permanente del módulo Facturas).' });
+      }
+      next(); // no es virtual → sigue al DELETE genérico
+    } catch (err) { next(err); }
+  });
+  app.use('/api/bodegas', bodegaVirtualGuard);
   app.use('/api/bodegas', createCrudRoutes(invPerms, 'bodegas', {
     // responsable_nombre ahora es columna real (mig 060), texto libre editable
     // desde el form. Sin JOIN para evitar colisión de alias con la columna real.
@@ -349,8 +365,15 @@ try {
     activeColumn: 'activa',
     useSoftDelete: true,
     orderBy: 'bodegas.nombre ASC',
-    allowedFilters: ['participa_inventario', 'participa_transferencias'],
-    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa', 'participa_inventario', 'participa_transferencias']
+    allowedFilters: ['participa_inventario', 'participa_transferencias', 'es_virtual'],
+    // es_virtual NO va en allowedFields: el flag solo se asigna por migración
+    // (mismo racional que obras.finalizada — acción de alto impacto).
+    allowedFields: ['nombre', 'direccion', 'responsable_nombre', 'responsable_id', 'activa', 'participa_inventario', 'participa_transferencias'],
+    // Oculta la(s) bodega(s) virtuales de GET /bodegas por default; los
+    // consumidores que la necesitan pasan ?incluir_virtual=true (Facturas,
+    // wizard de movimientos, admin de Settings).
+    hiddenFlagColumn: 'es_virtual',
+    hiddenFlagParam: 'incluir_virtual'
   }));
   // Middleware sanitiza valor_compra/valor_arriendo si el usuario no tiene
   // `inventario.costos.ver`. Aplica antes de la ruta CRUD genérica porque

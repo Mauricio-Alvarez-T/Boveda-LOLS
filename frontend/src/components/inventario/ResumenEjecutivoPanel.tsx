@@ -32,6 +32,8 @@ interface Props {
     onNavigateTransferencias: (opts: { estado?: string; transferenciaId?: number }) => void;
     /** Navega al tab "Por Obra/Bodega" preseleccionando la obra indicada. */
     onNavigateObra: (obraId: number) => void;
+    /** Modo Bodega Virtual: su stock solo entra al patrimonio en 'sumar'. */
+    bodegaVirtualModo?: 'ocultar' | 'mostrar' | 'sumar';
 }
 
 const fmtCLP = (n: number) => {
@@ -466,7 +468,7 @@ function formatRelativeTime(lastUpdated: number | null, now: number): { label: s
     return { label: `Actualizado hace ${diffHr}h`, stale: true };
 }
 
-const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNavigateObra }) => {
+const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNavigateObra, bodegaVirtualModo = 'ocultar' }) => {
     // Permiso financiero para mostrar valores $ en el resumen ejecutivo.
     // El backend ya sanitiza (Sprint 1), por lo que sin permiso los campos
     // monetarios llegan undefined. Aquí escondemos los KPIs/secciones $
@@ -477,7 +479,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
 
     const [obraFilter, setObraFilter] = useState<number | null>(null);
     const [obras, setObras] = useState<ObraOpcion[]>([]);
-    const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo(obraFilter);
+    const { data, loading, error, refetch, lastUpdated } = useDashboardEjecutivo(obraFilter, bodegaVirtualModo);
     const [now, setNow] = useState(() => Date.now());
 
     // Acciones sobre solicitudes estancadas (punto 55)

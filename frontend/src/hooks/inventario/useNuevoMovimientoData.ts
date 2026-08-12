@@ -21,7 +21,9 @@ export function useNuevoMovimientoData() {
         try {
             const [itemsRes, bodRes, obrasRes, catRes] = await Promise.all([
                 api.get<ApiResponse<ItemInventario[]>>('/items-inventario?activo=true&limit=500'),
-                api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&participa_transferencias=1&limit=50'),
+                // incluir_virtual: la Bodega Virtual participa en transferencias para
+                // poder REGULARIZAR su contenido (moverlo a una obra/bodega real).
+                api.get<ApiResponse<Bodega[]>>('/bodegas?activa=true&participa_transferencias=1&incluir_virtual=true&limit=50'),
                 api.get<ApiResponse<Obra[]>>('/obras?activo=true&participa_transferencias=1&limit=500'),
                 api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=100'),
             ]);

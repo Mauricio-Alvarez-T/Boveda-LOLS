@@ -707,8 +707,15 @@ const SettingsPage: React.FC = () => {
                         <CrudTable<Bodega>
                             reloadSignal={bodegasNonce}
                             endpoint="/bodegas"
+                            // El admin SÍ ve la Bodega Virtual (GET /bodegas la oculta por default).
+                            queryParams={{ incluir_virtual: true }}
                             columns={[
-                                { key: 'nombre', label: 'Nombre' },
+                                {
+                                    key: 'nombre', label: 'Nombre',
+                                    render: (v, row) => row.es_virtual
+                                        ? <span className="flex items-center gap-1.5">{v}<Chip tone="info" label="VIRTUAL" className="text-caption" /></span>
+                                        : v,
+                                },
                                 { key: 'direccion', label: 'Dirección', render: (v) => v || '—' },
                                 { key: 'responsable_nombre', label: 'Responsable', render: (v) => v || '—' },
                                 {

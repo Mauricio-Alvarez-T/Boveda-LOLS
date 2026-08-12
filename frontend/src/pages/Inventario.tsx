@@ -8,6 +8,8 @@ import { useAuth } from '../context/AuthContext';
 import { useObra } from '../context/ObraContext';
 import { useSetPageHeader } from '../context/PageHeaderContext';
 import { useInventarioData } from '../hooks/inventario/useInventarioData';
+import { useBodegaVirtualModo } from '../hooks/inventario/useBodegaVirtualModo';
+import BodegaVirtualToggle from '../components/inventario/BodegaVirtualToggle';
 import { useInventarioActions } from '../hooks/inventario/useInventarioActions';
 import { useInventarioCache } from '../hooks/inventario/useInventarioCache';
 import ResumenMensualTable from '../components/inventario/ResumenMensualTable';
@@ -116,11 +118,14 @@ const ExportExcelDropdown: React.FC<{ stockData: StockObraData }> = ({ stockData
 const InventarioPage: React.FC = () => {
     const { hasPermission } = useAuth();
     const { obras, selectedObra } = useObra();
+    // Modo Bodega Virtual (por usuario): ocultar → mostrar → sumar. Afecta
+    // Ejecutivo, Resumen, Obra/Bod. y Facturas.
+    const { modo: bodegaVirtualModo, cycle: cycleBodegaVirtual } = useBodegaVirtualModo();
     const {
         resumen, stockObra, stockBodega,
         resumenLoading, stockObraLoading, stockBodegaLoading,
         fetchResumen, fetchStockObra, fetchStockBodega,
-    } = useInventarioData();
+    } = useInventarioData(bodegaVirtualModo);
     // Loading combinado: solo una sección se monta a la vez, alcanza con un OR.
     // El hook expone flags granulares por endpoint para casos futuros (spinner
     // independiente por tab), pero la UI actual usa un único spinner.
@@ -145,6 +150,9 @@ const InventarioPage: React.FC = () => {
     // El subtítulo del header muestra el tab activo como breadcrumb (→ Tab)
     // para que el usuario sepa dónde está sin mirar las pestañas.
     const activeTabDef = useMemo(() => tabs.find(t => t.key === activeTab), [activeTab]);
+
+    // El toggle de Bodega Virtual solo aplica a los apartados que la muestran/suman.
+    const showVirtualToggle = ['resumen_ejecutivo', 'resumen', 'por_ubicacion', 'facturas'].includes(activeTab);
 
     const headerTitle = useMemo(() => (
         <div className="flex items-center gap-3">
@@ -217,6 +225,16 @@ const InventarioPage: React.FC = () => {
             setSelectedUbicacionKey(match ? match.key : allUbicaciones[0].key);
         }
     }, [allUbicaciones, selectedObra, selectedUbicacionKey]);
+
+    // Si la ubicación seleccionada desaparece de la lista (ej: Bodega Virtual
+    // seleccionada y el usuario cicla el modo a "ocultar"), resetear a la
+    // primera disponible para no dejar el selector apuntando a un fantasma.
+    useEffect(() => {
+        if (selectedUbicacionKey && allUbicaciones.length > 0
+            && !allUbicaciones.some(u => u.key === selectedUbicacionKey)) {
+            setSelectedUbicacionKey(allUbicaciones[0].key);
+        }
+    }, [allUbicaciones, selectedUbicacionKey]);
 
     // ── Load resumen: también necesario para 'por_ubicacion' (bodegas vienen de resumen.bodegas) ──
     useEffect(() => {
@@ -292,6 +310,9 @@ const InventarioPage: React.FC = () => {
                             </button>
                         );
                     })}
+                    {showVirtualToggle && (
+                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-1" />
+                    )}
                 </div>
                 {/* ── Desktop: horizontal compacto (mismo estilo que Configuración) ── */}
                 <div className="hidden md:flex items-center gap-1 p-2 bg-card/80 backdrop-blur-xl rounded-2xl border border-border overflow-x-auto scrollbar-none shadow-sm">
@@ -316,6 +337,9 @@ const InventarioPage: React.FC = () => {
                             </button>
                         );
                     })}
+                    {showVirtualToggle && (
+                        <BodegaVirtualToggle modo={bodegaVirtualModo} onCycle={cycleBodegaVirtual} className="ml-auto" />
+                    )}
                 </div>
             </div>
 
@@ -330,6 +354,7 @@ const InventarioPage: React.FC = () => {
                 {/* ── RESUMEN EJECUTIVO ── */}
                 {activeTab === 'resumen_ejecutivo' && (
                     <ResumenEjecutivoPanel
+                        bodegaVirtualModo={bodegaVirtualModo}
                         onNavigateTransferencias={({ estado, transferenciaId }) => {
                             setTrfNavIntent({ estado, id: transferenciaId ?? null, nonce: Date.now() });
                             setActiveTab('transferencias');
@@ -384,7 +409,7 @@ const InventarioPage: React.FC = () => {
                                     <optgroup label="🏢 Bodegas">
                                         {allBodegas.map(b => (
                                             <option key={`bodega_${b.id}`} value={`bodega_${b.id}`}>
-                                                🏢 {formatBodegaConResponsable(b)}
+                                                🏢 {formatBodegaConResponsable(b)}{b.es_virtual ? ' (virtual)' : ''}
                                             </option>
                                         ))}
                                     </optgroup>
@@ -506,6 +531,7 @@ const InventarioPage: React.FC = () => {
                     <FacturasTab
                         canCreate={hasPermission('inventario.facturas.gestionar')}
                         canDelete={hasPermission('inventario.facturas.gestionar')}
+                        bodegaVirtualModo={bodegaVirtualModo}
                     />
                 )}
 

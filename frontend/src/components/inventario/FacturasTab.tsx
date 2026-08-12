@@ -20,6 +20,13 @@ const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
 interface Props {
     canCreate: boolean;
     canDelete: boolean;
+    /**
+     * Modo Bodega Virtual (mig 099). Ajusta SOLO lo MOSTRADO: cuando no está
+     * en 'sumar', los ítems con destino virtual se restan del monto exhibido y
+     * en 'ocultar' además se esconden del detalle. El monto_neto almacenado y
+     * el form de edición NUNCA se alteran (documento real).
+     */
+    bodegaVirtualModo?: 'ocultar' | 'mostrar' | 'sumar';
 }
 
 /* ── Line item inside the create form ── */
@@ -34,7 +41,7 @@ interface LineItem {
     destino_id: number;
 }
 
-const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
+const FacturasTab: React.FC<Props> = ({ canCreate, canDelete, bodegaVirtualModo = 'ocultar' }) => {
     const [facturas, setFacturas] = useState<FacturaInventario[]>([]);
     const [loading, setLoading] = useState(false);
 
@@ -65,7 +72,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
     /* ── Catalog data for selects ── */
     const [catalogoItems, setCatalogoItems] = useState<ItemInventario[]>([]);
     const [obras, setObras] = useState<{ id: number; nombre: string }[]>([]);
-    const [bodegas, setBodegas] = useState<{ id: number; nombre: string }[]>([]);
+    const [bodegas, setBodegas] = useState<{ id: number; nombre: string; es_virtual?: boolean | number }[]>([]);
 
     /* ── Crear ítem nuevo inline ── */
     const [categorias, setCategorias] = useState<CategoriaInventario[]>([]);
@@ -93,7 +100,10 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
             .then(res => setCatalogoItems(res.data.data))
             .catch(() => {});
         api.get('/obras?participa_inventario=1').then(res => setObras(res.data.data || [])).catch(() => {});
-        api.get('/bodegas').then(res => setBodegas(res.data.data || [])).catch(() => {});
+        // incluir_virtual: la Bodega Virtual es destino SIEMPRE disponible en
+        // facturas (punto de entrada para ítems fuera del sistema), sin importar
+        // el modo de visibilidad de los otros apartados.
+        api.get('/bodegas?incluir_virtual=true&limit=100').then(res => setBodegas(res.data.data || [])).catch(() => {});
         api.get<ApiResponse<CategoriaInventario[]>>('/categorias-inventario?activo=true&limit=100')
             .then(res => setCategorias(res.data.data || []))
             .catch(() => {});
@@ -243,7 +253,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
     const destinoOptions = useMemo(() => [
         ...obras.map(o => ({ value: `obra-${o.id}`, label: `Obra: ${o.nombre}` })),
-        ...bodegas.map(b => ({ value: `bodega-${b.id}`, label: `Bodega: ${formatBodegaConResponsable(b)}` })),
+        ...bodegas.map(b => ({ value: `bodega-${b.id}`, label: `Bodega: ${formatBodegaConResponsable(b)}${b.es_virtual ? ' (virtual)' : ''}` })),
     ], [obras, bodegas]);
 
     /* ── Submit ── */
@@ -355,7 +365,13 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                 </div>
             ) : (
                 <div className="space-y-2">
-                    {facturas.map(f => (
+                    {facturas.map(f => {
+                        // Monto MOSTRADO según el modo Bodega Virtual: fuera de 'sumar',
+                        // lo virtual se resta de lo exhibido (el documento no cambia).
+                        const montoVirtual = Number(f.monto_virtual || 0);
+                        const restarVirtual = bodegaVirtualModo !== 'sumar' && montoVirtual > 0;
+                        const montoMostrado = restarVirtual ? Number(f.monto_neto) - montoVirtual : Number(f.monto_neto);
+                        return (
                         <div
                             key={f.id}
                             onClick={() => openDetalle(f.id)}
@@ -366,9 +382,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 <div className="flex items-center gap-2 mb-0.5">
                                     <span className="text-xs font-bold text-brand-dark">#{f.numero_factura}</span>
                                     <span className="text-caption text-muted-foreground">{f.proveedor}</span>
+                                    {restarVirtual && (
+                                        <span
+                                            className="px-1.5 py-0.5 rounded-md text-caption font-bold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60 shrink-0"
+                                            title={`Monto del documento: ${fmtMoney(Number(f.monto_neto))} (incluye ${fmtMoney(montoVirtual)} en bodega virtual)`}
+                                        >
+                                            VIRTUAL −{fmtMoney(montoVirtual)}
+                                        </span>
+                                    )}
                                 </div>
                                 <p className="text-label text-muted-foreground">
-                                    {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(f.monto_neto)} neto
+                                    {fmtFecha(f.fecha_factura)} &middot; {fmtMoney(montoMostrado)} neto
                                 </p>
                             </div>
                             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
@@ -402,7 +426,8 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 )}
                             </div>
                         </div>
-                    ))}
+                        );
+                    })}
                 </div>
             )}
 
@@ -440,37 +465,71 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             </div>
                         </div>
 
-                        {/* Ítems */}
-                        <div>
-                            <p className="text-xs font-bold text-brand-dark mb-2">Ítems</p>
-                            <div className="space-y-2">
-                                {(detalle.items || []).map((it: any, idx: number) => (
-                                    <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
-                                        <div className="min-w-0">
-                                            <p className="text-xs font-semibold text-brand-dark break-words">{it.item_descripcion}</p>
-                                            <p className="text-caption text-muted-foreground">
-                                                {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
-                                                {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
-                                            </p>
+                        {/* Ítems — el filtrado por modo es SOLO de render: el form de
+                            edición (openEditar) siempre carga TODOS los ítems, si no,
+                            guardar en modo ocultar borraría los virtuales y su stock. */}
+                        {(() => {
+                            const allItems: any[] = detalle.items || [];
+                            const virtualSum = allItems.reduce((s, it) => s + (it.bodega_es_virtual ? Number(it.cantidad) * Number(it.precio_unitario) : 0), 0);
+                            const restar = bodegaVirtualModo !== 'sumar' && virtualSum > 0;
+                            const visibles = bodegaVirtualModo === 'ocultar' ? allItems.filter(it => !it.bodega_es_virtual) : allItems;
+                            const ocultos = allItems.length - visibles.length;
+                            return (
+                                <>
+                                    <div>
+                                        <p className="text-xs font-bold text-brand-dark mb-2">Ítems</p>
+                                        <div className="space-y-2">
+                                            {visibles.map((it: any, idx: number) => (
+                                                <div key={idx} className="flex items-start justify-between gap-3 px-3 py-2 rounded-xl border border-border">
+                                                    <div className="min-w-0">
+                                                        <p className="text-xs font-semibold text-brand-dark break-words flex items-center gap-1.5">
+                                                            {it.item_descripcion}
+                                                            {!!it.bodega_es_virtual && (
+                                                                <span className="px-1.5 py-0.5 rounded-md text-caption font-bold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60 shrink-0">
+                                                                    VIRTUAL
+                                                                </span>
+                                                            )}
+                                                        </p>
+                                                        <p className="text-caption text-muted-foreground">
+                                                            {Number(it.cantidad).toLocaleString('es-CL')} {it.unidad} &middot; {fmtMoney(it.precio_unitario)} c/u
+                                                            {it.obra_nombre ? ` · Obra: ${it.obra_nombre}` : it.bodega_nombre ? ` · Bodega: ${it.bodega_nombre}` : ''}
+                                                        </p>
+                                                    </div>
+                                                    <span className="text-xs font-bold text-brand-dark shrink-0">
+                                                        {fmtMoney(Number(it.cantidad) * Number(it.precio_unitario))}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                            {ocultos > 0 && (
+                                                <p className="text-caption text-muted-foreground italic">
+                                                    {ocultos} ítem{ocultos === 1 ? '' : 's'} en bodega virtual oculto{ocultos === 1 ? '' : 's'} (modo "Virtual oculta").
+                                                </p>
+                                            )}
+                                            {allItems.length === 0 && (
+                                                <p className="text-xs text-muted-foreground italic">Sin ítems.</p>
+                                            )}
                                         </div>
-                                        <span className="text-xs font-bold text-brand-dark shrink-0">
-                                            {fmtMoney(Number(it.cantidad) * Number(it.precio_unitario))}
-                                        </span>
                                     </div>
-                                ))}
-                                {(!detalle.items || detalle.items.length === 0) && (
-                                    <p className="text-xs text-muted-foreground italic">Sin ítems.</p>
-                                )}
-                            </div>
-                        </div>
 
-                        {/* Total */}
-                        <div className="flex items-center justify-between bg-muted rounded-xl px-4 py-3 border border-border">
-                            <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
-                                <Receipt className="h-3.5 w-3.5 text-brand-primary" /> Total Neto
-                            </span>
-                            <span className="text-sm font-black text-brand-dark">{fmtMoney(detalle.monto_neto)}</span>
-                        </div>
+                                    {/* Total mostrado según modo; el documento (monto_neto) no cambia */}
+                                    <div className="bg-muted rounded-xl px-4 py-3 border border-border">
+                                        <div className="flex items-center justify-between">
+                                            <span className="text-xs font-bold text-brand-dark flex items-center gap-1.5">
+                                                <Receipt className="h-3.5 w-3.5 text-brand-primary" /> Total Neto
+                                            </span>
+                                            <span className="text-sm font-black text-brand-dark">
+                                                {fmtMoney(restar ? Number(detalle.monto_neto) - virtualSum : Number(detalle.monto_neto))}
+                                            </span>
+                                        </div>
+                                        {restar && (
+                                            <p className="mt-1 text-caption text-muted-foreground text-right">
+                                                En bodega virtual: {fmtMoney(virtualSum)} (no suma) · Documento: {fmtMoney(Number(detalle.monto_neto))}
+                                            </p>
+                                        )}
+                                    </div>
+                                </>
+                            );
+                        })()}
 
                         {/* Observaciones */}
                         {detalle.observaciones && (

@@ -187,7 +187,14 @@ const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false,
                         </div>
                         <div className="flex-1 min-w-0">
                             <p className="text-caption text-muted-foreground uppercase tracking-wider">{isBodega ? 'Bodega' : 'Obra'}</p>
-                            <p className="text-sm font-bold truncate">{data.obra.nombre}</p>
+                            <p className="text-sm font-bold truncate flex items-center gap-1.5">
+                                {data.obra.nombre}
+                                {!!data.obra.es_virtual && (
+                                    <span className="px-1.5 py-0.5 rounded-md text-caption font-bold border bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-300 dark:border-blue-800/60 shrink-0">
+                                        VIRTUAL
+                                    </span>
+                                )}
+                            </p>
                         </div>
                     </div>
 

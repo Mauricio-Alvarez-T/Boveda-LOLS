@@ -285,10 +285,23 @@ const facturaInventarioService = {
 
     async getAll(query = {}) {
         const { limit, offset } = normalizePagination(query);
+        // monto_virtual: suma de los ítems con destino en bodega(s) virtuales
+        // (mig 099). La UI lo resta del monto MOSTRADO según el modo del botón;
+        // monto_neto almacenado nunca cambia (documento real). `fi.obra_id IS
+        // NULL` espeja la precedencia de normalizeUbicacion (obra gana en
+        // facturas legacy con ambos destinos seteados).
         const [rows] = await db.query(`
-            SELECT f.*, u.nombre as registrado_por_nombre
+            SELECT f.*, u.nombre as registrado_por_nombre,
+                   COALESCE(mv.monto_virtual, 0) as monto_virtual
             FROM facturas_inventario f
             LEFT JOIN usuarios u ON f.registrado_por = u.id
+            LEFT JOIN (
+                SELECT fi.factura_id, SUM(fi.cantidad * fi.precio_unitario) AS monto_virtual
+                FROM factura_items fi
+                JOIN bodegas b ON b.id = fi.bodega_id AND b.es_virtual = 1
+                WHERE fi.obra_id IS NULL
+                GROUP BY fi.factura_id
+            ) mv ON mv.factura_id = f.id
             WHERE f.activo = 1
             ORDER BY f.fecha_factura DESC, f.id DESC
             LIMIT ? OFFSET ?
@@ -309,7 +322,8 @@ const facturaInventarioService = {
 
         const [items] = await db.query(`
             SELECT fi.*, i.descripcion as item_descripcion, i.unidad,
-                   o.nombre as obra_nombre, b.nombre as bodega_nombre
+                   o.nombre as obra_nombre, b.nombre as bodega_nombre,
+                   CASE WHEN fi.obra_id IS NULL THEN COALESCE(b.es_virtual, 0) ELSE 0 END as bodega_es_virtual
             FROM factura_items fi
             JOIN items_inventario i ON fi.item_id = i.id
             LEFT JOIN obras o ON fi.obra_id = o.id

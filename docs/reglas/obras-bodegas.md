@@ -39,9 +39,35 @@
 | `activa` | TRUE | FALSE = soft-delete (stock histórico se preserva) |
 | `participa_inventario` (mig 075) | TRUE | FALSE = fuera del resumen/stock por ubicación |
 | `participa_transferencias` (mig 075) | TRUE | FALSE = no seleccionable en transferencias |
+| `es_virtual` (mig 099) | FALSE | TRUE = Bodega Virtual del sistema (ver sección abajo). Oculta por default en `GET /bodegas` (override `?incluir_virtual=true`); NO editable por PUT genérico (solo migración); DELETE bloqueado por guard (400) |
 
 - `responsable_nombre` texto libre (mig 060; el FK `responsable_id` es legacy sin uso).
 - Display: `formatBodegaConResponsable()` / `formatBodegaNombreResponsable()` (`utils/formatBodega`).
+
+## Bodega Virtual (mig 099)
+
+- **Qué es**: contenedor del sistema para ítems de factura que aún no pertenecen a una
+  ubicación física. Fila sembrada "Bodega Virtual" (`es_virtual=1`), renombrable vía UI,
+  NO eliminable (guard en `index.js` — destino permanente del módulo Facturas).
+- **Modo de visibilidad POR USUARIO** (botón cíclico en Inventario, localStorage
+  `sgdl_bodega_virtual_modo_<userId>`, hook `useBodegaVirtualModo`):
+  1. **ocultar** (default): invisible en Ejecutivo/Resumen/Obra-Bod./Facturas y fuera de totales.
+  2. **mostrar**: visible con todo su contenido, SIN sumar a ningún total (unidades ni patrimonio).
+  3. **sumar**: visible Y sumando.
+- **Backend**: `GET /inventario/resumen?bodega_virtual=<modo>` (lista + `total_cantidad`
+  mode-aware) y `GET /inventario/dashboard-ejecutivo?bodega_virtual=<modo>` (query #14
+  patrimonio excluye su stock salvo `sumar`). Whitelist en la ruta; default `ocultar`.
+- **Facturas**: destino SIEMPRE disponible (`/bodegas?incluir_virtual=true`); el modo
+  ajusta SOLO lo mostrado — `monto_virtual` por factura se resta del monto exhibido fuera
+  de `sumar`; en `ocultar` los ítems virtuales se esconden del detalle. **El `monto_neto`
+  almacenado y el form de edición NUNCA se alteran** (documento real; filtrar el form
+  borraría ítems + stock, porque editar() reemplaza ítems).
+- **Regularización**: participa en transferencias como cualquier bodega → mover
+  virtual→obra/bodega real vía wizard (por eso `useNuevoMovimientoData` pasa
+  `incluir_virtual=true`).
+- **Bodeguero**: `UsuarioForm` NO la lista (nadie es bodeguero de la virtual); una
+  transferencia HACIA la virtual la recepciona quien tenga `ver_todas`.
+- Snapshots del dashboard (sparklines) son solo-obras → no reflejan el modo (aceptado).
 
 ## Otros
 

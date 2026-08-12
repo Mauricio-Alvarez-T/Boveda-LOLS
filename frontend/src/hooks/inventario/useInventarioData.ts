@@ -33,6 +33,8 @@ interface Ubicacion {
     nombre: string;
     /** Solo aplica a bodegas (mig 060). Para obras siempre será undefined. */
     responsable_nombre?: string | null;
+    /** Bodega Virtual (mig 099). Solo aplica a bodegas. */
+    es_virtual?: boolean | number;
 }
 
 export interface ResumenData {
@@ -92,7 +94,9 @@ export interface StockBodegaData {
     total_con_descuento: number;
 }
 
-export function useInventarioData() {
+export type BodegaVirtualModo = 'ocultar' | 'mostrar' | 'sumar';
+
+export function useInventarioData(bodegaVirtualModo: BodegaVirtualModo = 'ocultar') {
     const [resumen, setResumen] = useState<ResumenData | null>(null);
     const [stockObra, setStockObra] = useState<StockObraData | null>(null);
     const [stockBodega, setStockBodega] = useState<StockBodegaData | null>(null);
@@ -106,14 +110,17 @@ export function useInventarioData() {
     const fetchResumen = useCallback(async (opts?: { silent?: boolean }) => {
         if (!opts?.silent) setResumenLoading(true);
         try {
-            const res = await api.get<ApiResponse<ResumenData>>('/inventario/resumen');
+            // El modo va en la URL → entrada de caché ETag distinta por modo.
+            const res = await api.get<ApiResponse<ResumenData>>(`/inventario/resumen?bodega_virtual=${bodegaVirtualModo}`);
             setResumen(res.data.data);
         } catch {
             if (!opts?.silent) setResumen(null);
         } finally {
             if (!opts?.silent) setResumenLoading(false);
         }
-    }, []);
+        // El modo en deps cambia la identidad del callback → los effects que
+        // dependen de fetchResumen re-fetchean solos al ciclar el botón.
+    }, [bodegaVirtualModo]);
 
     const fetchStockObra = useCallback(async (obraId: number, opts?: { silent?: boolean }) => {
         if (!opts?.silent) setStockObraLoading(true);

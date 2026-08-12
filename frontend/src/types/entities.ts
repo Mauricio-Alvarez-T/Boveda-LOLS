@@ -384,6 +384,8 @@ export interface Bodega {
     /** Participación por apartado (mig 075): si FALSE, la bodega no aparece en ese módulo. */
     participa_inventario?: boolean;
     participa_transferencias?: boolean;
+    /** Bodega Virtual (mig 099): oculta por default en GET /bodegas (override ?incluir_virtual=true). */
+    es_virtual?: boolean | number;
 }
 
 export interface ItemInventario {
@@ -557,6 +559,8 @@ export interface FacturaInventario {
     registrado_por: number;
     items?: FacturaItem[];
     activo: boolean;
+    /** Suma de ítems con destino en bodega virtual (mig 099). DECIMAL → puede llegar como string. */
+    monto_virtual?: number | string;
 }
 
 export interface FacturaItem {

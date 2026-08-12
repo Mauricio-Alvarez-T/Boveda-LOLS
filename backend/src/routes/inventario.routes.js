@@ -27,9 +27,11 @@ router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), cach
         const obraId = req.query.obra_id ? Number(req.query.obra_id) : null;
         const topRaw = req.query.top_obras_limit ? Number(req.query.top_obras_limit) : null;
         const topObrasLimit = Number.isFinite(topRaw) && topRaw > 0 ? topRaw : undefined;
+        // Bodega Virtual: whitelist del modo; valores desconocidos → 'ocultar'.
+        const bodegaVirtual = ['mostrar', 'sumar'].includes(req.query.bodega_virtual) ? req.query.bodega_virtual : 'ocultar';
         const result = await inventarioService.getDashboardEjecutivo(
             Number.isFinite(obraId) && obraId > 0 ? obraId : null,
-            { topObrasLimit }
+            { topObrasLimit, bodegaVirtual }
         );
         res.json({ data: sanitizeResumenInventario(result, req.user?.p) });
     } catch (err) { next(err); }
@@ -40,7 +42,8 @@ router.get('/dashboard-ejecutivo', auth, checkPermission('inventario.ver'), cach
 router.get('/resumen', auth, checkPermission('inventario.ver'), cacheControl(30), async (req, res, next) => {
     try {
         const { obra_id } = req.query;
-        const result = await inventarioService.getResumen(obra_id || null);
+        const bodegaVirtual = ['mostrar', 'sumar'].includes(req.query.bodega_virtual) ? req.query.bodega_virtual : 'ocultar';
+        const result = await inventarioService.getResumen(obra_id || null, { bodegaVirtual });
         res.json({ data: sanitizeResumenInventario(result, req.user?.p) });
     } catch (err) { next(err); }
 });

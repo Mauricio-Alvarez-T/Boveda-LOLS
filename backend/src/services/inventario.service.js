@@ -9,12 +9,19 @@ const _exclTransfPrueba = (pre = '') =>
     ` AND (${pre}origen_obra_id IS NULL OR ${pre}origen_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))` +
     ` AND (${pre}destino_obra_id IS NULL OR ${pre}destino_obra_id NOT IN (SELECT id FROM obras WHERE es_prueba = 1 OR finalizada = 1))`;
 
+// Modo de visibilidad de la Bodega Virtual (mig 099), por usuario desde la UI:
+// 'ocultar' (default) = fuera de listados y totales; 'mostrar' = en listados
+// pero fuera de totales; 'sumar' = en listados y totales.
+const normBodegaVirtual = (v) => (v === 'mostrar' || v === 'sumar') ? v : 'ocultar';
+
 const inventarioService = {
     /**
      * Resumen mensual: todos los ítems con cantidades por ubicación.
      * Devuelve estructura agrupada por categoría, con totales.
+     * `bodegaVirtual`: modo de la Bodega Virtual (ver normBodegaVirtual).
      */
-    async getResumen(obraId = null) {
+    async getResumen(obraId = null, { bodegaVirtual = 'ocultar' } = {}) {
+        const modoVirtual = normBodegaVirtual(bodegaVirtual);
         // 1+2+3+5: traer obras, bodegas, items, stock y descuentos en paralelo
         let stockQuery = `
             SELECT us.item_id, us.obra_id, us.bodega_id, us.cantidad, us.valor_arriendo_override
@@ -36,7 +43,9 @@ const inventarioService = {
             descuentoMapInstance,
         ] = await Promise.all([
             db.query('SELECT id, nombre FROM obras WHERE activa = 1 AND es_prueba = 0 AND finalizada = 0 AND participa_inventario = 1 ORDER BY nombre'),
-            db.query('SELECT id, nombre, responsable_nombre FROM bodegas WHERE activa = 1 AND participa_inventario = 1 ORDER BY nombre'),
+            db.query(`SELECT id, nombre, responsable_nombre, es_virtual FROM bodegas
+                      WHERE activa = 1 AND participa_inventario = 1${modoVirtual === 'ocultar' ? ' AND es_virtual = 0' : ''}
+                      ORDER BY nombre`),
             db.query(`
                 SELECT i.*, c.nombre as categoria_nombre, c.orden as categoria_orden
                 FROM items_inventario i
@@ -76,6 +85,9 @@ const inventarioService = {
         // Pre-extraer arrays planos de IDs para evitar acceso repetido en loops calientes
         const obraIds = obras.map(o => o.id);
         const bodegaIds = bodegas.map(b => b.id);
+        // Bodegas virtuales presentes en el payload: sus celdas se muestran pero
+        // solo suman a los totales en modo 'sumar'.
+        const virtualIds = new Set(bodegas.filter(b => b.es_virtual === 1 || b.es_virtual === true).map(b => b.id));
 
         // 6. Construir resultado agrupado por categoría
         const categorias = new Map();
@@ -110,12 +122,14 @@ const inventarioService = {
                 totalCantidad += cant;
             }
 
-            // Por cada bodega (no facturan arriendo)
+            // Por cada bodega (no facturan arriendo). La celda de una bodega
+            // virtual siempre se puebla (modo mostrar/sumar = está en la lista),
+            // pero su cantidad solo acumula en modo 'sumar'.
             for (const bid of bodegaIds) {
                 const s = itemStock ? itemStock.get(`bodega_${bid}`) : undefined;
                 const cant = s ? s.cantidad : 0;
                 ubicaciones[`bodega_${bid}`] = { cantidad: cant, total: 0 };
-                totalCantidad += cant;
+                if (modoVirtual === 'sumar' || !virtualIds.has(bid)) totalCantidad += cant;
             }
 
             cat.items.push({
@@ -157,7 +171,7 @@ const inventarioService = {
             obras: obras.map(o => ({ id: o.id, nombre: o.nombre })),
             // mig 060: incluir responsable_nombre para que la UI lo muestre en
             // dropdowns y headers (formatBodegaConResponsable).
-            bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre, responsable_nombre: b.responsable_nombre })),
+            bodegas: bodegas.map(b => ({ id: b.id, nombre: b.nombre, responsable_nombre: b.responsable_nombre, es_virtual: !!(b.es_virtual === 1 || b.es_virtual === true) })),
             categorias: Array.from(categorias.values()).sort((a, b) => a.orden - b.orden),
             descuentos: descuentoMap,
             totales: {
@@ -261,7 +275,9 @@ const inventarioService = {
      * Stock detallado de una bodega.
      */
     async getStockPorBodega(bodegaId) {
-        const [bodegaRows] = await db.query('SELECT id, nombre FROM bodegas WHERE id = ?', [bodegaId]);
+        // es_virtual se expone para el badge "VIRTUAL" de la vista Obra/Bod.
+        // Sin validar flags: consultable por id directo (comportamiento actual).
+        const [bodegaRows] = await db.query('SELECT id, nombre, es_virtual FROM bodegas WHERE id = ?', [bodegaId]);
         if (!bodegaRows.length) throw new Error('Bodega no encontrada');
         const bodega = bodegaRows[0];
 
@@ -532,6 +548,8 @@ const inventarioService = {
         const topObrasLimit = Number.isFinite(rawLimit) && rawLimit > 0
             ? Math.min(Math.max(Math.trunc(rawLimit), 1), 50)
             : 5;
+        // Bodega Virtual (mig 099): su stock solo entra al patrimonio en modo 'sumar'.
+        const modoVirtual = normBodegaVirtual(options.bodegaVirtual);
         // Filtro condicional para queries que tocan transferencias.
         // Una transferencia "pertenece" a la obra si la obra es origen O destino.
         const obraIdNum = obraId ? Number(obraId) : null;
@@ -770,12 +788,16 @@ const inventarioService = {
             // 14. Patrimonio TOTAL del inventario (Dedalius): valor de compra de TODO el
             //     inventario activo, esté en obras o en bodega. Global (sin filtro de obra);
             //     excluye stock de obras de prueba. La vista por-obra usa el valor por-obra (query 4).
+            //     Bodega Virtual: fuera del patrimonio salvo modo 'sumar'.
+            //     TODO (fuga preexistente, fuera de alcance): bodegas con
+            //     participa_inventario=0 igual suman aquí.
             db.query(`
                 SELECT COALESCE(SUM(us.cantidad * i.valor_compra), 0) AS total
                 FROM ubicaciones_stock us
                 JOIN items_inventario i ON i.id = us.item_id AND i.activo = 1
                 LEFT JOIN obras o ON o.id = us.obra_id
                 WHERE (us.obra_id IS NULL OR COALESCE(o.es_prueba, 0) = 0)
+                ${modoVirtual !== 'sumar' ? 'AND (us.bodega_id IS NULL OR us.bodega_id NOT IN (SELECT id FROM bodegas WHERE es_virtual = 1))' : ''}
             `),
         ]);
 

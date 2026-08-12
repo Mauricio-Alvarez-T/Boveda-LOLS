@@ -422,7 +422,7 @@ export async function exportResumen(data: import('../hooks/inventario/useInventa
     // ══════════════════════════════════════════════
     const headerLabels = ['#', 'Descripción', 'M²', 'V. Arriendo', 'UN', 'Total Cant.'];
     data.obras.forEach(o => headerLabels.push(o.nombre));
-    data.bodegas.forEach(b => headerLabels.push(b.nombre));
+    data.bodegas.forEach(b => headerLabels.push(b.es_virtual ? `${b.nombre} (VIRTUAL)` : b.nombre));
     headerLabels.push('Total Arriendo');
 
     row = ws.getRow(4);

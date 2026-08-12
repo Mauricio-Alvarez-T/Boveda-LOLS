@@ -600,7 +600,11 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                 <th className="bg-brand-primary px-2 py-2 text-right font-bold text-white border-b border-r border-border w-16">V. Compra</th>
                             )}
                             {orderedLocations.map(loc => {
-                                const label = loc.type === 'bodega' ? formatBodegaConResponsable(loc.raw) : loc.nombre;
+                                // Bodega Virtual (mig 099): marcar la columna — sus cantidades
+                                // solo entran a los totales en modo "Virtual sumando".
+                                const isVirtual = loc.type === 'bodega' && !!(loc.raw as { es_virtual?: boolean | number }).es_virtual;
+                                const baseLabel = loc.type === 'bodega' ? formatBodegaConResponsable(loc.raw) : loc.nombre;
+                                const label = isVirtual ? `${baseLabel} · VIRTUAL` : baseLabel;
                                 return (
                                     <SortableColHeader
                                         key={loc.key}
@@ -608,7 +612,7 @@ const ResumenMensualTable: React.FC<Props> = ({ data, canEdit, onUpdateStock, on
                                         colSpan={loc.type === 'obra' ? (verValores ? 2 : 1) : 1}
                                         bgClass={loc.type === 'obra' ? "bg-blue-50 dark:bg-blue-950" : "bg-amber-50 dark:bg-amber-950"}
                                         label={label}
-                                        title={label}
+                                        title={isVirtual ? `${baseLabel} — bodega virtual: suma a los totales solo en modo "Virtual sumando"` : label}
                                         onHide={() => toggleCol(loc.key)}
                                     />
                                 );

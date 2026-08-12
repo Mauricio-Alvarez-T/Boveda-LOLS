@@ -201,6 +201,19 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - Sin kardex: crear/editar/anular NO emiten `stock_movimientos` (hueco preexistente conocido;
   follow-up aparte si se quiere trazabilidad en el kardex para las tres operaciones).
 
+### Bodega Virtual en facturas (mig 099 — detalle en obras-bodegas.md)
+
+- Destino "Bodega Virtual (virtual)" SIEMPRE disponible al ingresar/editar ítems
+  (`/bodegas?incluir_virtual=true`): es el punto de entrada para ítems que aún no
+  pertenecen a una ubicación física.
+- `getAll` expone `monto_virtual` por factura (subquery sobre `factura_items` JOIN
+  bodegas `es_virtual=1`, con `fi.obra_id IS NULL` espejando la precedencia obra>bodega
+  de `normalizeUbicacion` en filas legacy); `getById` marca ítems con `bodega_es_virtual`.
+- El modo del botón (ocultar/mostrar/sumar) ajusta SOLO montos e ítems MOSTRADOS;
+  `monto_neto` almacenado y form de edición intactos (documento real).
+- Regularización: transferencia virtual→obra/bodega real desde el wizard (la bodega
+  participa en transferencias como cualquier otra).
+
 ## Export a Excel del Resumen General (`utils/exportExcel.ts`)
 
 - Pie del Excel: **cuatro** filas en este orden — **TOTAL GENERAL → % DESCUENTO POR OBRA →

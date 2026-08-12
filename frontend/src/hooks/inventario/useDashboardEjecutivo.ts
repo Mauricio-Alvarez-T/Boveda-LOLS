@@ -111,7 +111,7 @@ export interface DashboardEjecutivoData {
     bombas_hormigon_mes: BombasHormigonMes;
 }
 
-export function useDashboardEjecutivo(obraId: number | null = null) {
+export function useDashboardEjecutivo(obraId: number | null = null, bodegaVirtualModo: 'ocultar' | 'mostrar' | 'sumar' = 'ocultar') {
     const [data, setData] = useState<DashboardEjecutivoData | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -121,10 +121,11 @@ export function useDashboardEjecutivo(obraId: number | null = null) {
         setLoading(true);
         setError(null);
         try {
-            const url = obraId
-                ? `/inventario/dashboard-ejecutivo?obra_id=${obraId}`
-                : '/inventario/dashboard-ejecutivo';
-            const res = await api.get<ApiResponse<DashboardEjecutivoData>>(url);
+            const params = new URLSearchParams();
+            if (obraId) params.set('obra_id', String(obraId));
+            // Bodega Virtual: fuera del patrimonio salvo modo 'sumar'.
+            params.set('bodega_virtual', bodegaVirtualModo);
+            const res = await api.get<ApiResponse<DashboardEjecutivoData>>(`/inventario/dashboard-ejecutivo?${params}`);
             setData(res.data.data);
             setLastUpdated(Date.now());
         } catch (err: any) {
@@ -133,7 +134,7 @@ export function useDashboardEjecutivo(obraId: number | null = null) {
         } finally {
             setLoading(false);
         }
-    }, [obraId]);
+    }, [obraId, bodegaVirtualModo]);
 
     useEffect(() => { fetchDashboard(); }, [fetchDashboard]);
 
