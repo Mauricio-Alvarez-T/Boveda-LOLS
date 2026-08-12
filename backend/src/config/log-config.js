@@ -33,7 +33,10 @@ const LABEL_MAP = {
     cantidad: 'Cantidad', cantidad_solicitada: 'Cant. solicitada',
     cantidad_enviada: 'Cant. enviada', cantidad_recibida: 'Cant. recibida',
     tipo_flujo: 'Tipo', tipo: 'Tipo', unidad: 'Unidad', fuente: 'Origen',
-    fecha: 'Fecha', monto: 'Monto', patente: 'Patente', marca: 'Marca', modelo: 'Modelo'
+    fecha: 'Fecha', monto: 'Monto', patente: 'Patente', marca: 'Marca', modelo: 'Modelo',
+    // Facturas de inventario.
+    numero_factura: 'N° factura', proveedor: 'Proveedor', fecha_factura: 'Fecha factura',
+    monto_neto: 'Monto neto', precio_unitario: 'Precio unitario', bodega_id: 'Bodega'
 };
 
 // Acciones consideradas "ruido" cuando el usuario sólo quiere ver cambios
@@ -126,6 +129,14 @@ const ENTIDAD_RESOLVERS = {
         labelExpr: "CONCAT('Sábado ', DATE_FORMAT(fecha, '%d-%m-%Y'))",
         bodyKeys: [
             (b) => b.fecha ? `Sábado ${b.fecha}` : null,
+        ],
+    },
+    'facturas-inventario': {
+        tipo: 'factura',
+        tabla: 'facturas_inventario',
+        labelExpr: "CONCAT('#', numero_factura)",
+        bodyKeys: [
+            (b) => b.numero_factura ? `#${b.numero_factura}` : null,
         ],
     },
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Loader2 } from 'lucide-react';
+import { Plus, Minus, FileText, Trash2, Receipt, PackagePlus, Eye, Loader2, Pencil, History } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../../services/api';
 import type { FacturaInventario, ItemInventario, CategoriaInventario } from '../../types/entities';
@@ -40,10 +40,17 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
     /* ── Modal state ── */
     const [showModal, setShowModal] = useState(false);
+    // null = alta; number = edición de esa factura (mismo modal, submit PUT).
+    const [editingId, setEditingId] = useState<number | null>(null);
 
     /* ── Vista previa (detalle) ── */
     const [detalleId, setDetalleId] = useState<number | null>(null);
     const [detalle, setDetalle] = useState<any | null>(null);
+    // Historial de modificaciones de la factura abierta (GET /:id/historial).
+    const [historial, setHistorial] = useState<Array<{
+        id: number; fecha: string; usuario_nombre: string | null;
+        resumen: string | null; items_detalle: string[];
+    }>>([]);
 
     /* ── Form state ── */
     const [numFactura, setNumFactura] = useState('');
@@ -154,8 +161,34 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
     const handleClose = () => {
         setShowModal(false);
+        setEditingId(null);
         resetForm();
         setFormErrors({});
+    };
+
+    /* ── Editar: hidrata el form con la factura y abre el mismo modal ── */
+    const openEditar = async (id: number) => {
+        try {
+            const res = await api.get(`/facturas-inventario/${id}`);
+            const f = res.data.data;
+            setNumFactura(f.numero_factura || '');
+            setProveedor(f.proveedor || '');
+            setFechaFactura(String(f.fecha_factura).slice(0, 10));
+            setObservaciones(f.observaciones || '');
+            setItems((f.items || []).map((it: any): LineItem => ({
+                item_id: it.item_id,
+                descripcion: it.item_descripcion || '',
+                unidad: it.unidad || 'U',
+                cantidad: Number(it.cantidad) || 1,
+                precio_unitario: Number(it.precio_unitario) || 0,
+                destino_type: it.obra_id ? 'obra' : 'bodega',
+                destino_id: it.obra_id ?? it.bodega_id ?? 0,
+            })));
+            setEditingId(id);
+            setShowModal(true);
+        } catch (err: any) {
+            toast.error(err.response?.data?.error || 'No se pudo cargar la factura');
+        }
     };
 
     /* ── Item helpers ── */
@@ -191,12 +224,22 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
         [items],
     );
 
-    const availableOptions = useMemo(() =>
-        catalogoItems.filter(Boolean).map(c => ({
+    const availableOptions = useMemo(() => {
+        const opts = catalogoItems.filter(Boolean).map(c => ({
             value: c.id,
             label: `${c.nro_item ? c.nro_item + ' — ' : ''}${c.descripcion} (${c.unidad})`,
-        })),
-    [catalogoItems]);
+        }));
+        // En edición: ítems de la factura que no estén en el catálogo cargado
+        // (inactivos o fuera del limit=500) igual deben mostrarse en el select.
+        const known = new Set(opts.map(o => o.value));
+        for (const it of items) {
+            if (it.item_id && !known.has(it.item_id)) {
+                opts.push({ value: it.item_id, label: `${it.descripcion || `Ítem ${it.item_id}`} (${it.unidad})` });
+                known.add(it.item_id);
+            }
+        }
+        return opts;
+    }, [catalogoItems, items]);
 
     const destinoOptions = useMemo(() => [
         ...obras.map(o => ({ value: `obra-${o.id}`, label: `Obra: ${o.nombre}` })),
@@ -218,7 +261,7 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
 
         setSubmitting(true);
         try {
-            await api.post('/facturas-inventario', {
+            const payload = {
                 numero_factura: numFactura.trim(),
                 proveedor: proveedor.trim(),
                 fecha_factura: fechaFactura,
@@ -231,24 +274,38 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                     cantidad: Number(i.cantidad) || 0,
                     precio_unitario: Number(i.precio_unitario) || 0,
                 })),
-            });
-            toast.success('Factura registrada correctamente');
+            };
+            if (editingId) {
+                await api.put(`/facturas-inventario/${editingId}`, payload);
+                toast.success('Factura actualizada', {
+                    description: 'El stock fue ajustado y el cambio quedó en el historial.',
+                });
+            } else {
+                await api.post('/facturas-inventario', payload);
+                toast.success('Factura registrada correctamente');
+            }
             handleClose();
             fetchFacturas();
         } catch (err: any) {
-            toast.error(err.response?.data?.error || 'Error al crear factura');
+            toast.error(err.response?.data?.error || (editingId ? 'Error al actualizar factura' : 'Error al crear factura'));
         } finally {
             setSubmitting(false);
         }
     };
 
-    /* ── Vista previa: cargar detalle con ítems ── */
+    /* ── Vista previa: cargar detalle con ítems + historial de cambios ── */
     const openDetalle = async (id: number) => {
         setDetalleId(id);
         setDetalle(null);
+        setHistorial([]);
         try {
-            const res = await api.get(`/facturas-inventario/${id}`);
-            setDetalle(res.data.data);
+            const [resDetalle, resHistorial] = await Promise.all([
+                api.get(`/facturas-inventario/${id}`),
+                // El historial no bloquea la vista si falla (degrada a vacío).
+                api.get(`/facturas-inventario/${id}/historial`).catch(() => ({ data: { data: [] } })),
+            ]);
+            setDetalle(resDetalle.data.data);
+            setHistorial(resHistorial.data.data || []);
         } catch (err: any) {
             toast.error(err.response?.data?.error || 'No se pudo cargar la factura');
             setDetalleId(null);
@@ -325,6 +382,15 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                     size="sm"
                                     icon={<Eye className="h-3.5 w-3.5" />}
                                 />
+                                {canCreate && f.activo && (
+                                    <IconButton
+                                        onClick={() => openEditar(f.id)}
+                                        aria-label="Editar factura (ajusta stock)"
+                                        variant="ghost"
+                                        size="sm"
+                                        icon={<Pencil className="h-3.5 w-3.5" />}
+                                    />
+                                )}
                                 {canDelete && f.activo && (
                                     <IconButton
                                         onClick={() => handleAnular(f.id)}
@@ -360,6 +426,9 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 <span className="text-sm font-black text-brand-dark">#{detalle.numero_factura}</span>
                                 {!detalle.activo && (
                                     <StatusBadge tone="danger" label="ANULADA" />
+                                )}
+                                {detalle.activo && historial.length > 0 && (
+                                    <StatusBadge tone="warning" label="MODIFICADA" />
                                 )}
                             </div>
                             <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1 text-xs">
@@ -410,12 +479,43 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                                 <p className="text-xs text-muted-foreground whitespace-pre-wrap">{detalle.observaciones}</p>
                             </div>
                         )}
+
+                        {/* Historial de cambios (ediciones/anulación post-ingreso) */}
+                        {historial.length > 0 && (
+                            <div>
+                                <p className="text-xs font-bold text-brand-dark mb-2 flex items-center gap-1.5">
+                                    <History className="h-3.5 w-3.5 text-muted-foreground" />
+                                    Historial de cambios
+                                </p>
+                                <div className="space-y-2">
+                                    {historial.map(h => (
+                                        <div key={h.id} className="px-3 py-2 rounded-xl border border-border bg-muted/40">
+                                            <p className="text-xs font-medium text-brand-dark">
+                                                {h.resumen || 'Modificación registrada'}
+                                            </p>
+                                            {h.items_detalle.length > 0 && (
+                                                <ul className="mt-1 space-y-0.5">
+                                                    {h.items_detalle.map((linea, i) => (
+                                                        <li key={i} className="text-caption text-muted-foreground">· {linea}</li>
+                                                    ))}
+                                                </ul>
+                                            )}
+                                            <p className="mt-1 text-caption text-muted-foreground/70">
+                                                {h.usuario_nombre || 'Sistema'} · {new Date(h.fecha).toLocaleString('es-CL', {
+                                                    day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+                                                })}
+                                            </p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </Modal>
 
             {/* ═══ CREATE MODAL ═══ */}
-            <Modal isOpen={showModal} onClose={handleClose} title="Registrar Factura de Inventario" size="lg">
+            <Modal isOpen={showModal} onClose={handleClose} title={editingId ? `Editar Factura #${numFactura}` : 'Registrar Factura de Inventario'} size="lg">
                 <form onSubmit={handleSubmit} className="space-y-5" noValidate>
                     {/* Row 1: Numero + Proveedor */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -601,7 +701,9 @@ const FacturasTab: React.FC<Props> = ({ canCreate, canDelete }) => {
                             isLoading={submitting}
                             leftIcon={<Receipt className="h-3.5 w-3.5" />}
                         >
-                            {submitting ? 'Registrando...' : 'Registrar Factura'}
+                            {submitting
+                                ? (editingId ? 'Guardando...' : 'Registrando...')
+                                : (editingId ? 'Guardar cambios' : 'Registrar Factura')}
                         </Button>
                     </div>
                 </form>

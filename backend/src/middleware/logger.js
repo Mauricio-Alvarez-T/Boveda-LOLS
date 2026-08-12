@@ -236,6 +236,11 @@ const activityLogger = async (req, res, next) => {
             // Excluir rutas bulk de asistencias (se loguean manualmente desde el servicio)
             if (req.originalUrl.includes('/asistencias/bulk')) return;
 
+            // Facturas: el PUT de edición y el de anular se loguean manualmente desde
+            // el service (diff con estado previo + resumen legible); el log genérico
+            // aquí solo duplicaría un UPDATE sin diff. El POST (CREATE) sigue global.
+            if (req.method === 'PUT' && /^\/api\/facturas-inventario\/\d+(\/anular)?$/.test(req.originalUrl.split('?')[0])) return;
+
             // Excluir queries de solo lectura que usan POST (ej. KPIs con arreglos grandes)
             if (req.originalUrl.match(/\/(kpi|exportar|enviar|download)/i)) return;
 

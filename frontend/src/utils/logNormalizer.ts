@@ -58,7 +58,10 @@ const labelMap: Record<string, string> = {
     origen_obra_id: 'Obra origen', destino_obra_id: 'Obra destino',
     origen_bodega_id: 'Bodega origen', destino_bodega_id: 'Bodega destino',
     patente: 'Patente', marca: 'Marca', modelo: 'Modelo', anio: 'Año',
-    color: 'Color', kilometraje_actual: 'Kilómetros'
+    color: 'Color', kilometraje_actual: 'Kilómetros',
+    // Facturas de inventario.
+    numero_factura: 'N° factura', proveedor: 'Proveedor', fecha_factura: 'Fecha factura',
+    monto_neto: 'Monto neto', precio_unitario: 'Precio unitario', bodega_id: 'Bodega'
 };
 
 /** Nombres legibles de módulo (slug del path → etiqueta). Desconocido → prettify. */
@@ -72,6 +75,7 @@ const moduloLabels: Record<string, string> = {
     vehiculos: 'Vehículos', 'empresas-vehiculos': 'Empresas de flota',
     conductores: 'Conductores', feriados: 'Feriados', roles: 'Roles',
     'bombas-hormigon': 'Bombas de hormigón', sistema: 'Sistema',
+    'facturas-inventario': 'Facturas',
 };
 
 /** Verbo legible por acción (para encabezados del detalle). */

@@ -183,6 +183,24 @@ cada uno en 1 línea; grupos de ítems SIN líneas en blanco intermedias; línea
 - Backend **sanitiza** el JSON (campos $ no llegan) si el usuario no tiene permiso —
   `backend/src/utils/sanitizeFinancialFields.js`.
 
+### Edición de facturas post-ingreso + historial
+
+- **`PUT /facturas-inventario/:id`** (gate `gestionar`, mismo permiso que crear/anular — su
+  descripción ya cubría "editar"): edita cabecera + ítems. Stock: **reversa lo de los ítems
+  previos (GREATEST-clamp, igual que anular) y re-aplica lo de los nuevos**, todo en UNA
+  transacción (`SELECT ... FOR UPDATE`). Factura anulada NO es editable (400).
+- POST y PUT validan body con `validateBody` (schema compartido, `strip:true` → no se puede
+  inyectar `activo`/`registrado_por`).
+- **Historial embebido**: cada edición registra en `logs_actividad` (accion UPDATE, modulo
+  `facturas-inventario`) un `detalle {cambios, resumen, items_detalle}` armado en el service
+  (diff cabecera campo a campo + delta de ítems legible). La anulación también deja registro
+  ("Factura anulada — stock revertido"). El PUT de edición y el de anular están **excluidos
+  del activityLogger global** (loggean manual, como asistencias/bulk).
+- **`GET /facturas-inventario/:id/historial`** (gate `ver`): lista el historial parseado para
+  la UI. En el modal de detalle: badge `MODIFICADA` + sección "Historial de cambios".
+- Sin kardex: crear/editar/anular NO emiten `stock_movimientos` (hueco preexistente conocido;
+  follow-up aparte si se quiere trazabilidad en el kardex para las tres operaciones).
+
 ## Export a Excel del Resumen General (`utils/exportExcel.ts`)
 
 - Pie del Excel: **cuatro** filas en este orden — **TOTAL GENERAL → % DESCUENTO POR OBRA →
