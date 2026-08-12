@@ -132,11 +132,25 @@ color.
 
 ## 5. Helpers de formato — `frontend/src/utils/format.ts`
 
-Superficie única: `formatCLP`/`fmtMoney` (dinero CLP), `fmtNumber` (miles sin $),
-y re-exporta las fechas de `fechas.ts` (`fmtFecha`, `fmtFechaCorta`, `formatDuracion`…).
+Superficie única: `formatCLP`/`fmtMoney` (dinero CLP), `fmtMoneyExacto`,
+`fmtMoneyCompacto`, `fmtNumber` (miles sin $), y re-exporta las fechas de
+`fechas.ts` (`fmtFecha`, `fmtFechaCorta`, `formatDuracion`…).
+
+| Helper | Salida | Cuándo |
+|---|---|---|
+| `fmtMoney` | `$14.901.523.456` | **Default para TODO monto visible** (KPIs, tablas, listas, tooltips, Excel). Redondea. |
+| `fmtMoneyExacto` | `$1.234,56` | Precios unitarios / montos de factura, donde redondear alteraría el dato del documento. |
+| `fmtMoneyCompacto` | `$14.902M` · `$40,7M` | **SOLO ticks de eje en gráficos**, donde el ancho es físicamente insuficiente. |
 
 **Regla:** no redefinir `fmtMoney`/`fmtDate`/`fmtFecha` locales — importar de
 `utils/format`. `formatCLP` redondea y descarta NaN/null (los duplicados locales no).
+
+**Regla de abreviación:** nunca abreviar montos fuera de un eje de gráfico, y
+jamás con `toFixed` — en Chile el punto es separador de MILES, así que
+`(n/1e6).toFixed(1)` producía `$14901.5M`, ilegible (bug real del Resumen
+Ejecutivo). Si un monto completo no cabe, se agranda el contenedor o se baja el
+tamaño de fuente (ver el `value.length` adaptativo de `KpiCard`), no se abrevia.
+Cubierto por `frontend/src/utils/format.test.ts`.
 
 ## 6. Reglas ESLint y política de migración
 

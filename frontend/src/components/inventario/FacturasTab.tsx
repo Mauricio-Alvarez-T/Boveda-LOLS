@@ -14,8 +14,9 @@ import { IconButton } from '../ui/IconButton';
 import { StatusBadge } from '../ui/StatusBadge';
 import { fmtFecha } from '../../utils/fechas';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
+import { fmtMoneyExacto } from '../../utils/format';
 
-const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
+const fmtMoney = fmtMoneyExacto;
 
 interface Props {
     canCreate: boolean;

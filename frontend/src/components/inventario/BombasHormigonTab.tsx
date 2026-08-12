@@ -14,6 +14,7 @@ import { Modal } from '../ui/Modal';
 import { FieldError } from '../ui/FieldError';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { fmtMoneyExacto } from '../../utils/format';
 
 interface Props {
     /** Ya no se usa: el tab fetchea sus obras filtradas por participa_bombas. */
@@ -74,7 +75,7 @@ const emptyForm = (): BombaFormState => ({
     observaciones: '',
 });
 
-const fmtMoney = (n: number) => `$${Number(n).toLocaleString('es-CL')}`;
+const fmtMoney = fmtMoneyExacto;
 const fmtDate = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short', year: 'numeric' });
 const fmtDateShort = (d: string) => new Date(d).toLocaleDateString('es-CL', { day: '2-digit', month: 'short' });
 

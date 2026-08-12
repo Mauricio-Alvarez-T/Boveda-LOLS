@@ -12,6 +12,7 @@ import api from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import type { ItemInventario } from '../../types/entities';
 import type { StockLocation } from '../../hooks/inventario/useItemDetail';
+import { fmtMoneyExacto } from '../../utils/format';
 
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
@@ -23,7 +24,7 @@ const resolveImageUrl = (imagen_url: string | null | undefined): string | null =
     return `${API_BASE}${withApi}`;
 };
 
-const fmtMoney = (n: number) => `$${n.toLocaleString('es-CL')}`;
+const fmtMoney = fmtMoneyExacto;
 
 interface Props {
     isOpen: boolean;

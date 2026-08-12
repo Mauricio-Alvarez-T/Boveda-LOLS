@@ -15,6 +15,7 @@ import { exportResumen } from '../../utils/exportExcel';
 import { formatBodegaConResponsable } from '../../utils/formatBodega';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
+import { fmtMoney, fmtNumber } from '../../utils/format';
 
 interface Props {
     data: ResumenData;
@@ -23,9 +24,8 @@ interface Props {
     onRefresh: () => void;
 }
 
-const fmt = (n: number) => n.toLocaleString('es-CL');
+const fmt = (n: number) => fmtNumber(n);
 // Dinero CLP sin decimales: redondea (.5 hacia arriba) para no mostrar "$1.903,5".
-const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
 const API_BASE = (import.meta.env.VITE_API_URL || '').replace(/\/api\/?$/, '');
 
 /**

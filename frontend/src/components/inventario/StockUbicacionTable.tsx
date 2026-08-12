@@ -7,6 +7,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/Button';
 import { IconButton } from '../ui/IconButton';
 import ItemDetailModal from './ItemDetailModal';
+import { fmtMoney } from '../../utils/format';
 
 interface Props {
     data: StockObraData;
@@ -19,7 +20,6 @@ interface Props {
     hideEmpty?: boolean;
 }
 
-const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
 
 const StockUbicacionTable: React.FC<Props> = ({ data, canEdit, isBodega = false, onUpdateStock, onUpdateDescuento, onRefresh, hideEmpty = false }) => {
     // Gate financiero: ocultar columnas/cards $ si no tiene `inventario.costos.ver`.

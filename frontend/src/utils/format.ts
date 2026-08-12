@@ -30,6 +30,45 @@ import { formatCLP } from './currency';
 export const fmtMoney = formatCLP;
 
 /**
+ * Dinero CLP preservando decimales cuando existen: "$1.234,56" / "$14.000".
+ * Para precios unitarios y montos de factura, donde redondear alteraría el dato
+ * mostrado respecto del documento. Si no hay decimales se ve igual que fmtMoney.
+ */
+export function fmtMoneyExacto(value: number | string | null | undefined): string {
+    if (value === null || value === undefined || value === '') return '';
+    const n = typeof value === 'string' ? Number(value) : value;
+    if (!Number.isFinite(n)) return '';
+    return `$${n.toLocaleString('es-CL', { maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * Dinero CLP abreviado EN FORMATO CHILENO: "$40,7M" / "$14.901M".
+ *
+ * ⚠️ Úsalo SOLO donde el ancho es físicamente insuficiente (ticks de eje en
+ * gráficos). Todo monto normal va completo con `fmtMoney` — el punto en Chile
+ * es separador de MILES, así que un decimal con punto ("$14901.5M") se lee mal.
+ *
+ * Reglas: agrupación es-CL; 1 decimal bajo 100 millones, entero sobre eso (para
+ * no producir "$14.901,5M"); bajo 1 millón devuelve el monto completo (evita el
+ * viejo bug "$1000K" que nunca rotaba a millones); negativos con signo delante.
+ */
+export function fmtMoneyCompacto(value: number | string | null | undefined): string {
+    const raw = typeof value === 'string' ? Number(value) : value;
+    const n = Number.isFinite(raw as number) ? (raw as number) : 0;
+    const abs = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    if (abs >= 1_000_000) {
+        const millones = abs / 1_000_000;
+        const decimals = millones < 100 ? 1 : 0;
+        return `${sign}$${millones.toLocaleString('es-CL', {
+            minimumFractionDigits: decimals,
+            maximumFractionDigits: decimals,
+        })}M`;
+    }
+    return `${sign}$${Math.round(abs).toLocaleString('es-CL')}`;
+}
+
+/**
  * Miles es-CL SIN símbolo. 14000 → "14.000". null/''/NaN → "".
  * Para cantidades, kilometraje, etc. (no dinero).
  * @param opts.decimals fija decimales fijos (min=max). Default: enteros.

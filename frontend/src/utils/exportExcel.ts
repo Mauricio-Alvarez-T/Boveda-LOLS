@@ -5,6 +5,7 @@
 import ExcelJS from 'exceljs';
 import { saveAs } from 'file-saver';
 import type { StockObraData } from '../hooks/inventario/useInventarioData';
+import { fmtMoney as fmtMoneyShared } from './format';
 
 /* ── Paleta de colores (matching la UI) ── */
 const BRAND_PRIMARY = '1B6B4A';   // verde oscuro
@@ -23,7 +24,7 @@ const RED_TEXT       = 'DC2626';
 // (`ResumenMensualTable.tsx`) — redondea (.5 hacia arriba) para no exportar
 // "$10.443.738,5" donde la app muestra "$10.443.739". Los montos del Excel
 // tienen que cuadrar con los que el usuario ve en la app.
-const fmtMoney = (n: number) => `$${Math.round(n).toLocaleString('es-CL')}`;
+const fmtMoney = (n: number) => fmtMoneyShared(n);
 const fmtDate  = () => new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
 
 /* ── Helpers de estilo ── */

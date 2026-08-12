@@ -24,6 +24,7 @@ import { useDashboardEjecutivo, type DashboardAlerta, type TopObra, type Dashboa
 import { useAuth } from '../../context/AuthContext';
 import { FormError } from '../ui/FormError';
 import { Button } from '../ui/Button';
+import { fmtMoney, fmtMoneyCompacto } from '../../utils/format';
 
 interface ObraOpcion { id: number; nombre: string; }
 
@@ -36,14 +37,11 @@ interface Props {
     bodegaVirtualModo?: 'ocultar' | 'mostrar' | 'sumar';
 }
 
-const fmtCLP = (n: number) => {
-    if (!n || n === 0) return '$0';
-    if (n >= 1_000_000) return `$${(n / 1_000_000).toFixed(1)}M`;
-    if (n >= 1_000) return `$${(n / 1_000).toFixed(0)}K`;
-    return `$${Math.round(n).toLocaleString('es-CL')}`;
-};
-
-const fmtCLPFull = (n: number) => `$${Math.round(n || 0).toLocaleString('es-CL')}`;
+// Montos: SIEMPRE completos en formato chileno vía `fmtMoney` ($14.901.523.456).
+// Antes había un `fmtCLP` local que abreviaba con toFixed(1) → "$14901.5M": el
+// punto es separador de MILES en Chile, así que se leía mal. La abreviación
+// (`fmtMoneyCompacto`) sobrevive solo en los ticks del eje Y, donde el ancho es
+// físicamente insuficiente para el monto completo.
 
 // ────────────────────────────────────────────────────────
 // Paleta de colores para categorías (barras horizontales)
@@ -170,7 +168,14 @@ const KpiCardImpl: React.FC<KpiCardProps> = ({ tone, icon, label, value, subline
                 </span>
             </div>
             <div className="flex items-end justify-between gap-2">
-                <div className="text-4xl md:text-5xl font-black leading-none">
+                {/* Tamaño adaptativo al largo: los contadores ("6") quedan grandes,
+                    los montos completos ("$14.901.523.456") bajan para no desbordar. */}
+                <div className={cn(
+                    'font-black leading-none tabular-nums whitespace-nowrap',
+                    value.length <= 6 ? 'text-4xl md:text-5xl'
+                        : value.length <= 11 ? 'text-3xl md:text-4xl'
+                            : 'text-2xl md:text-3xl'
+                )}>
                     {value}
                 </div>
                 {historico?.sparkline && historico.sparkline.length >= 2 && (
@@ -209,13 +214,13 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
     const pct = maxValor > 0 ? (obra.valor_mensual / maxValor) * 100 : 0;
     const tooltipLines = [
         `${obra.nombre}`,
-        `Arriendo mensual neto: ${fmtCLPFull(obra.valor_mensual)}`,
-        `Costo (valor de compra de los artículos): ${fmtCLPFull(obra.valor_patrimonial)}`,
+        `Arriendo mensual neto: ${fmtMoney(obra.valor_mensual)}`,
+        `Costo (valor de compra de los artículos): ${fmtMoney(obra.valor_patrimonial)}`,
     ];
     if (obra.descuento_porcentaje > 0) {
-        tooltipLines.push(`Bruto sin descuento: ${fmtCLPFull(obra.valor_bruto)}`);
+        tooltipLines.push(`Bruto sin descuento: ${fmtMoney(obra.valor_bruto)}`);
         tooltipLines.push(`Descuento aplicado: ${obra.descuento_porcentaje}%`);
-        tooltipLines.push(`Ahorro: ${fmtCLPFull(obra.valor_bruto - obra.valor_mensual)}`);
+        tooltipLines.push(`Ahorro: ${fmtMoney(obra.valor_bruto - obra.valor_mensual)}`);
     }
     tooltipLines.push('', 'Click para ver detalle de la obra.');
     return (
@@ -224,7 +229,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
             type="button"
             onClick={onClick}
             title={tooltipLines.join('\n')}
-            aria-label={`${obra.nombre}: ${fmtCLPFull(obra.valor_mensual)} mensual. Click para ver detalle.`}
+            aria-label={`${obra.nombre}: ${fmtMoney(obra.valor_mensual)} mensual. Click para ver detalle.`}
             className="group flex items-center gap-3 w-full p-3 rounded-xl hover:bg-muted transition-all text-left"
         >
             <span className="shrink-0 w-7 h-7 rounded-lg bg-brand-primary/10 text-green-700 dark:text-green-300 text-xs font-black flex items-center justify-center">
@@ -234,7 +239,7 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                 <div className="flex items-baseline justify-between gap-3">
                     <span className="text-sm font-bold text-brand-dark truncate">{obra.nombre}</span>
                     <span className="shrink-0 text-sm font-black text-brand-dark">
-                        {fmtCLP(obra.valor_mensual)}
+                        {fmtMoney(obra.valor_mensual)}
                     </span>
                 </div>
                 <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
@@ -244,12 +249,12 @@ const ObraRankingItemImpl: React.FC<ObraRankingItemProps> = ({ pos, obra, maxVal
                     />
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-caption text-muted-foreground font-semibold">
-                    <span><Wallet className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Arriendo: {fmtCLP(obra.valor_mensual)}/mes</span>
-                    <span><Landmark className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Costo: {fmtCLP(obra.valor_patrimonial)}</span>
+                    <span><Wallet className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Arriendo: {fmtMoney(obra.valor_mensual)}/mes</span>
+                    <span><Landmark className="inline h-3 w-3 mr-0.5 -mt-0.5" /> Costo: {fmtMoney(obra.valor_patrimonial)}</span>
                 </div>
                 {obra.descuento_porcentaje > 0 && (
                     <div className="mt-1 text-caption text-muted-foreground font-semibold">
-                        {obra.descuento_porcentaje}% desc. aplicado · bruto {fmtCLP(obra.valor_bruto)}
+                        {obra.descuento_porcentaje}% desc. aplicado · bruto {fmtMoney(obra.valor_bruto)}
                     </div>
                 )}
             </div>
@@ -640,7 +645,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 tone="green"
                                 icon={<Wallet className="h-5 w-5" />}
                                 label="Valor obras"
-                                value={fmtCLP(data?.kpis.valor_total_obras ?? 0)}
+                                value={fmtMoney(data?.kpis.valor_total_obras ?? 0)}
                                 subline="arriendo mensual"
                                 tooltip="Valor total mensual de arriendo de todos los items asignados a obras activas. Ya incluye los descuentos aplicados a cada obra."
                                 historico={data?.historico?.valor_obras}
@@ -651,7 +656,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 tone="blue"
                                 icon={<Landmark className="h-5 w-5" />}
                                 label="Inventario"
-                                value={fmtCLP(data?.kpis.valor_inventario ?? 0)}
+                                value={fmtMoney(data?.kpis.valor_inventario ?? 0)}
                                 subline="valor de compra"
                                 tooltip="Lo invertido en compra del inventario: suma de (cantidad × valor de compra) de todos los ítems —andamios, alzaprimas, moldajes, maquinaria y vigas— en obras y bodegas. No incluye vehículos."
                             />
@@ -661,7 +666,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 tone="slate"
                                 icon={<Truck className="h-5 w-5" />}
                                 label="Vehículos"
-                                value={fmtCLP(data?.kpis.valor_vehiculos ?? 0)}
+                                value={fmtMoney(data?.kpis.valor_vehiculos ?? 0)}
                                 subline="valor de compra"
                                 tooltip="Lo invertido en compra de todos los vehículos activos (suma del valor de cada vehículo). El detalle por empresa y por auto está más abajo en 'Inversión en vehículos'."
                             />
@@ -671,7 +676,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 tone="indigo"
                                 icon={<Coins className="h-5 w-5" />}
                                 label="Total"
-                                value={fmtCLP((data?.kpis.valor_inventario ?? 0) + (data?.kpis.valor_vehiculos ?? 0))}
+                                value={fmtMoney((data?.kpis.valor_inventario ?? 0) + (data?.kpis.valor_vehiculos ?? 0))}
                                 subline="inventario + vehículos"
                                 tooltip="Total invertido en compra: suma del valor de compra del inventario más el de todos los vehículos."
                             />
@@ -700,7 +705,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                         <span className="truncate">{e.nombre}</span>
                                         <span className="text-caption text-muted-foreground font-semibold shrink-0">· {e.tipo}</span>
                                     </span>
-                                    <span className="shrink-0 text-sm font-black text-brand-dark">{fmtCLP(e.valor)}</span>
+                                    <span className="shrink-0 text-sm font-black text-brand-dark">{fmtMoney(e.valor)}</span>
                                 </div>
                                 <div className="mt-1.5 h-2 rounded-full bg-muted overflow-hidden">
                                     <div className="h-full rounded-full transition-all" style={{ width: `${(e.valor / maxPat) * 100}%`, background: e.color }} />
@@ -769,14 +774,16 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                         <XAxis dataKey="step" allowDecimals={false} axisLine={false} tickLine={false}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
                                             label={{ value: 'N° de vehículos acumulados', position: 'insideBottom', offset: -4, fill: 'var(--muted-foreground)', fontSize: 11 }} />
-                                        <YAxis axisLine={false} tickLine={false} width={52}
+                                        {/* Ticks abreviados (chileno): un eje de ~68px no admite el
+                                            monto completo. El tooltip sí muestra el valor íntegro. */}
+                                        <YAxis axisLine={false} tickLine={false} width={68}
                                             tick={{ fill: 'var(--muted-foreground)', fontSize: 10 }}
-                                            tickFormatter={(v: number) => fmtCLP(v)} />
+                                            tickFormatter={(v: number) => fmtMoneyCompacto(v)} />
                                         <Tooltip
                                             contentStyle={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)', borderRadius: '12px', fontSize: '12px' }}
                                             labelStyle={{ color: 'var(--muted-foreground)', marginBottom: '4px' }}
                                             labelFormatter={(label: any) => `${label} vehículo(s)`}
-                                            formatter={(value: any, name: any) => [fmtCLPFull(Number(value)), name]} />
+                                            formatter={(value: any, name: any) => [fmtMoney(Number(value)), name]} />
                                         <Legend layout="vertical" align="right" verticalAlign="middle" wrapperStyle={{ fontSize: '12px', paddingLeft: '12px' }} />
                                         {empresasAcum.map(([emp, color]) => (
                                             <Area key={emp} type="monotone" dataKey={emp} name={emp}
@@ -792,8 +799,11 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                 {porTipo.map(t => (
                                     <div key={t.tipo} className="rounded-lg border border-border px-2.5 py-2 min-w-0">
                                         <p className="text-xs font-bold text-brand-dark capitalize truncate">{t.tipo}</p>
-                                        <p className="text-sm font-black text-brand-dark truncate" title={fmtCLPFull(t.total)}>{fmtCLP(t.total)}</p>
-                                        <p className="text-micro text-muted-foreground truncate">{t.count} auto{t.count !== 1 ? 's' : ''} · prom {fmtCLP(t.total / t.count)}</p>
+                                        <p className="text-sm font-black text-brand-dark truncate" title={fmtMoney(t.total)}>{fmtMoney(t.total)}</p>
+                                        <p className="text-micro text-muted-foreground truncate"
+                                            title={`${t.count} auto${t.count !== 1 ? 's' : ''} · promedio ${fmtMoney(t.total / t.count)}`}>
+                                            {t.count} auto{t.count !== 1 ? 's' : ''} · prom {fmtMoney(t.total / t.count)}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
@@ -808,7 +818,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                             <span className="text-sm font-bold text-brand-dark">{v.label}</span>
                                             <span className="text-caption text-muted-foreground"> · {v.empresa}</span>
                                         </div>
-                                        <span className="shrink-0 text-sm font-black text-brand-dark">{fmtCLPFull(v.valor)}</span>
+                                        <span className="shrink-0 text-sm font-black text-brand-dark">{fmtMoney(v.valor)}</span>
                                     </div>
                                 ))}
                             </div>
@@ -829,8 +839,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                     </h3>
                     {data && (
                         <div className="flex items-baseline gap-3 text-label font-semibold text-muted-foreground">
-                            <span><Wallet className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Arriendo: <span className="text-brand-dark font-black">{fmtCLP(data.kpis.valor_total_obras)}</span>/mes</span>
-                            <span><Landmark className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Costo: <span className="text-brand-dark font-black">{fmtCLP(data.kpis.valor_total_costo_obras)}</span></span>
+                            <span><Wallet className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Arriendo: <span className="text-brand-dark font-black">{fmtMoney(data.kpis.valor_total_obras)}</span>/mes</span>
+                            <span><Landmark className="inline h-3.5 w-3.5 mr-0.5 -mt-0.5" /> Costo: <span className="text-brand-dark font-black">{fmtMoney(data.kpis.valor_total_costo_obras)}</span></span>
                         </div>
                     )}
                 </div>
@@ -870,7 +880,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                         </h3>
                         {data && (
                             <span className="text-label font-semibold text-muted-foreground">
-                                Total: {fmtCLP(data.valor_por_categoria.reduce((s, c) => s + c.valor, 0))}
+                                Total: {fmtMoney(data.valor_por_categoria.reduce((s, c) => s + c.valor, 0))}
                             </span>
                         )}
                     </div>
@@ -896,7 +906,7 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                         return (
                                             <div
                                                 key={c.categoria_id}
-                                                title={`${c.nombre}: ${fmtCLPFull(c.valor)} — ${pct}% del total`}
+                                                title={`${c.nombre}: ${fmtMoney(c.valor)} — ${pct}% del total`}
                                                 className="group cursor-help"
                                             >
                                                 <div className="flex items-baseline justify-between gap-3 mb-1.5">
@@ -913,8 +923,8 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                                                         <span className="text-label font-semibold text-muted-foreground tabular-nums w-9 text-right">
                                                             {pct}%
                                                         </span>
-                                                        <span className="text-sm font-black text-brand-dark tabular-nums w-16 text-right">
-                                                            {fmtCLP(c.valor)}
+                                                        <span className="text-sm font-black text-brand-dark tabular-nums w-28 md:w-32 text-right whitespace-nowrap">
+                                                            {fmtMoney(c.valor)}
                                                         </span>
                                                     </div>
                                                 </div>
@@ -967,11 +977,11 @@ const ResumenEjecutivoPanel: React.FC<Props> = ({ onNavigateTransferencias, onNa
                             {verCostosBombas && (
                                 <div
                                     className="flex flex-col items-center p-3 rounded-xl bg-cyan-50 border border-cyan-100 dark:bg-cyan-950/40 dark:border-cyan-900"
-                                    title={`Costo externo total del mes: ${fmtCLPFull(data!.bombas_hormigon_mes.costo_externo ?? 0)}`}
+                                    title={`Costo externo total del mes: ${fmtMoney(data!.bombas_hormigon_mes.costo_externo ?? 0)}`}
                                 >
                                     <span className="text-caption font-black uppercase tracking-wider text-cyan-800 opacity-80 dark:text-cyan-300">Costo ext.</span>
                                     <span className="text-2xl font-black text-cyan-900 mt-1 dark:text-cyan-200">
-                                        {fmtCLP(data!.bombas_hormigon_mes.costo_externo ?? 0)}
+                                        {fmtMoney(data!.bombas_hormigon_mes.costo_externo ?? 0)}
                                     </span>
                                 </div>
                             )}

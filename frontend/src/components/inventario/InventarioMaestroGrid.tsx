@@ -7,6 +7,7 @@ import InventarioItemCard from './InventarioItemCard';
 import { Button } from '../ui/Button';
 import type { ItemInventario } from '../../types/entities';
 import { useAuth } from '../../context/AuthContext';
+import { fmtMoney } from '../../utils/format';
 
 interface Props {
     hasEditPermission: boolean;
@@ -28,8 +29,9 @@ type ViewMode = 'cards' | 'table';
 
 const PROPIETARIOS: Array<ItemInventario['propietario']> = ['lols', 'dedalius'];
 
-const fmtCLP = (v: number | null | undefined) =>
-    v == null ? '—' : v.toLocaleString('es-CL', { style: 'currency', currency: 'CLP', maximumFractionDigits: 0 });
+// Formato canónico compartido (docs/reglas/diseno.md): antes usaba
+// style:'currency', que inserta un espacio no-separable tras el "$".
+const fmtCLP = (v: number | null | undefined) => (v == null ? '—' : fmtMoney(v));
 
 /**
  * Grid editable de ítems de inventario — Rediseño con Cards + Tabla.
