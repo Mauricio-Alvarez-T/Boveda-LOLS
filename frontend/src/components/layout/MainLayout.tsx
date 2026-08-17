@@ -62,7 +62,7 @@ export const MainLayout: React.FC = () => {
                     />
 
                     {/* Page Title — hidden on mobile */}
-                    <div className="hidden md:flex flex-1 min-w-0 items-center">
+                    <div className="hidden md:flex flex-1 min-w-0 items-center overflow-hidden">
                         {title}
                     </div>
                     {/* Spacer on mobile to push actions right */}

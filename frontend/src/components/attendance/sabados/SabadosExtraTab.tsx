@@ -34,7 +34,7 @@ const SabadosExtraTab: React.FC = () => {
 
     // Header del tab (cuando no hay obra seleccionada igual mostramos algo)
     const headerTitle = useMemo(() => (
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 min-w-0">
             <div className="h-10 w-10 rounded-xl bg-muted flex items-center justify-center text-muted-foreground shadow-sm border border-border shrink-0">
                 <CheckSquare className="h-5 w-5" />
             </div>
