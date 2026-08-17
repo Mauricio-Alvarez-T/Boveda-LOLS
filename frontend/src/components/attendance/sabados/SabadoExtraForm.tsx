@@ -25,14 +25,13 @@ interface Props {
  *   - selector de trabajadores (de la obra + opción "agregar de otra obra")
  *   - observaciones por cargo (1 input por cargo con seleccionados)
  *   - observación global (textarea)
- *   - horas_default (numérico)
+ * Sin horas: jefatura 2026-08-17 — el sábado solo registra asistió/no asistió.
  */
 const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
     const { selectedObra, obras } = useObra();
     const { crearCitacion } = useSabadosExtra();
 
     const [fecha, setFecha] = useState<string>('');
-    const [horasDefault, setHorasDefault] = useState<string>('8');
     const [observacionesGlobales, setObservacionesGlobales] = useState('');
     const [observacionesPorCargo, setObservacionesPorCargo] = useState<Record<string, string>>({});
     const [workers, setWorkers] = useState<Trabajador[]>([]);
@@ -142,7 +141,6 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
         const basePayload = {
             obra_id: selectedObra.id,
             fecha,
-            horas_default: Number(horasDefault) || null,
             observaciones_globales: observacionesGlobales.trim() || null,
             observaciones_por_cargo: Object.keys(obsPorCargo).length > 0 ? obsPorCargo : null,
             trabajadores,
@@ -191,8 +189,8 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
 
     return (
         <div className="flex flex-col gap-5">
-            {/* Cabecera */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {/* Cabecera (sin horas: jefatura 2026-08-17 — el sábado solo registra asistencia) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                     <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                         Fecha (sábado)
@@ -215,20 +213,6 @@ const SabadoExtraForm: React.FC<Props> = ({ onCreated, onCancel }) => {
                     <div className="h-10 px-3 bg-muted border border-border rounded-xl text-sm font-bold text-brand-dark flex items-center">
                         {selectedObra.nombre}
                     </div>
-                </div>
-                <div>
-                    <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
-                        Horas (default por trabajador)
-                    </label>
-                    <input
-                        type="number"
-                        min="0"
-                        max="24"
-                        step="0.5"
-                        value={horasDefault}
-                        onChange={e => setHorasDefault(e.target.value)}
-                        className="w-full h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary"
-                    />
                 </div>
             </div>
 

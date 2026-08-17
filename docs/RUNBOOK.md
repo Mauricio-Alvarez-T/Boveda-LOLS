@@ -609,7 +609,7 @@ Esta tabla resume **cómo se elimina cada entidad del módulo Inventario** y por
 
 ## 12.2. Sábados Extra (Trabajo Extraordinario)
 
-**Qué es:** registro de citaciones de personal para trabajos en sábado fuera de la jornada regular. Aislado del flujo de asistencia diaria — no toca la tabla `asistencias` ni los reportes lun-vie estándar (excepto la columna agregada de horas, ver más abajo).
+**Qué es:** registro de citaciones de personal para trabajos en sábado fuera de la jornada regular. Aislado del flujo de asistencia diaria — no toca la tabla `asistencias` ni los reportes lun-vie estándar. **SIN horas (jefatura 2026-08-17):** solo se registra asistió/no asistió + observación; las columnas `horas_default`/`horas_trabajadas` quedan muertas en BD.
 
 **Tablas (migración 038 + 040):**
 - `sabados_extra`: cabecera. 1 fila por `(obra_id, fecha)`. Estados `citada` / `realizada` / `cancelada`. Audit con `creado_por` y `actualizado_por`.
@@ -633,9 +633,8 @@ Esta tabla resume **cómo se elimina cada entidad del módulo Inventario** y por
 **Concurrencia:**
 - Las 4 transiciones de estado (`crearCitacion`, `editarCitacion`, `registrarAsistencia`, `cancelar`) usan `SELECT ... FOR UPDATE` dentro de transacción para prevenir condiciones de carrera (dos super-admins creando/cancelando simultáneamente).
 
-**Reporte mensual Excel (asistencia.service.js → `generarExcel`):**
-- Columna nueva **"SÁB EXTRA (h)"** entre `HORAS EXT` y `OBSERVACIONES`. Suma `SUM(horas_trabajadas)` de los trabajadores con `estado='asistio'` en citaciones `!= 'cancelada'` dentro del rango. NO se agrega a `HORAS ORD` ni `HORAS EXT` — RRHH la procesa aparte como concepto distinto.
-- Si `obra_id` aplica al export, también filtra sábados extra por esa obra.
+**Excel:** los sábados extra NO aparecen en `generarExcel` (la columna "SÁB EXTRA (h)"
+se eliminó en 671afc9, 2026-05-20; esta sección la describía desactualizada).
 
 **Migraciones relevantes:**
 - `038_trabajo_extraordinario_sabado.sql` — tablas iniciales.

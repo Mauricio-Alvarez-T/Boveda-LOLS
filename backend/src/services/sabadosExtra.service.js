@@ -23,18 +23,8 @@ const SATURDAY = 6; // Date.getDay(): dom=0, lun=1, ..., sab=6
 const ONE_YEAR_DAYS = 365;
 const MAX_TRABAJADORES_POR_CITACION = 500;
 
-const VALID_HORAS = (h) => h !== null && h !== undefined && Number(h) >= 0 && Number(h) <= 24;
-
-/**
- * Acepta números o strings con coma o punto decimal (`'5,5'` → 5.5).
- * Retorna NaN si no se puede parsear — el caller debe validar con VALID_HORAS.
- */
-function parseHoras(raw) {
-    if (raw === null || raw === undefined) return null;
-    if (typeof raw === 'number') return raw;
-    if (typeof raw !== 'string') return NaN;
-    return parseFloat(raw.replace(',', '.'));
-}
+// Sin horas: jefatura 2026-08-17 — el sábado solo registra asistió/no asistió.
+// Las columnas horas_default/horas_trabajadas quedan muertas en BD (sin migración).
 
 function err400(message) { const e = new Error(message); e.statusCode = 400; return e; }
 function err404(message) { const e = new Error(message); e.statusCode = 404; return e; }
@@ -127,7 +117,7 @@ const sabadosExtraService = {
 
         const [rows] = await db.query(`
             SELECT
-                s.id, s.obra_id, s.fecha, s.estado, s.horas_default,
+                s.id, s.obra_id, s.fecha, s.estado,
                 s.observaciones_globales, s.creado_por, s.created_at,
                 o.nombre AS obra_nombre,
                 u.nombre AS creado_por_nombre,
@@ -174,7 +164,7 @@ const sabadosExtraService = {
         const [trabajadores] = await db.query(`
             SELECT
                 t.id, t.sabado_id, t.trabajador_id, t.obra_origen_id,
-                t.citado, t.asistio, t.estado, t.horas_trabajadas, t.observacion,
+                t.citado, t.asistio, t.estado, t.observacion,
                 w.rut, w.nombres, w.apellido_paterno, w.apellido_materno,
                 w.cargo_id, c.nombre AS cargo_nombre,
                 oo.nombre AS obra_origen_nombre
@@ -202,7 +192,7 @@ const sabadosExtraService = {
      * obra activa, trabajadores activos, mínimo 1 trabajador, máximo 500.
      */
     async crearCitacion(payload, userId) {
-        const { obra_id, fecha, observaciones_globales, observaciones_por_cargo, horas_default, trabajadores, acepta_feriado } = payload;
+        const { obra_id, fecha, observaciones_globales, observaciones_por_cargo, trabajadores, acepta_feriado } = payload;
 
         if (!obra_id || !fecha) throw err400('obra_id y fecha son requeridos');
         validarFechaSabado(fecha);
@@ -212,10 +202,6 @@ const sabadosExtraService = {
         }
         if (trabajadores.length > MAX_TRABAJADORES_POR_CITACION) {
             throw err400(`Demasiados trabajadores (máx ${MAX_TRABAJADORES_POR_CITACION})`);
-        }
-
-        if (horas_default !== null && horas_default !== undefined && !VALID_HORAS(horas_default)) {
-            throw err400('horas_default debe estar entre 0 y 24');
         }
 
         const conn = await db.getConnection();
@@ -236,9 +222,9 @@ const sabadosExtraService = {
             try {
                 [insertResult] = await conn.query(
                     `INSERT INTO sabados_extra
-                        (obra_id, fecha, observaciones_globales, observaciones_por_cargo, horas_default, estado, creado_por, actualizado_por)
-                     VALUES (?, ?, ?, ?, ?, 'citada', ?, ?)`,
-                    [obra_id, fecha, observaciones_globales || null, obsJson, horas_default || null, userId, userId]
+                        (obra_id, fecha, observaciones_globales, observaciones_por_cargo, estado, creado_por, actualizado_por)
+                     VALUES (?, ?, ?, ?, 'citada', ?, ?)`,
+                    [obra_id, fecha, observaciones_globales || null, obsJson, userId, userId]
                 );
             } catch (errIns) {
                 if (errIns && errIns.code === 'ER_DUP_ENTRY') {
@@ -283,17 +269,13 @@ const sabadosExtraService = {
      * asistencia, por ejemplo).
      */
     async editarCitacion(id, payload, userId) {
-        const { observaciones_globales, observaciones_por_cargo, horas_default, trabajadores, acepta_feriado } = payload;
+        const { observaciones_globales, observaciones_por_cargo, trabajadores, acepta_feriado } = payload;
 
         if (!Array.isArray(trabajadores) || trabajadores.length === 0) {
             throw err400('La citación debe tener al menos 1 trabajador');
         }
         if (trabajadores.length > MAX_TRABAJADORES_POR_CITACION) {
             throw err400(`Demasiados trabajadores (máx ${MAX_TRABAJADORES_POR_CITACION})`);
-        }
-
-        if (horas_default !== null && horas_default !== undefined && !VALID_HORAS(horas_default)) {
-            throw err400('horas_default debe estar entre 0 y 24');
         }
 
         const conn = await db.getConnection();
@@ -316,9 +298,9 @@ const sabadosExtraService = {
             const obsJson = observaciones_por_cargo ? JSON.stringify(observaciones_por_cargo) : null;
             await conn.query(
                 `UPDATE sabados_extra
-                 SET observaciones_globales = ?, observaciones_por_cargo = ?, horas_default = ?, actualizado_por = ?
+                 SET observaciones_globales = ?, observaciones_por_cargo = ?, actualizado_por = ?
                  WHERE id = ?`,
-                [observaciones_globales || null, obsJson, horas_default || null, userId, id]
+                [observaciones_globales || null, obsJson, userId, id]
             );
 
             // Estrategia: eliminar todos los citados y reinsertar.
@@ -344,7 +326,7 @@ const sabadosExtraService = {
     },
 
     /**
-     * Registra asistencia el día sábado: marca asistio + horas + observacion
+     * Registra asistencia el día sábado: marca asistio + observacion
      * por trabajador. Acepta nuevos no-citados (citado=0).
      * Cambia estado de 'citada' a 'realizada'.
      *
@@ -352,20 +334,9 @@ const sabadosExtraService = {
      * registros simultáneos sobrescriban valores el uno del otro.
      */
     async registrarAsistencia(id, payload, userId) {
-        const { horas_default, observaciones_globales, trabajadores } = payload;
+        const { observaciones_globales, trabajadores } = payload;
 
-        if (horas_default !== null && horas_default !== undefined && !VALID_HORAS(horas_default)) {
-            throw err400('horas_default debe estar entre 0 y 24');
-        }
-
-        // Validar y normalizar horas individuales (acepta coma decimal)
-        const normalizados = (trabajadores || []).map(t => {
-            const horas = parseHoras(t.horas_trabajadas);
-            if (t.horas_trabajadas !== null && t.horas_trabajadas !== undefined && !VALID_HORAS(horas)) {
-                throw err400(`Horas trabajadas inválidas para trabajador ${t.trabajador_id} (debe estar entre 0 y 24)`);
-            }
-            return { ...t, horas_trabajadas: horas };
-        });
+        const normalizados = trabajadores || [];
 
         const conn = await db.getConnection();
         try {
@@ -383,10 +354,10 @@ const sabadosExtraService = {
             // Update cabecera
             await conn.query(
                 `UPDATE sabados_extra
-                 SET horas_default = ?, observaciones_globales = ?,
+                 SET observaciones_globales = ?,
                      estado = 'realizada', actualizado_por = ?
                  WHERE id = ?`,
-                [horas_default || null, observaciones_globales || null, userId, id]
+                [observaciones_globales || null, userId, id]
             );
 
             // Cargar trabajadores actuales para saber cuáles existen ya
@@ -406,11 +377,10 @@ const sabadosExtraService = {
                 if (existingSet.has(t.trabajador_id)) {
                     await conn.query(
                         `UPDATE sabados_extra_trabajadores
-                         SET asistio = ?, horas_trabajadas = ?, observacion = ?, estado = ?, actualizado_por = ?
+                         SET asistio = ?, observacion = ?, estado = ?, actualizado_por = ?
                          WHERE sabado_id = ? AND trabajador_id = ?`,
                         [
                             asistio,
-                            t.horas_trabajadas ?? null,
                             t.observacion || null,
                             estadoTrb,
                             userId,
@@ -421,14 +391,13 @@ const sabadosExtraService = {
                 } else {
                     await conn.query(
                         `INSERT INTO sabados_extra_trabajadores
-                            (sabado_id, trabajador_id, obra_origen_id, citado, asistio, horas_trabajadas, observacion, estado, actualizado_por)
-                         VALUES (?, ?, ?, 0, ?, ?, ?, ?, ?)`,
+                            (sabado_id, trabajador_id, obra_origen_id, citado, asistio, observacion, estado, actualizado_por)
+                         VALUES (?, ?, ?, 0, ?, ?, ?, ?)`,
                         [
                             id,
                             t.trabajador_id,
                             t.obra_origen_id || null,
                             asistio,
-                            t.horas_trabajadas ?? null,
                             t.observacion || null,
                             estadoTrb,
                             userId,
@@ -492,4 +461,4 @@ const sabadosExtraService = {
 };
 
 module.exports = sabadosExtraService;
-module.exports._internal = { parseHoras, validarFechaSabado, validarFeriado, validarObraYTrabajadores };
+module.exports._internal = { validarFechaSabado, validarFeriado, validarObraYTrabajadores };

@@ -35,21 +35,30 @@ function agruparPorCargo<T extends { cargo_nombre: string | null; cargo_id: numb
 }
 
 /**
+ * Tarea del cargo: lookup en observaciones_por_cargo usando el cargo_id del
+ * primer trabajador del grupo (todos los del grupo comparten cargo).
+ */
+function tareaDelCargo(
+    obs: Record<string, string> | null | undefined,
+    items: Array<{ cargo_id: number | null }>
+): string | null {
+    const cargoId = items[0]?.cargo_id ?? null;
+    if (cargoId === null || !obs) return null;
+    return obs[String(cargoId)] || null;
+}
+
+/**
  * Mensaje de CITACIÓN — antes del sábado.
  *
- * Formato:
+ * Formato (jefatura 2026-08-17: la tarea de cada rubro va DEBAJO de su grupo):
  *   Buenos días
  *   *Personal citado* trabajo extraordinario sábado DD-MM-YYYY — Obra X
  *
  *   Total: N
  *
  *   *Cargo A* (3)
+ *   _Tarea: observación específica del cargo_
  *   - Apellido Nombre
- *   ...
- *
- *   *Trabajos a realizar:*
- *
- *   *Cargo A:* observación específica
  *   ...
  *
  *   Observación global (si hay)
@@ -59,6 +68,7 @@ function agruparPorCargo<T extends { cargo_nombre: string | null; cargo_id: numb
  */
 export function buildCitacionMessage(s: SabadoExtraDetalle): string {
     const fechaStr = fmtFechaCorta(s.fecha);
+    const obs = s.observaciones_por_cargo || {};
     const lines: string[] = [];
     lines.push('Buenos días');
     lines.push(`*Personal citado* trabajo extraordinario sábado ${fechaStr} — Obra ${s.obra_nombre}`);
@@ -66,35 +76,18 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
     lines.push(`Total: ${s.trabajadores.length}`);
     lines.push('');
 
-    // Listado por cargo (todos los citados)
+    // Listado por cargo (todos los citados), con la tarea del rubro bajo el header
     const grupos = agruparPorCargo(s.trabajadores);
     grupos.forEach(({ cargo, items }) => {
         lines.push(`*${cargo}* (${items.length})`);
+        const tarea = tareaDelCargo(obs, items);
+        if (tarea) lines.push(`_Tarea: ${tarea}_`);
         items.forEach(w => {
             const apellidoMaterno = w.apellido_materno ? ` ${w.apellido_materno}` : '';
             lines.push(`- ${w.apellido_paterno}${apellidoMaterno} ${w.nombres}`);
         });
         lines.push('');
     });
-
-    // Trabajos a realizar (por cargo si hay observaciones específicas)
-    const obs = s.observaciones_por_cargo || {};
-    const cargosConObs = grupos.filter(g => {
-        const cargoId = g.items[0]?.cargo_id ?? null;
-        return cargoId !== null && Boolean(obs[String(cargoId)]);
-    });
-
-    if (cargosConObs.length > 0) {
-        lines.push('*Trabajos a realizar:*');
-        lines.push('');
-        cargosConObs.forEach(({ cargo, items }) => {
-            const cargoId = items[0]?.cargo_id ?? null;
-            if (cargoId === null) return;
-            const texto = obs[String(cargoId)];
-            if (texto) lines.push(`*${cargo}:* ${texto}`);
-        });
-        lines.push('');
-    }
 
     if (s.observaciones_globales) {
         lines.push(s.observaciones_globales);
@@ -110,6 +103,9 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
 /**
  * Mensaje de ASISTENCIA — al cierre del día.
  *
+ * Sin horas: jefatura 2026-08-17 — para el sábado solo importa asistió/no asistió.
+ * La tarea de cada rubro va debajo de su grupo (mismo patrón que la citación).
+ *
  * Formato:
  *   *Asistencia trabajo extraordinario*
  *   Obra X — sábado DD-MM-YYYY
@@ -117,7 +113,8 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
  *   Asistieron: N/M
  *
  *   *Cargo A*
- *   - Apellido Nombre (8h) _observación_
+ *   _Tarea: observación específica del cargo_
+ *   - Apellido Nombre _observación_
  *   ...
  *
  *   *No asistieron:* N
@@ -130,6 +127,7 @@ export function buildCitacionMessage(s: SabadoExtraDetalle): string {
  */
 export function buildAsistenciaMessage(s: SabadoExtraDetalle): string {
     const fechaStr = fmtFechaCorta(s.fecha);
+    const obs = s.observaciones_por_cargo || {};
     const asistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => flagOn(w.asistio));
     const noAsistieron: SabadoExtraTrabajador[] = s.trabajadores.filter(w => flagOff(w.asistio));
 
@@ -143,11 +141,11 @@ export function buildAsistenciaMessage(s: SabadoExtraDetalle): string {
     const grupos = agruparPorCargo(asistieron);
     grupos.forEach(({ cargo, items }) => {
         lines.push(`*${cargo}*`);
+        const tarea = tareaDelCargo(obs, items);
+        if (tarea) lines.push(`_Tarea: ${tarea}_`);
         items.forEach(w => {
-            const horas = w.horas_trabajadas ?? s.horas_default;
-            const horasStr = horas !== null && horas !== undefined ? ` (${horas}h)` : '';
             const apellidoMaterno = w.apellido_materno ? ` ${w.apellido_materno}` : '';
-            let line = `- ${w.apellido_paterno}${apellidoMaterno} ${w.nombres}${horasStr}`;
+            let line = `- ${w.apellido_paterno}${apellidoMaterno} ${w.nombres}`;
             if (w.observacion) line += ` _${w.observacion}_`;
             lines.push(line);
         });

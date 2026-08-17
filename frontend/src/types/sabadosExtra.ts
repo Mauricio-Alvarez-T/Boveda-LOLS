@@ -24,7 +24,6 @@ export interface SabadoExtraResumen {
     obra_nombre: string;
     fecha: string;                    // YYYY-MM-DD
     estado: SabadoEstado;
-    horas_default: number | null;
     observaciones_globales: string | null;
     creado_por: number;
     creado_por_nombre: string | null;
@@ -45,7 +44,6 @@ export interface SabadoExtraTrabajador {
     citado: 0 | 1;
     asistio: 0 | 1 | null;            // null = aún no marcado
     estado?: SabadoTrabajadorEstado;  // migración 040 — opcional para retrocompat
-    horas_trabajadas: number | null;  // null = usar horas_default
     observacion: string | null;
     // Joins
     rut: string;
@@ -66,7 +64,6 @@ export interface SabadoExtraDetalle {
     obra_nombre: string;
     fecha: string;
     estado: SabadoEstado;
-    horas_default: number | null;
     observaciones_globales: string | null;
     observaciones_por_cargo: Record<string, string> | null;  // {cargo_id: "texto"}
     creado_por: number;
@@ -89,7 +86,6 @@ export interface CrearCitacionPayload {
     fecha: string;                                          // YYYY-MM-DD, debe ser sábado
     observaciones_globales?: string | null;
     observaciones_por_cargo?: Record<string, string> | null;
-    horas_default?: number | null;
     trabajadores: Array<{ trabajador_id: number; obra_origen_id?: number | null }>;
     acepta_feriado?: boolean;
 }
@@ -100,22 +96,20 @@ export interface CrearCitacionPayload {
 export interface EditarCitacionPayload {
     observaciones_globales?: string | null;
     observaciones_por_cargo?: Record<string, string> | null;
-    horas_default?: number | null;
     trabajadores: Array<{ trabajador_id: number; obra_origen_id?: number | null }>;
     acepta_feriado?: boolean;
 }
 
 /**
  * Payload del PUT /:id/asistencia (marcar el día).
+ * Sin horas: jefatura 2026-08-17 — el sábado solo registra asistió/no asistió.
  */
 export interface RegistrarAsistenciaPayload {
-    horas_default?: number | null;
     observaciones_globales?: string | null;
     trabajadores: Array<{
         trabajador_id: number;
         obra_origen_id?: number | null;
         asistio: boolean;
-        horas_trabajadas?: number | null;
         observacion?: string | null;
     }>;
 }

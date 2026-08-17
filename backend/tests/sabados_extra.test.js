@@ -123,15 +123,6 @@ describe('SabadosExtra Service', () => {
             ).rejects.toMatchObject({ message: /Demasiados trabajadores/, statusCode: 400 });
         });
 
-        test('rechaza horas_default fuera de rango', async () => {
-            await expect(
-                sabadosExtraService.crearCitacion(
-                    { obra_id: 1, fecha: FUTURO_SABADO, horas_default: 30, trabajadores: [{ trabajador_id: 1 }] },
-                    1
-                )
-            ).rejects.toMatchObject({ statusCode: 400 });
-        });
-
         test('rechaza obra inactiva', async () => {
             connQueryMock
                 .mockResolvedValueOnce([[]]) // SELECT FOR UPDATE
@@ -195,7 +186,6 @@ describe('SabadosExtra Service', () => {
                 {
                     obra_id: 1,
                     fecha: FUTURO_SABADO,
-                    horas_default: 8,
                     observaciones_globales: 'Avance losa',
                     observaciones_por_cargo: { 3: 'Tejer muros' },
                     trabajadores: [
@@ -250,17 +240,9 @@ describe('SabadosExtra Service', () => {
             ).rejects.toMatchObject({ statusCode: 409 });
         });
 
-        test('rechaza horas individuales fuera de rango', async () => {
-            await expect(
-                sabadosExtraService.registrarAsistencia(
-                    5,
-                    { trabajadores: [{ trabajador_id: 10, asistio: 1, horas_trabajadas: 50 }] },
-                    1
-                )
-            ).rejects.toMatchObject({ statusCode: 400 });
-        });
-
-        test('parsea coma decimal (`5,5` → 5.5)', async () => {
+        test('registro sin horas: el UPDATE de detalle no toca horas_trabajadas', async () => {
+            // Sin horas (jefatura 2026-08-17): el sábado solo registra
+            // asistió/no asistió + observación.
             connQueryMock
                 .mockResolvedValueOnce([[{ estado: 'citada' }]])      // SELECT FOR UPDATE
                 .mockResolvedValueOnce([{ affectedRows: 1 }])         // UPDATE cabecera
@@ -268,12 +250,13 @@ describe('SabadosExtra Service', () => {
                 .mockResolvedValueOnce([{ affectedRows: 1 }]);        // UPDATE detalle
             await sabadosExtraService.registrarAsistencia(
                 5,
-                { trabajadores: [{ trabajador_id: 10, asistio: 1, horas_trabajadas: '5,5' }] },
+                { trabajadores: [{ trabajador_id: 10, asistio: 1, observacion: 'llegó tarde' }] },
                 1
             );
-            // El mock UPDATE detalle recibió 5.5 como segundo elemento
             const updateCall = connQueryMock.mock.calls.find(c => /UPDATE sabados_extra_trabajadores/i.test(c[0]));
-            expect(updateCall[1]).toContain(5.5);
+            expect(updateCall[0]).not.toMatch(/horas_trabajadas/);
+            const updateCabecera = connQueryMock.mock.calls.find(c => /UPDATE sabados_extra\s/i.test(c[0]));
+            expect(updateCabecera[0]).not.toMatch(/horas_default/);
         });
     });
 
@@ -306,16 +289,4 @@ describe('SabadosExtra Service', () => {
         });
     });
 
-    // ─────────────────────────────────────────────
-    // parseHoras (helper interno)
-    // ─────────────────────────────────────────────
-    describe('parseHoras (helper)', () => {
-        const { parseHoras } = sabadosExtraService._internal;
-
-        test('número pasa derecho', () => { expect(parseHoras(8)).toBe(8); });
-        test('null retorna null', () => { expect(parseHoras(null)).toBeNull(); });
-        test('coma decimal `5,5` → 5.5', () => { expect(parseHoras('5,5')).toBe(5.5); });
-        test('punto decimal `5.5` → 5.5', () => { expect(parseHoras('5.5')).toBe(5.5); });
-        test('string inválido → NaN', () => { expect(parseHoras('hola')).toBeNaN(); });
-    });
 });

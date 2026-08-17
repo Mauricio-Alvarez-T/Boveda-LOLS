@@ -32,15 +32,15 @@ interface RowState {
     cargo_id: number | null;
     cargo_nombre: string | null;
     asistio: boolean;
-    horas_trabajadas: string;          // string para input controlado, parse a number al guardar
     observacion: string;
     citado: boolean;                   // 1 si vino de la citación, 0 si fue agregado el día
     obra_origen_id: number | null;
 }
 
 /**
- * Vista del día sábado: muestra los citados, permite marcar asistencia y horas,
- * agregar no-citados que llegaron, y enviar mensajes WhatsApp.
+ * Vista del día sábado: muestra los citados, permite marcar asistencia
+ * (solo asistió/no asistió — sin horas, jefatura 2026-08-17), agregar
+ * no-citados que llegaron, y enviar mensajes WhatsApp.
  *
  * Default: todos los citados llegan pre-marcados como "Asistió" (decisión del
  * usuario en plan, optimiza el caso común "todos vinieron").
@@ -50,7 +50,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
     const { obras } = useObra();
     const { fetchDetalle, registrarAsistencia, cancelar, current, loading } = useSabadosExtra();
     const [rows, setRows] = useState<Record<number, RowState>>({});
-    const [horasDefault, setHorasDefault] = useState<string>('8');
     const [observacionesGlobales, setObservacionesGlobales] = useState('');
     const [showAddOther, setShowAddOther] = useState(false);
     const [saving, setSaving] = useState(false);
@@ -74,9 +73,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
             const asistio = isCitada
                 ? true
                 : flagOn(w.asistio);
-            const horas = w.horas_trabajadas !== null && w.horas_trabajadas !== undefined
-                ? String(w.horas_trabajadas)
-                : (current.horas_default !== null && current.horas_default !== undefined ? String(current.horas_default) : '');
             initial[w.trabajador_id] = {
                 trabajador_id: w.trabajador_id,
                 rut: w.rut || '',
@@ -86,14 +82,12 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                 cargo_id: w.cargo_id ?? null,
                 cargo_nombre: w.cargo_nombre || null,
                 asistio,
-                horas_trabajadas: horas,
                 observacion: w.observacion || '',
                 citado: flagOn(w.citado),
                 obra_origen_id: w.obra_origen_id ?? null,
             };
         });
         setRows(initial);
-        setHorasDefault(current.horas_default !== null && current.horas_default !== undefined ? String(current.horas_default) : '8');
         setObservacionesGlobales(current.observaciones_globales || '');
     }, [current]);
 
@@ -107,10 +101,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
 
     const setAsistio = useCallback((trabajadorId: number, asistio: boolean) => {
         setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], asistio } }));
-    }, []);
-
-    const setHorasRow = useCallback((trabajadorId: number, horas: string) => {
-        setRows(prev => ({ ...prev, [trabajadorId]: { ...prev[trabajadorId], horas_trabajadas: horas } }));
     }, []);
 
     const setObsRow = useCallback((trabajadorId: number, obs: string) => {
@@ -131,7 +121,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                     cargo_id: w.cargo_id ?? null,
                     cargo_nombre: w.cargo_nombre || null,
                     asistio: true,
-                    horas_trabajadas: horasDefault,
                     observacion: '',
                     citado: false,
                     obra_origen_id: w.obra_id,
@@ -141,70 +130,18 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
         });
     };
 
-    /**
-     * Convierte un input string a number aceptando tanto '5.5' como '5,5'
-     * (locale es-CL usa coma decimal). Devuelve NaN si no es parseable.
-     */
-    const parseHoras = (raw: string): number => {
-        const normalized = (raw || '').replace(',', '.').trim();
-        if (!normalized) return NaN;
-        return Number(normalized);
-    };
-
-    /**
-     * Aplica horasDefault a TODOS los trabajadores (sobreescribe valores
-     * existentes). Caso de uso: "todos hicieron las mismas horas, salvo
-     * casos puntuales". El usuario puede ajustar individualmente después.
-     */
-    const aplicarHorasDefault = () => {
-        if (!horasDefault) return;
-        const horasNum = parseHoras(horasDefault);
-        if (isNaN(horasNum) || horasNum < 0 || horasNum > 24) {
-            toast.error('Horas inválidas. Ingresa un valor entre 0 y 24.');
-            return;
-        }
-        const horasStr = String(horasNum);
-        setRows(prev => {
-            const next: Record<number, RowState> = {};
-            Object.entries(prev).forEach(([id, r]) => {
-                next[Number(id)] = {
-                    ...r,
-                    horas_trabajadas: horasStr,
-                };
-            });
-            return next;
-        });
-        toast.success(`Horas (${horasStr}) aplicadas a todos los trabajadores`);
-    };
-
     const handleGuardar = async () => {
         if (!canRegistrar) return;
 
-        // Validar horas individuales antes de mandar al backend
-        for (const [id, r] of Object.entries(rows)) {
-            if (!r.horas_trabajadas) continue;
-            const n = parseHoras(r.horas_trabajadas);
-            if (isNaN(n) || n < 0 || n > 24) {
-                toast.error(`Horas inválidas para trabajador ID ${id}: "${r.horas_trabajadas}"`);
-                return;
-            }
-        }
-
         setSaving(true);
-        const trabajadores = Object.entries(rows).map(([id, r]) => {
-            const n = r.horas_trabajadas ? parseHoras(r.horas_trabajadas) : NaN;
-            return {
-                trabajador_id: Number(id),
-                obra_origen_id: r.obra_origen_id,
-                asistio: r.asistio,
-                horas_trabajadas: !isNaN(n) ? n : null,
-                observacion: r.observacion || null,
-            };
-        });
+        const trabajadores = Object.entries(rows).map(([id, r]) => ({
+            trabajador_id: Number(id),
+            obra_origen_id: r.obra_origen_id,
+            asistio: r.asistio,
+            observacion: r.observacion || null,
+        }));
 
-        const horasDefaultNum = horasDefault ? parseHoras(horasDefault) : NaN;
         const ok = await registrarAsistencia(sabadoId, {
-            horas_default: !isNaN(horasDefaultNum) ? horasDefaultNum : null,
             observaciones_globales: observacionesGlobales || null,
             trabajadores,
         });
@@ -313,35 +250,10 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
 
             {!isCancelada && (
                 <>
-                    {/* Controles globales: horas default + observación general */}
+                    {/* Controles globales: observación general (sin horas — jefatura 2026-08-17) */}
                     <div className="bg-card border border-border rounded-2xl p-4 md:p-5">
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="grid grid-cols-1 gap-4">
                             <div>
-                                <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
-                                    Horas (default)
-                                </label>
-                                <div className="flex gap-2">
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        max="24"
-                                        step="0.5"
-                                        value={horasDefault}
-                                        onChange={e => setHorasDefault(e.target.value)}
-                                        disabled={!canRegistrar}
-                                        className="flex-1 h-10 px-3 bg-card border border-border rounded-xl text-sm font-medium focus:outline-none focus:border-brand-primary disabled:opacity-60"
-                                    />
-                                    <Button
-                                        variant="outline"
-                                        onClick={aplicarHorasDefault}
-                                        disabled={!canRegistrar || !horasDefault}
-                                        className="h-10 px-3 text-xs font-bold"
-                                    >
-                                        Aplicar a todos
-                                    </Button>
-                                </div>
-                            </div>
-                            <div className="md:col-span-2">
                                 <label className="text-label font-black uppercase tracking-wider text-brand-dark mb-1.5 block">
                                     Observación general
                                 </label>
@@ -435,20 +347,6 @@ const SabadoExtraAsistencia: React.FC<Props> = ({ sabadoId, onBack }) => {
                                                         No
                                                     </button>
                                                 </div>
-
-                                                {/* Horas */}
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="24"
-                                                    step="0.5"
-                                                    placeholder="Horas"
-                                                    aria-label={`Horas trabajadas para ${row.apellido_paterno} ${row.nombres}`}
-                                                    value={row.horas_trabajadas}
-                                                    onChange={e => setHorasRow(trabajadorId, e.target.value)}
-                                                    disabled={!canRegistrar || !row.asistio}
-                                                    className="w-20 h-9 px-2 bg-card border border-border rounded-lg text-sm text-center font-medium focus:outline-none focus:border-brand-primary disabled:opacity-50"
-                                                />
 
                                                 {/* Observación */}
                                                 <input

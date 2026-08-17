@@ -47,12 +47,19 @@ fechas DD/MM/YYYY) vía `GET /asistencias/alertas/:obraId?mes&anio` (permiso `as
 ## Sábados extra (`sabados_extra`, mig 040+)
 
 - Flujo: **citada → asistio/no_asistio** (registro) → cancelable (soft-delete `estado='cancelado'`).
+- **SIN horas (jefatura 2026-08-17)**: el sábado solo registra asistió/no asistió +
+  observación. Las columnas `horas_default`/`horas_trabajadas` quedan muertas en BD (sin
+  migración); no hay inputs de horas ni aparecen en mensajes ni reportes. (La columna
+  Excel "SÁB EXTRA (h)" ya se había eliminado en 671afc9, 2026-05-20.)
 - Solo sábados (getDay=6), no pasado, máx 1 año adelante (`sabadosExtra.service.js`).
 - Si coincide con feriado activo → 409; UI confirma con `acepta_feriado=true`.
 - Concurrencia: `SELECT ... FOR UPDATE` en transiciones.
-- Excel: columna "SÁB EXTRA (h)" suma `horas_trabajadas` de `estado='asistio'` en citaciones no canceladas.
 - No se permite citar para obra inactiva.
 - 6 permisos granulares (ver/crear/editar/cancelar/registrar/enviar_whatsapp).
+- **WhatsApp (citación y asistencia)**: la tarea de cada rubro va DEBAJO de su grupo
+  (`_Tarea: …_` bajo el header del cargo, desde `observaciones_por_cargo`); la
+  observación global se mantiene al final si existe. Builders en
+  `frontend/src/components/attendance/sabados/sabadosWhatsApp.ts` (+ tests `.test.ts`).
 
 ## Excel de nómina — pago base 30 días (mes comercial)
 
@@ -83,7 +90,7 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
 ## Horas extra
 
 - `asistencias.horas_extra DECIMAL(4,2)`; gateado por permiso `asistencia.horas_extra.ver`.
-- Sin permiso: inputs ocultos en UI y columnas HE+Sábados en blanco en Excel (estructura preservada).
+- Sin permiso: inputs ocultos en UI y columna HE en blanco en Excel (estructura preservada).
 
 ## Períodos de ausencia (`periodos_ausencia`, mig 012)
 
