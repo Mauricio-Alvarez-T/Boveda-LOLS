@@ -1302,14 +1302,28 @@ const asistenciaService = {
         });
         if (!maxStrDateInRecords) maxStrDateInRecords = formatDate(new Date());
 
-        // 2. Generar Rango de Días (FIJO A 30 DÍAS — mes comercial).
-        //    RRHH: cada quincena cuenta 15 días como máximo (Q1: 1-15, Q2: 16-30).
-        //    El día 31 NO se incluye en la grilla ni en los conteos.
-        const days = [];
+        // 2. Generar Rango de Días — GRILLA DE 31 COLUMNAS, PAGO BASE 30 (mes comercial).
+        //    RRHH: cada quincena paga máximo 15 días (Q1: 1-15, Q2: 16-30).
+        //    El día 31 se muestra pero SOLO DESCUENTA (nunca suma sobre 30).
+        //    Los días inexistentes del mes (29/30 en febrero, 31 en meses de 30) son
+        //    "fantasma": relleno estructural de la base 30, jamás fechas del mes
+        //    siguiente (new Date(y, 1, 29) desbordaba al 1 de marzo y podía sumar FDS).
         const startYear = start.getFullYear();
         const startMonth = start.getMonth();
-        for (let d = 1; d <= 30; d++) {
-            days.push(new Date(startYear, startMonth, d));
+        const daysInMonth = new Date(startYear, startMonth + 1, 0).getDate();
+        const pad2 = (n) => String(n).padStart(2, '0');
+        const ultimoDiaRealStr = `${startYear}-${pad2(startMonth + 1)}-${pad2(daysInMonth)}`;
+        const dias = [];
+        for (let num = 1; num <= 31; num++) {
+            const esFantasma = num > daysInMonth;
+            dias.push({
+                num,
+                fStr: esFantasma ? null : `${startYear}-${pad2(startMonth + 1)}-${pad2(num)}`,
+                // Mediodía local: getDay() inmune a TZ/DST (sin round-trip toISOString)
+                dow: esFantasma ? null : new Date(startYear, startMonth, num, 12).getDay(),
+                esFantasma,
+                esDia31: num === 31,
+            });
         }
 
         const workbook = new ExcelJS.Workbook();
@@ -1358,6 +1372,19 @@ const asistenciaService = {
                 })
         )];
         const MARKER_FDS = 'FDS'; // Marcador para fines de semana y feriados sin registro
+        const GHOST_FILL = 'FFE7E7E7'; // Fill de días fantasma (≠ FDS FFEFEFEF: relleno estructural)
+
+        // ── Códigos que NO pagan (penalización del día 31 y relleno de meses cortos) ──
+        // Complemento de codigosSumanDia + '-' (estado desconocido/desactivado post-
+        // registro, L1614): hoy '-' no paga en los días 1-30, así que en el 31 debe
+        // descontar — no ser neutro.
+        const codigosNoPagan = new Set([
+            ...estados
+                .filter(e => !e.cuenta_dia_trabajado)
+                .map(e => (e.codigo === 'AT' ? 'JI' : e.codigo))
+                .filter(c => c !== 'JI'),
+            '-',
+        ]);
 
         // ── Agrupar trabajadores por empresa ──
         const empresaGroups = {};
@@ -1412,7 +1439,8 @@ const asistenciaService = {
                     }
                     return { codigo, nombre, color: est.color, suma: codigosSumanDia.includes(codigo) };
                 }).filter((v, i, a) => a.findIndex(t => t.codigo === v.codigo) === i), // Unique by consolidated code
-                { codigo: MARKER_FDS, nombre: 'Fin de Semana / Feriado', color: null, suma: true }
+                { codigo: MARKER_FDS, nombre: 'Fin de Semana / Feriado', color: null, suma: true },
+                { codigo: '31', nombre: 'Dia 31: solo descuenta (pago base 30)', suma: false }
             ];
             const halfLegend = Math.ceil(legendItems.length / 2);
             
@@ -1472,26 +1500,30 @@ const asistenciaService = {
 
             const dayColStart = 9;
             const dowMap = ['D', 'L', 'M', 'MI', 'J', 'V', 'S'];
+            // Col del día N: tras el día 15 se intercalan Q1 + DESCUENTOS Q1 (2 columnas)
+            const dayCol = (num) => dayColStart + (num - 1) + (num > 15 ? 2 : 0);
 
-            // Pintar cabeceras 1-30 (mes comercial: el día 31 se omite)
-            for (let i = 0; i < 30; i++) {
-                const colIdx = dayColStart + (i < 15 ? i : i + 1);
-                const dayNum = i + 1;
-                const tempDay = new Date(startYear, startMonth, dayNum);
-                
+            // Pintar cabeceras 1-31. Fantasmas: número visible, SIN día de semana
+            // (jamás el DOW del mes siguiente), fill gris estructural.
+            for (const dia of dias) {
+                const colIdx = dayCol(dia.num);
+
                 const cellNum = ws.getCell(7, colIdx);
-                cellNum.value = dayNum;
+                cellNum.value = dia.num;
                 cellNum.font = { bold: true, size: 9 };
                 cellNum.alignment = { horizontal: 'center' };
                 cellNum.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
                 const cellDow = ws.getCell(8, colIdx);
-                cellDow.value = dowMap[tempDay.getDay()];
+                cellDow.value = dia.esFantasma ? '' : dowMap[dia.dow];
                 cellDow.font = { size: 8 };
                 cellDow.alignment = { horizontal: 'center' };
                 cellDow.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-                
-                if (tempDay.getDay() === 0 || tempDay.getDay() === 6) {
+
+                if (dia.esFantasma) {
+                    cellNum.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GHOST_FILL } };
+                    cellDow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GHOST_FILL } };
+                } else if (dia.dow === 0 || dia.dow === 6) {
                     cellNum.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                     cellDow.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                 }
@@ -1507,7 +1539,19 @@ const asistenciaService = {
             q1Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
             q1Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const q2Col = dayColStart + 30 + 1;
+            // Detalle visible de días descontados de la 1ra quincena (pedido jefatura:
+            // "¿por qué tiene 27 días?" → faltas con día de semana, sin abrir notas).
+            const descQ1Col = q1Col + 1;
+            ws.mergeCells(7, descQ1Col, 8, descQ1Col);
+            const descQ1Header = ws.getCell(7, descQ1Col);
+            descQ1Header.value = 'DESCUENTOS Q1';
+            descQ1Header.font = { bold: true, size: 8 };
+            descQ1Header.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            descQ1Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+            descQ1Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const dia31Col = dayCol(31);
+            const q2Col = dia31Col + 1;
             ws.mergeCells(7, q2Col, 8, q2Col);
             const q2Header = ws.getCell(7, q2Col);
             q2Header.value = 'SEGUNDA QUINCENA';
@@ -1516,7 +1560,16 @@ const asistenciaService = {
             q2Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
             q2Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const totalCol = q2Col + 1;
+            const descQ2Col = q2Col + 1;
+            ws.mergeCells(7, descQ2Col, 8, descQ2Col);
+            const descQ2Header = ws.getCell(7, descQ2Col);
+            descQ2Header.value = 'DESCUENTOS Q2';
+            descQ2Header.font = { bold: true, size: 8 };
+            descQ2Header.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            descQ2Header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
+            descQ2Header.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+
+            const totalCol = descQ2Col + 1;
             ws.mergeCells(7, totalCol, 8, totalCol);
             const totalHeader = ws.getCell(7, totalCol);
             totalHeader.value = 'TOTAL DIAS TRABAJADOS';
@@ -1579,28 +1632,58 @@ const asistenciaService = {
                 let sumHorasOrd = 0;
                 let sumMetaOrd = 0; // Para el cálculo de deficit
                 let sumHorasDescontadas = 0; // Descuento por JI del mes
-                const horasDescPorDia = {}; // dIdx → descuento del día (para nota)
+                const horasDescPorDia = {}; // num de día → descuento del día (para nota)
                 const obrHorario = horariosMap[worker.obra_id] || defaultHorario;
+                const workerIngreso = worker.fecha_ingreso ? formatDate(worker.fecha_ingreso) : null;
+                const workerFin = worker.fecha_desvinculacion ? formatDate(worker.fecha_desvinculacion) : null;
+                // num de día → valor final escrito en la celda. Fuente de verdad de las
+                // columnas DESCUENTOS (espejo exacto de lo que ven las fórmulas COUNTIF).
+                const renderedByNum = {};
 
-                days.forEach((day, dIdx) => {
-                    const fStr = formatDate(day);
-                    const colIdx = dayColStart + (dIdx < 15 ? dIdx : dIdx + 1);
+                dias.forEach((dia) => {
+                    const fStr = dia.fStr;
+                    const colIdx = dayCol(dia.num);
                     const cell = ws.getCell(rowIdx, colIdx);
+
+                    // ── DÍAS FANTASMA (relleno estructural base 30) ──
+                    if (dia.esFantasma) {
+                        // Día 31 fantasma (meses de 28/29/30): vacío y NEUTRAL — fuera
+                        // del rango aditivo de Q2 y sin penalización.
+                        // Días 29/30 fantasma (febrero): pagan (FDS) solo si el contrato
+                        // cubre el fin de mes real Y el último día real no quedó en
+                        // código no-pago (decisión jefatura 2026-08-17: una ausencia que
+                        // llega a fin de mes extiende su descuento al relleno virtual).
+                        const contratoCubreFinDeMes =
+                            (!workerIngreso || workerIngreso <= ultimoDiaRealStr) &&
+                            (!workerFin || workerFin >= ultimoDiaRealStr);
+                        const finDeMesNoPago = codigosNoPagan.has(renderedByNum[daysInMonth]);
+                        if (!dia.esDia31 && contratoCubreFinDeMes && !finDeMesNoPago) {
+                            cell.value = MARKER_FDS;
+                            cell.font = { size: 7, color: { argb: 'FFAAAAAA' } };
+                        } else {
+                            cell.value = '';
+                            cell.font = { size: 7, color: { argb: 'FFCCCCCC' } };
+                        }
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: GHOST_FILL } };
+                        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+                        cell.border = makeBorder(GHOST_FILL);
+                        renderedByNum[dia.num] = cell.value;
+                        return; // fantasmas jamás pasan por horas/meta/notas/obs
+                    }
+
                     const reg = attendanceMap[worker.id]?.[fStr];
                     const isFeriado = !!feriadoMap[fStr];
-                    const isWeekend = day.getDay() === 0 || day.getDay() === 6;
+                    const isWeekend = dia.dow === 0 || dia.dow === 6;
 
                     // ── VALIDACIÓN DE RANGO LABORAL ──
                     // No marcar ni sumar días FUERA del período de contratación
-                    const workerIngreso = worker.fecha_ingreso ? formatDate(worker.fecha_ingreso) : null;
-                    const workerFin = worker.fecha_desvinculacion ? formatDate(worker.fecha_desvinculacion) : null;
                     const isBeforeContract = workerIngreso && fStr < workerIngreso;
                     const isAfterTermination = workerFin && fStr > workerFin;
                     const isOutOfRange = isBeforeContract || isAfterTermination;
 
                     // Si es día hábil laborable y exigible, sumar a Meta de horas "Deber"
                     if (!isOutOfRange && fStr <= maxStrDateInRecords && !isFeriado) {
-                        const dayKey = jsDaysMap[day.getDay()];
+                        const dayKey = jsDaysMap[dia.dow];
                         const expected = obrHorario[dayKey] || 0;
                         sumMetaOrd += expected;
                     }
@@ -1637,6 +1720,7 @@ const asistenciaService = {
                             }
                             cell.alignment = { horizontal: 'center', vertical: 'middle' };
                             cell.border = makeBorder(cell.fill.fgColor.argb);
+                            renderedByNum[dia.num] = cell.value;
                             return; // siguiente día — saltamos render normal
                         }
 
@@ -1674,7 +1758,7 @@ const asistenciaService = {
                                 // JI sin marcas de reloj: media jornada exigida del día.
                                 // Si la obra tiene horario configurado, usar jornada/2.
                                 // Fallback 4.5 (= 9/2) si día sin config — retrocompat.
-                                const dayKeyJI = jsDaysMap[day.getDay()];
+                                const dayKeyJI = jsDaysMap[dia.dow];
                                 const jornadaDiaJI = obrHorario[dayKeyJI];
                                 calc = (jornadaDiaJI && jornadaDiaJI > 0) ? jornadaDiaJI / 2 : 4.5;
                             } else {
@@ -1686,11 +1770,11 @@ const asistenciaService = {
                             // jornada esperada y horas reales/calculadas. Solo
                             // para JI (no para A, V, TO, etc. que ya pagaron full).
                             if (codigo === 'JI') {
-                                const dayKeyDesc = jsDaysMap[day.getDay()];
+                                const dayKeyDesc = jsDaysMap[dia.dow];
                                 const expectedDia = obrHorario[dayKeyDesc] || 9;
                                 const descuentoDia = Math.max(0, expectedDia - calc);
                                 sumHorasDescontadas += descuentoDia;
-                                horasDescPorDia[dIdx] = descuentoDia;
+                                horasDescPorDia[dia.num] = descuentoDia;
                             }
                         }
 
@@ -1711,8 +1795,8 @@ const asistenciaService = {
                             let dText = `Detalle Horas:\n  Ordinarias: ${calc.toFixed(2)}`;
                             if (hsExtra > 0) dText += `\n  Extras: ${hsExtra.toFixed(2)}`;
                             // JI: mostrar explícitamente las horas descontadas del día
-                            if (codigo === 'JI' && horasDescPorDia[dIdx] !== undefined) {
-                                dText += `\n  Descontadas (JI): ${horasDescPorDia[dIdx].toFixed(2)}`;
+                            if (codigo === 'JI' && horasDescPorDia[dia.num] !== undefined) {
+                                dText += `\n  Descontadas (JI): ${horasDescPorDia[dia.num].toFixed(2)}`;
                             }
 
                             if (customSchedule) {
@@ -1750,21 +1834,35 @@ const asistenciaService = {
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                         }
                     } else {
-                        // Día laboral sin registro (no suma)
-                        cell.value = '';
+                        // Día laboral sin registro (no suma). Red extra SOLO para el
+                        // día 31: si un período activo lo cubre y la fila sintética de
+                        // _filasDePeriodos no llegó, pintar el código del período — en
+                        // el 31 es seguro (código pagador = neutral en fórmula, código
+                        // no-pago = descuenta). En días 1-30 NO se hace: pintar un
+                        // código pagador donde hoy hay vacío cambiaría totales.
+                        const periodMatch31 = dia.esDia31 ? periodDaysMap.get(`${worker.id}:${fStr}`) : null;
+                        if (periodMatch31) {
+                            const periodArgb = toArgb(periodMatch31.color);
+                            cell.value = periodMatch31.codigo;
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: periodArgb } };
+                            cell.font = { color: { argb: 'FFFFFFFF' }, bold: true, size: 8 };
+                        } else {
+                            cell.value = '';
+                        }
                     }
 
                     // Pintar feriados o domingos si tienen un estado registrado pero no fill propio
                     if ((isFeriado || isWeekend) && !cell.fill) {
                         cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEFEFEF' } };
                     }
-                    
+
                     cell.alignment = { horizontal: 'center', vertical: 'middle' };
                     // Borde color-matched al fill → runs del mismo estado (LM,
                     // V, F, PSG, etc.) se ven como un bloque continuo. Celdas
                     // sin fill usan gris suave para reducir ruido visual.
                     const fillArgb = cell.fill?.fgColor?.argb;
                     cell.border = makeBorder(fillArgb || DEFAULT_BORDER_COLOR);
+                    renderedByNum[dia.num] = cell.value;
                 });
 
                 // ── FÓRMULAS DE SUMATORIA CORREGIDAS ──
@@ -1779,13 +1877,90 @@ const asistenciaService = {
                 const q1Formula = countifParts.join('+');
                 ws.getCell(rowIdx, q1Col).value = { formula: q1Formula };
 
-                const q2Range = `${ws.getCell(rowIdx, dayColStart + 16).address}:${ws.getCell(rowIdx, dayColStart + 30).address}`;
+                // Q2: aditiva sobre los días reales 16-30 MENOS la penalización del
+                // día 31 (base 30: el 31 nunca suma — A/FDS/V en el 31 no están en
+                // ningún rango aditivo — pero un código no-pago registrado el 31 sí
+                // descuenta). El 31 vacío es neutro (protege exports históricos).
+                // MAX(0,…): un ingreso el 31 con F el 31 no puede dejar Q2 negativa.
+                const q2Range = `${ws.getCell(rowIdx, dayCol(16)).address}:${ws.getCell(rowIdx, dayCol(30)).address}`;
                 const countifParts2 = allCodigos.map(cod => `COUNTIF(${q2Range},"${cod}")`);
-                const q2Formula = countifParts2.join('+');
+                const d31Addr = ws.getCell(rowIdx, dia31Col).address;
+                const penal31 = [...codigosNoPagan].map(cod => `COUNTIF(${d31Addr},"${cod}")`).join('+');
+                const q2Formula = `MAX(0,${countifParts2.join('+')}-(${penal31}))`;
                 ws.getCell(rowIdx, q2Col).value = { formula: q2Formula };
 
                 // Total: Q1 + Q2
                 ws.getCell(rowIdx, totalCol).value = { formula: `${ws.getCell(rowIdx, q1Col).address}+${ws.getCell(rowIdx, q2Col).address}` };
+
+                // ── Columnas DESCUENTOS Q1/Q2: detalle visible de días descontados ──
+                // Pedido jefatura 2026-08-17: "¿por qué tiene 27 días?" → respuesta en
+                // la misma fila, con día de semana. Calculado desde renderedByNum (lo
+                // mismo que ven las fórmulas COUNTIF). Texto ASCII sin emojis (misma
+                // razón que las notas de celda: compat Excel desktop / Google Sheets).
+                const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado'];
+                const comprimirNums = (nums) => {
+                    const runs = [];
+                    let ini = null, prev = null;
+                    for (const n of nums) {
+                        if (ini === null) { ini = n; prev = n; continue; }
+                        if (n === prev + 1) { prev = n; continue; }
+                        runs.push(ini === prev ? pad2(ini) : `${pad2(ini)}-${pad2(prev)}`);
+                        ini = n; prev = n;
+                    }
+                    if (ini !== null) runs.push(ini === prev ? pad2(ini) : `${pad2(ini)}-${pad2(prev)}`);
+                    return runs.join(', ');
+                };
+                const buildDescuentos = (desde, hasta) => {
+                    const porCodigo = {};
+                    const sinRegistro = [];
+                    const fueraContrato = [];
+                    for (const dia of dias) {
+                        if (dia.num < desde || dia.num > hasta) continue;
+                        if (dia.esFantasma || dia.esDia31) continue; // 31 y fantasmas: líneas propias
+                        const val = renderedByNum[dia.num];
+                        const outOfRange = (workerIngreso && dia.fStr < workerIngreso) ||
+                                           (workerFin && dia.fStr > workerFin);
+                        if (codigosNoPagan.has(val)) {
+                            (porCodigo[val] = porCodigo[val] || []).push(`${DIAS_SEMANA[dia.dow]} ${pad2(dia.num)}`);
+                        } else if (val === '' && outOfRange) {
+                            fueraContrato.push(dia.num);
+                        } else if (val === '' && dia.dow !== 0 && dia.dow !== 6 && !feriadoMap[dia.fStr]
+                                   && dia.fStr <= maxStrDateInRecords
+                                   && dia.fStr >= fecha_inicio && dia.fStr <= fecha_fin) {
+                            // Hábil real, dentro de contrato y del rango pedido, sin
+                            // registro cargado: no paga → explicitarlo.
+                            sinRegistro.push(`${DIAS_SEMANA[dia.dow]} ${pad2(dia.num)}`);
+                        }
+                    }
+                    const lineas = [];
+                    for (const [cod, etiquetas] of Object.entries(porCodigo)) {
+                        lineas.push(`${cod}: ${etiquetas.join(', ')}`);
+                    }
+                    if (sinRegistro.length) lineas.push(`Sin registro: ${sinRegistro.join(', ')}`);
+                    if (fueraContrato.length) lineas.push(`Fuera contrato: ${comprimirNums(fueraContrato)}`);
+                    return lineas;
+                };
+
+                const lineasQ1 = buildDescuentos(1, 15);
+                const lineasQ2 = buildDescuentos(16, 31);
+                if (codigosNoPagan.has(renderedByNum[31])) {
+                    lineasQ2.push(`Dia 31 (${renderedByNum[31]}): descuenta 1`);
+                }
+                if (daysInMonth < 30 && renderedByNum[daysInMonth + 1] === '') {
+                    lineasQ2.push(`Dias ${daysInMonth + 1}-30: sin relleno base 30 (contrato/ausencia fin de mes)`);
+                }
+
+                const escribirDesc = (col, lineas) => {
+                    const c = ws.getCell(rowIdx, col);
+                    if (lineas.length > 0) {
+                        c.value = lineas.join('\n');
+                        c.font = { size: 7 };
+                    }
+                    c.alignment = { vertical: 'top', wrapText: true };
+                    c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
+                };
+                escribirDesc(descQ1Col, lineasQ1);
+                escribirDesc(descQ2Col, lineasQ2);
                 
                 // Balance de Déficit Resultante
                 const deficitBalance = sumHorasOrd - sumMetaOrd;
@@ -1825,10 +2000,11 @@ const asistenciaService = {
                 }
 
                 // ── Columna OBSERVACIONES: recopilar observaciones del mes ──
+                // Solo días reales (incluye el 31; fantasmas no tienen registros).
                 const obsTexts = [];
-                days.forEach((day) => {
-                    const fStr = formatDate(day);
-                    const reg = attendanceMap[worker.id]?.[fStr];
+                dias.forEach((dia) => {
+                    if (dia.esFantasma) return;
+                    const reg = attendanceMap[worker.id]?.[dia.fStr];
                     if (reg && reg.observacion && reg.observacion.trim()) {
                         obsTexts.push(reg.observacion.trim());
                     }
@@ -1855,12 +2031,14 @@ const asistenciaService = {
             ws.getColumn(7).width = 15;
             ws.getColumn(8).width = 10;
             
-            for (let i = 0; i < days.length + 4; i++) {
-                ws.getColumn(dayColStart + i).width = 4;
+            for (let c = dayColStart; c <= dia31Col; c++) {
+                ws.getColumn(c).width = 4;
             }
             // Ensanchar columnas de resumen
             ws.getColumn(q1Col).width = 10;
+            ws.getColumn(descQ1Col).width = 18;
             ws.getColumn(q2Col).width = 10;
+            ws.getColumn(descQ2Col).width = 18;
             ws.getColumn(totalCol).width = 10;
             ws.getColumn(horasOrdCol).width = 13;
             ws.getColumn(horasDescCol).width = 13;

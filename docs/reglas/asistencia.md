@@ -54,6 +54,29 @@ fechas DD/MM/YYYY) vía `GET /asistencias/alertas/:obraId?mes&anio` (permiso `as
 - No se permite citar para obra inactiva.
 - 6 permisos granulares (ver/crear/editar/cancelar/registrar/enviar_whatsapp).
 
+## Excel de nómina — pago base 30 días (mes comercial)
+
+Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 se trunca a
+30, febrero (28/29) se redondea a 30. Implementado en `generarExcel`:
+
+- **Grilla de 31 columnas de día** (antes 30). Días inexistentes del mes = "fantasma":
+  header sin día de semana, fill gris estructural, jamás fechas del mes siguiente
+  (bug corregido: `new Date(y, 1, 29)` desbordaba febrero al 1-2 de marzo).
+- **Q1/Q2 aditivas** por `cuenta_dia_trabajado` + marcador FDS (sin cambio) sobre los
+  días 1-15 y 16-30. **El día 31 SOLO descuenta**: Q2 = `MAX(0, aditivo − COUNTIF(celda 31,
+  códigos no-pago))`. Códigos que descuentan el 31: los con `cuenta_dia_trabajado=0`
+  (F/LM/PSG) más `'-'` (estado desconocido). El 31 asistido/FDS/vacío es NEUTRO
+  (vacío no descuenta → exports históricos no cambian). Falta el 31 → Q1+Q2 = 29.
+- **Relleno de meses cortos** (días 29/30 de febrero): pagan como FDS solo si el
+  contrato cubre el último día real del mes Y ese día no quedó en código no-pago
+  (LM 20→28-feb = 19 días, no 21 — la ausencia a fin de mes extiende su descuento).
+- **Columnas DESCUENTOS Q1 / DESCUENTOS Q2** (tras cada conteo de quincena): detalle
+  visible por código con día de semana (`F: lunes 07, miercoles 09`), días hábiles sin
+  registro, rangos fuera de contrato y penalización del 31 — para que remuneraciones
+  cuadre sin abrir notas.
+- Horas del día 31 real (ordinarias/extra/meta) SÍ suman a BALANCE/HE.
+- Tests: `backend/tests/excel_export.test.js` (suite "Excel base 30").
+
 ## Horas extra
 
 - `asistencias.horas_extra DECIMAL(4,2)`; gateado por permiso `asistencia.horas_extra.ver`.

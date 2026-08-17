@@ -238,20 +238,21 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
 
-        // AT becomes JI, leaving 5 real items + 1 FDS = 6 items
-        // 6 items total → halfLegend = 3 → filas 1-3 izquierda, filas 1-3 derecha
-        // Columna izquierda: A (col 1), F (col 1), V (col 1)
+        // AT becomes JI, leaving 5 real items + FDS + "31" (base 30) = 7 items
+        // 7 items total → halfLegend = 4 → filas 1-4 izquierda, filas 1-3 derecha
+        // Columna izquierda: A, F, V, LM (col 1)
         expect(wsLols.getCell(1, 1).value).toBe('A');
         expect(wsLols.getCell(2, 1).value).toBe('F');
         expect(wsLols.getCell(3, 1).value).toBe('V');
+        expect(wsLols.getCell(4, 1).value).toBe('LM');
 
-        // Columna derecha: LM (col 3), JI (col 3), FDS (col 3)
-        expect(wsLols.getCell(1, 3).value).toBe('LM');
-        expect(wsLols.getCell(2, 3).value).toBe('JI');
-        expect(wsLols.getCell(3, 3).value).toBe('FDS');
+        // Columna derecha: JI, FDS, 31 (col 3)
+        expect(wsLols.getCell(1, 3).value).toBe('JI');
+        expect(wsLols.getCell(2, 3).value).toBe('FDS');
+        expect(wsLols.getCell(3, 3).value).toBe('31');
 
-        // Row 4 debe estar vacía
-        expect(wsLols.getCell(4, 1).value).toBeNull();
+        // Row 4 derecha debe estar vacía
+        expect(wsLols.getCell(4, 3).value).toBeNull();
     });
 
     // ── Test 6: JI usa jornada/2 dinámica (no hardcoded 4.5) ──
@@ -296,13 +297,14 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
 
         // Header "HRS DESCONTADAS (JI)" debe existir
-        // Mes comercial 30 días: Q2 col = dayColStart + 30 + 1.
-        // dayColStart = 9. Q1 = 9+15 = 24. Q2 = 9+31 = 40. total = 41. ord = 42. desc = 43.
-        const descHeader = wsLols.getCell(7, 43);
+        // Grilla base 30 (31 columnas de día + DESC Q1/Q2): dayColStart = 9.
+        // Q1 = 24, DESC Q1 = 25, d16-30 = 26-40, d31 = 41, Q2 = 42, DESC Q2 = 43,
+        // total = 44, ord = 45, desc(JI) = 46, extra = 47, obs = 48.
+        const descHeader = wsLols.getCell(7, 46);
         expect(descHeader.value).toBe('HRS DESCONTADAS (JI)');
 
         // Trabajador con 1 día JI (jornada 9h): descuento = 9 - 4.5 = 4.5
-        const cDesc = wsLols.getCell(9, 43);
+        const cDesc = wsLols.getCell(9, 46);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
 
@@ -336,8 +338,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
         // Fallback default 9h → JI calc = 4.5, descuento = 9 - 4.5 = 4.5
-        // Mes comercial 30 días: horasDesc col = 43 (ver Test 6).
-        const cDesc = wsLols.getCell(9, 43);
+        // Grilla base 30: horasDesc col = 46 (ver Test 6).
+        const cDesc = wsLols.getCell(9, 46);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
 
@@ -449,5 +451,307 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         expect(formula).toContain('"DF"');
         expect(formula).toContain('"MT"');
         expect(formula).not.toContain('"PL"');
+    });
+});
+
+// ══════════════════════════════════════════════════════════════════════
+// ═══  BASE 30 DÍAS: día 31 solo descuenta + relleno de meses cortos  ═══
+// ══════════════════════════════════════════════════════════════════════
+describe('Asistencia Service - Excel base 30 (día 31 y columnas DESCUENTOS)', () => {
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+    });
+
+    const ESTADOS = [
+        { id: 1, codigo: 'A',  nombre: 'Asistencia',      color: '#34C759', activo: 1, es_presente: 1, cuenta_dia_trabajado: 1 },
+        { id: 2, codigo: 'F',  nombre: 'Falta',           color: '#FF3B30', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 },
+        { id: 3, codigo: 'V',  nombre: 'Vacaciones',      color: '#FFD60A', activo: 1, es_presente: 0, cuenta_dia_trabajado: 1 },
+        { id: 4, codigo: 'LM', nombre: 'Licencia Médica', color: '#5856D6', activo: 1, es_presente: 0, cuenta_dia_trabajado: 0 }
+    ];
+
+    // Layout base 30: d1-15 = 9-23, Q1 = 24, DESC Q1 = 25, d16-30 = 26-40,
+    // d31 = 41 (col "AO"), Q2 = 42, DESC Q2 = 43, TOTAL = 44.
+    const dayCol = (num) => 9 + (num - 1) + (num > 15 ? 2 : 0);
+    const DESC_Q1_COL = 25;
+    const DIA31_COL = 41;
+    const Q2_COL = 42;
+    const DESC_Q2_COL = 43;
+    const TOTAL_COL = 44;
+
+    // ExcelJS no evalúa fórmulas → replicar la semántica: Q1/Q2 aditivas por
+    // código que paga + FDS, menos la penalización del día 31 (MAX(0, …)).
+    const evalTotales = (ws, row) => {
+        const pagan = new Set(['A', 'V', 'JI', 'TO', 'NAC', 'DF', 'MT', 'FDS']);
+        const noPagan = new Set(['F', 'LM', 'PSG', '-']);
+        const val = (col) => {
+            const v = ws.getCell(row, col).value;
+            return v == null ? '' : String(v);
+        };
+        let q1 = 0, q2 = 0;
+        for (let n = 1; n <= 15; n++) if (pagan.has(val(dayCol(n)))) q1++;
+        for (let n = 16; n <= 30; n++) if (pagan.has(val(dayCol(n)))) q2++;
+        const penal31 = noPagan.has(val(DIA31_COL)) ? 1 : 0;
+        const q2Final = Math.max(0, q2 - penal31);
+        return { q1, q2: q2Final, total: q1 + q2Final };
+    };
+
+    const pad = (n) => String(n).padStart(2, '0');
+
+    // Registros 'A' para todos los días hábiles (lun-vie) del mes hasta hastaDia
+    const asistenciasHabiles = (anio, mesIdx, hastaDia, omitir = []) => {
+        const rows = [];
+        for (let d = 1; d <= hastaDia; d++) {
+            if (omitir.includes(d)) continue;
+            const dow = new Date(anio, mesIdx, d, 12).getDay();
+            if (dow >= 1 && dow <= 5) {
+                rows.push({ trabajador_id: 1, obra_id: 10, fecha: `${anio}-${pad(mesIdx + 1)}-${pad(d)}`, estado_id: 1 });
+            }
+        }
+        return rows;
+    };
+
+    const mockWorker = (extra = {}) => ([{
+        id: 1, rut: '1-1', nombres: 'Juan', apellido_paterno: 'Perez',
+        empresa_nombre: 'LOLS EMPRESAS DE INGENIERIA LTDA', activo: 1, obra_id: 10, ...extra
+    }]);
+
+    const mockDb = ({ workers, registros, feriados = [], periodos = [] }) => {
+        db.query.mockImplementation((sql) => {
+            if (sql.includes('FROM trabajadores')) return Promise.resolve([workers]);
+            if (sql.includes('FROM estados_asistencia')) return Promise.resolve([ESTADOS]);
+            if (sql.includes('FROM asistencias')) return Promise.resolve([registros]);
+            if (sql.includes('FROM feriados')) return Promise.resolve([feriados]);
+            if (sql.includes('FROM periodos_ausencia')) return Promise.resolve([periodos]);
+            return Promise.resolve([[]]);
+        });
+    };
+
+    const generarHojaLols = async (fecha_inicio, fecha_fin) => {
+        const buffer = await asistenciaService.generarExcel({ fecha_inicio, fecha_fin });
+        const wb = new ExcelJS.Workbook();
+        await wb.xlsx.load(buffer);
+        return wb.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
+    };
+
+    // ── 1: Falta registrada el 31 descuenta → total 29 ──
+    test('marzo 2026: F registrada el 31 descuenta (Q2=14, total 29)', async () => {
+        // Marzo 2026: día 1 = domingo, día 31 = martes
+        const registros = [
+            ...asistenciasHabiles(2026, 2, 30),
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-31', estado_id: 2 }
+        ];
+        mockDb({ workers: mockWorker(), registros });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('F');
+
+        // Fórmula Q2: MAX(0, aditivo − penalización sobre la celda del 31 (AO9))
+        const q2Formula = ws.getCell(9, Q2_COL).value.formula;
+        expect(q2Formula).toContain('MAX(0,');
+        expect(q2Formula).toContain('COUNTIF(AO9');
+        expect(q2Formula).toContain('"F"');
+
+        const { q1, q2, total } = evalTotales(ws, 9);
+        expect(q1).toBe(15);
+        expect(q2).toBe(14);
+        expect(total).toBe(29);
+
+        // Detalle visible del descuento en DESC Q2
+        expect(String(ws.getCell(9, DESC_Q2_COL).value)).toContain('Dia 31 (F): descuenta 1');
+    });
+
+    // ── 2: 31 asistido NO suma (tope base 30) ──
+    test('marzo 2026: A el 31 no suma (total se mantiene en 30)', async () => {
+        const registros = [
+            ...asistenciasHabiles(2026, 2, 30),
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-31', estado_id: 1 }
+        ];
+        mockDb({ workers: mockWorker(), registros });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('A');
+        expect(evalTotales(ws, 9).total).toBe(30);
+        // Sin descuentos → columna DESC Q2 vacía
+        expect(ws.getCell(9, DESC_Q2_COL).value).toBeNull();
+    });
+
+    // ── 3: 31 sin registro = NEUTRAL (protege exports históricos) ──
+    test('marzo 2026: día 31 hábil sin registro es neutro (total 30)', async () => {
+        mockDb({ workers: mockWorker(), registros: asistenciasHabiles(2026, 2, 30) });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('');
+        expect(evalTotales(ws, 9).total).toBe(30);
+        expect(ws.getCell(9, DESC_Q2_COL).value).toBeNull();
+    });
+
+    // ── 4: 31 en fin de semana → FDS neutro ──
+    test('mayo 2026: 31 domingo sin registro renderiza FDS y es neutro', async () => {
+        mockDb({ workers: mockWorker(), registros: asistenciasHabiles(2026, 4, 30) });
+        const ws = await generarHojaLols('2026-05-01', '2026-05-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('FDS');
+        expect(evalTotales(ws, 9).total).toBe(30);
+    });
+
+    // ── 5: feriado el 31 → FDS neutro ──
+    test('marzo 2026: feriado el 31 sin registro renderiza FDS y es neutro', async () => {
+        mockDb({
+            workers: mockWorker(),
+            registros: asistenciasHabiles(2026, 2, 30),
+            feriados: [{ id: 1, fecha: '2026-03-31', nombre: 'Feriado Test', activo: 1 }]
+        });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('FDS');
+        expect(evalTotales(ws, 9).total).toBe(30);
+    });
+
+    // ── 6: LM cubriendo el 31 descuenta ──
+    test('marzo 2026: LM registrada el 31 descuenta (total 29)', async () => {
+        const registros = [
+            ...asistenciasHabiles(2026, 2, 30),
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-31', estado_id: 4 }
+        ];
+        const periodos = [{
+            trabajador_id: 1, obra_id: 10, estado_id: 4,
+            fecha_inicio: '2026-03-31', fecha_fin: '2026-03-31', codigo: 'LM', color: '#5856D6'
+        }];
+        mockDb({ workers: mockWorker(), registros, periodos });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('LM');
+        expect(evalTotales(ws, 9).total).toBe(29);
+        expect(String(ws.getCell(9, DESC_Q2_COL).value)).toContain('Dia 31 (LM): descuenta 1');
+    });
+
+    // ── 7: febrero perfecto = 30 (relleno fantasma, sin fechas de marzo) ──
+    test('febrero 2026 perfecto: fantasmas 29/30 pagan (FDS gris) y total 30', async () => {
+        // Feb 2026: 28 días, día 1 = domingo. El bug histórico desbordaba las
+        // columnas 29/30 al 1-2 de marzo.
+        mockDb({ workers: mockWorker(), registros: asistenciasHabiles(2026, 1, 28) });
+        const ws = await generarHojaLols('2026-02-01', '2026-02-28');
+
+        // Fantasmas 29/30 pagan como relleno base 30, con fill estructural
+        const g29 = ws.getCell(9, dayCol(29));
+        const g30 = ws.getCell(9, dayCol(30));
+        expect(g29.value).toBe('FDS');
+        expect(g30.value).toBe('FDS');
+        expect(g29.fill?.fgColor?.argb).toBe('FFE7E7E7');
+
+        // Cabeceras fantasma SIN día de semana (regresión: antes mostraban el
+        // DOW real del 1-2 de marzo)
+        expect(ws.getCell(8, dayCol(29)).value).toBe('');
+        expect(ws.getCell(8, dayCol(30)).value).toBe('');
+        expect(ws.getCell(8, DIA31_COL).value).toBe('');
+        expect(ws.getCell(7, DIA31_COL).value).toBe(31);
+
+        // 31 fantasma vacío y neutro
+        expect(ws.getCell(9, DIA31_COL).value).toBe('');
+
+        expect(evalTotales(ws, 9).total).toBe(30);
+    });
+
+    // ── 8: febrero finiquitado el 15 → los fantasmas NO pagan ──
+    test('febrero 2026 finiquitado el 15: total 15 (fantasmas sin relleno)', async () => {
+        mockDb({
+            workers: mockWorker({ fecha_desvinculacion: '2026-02-15' }),
+            registros: asistenciasHabiles(2026, 1, 15)
+        });
+        const ws = await generarHojaLols('2026-02-01', '2026-02-28');
+
+        expect(ws.getCell(9, dayCol(29)).value).toBe('');
+        expect(ws.getCell(9, dayCol(30)).value).toBe('');
+        expect(evalTotales(ws, 9).total).toBe(15);
+
+        const descQ2 = String(ws.getCell(9, DESC_Q2_COL).value);
+        expect(descQ2).toContain('Fuera contrato: 16-28');
+        expect(descQ2).toContain('sin relleno base 30');
+    });
+
+    // ── 9: ausencia no-pago hasta fin de febrero extiende el descuento ──
+    test('febrero 2026 con LM 20→28: fantasmas descuentan (total 19)', async () => {
+        // Decisión jefatura 2026-08-17: LM que llega al último día real del mes
+        // deja los días virtuales 29/30 sin relleno (19 días, no 21).
+        const lmRows = [];
+        for (let d = 20; d <= 28; d++) {
+            lmRows.push({ trabajador_id: 1, obra_id: 10, fecha: `2026-02-${pad(d)}`, estado_id: 4 });
+        }
+        const periodos = [{
+            trabajador_id: 1, obra_id: 10, estado_id: 4,
+            fecha_inicio: '2026-02-20', fecha_fin: '2026-02-28', codigo: 'LM', color: '#5856D6'
+        }];
+        mockDb({
+            workers: mockWorker(),
+            registros: [...asistenciasHabiles(2026, 1, 19), ...lmRows],
+            periodos
+        });
+        const ws = await generarHojaLols('2026-02-01', '2026-02-28');
+
+        expect(ws.getCell(9, dayCol(28)).value).toBe('LM');
+        expect(ws.getCell(9, dayCol(29)).value).toBe('');
+        expect(ws.getCell(9, dayCol(30)).value).toBe('');
+        expect(evalTotales(ws, 9).total).toBe(19);
+        expect(String(ws.getCell(9, DESC_Q2_COL).value)).toContain('sin relleno base 30');
+    });
+
+    // ── 10: mes de 30 días — equivalencia con comportamiento histórico ──
+    test('abril 2026 (30 días): totales idénticos al comportamiento anterior', async () => {
+        mockDb({ workers: mockWorker(), registros: asistenciasHabiles(2026, 3, 30) });
+        const ws = await generarHojaLols('2026-04-01', '2026-04-30');
+
+        // Día 31 fantasma vacío + neutral; layout estable
+        expect(ws.getCell(9, DIA31_COL).value).toBe('');
+        expect(ws.getCell(7, TOTAL_COL).value).toBe('TOTAL DIAS TRABAJADOS');
+        expect(ws.getCell(7, DESC_Q1_COL).value).toBe('DESCUENTOS Q1');
+        expect(ws.getCell(7, DESC_Q2_COL).value).toBe('DESCUENTOS Q2');
+
+        const { q1, q2, total } = evalTotales(ws, 9);
+        expect(q1).toBe(15);
+        expect(q2).toBe(15);
+        expect(total).toBe(30);
+    });
+
+    // ── 11: columnas DESCUENTOS con día de semana ──
+    test('DESC Q1 lista faltas y días sin registro con día de semana', async () => {
+        // Marzo 2026: F el martes 10, sin registro el jueves 12, A el resto
+        const registros = [
+            ...asistenciasHabiles(2026, 2, 30, [10, 12]),
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-10', estado_id: 2 }
+        ];
+        mockDb({ workers: mockWorker(), registros });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        const descQ1 = String(ws.getCell(9, DESC_Q1_COL).value);
+        expect(descQ1).toContain('F: martes 10');
+        expect(descQ1).toContain('Sin registro: jueves 12');
+
+        // Q2 sin descuentos → vacía
+        expect(ws.getCell(9, DESC_Q2_COL).value).toBeNull();
+
+        expect(evalTotales(ws, 9).q1).toBe(13);
+        expect(evalTotales(ws, 9).total).toBe(28);
+    });
+
+    // ── 12: Q2 nunca negativa (MAX(0, …)) ──
+    test('ingreso el 31 con F el 31: Q2 queda en 0, no negativa', async () => {
+        const registros = [
+            { trabajador_id: 1, obra_id: 10, fecha: '2026-03-31', estado_id: 2 }
+        ];
+        mockDb({ workers: mockWorker({ fecha_ingreso: '2026-03-31' }), registros });
+        const ws = await generarHojaLols('2026-03-01', '2026-03-31');
+
+        expect(ws.getCell(9, DIA31_COL).value).toBe('F');
+        expect(ws.getCell(9, Q2_COL).value.formula).toContain('MAX(0,');
+
+        const { q1, q2, total } = evalTotales(ws, 9);
+        expect(q1).toBe(0);
+        expect(q2).toBe(0);
+        expect(total).toBe(0);
+
+        const descQ2 = String(ws.getCell(9, DESC_Q2_COL).value);
+        expect(descQ2).toContain('Dia 31 (F): descuenta 1');
+        expect(descQ2).toContain('Fuera contrato: 16-30');
     });
 });
