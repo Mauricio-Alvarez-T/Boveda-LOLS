@@ -299,12 +299,18 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
         // Header "HRS DESCONTADAS (JI)" debe existir
         // Grilla base 30 (31 columnas de día + DESC Q1/Q2): dayColStart = 9.
         // Q1 = 24, DESC Q1 = 25, d16-30 = 26-40, d31 = 41, Q2 = 42, DESC Q2 = 43,
-        // total = 44, ord = 45, desc(JI) = 46, extra = 47, obs = 48.
-        const descHeader = wsLols.getCell(7, 46);
+        // total = 44, desc(JI) = 45, extra = 46, obs = 47.
+        // (BALANCE HRS ORDINARIO eliminada a pedido de jefatura 2026-08-17.)
+        const descHeader = wsLols.getCell(7, 45);
         expect(descHeader.value).toBe('HRS DESCONTADAS (JI)');
 
+        // Regresión: la columna BALANCE no debe existir en ningún header
+        for (let c = 44; c <= 48; c++) {
+            expect(wsLols.getCell(7, c).value).not.toBe('BALANCE HRS ORDINARIO');
+        }
+
         // Trabajador con 1 día JI (jornada 9h): descuento = 9 - 4.5 = 4.5
-        const cDesc = wsLols.getCell(9, 46);
+        const cDesc = wsLols.getCell(9, 45);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
 
@@ -338,8 +344,8 @@ describe('Asistencia Service - Exportación Excel Mejorada', () => {
 
         const wsLols = workbook.worksheets.find(ws => ws.name.toLowerCase().includes('lols'));
         // Fallback default 9h → JI calc = 4.5, descuento = 9 - 4.5 = 4.5
-        // Grilla base 30: horasDesc col = 46 (ver Test 6).
-        const cDesc = wsLols.getCell(9, 46);
+        // Grilla base 30 sin BALANCE: horasDesc col = 45 (ver Test 6).
+        const cDesc = wsLols.getCell(9, 45);
         expect(cDesc.value).toBeCloseTo(4.5, 1);
     });
 

@@ -1578,19 +1578,12 @@ const asistenciaService = {
             totalHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
             totalHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-            const horasOrdCol = totalCol + 1;
-            ws.mergeCells(7, horasOrdCol, 8, horasOrdCol);
-            const horasOrdHeader = ws.getCell(7, horasOrdCol);
-            horasOrdHeader.value = 'BALANCE HRS ORDINARIO';
-            horasOrdHeader.font = { bold: true, size: 8 };
-            horasOrdHeader.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
-            horasOrdHeader.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFF0' } };
-            horasOrdHeader.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
-
             // Columna "HRS DESCONTADAS (JI)" — suma horas no trabajadas por
             // Jornada Incompleta del mes. RH pidió desglose explícito para
             // distinguir descuentos por JI vs faltas/atrasos generales.
-            const horasDescCol = horasOrdCol + 1;
+            // (La columna BALANCE HRS ORDINARIO se eliminó a pedido de jefatura
+            // 2026-08-17: sin utilidad en el flujo de remuneraciones.)
+            const horasDescCol = totalCol + 1;
             ws.mergeCells(7, horasDescCol, 8, horasDescCol);
             const horasDescHeader = ws.getCell(7, horasDescCol);
             horasDescHeader.value = 'HRS DESCONTADAS (JI)';
@@ -1629,8 +1622,6 @@ const asistenciaService = {
                 ws.getCell(rowIdx, 8).value = worker.activo ? 'ACTIVO' : 'FINIQUITADO';
 
                 let sumHorasExtra = 0;
-                let sumHorasOrd = 0;
-                let sumMetaOrd = 0; // Para el cálculo de deficit
                 let sumHorasDescontadas = 0; // Descuento por JI del mes
                 const horasDescPorDia = {}; // num de día → descuento del día (para nota)
                 const obrHorario = horariosMap[worker.obra_id] || defaultHorario;
@@ -1680,13 +1671,6 @@ const asistenciaService = {
                     const isBeforeContract = workerIngreso && fStr < workerIngreso;
                     const isAfterTermination = workerFin && fStr > workerFin;
                     const isOutOfRange = isBeforeContract || isAfterTermination;
-
-                    // Si es día hábil laborable y exigible, sumar a Meta de horas "Deber"
-                    if (!isOutOfRange && fStr <= maxStrDateInRecords && !isFeriado) {
-                        const dayKey = jsDaysMap[dia.dow];
-                        const expected = obrHorario[dayKey] || 0;
-                        sumMetaOrd += expected;
-                    }
 
                     if (isOutOfRange) {
                         // Fuera de rango laboral → celda vacía, no suma nada
@@ -1764,8 +1748,6 @@ const asistenciaService = {
                             } else {
                                 calc = 9; // Jornada Completa por defecto
                             }
-                            sumHorasOrd += calc;
-
                             // Acumular descuento del día por JI: diferencia entre
                             // jornada esperada y horas reales/calculadas. Solo
                             // para JI (no para A, V, TO, etc. que ya pagaron full).
@@ -1962,12 +1944,6 @@ const asistenciaService = {
                 escribirDesc(descQ1Col, lineasQ1);
                 escribirDesc(descQ2Col, lineasQ2);
                 
-                // Balance de Déficit Resultante
-                const deficitBalance = sumHorasOrd - sumMetaOrd;
-                const cOrd = ws.getCell(rowIdx, horasOrdCol);
-                cOrd.value = deficitBalance;
-                cOrd.numFmt = '0.00';
-
                 // Horas descontadas SOLO por JI del mes (RH: desglose explícito)
                 const cDesc = ws.getCell(rowIdx, horasDescCol);
                 cDesc.value = sumHorasDescontadas;
@@ -1985,11 +1961,6 @@ const asistenciaService = {
                     c.alignment = { horizontal: 'center', vertical: 'middle' };
                     c.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
                 });
-                
-                // Colorización dinámica de BALANCE (Rojo si hay déficit)
-                cOrd.font = { bold: true, size: 9, color: deficitBalance < 0 ? { argb: 'FFDD0000' } : undefined };
-                cOrd.alignment = { horizontal: 'center', vertical: 'middle' };
-                cOrd.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
                 // Estilos de fila comunes
                 for (let c = 1; c <= 8; c++) {
@@ -2040,7 +2011,6 @@ const asistenciaService = {
             ws.getColumn(q2Col).width = 10;
             ws.getColumn(descQ2Col).width = 18;
             ws.getColumn(totalCol).width = 10;
-            ws.getColumn(horasOrdCol).width = 13;
             ws.getColumn(horasDescCol).width = 13;
             ws.getColumn(horasExtCol).width = 13;
             ws.getColumn(obsCol).width = 20;

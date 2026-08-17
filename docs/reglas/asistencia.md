@@ -74,7 +74,10 @@ Regla jefatura 2026-08-17: los pagos SIEMPRE se calculan base 30 — mes de 31 s
   visible por código con día de semana (`F: lunes 07, miercoles 09`), días hábiles sin
   registro, rangos fuera de contrato y penalización del 31 — para que remuneraciones
   cuadre sin abrir notas.
-- Horas del día 31 real (ordinarias/extra/meta) SÍ suman a BALANCE/HE.
+- Horas extra del día 31 real SÍ suman a TOTAL HRS EXTRA.
+- **Columna BALANCE HRS ORDINARIO ELIMINADA** (jefatura 2026-08-17: sin utilidad en el
+  flujo de remuneraciones). Columnas finales: TOTAL DIAS TRABAJADOS, HRS DESCONTADAS (JI),
+  TOTAL HRS EXTRA, OBSERVACIONES.
 - Tests: `backend/tests/excel_export.test.js` (suite "Excel base 30").
 
 ## Horas extra
