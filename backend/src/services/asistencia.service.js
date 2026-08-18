@@ -107,18 +107,37 @@ if (!JWT_SECRET) {
 
 const asistenciaService = {
     /**
-     * Genera un token firmado para descarga pública
+     * Genera un token firmado para descarga pública.
+     *
+     * SEGURIDAD (token confusion): el token de descarga se firma con el MISMO
+     * `JWT_SECRET` que los tokens de sesión. Para que un token de descarga NO
+     * pueda usarse como `Authorization: Bearer` y escalar privilegios:
+     *   (1) sólo se firman los campos de reporte (whitelist) — nunca `p`,
+     *       `rol_id`, `rv`, `id`, etc. que el caller pudiera inyectar por query;
+     *   (2) se marca con `typ: 'public-report'`, que el middleware de sesión
+     *       (`middleware/auth.js`) rechaza explícitamente.
      */
-    generatePublicReportToken(params) {
-        return jwt.sign(params, JWT_SECRET, { expiresIn: '24h' });
+    generatePublicReportToken(params = {}) {
+        const REPORT_FIELDS = ['obra_id', 'fecha_inicio', 'fecha_fin', 'empresa_id', 'cargo_id', 'categoria_reporte', 'activo', 'trabajador_ids'];
+        const payload = { typ: 'public-report' };
+        for (const k of REPORT_FIELDS) {
+            if (params[k] !== undefined) payload[k] = params[k];
+        }
+        return jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     },
 
     /**
-     * Valida un token firmado y retorna los parámetros
+     * Valida un token de descarga y retorna sus parámetros de reporte.
+     * Exige `typ === 'public-report'` para que un token de sesión no pueda
+     * usarse aquí (ni viceversa).
      */
     validatePublicReportToken(token) {
         try {
-            return jwt.verify(token, JWT_SECRET);
+            const decoded = jwt.verify(token, JWT_SECRET);
+            if (decoded.typ !== 'public-report') {
+                throw new Error('tipo de token no válido para descarga');
+            }
+            return decoded;
         } catch (err) {
             throw new Error('Token de descarga inválido o expirado');
         }
@@ -1074,11 +1093,12 @@ const asistenciaService = {
      */
     async generarExcel(query = {}, options = {}) {
         const { obra_id, fecha_inicio, fecha_fin, empresa_id, cargo_id, categoria_reporte, activo, trabajador_ids } = query;
-        // Gate financiero: si el caller pasa `incluirHorasExtra: false`, las
-        // celdas de HE y Sábados Extra se mantienen (estructura de columnas
-        // intacta) pero con valor en blanco — el receptor del Excel no ve
-        // horas que serían insumo de pago. Default true para retrocompat.
-        const incluirHorasExtra = options.incluirHorasExtra !== false;
+        // Gate financiero (FAIL-SAFE): las celdas de HE se pueblan SÓLO si el
+        // caller pasa `incluirHorasExtra: true` EXPLÍCITO. La estructura de
+        // columnas queda intacta (celda en blanco) cuando no. Default = ocultar,
+        // para que cualquier ruta nueva que olvide el flag NO filtre datos de
+        // pago. Rutas autenticadas derivan el flag de `asistencia.horas_extra.ver`.
+        const incluirHorasExtra = options.incluirHorasExtra === true;
 
         if (!fecha_inicio || !fecha_fin) {
             throw new Error('fecha_inicio y fecha_fin son requeridos para exportar');

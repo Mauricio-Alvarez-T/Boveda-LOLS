@@ -25,7 +25,9 @@ router.get('/d/:token', async (req, res, next) => {
         if (!token) return res.status(400).json({ error: 'Token es requerido' });
 
         const params = asistenciaService.validatePublicReportToken(token);
-        const buffer = await asistenciaService.generarExcel(params);
+        // Link anónimo (se comparte por WhatsApp a terceros sin sesión): NUNCA
+        // expone Horas Extra, sin importar los permisos de quien generó el link.
+        const buffer = await asistenciaService.generarExcel(params, { incluirHorasExtra: false });
         
         const fileName = `asistencia_${params.obra_id || 'todas'}_${new Date().toISOString().split('T')[0]}.xlsx`;
 
@@ -168,7 +170,7 @@ router.get('/exportar/excel', auth, checkPermission('asistencia.exportar_excel')
 // ═══ PERÍODOS DE AUSENCIA ═══
 
 // Períodos de ausencia
-router.post('/periodos', auth, checkPermission('asistencia.guardar'), validateBody(asistenciaSchemas.crearPeriodo, { strip: true }), async (req, res, next) => {
+router.post('/periodos', auth, checkPermission('asistencia.periodo.crear'), validateBody(asistenciaSchemas.crearPeriodo, { strip: true }), async (req, res, next) => {
     try {
         const result = await asistenciaService.crearPeriodo(req.body, req.user.id, req);
         res.status(201).json({ data: result });

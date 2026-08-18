@@ -43,11 +43,14 @@ router.post('/enviar-excel', auth, checkPermission('reportes.enviar_email'), asy
 
         logger.debug('[EMAIL] Autenticando', { email: credentials.email });
         
-        // Generar Excel usando el servicio de asistencia (nuevo formato unificado)
+        // Generar Excel usando el servicio de asistencia (nuevo formato unificado).
+        // Gate financiero: sólo incluye HE si el emisor tiene `asistencia.horas_extra.ver`
+        // (mismo criterio que GET /asistencias/exportar/excel).
+        const incluirHorasExtra = (req.user?.p || []).includes('asistencia.horas_extra.ver');
         const buffer = await asistenciaService.generarExcel({
             ...filters,
             trabajador_ids
-        });
+        }, { incluirHorasExtra });
 
         const excelPath = path.join(__dirname, '..', '..', 'tmp', `Reporte_Asistencia_${Date.now()}.xlsx`);
         if (!fs.existsSync(path.dirname(excelPath))) {

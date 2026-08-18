@@ -32,6 +32,7 @@ const authService = {
 
         const token = jwt.sign(
             {
+                typ: 'session', // distingue el token de sesión de los de descarga pública (token confusion)
                 id: user.id,
                 email: user.email,
                 rol_id: user.rol_id,

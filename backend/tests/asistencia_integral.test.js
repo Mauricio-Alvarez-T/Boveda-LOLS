@@ -88,7 +88,7 @@ const makeToken = (permisos) => jwt.sign({
 
 const fullToken = makeToken([
     'asistencia.ver', 'asistencia.guardar', 'asistencia.exportar_excel',
-    'asistencia.periodo.ver', 'asistencia.periodo.eliminar',
+    'asistencia.periodo.ver', 'asistencia.periodo.crear', 'asistencia.periodo.eliminar',
     'asistencia.horarios.ver', 'asistencia.horarios.editar',
 ]);
 const viewOnlyToken = makeToken(['asistencia.ver']);
@@ -822,6 +822,7 @@ describe('Exportación y Tokens Públicos', () => {
         // Verificar que el token es decodificable
         const decoded = jwt.verify(res.body.data.token, SECRET);
         expect(decoded.obra_id).toBe('1');
+        expect(decoded.typ).toBe('public-report');
     });
 
     test('GET /api/asistencias/d/:token → rechaza token inválido', async () => {
@@ -830,6 +831,65 @@ describe('Exportación y Tokens Públicos', () => {
 
         expect(res.status).toBe(401);
         expect(res.body.error).toContain('inválido');
+    });
+
+    // ── SEGURIDAD: token confusion / privilege escalation (H2) ──
+
+    test('public-report-token NO firma campos fuera de la whitelist (anti-escalada)', async () => {
+        // Un cliente intenta inyectar permisos y suplantar rol/usuario por query.
+        const res = await request(app)
+            .get('/api/asistencias/public-report-token?obra_id=1&fecha_inicio=2025-03-01&fecha_fin=2025-03-31&p=usuarios.crear&rol_id=1&rv=1&id=99')
+            .set('Authorization', `Bearer ${viewOnlyToken}`);
+
+        expect(res.status).toBe(200);
+        const decoded = jwt.verify(res.body.data.token, SECRET);
+        // Sólo viajan los campos de reporte + el tipo:
+        expect(decoded.typ).toBe('public-report');
+        expect(decoded.obra_id).toBe('1');
+        // NUNCA los campos de sesión inyectados:
+        expect(decoded.p).toBeUndefined();
+        expect(decoded.rol_id).toBeUndefined();
+        expect(decoded.rv).toBeUndefined();
+        expect(decoded.id).toBeUndefined();
+    });
+
+    test('un token de descarga NO autentica como sesión (token confusion end-to-end)', async () => {
+        const tokenRes = await request(app)
+            .get('/api/asistencias/public-report-token?obra_id=1&fecha_inicio=2025-03-01&fecha_fin=2025-03-31')
+            .set('Authorization', `Bearer ${viewOnlyToken}`);
+        const publicToken = tokenRes.body.data.token;
+
+        const res = await request(app)
+            .get('/api/asistencias/obra/1?fecha=2025-03-03')
+            .set('Authorization', `Bearer ${publicToken}`);
+        expect(res.status).toBe(401);
+    });
+
+    test('auth: Bearer con typ:public-report → 401 aunque traiga p y rv válidos', async () => {
+        // Aísla el guard de auth.js: aunque un atacante fabricara un token con
+        // permisos y rv correctos, el claim de tipo lo bloquea como sesión.
+        const forged = jwt.sign({ typ: 'public-report', id: 1, rol_id: 1, rv: 1, p: ['usuarios.crear'] }, SECRET);
+        const res = await request(app)
+            .get('/api/asistencias/obra/1?fecha=2025-03-03')
+            .set('Authorization', `Bearer ${forged}`);
+        expect(res.status).toBe(401);
+    });
+
+    test('GET /d/:token → genera el Excel SIN horas extra (link público, H1)', async () => {
+        const asistenciaService = require('../src/services/asistencia.service');
+        const token = asistenciaService.generatePublicReportToken({
+            obra_id: 1, fecha_inicio: '2025-03-01', fecha_fin: '2025-03-31'
+        });
+        const spy = jest.spyOn(asistenciaService, 'generarExcel').mockResolvedValue(Buffer.from('xlsx'));
+
+        const res = await request(app).get(`/api/asistencias/d/${token}`);
+
+        expect(res.status).toBe(200);
+        expect(spy).toHaveBeenCalledWith(
+            expect.objectContaining({ obra_id: 1 }),
+            expect.objectContaining({ incluirHorasExtra: false })
+        );
+        spy.mockRestore();
     });
 });
 
@@ -879,6 +939,19 @@ describe('Permisos RBAC — Asistencia', () => {
         const res = await request(app)
             .get('/api/asistencias/exportar/excel?fecha_inicio=2025-03-01&fecha_fin=2025-03-31')
             .set('Authorization', `Bearer ${viewOnlyToken}`);
+
+        expect(res.status).toBe(403);
+    });
+
+    test('POST /api/asistencias/periodos → 403 con asistencia.guardar pero SIN asistencia.periodo.crear (H3)', async () => {
+        // El backend ahora exige el permiso granular `asistencia.periodo.crear`,
+        // coherente con lo que gatea la UI (antes exigía asistencia.guardar → la
+        // restricción de la UI era cosmética).
+        const guardarSinPeriodo = makeToken(['asistencia.ver', 'asistencia.guardar']);
+        const res = await request(app)
+            .post('/api/asistencias/periodos')
+            .set('Authorization', `Bearer ${guardarSinPeriodo}`)
+            .send({ trabajador_id: 1, obra_id: 1, estado_id: 3, fecha_inicio: '2025-03-03', fecha_fin: '2025-03-05' });
 
         expect(res.status).toBe(403);
     });
