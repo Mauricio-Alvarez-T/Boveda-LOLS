@@ -33,6 +33,31 @@ Cada estado tiene 2 flags con semántica DISTINTA:
 - Obras con `participa_asistencia=0` no aparecen en el selector de obra en /asistencia
   (`ObraSelector.tsx` route-aware + guard en `AttendanceDailyTab.tsx`; mig 075).
 
+## Registro vigente (duplicados cross-obra) — 2026-08-24
+
+La UK es `(trabajador, obra, fecha)` → pueden existir 2+ filas del mismo día en obras
+distintas (traslado TO+A intencional; duplicados históricos por re-guardar tras cambiar
+la obra del trabajador o por períodos en otra obra).
+
+- **Regla**: un trabajador tiene UN estado por día. La fila VIGENTE es la de `id` MÁS
+  ALTO (la última registrada). Excepción: el par TO(origen)+A(destino) del traslado es
+  legítimo — cada obra ve su propia fila en la vista POR OBRA; en scopes globales gana
+  la más nueva (A destino).
+- **Lectura**: `_filaVigente()` dedupea en `getByObraAndFecha('ALL')` y en `getReporte`
+  sin obra (calendario del trabajador, lista diaria global, Excel global, WhatsApp).
+  Con obra NO se dedupea. Alertas/dashboard/reporte semanal/quick-view usan guard SQL
+  equivalente (`NOT EXISTS` fila más nueva en otra obra / `MAX(id)` por fecha).
+- **Escritura**: `bulkCreate` y `crearPeriodo` eliminan en la misma transacción los
+  duplicados MÁS ANTIGUOS del día en otras obras (`_limpiarDuplicadosCrossObra`);
+  nunca borran filas TO ni filas más nuevas (re-guardar la obra origen tras un
+  traslado no mata la fila real del destino).
+- **Saneo histórico**: migración `101_dedupe_asistencias_cross_obra.sql` (conserva la
+  más reciente, preserva pares TO; incluye SELECT de dimensionamiento comentado).
+- Nota: en el Excel GLOBAL solo se ve la observación de la fila vigente — la
+  observación "Traslado a: X" del TO aparece en el export POR OBRA origen.
+- Las alertas Art. 160 atribuyen la falta a la obra DONDE OCURRIÓ (`a.obra_id`), no a
+  la obra actual del trabajador (cambio 2026-08-24; antes `t.obra_id`).
+
 ## Faltas reiteradas (Art. 160 N°3 Código del Trabajo)
 
 `asistencia.service.js → getAlertasFaltas(obraId, mes, anio)` evalúa 3 reglas sobre faltas `F` del

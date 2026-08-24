@@ -170,14 +170,22 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
     // NO ausente — filtrar por 'A' contaba presencias como faltas. Fuente de verdad:
     // estados_asistencia seed + asistencia.service.getAlertasFaltas (usa 'F'). Una fila por
     // día de falta; se agrupan por trabajador en JS para listar las fechas.
+    // Regla "fila vigente" (docs/reglas/asistencia.md): con duplicados cross-obra
+    // (traslado o histórico) solo cuenta la fila más nueva del día — DISTINCT sobre
+    // (trabajador, fecha) + NOT EXISTS evita contar 2 veces el mismo día.
     const [faltasRows] = await db.query(
-        `SELECT t.id AS trabajador_id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
+        `SELECT DISTINCT t.id AS trabajador_id, t.rut, t.nombres, t.apellido_paterno, t.apellido_materno,
                 o.nombre AS obra, a.fecha
            FROM asistencias a
            JOIN trabajadores t       ON t.id = a.trabajador_id
            JOIN estados_asistencia es ON es.id = a.estado_id
            LEFT JOIN obras o         ON o.id = a.obra_id
           WHERE es.codigo = 'F' AND es.activo = 1 AND t.es_prueba = 0 AND a.fecha BETWEEN ? AND ?
+            AND NOT EXISTS (
+                SELECT 1 FROM asistencias a2
+                WHERE a2.trabajador_id = a.trabajador_id AND a2.fecha = a.fecha
+                  AND a2.obra_id <> a.obra_id AND a2.id > a.id
+            )
           ORDER BY t.apellido_paterno ASC, t.nombres ASC, a.fecha ASC`,
         [desde, hasta]
     );
@@ -203,7 +211,7 @@ async function buildReportData(db, { desde, hasta, ref } = {}) {
     // ── Tendencias mensuales (últimos 6 meses, para los gráficos) ──
     // Faltas por mes = días de falta código 'F' (una fila de asistencia = un día). 'A' = presente.
     const [faltasMesRows] = await db.query(
-        `SELECT DATE_FORMAT(a.fecha, '%Y-%m') AS ym, COUNT(*) AS total
+        `SELECT DATE_FORMAT(a.fecha, '%Y-%m') AS ym, COUNT(DISTINCT a.trabajador_id, a.fecha) AS total
            FROM asistencias a
            JOIN estados_asistencia es ON es.id = a.estado_id
            JOIN trabajadores t ON t.id = a.trabajador_id
