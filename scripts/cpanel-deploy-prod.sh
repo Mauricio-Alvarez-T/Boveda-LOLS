@@ -41,6 +41,8 @@ cd "$REPO_DIR"
 #   · Corrige SOLO lo verificablemente roto. La línea PassengerStartupFile AUSENTE
 #     se deja tal cual: el default de Passenger es app.js, que existe (wrapper
 #     legítimo del backend) — no "completar" ese caso.
+#   · Repara también el symlink node_modules (se rompe al recrear el venv desde
+#     el panel) — solo si la lib del venv tiene paquetes; jamás pisa un dir real.
 #   · El heal NO corrige el registro del NodeJS Selector: si el panel guarda
 #     server.js, cada SAVE re-rompe hasta 5 min. El fix de raíz es corregir el
 #     startup file EN el panel (RUNBOOK §1).
@@ -56,17 +58,19 @@ heal_passenger() {
     fi
     local changed=0
 
-    # 1) Startup file: si el configurado no existe (ej. server.js del panel),
-    #    corregir a index.js — solo si index.js SÍ está desplegado, para no
-    #    entrar en bucle de reescritura+restart cuando falta el backend entero.
+    # 1) Startup file: si el configurado no existe O ESTÁ VACÍO (ej. server.js del
+    #    panel, o el server.js de 0 bytes creado a mano el 2026-08-24 — un módulo
+    #    vacío exporta {} y Passenger queda sin app), corregir a index.js — solo si
+    #    index.js SÍ está desplegado con contenido, para no entrar en bucle de
+    #    reescritura+restart cuando falta el backend entero.
     #    [^"[:space:]]* en la captura: no arrastra \r/espacios finales (CRLF).
     #    tail -n1: con directivas duplicadas Apache honra la ÚLTIMA.
     local sf
     sf="$(sed -n 's/^PassengerStartupFile[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
-    if [ -n "$sf" ] && [ ! -f "$BACK_DEST/$sf" ]; then
-        if [ -f "$BACK_DEST/index.js" ]; then
+    if [ -n "$sf" ] && [ ! -s "$BACK_DEST/$sf" ]; then
+        if [ -s "$BACK_DEST/index.js" ]; then
             sed -i 's|^PassengerStartupFile[[:space:]].*|PassengerStartupFile index.js|' "$ht"
-            echo "$(date '+%F %T') · heal: startup file '$sf' no existe en $BACK_DEST → index.js"
+            echo "$(date '+%F %T') · heal: startup file '$sf' no existe o está vacío en $BACK_DEST → index.js"
             changed=1
         else
             echo "$(date '+%F %T') · heal: ni '$sf' ni index.js existen en $BACK_DEST — backend sin desplegar, no toco nada"
@@ -88,9 +92,31 @@ heal_passenger() {
         if [ -n "$cand" ]; then
             sed -i "s|^PassengerNodejs[[:space:]].*|PassengerNodejs \"$cand\"|" "$ht"
             echo "$(date '+%F %T') · heal: node '$nb' no existe → $cand"
+            nb="$cand"
             changed=1
         else
             echo "$(date '+%F %T') · heal: node '$nb' no existe y NO hay nodevenv >=18 para $(basename "$BACK_DEST") — recrear desde Setup Node.js App (elegir versión → SAVE → Run NPM Install)"
+        fi
+    fi
+
+    # 3) node_modules: en CloudLinux es un SYMLINK a ~/nodevenv/<app>/<ver>/lib/node_modules.
+    #    Recrear el venv desde el panel lo rompe aunque las libs sobrevivan (caída
+    #    2026-08-24: Passenger arrancaba y moría en el primer require()). Repara SOLO
+    #    si en la ruta no hay nada (o hay un symlink muerto, que -e no ve) Y la lib del
+    #    venv en uso tiene paquetes reales (express). Un node_modules que sea
+    #    DIRECTORIO real jamás se toca.
+    local nm="$BACK_DEST/node_modules" lib
+    if [ -n "$nb" ] && [ -x "$nb" ]; then
+        lib="${nb%/bin/node}/lib/node_modules"
+        if [ ! -e "$nm" ]; then
+            if [ -d "$lib/express" ]; then
+                if [ -L "$nm" ]; then rm -f "$nm"; fi
+                ln -s "$lib" "$nm"
+                echo "$(date '+%F %T') · heal: symlink node_modules recreado → $lib"
+                changed=1
+            else
+                echo "$(date '+%F %T') · heal: node_modules falta y $lib no tiene paquetes — correr Run NPM Install en Setup Node.js App"
+            fi
         fi
     fi
 
