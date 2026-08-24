@@ -54,6 +54,9 @@ const GROUPS: { key: PendingTask['category']; label: string; icon: React.Element
     { key: 'contratos', label: 'Contratos', icon: Users },
 ];
 
+/** Único grupo desplegado al entrar; los demás arrancan cerrados. */
+const GRUPO_ABIERTO_POR_DEFECTO = 'vehiculos';
+
 const Row: React.FC<{ icon: React.ElementType; color: string; title: string; description: string; onClick: () => void }> =
     ({ icon: Icon, color, title, description, onClick }) => (
         <div
@@ -88,7 +91,11 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
     };
 
 const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], onNavigate }) => {
+    // Solo Vehículos arranca abierto (pedido de obra 2026-08-24): es el aviso que
+    // se mira primero. El resto se abre al hacer clic. La clave ausente significa
+    // "usar el default", así que un grupo nuevo nace cerrado sin tocar nada más.
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+    const estaColapsado = (key: string) => collapsed[key] ?? key !== GRUPO_ABIERTO_POR_DEFECTO;
 
     const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length + vehiculoItems.length;
     const criticalCount =
@@ -107,7 +114,7 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
         );
     }
 
-    const toggle = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+    const toggle = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !(prev[key] ?? key !== GRUPO_ABIERTO_POR_DEFECTO) }));
 
     /** Grupo de tareas del backend (asistencia / documentos / contratos). */
     const renderGrupoTareas = (group: typeof GROUPS[number]) => {
@@ -116,7 +123,7 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
         const count = groupTasks.length + (syntheticDocs ? 1 : 0);
         if (count === 0) return null;
 
-        const isCollapsed = !!collapsed[group.key];
+        const isCollapsed = estaColapsado(group.key);
 
         return (
             <div key={group.key} className="mt-1">
@@ -153,8 +160,8 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
         if (items.length === 0) return null;
         return (
             <div key={key} className="mt-1">
-                <GroupHeader collapsed={!!collapsed[key]} icon={icon} label={label} count={items.length} onClick={() => toggle(key)} />
-                {!collapsed[key] && (
+                <GroupHeader collapsed={estaColapsado(key)} icon={icon} label={label} count={items.length} onClick={() => toggle(key)} />
+                {!estaColapsado(key) && (
                     <div>
                         {items.map((it, idx) => (
                             <Row
@@ -190,10 +197,9 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
                 </div>
             </div>
 
-            {/* Asistencia primero, después Vehículos (pedido de obra: el aviso de
-                vencimientos se mira junto con lo del día), y luego el resto. */}
-            {GROUPS.filter(g => g.key === 'asistencia').map(renderGrupoTareas)}
+            {/* Orden pedido por obra: Vehículos (desplegado) → Asistencia → el resto. */}
             {renderGrupoExterno('vehiculos', 'Vehículos', Truck, vehiculoItems)}
+            {GROUPS.filter(g => g.key === 'asistencia').map(renderGrupoTareas)}
             {GROUPS.filter(g => g.key !== 'asistencia').map(renderGrupoTareas)}
 
             {/* Grupo Inventario (diferido, gated por permiso) */}
