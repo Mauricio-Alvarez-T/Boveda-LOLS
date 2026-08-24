@@ -48,6 +48,13 @@ cd "$REPO_DIR"
 #     startup file EN el panel (RUNBOOK §1).
 heal_passenger() {
     local ht="$FRONT_DEST/api/.htaccess"
+    # Topología real de PROD (verificada 2026-08-24): su config Passenger NO vive en
+    # api/.htaccess (esa carpeta no existe en el docroot de prod) sino en el .htaccess
+    # del DOCROOT — herencia del Application URL legado ("lols.cl" + ruta). Si api/ no
+    # existe pero el .htaccess del docroot tiene bloque Passenger, sanar ese.
+    if [ ! -f "$ht" ] && grep -q '^PassengerAppRoot' "$FRONT_DEST/.htaccess" 2>/dev/null; then
+        ht="$FRONT_DEST/.htaccess"
+    fi
     if [ ! -f "$ht" ]; then
         echo "$(date '+%F %T') · heal: FALTA $ht — restaurar a mano (playbook §7bis)"
         return 0
@@ -105,9 +112,17 @@ heal_passenger() {
     #    si en la ruta no hay nada (o hay un symlink muerto, que -e no ve) Y la lib del
     #    venv en uso tiene paquetes reales (express). Un node_modules que sea
     #    DIRECTORIO real jamás se toca.
-    local nm="$BACK_DEST/node_modules" lib
+    local nm="$BACK_DEST/node_modules" lib l
     if [ -n "$nb" ] && [ -x "$nb" ]; then
         lib="${nb%/bin/node}/lib/node_modules"
+        # Si nb es un node de SISTEMA (bypass manual: /usr/local/bin/node, /opt/alt/…),
+        # su lib no es la de la app: buscar la lib del venv PROPIO de la app que tenga
+        # paquetes reales (la de mayor versión gana).
+        if [ ! -d "$lib/express" ]; then
+            for l in "$HOME/nodevenv/$(basename "$BACK_DEST")"/*/lib/node_modules; do
+                if [ -d "$l/express" ]; then lib="$l"; fi
+            done
+        fi
         if [ ! -e "$nm" ]; then
             if [ -d "$lib/express" ]; then
                 if [ -L "$nm" ]; then rm -f "$nm"; fi
@@ -132,6 +147,59 @@ heal_passenger() {
 # (deseado: su control de flujo es todo por if, nada depende de -e).
 heal_passenger || echo "$(date '+%F %T') · heal: falló (rc=$?) — no fatal, el deploy continúa"
 # --- heal:end ---
+
+# --- diag:begin — Diagnóstico TEMPORAL del incidente 2026-08-24 (QUITAR al cerrarlo) ---
+# Escribe un resumen de estado en el docroot para poder leerlo por HTTP desde
+# afuera (este hosting no tiene SSH). Sin credenciales: la prueba de MySQL usa
+# el .env solo en memoria y publica únicamente OK/FALLA.
+diag_incidente() {
+    local out="$FRONT_DEST/_diag-incidente.txt"
+    {
+        echo "ts=$(date '+%F %T')"
+        local ht="$FRONT_DEST/api/.htaccess"
+        if [ -f "$ht" ]; then
+            echo "htaccess=presente mtime=$(date -r "$ht" '+%F %T')"
+            grep -E '^Passenger(StartupFile|Nodejs|AppRoot|AppType|BaseURI)' "$ht" 2>/dev/null | sed 's/^/ht> /'
+        else
+            echo "htaccess=AUSENTE"
+        fi
+        local nb=""
+        [ -f "$ht" ] && nb="$(sed -n 's/^PassengerNodejs[[:space:]]*"\{0,1\}\([^"[:space:]]*\)"\{0,1\}[[:space:]]*$/\1/p' "$ht" | tail -n1)"
+        if [ -n "$nb" ]; then [ -x "$nb" ] && echo "node_bin=OK" || echo "node_bin=NO_EXISTE"; fi
+        echo "venvs_app=$(ls -m "$HOME/nodevenv/$(basename "$BACK_DEST")" 2>/dev/null || echo NINGUNO)"
+        echo "venvs_todos=$(ls -m "$HOME/nodevenv" 2>/dev/null || echo NINGUNO)"
+        [ -f "$BACK_DEST/index.js" ] && echo "index.js=OK" || echo "index.js=FALTA"
+        [ -e "$BACK_DEST/node_modules" ] && { [ -d "$BACK_DEST/node_modules/express" ] && echo "node_modules=OK" || echo "node_modules=ROTO_O_SYMLINK_COLGANDO"; } || echo "node_modules=FALTA"
+        [ -f "$BACK_DEST/.env" ] && echo "env=OK" || echo "env=FALTA"
+        command -v cloudlinux-selector >/dev/null 2>&1 && echo "selector=disponible" || echo "selector=no"
+        if command -v mysql >/dev/null 2>&1 && [ -f "$BACK_DEST/.env" ]; then
+            local H U P N
+            H=$(sed -n 's/^DB_HOST=//p' "$BACK_DEST/.env" | tr -d '\r"' | tail -1)
+            U=$(sed -n 's/^DB_USER=//p' "$BACK_DEST/.env" | tr -d '\r"' | tail -1)
+            P=$(sed -n 's/^DB_PASSWORD=//p' "$BACK_DEST/.env" | tr -d '\r"' | tail -1)
+            N=$(sed -n 's/^DB_NAME=//p' "$BACK_DEST/.env" | tr -d '\r"' | tail -1)
+            if MYSQL_PWD="$P" mysql -h "${H:-localhost}" -u "$U" -D "$N" -e 'SELECT 1' >/dev/null 2>&1; then
+                echo "mysql=OK"
+            else
+                echo "mysql=FALLA"
+            fi
+        else
+            echo "mysql=SIN_CLIENTE_O_ENV"
+        fi
+        local lg
+        for lg in "$BACK_DEST/startup_debug.log" "$BACK_DEST/startup_app.log"; do
+            if [ -f "$lg" ]; then
+                echo "log_$(basename "$lg")_mtime=$(date -r "$lg" '+%F %T')"
+                tail -n 3 "$lg" 2>/dev/null | sed 's/^/log> /'
+            fi
+        done
+        echo "deploylog_tail:"
+        tail -n 8 "${REPO_DIR}.log" 2>/dev/null | sed 's/^/dl> /'
+    } > "$out" 2>&1
+    return 0
+}
+diag_incidente || true
+# --- diag:end ---
 
 # 1) Traer lo último de la rama de build
 git fetch origin "$BRANCH" --quiet
