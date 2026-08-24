@@ -6,9 +6,16 @@
 
 - `develop` → staging (test.boveda.lols.cl, backend `/test-boveda/`); `main` → producción
   (boveda.lols.cl, `/boveda/`). **Siempre probar en staging antes de mergear a main.**
-- Deploy = GitHub Actions con **`lftp mirror -R --only-newer`**. PROHIBIDO cambiar a
-  FTP-Deploy-Action (timeouts). Workflows: `.github/workflows/deploy-cpanel*.yml`.
-- Restart Passenger: escribir `tmp/restart.txt` vía curl FTP (automatizado en el workflow).
+- Deploy = **pull-side cron-only** (ambos entornos): Actions compila y publica las ramas
+  `deploy-prod`/`deploy-staging`; un cron en cPanel (cada 5 min) hace fetch/reset + rsync
+  (`scripts/cpanel-deploy-*.sh`). El FTP quedó **OBSOLETO** para deploy (baneo cPHulk a la IP
+  del runner). Workflows: `.github/workflows/deploy-cpanel*.yml`. Guía:
+  `docs/PLAYBOOK_PULL_SIDE_CPANEL.md`.
+- Restart Passenger: el script del cron toca `tmp/restart.txt`; a mano, vía File Manager.
+- **Startup file de Passenger: `index.js` en AMBOS entornos.** JAMÁS `server.js` (no existe en
+  el repo; caída 2026-08-24). `app.js` deprecado como startup (su catch traga errores).
+  `node_modules` en el servidor es un symlink al nodevenv — recrear el venv lo rompe; lo repara
+  Run NPM Install o el `heal_passenger` del cron (RUNBOOK §6).
 - El deploy NO corre migraciones ni toca `.env`.
 
 ## Migraciones

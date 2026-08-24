@@ -58,7 +58,7 @@ Si todo carga pero está vacío, la base de datos no tiene datos. Ve a [Base de 
 | **Módulo faltante** — un `require()` a archivo inexistente | Verificar archivos en `src/` |
 | **Error de sintaxis** | Ejecutar `node -c index.js` localmente |
 | **Dependencias no instaladas** (staging) | cPanel → Setup Node.js App → Run NPM Install → Restart |
-| **`server.js` no existe** (staging) | Verificar que existe en raíz de `test-boveda` con `require('./index.js')` |
+| **Startup file inválido** — `PassengerStartupFile` apunta a un archivo inexistente o de 0 bytes | El startup file es **`index.js`** en AMBOS entornos. **JAMÁS crear `server.js`** — no existe en el repo y un archivo de 0 bytes "existe" pero exporta `{}` → Passenger sin app (caída real 2026-08-24). Corregir: Setup Node.js App → startup file `index.js` → SAVE, o editar la línea en el `api/.htaccess` del docroot. El cron de deploy lo auto-repara (`heal_passenger`). Ver RUNBOOK §6. |
 
 ---
 
