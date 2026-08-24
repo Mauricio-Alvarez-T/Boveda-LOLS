@@ -15,7 +15,9 @@ import { Button } from '../components/ui/Button';
 // Widgets
 import TodayHero from '../components/dashboard/widgets/TodayHero';
 import KpiCard from '../components/dashboard/widgets/KpiCard';
-import BandejaDelDia, { type PendingTask, type BandejaInvItem } from '../components/dashboard/widgets/BandejaDelDia';
+import BandejaDelDia, { type PendingTask, type BandejaItem } from '../components/dashboard/widgets/BandejaDelDia';
+import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
+import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import type { DashboardAlerta } from '../hooks/inventario/useDashboardEjecutivo';
 import AttendanceTrend from '../components/dashboard/widgets/AttendanceTrend';
 import AbsencesToday from '../components/dashboard/widgets/AbsencesToday';
@@ -91,7 +93,17 @@ const Dashboard: React.FC = () => {
     const [data, setData] = useState<DashboardData | null>(null);
     const [loading, setLoading] = useState(true);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
-    const [invItems, setInvItems] = useState<BandejaInvItem[]>([]);
+    const [invItems, setInvItems] = useState<BandejaItem[]>([]);
+
+    // Vencimientos de vehículos: mismo store que el badge del menú (una sola
+    // request compartida), acá convertidos en filas de la bandeja.
+    const vencimientos = useVencimientosVehiculos();
+    const vehiculoItems = useMemo((): BandejaItem[] => vencimientos.items.map(v => ({
+        severity: Number(v.dias_restantes) < 0 ? 'critical' : 'warning',
+        title: `${v.patente || 'Vehículo'} · ${etiquetaVencimiento(v.categoria, v.subtipo)}`,
+        description: `${textoVencimiento(Number(v.dias_restantes))}${[v.marca, v.modelo].filter(Boolean).length ? ` · ${[v.marca, v.modelo].filter(Boolean).join(' ')}` : ''}`,
+        ruta: '/vehiculos',
+    })), [vencimientos.items]);
 
     const permisos = user?.permisos ?? [];
     const canInventario = permisos.includes('inventario.ver');
@@ -147,7 +159,7 @@ const Dashboard: React.FC = () => {
             const query = selectedObra ? `?obra_id=${selectedObra.id}` : '';
             const res = await api.get<ApiResponse<{ alertas: DashboardAlerta[] }>>(`/inventario/dashboard-ejecutivo${query}`);
             const alertas = res.data.data?.alertas ?? [];
-            setInvItems(alertas.map((a): BandejaInvItem => ({
+            setInvItems(alertas.map((a): BandejaItem => ({
                 severity: a.tipo === 'discrepancia'
                     ? 'critical'
                     : (a.estancada || a.tipo === 'faltante' || a.tipo === 'rechazo') ? 'warning' : 'info',
@@ -255,6 +267,7 @@ const Dashboard: React.FC = () => {
                             tasks={data.pendingTasks ?? []}
                             trabajadoresSinDocs={data.counters.trabajadoresSinDocs}
                             inventoryItems={invItems}
+                            vehiculoItems={vehiculoItems}
                             onNavigate={(route) => navigate(route)}
                         />
                         : <SkeletonText lines={6} />}

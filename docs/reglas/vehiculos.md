@@ -52,6 +52,13 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
   **en la página** agrupando `items` por `vehiculo_id` y mapeando a empresa con la lista de vehículos
   que ya tiene cargada — no hay endpoints de agregados. El badge del vehículo lleva en el tooltip QUÉ
   vence ("Revisión de gases: venció hace 16d").
+- **Cuarto lugar donde aparece: la "Bandeja del día" del Inicio**, en un grupo **Vehículos** ubicado
+  **bajo Asistencia** (pedido 2026-08-24). Cada fila es "PATENTE · Revisión de gases" + "venció hace
+  16d" y lleva a /vehiculos; rojo si venció, ámbar si está por vencer.
+- `useVencimientosVehiculos` es un **store de módulo** (`useSyncExternalStore`), no estado por
+  componente: hay 3 consumidores montados a la vez (menú, página, bandeja). Con un `useState` por hook
+  eran 3 requests y 3 verdades distintas — al guardar un documento se actualizaba el contador de la
+  página y el del menú quedaba viejo. Un solo intervalo de refresco para todos (refcount).
 - `VehiculoDocumentos` recibe `onCambio` y la página le pasa `refetch`: al guardar o borrar un
   documento los contadores se actualizan solos, sin esperar el refresco de 10 minutos.
 

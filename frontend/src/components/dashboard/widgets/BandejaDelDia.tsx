@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import {
     Inbox, ClipboardCheck, FileText, Users, FileX, Boxes, ArrowLeftRight,
-    ArrowRight, ChevronDown, ChevronRight
+    ArrowRight, ChevronDown, ChevronRight, Truck
 } from 'lucide-react';
 import { cn } from '../../../utils/cn';
 import { EmptyState } from '../../ui/EmptyState';
@@ -15,21 +15,27 @@ export interface PendingTask {
     meta?: Record<string, any>;
 }
 
-// Fila de inventario (transferencias/discrepancias) — viene de un fetch diferido
-// a /inventario/dashboard-ejecutivo, gated por permiso. No es un PendingTask.
-export interface BandejaInvItem {
+/**
+ * Fila que NO viene de `pendingTasks`: la arma la página desde otra fuente
+ * (inventario, vencimientos de vehículos), con fetch diferido y gateada por
+ * permiso. Si no hay permiso o falla, simplemente no se agregan filas.
+ */
+export interface BandejaItem {
     severity: 'critical' | 'warning' | 'info';
     title: string;
     description: string;
     ruta: string;
 }
 
+
 interface Props {
     tasks: PendingTask[];
     /** Trabajadores activos sin ningún documento (de counters) — fila sintética en Documentos. */
     trabajadoresSinDocs?: number;
     /** Filas de inventario (diferidas, gated por inventario.ver). */
-    inventoryItems?: BandejaInvItem[];
+    inventoryItems?: BandejaItem[];
+    /** Vencimientos de vehículos (diferidos, gated por vehiculos.ver). Van bajo Asistencia. */
+    vehiculoItems?: BandejaItem[];
     onNavigate: (route: string) => void;
 }
 
@@ -81,13 +87,14 @@ const GroupHeader: React.FC<{ collapsed: boolean; icon: React.ElementType; label
         );
     };
 
-const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], onNavigate }) => {
+const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, inventoryItems = [], vehiculoItems = [], onNavigate }) => {
     const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
 
-    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length;
+    const total = tasks.length + (trabajadoresSinDocs > 0 ? 1 : 0) + inventoryItems.length + vehiculoItems.length;
     const criticalCount =
         tasks.filter(t => t.severity === 'critical').length +
-        inventoryItems.filter(i => i.severity === 'critical').length;
+        inventoryItems.filter(i => i.severity === 'critical').length +
+        vehiculoItems.filter(i => i.severity === 'critical').length;
 
     if (total === 0) {
         return (
@@ -101,6 +108,69 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
     }
 
     const toggle = (key: string) => setCollapsed(prev => ({ ...prev, [key]: !prev[key] }));
+
+    /** Grupo de tareas del backend (asistencia / documentos / contratos). */
+    const renderGrupoTareas = (group: typeof GROUPS[number]) => {
+        const groupTasks = tasks.filter(t => t.category === group.key);
+        const syntheticDocs = group.key === 'documentos' && trabajadoresSinDocs > 0;
+        const count = groupTasks.length + (syntheticDocs ? 1 : 0);
+        if (count === 0) return null;
+
+        const isCollapsed = !!collapsed[group.key];
+
+        return (
+            <div key={group.key} className="mt-1">
+                <GroupHeader collapsed={isCollapsed} icon={group.icon} label={group.label} count={count} onClick={() => toggle(group.key)} />
+                {!isCollapsed && (
+                    <div>
+                        {groupTasks.map((task, idx) => (
+                            <Row
+                                key={`${group.key}-${idx}`}
+                                icon={group.icon}
+                                color={severityColor[task.severity]}
+                                title={task.title}
+                                description={task.description}
+                                onClick={() => onNavigate(task.action.ruta)}
+                            />
+                        ))}
+                        {syntheticDocs && (
+                            <Row
+                                icon={FileX}
+                                color={severityColor.warning}
+                                title={`${trabajadoresSinDocs} trabajadores sin documentos`}
+                                description="Sin ningún documento registrado"
+                                onClick={() => onNavigate('/consultas?completitud=faltantes')}
+                            />
+                        )}
+                    </div>
+                )}
+            </div>
+        );
+    };
+
+    /** Grupo armado desde una fuente externa (inventario, vehículos). */
+    const renderGrupoExterno = (key: string, label: string, icon: React.ElementType, items: BandejaItem[], rowIcon: React.ElementType = icon) => {
+        if (items.length === 0) return null;
+        return (
+            <div key={key} className="mt-1">
+                <GroupHeader collapsed={!!collapsed[key]} icon={icon} label={label} count={items.length} onClick={() => toggle(key)} />
+                {!collapsed[key] && (
+                    <div>
+                        {items.map((it, idx) => (
+                            <Row
+                                key={`${key}-${idx}`}
+                                icon={rowIcon}
+                                color={severityColor[it.severity]}
+                                title={it.title}
+                                description={it.description}
+                                onClick={() => onNavigate(it.ruta)}
+                            />
+                        ))}
+                    </div>
+                )}
+            </div>
+        );
+    };
 
     return (
         <div>
@@ -120,71 +190,14 @@ const BandejaDelDia: React.FC<Props> = ({ tasks, trabajadoresSinDocs = 0, invent
                 </div>
             </div>
 
-            {/* Grupos de tareas (asistencia / documentos / contratos) */}
-            {GROUPS.map(group => {
-                const groupTasks = tasks.filter(t => t.category === group.key);
-                const syntheticDocs = group.key === 'documentos' && trabajadoresSinDocs > 0;
-                const count = groupTasks.length + (syntheticDocs ? 1 : 0);
-                if (count === 0) return null;
-
-                const isCollapsed = !!collapsed[group.key];
-
-                return (
-                    <div key={group.key} className="mt-1">
-                        <GroupHeader collapsed={isCollapsed} icon={group.icon} label={group.label} count={count} onClick={() => toggle(group.key)} />
-                        {!isCollapsed && (
-                            <div>
-                                {groupTasks.map((task, idx) => (
-                                    <Row
-                                        key={`${group.key}-${idx}`}
-                                        icon={group.icon}
-                                        color={severityColor[task.severity]}
-                                        title={task.title}
-                                        description={task.description}
-                                        onClick={() => onNavigate(task.action.ruta)}
-                                    />
-                                ))}
-                                {syntheticDocs && (
-                                    <Row
-                                        icon={FileX}
-                                        color={severityColor.warning}
-                                        title={`${trabajadoresSinDocs} trabajadores sin documentos`}
-                                        description="Sin ningún documento registrado"
-                                        onClick={() => onNavigate('/consultas?completitud=faltantes')}
-                                    />
-                                )}
-                            </div>
-                        )}
-                    </div>
-                );
-            })}
+            {/* Asistencia primero, después Vehículos (pedido de obra: el aviso de
+                vencimientos se mira junto con lo del día), y luego el resto. */}
+            {GROUPS.filter(g => g.key === 'asistencia').map(renderGrupoTareas)}
+            {renderGrupoExterno('vehiculos', 'Vehículos', Truck, vehiculoItems)}
+            {GROUPS.filter(g => g.key !== 'asistencia').map(renderGrupoTareas)}
 
             {/* Grupo Inventario (diferido, gated por permiso) */}
-            {inventoryItems.length > 0 && (
-                <div className="mt-1">
-                    <GroupHeader
-                        collapsed={!!collapsed.inventario}
-                        icon={Boxes}
-                        label="Inventario"
-                        count={inventoryItems.length}
-                        onClick={() => toggle('inventario')}
-                    />
-                    {!collapsed.inventario && (
-                        <div>
-                            {inventoryItems.map((it, idx) => (
-                                <Row
-                                    key={`inv-${idx}`}
-                                    icon={ArrowLeftRight}
-                                    color={severityColor[it.severity]}
-                                    title={it.title}
-                                    description={it.description}
-                                    onClick={() => onNavigate(it.ruta)}
-                                />
-                            ))}
-                        </div>
-                    )}
-                </div>
-            )}
+            {renderGrupoExterno('inventario', 'Inventario', Boxes, inventoryItems, ArrowLeftRight)}
         </div>
     );
 };
