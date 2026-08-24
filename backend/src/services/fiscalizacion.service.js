@@ -145,6 +145,20 @@ class FiscalizacionService {
             }
         }
 
+        // Filtro por rango de FECHA DE INGRESO (Consultas: "ingresos del período",
+        // p.ej. contrataciones del último mes). Ambos extremos opcionales e
+        // inclusivos; rango directo sobre la columna (sargable, como aniversario10m).
+        // Formato inválido se ignora (el filtro simplemente no aplica).
+        const RE_FECHA = /^\d{4}-\d{2}-\d{2}$/;
+        if (filters.fecha_ingreso_desde && RE_FECHA.test(String(filters.fecha_ingreso_desde))) {
+            query += ` AND t.fecha_ingreso >= ?`;
+            params.push(filters.fecha_ingreso_desde);
+        }
+        if (filters.fecha_ingreso_hasta && RE_FECHA.test(String(filters.fecha_ingreso_hasta))) {
+            query += ` AND t.fecha_ingreso <= ?`;
+            params.push(filters.fecha_ingreso_hasta);
+        }
+
         query += ` ORDER BY t.apellido_paterno ASC, t.apellido_materno ASC, t.nombres ASC`;
 
         const [rows] = await db.query(query, params);

@@ -18,6 +18,9 @@ export const useConsultasFilters = () => {
     // control en el FilterPanel: lo activa el botón "Ver detalle" de la alerta del
     // dashboard. Se muestra como chip removible en Consultas.
     const [filterAniversario10m, setFilterAniversario10m] = useState<string>(searchParams.get('aniversario10m') || '');
+    // Rango de fecha de ingreso (YYYY-MM-DD, extremos opcionales): "ingresos del período".
+    const [filterIngresoDesde, setFilterIngresoDesde] = useState<string>(searchParams.get('ingreso_desde') || '');
+    const [filterIngresoHasta, setFilterIngresoHasta] = useState<string>(searchParams.get('ingreso_hasta') || '');
 
     // Aplicar filtro de obra contextual solo si no viene de la URL
     useEffect(() => {
@@ -36,6 +39,8 @@ export const useConsultasFilters = () => {
         setFilterCompletitud('');
         setFilterAusentes(false);
         setFilterAniversario10m('');
+        setFilterIngresoDesde('');
+        setFilterIngresoHasta('');
         setSearchParams({}); // Clear URL params too
     }, [selectedObra, setSearchParams]);
 
@@ -59,9 +64,10 @@ export const useConsultasFilters = () => {
             filterActivo !== 'true',
             !!filterCompletitud,
             filterAusentes,
-            !!filterAniversario10m
+            !!filterAniversario10m,
+            !!filterIngresoDesde || !!filterIngresoHasta
         ].filter(Boolean).length;
-    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, selectedObra]);
+    }, [search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta, selectedObra]);
 
     return {
         search, setSearch,
@@ -73,6 +79,8 @@ export const useConsultasFilters = () => {
         filterCompletitud, setFilterCompletitud,
         filterAusentes, setFilterAusentes,
         filterAniversario10m, setFilterAniversario10m,
+        filterIngresoDesde, setFilterIngresoDesde,
+        filterIngresoHasta, setFilterIngresoHasta,
         clearAniversario10m,
         handleClearFilters,
         activeFilterCount
