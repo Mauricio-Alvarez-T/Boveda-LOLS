@@ -238,6 +238,8 @@ export interface VehiculoRevision {
     direccion?: string | null;
     observaciones?: string | null;
     periodicidad_anios?: number | null;
+    /** Adjunto opcional del registro (certificado). Solo el nombre: la ruta no sale del backend. */
+    nombre_archivo?: string | null;
     dias_alerta?: number | null;
     email_alerta?: string | null;
     tel_alerta?: string | null;
@@ -255,6 +257,8 @@ export interface VehiculoMantencion {
     costo?: number | null;
     taller?: string | null;
     fecha_proxima?: string | null;
+    /** Adjunto opcional del registro (boleta/informe del taller). */
+    nombre_archivo?: string | null;
     dias_alerta?: number | null;
     email_alerta?: string | null;
     tel_alerta?: string | null;

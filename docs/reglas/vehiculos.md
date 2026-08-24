@@ -16,6 +16,16 @@
   llevan alerta por email** (no existen `dias_alerta`/`email_alerta` en la tabla): su aviso es el
   contador in-app. Editar un documento cambia solo esos datos; para reemplazar el archivo hay que
   borrarlo y subirlo de nuevo.
+- **Adjunto en revisiones y mantenciones** (mig 102): `nombre_archivo` + `ruta_archivo` en
+  `vehiculo_revisiones` y `vehiculo_mantenciones` — el certificado de la revisión o la boleta del
+  taller quedan pegados al registro, no sueltos como documento aparte. **Opcional**. Se sube en una
+  segunda llamada (`POST /vehiculos/:id/(revisiones|mantenciones)/:regId/archivo`, multipart) después
+  de guardar el registro como JSON, para no convertir esos endpoints en form-data. La descarga va por
+  `GET .../archivo` autenticado; **`ruta_archivo` nunca sale en el JSON** (helper `sinRuta`), igual
+  que en documentos.
+- Las **imágenes se comprimen en el navegador** antes de subir (`utils/compressImage`, objetivo
+  ≤ 500 KB) en TODOS los adjuntos del módulo — documentos, revisiones y mantenciones. Los PDF suben
+  tal cual. Tope duro de 10 MB en multer.
 - Validación de campos obligatorios en formularios de Permiso y Mantención.
 
 ## Estados de vencimiento (UI)

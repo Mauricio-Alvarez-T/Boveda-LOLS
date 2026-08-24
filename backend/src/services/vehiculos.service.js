@@ -7,6 +7,10 @@ const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 // el campo" y debe guardarse como NULL, no como fecha vacía (MySQL la rechaza).
 const nullSiVacio = v => (v == null || String(v).trim() === '' ? null : String(v).trim());
 
+// La ruta del archivo en disco no sale nunca al JSON: el frontend descarga por
+// endpoint autenticado y solo necesita el nombre (mismo criterio que getDocumentos).
+const sinRuta = fila => { if (!fila) return fila; const { ruta_archivo, ...resto } = fila; return resto; };
+
 // Piso para el contador de vencimientos: cualquier fecha anterior es basura de
 // importaciones viejas ('0000-00-00' llega como 1899-11-30), no un vencimiento real.
 const FECHA_MINIMA = '2000-01-01';
@@ -325,7 +329,7 @@ const vehiculosService = {
             `SELECT * FROM vehiculo_revisiones WHERE vehiculo_id = ? AND activo = 1
              ORDER BY fecha_vencimiento DESC`, [vehiculoId]
         );
-        return rows;
+        return rows.map(sinRuta);
     },
 
     async createRevision(vehiculoId, data) {
@@ -366,7 +370,7 @@ const vehiculosService = {
             `SELECT * FROM vehiculo_mantenciones WHERE vehiculo_id = ? AND activo = 1
              ORDER BY fecha DESC`, [vehiculoId]
         );
-        return rows;
+        return rows.map(sinRuta);
     },
 
     async createMantencion(vehiculoId, data) {
@@ -506,6 +510,45 @@ const vehiculosService = {
     async removeDocumento(vehiculoId, docId) {
         await db.query('UPDATE vehiculo_documentos SET activo = 0 WHERE id = ? AND vehiculo_id = ?', [docId, vehiculoId]);
         return { id: docId, activo: false };
+    },
+
+    // ── Archivo adjunto de revisiones y mantenciones (mig 102) ────────
+
+    // Un registro de revisión/mantención puede llevar su certificado o boleta.
+    // Se guarda en la MISMA carpeta que los documentos del vehículo y se sirve
+    // por descarga autenticada: son papeles del vehículo, no archivos públicos.
+    _tablaRegistro(tipo) {
+        const tablas = { revisiones: 'vehiculo_revisiones', mantenciones: 'vehiculo_mantenciones' };
+        const tabla = tablas[tipo];
+        // Blindaje: el nombre de tabla se interpola en el SQL, así que sale de
+        // este mapa y nunca del request.
+        if (!tabla) throw Object.assign(new Error('Tipo de registro inválido'), { statusCode: 400 });
+        return tabla;
+    },
+
+    async adjuntarArchivo(tipo, vehiculoId, registroId, file) {
+        const tabla = this._tablaRegistro(tipo);
+        if (!file) throw Object.assign(new Error('No se recibió archivo'), { statusCode: 400 });
+        const rutaRelativa = path.relative(UPLOADS_DIR, file.path);
+        const [r] = await db.query(
+            `UPDATE ${tabla} SET nombre_archivo = ?, ruta_archivo = ? WHERE id = ? AND vehiculo_id = ? AND activo = 1`,
+            [file.originalname, rutaRelativa, registroId, vehiculoId]
+        );
+        if (!r.affectedRows) throw Object.assign(new Error('Registro no encontrado'), { statusCode: 404 });
+        const [rows] = await db.query(`SELECT * FROM ${tabla} WHERE id = ?`, [registroId]);
+        return sinRuta(rows[0]);
+    },
+
+    async getArchivoRegistroPath(tipo, vehiculoId, registroId) {
+        const tabla = this._tablaRegistro(tipo);
+        const [rows] = await db.query(
+            `SELECT nombre_archivo, ruta_archivo FROM ${tabla} WHERE id = ? AND vehiculo_id = ? AND activo = 1`,
+            [registroId, vehiculoId]
+        );
+        if (!rows.length || !rows[0].ruta_archivo) {
+            throw Object.assign(new Error('El registro no tiene archivo adjunto'), { statusCode: 404 });
+        }
+        return { fullPath: path.join(UPLOADS_DIR, rows[0].ruta_archivo), fileName: rows[0].nombre_archivo };
     },
 
     // ── Contador de vencimientos (badge del menú) ─────────────────────

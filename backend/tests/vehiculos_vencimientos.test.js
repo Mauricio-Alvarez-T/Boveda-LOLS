@@ -167,3 +167,52 @@ describe('createDocumento — fecha y vencimiento opcionales', () => {
         await expect(svc.createDocumento(7, { categoria: '', file })).rejects.toThrow(/categoría/i);
     });
 });
+
+describe('adjuntarArchivo — certificado/boleta de revisiones y mantenciones (mig 102)', () => {
+    beforeEach(() => jest.clearAllMocks());
+
+    const file = { originalname: 'certificado.pdf', path: require('path').join(__dirname, '../uploads/vehiculos/7/abc.pdf') };
+
+    test('guarda nombre y ruta en la tabla del tipo indicado', async () => {
+        db.query.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([[{ id: 9 }]]);
+
+        await svc.adjuntarArchivo('revisiones', 7, 9, file);
+
+        const [sql, params] = db.query.mock.calls[0];
+        expect(sql).toMatch(/UPDATE vehiculo_revisiones/);
+        expect(params[0]).toBe('certificado.pdf');
+        expect(params.slice(2)).toEqual([9, 7]);          // id del registro + vehículo
+    });
+
+    test('mantenciones usa su propia tabla', async () => {
+        db.query.mockResolvedValueOnce([{ affectedRows: 1 }]).mockResolvedValueOnce([[{ id: 4 }]]);
+        await svc.adjuntarArchivo('mantenciones', 7, 4, file);
+        expect(db.query.mock.calls[0][0]).toMatch(/UPDATE vehiculo_mantenciones/);
+    });
+
+    test('un tipo inventado no llega al SQL (el nombre de tabla se interpola)', async () => {
+        await expect(svc.adjuntarArchivo('usuarios; DROP TABLE x', 7, 1, file)).rejects.toThrow(/inválido/i);
+        expect(db.query).not.toHaveBeenCalled();
+    });
+
+    test('sin archivo o con registro inexistente falla explícito', async () => {
+        await expect(svc.adjuntarArchivo('revisiones', 7, 9, null)).rejects.toThrow(/archivo/i);
+        db.query.mockResolvedValueOnce([{ affectedRows: 0 }]);
+        await expect(svc.adjuntarArchivo('revisiones', 7, 999, file)).rejects.toThrow(/no encontrado/i);
+    });
+
+    test('la respuesta NO incluye la ruta en disco, solo el nombre', async () => {
+        db.query.mockResolvedValueOnce([{ affectedRows: 1 }])
+            .mockResolvedValueOnce([[{ id: 9, nombre_archivo: 'certificado.pdf', ruta_archivo: 'vehiculos/7/abc.pdf' }]]);
+
+        const r = await svc.adjuntarArchivo('revisiones', 7, 9, file);
+
+        expect(r.nombre_archivo).toBe('certificado.pdf');
+        expect(r).not.toHaveProperty('ruta_archivo');
+    });
+
+    test('descargar exige que el registro tenga adjunto', async () => {
+        db.query.mockResolvedValueOnce([[{ nombre_archivo: null, ruta_archivo: null }]]);
+        await expect(svc.getArchivoRegistroPath('revisiones', 7, 9)).rejects.toThrow(/no tiene archivo/i);
+    });
+});

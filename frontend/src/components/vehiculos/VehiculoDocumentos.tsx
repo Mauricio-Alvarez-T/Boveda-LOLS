@@ -74,7 +74,9 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
     const [form, setForm] = useState({ ...EMPTY_FORM });
     const [editing, setEditing] = useState<{ kind: 'revision' | 'mantencion' | 'documento'; id: number } | null>(null);
     const [busy, setBusy] = useState(false);
-    const [viewingId, setViewingId] = useState<number | null>(null);
+    // Clave del archivo que se está abriendo ('doc_3', 'rev_7'…): los adjuntos ya
+    // no son solo de documentos, así que un id numérico no alcanza para saber cuál.
+    const [viewingId, setViewingId] = useState<string | null>(null);
     const [viewer, setViewer] = useState<{ url: string; mime: string; name: string } | null>(null);
     const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -214,21 +216,38 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
             const email_alerta = form.emailAlerta.trim() || null;
             const hora_alerta = form.horaAlerta || null;
             const observaciones = form.observaciones.trim() || null;
+            // El archivo va en una segunda llamada: el registro se guarda como JSON y
+            // el adjunto por multipart, para no convertir todo el endpoint en form-data.
+            let registroId: number | null = null;
             if (tipo.endpoint === 'revisiones') {
                 const payload = {
                     tipo: tipo.revTipo, fecha: form.fecha, fecha_vencimiento: form.vencimiento,
                     planta: form.lugar.trim(), observaciones, resultado: 'aprobado', dias_alerta, email_alerta, hora_alerta,
                 };
-                if (editing?.kind === 'revision') await api.put(`/vehiculos/${vehiculoId}/revisiones/${editing.id}`, payload);
-                else await api.post(`/vehiculos/${vehiculoId}/revisiones`, payload);
+                if (editing?.kind === 'revision') { await api.put(`/vehiculos/${vehiculoId}/revisiones/${editing.id}`, payload); registroId = editing.id; }
+                else { const res = await api.post(`/vehiculos/${vehiculoId}/revisiones`, payload); registroId = res.data?.data?.id ?? null; }
             } else {
                 const payload = {
                     fecha: form.fecha, tipo: 'Mantención', km_al_realizar: 0,
                     taller: form.lugar.trim(), descripcion: observaciones, fecha_proxima: form.vencimiento,
                     dias_alerta, email_alerta, hora_alerta,
                 };
-                if (editing?.kind === 'mantencion') await api.put(`/vehiculos/${vehiculoId}/mantenciones/${editing.id}`, payload);
-                else await api.post(`/vehiculos/${vehiculoId}/mantenciones`, payload);
+                if (editing?.kind === 'mantencion') { await api.put(`/vehiculos/${vehiculoId}/mantenciones/${editing.id}`, payload); registroId = editing.id; }
+                else { const res = await api.post(`/vehiculos/${vehiculoId}/mantenciones`, payload); registroId = res.data?.data?.id ?? null; }
+            }
+
+            if (file && registroId != null) {
+                // Misma compresión que los documentos: una foto de celular de 6 MB
+                // queda en cientos de KB antes de salir del navegador.
+                const archivo = await compressImage(file, { maxBytes: 500 * 1024 });
+                if (archivo.size > 10 * 1024 * 1024) {
+                    toast.error('El registro se guardó, pero el archivo supera los 10 MB. Adjunta un PDF más liviano.');
+                } else {
+                    const fd = new FormData();
+                    fd.append('archivo', archivo);
+                    await api.post(`/vehiculos/${vehiculoId}/${tipo.endpoint}/${registroId}/archivo`, fd,
+                        { headers: { 'Content-Type': 'multipart/form-data' } });
+                }
             }
             toast.success(editing ? 'Registro actualizado' : 'Registro guardado');
             resetForm();
@@ -238,18 +257,22 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
         } finally { setBusy(false); }
     };
 
-    const handleView = async (doc: VehiculoDocumento) => {
-        setViewingId(doc.id);
+    const handleView = (doc: VehiculoDocumento) =>
+        abrirArchivo(`doc_${doc.id}`, `/vehiculos/${vehiculoId}/documentos/${doc.id}/download`, doc.nombre_archivo);
+
+    /** Descarga el archivo y lo muestra en el visor del modal (imagen o PDF embebido). */
+    const abrirArchivo = async (key: string, url: string, nombreArchivo: string) => {
+        setViewingId(key);
         try {
-            const res = await api.get(`/vehiculos/${vehiculoId}/documentos/${doc.id}/download`, { responseType: 'blob' });
-            const ext = (doc.nombre_archivo.split('.').pop() || '').toLowerCase();
+            const res = await api.get(url, { responseType: 'blob' });
+            const ext = (nombreArchivo.split('.').pop() || '').toLowerCase();
             const mimeByExt: Record<string, string> = {
                 jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
                 webp: 'image/webp', gif: 'image/gif', pdf: 'application/pdf',
             };
             const mime = mimeByExt[ext] || res.headers['content-type'] || 'application/octet-stream';
-            const url = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
-            setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return { url, mime, name: doc.nombre_archivo }; });
+            const blobUrl = window.URL.createObjectURL(new Blob([res.data], { type: mime }));
+            setViewer(prev => { if (prev) window.URL.revokeObjectURL(prev.url); return { url: blobUrl, mime, name: nombreArchivo }; });
         } catch {
             toast.error('No se pudo abrir el documento');
         } finally { setViewingId(null); }
@@ -322,9 +345,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                         {TIPOS.map(t => <option key={t.value} value={t.value}>{t.label}</option>)}
                     </select>
 
-                    {/* FILE: subir archivo + vista previa. Al editar no aparece:
-                        el archivo no se reemplaza, se corrigen solo los datos. */}
-                    {!isData && !editandoDoc && (
+                    {/* Selector de archivo. En los tipos "data" (revisión/mantención) es
+                        OPCIONAL: sirve para adjuntar el certificado o la boleta. Al editar
+                        un documento de archivo no aparece — ahí el archivo no se reemplaza. */}
+                    {!editandoDoc && (
                         <>
                             <input ref={fileInputRef} type="file" accept=".pdf,image/*"
                                 onChange={e => handleFileChange(e.target.files?.[0] || null)}
@@ -346,7 +370,10 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     </div>
                                 )
                             )}
-                            <p className="text-micro text-muted-foreground/70">PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB); los PDF se suben tal cual.</p>
+                            <p className="text-micro text-muted-foreground/70">
+                                {isData ? 'Adjunto opcional (certificado, boleta). ' : ''}
+                                PDF o imagen. Las imágenes se comprimen automáticamente (objetivo ≤ 500 KB); los PDF se suben tal cual.
+                            </p>
                         </>
                     )}
 
@@ -453,9 +480,9 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
                                     <IconButton size="sm" aria-label="Ver documento" title="Ver documento" onClick={() => handleView(doc)}
-                                        disabled={viewingId === doc.id}
+                                        disabled={viewingId === `doc_${doc.id}`}
                                         className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
-                                        icon={viewingId === doc.id ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
+                                        icon={viewingId === `doc_${doc.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
                                     {canEdit && (
                                         <IconButton size="sm" aria-label="Editar datos del documento" title="Editar fecha y vencimiento"
                                             onClick={() => handleEditDocumento(doc)}
@@ -481,6 +508,13 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     <AlertaBadge dias={r.dias_alerta} email={r.email_alerta} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                                    {r.nombre_archivo && (
+                                        <IconButton size="sm" aria-label="Ver archivo adjunto" title={`Ver ${r.nombre_archivo}`}
+                                            onClick={() => abrirArchivo(`rev_${r.id}`, `/vehiculos/${vehiculoId}/revisiones/${r.id}/archivo`, r.nombre_archivo!)}
+                                            disabled={viewingId === `rev_${r.id}`}
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={viewingId === `rev_${r.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
+                                    )}
                                     {canEdit && (
                                         <IconButton size="sm" aria-label="Editar registro" title="Editar" onClick={() => handleEditRevision(r)}
                                             className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-4 w-4" />} />
@@ -505,6 +539,13 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) =>
                                     <AlertaBadge dias={m.dias_alerta} email={m.email_alerta} />
                                 </div>
                                 <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+                                    {m.nombre_archivo && (
+                                        <IconButton size="sm" aria-label="Ver archivo adjunto" title={`Ver ${m.nombre_archivo}`}
+                                            onClick={() => abrirArchivo(`man_${m.id}`, `/vehiculos/${vehiculoId}/mantenciones/${m.id}/archivo`, m.nombre_archivo!)}
+                                            disabled={viewingId === `man_${m.id}`}
+                                            className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary"
+                                            icon={viewingId === `man_${m.id}` ? <Loader2 className="h-4 w-4 animate-spin" /> : <Eye className="h-4 w-4" />} />
+                                    )}
                                     {canEdit && (
                                         <IconButton size="sm" aria-label="Editar registro" title="Editar" onClick={() => handleEditMantencion(m)}
                                             className="h-10 w-10 sm:h-8 sm:w-8 hover:bg-brand-primary/10 hover:text-brand-primary" icon={<Pencil className="h-4 w-4" />} />

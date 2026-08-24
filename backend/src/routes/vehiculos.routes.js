@@ -99,6 +99,21 @@ router.put('/:id/revisiones/:revId', auth, checkPermission('vehiculos.editar'), 
     catch (err) { next(err); }
 });
 
+// Archivo adjunto del registro (certificado de la revisión / boleta del taller).
+// Mismo middleware y carpeta que los documentos del vehículo; la imagen ya viene
+// comprimida desde el navegador.
+router.post('/:id/revisiones/:revId/archivo', auth, checkPermission('vehiculos.crear'), uploadVehiculos.single('archivo'), async (req, res, next) => {
+    try { res.json({ data: await svc.adjuntarArchivo('revisiones', req.params.id, req.params.revId, req.file) }); }
+    catch (err) { next(err); }
+});
+
+router.get('/:id/revisiones/:revId/archivo', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
+    try {
+        const { fullPath, fileName } = await svc.getArchivoRegistroPath('revisiones', req.params.id, req.params.revId);
+        res.download(fullPath, fileName);
+    } catch (err) { next(err); }
+});
+
 router.delete('/:id/revisiones/:revId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
     try { res.json({ data: await svc.removeRevision(req.params.id, req.params.revId) }); }
     catch (err) { next(err); }
@@ -118,6 +133,18 @@ router.post('/:id/mantenciones', auth, checkPermission('vehiculos.crear'), async
 router.put('/:id/mantenciones/:mId', auth, checkPermission('vehiculos.editar'), async (req, res, next) => {
     try { res.json({ data: await svc.updateMantencion(req.params.mId, req.body) }); }
     catch (err) { next(err); }
+});
+
+router.post('/:id/mantenciones/:mId/archivo', auth, checkPermission('vehiculos.crear'), uploadVehiculos.single('archivo'), async (req, res, next) => {
+    try { res.json({ data: await svc.adjuntarArchivo('mantenciones', req.params.id, req.params.mId, req.file) }); }
+    catch (err) { next(err); }
+});
+
+router.get('/:id/mantenciones/:mId/archivo', auth, checkPermission('vehiculos.ver'), async (req, res, next) => {
+    try {
+        const { fullPath, fileName } = await svc.getArchivoRegistroPath('mantenciones', req.params.id, req.params.mId);
+        res.download(fullPath, fileName);
+    } catch (err) { next(err); }
 });
 
 router.delete('/:id/mantenciones/:mId', auth, checkPermission('vehiculos.eliminar'), async (req, res, next) => {
