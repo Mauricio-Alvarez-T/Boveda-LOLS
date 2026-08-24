@@ -18,10 +18,14 @@
 ## Fiscalización / Consultas
 
 - Búsqueda avanzada (`fiscalizacion.service.js`): por obra, empresa, cargo, categoría de reporte,
-  completitud (100% / con faltantes), ausentes, y **aniversarios de 10 meses**
-  (`fecha_ingreso + 10m` cae en el mes objetivo; query sargable).
+  completitud (100% / con faltantes), ausentes, **aniversarios de 10 meses**
+  (`fecha_ingreso + 10m` cae en el mes objetivo; query sargable) y **rango de fecha de
+  ingreso** (`fecha_ingreso_desde`/`fecha_ingreso_hasta`, inclusivos, extremos opcionales —
+  "ingresos del período", 2026-08-24). El rango tiene control propio en el FilterPanel
+  (2 inputs date) y la card del trabajador muestra la fecha de ingreso (oculta en xs).
 - Excluye `es_prueba=1` por defecto (`?incluir_prueba=true` lo anula) y obras finalizadas.
-- Exportación Excel con fichas y documentos por trabajador.
+- Exportación Excel con fichas y documentos por trabajador. Con el filtro de ingreso
+  activo, el export manda los ids visibles (el Excel de asistencia no entiende ese filtro).
 
 ## Constancias
 

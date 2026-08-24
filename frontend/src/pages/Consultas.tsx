@@ -15,6 +15,7 @@ import {
     Plus,
     Eraser,
     CalendarClock,
+    CalendarPlus,
     Save
 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -49,6 +50,13 @@ import {
     useConsultasActions,
 } from '../hooks/consultas';
 
+// DATE de MySQL llega como 'YYYY-MM-DD' (o ISO datetime) → DD/MM/YYYY legible.
+const formatFechaIngreso = (f?: string | null): string | null => {
+    if (!f) return null;
+    const [y, m, d] = String(f).slice(0, 10).split('-');
+    return y && m && d ? `${d}/${m}/${y}` : null;
+};
+
 const ConsultasPage: React.FC = () => {
     // --- Custom Hooks ---
     // 1. Filtros
@@ -62,6 +70,8 @@ const ConsultasPage: React.FC = () => {
         filterCompletitud, setFilterCompletitud,
         filterAusentes, setFilterAusentes,
         filterAniversario10m, clearAniversario10m,
+        filterIngresoDesde, setFilterIngresoDesde,
+        filterIngresoHasta, setFilterIngresoHasta,
         handleClearFilters,
         activeFilterCount
     } = useConsultasFilters();
@@ -71,7 +81,7 @@ const ConsultasPage: React.FC = () => {
         empresas, obras, cargos, fetchCatalogs,
         workers, loading, performSearch
     } = useConsultasData({
-        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m
+        search, filterObra, filterEmpresa, filterCargo, filterCategoria, filterActivo, filterCompletitud, filterAusentes, filterAniversario10m, filterIngresoDesde, filterIngresoHasta
     });
 
     // Etiqueta legible (MM/AAAA) del filtro de aniversario, si está activo.
@@ -82,6 +92,14 @@ const ConsultasPage: React.FC = () => {
 
     // ids memoizados: evita recrear el array en cada render (dep del hook de selección).
     const workerIds = useMemo(() => workers.map(w => w.id), [workers]);
+
+    // El export Excel es de ASISTENCIA y no entiende el filtro de fecha de ingreso:
+    // con ese filtro activo se exportan los ids visibles para que el archivo
+    // coincida con la lista filtrada (el backend no pagina, workers = set completo).
+    const exportIds = useMemo(
+        () => (filterIngresoDesde || filterIngresoHasta) ? workerIds : undefined,
+        [filterIngresoDesde, filterIngresoHasta, workerIds]
+    );
 
     // Opciones de filtros memoizadas: identidad estable hacia FilterPanel (react-select).
     const obraOptions = useMemo(() => obras.map(o => ({ value: o.value, label: o.label })), [obras]);
@@ -202,7 +220,7 @@ const ConsultasPage: React.FC = () => {
                 <Button
                     size="sm"
                     variant="outline"
-                    onClick={() => handleExportExcel()}
+                    onClick={() => handleExportExcel(exportIds)}
                     isLoading={exporting}
                     disabled={workers.length === 0 || !hasPermission('reportes.exportar')}
                     leftIcon={<FileDown className="h-3.5 w-3.5 text-brand-primary" />}
@@ -241,7 +259,7 @@ const ConsultasPage: React.FC = () => {
                 <IconButton
                     variant="ghost"
                     aria-label="Exportar Excel"
-                    onClick={() => handleExportExcel()}
+                    onClick={() => handleExportExcel(exportIds)}
                     disabled={workers.length === 0 || !hasPermission('reportes.exportar') || exporting}
                     className={cn("rounded-xl border border-border shadow-sm", exporting && "opacity-60")}
                     icon={<FileDown className={cn("h-4 w-4", exporting && "animate-pulse")} />}
@@ -264,7 +282,7 @@ const ConsultasPage: React.FC = () => {
                 />
             </div>
         </div>
-    ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel]);
+    ), [workers.length, exporting, activeFilterCount, showMobileFilters, showCreatePanel, exportIds]);
 
     useSetPageHeader(headerTitle, headerActions);
 
@@ -312,6 +330,10 @@ const ConsultasPage: React.FC = () => {
                                 setFilterCompletitud={setFilterCompletitud}
                                 filterAusentes={filterAusentes}
                                 setFilterAusentes={setFilterAusentes}
+                                filterIngresoDesde={filterIngresoDesde}
+                                setFilterIngresoDesde={setFilterIngresoDesde}
+                                filterIngresoHasta={filterIngresoHasta}
+                                setFilterIngresoHasta={setFilterIngresoHasta}
                             />
                         </motion.div>
                     )}
@@ -520,6 +542,15 @@ const ConsultasPage: React.FC = () => {
                                                         <div className="h-1.5 w-1.5 rounded-full bg-brand-primary shrink-0" />
                                                         <span className="truncate">{worker.obra_nombre || 'Sin Obra'}</span>
                                                     </div>
+                                                </div>
+
+                                                {/* Fecha de ingreso (oculta en xs: la muestra el quick view) */}
+                                                <div className="hidden sm:flex flex-col gap-0.5 min-w-0">
+                                                    <span className="text-micro sm:text-caption font-bold text-muted-foreground uppercase tracking-widest">Ingreso</span>
+                                                    <span className="text-label sm:text-xs font-semibold text-brand-dark flex items-center gap-1.5">
+                                                        <CalendarPlus className="h-3 w-3 text-muted-foreground shrink-0" />
+                                                        {formatFechaIngreso(worker.fecha_ingreso) || '—'}
+                                                    </span>
                                                 </div>
 
                                                 {/* Documentación */}
@@ -861,6 +892,10 @@ const ConsultasPage: React.FC = () => {
                                     setFilterCompletitud={setFilterCompletitud}
                                     filterAusentes={filterAusentes}
                                     setFilterAusentes={setFilterAusentes}
+                                    filterIngresoDesde={filterIngresoDesde}
+                                    setFilterIngresoDesde={setFilterIngresoDesde}
+                                    filterIngresoHasta={filterIngresoHasta}
+                                    setFilterIngresoHasta={setFilterIngresoHasta}
                                 />
                                 {activeFilterCount > 0 && (
                                     <Button

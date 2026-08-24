@@ -1,5 +1,5 @@
 import React from 'react';
-import { Building2, Briefcase, Users, UserCheck, FileText, UserX } from 'lucide-react';
+import { Building2, Briefcase, Users, UserCheck, FileText, UserX, CalendarPlus } from 'lucide-react';
 import { FilterSelect } from '../ui/Filters';
 import { cn } from '../../utils/cn';
 
@@ -26,6 +26,10 @@ interface FilterPanelProps {
     setFilterCompletitud: (val: string) => void;
     filterAusentes: boolean;
     setFilterAusentes: (val: boolean) => void;
+    filterIngresoDesde: string;
+    setFilterIngresoDesde: (val: string) => void;
+    filterIngresoHasta: string;
+    setFilterIngresoHasta: (val: string) => void;
 }
 
 export const FilterPanel: React.FC<FilterPanelProps> = ({
@@ -38,7 +42,9 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
     filterCategoria, setFilterCategoria,
     filterActivo, setFilterActivo,
     filterCompletitud, setFilterCompletitud,
-    filterAusentes, setFilterAusentes
+    filterAusentes, setFilterAusentes,
+    filterIngresoDesde, setFilterIngresoDesde,
+    filterIngresoHasta, setFilterIngresoHasta
 }) => (
     <div className="p-4 md:p-5 bg-card border border-border rounded-2xl shadow-sm grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end max-h-[65vh] overflow-y-auto md:overflow-visible md:max-h-none custom-scrollbar">
         <FilterSelect
@@ -93,6 +99,36 @@ export const FilterPanel: React.FC<FilterPanelProps> = ({
             onChange={(e) => setFilterCompletitud(e.target.value)}
             placeholder="Cualquier estado"
         />
+
+        {/* Rango de fecha de ingreso: "contrataciones del período". Extremos opcionales. */}
+        <div className="space-y-2">
+            <label className={cn(
+                "text-xs font-bold uppercase tracking-wider flex items-center gap-2 transition-colors",
+                (filterIngresoDesde || filterIngresoHasta) ? "text-brand-primary" : "text-muted-foreground/60"
+            )}>
+                <CalendarPlus className="h-4 w-4" /> Fecha de Ingreso
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+                {([
+                    { value: filterIngresoDesde, set: setFilterIngresoDesde, aria: 'Ingreso desde' },
+                    { value: filterIngresoHasta, set: setFilterIngresoHasta, aria: 'Ingreso hasta' },
+                ] as const).map(({ value, set, aria }) => (
+                    <input
+                        key={aria}
+                        type="date"
+                        aria-label={aria}
+                        value={value}
+                        onChange={(e) => set(e.target.value)}
+                        className={cn(
+                            "w-full border rounded-xl p-2.5 text-sm transition-all outline-none min-w-0",
+                            "bg-card border-border hover:border-brand-primary/40 text-brand-dark",
+                            "focus:ring-4 focus:ring-brand-primary/10 focus:border-brand-primary",
+                            value && "bg-brand-primary/[0.03] border-brand-primary ring-1 ring-brand-primary/20 text-brand-primary font-semibold"
+                        )}
+                    />
+                ))}
+            </div>
+        </div>
 
         <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-brand-dark px-1 flex items-center gap-1.5 opacity-60 uppercase tracking-wider">

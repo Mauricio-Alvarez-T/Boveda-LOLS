@@ -19,6 +19,8 @@ export interface FetchWorkersParams {
     filterCompletitud: string;
     filterAusentes: boolean;
     filterAniversario10m: string;
+    filterIngresoDesde: string;
+    filterIngresoHasta: string;
 }
 
 export const useConsultasData = (filters: FetchWorkersParams) => {
@@ -83,6 +85,8 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             if (filters.filterCompletitud) urlParams.append('completitud', filters.filterCompletitud);
             if (filters.filterAusentes) urlParams.append('ausentes', 'true');
             if (filters.filterAniversario10m) urlParams.append('aniversario10m', filters.filterAniversario10m);
+            if (filters.filterIngresoDesde) urlParams.append('fecha_ingreso_desde', filters.filterIngresoDesde);
+            if (filters.filterIngresoHasta) urlParams.append('fecha_ingreso_hasta', filters.filterIngresoHasta);
             // Consultas es superficie de administración: incluir trabajadores de
             // prueba (se muestran con badge) para poder gestionarlos/revertirlos.
             urlParams.append('incluir_prueba', 'true');
@@ -127,7 +131,7 @@ export const useConsultasData = (filters: FetchWorkersParams) => {
             performSearch(true);
         }, 300);
         return () => clearTimeout(timeoutId);
-    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m]);
+    }, [filters.search, filters.filterObra, filters.filterEmpresa, filters.filterCargo, filters.filterCategoria, filters.filterActivo, filters.filterCompletitud, filters.filterAusentes, filters.filterAniversario10m, filters.filterIngresoDesde, filters.filterIngresoHasta]);
 
     // Abortar cualquier búsqueda en vuelo al desmontar.
     useEffect(() => () => abortRef.current?.abort(), []);
