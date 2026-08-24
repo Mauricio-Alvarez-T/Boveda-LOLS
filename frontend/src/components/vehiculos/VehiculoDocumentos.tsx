@@ -24,7 +24,8 @@ const TIPOS: Tipo[] = [
     { value: 'permiso_circulacion', label: 'Permiso de circulación', kind: 'file' },
     { value: 'seguro_terceros', label: 'Seguro contra terceros', kind: 'file' },
     { value: 'primera_inscripcion', label: 'Primera inscripción (padrón)', kind: 'file' },
-    { value: 'poliza', label: 'Póliza', kind: 'file' },
+    // "(seguro)" aclara de qué póliza se trata; el VALOR guardado sigue siendo 'poliza'.
+    { value: 'poliza', label: 'Póliza (seguro)', kind: 'file' },
     { value: 'revision_tecnica', label: 'Revisión técnica', kind: 'data', endpoint: 'revisiones', revTipo: 'tecnica' },
     { value: 'revision_gases', label: 'Revisión de gases', kind: 'data', endpoint: 'revisiones', revTipo: 'gases' },
     { value: 'mantencion', label: 'Mantención', kind: 'data', endpoint: 'mantenciones' },

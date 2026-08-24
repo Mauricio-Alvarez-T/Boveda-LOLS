@@ -57,7 +57,7 @@ export const SUBTIPOS_VENCIMIENTO: Record<string, string> = {
     permiso_circulacion: 'Permiso de circulación',
     seguro_terceros: 'Seguro contra terceros',
     primera_inscripcion: 'Primera inscripción',
-    poliza: 'Póliza',
+    poliza: 'Póliza (seguro)',
     tecnica: 'Revisión técnica',
     gases: 'Revisión de gases',
     mecanica: 'Revisión mecánica',
