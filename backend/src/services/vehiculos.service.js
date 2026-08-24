@@ -7,6 +7,10 @@ const UPLOADS_DIR = path.join(__dirname, '../../uploads');
 // el campo" y debe guardarse como NULL, no como fecha vacía (MySQL la rechaza).
 const nullSiVacio = v => (v == null || String(v).trim() === '' ? null : String(v).trim());
 
+// Piso para el contador de vencimientos: cualquier fecha anterior es basura de
+// importaciones viejas ('0000-00-00' llega como 1899-11-30), no un vencimiento real.
+const FECHA_MINIMA = '2000-01-01';
+
 // Cache de columnas por tabla — evita consultar INFORMATION_SCHEMA en cada request.
 const _colCache = {};
 async function existingCols(table) {
@@ -507,15 +511,21 @@ const vehiculosService = {
     // ── Contador de vencimientos (badge del menú) ─────────────────────
 
     /**
-     * TODO lo que vence en el módulo, en una sola lista: documentos del vehículo,
-     * revisiones, mantenciones, seguros, permisos de circulación y licencias de
-     * conducir. Alimenta el número del menú lateral y el panel que se abre al
-     * hacer clic.
+     * Lo que vence en el módulo, en una sola lista: documentos del vehículo,
+     * revisiones, mantenciones, seguros y permisos de circulación. Alimenta el
+     * número del menú lateral y el panel que se abre al hacer clic.
      *
-     * Criterio (decisión usuario 2026-08-24): cuenta lo YA VENCIDO + lo que vence
-     * dentro de `dias` (default 30) — el mismo umbral que los estados de la ficha.
-     * Lo vencido no desaparece de la lista hasta que se renueva: si saliera del
-     * conteo, un documento vencido dejaría de avisar justo cuando más importa.
+     * ⚠️ NO incluye las licencias de conducir de los trabajadores (decisión
+     * usuario 2026-08-24): el aviso es de los papeles del VEHÍCULO. Además la
+     * columna `trabajadores.licencia_vencimiento` viene de una importación vieja
+     * y tiene fechas basura (1899-11-30), que inflaban el contador a 85 con
+     * "venció hace 46.288 días". El vencimiento de licencias sigue disponible en
+     * `getAlertas`/`getVencidas` para el correo, que es donde se usaba.
+     *
+     * Criterio: cuenta lo YA VENCIDO + lo que vence dentro de `dias` (default 30)
+     * — el mismo umbral que los estados de la ficha. Lo vencido no desaparece
+     * hasta que se renueva: si saliera del conteo, dejaría de avisar justo cuando
+     * más importa.
      *
      * `dias_restantes` es negativo si ya venció (−3 = venció hace 3 días).
      */
@@ -523,6 +533,9 @@ const vehiculosService = {
         const limite = Number.isFinite(Number(dias)) ? Math.max(0, Math.trunc(Number(dias))) : 30;
 
         // Cada SELECT devuelve la misma forma para poder concatenarlos sin adaptar.
+        // FECHA_MINIMA descarta fechas imposibles de importaciones viejas
+        // (1899-11-30, '0000-00-00'): sin este piso aparecían avisos de
+        // "venció hace 46.288 días" que no significan nada.
         const [documentos] = await db.query(`
             SELECT 'documento' AS categoria, d.id, d.vehiculo_id, d.categoria AS subtipo,
                    v.patente, v.marca, v.modelo, d.fecha_vencimiento,
@@ -530,8 +543,9 @@ const vehiculosService = {
             FROM vehiculo_documentos d
             JOIN vehiculos v ON v.id = d.vehiculo_id
             WHERE d.activo = 1 AND v.activo = 1 AND d.fecha_vencimiento IS NOT NULL
+              AND d.fecha_vencimiento >= ?
               AND d.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [limite]);
+        `, [FECHA_MINIMA, limite]);
 
         const [revisiones] = await db.query(`
             SELECT 'revision' AS categoria, r.id, r.vehiculo_id, r.tipo AS subtipo,
@@ -540,8 +554,9 @@ const vehiculosService = {
             FROM vehiculo_revisiones r
             JOIN vehiculos v ON v.id = r.vehiculo_id
             WHERE r.activo = 1 AND v.activo = 1 AND r.fecha_vencimiento IS NOT NULL
+              AND r.fecha_vencimiento >= ?
               AND r.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [limite]);
+        `, [FECHA_MINIMA, limite]);
 
         const [mantenciones] = await db.query(`
             SELECT 'mantencion' AS categoria, m.id, m.vehiculo_id, m.tipo AS subtipo,
@@ -550,8 +565,9 @@ const vehiculosService = {
             FROM vehiculo_mantenciones m
             JOIN vehiculos v ON v.id = m.vehiculo_id
             WHERE m.activo = 1 AND v.activo = 1 AND m.fecha_proxima IS NOT NULL
+              AND m.fecha_proxima >= ?
               AND m.fecha_proxima <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [limite]);
+        `, [FECHA_MINIMA, limite]);
 
         const [seguros] = await db.query(`
             SELECT 'seguro' AS categoria, s.id, s.vehiculo_id, s.tipo AS subtipo,
@@ -560,8 +576,9 @@ const vehiculosService = {
             FROM vehiculo_seguros s
             JOIN vehiculos v ON v.id = s.vehiculo_id
             WHERE s.activo = 1 AND v.activo = 1 AND s.fecha_vencimiento IS NOT NULL
+              AND s.fecha_vencimiento >= ?
               AND s.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [limite]);
+        `, [FECHA_MINIMA, limite]);
 
         const [permisos] = await db.query(`
             SELECT 'permiso' AS categoria, p.id, p.vehiculo_id, 'permiso_circulacion' AS subtipo,
@@ -570,21 +587,15 @@ const vehiculosService = {
             FROM vehiculo_permisos p
             JOIN vehiculos v ON v.id = p.vehiculo_id
             WHERE p.activo = 1 AND v.activo = 1 AND p.fecha_vencimiento IS NOT NULL
+              AND p.fecha_vencimiento >= ?
               AND p.fecha_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [limite]);
+        `, [FECHA_MINIMA, limite]);
 
-        // Licencias: son del conductor, no de un vehículo → sin vehiculo_id/patente.
-        const [licencias] = await db.query(`
-            SELECT 'licencia' AS categoria, t.id, NULL AS vehiculo_id, t.licencia_conducir AS subtipo,
-                   NULL AS patente, CONCAT(t.nombres, ' ', t.apellido_paterno) AS marca, NULL AS modelo,
-                   t.licencia_vencimiento AS fecha_vencimiento,
-                   DATEDIFF(t.licencia_vencimiento, CURDATE()) AS dias_restantes
-            FROM trabajadores t
-            WHERE t.activo = 1 AND t.licencia_vencimiento IS NOT NULL
-              AND t.licencia_vencimiento <= DATE_ADD(CURDATE(), INTERVAL ? DAY)
-        `, [limite]);
-
-        const items = [...documentos, ...revisiones, ...mantenciones, ...seguros, ...permisos, ...licencias]
+        const items = [...documentos, ...revisiones, ...mantenciones, ...seguros, ...permisos]
+            // Cinturón por si igual entra una fecha corrupta: sin días calculables
+            // la fila se mostraría como "Vence hoy", que sería mentira.
+            // OJO con el null: Number(null) es 0 y pasa el isFinite, por eso va aparte.
+            .filter(i => i.dias_restantes != null && Number.isFinite(Number(i.dias_restantes)))
             // Lo más urgente primero: primero lo más vencido, después lo que vence antes.
             .sort((a, b) => Number(a.dias_restantes) - Number(b.dias_restantes));
 

@@ -186,17 +186,18 @@ export interface VehiculoDocumento {
     created_at?: string;
 }
 
-/** Una cosa que vence en el módulo Vehículos (GET /vehiculos/vencimientos). */
+/**
+ * Una cosa que vence en el módulo Vehículos (GET /vehiculos/vencimientos).
+ * Solo papeles del VEHÍCULO: las licencias de conducir no entran acá.
+ */
 export interface VehiculoVencimiento {
     /** De dónde sale: define el ícono y la etiqueta en el panel. */
-    categoria: 'documento' | 'revision' | 'mantencion' | 'seguro' | 'permiso' | 'licencia';
+    categoria: 'documento' | 'revision' | 'mantencion' | 'seguro' | 'permiso';
     id: number;
-    /** null en licencias: son del conductor, no de un vehículo. */
     vehiculo_id: number | null;
     /** Tipo dentro de la categoría (ej. 'permiso_circulacion', 'tecnica', 'SOAP'). */
     subtipo: string | null;
     patente: string | null;
-    /** En licencias trae el nombre del conductor (la consulta reusa la columna). */
     marca: string | null;
     modelo: string | null;
     fecha_vencimiento: string;

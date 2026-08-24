@@ -30,9 +30,16 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 
 ## Contador de vencimientos en el menú (decisión usuario 2026-08-24)
 
-- `GET /vehiculos/vencimientos?dias=30` (`vehiculos.service.getVencimientos`) junta **las 6 fuentes**
-  del módulo: documentos, revisiones, mantenciones, seguros, permisos de circulación y licencias de
-  conducir. Devuelve `{ items, total, vencidos, por_vencer, dias }` ordenado por urgencia.
+- `GET /vehiculos/vencimientos?dias=30` (`vehiculos.service.getVencimientos`) junta **las 5 fuentes
+  del vehículo**: documentos, revisiones, mantenciones, seguros y permisos de circulación. Devuelve
+  `{ items, total, vencidos, por_vencer, dias }` ordenado por urgencia.
+- ⚠️ **Las licencias de conducir NO entran** en este contador (el aviso es de los papeles del
+  vehículo). Además `trabajadores.licencia_vencimiento` viene de una importación vieja y trae fechas
+  `1899-11-30`: con licencias dentro, el badge marcaba **85** y el panel decía "venció hace 46.288
+  días". Siguen disponibles en `getAlertas`/`getVencidas` (correo), que es donde se usaban.
+- Piso `FECHA_MINIMA = '2000-01-01'` en las 5 consultas: cualquier vencimiento anterior es basura de
+  importación, no un vencimiento real. Y se descartan filas con `dias_restantes` nulo — ojo que
+  `Number(null)` es `0` y pasa un `isFinite`, con lo que se mostrarían como "Vence hoy".
 - Cuenta **lo ya vencido + lo que vence dentro de 30 días**. Lo vencido NO sale del conteo hasta que
   se renueva: si saliera, dejaría de avisar justo cuando más importa.
 - El Sidebar muestra `total` junto a "Vehículos" (rojo si `vencidos > 0`, ámbar si solo hay por

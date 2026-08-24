@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Clock, FileText, Wrench, ShieldCheck, ScrollText, IdCard, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Clock, FileText, Wrench, ShieldCheck, ScrollText, ChevronRight } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
 import { textoVencimiento } from '../../utils/vencimientos';
@@ -20,7 +20,6 @@ const META: Record<VehiculoVencimiento['categoria'], { label: string; Icon: Reac
     mantencion: { label: 'Mantención',           Icon: Wrench },
     seguro:     { label: 'Seguro',               Icon: ShieldCheck },
     permiso:    { label: 'Permiso de circulación', Icon: ScrollText },
-    licencia:   { label: 'Licencia de conducir', Icon: IdCard },
 };
 
 /** Nombres legibles de los subtipos que se guardan en clave (documentos y revisiones). */
@@ -39,9 +38,8 @@ const fmtFecha = (s: string) => String(s).split('T')[0].split('-').reverse().joi
 const Fila: React.FC<{ v: VehiculoVencimiento; onIr: () => void }> = ({ v, onIr }) => {
     const { label, Icon } = META[v.categoria] ?? META.documento;
     const vencido = Number(v.dias_restantes) < 0;
-    // Licencias: no hay patente, el nombre del conductor viaja en `marca`.
-    const titulo = v.patente || v.marca || 'Sin identificar';
-    const detalle = [SUBTIPOS[v.subtipo || ''] || v.subtipo || label, v.patente ? [v.marca, v.modelo].filter(Boolean).join(' ') : null]
+    const titulo = v.patente || 'Sin patente';
+    const detalle = [SUBTIPOS[v.subtipo || ''] || v.subtipo || label, [v.marca, v.modelo].filter(Boolean).join(' ')]
         .filter(Boolean).join(' · ');
 
     return (
@@ -71,6 +69,9 @@ const Fila: React.FC<{ v: VehiculoVencimiento; onIr: () => void }> = ({ v, onIr 
  * Panel que se abre al hacer clic en el número del menú: qué venció y qué está
  * por vencer, lo más urgente arriba. Reemplaza al aviso por correo de los
  * documentos (decisión usuario 2026-08-24): el aviso se ve en la app.
+ *
+ * Solo papeles del VEHÍCULO (documentos, revisión, mantención, seguro, permiso).
+ * Las licencias de conducir quedaron fuera a pedido del usuario.
  */
 export const VencimientosPanel: React.FC<Props> = ({ isOpen, onClose, resumen, loading }) => {
     const navigate = useNavigate();
@@ -90,7 +91,7 @@ export const VencimientosPanel: React.FC<Props> = ({ isOpen, onClose, resumen, l
                 <div className="py-10 text-center">
                     <ShieldCheck className="h-10 w-10 mx-auto text-brand-primary/30 mb-3" />
                     <p className="text-sm font-medium text-brand-dark">Todo al día</p>
-                    <p className="text-xs mt-1 text-muted-foreground">No hay documentos, revisiones ni licencias por vencer.</p>
+                    <p className="text-xs mt-1 text-muted-foreground">Ningún documento, revisión, mantención, seguro ni permiso por vencer.</p>
                 </div>
             ) : (
                 <div className="space-y-4">

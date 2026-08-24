@@ -3,8 +3,9 @@
  *
  * Fija QUÉ entra en el número que se muestra en el menú lateral:
  *   · lo YA VENCIDO + lo que vence dentro de N días (default 30),
- *   · de TODAS las fuentes del módulo (documentos, revisiones, mantenciones,
- *     seguros, permisos de circulación y licencias de conducir),
+ *   · de las 5 fuentes del VEHÍCULO (documentos, revisiones, mantenciones,
+ *     seguros y permisos de circulación) — las licencias de conducir NO entran,
+ *     ver el test correspondiente,
  *   · ordenado por urgencia (lo más vencido primero).
  *
  * Y que subir un documento sin fecha/vencimiento sigue siendo válido: cargar el
@@ -26,36 +27,61 @@ const fila = (over = {}) => ({
     fecha_vencimiento: '2026-09-01', dias_restantes: 10, ...over,
 });
 
-/** Encola las 6 consultas de getVencimientos en orden. */
-const mockFuentes = ({ documentos = [], revisiones = [], mantenciones = [], seguros = [], permisos = [], licencias = [] }) => {
+/** Encola las 5 consultas de getVencimientos en orden. */
+const mockFuentes = ({ documentos = [], revisiones = [], mantenciones = [], seguros = [], permisos = [] }) => {
     db.query
         .mockResolvedValueOnce([documentos])
         .mockResolvedValueOnce([revisiones])
         .mockResolvedValueOnce([mantenciones])
         .mockResolvedValueOnce([seguros])
-        .mockResolvedValueOnce([permisos])
-        .mockResolvedValueOnce([licencias]);
+        .mockResolvedValueOnce([permisos]);
 };
 
 describe('getVencimientos — contador del menú', () => {
     beforeEach(() => jest.clearAllMocks());
 
-    test('junta las 6 fuentes del módulo en una sola lista', async () => {
+    test('junta las 5 fuentes del vehículo en una sola lista', async () => {
         mockFuentes({
             documentos:   [fila({ categoria: 'documento',  dias_restantes: 5 })],
             revisiones:   [fila({ categoria: 'revision',   dias_restantes: 20 })],
             mantenciones: [fila({ categoria: 'mantencion', dias_restantes: 12 })],
             seguros:      [fila({ categoria: 'seguro',     dias_restantes: 30 })],
             permisos:     [fila({ categoria: 'permiso',    dias_restantes: 1 })],
-            licencias:    [fila({ categoria: 'licencia',   dias_restantes: 3, patente: null })],
         });
 
         const r = await svc.getVencimientos();
 
-        expect(r.total).toBe(6);
-        expect(db.query).toHaveBeenCalledTimes(6);
+        expect(r.total).toBe(5);
+        expect(db.query).toHaveBeenCalledTimes(5);
         expect(new Set(r.items.map(i => i.categoria)))
-            .toEqual(new Set(['documento', 'revision', 'mantencion', 'seguro', 'permiso', 'licencia']));
+            .toEqual(new Set(['documento', 'revision', 'mantencion', 'seguro', 'permiso']));
+    });
+
+    test('NO consulta licencias de conducir: el aviso es de los papeles del vehículo', async () => {
+        mockFuentes({});
+        await svc.getVencimientos();
+        const sqls = db.query.mock.calls.map(([sql]) => sql).join(' ');
+        expect(sqls).not.toMatch(/trabajadores/);
+        expect(sqls).not.toMatch(/licencia_vencimiento/);
+    });
+
+    test('descarta fechas basura de importaciones viejas (1899-11-30)', async () => {
+        mockFuentes({});
+        await svc.getVencimientos();
+        // Toda consulta lleva el piso de fecha como primer parámetro.
+        db.query.mock.calls.forEach(([sql, params]) => {
+            expect(sql).toMatch('>= ?');
+            expect(params[0]).toBe('2000-01-01');
+        });
+    });
+
+    test('una fila sin días calculables no se cuenta (se vería como "Vence hoy")', async () => {
+        mockFuentes({
+            documentos: [fila({ id: 1, dias_restantes: null }), fila({ id: 2, dias_restantes: 4 })],
+        });
+        const r = await svc.getVencimientos();
+        expect(r.total).toBe(1);
+        expect(r.items[0].id).toBe(2);
     });
 
     test('cuenta lo vencido y lo por vencer por separado', async () => {
@@ -83,19 +109,19 @@ describe('getVencimientos — contador del menú', () => {
         expect(r.items.map(i => i.dias_restantes)).toEqual([-40, 2, 25]);
     });
 
-    test('el rango de días se castea y se pasa a las 6 consultas', async () => {
+    test('el rango de días se castea y se pasa a las 5 consultas', async () => {
         mockFuentes({});
         // Llega como string desde req.query (?dias=15)
         const r = await svc.getVencimientos('15');
         expect(r.dias).toBe(15);
-        db.query.mock.calls.forEach(([, params]) => expect(params).toEqual([15]));
+        db.query.mock.calls.forEach(([, params]) => expect(params).toEqual(['2000-01-01', 15]));
     });
 
     test('un valor de días inválido cae al default de 30', async () => {
         mockFuentes({});
         const r = await svc.getVencimientos('abc');
         expect(r.dias).toBe(30);
-        db.query.mock.calls.forEach(([, params]) => expect(params).toEqual([30]));
+        db.query.mock.calls.forEach(([, params]) => expect(params).toEqual(['2000-01-01', 30]));
     });
 
     test('sin vencimientos el total es 0 (el menú no muestra número)', async () => {
