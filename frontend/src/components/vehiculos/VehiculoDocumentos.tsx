@@ -50,9 +50,15 @@ const PRESETS_DIAS: { value: number; label: string }[] = [
 
 interface Props {
     vehiculoId: number;
+    /**
+     * Se llama al crear/editar/eliminar algo con vencimiento. La página lo usa
+     * para refrescar los contadores: sin esto, agregas un documento que vence en
+     * 10 días y el número del menú sigue igual hasta el refresco automático.
+     */
+    onCambio?: () => void;
 }
 
-export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
+export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId, onCambio }) => {
     const { hasPermission } = useAuth();
     const canCreate = hasPermission('vehiculos.crear');
     const canEdit = hasPermission('vehiculos.editar');
@@ -92,8 +98,9 @@ export const VehiculoDocumentos: React.FC<Props> = ({ vehiculoId }) => {
             setDocs(d.data.data || []);
             setRevisiones(r.data.data || []);
             setMantenciones(m.data.data || []);
+            onCambio?.();
         } catch { /* silencioso */ }
-    }, [vehiculoId]);
+    }, [vehiculoId, onCambio]);
 
     useEffect(() => { fetchAll(); }, [fetchAll]);
 

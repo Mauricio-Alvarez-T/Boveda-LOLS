@@ -22,6 +22,7 @@ import { useAuth } from '../../context/AuthContext';
 import { Logo } from '../ui/Logo';
 import { useVencimientosVehiculos } from '../../hooks/useVencimientosVehiculos';
 import { VencimientosPanel } from '../vehiculos/VencimientosPanel';
+import { VencimientosBadge } from '../vehiculos/VencimientosBadge';
 import { ThemeToggle } from '../ui/ThemeToggle';
 import { IconButton } from '../ui/IconButton';
 
@@ -155,29 +156,15 @@ export const Sidebar: React.FC<SidebarProps> = ({ isCollapsed, setIsCollapsed, m
                             sobre el ícono, y el clic navega como cualquier otro item. */}
                         {!!item.badge && (
                             (isMobile || !isCollapsed) ? (
-                                /* eslint-disable-next-line no-restricted-syntax -- abre el panel sin navegar */
-                                <button
-                                    type="button"
+                                <VencimientosBadge
+                                    total={item.badge}
+                                    vencidos={item.badgeUrgente ? 1 : 0}
                                     onClick={e => { e.preventDefault(); e.stopPropagation(); setShowVencimientos(true); }}
-                                    title={`${item.badge} ${item.badge === 1 ? 'vencimiento' : 'vencimientos'} — ver detalle`}
-                                    aria-label={`Ver ${item.badge} ${item.badge === 1 ? 'vencimiento' : 'vencimientos'}`}
-                                    className={cn(
-                                        "ml-auto shrink-0 min-w-[22px] h-[22px] px-1.5 rounded-full text-micro font-black text-white flex items-center justify-center transition-transform hover:scale-110",
-                                        item.badgeUrgente ? "bg-destructive" : "bg-amber-500"
-                                    )}
-                                >
-                                    {item.badge}
-                                </button>
+                                    className="ml-auto"
+                                />
                             ) : (
-                                <span
-                                    aria-hidden
-                                    className={cn(
-                                        "absolute top-1 right-1 min-w-[18px] h-[18px] px-1 rounded-full text-micro font-black text-white flex items-center justify-center",
-                                        item.badgeUrgente ? "bg-destructive" : "bg-amber-500"
-                                    )}
-                                >
-                                    {item.badge}
-                                </span>
+                                <VencimientosBadge total={item.badge} vencidos={item.badgeUrgente ? 1 : 0}
+                                    className="absolute top-1 right-1" />
                             )
                         )}
                     </NavLink>

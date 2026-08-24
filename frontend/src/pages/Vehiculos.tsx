@@ -17,6 +17,9 @@ import { VenderVehiculoForm } from '../components/vehiculos/VenderVehiculoForm';
 import { EmpresaForm } from '../components/vehiculos/EmpresaForm';
 import { VehiculoDocumentos } from '../components/vehiculos/VehiculoDocumentos';
 import { VehiculosVendidos } from '../components/vehiculos/VehiculosVendidos';
+import { VencimientosBadge } from '../components/vehiculos/VencimientosBadge';
+import { useVencimientosVehiculos } from '../hooks/useVencimientosVehiculos';
+import { textoVencimiento, etiquetaVencimiento } from '../utils/vencimientos';
 import api from '../services/api';
 import type { Vehiculo, EmpresaVehiculo, VehiculoVenta } from '../types/entities';
 import type { ApiResponse } from '../types';
@@ -36,6 +39,41 @@ const VehiculosPage: React.FC = () => {
     const [vehiculos, setVehiculos] = useState<Vehiculo[]>([]);
     const [empresas, setEmpresas] = useState<EmpresaVehiculo[]>([]);
     const [loading, setLoading] = useState(false);
+
+    // Vencimientos: el MISMO número del menú, desglosado por empresa y por
+    // vehículo. Se calcula acá desde `items` (que trae vehiculo_id) en vez de
+    // pedirle agregados al backend: la página ya tiene todos los vehículos con su
+    // empresa, así que agrupar es una pasada por una lista corta.
+    const vencimientos = useVencimientosVehiculos();
+
+    /** vehiculo_id → { total, vencidos, detalle } para el badge y su tooltip. */
+    const vencPorVehiculo = useMemo(() => {
+        const m = new Map<number, { total: number; vencidos: number; detalle: string[] }>();
+        for (const it of vencimientos.items) {
+            if (it.vehiculo_id == null) continue;
+            const acc = m.get(it.vehiculo_id) ?? { total: 0, vencidos: 0, detalle: [] };
+            acc.total++;
+            if (Number(it.dias_restantes) < 0) acc.vencidos++;
+            acc.detalle.push(`${etiquetaVencimiento(it.categoria, it.subtipo)}: ${textoVencimiento(Number(it.dias_restantes)).toLowerCase()}`);
+            m.set(it.vehiculo_id, acc);
+        }
+        return m;
+    }, [vencimientos.items]);
+
+    /** empresa_id (o 'sin') → { total, vencidos }, sumando los de sus vehículos. */
+    const vencPorEmpresa = useMemo(() => {
+        const m = new Map<number | 'sin', { total: number; vencidos: number }>();
+        for (const v of vehiculos) {
+            const c = vencPorVehiculo.get(v.id);
+            if (!c) continue;
+            const key: number | 'sin' = v.empresa_id ?? 'sin';
+            const acc = m.get(key) ?? { total: 0, vencidos: 0 };
+            acc.total += c.total;
+            acc.vencidos += c.vencidos;
+            m.set(key, acc);
+        }
+        return m;
+    }, [vehiculos, vencPorVehiculo]);
 
     // Navegación de 2 niveles:
     //   null            → Nivel 1: grid de empresas
@@ -339,6 +377,8 @@ const VehiculosPage: React.FC = () => {
         acciones?: React.ReactNode,
         // Personalización para grupos que no son empresas (ej. "Vehículos vendidos").
         opts?: { icon?: React.ElementType; unidad?: [singular: string, plural: string] },
+        // Vencimientos de los vehículos de esta empresa (badge junto al nombre).
+        venc?: { total: number; vencidos: number },
     ) => (
         <div key={key}
             onClick={onEnter}
@@ -357,6 +397,7 @@ const VehiculosPage: React.FC = () => {
                 <div className="flex items-start gap-2 min-w-0">
                     <span className="h-2.5 w-2.5 rounded-full shrink-0 mt-1.5" style={{ backgroundColor: color }} />
                     <h3 className="text-sm font-black leading-tight break-words" style={{ color }}>{nombre}</h3>
+                    {venc && <VencimientosBadge total={venc.total} vencidos={venc.vencidos} className="mt-0.5" />}
                 </div>
                 <div className="flex items-center gap-0.5 shrink-0">
                     {acciones}
@@ -441,12 +482,14 @@ const VehiculosPage: React.FC = () => {
                             </>
                         );
                         const activa = empresaActiva?.id === e.id;
-                        return renderEmpresaCard(e.id, e.nombre, e.color, count, activa, () => entrarEmpresa(e), acciones);
+                        return renderEmpresaCard(e.id, e.nombre, e.color, count, activa, () => entrarEmpresa(e), acciones,
+                            undefined, vencPorEmpresa.get(e.id));
                     })}
 
                     {/* Grupo "Sin empresa": sólo aparece si hay vehículos sin asignar */}
                     {conteos.sin > 0 &&
-                        renderEmpresaCard('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, selectedEmpresa === 'sin', () => entrarEmpresa('sin'))}
+                        renderEmpresaCard('sin', 'Sin empresa', SIN_EMPRESA_COLOR, conteos.sin, selectedEmpresa === 'sin',
+                            () => entrarEmpresa('sin'), undefined, undefined, vencPorEmpresa.get('sin'))}
 
                     {/* Grupo "Vehículos vendidos": card fija al final (misma pinta que
                         una empresa); clic → historial de ventas en el panel principal. */}
@@ -495,6 +538,11 @@ const VehiculosPage: React.FC = () => {
                                                 <User className="h-3.5 w-3.5 text-brand-primary shrink-0" /> <span className="break-words min-w-0">{v.conductor_nombre}</span>
                                             </span>
                                         )}
+                                        {(() => {
+                                            const c = vencPorVehiculo.get(v.id);
+                                            // El tooltip dice QUÉ vence, así no hay que abrir la ficha para saberlo.
+                                            return c ? <VencimientosBadge total={c.total} vencidos={c.vencidos} title={c.detalle.join(' · ')} /> : null;
+                                        })()}
                                     </div>
                                     <div className="flex items-center gap-3 mt-1.5 flex-wrap">
                                         <span className="text-caption text-muted-foreground">{v.modelo} {v.anio}</span>
@@ -556,7 +604,7 @@ const VehiculosPage: React.FC = () => {
             </div>
 
             <div className="flex-1 min-h-0 overflow-y-auto space-y-5">
-                <VehiculoDocumentos vehiculoId={selected.id} />
+                <VehiculoDocumentos vehiculoId={selected.id} onCambio={vencimientos.refetch} />
             </div>
         </div>
     ) : null;

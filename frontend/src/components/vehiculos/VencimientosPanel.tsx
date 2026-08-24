@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, Clock, FileText, Wrench, ShieldCheck, ScrollText, ChevronRight } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 import { cn } from '../../utils/cn';
-import { textoVencimiento } from '../../utils/vencimientos';
+import { textoVencimiento, etiquetaVencimiento } from '../../utils/vencimientos';
 import type { VehiculoVencimiento, VehiculoVencimientosResumen } from '../../types/entities';
 
 interface Props {
@@ -13,33 +13,22 @@ interface Props {
     loading?: boolean;
 }
 
-/** Etiqueta e ícono por origen del vencimiento. */
-const META: Record<VehiculoVencimiento['categoria'], { label: string; Icon: React.ElementType }> = {
-    documento:  { label: 'Documento',            Icon: FileText },
-    revision:   { label: 'Revisión',             Icon: ScrollText },
-    mantencion: { label: 'Mantención',           Icon: Wrench },
-    seguro:     { label: 'Seguro',               Icon: ShieldCheck },
-    permiso:    { label: 'Permiso de circulación', Icon: ScrollText },
-};
-
-/** Nombres legibles de los subtipos que se guardan en clave (documentos y revisiones). */
-const SUBTIPOS: Record<string, string> = {
-    permiso_circulacion: 'Permiso de circulación',
-    seguro_terceros: 'Seguro contra terceros',
-    primera_inscripcion: 'Primera inscripción',
-    poliza: 'Póliza',
-    tecnica: 'Revisión técnica',
-    gases: 'Revisión de gases',
-    mecanica: 'Revisión mecánica',
+/** Ícono por origen del vencimiento (el texto lo da `etiquetaVencimiento`). */
+const META: Record<VehiculoVencimiento['categoria'], { Icon: React.ElementType }> = {
+    documento:  { Icon: FileText },
+    revision:   { Icon: ScrollText },
+    mantencion: { Icon: Wrench },
+    seguro:     { Icon: ShieldCheck },
+    permiso:    { Icon: ScrollText },
 };
 
 const fmtFecha = (s: string) => String(s).split('T')[0].split('-').reverse().join('/');
 
 const Fila: React.FC<{ v: VehiculoVencimiento; onIr: () => void }> = ({ v, onIr }) => {
-    const { label, Icon } = META[v.categoria] ?? META.documento;
+    const { Icon } = META[v.categoria] ?? META.documento;
     const vencido = Number(v.dias_restantes) < 0;
     const titulo = v.patente || 'Sin patente';
-    const detalle = [SUBTIPOS[v.subtipo || ''] || v.subtipo || label, [v.marca, v.modelo].filter(Boolean).join(' ')]
+    const detalle = [etiquetaVencimiento(v.categoria, v.subtipo), [v.marca, v.modelo].filter(Boolean).join(' ')]
         .filter(Boolean).join(' · ');
 
     return (

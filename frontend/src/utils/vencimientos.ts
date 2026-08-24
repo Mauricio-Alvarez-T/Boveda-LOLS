@@ -51,3 +51,27 @@ export const textoVencimiento = (dias: number | null): string => {
     if (dias <= DIAS_AVISO_VENCIMIENTO) return `Vence en ${dias}d`;
     return 'Vigente';
 };
+
+/** Nombres legibles de los subtipos que se guardan como clave (documentos y revisiones). */
+export const SUBTIPOS_VENCIMIENTO: Record<string, string> = {
+    permiso_circulacion: 'Permiso de circulación',
+    seguro_terceros: 'Seguro contra terceros',
+    primera_inscripcion: 'Primera inscripción',
+    poliza: 'Póliza',
+    tecnica: 'Revisión técnica',
+    gases: 'Revisión de gases',
+    mecanica: 'Revisión mecánica',
+};
+
+/** Etiqueta por categoría cuando el subtipo no dice nada útil. */
+export const CATEGORIAS_VENCIMIENTO: Record<string, string> = {
+    documento: 'Documento',
+    revision: 'Revisión',
+    mantencion: 'Mantención',
+    seguro: 'Seguro',
+    permiso: 'Permiso de circulación',
+};
+
+/** "Revisión de gases" a partir de (categoria, subtipo). Compartido por el panel y los tooltips. */
+export const etiquetaVencimiento = (categoria: string, subtipo?: string | null) =>
+    SUBTIPOS_VENCIMIENTO[subtipo || ''] || subtipo || CATEGORIAS_VENCIMIENTO[categoria] || 'Vencimiento';

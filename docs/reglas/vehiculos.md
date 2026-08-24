@@ -45,8 +45,15 @@ Lógica en `frontend/src/utils/vencimientos.ts` (pura y testeada), chip en
 - El Sidebar muestra `total` junto a "Vehículos" (rojo si `vencidos > 0`, ámbar si solo hay por
   vencer). El número es un **botón**: abre `VencimientosPanel` con el detalle, sin navegar. Menú
   colapsado → el número va sobre el ícono y no es clickeable.
-- Hook `useVencimientosVehiculos`: un solo fetch, silencioso (un error deja el badge en 0, no toast),
-  refresco cada 10 min, y no llama nada sin permiso `vehiculos.ver`.
+- Hook `useVencimientosVehiculos`: fetch silencioso (un error deja el badge en 0, no toast), refresco
+  cada 10 min, y no llama nada sin permiso `vehiculos.ver`.
+- **El mismo número, desglosado en 3 niveles** (pedido 2026-08-24), todos con `VencimientosBadge` para
+  que se lean como la misma cosa: menú → tarjeta de empresa → fila del vehículo. El desglose se calcula
+  **en la página** agrupando `items` por `vehiculo_id` y mapeando a empresa con la lista de vehículos
+  que ya tiene cargada — no hay endpoints de agregados. El badge del vehículo lleva en el tooltip QUÉ
+  vence ("Revisión de gases: venció hace 16d").
+- `VehiculoDocumentos` recibe `onCambio` y la página le pasa `refetch`: al guardar o borrar un
+  documento los contadores se actualizan solos, sin esperar el refresco de 10 minutos.
 
 ## Alertas por email
 
